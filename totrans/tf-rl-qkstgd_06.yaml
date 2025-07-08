@@ -3,6 +3,7 @@
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 异步方法 - A3C 和 A2C
 - en: We looked at the DDPG algorithm in the previous chapter. One of the main drawbacks
     of the DDPG algorithm (as well as the DQN algorithm that we saw earlier) is the
     use of a replay buffer to obtain independent and identically distributed samples
@@ -22,66 +23,83 @@
   id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在上一章中看过 DDPG 算法。DDPG 算法（以及之前看到的 DQN 算法）的一个主要缺点是使用重放缓冲区来获取独立同分布的数据样本进行训练。使用重放缓冲区会消耗大量内存，这在强健的
+    RL 应用中是不可取的。为了解决这个问题，Google DeepMind 的研究人员提出了一种叫做 **异步优势演员评论家**（**A3C**）的在线算法。A3C
+    不使用重放缓冲区；而是使用并行工作处理器，在这里创建环境的不同实例并收集经验样本。一旦收集到有限且固定数量的样本，它们将用于计算策略梯度，并异步发送到中央处理器更新策略。更新后的策略随后会发送回工作处理器。使用并行处理器体验环境的不同场景可以产生独立同分布的样本，这些样本可以用来训练策略。本章将介绍
+    A3C，同时也会简要提到它的一个变种，叫做 **优势演员评论家**（**A2C**）。
 - en: 'The following topics will be covered in this chapter:'
   id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章将涵盖以下主题：
 - en: The A3C algorithm
   id: totrans-3
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: A3C 算法
 - en: The A3C algorithm applied to CartPole
   id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: A3C 算法应用于 CartPole
 - en: The A3C algorithm applied to LunarLander
   id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: A3C 算法应用于 LunarLander
 - en: The A2C algorithm
   id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: A2C 算法
 - en: 'In this chapter, you will learn about the A3C and A2C algorithms, as well as
     how to code them using Python and TensorFlow. We will also apply the A3C algorithm
     to solving two OpenAI Gym problems: CartPole and LunarLander.'
   id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，您将了解 A3C 和 A2C 算法，并学习如何使用 Python 和 TensorFlow 编写代码。我们还将把 A3C 算法应用于解决两个
+    OpenAI Gym 问题：CartPole 和 LunarLander。
 - en: Technical requirements
   id: totrans-8
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: 'To successfully complete this chapter, some knowledge of the following will
     be of great help:'
   id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 要顺利完成本章，以下知识将非常有帮助：
 - en: TensorFlow (version 1.4 or higher)
   id: totrans-10
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: TensorFlow（版本 1.4 或更高）
 - en: Python (version 2 or 3)
   id: totrans-11
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: Python（版本 2 或 3）
 - en: NumPy
   id: totrans-12
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: NumPy
 - en: The A3C algorithm
   id: totrans-13
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: A3C 算法
 - en: As we mentioned earlier, we have parallel workers in A3C, and each worker will
     compute the policy gradients and pass them on to the central (or master) processor.
     The A3C paper also uses the `advantage` function to reduce variance in the policy
@@ -98,21 +116,28 @@
   id: totrans-14
   prefs: []
   type: TYPE_NORMAL
+  zh: 如前所述，A3C 中有并行工作者，每个工作者将计算策略梯度并将其传递给中央（或主）处理器。A3C 论文还使用 `advantage` 函数来减少策略梯度中的方差。`loss`
+    函数由三部分组成，它们加权相加；包括价值损失、策略损失和熵正则化项。价值损失，*L[v]*，是状态值和目标值的 L2 损失，后者是通过折扣奖励和奖励总和计算得出的。策略损失，*L[p]*，是策略分布的对数与
+    `advantage` 函数 *A* 的乘积。熵正则化，*L[e]*，是香农熵，它是策略分布与其对数的乘积，并带有负号。熵正则化项类似于探索的奖励；熵越高，策略的正则化效果越好。这三项的加权分别为
+    0.5、1 和 -0.005。
 - en: Loss functions
   id: totrans-15
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 损失函数
 - en: 'The value loss is computed as the weighted sum of three loss terms: the value
     loss, *L[v]*, the policy loss, *L[p]*, and the entropy regularization term, *L[e]*,
     which are evaluated as follows:'
   id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 值损失计算为三个损失项的加权和：值损失 *L[v]*，策略损失 *L[p]* 和熵正则化项 *L[e]*，它们的计算方式如下：
 - en: '![](img/24dfebf5-0c27-4d51-bdd1-fa075fbf0e84.png)'
   id: totrans-17
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/24dfebf5-0c27-4d51-bdd1-fa075fbf0e84.png)'
 - en: '*L* is the total loss, which has to be minimized. Note that we would like to
     maximize the `advantage` function, so we have a minus sign in *L[p]*, as we are
     minimizing *L*. Likewise, we would like to maximize the entropy term, and since
@@ -120,35 +145,43 @@
   id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: '*L* 是总损失，需要最小化。注意，我们希望最大化 `advantage` 函数，因此在 *L[p]* 中有一个负号，因为我们在最小化 *L*。同样，我们希望最大化熵项，而由于我们在最小化
+    *L*，因此在 *L* 中有一个负号的项 *-0.005 L[e]*。'
 - en: CartPole and LunarLander
   id: totrans-19
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: CartPole 和 LunarLander
 - en: In this section, we will apply A3C to OpenAI Gym's CartPole and LunarLander.
   id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将 A3C 应用于 OpenAI Gym 的 CartPole 和 LunarLander。
 - en: CartPole
   id: totrans-21
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: CartPole
 - en: CartPole consists of a vertical pole on a cart that needs to be balanced by
     moving the cart either to the left or to the right. The state dimension is four
     and the action dimension is two for CartPole.
   id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: CartPole 由一个垂直的杆子和一个推车组成，需要通过将推车向左或向右移动来保持平衡。CartPole 的状态维度为四，动作维度为二。
 - en: Check out the following link for more details on CartPole: [https://gym.openai.com/envs/CartPole-v0/](https://gym.openai.com/envs/CartPole-v0/).
   id: totrans-23
   prefs: []
   type: TYPE_NORMAL
+  zh: 更多关于 CartPole 的详情，请查看以下链接：[https://gym.openai.com/envs/CartPole-v0/](https://gym.openai.com/envs/CartPole-v0/)。
 - en: LunarLander
   id: totrans-24
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: LunarLander
 - en: 'LunarLander, as the name suggests, involves the landing of a lander on the
     lunar surface. For example, when Apollo 11''s Eagle lander touched down on the
     moon''s surface in 1969, the astronauts Neil Armstrong and Buzz Aldrin had to
@@ -164,49 +197,61 @@
   id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: LunarLander，顾名思义，涉及着陆器在月球表面着陆。例如，当阿波罗 11号的鹰号着陆器在1969年着陆月球表面时，宇航员尼尔·阿姆斯特朗和巴兹·奥尔德林必须在下降的最后阶段控制火箭推进器，并安全地将航天器降落到月球表面。之后，阿姆斯特朗走上月球并说道那句如今家喻户晓的话：“*人类的一小步，
+    mankind 的一大步*”。在 LunarLander 中，月球表面有两面黄色旗帜，目标是将航天器降落在这两面旗帜之间。与阿波罗11号的鹰号着陆器不同，LunarLander
+    的燃料是无限的。LunarLander 的状态维度为八，动作维度为四，四个动作分别是：不做任何操作、启动左侧推进器、启动主推进器，或者启动右侧推进器。
 - en: Check out the following link for a schematic of the environment: [https://gym.openai.com/envs/LunarLander-v2/](https://gym.openai.com/envs/LunarLander-v2/).
   id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 查看以下链接，获取环境的示意图：[https://gym.openai.com/envs/LunarLander-v2/](https://gym.openai.com/envs/LunarLander-v2/)。
 - en: The A3C algorithm applied to CartPole
   id: totrans-27
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: A3C 算法应用于 CartPole
 - en: 'Here, we will code A3C in TensorFlow and apply it so that we can train an agent
     to learn the CartPole problem. The following code files will be required to code:'
   id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，我们将用 TensorFlow 编写 A3C 并应用它，以便训练一个代理来学习 CartPole 问题。编写代码时需要以下代码文件：
 - en: '`cartpole.py`: This will start the training or testing process'
   id: totrans-29
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`cartpole.py`：此文件将启动训练或测试过程'
 - en: '`a3c.py`: This is where the A3C algorithm is coded'
   id: totrans-30
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`a3c.py`：此文件中编写了 A3C 算法'
 - en: '`utils.py`: This includes utility functions'
   id: totrans-31
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '`utils.py`：此文件包含实用函数'
 - en: Coding cartpole.py
   id: totrans-32
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 编写 cartpole.py
 - en: 'We will now code `cartpole.py`. Follow these steps to get started:'
   id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们将开始编写 `cartpole.py`。请按照以下步骤开始：
 - en: 'First, we import the packages:'
   id: totrans-34
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 首先，我们导入相关包：
 - en: '[PRE0]'
   id: totrans-35
   prefs: []
@@ -222,6 +267,9 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 接下来，我们设置问题的参数。我们只需训练 `200` 个回合（没错，CartPole 是个简单问题！）。我们将折扣因子 gamma 设置为 `0.99`。CartPole
+    的状态和动作维度分别为 `4` 和 `2`。如果你想加载一个预训练的模型并继续训练，请将 `load_model` 设置为 `True`；如果从头开始训练，请将其设置为
+    `False`。我们还将设置 `model_path`：
 - en: '[PRE1]'
   id: totrans-37
   prefs: []
