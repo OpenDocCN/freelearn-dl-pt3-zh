@@ -104,59 +104,59 @@ R 2 = 1 − R res _ R tot
 
 1.  打开名为`Linear_Regression_with_TensorFlow.ipynb`的笔记本。我们将从导入所有必要的库开始：
 
-    ```
+    ```py
     # import tensorflow
     ```
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
-    ```
+    ```py
     from tensorflow import keras
     ```
 
-    ```
+    ```py
     from tensorflow.keras import Sequential
     ```
 
-    ```
+    ```py
     from tensorflow.keras.layers import Dense
     ```
 
-    ```
+    ```py
     print(tf.__version__)
     ```
 
 我们将运行这段代码块。如果一切顺利，我们将看到我们正在使用的 TensorFlow 版本：
 
-```
+```py
 2.12.0
 ```
 
 1.  接下来，我们将导入一些额外的库，这些库将帮助我们简化工作流程：
 
-    ```
+    ```py
     import numpy as np
     ```
 
-    ```
+    ```py
     import pandas as pd
     ```
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     ```
 
-    ```
+    ```py
     import seaborn as sns
     ```
 
-    ```
+    ```py
     from sklearn.model_selection import train_test_split
     ```
 
-    ```
+    ```py
     from sklearn.preprocessing import MinMaxScaler
     ```
 
@@ -164,15 +164,15 @@ R 2 = 1 − R res _ R tot
 
 1.  现在，我们将继续加载数据集，这个数据集是我们从人力资源团队获取的，用于这个项目：
 
-    ```
+    ```py
     #Loading from the course GitHub account
     ```
 
-    ```
+    ```py
     df=pd.read_csv('https://raw.githubusercontent.com/oluwole-packt/datasets/main/salary_dataset.csv')
     ```
 
-    ```
+    ```py
     df.head()
     ```
 
@@ -188,7 +188,7 @@ R 2 = 1 − R res _ R tot
 
 为了能够对数据进行建模，我们需要确保数据是正确的格式（即数值型数据）。此外，我们还需要处理缺失值并去除无关的特征。在实际应用中，数据预处理通常需要很长时间。你会反复听到这一点，且这是真的。如果数据没有正确地整理，我们就无法进行建模。让我们深入了解一下，看看如何为当前任务做这些操作。从 DataFrame 中，我们可以立即看到一些无关的列，它们包含员工的个人身份信息。因此，我们将删除这些列，并告知人力资源部门：
 
-```
+```py
 #drop irrelevant columns
 df =df.drop(columns =['Name', 'Phone_Number',
     'Date_Of_Birth'])
@@ -203,14 +203,14 @@ df.head()
 
 我们已成功删除了无关的列，现在可以继续使用 pandas 中的`isnull()`函数检查数据集中的缺失值：
 
-```
+```py
 #check the data for any missing values
 df.isnull().sum()
 ```
 
 当我们运行这个代码块时，可以看到`University`和`Salary`列没有缺失值。然而，`Role`、`Cert`、`Qualification`和`Experience`列存在缺失值：
 
-```
+```py
 Experience       2
 Qualification    1
 University       0
@@ -222,7 +222,7 @@ dtype: int64
 
 处理缺失值有多种方法——从简单地要求 HR 修复遗漏，到使用均值、中位数或众数进行简单的填补或替换。在这个案例研究中，我们将删除含有缺失值的行，因为它是我们数据的一个小子集：
 
-```
+```py
 #drop the null values
 df=df.dropna()
 ```
@@ -235,14 +235,14 @@ df=df.dropna()
 
 现在，我们需要检查确保没有更多的缺失值，使用`isnull()`函数：
 
-```
+```py
 #check for null values
 df.isnull().sum()
 ```
 
 运行代码，看看是否还有缺失值：
 
-```
+```py
 Experience       0
 Qualification    0
 University       0
@@ -254,13 +254,13 @@ dtype: int64
 
 我们可以看到数据集中不再有缺失值。我们的模型要求输入数值型数据，才能对数据进行建模并预测目标变量，因此让我们来看看数据类型：
 
-```
+```py
 df.dtypes
 ```
 
 当我们运行代码时，我们会得到一个输出，显示不同的列及其数据类型：
 
-```
+```py
 Experience       float64
 Qualification     object
 University        object
@@ -272,7 +272,7 @@ dtype: object
 
 从输出中，我们可以看到`experience`和`salary`是数值型数据，因为它们分别是`float`和`int`类型，而`Qualification`、`University`、`Role`和`Cert`是分类数据。这意味着我们还不能训练模型；我们必须找到一种方法将分类数据转换为数值数据。幸运的是，这可以通过一个叫做独热编码（one-hot encoding）的过程来实现。我们可以使用 pandas 中的`get_dummies`函数来完成这一任务：
 
-```
+```py
 #Converting categorical variables to numeric values
 df = pd.get_dummies(df, drop_first=True)
 df.head()
@@ -296,7 +296,7 @@ df.head()
 
 现在，我们将使用`corr()`函数来获取我们精炼数据集的相关性：
 
-```
+```py
 df.corr()
 ```
 
@@ -314,7 +314,7 @@ df.corr()
 
 要构建模型，我们必须将数据分为特征（*X*）和目标（*y*）。为此，我们将运行以下代码块：
 
-```
+```py
 # We split the attributes and labels into X and y variables
 X = df.drop("Salary", axis=1)
 y = df["Salary"]
@@ -324,7 +324,7 @@ y = df["Salary"]
 
 在特征和目标变量定义清楚后，我们可以继续将数据分割为训练集和测试集。这一步很重要，因为它使我们的模型能够从数据中学习模式，从而有效地预测员工的薪资。为了实现这一点，我们使用训练集训练模型，然后在留出的测试集上评估模型的效果。我们在*第一章*《机器学习导论》中讨论过这一点，介绍了机器学习的生命周期。这是一个非常重要的过程，因为我们将使用测试集来评估模型的泛化能力，然后再将其部署到实际应用中。为了将数据分割为训练集和测试集，我们将使用`sklearn`库：
 
-```
+```py
 X_train, X_test, y_train, y_test = train_test_split(X, y,
     test_size=0.2, random_state=10)
 ```
@@ -339,7 +339,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y,
 
 让我们看看如何使用这种三步方法来构建我们的薪资预测模型。我们将从构建我们的模型开始：
 
-```
+```py
 #create a model using the Keras API
 Model_1 = Sequential([Dense(units=1, activation='linear',
     input_shape=[len(X_train.columns)])])
@@ -355,7 +355,7 @@ Model_1 = Sequential([Dense(units=1, activation='linear',
 
 优化器决定了我们的模型将如何根据损失函数和数据更新其内部参数。损失函数的作用是衡量模型在训练数据上的表现。然后，我们使用指标来监测模型在训练步骤和测试步骤上的性能。在这里，我们使用**随机梯度下降** (**SGD**) 作为我们的优化器，MAE 作为我们的损失和评估指标：
 
-```
+```py
 #compile the model
 Model_1.compile(loss=tf.keras.losses.mae,
     optimizer=tf.keras.optimizers.SGD(), metrics = ['mae'])
@@ -365,14 +365,14 @@ Model_1.compile(loss=tf.keras.losses.mae,
 
 现在，让我们适应我们的训练模型：
 
-```
+```py
 #Fit the model
 model_1.fit(X_train, y_train, epochs =50)
 ```
 
 我们使用`model_1.fit`来拟合我们的训练数据和标签，并将尝试的次数（代数）设置为`50`。只需几行代码，我们就生成了一个可以随着时间训练的迷你大脑，从而做出合理的预测。让我们运行代码，看看输出是什么样子的：
 
-```
+```py
 Epoch 46/50
 6/6 [==============================] - 0s 9ms/step - loss: 97378.0391 - mae: 97378.0391
 Epoch 47/50
@@ -387,7 +387,7 @@ Epoch 50/50
 
 我们展示了最后五次尝试（`46`–`50`代）。误差逐渐下降；然而，在`50`代后，我们仍然得到了一个非常大的误差。或许我们可以像在*第二章**《TensorFlow 简介》*中那样训练更多代数的模型，为什么不呢？
 
-```
+```py
 #create a model using the Keras API
 model_2 = Sequential([Dense(units=1, activation='linear',
     input_shape=[len(X_train.columns)])])
@@ -400,7 +400,7 @@ history=model_2.fit(X_train, y_train, epochs =500)
 
 现在，我们只需将代数改为`500`，使用我们的单层模型。激活函数、损失函数和优化器与我们的初始模型相同：
 
-```
+```py
 Epoch 496/500
 6/6 [==============================] - 0s 3ms/step - loss: 97014.8516 - mae: 97014.8516
 Epoch 497/500
@@ -415,7 +415,7 @@ Epoch 500/500
 
 从我们输出的最后五行中，我们可以看到在`500`代后，损失仍然相当高。你可以尝试让模型训练更长时间，看看它会有什么表现。可视化模型的损失曲线也是一个好主意，这样你可以看到它的表现。较低的损失意味着模型表现更好。考虑到这一点，让我们来探讨`model_2`的损失曲线：
 
-```
+```py
 def visualize_model(history, ymin=None, ymax=None):
     # Lets visualize our model
     print(history.history.keys())
@@ -433,7 +433,7 @@ def visualize_model(history, ymin=None, ymax=None):
 
 为了绘制`model_2`，我们只需调用函数来可视化图表，并传入`history_2`：
 
-```
+```py
 visualize_model(history_2)
 ```
 
@@ -451,7 +451,7 @@ visualize_model(history_2)
 
 因此，让我们尝试构建一个更复杂的模型，看看能否比我们的初始模型更快地降低损失值：
 
-```
+```py
 #Set random set
 tf.random.set_seed(10)
 #create a model
@@ -469,7 +469,7 @@ history_3 =model_3.fit(X_train, y_train, epochs=500)
 
 在这里，我们生成了一个新模型。我们在单一神经元层上方堆叠了一个 64 神经元的层。我们还为这一层使用了**整流线性单元**（**ReLU**）激活函数；它的作用是帮助我们的模型学习数据中的更复杂模式，并提高计算效率。第二层是输出层，由一个神经元组成，因为我们在做回归任务（预测连续值）。让我们运行 500 个 epoch，看看是否会有所不同：
 
-```
+```py
 Epoch 496/500
 6/6 [==============================] - 0s 3ms/step - loss: 3651.6785 - mae: 3651.6785
 Epoch 497/500
@@ -492,7 +492,7 @@ Epoch 500/500
 
 让我们放大图表，更好地理解我们的模型发生了什么。
 
-```
+```py
 visualize_model(history_3, ymin=0, ymax=10000)
 ```
 
@@ -506,7 +506,7 @@ visualize_model(history_3, ymin=0, ymax=10000)
 
 也许我们可以再添加一层？让我们试试，看看结果如何。正如我们最初指出的，我们的工作需要大量的实验；只有这样，我们才能学会如何做得更好、更快：
 
-```
+```py
 #Set random set
 tf.random.set_seed(10)
 #create a model
@@ -525,7 +525,7 @@ history_4 =model_4.fit(X_train, y_train, epochs=500)
 
 在这里，我们添加了一个`64`神经元的密集层。请注意，我们在这里也使用了 ReLU 作为激活函数：
 
-```
+```py
 Epoch 496/500
 6/6 [==============================] - 0s 3ms/step - loss: 97384.4141 - mae: 97384.4141
 Epoch 497/500
@@ -548,7 +548,7 @@ Epoch 500/500
 
 了解改进模型输出的效果往往也强烈依赖于数据准备过程是一个很好的做法。因此，让我们在这里应用这一点。我们将暂时跳出模型构建的步骤，来看看在将所有列转换为数值后我们的特征数据：
 
-```
+```py
 X.describe()
 ```
 
@@ -566,7 +566,7 @@ X norm = X − X min _ X max − X min
 
 其中 *X* 是我们的数据，X min 是 *X* 的最小值，X max 是 *X* 的最大值。在我们的案例中，`Experience` 列的 *X* 最小值为 1，最大值为 7。好消息是，我们可以使用 `sklearn` 库中的 `MinMaxScaler` 函数轻松实现这一步骤。接下来，让我们看看如何缩放我们的数据：
 
-```
+```py
 # create a scaler object
 scaler = MinMaxScaler()
 # fit and transform the data
@@ -585,7 +585,7 @@ X_norm.describe()
 
 现在，我们将数据分为训练集和测试集，但这次我们在代码中使用了标准化后的*X*（`X_norm`）：
 
-```
+```py
 # Create training and test sets with the normalized data (X_norm)
 X_train, X_test, y_train, y_test = train_test_split(X_norm,
     y,  test_size=0.2, random_state=10)
@@ -593,7 +593,7 @@ X_train, X_test, y_train, y_test = train_test_split(X_norm,
 
 现在，我们使用从初始实验中获得的最佳模型（`model_3`）。让我们看看标准化后模型的表现：
 
-```
+```py
 #create a model
 model_5 =Sequential([
     Dense(units=64, activation='relu',
@@ -609,7 +609,7 @@ history_5 =model_5.fit(X_train, y_train, epochs=1000)
 
 输出如下：
 
-```
+```py
 Epoch 996/1000
 6/6 [==============================] - 0s 4ms/step - loss: 1459.2953 - mae: 1459.2953
 Epoch 997/1000
@@ -630,7 +630,7 @@ Epoch 1000/1000
 
 此外，如果你查看`model_5`在*图 3.14*中的损失曲线，你会发现损失在大约第 100 个 epoch 之后没有显著下降。与其猜测训练模型的理想 epoch 数，不如设置一个规则，当模型无法改进其性能时就停止训练。而且我们可以看到，`model_5`没有给出我们想要的结果；也许现在是尝试更大模型的好时机，我们可以训练更长时间，并设置一个规则，当模型无法改进其在训练数据上的性能时就停止训练：
 
-```
+```py
 #create a model
 model_6 =Sequential([
     Dense(units=64, activation='relu',
@@ -649,7 +649,7 @@ history_6 =model_6.fit(
 
 在这里，我们使用了一个三层模型，前两层由 64 个神经元组成，输出层只有一个神经元。为了设置停止训练的规则，我们使用了*early stopping*；这个附加参数是在我们将模型拟合到数据时应用的，用来在模型损失在 10 个 epoch 后没有改善时停止训练。这是通过指定监控损失的度量并将`patience`设置为`10`来实现的。Early stopping 也是一种防止过拟合的好技术，因为它在模型无法改进时停止训练；我们将在*第六章*《改进模型》中进一步讨论这个问题。现在让我们看看结果：
 
-```
+```py
 Epoch 25/1000
 6/6 [==============================] - 0s 3ms/step - loss: 84910.6953 - mae: 84910.6953
 Epoch 26/1000
@@ -664,7 +664,7 @@ Epoch 29/1000
 
 尽管我们将训练设置为`1000`个 epoch，但由于`Earlystopping`回调在第 29 个 epoch 时停止了训练，因为它没有观察到损失值的显著下降。虽然这里的结果不是很好，但我们使用了`EarlyStopping`来节省了大量的计算资源和时间。也许现在是尝试不同优化器的好时机。对于下一个实验，我们使用 Adam 优化器。Adam 是深度学习中另一种流行的优化器，因为它能够自适应地控制模型中每个参数的学习率，从而加速模型的收敛：
 
-```
+```py
 #create a model
 model_7 =Sequential([
     Dense(units=64, activation='relu',
@@ -684,7 +684,7 @@ history_7 =model_7.fit(
 
 注意，我们在编译步骤中只更改了优化器为 Adam。让我们看看这个优化器变化的结果：
 
-```
+```py
 Epoch 897/1000
 6/6 [==============================] - 0s 4ms/step - loss: 30.4748 - mae: 30.4748
 Epoch 898/1000
@@ -699,7 +699,7 @@ Epoch 901/1000
 
 仅通过更换优化器，我们记录到了损失值的惊人下降。同时，注意我们并未使用全部`1000`个 epoch，因为训练在`901`个 epoch 时就结束了。让我们再添加一层，或许会看到更好的表现：
 
-```
+```py
 #create a model
 model_8 =Sequential([
     Dense(units=64, activation='relu',
@@ -720,7 +720,7 @@ history_8 =model_8.fit(
 
 在这里，我们添加了一个额外的层，包含`64`个神经元，并使用 ReLU 作为激活函数。其他部分保持不变：
 
-```
+```py
 Epoch 266/1000
 6/6 [==============================] - 0s 4ms/step - loss: 73.3237 - mae: 73.3237
 Epoch 267/1000
@@ -739,7 +739,7 @@ Epoch 270/1000
 
 为了评估我们的模型，我们将编写一个函数，将`evaluate`指标应用于所有八个模型：
 
-```
+```py
 def eval_testing(model):
     return model.evaluate(X_test, y_test)
 models = [model_1, model_2, model_3, model_4, model_5,
@@ -750,7 +750,7 @@ for x in models:
 
 我们将生成一个`eval_testing(model)`函数，该函数以模型作为参数，并使用`evaluate`方法来评估模型在我们的测试数据集上的表现。遍历模型列表时，代码将返回所有八个模型在测试数据上的损失和 MAE 值：
 
-```
+```py
 2/2 [==============================] - 0s 8ms/step - loss: 100682.4609 - mae: 100682.4609
 2/2 [==============================] - 0s 8ms/step - loss: 100567.9453 - mae: 100567.9453
 2/2 [==============================] - 0s 10ms/step - loss: 17986.0801 - mae: 17986.0801
@@ -767,7 +767,7 @@ for x in models:
 
 现在，我们完成了实验并评估了模型，让我们使用`model_7`来预测我们的测试集薪资，并查看它与真实值的对比。为此，我们将使用`predict()`函数：
 
-```
+```py
 #Let's make predictions on our test data
 y_preds=model_7.predict(X_test).flatten()
 y_preds
@@ -775,7 +775,7 @@ y_preds
 
 运行完这段代码后，我们会得到如下所示的数组输出：
 
-```
+```py
 2/2 [==============================] - 0s 9ms/step
 array([ 64498.64 , 131504.89 , 116491.73 ,  72500.13 , 102983.836,
         60504.645,  84503.36 , 119501.664, 112497.734,  63501.168,
@@ -791,7 +791,7 @@ array([ 64498.64 , 131504.89 , 116491.73 ,  72500.13 , 102983.836,
 
 为了清晰起见，我们将构建一个包含模型预测值和真实值的 DataFrame。当你看到我们的模型变得如此优秀时，这应该会非常有趣，甚至有些神奇：
 
-```
+```py
 #Let's make a DataFrame to compare our prediction with the ground truth
 df_predictions = pd.DataFrame({'Ground_Truth': y_test, 
     'Model_prediction': y_preds}, columns=['Ground_Truth', 
@@ -804,7 +804,7 @@ df_predictions = pd.DataFrame({'Ground_Truth': y_test,
 
 我们将使用`head`函数打印出测试集的前 10 个值：
 
-```
+```py
 #Let's look at the top 10 data points in the test set
 df_predictions.sample(10)
 ```
@@ -821,7 +821,7 @@ df_predictions.sample(10)
 
 TensorFlow 的魅力在于我们能够轻松完成复杂的任务。要保存模型，我们只需要一行代码：
 
-```
+```py
 #Saving the model in one line of code
 Model7.save('salarypredictor.h5')
 #Alternate method is
@@ -836,7 +836,7 @@ Model7.save('salarypredictor.h5')
 
 既然我们已经保存了模型，最好通过重新加载它并进行测试来验证它。我们来做一下这个操作。而且，加载模型只需要一行代码：
 
-```
+```py
 #loading the model
 saved_model =tf.keras.models.load_model("/content/salarypredictor.h5")
 ```
@@ -849,7 +849,7 @@ saved_model =tf.keras.models.load_model("/content/salarypredictor.h5")
 
 从*图 3.17*的结果中，我们可以看到我们保存的模型表现得非常好。现在，你可以将结果交给人力资源经理，他们应该会对你的结果感到兴奋。假设人力资源经理希望你使用你的模型来预测新员工的薪资，我们接下来就来做这个：
 
-```
+```py
 #Putting everything into a function for our big task
 def salary_predictor(df):
     df_hires= df.drop(columns=['Name', 'Phone_Number',
@@ -868,7 +868,7 @@ def salary_predictor(df):
 
 我们使用保存的模型生成一个函数。我们只需将到目前为止所覆盖的所有步骤封装到这个函数中，然后返回一个数据框。现在，让我们读取新员工的数据：
 
-```
+```py
 #Load the data
 df_new=pd.read_csv('https://raw.githubusercontent.com/oluwole-packt/datasets/main/new_hires.csv')
 df_new
@@ -882,7 +882,7 @@ df_new
 
 现在，我们将数据传入我们生成的函数，获取新员工的预测薪资：
 
-```
+```py
 #Lets see how much
 salary_predictor(df_new)
 ```

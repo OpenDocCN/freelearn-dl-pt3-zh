@@ -46,14 +46,14 @@ TensorFlow 提供了一个经过 ImageNet 数据集预训练的最新模型列�
 
 在 TensorFlow 中导入预训练模型非常简单，如以下示例所示，其中你加载了`InceptionV3`模型：
 
-```
+```py
 import tensorflow as tf
 from tensorflow.keras.applications import InceptionV3
 ```
 
 现在你已经导入了预训练模型的类，你需要通过指定输入图像的尺寸和`imagenet`作为要加载的预训练权重来实例化它：
 
-```
+```py
 model = InceptionV3(input_shape=(224, 224, 3), \
                     weights='imagenet', include_top=True)
 ```
@@ -62,7 +62,7 @@ model = InceptionV3(input_shape=(224, 224, 3), \
 
 现在你已经实例化了预训练模型，你可以从中进行预测：
 
-```
+```py
 model.predict(input_image)
 ```
 
@@ -70,32 +70,32 @@ model.predict(input_image)
 
 首先，你需要通过指定`include_top=False`来移除这个层：
 
-```
+```py
 model = InceptionV3(input_shape=(224, 224, 3), \
                     weights='imagenet', include_top=False)
 ```
 
 在前面的示例中，你已经加载了一个`InceptionV3`模型。下一步将是*冻结*这个模型的所有层，这样它们的权重就不会被更新：
 
-```
+```py
 model.trainable = False
 ```
 
 在此之后，您将实例化一个新的全连接层，设置所需的单元数量和激活函数。在以下示例中，您希望预测 50 个不同的类别。为此，您创建一个具有 `20` 个单元的密集层，并使用 softmax 作为激活函数：
 
-```
+```py
 top_layer = tf.keras.layers.Dense(20, activation='softmax')
 ```
 
 然后，您需要使用 Keras 的 Sequential API 将这个全连接层添加到您的基础模型中：
 
-```
+```py
 new_model = tf.keras.Sequential([model, top_layer])
 ```
 
 现在，您可以训练这个模型，并且只有顶层的权重会被更新。其他所有层都已被冻结：
 
-```
+```py
 new_model.compile(loss='sparse_categorical_crossentropy', \
                   optimizer=tf.keras.optimizers.Adam(0.001))
 new_model.fit(X_train, t_train, epochs=50)
@@ -117,46 +117,46 @@ new_model.fit(X_train, t_train, epochs=50)
 
 1.  导入 TensorFlow 库：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
 1.  创建一个名为 `file_url` 的变量，包含数据集的链接：
 
-    ```
+    ```py
     file_url = 'https://storage.googleapis.com'\
               '/mledu-datasets/cats_and_dogs_filtered.zip'
     ```
 
 1.  使用 `tf.keras.get_file` 下载数据集，参数为 `'cats_and_dogs.zip'`、`origin=file_url` 和 `extract=True`，并将结果保存到一个名为 `zip_dir` 的变量中：
 
-    ```
+    ```py
     zip_dir = tf.keras.utils.get_file('cats_and_dogs.zip', \
                                       origin=file_url, extract=True)
     ```
 
 1.  导入 `pathlib` 库：
 
-    ```
+    ```py
     import pathlib
     ```
 
 1.  创建一个名为 `path` 的变量，使用 `pathlib.Path(zip_dir).parent` 获取 `cats_and_dogs_filtered` 目录的完整路径：
 
-    ```
+    ```py
     path = pathlib.Path(zip_dir).parent / 'cats_and_dogs_filtered'
     ```
 
 1.  创建两个变量，分别叫做 `train_dir` 和 `validation_dir`，它们分别表示 `train` 和 `validation` 文件夹的完整路径：
 
-    ```
+    ```py
     train_dir = path / 'train'
     validation_dir = path / 'validation'
     ```
 
 1.  创建四个变量，分别叫做 `train_cats_dir`、`train_dogs_dir`、`validation_cats_dir` 和 `validation_dogs_dir`，它们分别表示训练集和验证集中的 `cats` 和 `dogs` 文件夹的完整路径：
 
-    ```
+    ```py
     train_cats_dir = train_dir / 'cats'
     train_dogs_dir = train_dir /'dogs'
     validation_cats_dir = validation_dir / 'cats'
@@ -165,13 +165,13 @@ new_model.fit(X_train, t_train, epochs=50)
 
 1.  导入 `os` 包。接下来的步骤中，您需要计算文件夹中图像的数量：
 
-    ```
+    ```py
     import os
     ```
 
 1.  创建两个变量，分别叫做 `total_train` 和 `total_val`，用于获取训练集和验证集的图像数量：
 
-    ```
+    ```py
     total_train = len(os.listdir(train_cats_dir)) \
                   + len(os.listdir(train_dogs_dir))
     total_val = len(os.listdir(validation_cats_dir)) \
@@ -180,21 +180,21 @@ new_model.fit(X_train, t_train, epochs=50)
 
 1.  从 `tensorflow.keras.preprocessing` 导入 `ImageDataGenerator`：
 
-    ```
+    ```py
     from tensorflow.keras.preprocessing.image
         import ImageDataGenerator
     ```
 
 1.  实例化两个 `ImageDataGenerator` 类，并将它们命名为 `train_image_generator` 和 `validation_image_generator`。这两个类将通过除以 `255` 来重新缩放图像：
 
-    ```
+    ```py
     train_image_generator = ImageDataGenerator(rescale=1./255)
     validation_image_generator = ImageDataGenerator(rescale=1./255)
     ```
 
 1.  创建三个变量，分别叫做 `batch_size`、`img_height` 和 `img_width`，它们的值分别是 `16`、`224` 和 `224`：
 
-    ```
+    ```py
     batch_size = 16
     img_height = 224
     img_width = 224
@@ -202,7 +202,7 @@ new_model.fit(X_train, t_train, epochs=50)
 
 1.  使用`flow_from_directory()`方法创建一个名为`train_data_gen`的数据生成器，并指定批量大小、训练文件夹的路径、目标大小和类别模式：
 
-    ```
+    ```py
     train_data_gen = train_image_generator.flow_from_directory\
                      (batch_size = batch_size, \
                       directory = train_dir, \
@@ -213,7 +213,7 @@ new_model.fit(X_train, t_train, epochs=50)
 
 1.  使用`flow_from_directory()`方法创建一个名为`val_data_gen`的数据生成器，并指定批量大小、验证文件夹的路径、目标大小和类别模式：
 
-    ```
+    ```py
     val_data_gen = validation_image_generator.flow_from_directory\
                    (batch_size = batch_size, \
                     directory = validation_dir, \
@@ -223,7 +223,7 @@ new_model.fit(X_train, t_train, epochs=50)
 
 1.  从`tensorflow.keras`导入`numpy`为`np`，`tensorflow`为`tf`，并导入`layers`：
 
-    ```
+    ```py
     import numpy as np
     import tensorflow as tf
     from tensorflow.keras import layers
@@ -231,20 +231,20 @@ new_model.fit(X_train, t_train, epochs=50)
 
 1.  将`8`（完全是随便设定的）作为 NumPy 和 TensorFlow 的`seed`：
 
-    ```
+    ```py
     np.random.seed(8)
     tf.random.set_seed(8)
     ```
 
 1.  从`tensorflow.keras.applications`导入`NASNETMobile`模型：
 
-    ```
+    ```py
     from tensorflow.keras.applications import NASNetMobile
     ```
 
 1.  使用 ImageNet 权重实例化模型，移除顶层，并指定正确的输入维度：
 
-    ```
+    ```py
     base_model = NASNetMobile(include_top=False, \
                               input_shape=(img_height, img_width, 3),\
                               weights='imagenet')
@@ -252,13 +252,13 @@ new_model.fit(X_train, t_train, epochs=50)
 
 1.  冻结此模型的所有层：
 
-    ```
+    ```py
     base_model.trainable = False
     ```
 
 1.  使用`summary()`方法打印模型的摘要：
 
-    ```
+    ```py
     base_model.summary()
     ```
 
@@ -270,7 +270,7 @@ new_model.fit(X_train, t_train, epochs=50)
 
 1.  创建一个新模型，将`NASNETMobile`模型与两个新的顶层（分别为`500`和`1`个单元）及 ReLU 和 sigmoid 激活函数结合：
 
-    ```
+    ```py
     model = tf.keras.Sequential([base_model,\
                                  layers.Flatten(),
                                  layers.Dense(500, \
@@ -281,7 +281,7 @@ new_model.fit(X_train, t_train, epochs=50)
 
 1.  通过提供`binary_crossentropy`作为`loss`函数，Adam 优化器的学习率为`0.001`，并将`accuracy`作为要显示的指标，来编译模型：
 
-    ```
+    ```py
     model.compile(loss='binary_crossentropy', \
                   optimizer=tf.keras.optimizers.Adam(0.001), \
                   metrics=['accuracy'])
@@ -289,7 +289,7 @@ new_model.fit(X_train, t_train, epochs=50)
 
 1.  拟合模型，提供训练和验证数据生成器，并运行五个周期：
 
-    ```
+    ```py
     model.fit(train_data_gen, \
               steps_per_epoch = total_train // batch_size, \
               epochs=5, \
@@ -321,7 +321,7 @@ new_model.fit(X_train, t_train, epochs=50)
 
 1.  首先，实例化一个没有顶层的预训练`MobileNetV2`模型：
 
-    ```
+    ```py
     from tensorflow.keras.applications import MobileNetV2
     base_model = MobileNetV2(input_shape=(224, 224, 3), \
                              weights='imagenet', include_top=False)
@@ -329,21 +329,21 @@ new_model.fit(X_train, t_train, epochs=50)
 
 1.  接下来，遍历前几层，并通过将其设置为不可训练来冻结它们。在以下示例中，你将只冻结前`100`层：
 
-    ```
+    ```py
     for layer in base_model.layers[:100]:
         layer.trainable = False
     ```
 
 1.  现在，你需要将自定义的顶层添加到基础模型中。在以下示例中，你将预测 20 个不同的类别，因此需要添加一个包含`20`个单元并使用 softmax 激活函数的全连接层：
 
-    ```
+    ```py
     prediction_layer = tf.keras.layers.Dense(20, activation='softmax')
     model = tf.keras.Sequential([base_model, prediction_layer])
     ```
 
 1.  最后，你将编译并训练这个模型：
 
-    ```
+    ```py
     model.compile(loss='sparse_categorical_crossentropy', \
                   optimizer = tf.keras.optimizers.Adam(0.001))
     model.fit(features_train, label_train, epochs=5)
@@ -375,7 +375,7 @@ new_model.fit(X_train, t_train, epochs=50)
 
 1.  创建一个数据生成器，使用以下数据增强：
 
-    ```
+    ```py
     Rescale = 1./255, 
     rotation_range = 40, 
     width_shift_range = 0.1, 
@@ -426,13 +426,13 @@ TensorFlow Hub 是一个由 Google、NVIDIA 和 Kaggle 等出版商共享的 Ten
 
 为了使用它，你首先需要安装它：
 
-```
+```py
 pip install tensorflow-hub
 ```
 
 安装完成后，你可以使用 `load()` 方法加载可用的分类模型，并指定模块的链接：
 
-```
+```py
 import tensorflow_hub as hub
 MODULE_HANDLE = 'https://tfhub.dev/tensorflow/efficientnet'\
                 '/b0/classification/1'
@@ -447,7 +447,7 @@ TensorFlow Hub 提供了一个搜索引擎，帮助你找到特定的模块：[`
 
 默认情况下，从 TensorFlow Hub 加载的模块包含模型的最终层，但没有激活函数。对于分类任务，你需要添加一个激活层。为此，你可以使用 Keras 的 Sequential API。只需使用 `KerasLayer` 类将模型转换为 Keras 层：
 
-```
+```py
 import tensorflow as tf
 model = tf.keras.Sequential([
     hub.KerasLayer(MODULE_HANDLE,input_shape=(224, 224, 3)),
@@ -457,7 +457,7 @@ model = tf.keras.Sequential([
 
 然后，你可以使用最终模型进行预测：
 
-```
+```py
 model.predict(data)
 ```
 
@@ -469,7 +469,7 @@ model.predict(data)
 
 TensorFlow Hub 提供了下载没有最终层的模型的选项。在这种情况下，你将使用 TensorFlow 模块作为特征提取器；你可以在其上设计自定义的最终层。在 TensorFlow Hub 中，用于特征提取的模块被称为特征向量：
 
-```
+```py
 import tensorflow_hub as hub
 MODULE_HANDLE = 'https://tfhub.dev/google/efficientnet/b0'\
                 '/feature-vector/1'
@@ -482,7 +482,7 @@ module = hub.load(MODULE_HANDLE)
 
 一旦加载，你可以通过 Sequential API 将自己的最终层添加到特征向量上：
 
-```
+```py
 model = tf.keras.Sequential([
     hub.KerasLayer(MODULE_HANDLE, input_shape=(224, 224, 3)),
     tf.keras.layers.Dense(20, activation='softmax')
@@ -491,7 +491,7 @@ model = tf.keras.Sequential([
 
 在前面的示例中，你添加了一个包含 `20` 单元的全连接层，并使用了 softmax 激活函数。接下来，你需要编译并训练你的模型：
 
-```
+```py
 model.compile(optimizer=optimizer, \
               loss='sparse_categorical_crossentropy', \
               metrics=['accuracy'])

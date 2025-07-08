@@ -438,7 +438,7 @@
 
 首先，让我们导入所需的库：
 
-```
+```py
 import tensorflow.compat.v1 as tf
 tf.disable_v2_behavior()
 import numpy as np
@@ -447,19 +447,19 @@ import gym
 
 使用 gym 创建倒立摆环境：
 
-```
+```py
 env = gym.make('CartPole-v0') 
 ```
 
 获取状态的形状：
 
-```
+```py
 state_shape = env.observation_space.shape[0] 
 ```
 
 获取动作的数量：
 
-```
+```py
 num_actions = env.action_space.n 
 ```
 
@@ -469,25 +469,25 @@ num_actions = env.action_space.n
 
 设置折扣因子，![](img/B15558_03_190.png)：
 
-```
+```py
 gamma = 0.95 
 ```
 
 定义一个名为 `discount_and_normalize_rewards` 的函数，用于计算折扣和归一化的奖励：
 
-```
+```py
 def discount_and_normalize_rewards(episode_rewards): 
 ```
 
 初始化一个数组来存储折扣奖励：
 
-```
+```py
  discounted_rewards = np.zeros_like(episode_rewards) 
 ```
 
 计算折扣奖励：
 
-```
+```py
  reward_to_go = 0.0
     for i in reversed(range(len(episode_rewards))):
         reward_to_go = reward_to_go * gamma + episode_rewards[i]
@@ -496,7 +496,7 @@ def discount_and_normalize_rewards(episode_rewards):
 
 归一化并返回奖励：
 
-```
+```py
  discounted_rewards -= np.mean(discounted_rewards)
     discounted_rewards /= np.std(discounted_rewards)
 
@@ -507,37 +507,37 @@ def discount_and_normalize_rewards(episode_rewards):
 
 首先，让我们定义状态的占位符：
 
-```
+```py
 state_ph = tf.placeholder(tf.float32, [None, state_shape], name="state_ph") 
 ```
 
 定义动作的占位符：
 
-```
+```py
 action_ph = tf.placeholder(tf.int32, [None, num_actions], name="action_ph") 
 ```
 
 定义折扣奖励的占位符：
 
-```
+```py
 discounted_rewards_ph = tf.placeholder(tf.float32, [None,], name="discounted_rewards") 
 ```
 
 定义第 1 层：
 
-```
+```py
 layer1 = tf.layers.dense(state_ph, units=32, activation=tf.nn.relu) 
 ```
 
 定义第 2 层。请注意，第 2 层的单元数量设置为动作的数量：
 
-```
+```py
 layer2 = tf.layers.dense(layer1, units=num_actions) 
 ```
 
 通过对第 2 层的结果应用 softmax 函数，获得动作空间上的概率分布作为网络的输出：
 
-```
+```py
 prob_dist = tf.nn.softmax(layer2) 
 ```
 
@@ -551,19 +551,19 @@ prob_dist = tf.nn.softmax(layer2)
 
 然而，通常的约定是进行最小化而不是最大化。因此，我们可以通过仅添加一个负号将前面的最大化目标转化为最小化目标。我们可以使用 `tf.nn.softmax_cross_entropy_with_logits_v2` 来实现这一点。因此，我们可以定义负对数策略为：
 
-```
+```py
 neg_log_policy = tf.nn.softmax_cross_entropy_with_logits_v2(logits = layer2, labels = action_ph) 
 ```
 
 现在，让我们定义损失函数：
 
-```
+```py
 loss = tf.reduce_mean(neg_log_policy * discounted_rewards_ph) 
 ```
 
 定义用于最小化损失的训练操作，并使用 Adam 优化器：
 
-```
+```py
 train = tf.train.AdamOptimizer(0.01).minimize(loss) 
 ```
 
@@ -573,104 +573,104 @@ train = tf.train.AdamOptimizer(0.01).minimize(loss)
 
 设置迭代次数：
 
-```
+```py
 num_iterations = 1000 
 ```
 
 启动 TensorFlow 会话：
 
-```
+```py
 with tf.Session() as sess: 
 ```
 
 初始化所有 TensorFlow 变量：
 
-```
+```py
  sess.run(tf.global_variables_initializer()) 
 ```
 
 对每次迭代：
 
-```
+```py
  for i in range(num_iterations): 
 ```
 
 初始化一个空列表，用于存储回合中获得的状态、动作和奖励：
 
-```
+```py
  episode_states, episode_actions, episode_rewards = [],[],[] 
 ```
 
 将`done`设置为`False`：
 
-```
+```py
  done = False 
 ```
 
 初始化`Return`：
 
-```
+```py
  Return = 0 
 ```
 
 通过重置环境初始化状态：
 
-```
+```py
  state = env.reset() 
 ```
 
 当回合尚未结束时：
 
-```
+```py
  while not done: 
 ```
 
 改变状态形状：
 
-```
+```py
  state = state.reshape([1,4]) 
 ```
 
 将状态输入到策略网络中，网络返回动作空间的概率分布作为输出，这就是我们的随机策略![](img/B15558_10_139.png)：
 
-```
+```py
  pi = sess.run(prob_dist, feed_dict={state_ph: state}) 
 ```
 
 现在，我们使用这个随机策略选择一个动作：
 
-```
+```py
  a = np.random.choice(range(pi.shape[1]), p=pi.ravel()) 
 ```
 
 执行所选动作：
 
-```
+```py
  next_state, reward, done, info = env.step(a) 
 ```
 
 渲染环境：
 
-```
+```py
  env.render() 
 ```
 
 更新回报：
 
-```
+```py
  Return += reward 
 ```
 
 对动作进行独热编码：
 
-```
+```py
  action = np.zeros(num_actions)
             action[a] = 1 
 ```
 
 将状态、动作和奖励存储到各自的列表中：
 
-```
+```py
  episode_states.append(state)
             episode_actions.append(action)
             episode_rewards.append(reward) 
@@ -678,19 +678,19 @@ with tf.Session() as sess:
 
 将状态更新为下一个状态：
 
-```
+```py
  state=next_state 
 ```
 
 计算折扣化和归一化后的奖励：
 
-```
+```py
  discounted_rewards= discount_and_normalize_rewards(episode_rewards) 
 ```
 
 定义输入字典：
 
-```
+```py
  feed_dict = {state_ph: np.vstack(np.array(episode_states)),
                      action_ph: np.vstack(np.array(episode_actions)),
                      discounted_rewards_ph: discounted_rewards 
@@ -699,13 +699,13 @@ with tf.Session() as sess:
 
 训练网络：
 
-```
+```py
  loss_, _ = sess.run([loss, train], feed_dict=feed_dict) 
 ```
 
 每 10 次迭代打印一次回报：
 
-```
+```py
  if i%10==0:
             print("Iteration:{}, Return: {}".format(i,Return)) 
 ```

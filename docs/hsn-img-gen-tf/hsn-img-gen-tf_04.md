@@ -106,7 +106,7 @@ GAN 架构与 VAE（参见*第二章*，*变分自编码器*）有一些相似�
 
 以下代码展示了如何实现判别器损失。你可以在 Jupyter notebook `ch3_dcgan.ipynb` 中找到相关代码：
 
-```
+```py
 import tf.keras.losses.binary_crossentropy as bce
 def discriminator_loss(pred_fake, pred_real):
     real_loss = bce(tf.ones_like(pred_real), pred_real)
@@ -135,7 +135,7 @@ def discriminator_loss(pred_fake, pred_real):
 
 我们可以通过与鉴别器相同的数学步骤推导出生成器的损失，这最终会得出与鉴别器损失函数相同的结果，唯一的不同是，真实图像使用标签 1。对于初学者来说，可能会感到困惑，为什么要为伪造图像使用真实标签。如果我们推导出这个公式，或者我们可以理解为，我们想要欺骗鉴别器，让它认为生成的图像是真的，因此我们使用真实标签。代码如下：
 
-```
+```py
     def generator_loss(pred_fake):
         g_loss = bce(tf.ones_like(pred_fake), pred_fake)
         return g_loss
@@ -159,7 +159,7 @@ def discriminator_loss(pred_fake, pred_real):
 
 现在回到 GAN，看看梯度的流动。当我们使用真实图像进行训练时，只有判别器参与——网络输入是一个真实图像，输出是标签 *1*。生成器在这里不起作用，因此我们不能使用 `model.fit()`。然而，我们仍然可以只使用判别器来拟合模型，即 `D.fit()`，这样就不会有阻塞问题。当我们使用假图像时，问题就出现了，梯度通过判别器反向传播到生成器。那么，问题到底是什么呢？让我们将生成器损失和判别器损失放到一起，看看假图像的情况：
 
-```
+```py
 g_loss = bce(tf.ones_like(pred_fake), pred_fake) 
 # generator
 fake_loss = bce(tf.zeros_like(pred_fake), pred_fake) 
@@ -172,7 +172,7 @@ fake_loss = bce(tf.zeros_like(pred_fake), pred_fake)
 
 另一种方法是使用低级代码，这样我们可以控制每个步骤。对于我们的第一个 GAN，我们将使用来自官方 TensorFlow GAN 教程中的低级自定义训练步骤函数（[`www.tensorflow.org/tutorials/generative/dcgan`](https://www.tensorflow.org/tutorials/generative/dcgan)），如下所示：
 
-```
+```py
 def train_step(g_input, real_input):
     with tf.GradientTape() as g_tape,\
          tf.GradientTape() as d_tape:
@@ -189,14 +189,14 @@ def train_step(g_input, real_input):
 
 第二步是使用 tape 梯度计算生成器和判别器的梯度，分别根据它们的损失进行计算：
 
-```
+```py
         gradient_g = g_tape.gradient(g_loss,\ 						G.trainable_variables)
         gradient_d = d_tape.gradient(d_loss,\ 						D.trainable_variables)
 ```
 
 第三步也是最后一步，是使用优化器将梯度应用到变量上：
 
-```
+```py
         G_optimizer.apply_gradients(zip(gradient_g, 					self.G.trainable_variables))
         D_optimizer.apply_gradients(zip(gradient_d, 					self.D.trainable_variables))
 ```
@@ -269,7 +269,7 @@ MNIST 已经在许多机器学习入门教程中被使用，大家都非常熟�
 
 接下来，我们将决定第一个卷积层的通道数。假设我们使用 [512, 256, 128, 1]，其中最后一个通道数是图像通道数。根据这些信息，我们可以得出第一个全连接层的神经元数为 `7 x 7 x 512`。`7x7` 是我们计算出的空间分辨率，`512` 是第一个卷积层的滤波器数量。在全连接层之后，我们将其重塑为 `(7,7,512)`，这样它就可以输入到卷积层。然后，我们只需要定义卷积层的滤波器数量，并添加 batchnorm 和 ReLU，如以下代码所示：
 
-```
+```py
 def Generator(self, z_dim): 
         model = tf.keras.Sequential(name='Generator') 
         model.add(layers.Input(shape=[z_dim])) 
@@ -300,7 +300,7 @@ def Generator(self, z_dim):
 
 判别器的设计非常简单，就像一个普通的分类器 CNN，但使用了泄漏 ReLU 激活函数。实际上，DCGAN 论文中甚至没有提到判别器的架构。根据经验，判别器的层数应该少于或等于生成器的层数，以免判别器过强，导致生成器无法学习。以下是创建判别器的代码：
 
-```
+```py
 def Discriminator(self, input_shape): 
     model = tf.keras.Sequential(name='Discriminator') 
     model.add(layers.Input(shape=input_shape)) 
@@ -427,7 +427,7 @@ WGAN 使用一个新的损失函数，称为**地球搬运工距离**或简称 W
 
 这是判别器输出的平均值，乘以*-1*。我们还可以通过使用*y*i 作为标签来推广，其中*+1 表示真实图像*，而*-1 表示假图像*。因此，我们可以将 Wasserstein 损失实现为一个 TensorFlow Keras 自定义损失函数，如下所示：
 
-```
+```py
     def wasserstein_loss(self, y_true, y_pred):
         w_loss = -tf.reduce_mean(y_true*y_pred)
         return w_loss
@@ -447,7 +447,7 @@ WGAN 使用一个新的损失函数，称为**地球搬运工距离**或简称 W
 
 权重修剪可以通过两种方式实现。一种方法是编写一个自定义约束函数，并在实例化新层时使用它，如下所示：
 
-```
+```py
 class WeightsClip(tf.keras.constraints.Constraint):
     def __init__(self, min_value=-0.01, max_value=0.01):
         self.min_value = min_value
@@ -458,7 +458,7 @@ class WeightsClip(tf.keras.constraints.Constraint):
 
 然后我们可以将函数传递给接受约束函数的层，如下所示：
 
-```
+```py
 model = tf.keras.Sequential(name='critics')        
 model.add(Conv2D(16, 3, strides=2, padding='same', 
                   kernel_constraint=WeightsClip(),
@@ -470,7 +470,7 @@ model.add(BatchNormalization(
 
 然而，在每层创建时添加约束代码可能会使代码看起来臃肿。由于我们不需要挑选要剪裁的层，我们可以使用循环来读取权重并剪裁它们，然后再写回如下：
 
-```
+```py
 for layer in critic.layers:
     weights = layer.get_weights() 
     weights = [tf.clip_by_value(w, -0.01, 0.01) for  			w in weights]
@@ -485,7 +485,7 @@ for layer in critic.layers:
 
 因此，在 WGAN 中，评论家每进行一次生成器训练步骤，就训练五次。为了实现这一点，我们将评论家训练步骤拆分为一个单独的函数，然后可以通过多次循环来执行：
 
-```
+```py
 for _ in range(self.n_critic):
     real_images = next(data_generator)
     critic_loss = self.train_critic(real_images, 						    batch_size)
@@ -493,7 +493,7 @@ for _ in range(self.n_critic):
 
 我们还需要重新调整生成器训练步骤。在我们的 DCGAN 代码中，我们使用两个模型 - 生成器和鉴别器。为了训练生成器，我们还使用梯度带来更新权重。所有这些都相当繁琐。有另一种方法可以实现生成器的训练步骤，即通过将两个模型合并为一个如下所示：
 
-```
+```py
 self.critic = self.build_critic()
 self.critic.trainable = False
 self.generator = self.build_generator()
@@ -507,7 +507,7 @@ self.critic.trainable = True
 
 我们使用 `train_on_batch()` API 执行单次训练步骤，它会自动完成前向传播、损失计算、反向传播和权重更新：
 
-```
+```py
 g_loss = self.model.train_on_batch(g_input,  						  real_labels)
 ```
 
@@ -543,7 +543,7 @@ g_loss = self.model.train_on_batch(g_input,  						  real_labels)
 
 我们通常用 *x* 来表示真实图像，但现在方程中有一个 ![](img/Formula_03_013.png)。这个 ![](img/Formula_03_014.png) 是在真实图像和假图像之间的逐点插值。图像的比例，或者说 epsilon，是从 *[0,1]* 的均匀分布中抽取的：
 
-```
+```py
 epsilon = tf.random.uniform((batch_size,1,1,1))
 interpolates = epsilon*real_images + \ 					(1-epsilon)*fake_images
 ```
@@ -552,7 +552,7 @@ interpolates = epsilon*real_images + \ 					(1-epsilon)*fake_images
 
 项目 ![](img/Formula_03_015.png) 是评论员输出相对于插值的梯度。我们可以再次使用梯度带获取梯度：
 
-```
+```py
 with tf.GradientTape() as gradient_tape:
  	gradient_tape.watch(interpolates) 
 	critic_interpolates = self.critic(interpolates)
@@ -565,7 +565,7 @@ with tf.GradientTape() as gradient_tape:
 
 我们对每个值进行平方，将它们相加，然后取平方根，如下所示：
 
-```
+```py
 grad_loss = tf.square(grad)
 grad_loss = tf.reduce_sum(grad_loss, 				    axis=np.arange(1, 						len(grad)loss.shape)))
 graid_loss = tf.sqrt(grad_loss)
@@ -573,13 +573,13 @@ graid_loss = tf.sqrt(grad_loss)
 
 在执行 `tf.reduce_sum()` 时，我们会排除轴上的第一维，因为该维度是批次大小。惩罚的目的是使梯度范数接近 `1`，这是计算梯度损失的最后一步：
 
-```
+```py
 grad_loss = tf.reduce_mean(tf.square(grad_loss - 1))
 ```
 
 方程中的 lambda 是梯度惩罚与其他评论员损失的比率，论文中设定为 10。现在，我们将所有评论员损失和梯度惩罚加起来进行反向传播并更新权重：
 
-```
+```py
 total_loss = loss_real + loss_fake + LAMBDA * grad_loss
 gradients = total_tape.gradient(total_loss, 						self.critic.variables)
 self.optimizer_critic.apply_gradients(zip(gradients, 						self.critic.variables))
@@ -617,7 +617,7 @@ self.optimizer_critic.apply_gradients(zip(gradients, 						self.critic.variables
 
 批归一化通过统计计算 **(N, H, W)** 沿每个通道产生一个统计量。相比之下，层归一化计算一个样本内所有张量的统计量，即 **(H, W, C)**，因此不会在样本之间产生相关性，在图像生成中效果更好。它是批归一化的替代方案，其中我们将 *Batch* 替换为 *Layer*：
 
-```
+```py
 model.add(layers.BatchNormalization())
 model.add(layers.LayerNormalization())
 ```

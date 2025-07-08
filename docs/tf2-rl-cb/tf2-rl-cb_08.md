@@ -38,7 +38,7 @@
 
 1.  让我们直接进入构建残差神经网络的模板：
 
-    ```
+    ```py
     def resnet_block(
         input_tensor, size, kernel_size, filters, stage, \
          conv_strides=(2, 2), training=None
@@ -66,7 +66,7 @@
 
 1.  使用上面的 ResNet 块模板，我们可以快速构建包含多个 ResNet 块的 ResNet。在本书中，我们将实现一个包含一个 ResNet 块的 ResNet，你可以在代码库中找到实现了多个可配置数量和大小的 ResNet 块的 ResNet。让我们开始并在接下来的几个步骤中完成 ResNet 的实现，每次集中讨论一个重要的概念。首先，让我们定义函数签名：
 
-    ```
+    ```py
     def resnet(num_blocks, img_input=None, classes=10, training=None):
         """Builds the ResNet architecture using provided 
            config"""
@@ -74,7 +74,7 @@
 
 1.  接下来，让我们处理输入图像数据表示中的通道顺序。最常见的维度顺序是：`batch_size` x `channels` x `width` x `height` 或 `batch_size` x `width` x `height` x `channels`。我们将处理这两种情况：
 
-    ```
+    ```py
         if backend.image_data_format() == "channels_first":
             x = layers.Lambda(
                 lambda x: backend.permute_dimensions(x, \
@@ -88,7 +88,7 @@
 
 1.  现在，让我们对输入数据进行零填充，并应用初始层开始处理：
 
-    ```
+    ```py
         x = tf.keras.layers.ZeroPadding2D(padding=(1, 1), \
                                          name="conv1_pad")(x)
         x = tf.keras.layers.Conv2D(16,(3, 3),strides=(1, 1),
@@ -110,7 +110,7 @@
 
 1.  现在是时候使用我们创建的 `resnet_block` 函数来添加 ResNet 块了：
 
-    ```
+    ```py
         x = resnet_block(x, size=num_blocks, kernel_size=3,
             filters=[16, 16], stage=2, conv_strides=(1, 1),
             training=training,)
@@ -124,7 +124,7 @@
 
 1.  作为最终层，我们希望添加一个经过 `softmax` 激活的 `Dense`（全连接）层，节点数量等于任务所需的输出类别数：
 
-    ```
+    ```py
     x = tf.keras.layers.GlobalAveragePooling2D(
                                          name="avg_pool")(x)
         x = tf.keras.layers.Dense(classes,
@@ -139,7 +139,7 @@
 
 1.  在 ResNet 模型构建函数中的最后一步是将这些层封装为一个 TensorFlow 2.x Keras 模型，并返回输出：
 
-    ```
+    ```py
         inputs = img_input
         # Create model.
         model = tf.keras.models.Model(inputs, x, name=f"resnet{6 * num_blocks + 2}")
@@ -148,7 +148,7 @@
 
 1.  使用我们刚才讨论的 ResNet 函数，通过简单地改变块的数量，构建具有不同层深度的深度残差网络变得非常容易。例如，以下是可能的：
 
-    ```
+    ```py
     resnet_mini = functools.partial(resnet, num_blocks=1)
     resnet20 = functools.partial(resnet, num_blocks=3)
     resnet32 = functools.partial(resnet, num_blocks=5)
@@ -158,7 +158,7 @@
 
 1.  定义好我们的模型后，我们可以跳到多 GPU 训练代码。本食谱中的剩余步骤将引导你完成实现过程，帮助你利用机器上的所有可用 GPU 加速训练 ResNet。让我们从导入我们构建的 `ResNet` 模块以及 `tensorflow_datasets` 模块开始：
 
-    ```
+    ```py
     import os
     import sys
     import tensorflow as tf
@@ -170,7 +170,7 @@
 
 1.  我们现在可以选择使用哪个数据集来运行我们的分布式训练管道。在这个食谱中，我们将使用`dmlab`数据集，该数据集包含在 DeepMind Lab 环境中，RL 代理通常观察到的图像。根据你训练机器的 GPU、RAM 和 CPU 的计算能力，你可能想使用一个更小的数据集，比如`CIFAR10`：
 
-    ```
+    ```py
     dataset_name = "dmlab"  # "cifar10" or "cifar100"; See tensorflow.org/datasets/catalog for complete list
     # NOTE: dmlab is large in size; Download bandwidth and # GPU memory to be considered
     datasets, info = tfds.load(name="dmlab", with_info=True,
@@ -183,7 +183,7 @@
 
 1.  下一步需要你全神贯注！我们将选择分布式执行策略。TensorFlow 2.x 将许多功能封装成了一个简单的 API 调用，如下面所示：
 
-    ```
+    ```py
     strategy = tf.distribute.MirroredStrategy()
     print(f"Number of devices: {
                strategy.num_replicas_in_sync}")
@@ -191,7 +191,7 @@
 
 1.  在这一步中，我们将声明关键超参数，你可以根据机器的硬件（例如 RAM 和 GPU 内存）进行调整：
 
-    ```
+    ```py
     num_train_examples = info.splits["train"].num_examples
     num_test_examples = info.splits["test"].num_examples
     BUFFER_SIZE = 1000  # Increase as per available memory
@@ -202,7 +202,7 @@
 
 1.  在开始准备数据集之前，让我们实现一个预处理函数，该函数在将图像传递给神经网络之前执行操作。你可以添加你自己的自定义预处理操作。在这个食谱中，我们只需要首先将图像数据转换为`float32`，然后将图像像素值范围转换为[0, 1]，而不是典型的[0, 255]区间：
 
-    ```
+    ```py
     def preprocess(image, label):
         image = tf.cast(image, tf.float32)
         image /= 255
@@ -211,7 +211,7 @@
 
 1.  我们已经准备好为训练和验证/测试创建数据集划分：
 
-    ```
+    ```py
     train_dataset = (
         dataset_train.map(preprocess).cache().\
             shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
@@ -222,7 +222,7 @@
 
 1.  我们已经到了这个食谱的关键步骤！让我们在分布式策略的范围内实例化并编译我们的模型：
 
-    ```
+    ```py
     with strategy.scope():
         # model = create_model()
         model = create_model("resnet_mini")
@@ -240,7 +240,7 @@
 
 1.  让我们还创建一些回调，用于将日志记录到 TensorBoard，并在训练过程中检查点保存我们的模型参数：
 
-    ```
+    ```py
     checkpoint_dir = "./training_checkpoints"
     checkpoint_prefix = os.path.join(checkpoint_dir, 
                                      "ckpt_{epoch}")
@@ -258,20 +258,20 @@
 
 1.  有了这些，我们已经具备了使用分布式策略训练模型所需的一切。借助 Keras 用户友好的`fit()`API，它就像下面这样简单：
 
-    ```
+    ```py
     model.fit(train_dataset, epochs=12, callbacks=callbacks)
     ```
 
 1.  当执行前面的行时，训练过程将开始。我们也可以使用以下几行手动保存模型：
 
-    ```
+    ```py
     path = "saved_model/"
     model.save(path, save_format="tf")
     ```
 
 1.  一旦我们保存了检查点，加载权重并开始评估模型就变得很容易：
 
-    ```
+    ```py
     model.load_weights(tf.train.latest_checkpoint(checkpoint_dir))
     eval_loss, eval_acc = model.evaluate(eval_dataset)
     print("Eval loss: {}, Eval Accuracy: {}".format(eval_loss, eval_acc))
@@ -279,7 +279,7 @@
 
 1.  为了验证使用分布式策略训练的模型在有复制和没有复制的情况下都能正常工作，我们将在接下来的步骤中使用两种不同的方法加载并评估它。首先，让我们使用我们用来训练模型的（相同的）策略加载不带复制的模型：
 
-    ```
+    ```py
     unreplicated_model = tf.keras.models.load_model(path)
     unreplicated_model.compile(
         loss=tf.keras.losses.\
@@ -293,7 +293,7 @@
 
 1.  接下来，让我们在分布式执行策略的范围内加载模型，这将创建副本并评估模型：
 
-    ```
+    ```py
     with strategy.scope():
         replicated_model = tf.keras.models.load_model(path)
         replicated_model.compile(
@@ -340,7 +340,7 @@
 
 1.  我们首先设置一个描述集群配置参数的配置项，指定我们希望在哪里训练模型。以下代码块已被注释掉，您可以根据集群设置编辑并取消注释，或者如果仅想在单机配置上尝试，可以保持注释状态：
 
-    ```
+    ```py
     # Uncomment the following lines and fill worker details 
     # based on your cluster configuration
     # tf_config = {
@@ -353,13 +353,13 @@
 
 1.  为了利用多台机器的配置，我们将使用 TensorFlow 2.x 的 `MultiWorkerMirroredStrategy`：
 
-    ```
+    ```py
     strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy()
     ```
 
 1.  接下来，让我们声明训练的基本超参数。根据您的集群/计算机配置，随时调整批处理大小和 `NUM_GPUS` 值：
 
-    ```
+    ```py
     NUM_GPUS = 2
     BS_PER_GPU = 128
     NUM_EPOCHS = 60
@@ -373,7 +373,7 @@
 
 1.  为了准备数据集，让我们实现两个快速的函数，用于规范化和增强输入图像：
 
-    ```
+    ```py
     def normalize(x, y):
         x = tf.image.per_image_standardization(x)
         return x, y
@@ -388,7 +388,7 @@
 
 1.  为了简化操作并加快收敛速度，我们将继续使用 CIFAR10 数据集，这是官方 TensorFlow 2.x 示例中用于训练的，但在您探索时可以自由选择其他数据集。一旦选择了数据集，我们就可以生成训练集和测试集：
 
-    ```
+    ```py
     (x, y), (x_test, y_test) = \
           keras.datasets.cifar10.load_data()
     train_dataset = tf.data.Dataset.from_tensor_slices((x,y))
@@ -398,13 +398,13 @@
 
 1.  为了使训练结果可重现，我们将使用固定的随机种子来打乱数据集：
 
-    ```
+    ```py
     tf.random.set_seed(22)
     ```
 
 1.  我们还没有准备好生成训练和验证/测试数据集。我们将使用前一步中声明的已知固定随机种子来打乱数据集，并对训练集应用数据增强：
 
-    ```
+    ```py
     train_dataset = (
         train_dataset.map(augmentation)
         .map(normalize)
@@ -415,7 +415,7 @@
 
 1.  同样，我们将准备测试数据集，但我们不希望对测试图像进行随机裁剪！因此，我们将跳过数据增强，并使用标准化步骤进行预处理：
 
-    ```
+    ```py
     test_dataset = test_dataset.map(normalize).batch(
         BS_PER_GPU * NUM_GPUS, drop_remainder=True
     )
@@ -423,7 +423,7 @@
 
 1.  在我们开始训练之前，我们需要创建一个优化器实例，并准备好输入层。根据任务的需要，您可以使用不同的优化器，例如 Adam：
 
-    ```
+    ```py
     opt = keras.optimizers.SGD(learning_rate=0.1, 
                                momentum=0.9)
     input_shape = (HEIGHT, WIDTH, NUM_CHANNELS)
@@ -432,7 +432,7 @@
 
 1.  最后，我们准备在 `MultiMachineMirroredStrategy` 的作用域内构建模型实例：
 
-    ```
+    ```py
     with strategy.scope():
         model = resnet.resnet56(img_input=img_input, 
                                 classes=NUM_CLASSES)
@@ -445,7 +445,7 @@
 
 1.  为了训练模型，我们使用简单而强大的 Keras API：
 
-    ```
+    ```py
     model.fit(train_dataset, epochs=NUM_EPOCHS)
     ```
 
@@ -453,7 +453,7 @@
 
     # 12.1 保存
 
-    ```
+    ```py
     model.save(path, save_format="tf")
     # 12.2 Load
     loaded_model = tf.keras.models.load_model(path)
@@ -495,7 +495,7 @@
 
 1.  我们将从导入实现这一食谱所需的模块开始：
 
-    ```
+    ```py
     import argparse
     import os
     from datetime import datetime
@@ -515,13 +515,13 @@
 
 1.  我们将使用 OpenAI 的`procgen`环境。让我们也导入它：
 
-    ```
+    ```py
     import procgen  # Import & register procgen Gym envs
     ```
 
 1.  为了使这个食谱更易于配置和运行，让我们添加对命令行参数的支持，并配置一些有用的配置标志：
 
-    ```
+    ```py
     parser = argparse.ArgumentParser(prog="TFRL-Cookbook-Ch9-Distributed-RL-Agent")
     parser.add_argument("--env", default="procgen:procgen-coinrun-v0")
     parser.add_argument("--update-freq", type=int, default=16)
@@ -537,7 +537,7 @@
 
 1.  让我们使用 TensorBoard 摘要写入器进行日志记录：
 
-    ```
+    ```py
     logdir = os.path.join(
         args.logdir, parser.prog, args.env, \
         datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -548,7 +548,7 @@
 
 1.  我们将首先在以下几个步骤中实现`Actor`类，从`__init__`方法开始。你会注意到我们需要在执行策略的上下文中实例化模型：
 
-    ```
+    ```py
     class Actor:
         def __init__(self, state_dim, action_dim, 
         execution_strategy):
@@ -567,7 +567,7 @@
 
 1.  对于 Actor 的策略网络模型，我们将实现一个包含多个`Conv2D`和`MaxPool2D`层的深度卷积神经网络。在这一步我们将开始实现，接下来的几步将完成它：
 
-    ```
+    ```py
         def nn_model(self):
             obs_input = Input(self.state_dim)
             conv1 = Conv2D(
@@ -585,7 +585,7 @@
 
 1.  我们将添加更多的 Conv2D - Pool2D 层，以根据任务的需求堆叠处理层。在这个食谱中，我们将为 procgen 环境训练策略，该环境在视觉上较为丰富，因此我们将堆叠更多的层：
 
-    ```
+    ```py
            conv2 = Conv2D(
                 filters=32,
                 kernel_size=(3, 3),
@@ -617,7 +617,7 @@
 
 1.  现在，我们可以使用一个扁平化层，并为策略网络准备输出头：
 
-    ```
+    ```py
            flat = Flatten()(pool4)
             dense1 = Dense(
                 16, activation="relu", \
@@ -633,7 +633,7 @@
 
 1.  作为构建策略网络神经模型的最后一步，我们将创建输出层并返回一个 Keras 模型：
 
-    ```
+    ```py
             output_discrete_action = Dense(
                 self.action_dim,
                 activation="softmax",
@@ -647,7 +647,7 @@
 
 1.  使用我们在前面步骤中定义的模型，我们可以开始处理状态/观察图像输入，并生成 logits（未归一化的概率）以及 Actor 将采取的动作。让我们实现一个方法来完成这个任务：
 
-    ```
+    ```py
         def get_action(self, state):
             # Convert [Image] to np.array(np.adarray)
             state_np = np.array([np.array(s) for s in state])
@@ -666,7 +666,7 @@
 
 1.  接下来，为了计算驱动学习的替代损失，我们将实现`compute_loss`方法：
 
-    ```
+    ```py
         def compute_loss(self, old_policy, new_policy, 
         actions, gaes):
             log_old_policy = tf.math.log(tf.reduce_sum(
@@ -694,7 +694,7 @@
 
 1.  接下来是一个核心方法，它将所有方法连接在一起以执行训练。请注意，这是每个副本的训练方法，我们将在后续的分布式训练方法中使用它：
 
-    ```
+    ```py
         def train(self, old_policy, states, actions, gaes):
             actions = tf.one_hot(actions, self.action_dim)  
             # One-hot encoding
@@ -715,7 +715,7 @@
 
 1.  为了实现分布式训练方法，我们将使用`tf.function`装饰器来实现一个 TensorFlow 2.x 函数：
 
-    ```
+    ```py
         @tf.function
         def train_distributed(self, old_policy, states,
                               actions, gaes):
@@ -729,7 +729,7 @@
 
 1.  这就完成了我们的`Actor`类实现，接下来我们将开始实现`Critic`类：
 
-    ```
+    ```py
     class Critic:
         def __init__(self, state_dim, execution_strategy):
             self.state_dim = state_dim
@@ -746,7 +746,7 @@
 
 1.  你一定注意到，我们在执行策略的作用域内创建了 Critic 的价值函数模型实例，以支持分布式训练。接下来，我们将开始在以下几个步骤中实现 Critic 的神经网络模型：
 
-    ```
+    ```py
         def nn_model(self):
             obs_input = Input(self.state_dim)
             conv1 = Conv2D(
@@ -764,7 +764,7 @@
 
 1.  与我们的 Actor 模型类似，我们将有类似的 Conv2D-MaxPool2D 层的堆叠，后面跟着带有丢弃的扁平化层：
 
-    ```
+    ```py
             conv2 = Conv2D(filters=32, kernel_size=(3, 3),
                 strides=(1, 1),
                 padding="valid", activation="relu",)(pool1)
@@ -795,7 +795,7 @@
 
 1.  我们将添加值输出头，并将模型作为 Keras 模型返回，以完成我们 Critic 的神经网络模型：
 
-    ```
+    ```py
             value = Dense(
                 1, activation="linear", 
                 kernel_initializer=self.weight_initializer)\
@@ -807,7 +807,7 @@
 
 1.  如你所记得，Critic 的损失是预测的时间差目标与实际时间差目标之间的均方误差。让我们实现一个计算损失的方法：
 
-    ```
+    ```py
         def compute_loss(self, v_pred, td_targets):
             mse = tf.keras.losses.MeanSquaredError(
                      reduction=tf.keras.losses.Reduction.SUM)
@@ -816,7 +816,7 @@
 
 1.  与我们的 Actor 实现类似，我们将实现一个每个副本的`train`方法，然后在后续步骤中用于分布式训练：
 
-    ```
+    ```py
         def train(self, states, td_targets):
             with tf.GradientTape() as tape:
                 v_pred = self.model(states, training=True)
@@ -832,7 +832,7 @@
 
 1.  我们将通过实现`train_distributed`方法来完成`Critic`类的实现，该方法支持分布式训练：
 
-    ```
+    ```py
         @tf.function
         def train_distributed(self, states, td_targets):
             per_replica_losses = self.execution_strategy.run(
@@ -846,7 +846,7 @@
 
 1.  在实现了我们的`Actor`和`Critic`类后，我们可以开始我们的分布式`PPOAgent`实现。我们将分几个步骤实现`PPOAgent`类。让我们从`__init__`方法开始：
 
-    ```
+    ```py
     class PPOAgent:
         def __init__(self, env):
             """Distributed PPO Agent for image observations 
@@ -876,7 +876,7 @@
 
 1.  接下来，我们将实现一个方法来计算**广义优势估计**（**GAE**）的目标：
 
-    ```
+    ```py
         def gae_target(self, rewards, v_values, next_v_value,
         done):
             n_step_targets = np.zeros_like(rewards)
@@ -898,7 +898,7 @@
 
 1.  我们已经准备好开始我们的`train(…)`方法。我们将把这个方法的实现分为以下几个步骤。让我们设置作用域，开始外循环，并初始化变量：
 
-    ```
+    ```py
         def train(self, max_episodes=1000):
             with self.distributed_execution_strategy.scope():
                 with writer.as_default():
@@ -915,7 +915,7 @@
 
 1.  现在，我们可以开始为每个回合执行的循环，直到回合结束：
 
-    ```
+    ```py
                           while not done:
                             self.env.render()
                             logits, action = \
@@ -941,7 +941,7 @@
 
 1.  在每个回合内，如果我们达到了`update_freq`或者刚刚到达了结束状态，我们需要计算 GAE 和 TD 目标。让我们添加相应的代码：
 
-    ```
+    ```py
                              if len(state_batch) >= \
                              args.update_freq or done:
                                 states = np.array(
@@ -970,7 +970,7 @@
 
 1.  在相同的执行上下文中，我们需要训练`Actor`和`Critic`：
 
-    ```
+    ```py
                                    for epoch in range(args.\
                                    epochs):
                                     actor_loss = self.actor.\
@@ -999,7 +999,7 @@
 
 1.  最后，我们需要重置跟踪变量并更新我们的回合奖励值：
 
-    ```
+    ```py
 
                                 state_batch = []
                                 action_batch = []
@@ -1011,7 +1011,7 @@
 
 1.  这样，我们的分布式`main`方法就完成了，来完成我们的配方：
 
-    ```
+    ```py
     if __name__ == "__main__":
         env_name = "procgen:procgen-coinrun-v0"
         env = gym.make(env_name, render_mode="rgb_array")
@@ -1045,7 +1045,7 @@ procgen 环境（如 coinrun、fruitbot、jumper、leaper、maze 等）是视觉
 
 要完成这个配方，首先需要激活`tf2rl-cookbook`的 Python/conda 虚拟环境。确保更新环境以匹配食谱代码仓库中的最新 conda 环境规范文件（`tfrl-cookbook.yml`）。为了测试我们在这个配方中构建的基础模块，我们将使用基于书中早期配方实现的 SAC 智能体的`self.sac_agent_base`模块。如果以下`import`语句能正常运行，那么你准备开始了：
 
-```
+```py
 import pickle
 import sys
 import fire
@@ -1065,7 +1065,7 @@ from sac_agent_base import SAC
 
 1.  `ParameterServer`类是一个简单的存储类，用于在分布式训练环境中共享神经网络的参数或权重。我们将实现这个类作为 Ray 的远程 Actor：
 
-    ```
+    ```py
     @ray.remote
     class ParameterServer(object):
         def __init__(self, weights):
@@ -1082,7 +1082,7 @@ from sac_agent_base import SAC
 
 1.  我们还将添加一个方法将权重保存到磁盘：
 
-    ```
+    ```py
         # save weights to disk
         def save_weights(self, name):
             with open(name + "weights.pkl", "wb") as pkl:
@@ -1093,7 +1093,7 @@ from sac_agent_base import SAC
 
 1.  作为下一个构建块，我们将实现`ReplayBuffer`，它可以被分布式代理集群使用。我们将在这一步开始实现，并在接下来的几步中继续：
 
-    ```
+    ```py
     @ray.remote
     class ReplayBuffer:
         """
@@ -1114,7 +1114,7 @@ from sac_agent_base import SAC
 
 1.  接下来，我们将实现一个方法，将新经验存储到重放缓冲区：
 
-    ```
+    ```py
         def store(self, obs, act, rew, next_obs, done):
             self.cur_states[self.idx] = np.squeeze(obs)
             self.actions[self.idx] = np.squeeze(act)
@@ -1128,7 +1128,7 @@ from sac_agent_base import SAC
 
 1.  为了从重放缓冲区采样一批经验数据，我们将实现一个方法，从重放缓冲区随机采样并返回一个包含采样经验数据的字典：
 
-    ```
+    ```py
         def sample_batch(self, batch_size=32):
             idxs = np.random.randint(0, self.size, 
                                      size=batch_size)
@@ -1142,7 +1142,7 @@ from sac_agent_base import SAC
 
 1.  这完成了我们的`ReplayBuffer`类的实现。现在我们将开始实现一个方法来进行`rollout`，该方法本质上是使用从分布式参数服务器对象中提取的参数和探索策略在 RL 环境中收集经验，并将收集到的经验存储到分布式重放缓冲区中。我们将在这一步开始实现，并在接下来的步骤中完成`rollout`方法的实现：
 
-    ```
+    ```py
     @ray.remote
     def rollout(ps, replay_buffer, config):
         """Collect experience using an exploration policy"""
@@ -1163,7 +1163,7 @@ from sac_agent_base import SAC
 
 1.  在代理初始化并加载完毕，环境实例也准备好后，我们可以开始我们的经验收集循环：
 
-    ```
+    ```py
         for step in range(total_steps):
             if step > config["random_exploration_steps"]:
                 # Use Agent’s policy for exploration after 
@@ -1180,7 +1180,7 @@ from sac_agent_base import SAC
 
 1.  让我们处理`max_ep_len`配置的情况，以指示回合的最大长度，然后将收集的经验存储到分布式重放缓冲区中：
 
-    ```
+    ```py
             done = False if ep_len == config["max_ep_len"]\
                      else done
             # Store experience to replay buffer
@@ -1190,7 +1190,7 @@ from sac_agent_base import SAC
 
 1.  最后，在回合结束时，使用参数服务器同步行为策略的权重：
 
-    ```
+    ```py
             obs = next_obs
             if done or (ep_len == config["max_ep_len"]):
                 """
@@ -1205,7 +1205,7 @@ from sac_agent_base import SAC
 
 1.  这完成了`rollout`方法的实现，我们现在可以实现一个运行训练循环的`train`方法：
 
-    ```
+    ```py
     @ray.remote(num_gpus=1, max_calls=1)
     def train(ps, replay_buffer, config):
         agent = SAC(config["obs_shape"], \
@@ -1225,7 +1225,7 @@ from sac_agent_base import SAC
 
 1.  我们的配方中的最后一个模块是`main`函数，它将迄今为止构建的所有模块整合起来并执行。我们将在这一步开始实现，并在剩下的步骤中完成。让我们从`main`函数的参数列表开始，并将参数捕获到配置字典中：
 
-    ```
+    ```py
     def main(
         env="MountainCarContinuous-v0",
         epochs=1000,
@@ -1253,7 +1253,7 @@ from sac_agent_base import SAC
 
 1.  接下来，创建一个所需环境的实例，获取状态和观察空间，初始化 ray，并初始化一个随机策略-演员-评论家（Stochastic Actor-Critic）代理。注意，我们初始化的是一个单节点的 ray 集群，但你也可以使用节点集群（本地或云端）来初始化 ray：
 
-    ```
+    ```py
         env = gym.make(config["env"])
         config["obs_shape"] = env.observation_space.shape
         config["action_space"] = env.action_space
@@ -1264,7 +1264,7 @@ from sac_agent_base import SAC
 
 1.  在这一步，我们将初始化`ParameterServer`类的实例和`ReplayBuffer`类的实例：
 
-    ```
+    ```py
         params_server = \
             ParameterServer.remote(agent.actor.get_weights())
         replay_buffer = ReplayBuffer.remote(
@@ -1276,7 +1276,7 @@ from sac_agent_base import SAC
 
 1.  我们现在准备好运行已构建的模块了。我们将首先根据配置参数中指定的工作者数量，启动一系列`rollout`任务，这些任务将在分布式 ray 集群上启动`rollout`过程：
 
-    ```
+    ```py
         task_rollout = [
             rollout.remote(params_server, replay_buffer, 
                            config)
@@ -1288,7 +1288,7 @@ from sac_agent_base import SAC
 
 1.  接下来，我们将启动一个可配置数量的学习者，在 ray 集群上运行分布式训练任务：
 
-    ```
+    ```py
         task_train = [
             train.remote(params_server, replay_buffer, 
                          config)
@@ -1298,7 +1298,7 @@ from sac_agent_base import SAC
 
     上述语句将启动远程训练过程，并立即返回，尽管`train`函数在学习者上需要一定时间来完成。
 
-    ```
+    ```py
     We will wait for the tasks to complete on the main thread before exiting:
         ray.wait(task_rollout)
         ray.wait(task_train)
@@ -1306,14 +1306,14 @@ from sac_agent_base import SAC
 
 1.  最后，让我们定义我们的入口点。我们将使用 Python Fire 库来暴露我们的`main`函数，并使其参数看起来像是一个支持命令行参数的可执行文件：
 
-    ```
+    ```py
     if __name__ == "__main__":
         fire.Fire(main)
     ```
 
     使用前述的入口点，脚本可以从命令行配置并启动。这里提供一个示例供你参考：
 
-    ```
+    ```py
     (tfrl-cookbook)praveen@dev-cluster:~/tfrl-cookbook$python 4_building_blocks_for_distributed_rl_using_ray.py main --env="MountaincarContinuous-v0" --num_workers=8 --num_learners=3
     ```
 
@@ -1337,7 +1337,7 @@ from sac_agent_base import SAC
 
 要完成这个教程，你首先需要激活`tf2rl-cookbook`的 Python/conda 虚拟环境。确保更新环境以匹配最新的 conda 环境规范文件（`tfrl-cookbook.yml`），该文件位于教程代码仓库中。当你使用提供的 conda YAML 规范来设置环境时，Ray、Tune 和 RLLib 将会被安装在你的`tf2rl-cookbook` conda 环境中。如果你希望在其他环境中安装 Tune 和 RLLib，最简单的方法是使用以下命令安装：
 
-```
+```py
  pip install ray[tune,rllib]
 ```
 
@@ -1349,19 +1349,19 @@ from sac_agent_base import SAC
 
 1.  在 OpenAI Gym 环境中启动 RL 代理的典型训练和指定算法名称和环境名称一样简单。例如，要在 CartPole-v4 Gym 环境中训练 PPO 代理，你只需要执行以下命令：
 
-    ```
+    ```py
     --eager flag is also specified, which forces RLLib to use eager execution (the default mode of execution in TensorFlow 2.x).
     ```
 
 1.  让我们尝试在`coinrun`的`procgen`环境中训练一个 PPO 代理，就像我们之前的一个食谱一样：
 
-    ```
+    ```py
     (tfrl-cookbook) praveen@dev-cluster:~/tfrl-cookbook$rllib train --run PPO --env "procgen:procgen-coinrun-v0" --eager
     ```
 
     你会注意到，前面的命令会失败，并给出以下（简化的）错误：
 
-    ```
+    ```py
         ValueError: No default configuration for obs shape [64, 64, 3], you must specify `conv_filters` manually as a model option. Default configurations are only available for inputs of shape [42, 42, K] and [84, 84, K]. You may alternatively want to use a custom model or preprocessor.
     ```
 
@@ -1369,7 +1369,7 @@ from sac_agent_base import SAC
 
 1.  我们将在这一步开始实现自定义模型（`custom_model.py`），并在接下来的几步中完成它。在这一步，让我们导入必要的模块，并实现一个辅助方法，以返回具有特定滤波深度的 Conv2D 层：
 
-    ```
+    ```py
     from ray.rllib.models.tf.tf_modelv2 import TFModelV2
     import tensorflow as tf
     def conv_layer(depth, name):
@@ -1381,7 +1381,7 @@ from sac_agent_base import SAC
 
 1.  接下来，让我们实现一个辅助方法来构建并返回一个简单的残差块：
 
-    ```
+    ```py
     def residual_block(x, depth, prefix):
         inputs = x
         assert inputs.get_shape()[-1].value == depth
@@ -1394,7 +1394,7 @@ from sac_agent_base import SAC
 
 1.  让我们实现另一个方便的函数来构建多个残差块序列：
 
-    ```
+    ```py
     def conv_sequence(x, depth, prefix):
         x = conv_layer(depth, prefix + "_conv")(x)
         x = tf.keras.layers.MaxPool2D(pool_size=3, \
@@ -1409,7 +1409,7 @@ from sac_agent_base import SAC
 
 1.  现在，我们可以开始实现`CustomModel`类，作为 RLLib 提供的 TFModelV2 基类的子类，以便轻松地与 RLLib 集成：
 
-    ```
+    ```py
     class CustomModel(TFModelV2):
         """Deep residual network that produces logits for 
            policy and value for value-function;
@@ -1445,7 +1445,7 @@ from sac_agent_base import SAC
 
 1.  在`__init__`方法之后，我们需要实现`forward`方法，因为它没有被基类（`TFModelV2`）实现，但却是必需的：
 
-    ```
+    ```py
         def forward(self, input_dict, state, seq_lens):
             # explicit cast to float32 needed in eager
             obs = tf.cast(input_dict["obs"], tf.float32)
@@ -1455,7 +1455,7 @@ from sac_agent_base import SAC
 
 1.  我们还将实现一个单行方法来重新调整值函数的输出：
 
-    ```
+    ```py
         def value_function(self):
             return tf.reshape(self._value, [-1])
     ```
@@ -1464,7 +1464,7 @@ from sac_agent_base import SAC
 
 1.  我们将实现一个使用 ray、Tune 和 RLLib 的 Python API 的解决方案（`5.1_training_using_tune_run.py`），这样你就可以在使用它们的命令行工具的同时，也能利用该模型。让我们将实现分为两步。在这一步，我们将导入必要的模块并初始化 ray：
 
-    ```
+    ```py
     import ray
     import sys
     from ray import tune
@@ -1478,7 +1478,7 @@ from sac_agent_base import SAC
 
 1.  在这一步，我们将把我们的自定义模型注册到 RLLib 的`ModelCatlog`中，然后使用它来训练一个带有自定义参数集的 PPO 代理，其中包括强制 RLLib 使用 TensorFlow 2 的`framework`参数。我们还将在脚本结束时关闭 ray：
 
-    ```
+    ```py
     # Register custom-model in ModelCatalog
     ModelCatalog.register_custom_model("CustomCNN", 
                                         CustomModel)
@@ -1500,7 +1500,7 @@ from sac_agent_base import SAC
 
 1.  我们将查看另一个快速食谱（`5_2_custom_training_using_tune.py`）来定制训练循环。我们将把实现分为以下几个步骤，以保持简洁。在这一步，我们将导入必要的库并初始化 ray：
 
-    ```
+    ```py
     import sys
     import ray
     import ray.rllib.agents.impala as impala
@@ -1515,7 +1515,7 @@ from sac_agent_base import SAC
 
 1.  现在，让我们将自定义模型注册到 RLLib 的`ModelCatalog`中，并配置**IMPALA 代理**。我们当然可以使用任何其他的 RLLib 支持的代理，如 PPO 或 SAC：
 
-    ```
+    ```py
     # Register custom-model in ModelCatalog
     ModelCatalog.register_custom_model("CustomCNN", 
                                         CustomModel)
@@ -1531,7 +1531,7 @@ from sac_agent_base import SAC
 
 1.  现在，我们可以实现自定义训练循环，并根据需要在循环中加入任何步骤。我们将通过每隔 n(100) 代（epochs）执行一次训练步骤并保存代理的模型来保持示例循环的简单性：
 
-    ```
+    ```py
     for step in range(1000):
         # Custom training loop
         result = trainer.train()
@@ -1543,7 +1543,7 @@ from sac_agent_base import SAC
 
 1.  请注意，我们可以继续使用保存的检查点和 Ray tune 的简化 run API 来训练代理，如此处示例所示：
 
-    ```
+    ```py
     # Restore agent from a checkpoint and start a new 
     # training run with a different config
     config["lr"] =  ray.tune.grid_search([0.01, 0.001])"]
@@ -1552,7 +1552,7 @@ from sac_agent_base import SAC
 
 1.  最后，让我们关闭 Ray 以释放系统资源：
 
-    ```
+    ```py
     ray.shutdown()
     ```
 

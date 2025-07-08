@@ -106,13 +106,13 @@ deepfake 算法大致可以分为两个部分：
 
 生产流程中的第一步是从视频中提取图像。视频由一系列按固定时间间隔分隔的图像组成。如果你检查一个视频文件的属性，可能会看到它被表示为 `.mp4` 视频文件，保存在目录/images 中，并使用数字序列命名——例如，`image_0001.png`，`image_0002.png`，以此类推：
 
-```
+```py
 ffmpeg  -i video.mp4 /images/image_%04d.png
 ```
 
 或者，我们也可以使用 OpenCV 按帧读取视频，并将每一帧保存为单独的图像文件，如下面的代码所示：
 
-```
+```py
 import cv2
 cap = cv2.VideoCapture('video.mp4')
 count = 0 
@@ -130,14 +130,14 @@ while cap.isOpened():
 
 `face_recognition`是一个基于`dlib`构建的库。默认情况下，它使用`dlib`的 HOG 作为面部检测器，但它也有使用 CNN 的选项。使用它非常简单，如下所示：
 
-```
+```py
 import face_recognition
 coords = face_recognition.face_locations(image, model='cnn')[0]
 ```
 
 这将返回一个包含每个面部在图像中检测到的坐标的列表。在我们的代码中，我们假设图像中只有一个面部。返回的坐标是`css`格式（上、右、下、左），因此我们需要额外的步骤将它们转换为`dlib.rectangle`对象，以便传递给`dlib`的面部标志点检测器，代码如下：
 
-```
+```py
 def _css_to_rect(css):
     return dlib.rectangle(css[3], css[0], css[1], css[2])
 face_coords = _css_to_rect(coords)
@@ -145,7 +145,7 @@ face_coords = _css_to_rect(coords)
 
 我们可以从`dlib.rectangle`中读取边界框坐标，并按如下方式从图像中裁剪面部：
 
-```
+```py
 def crop_face(image, coords, pad=0):
     x_min = coords.left() - pad
     x_max = coords.right() + pad
@@ -166,7 +166,7 @@ def crop_face(image, coords, pad=0):
 
 `dlib`使得面部标志点检测变得容易。我们只需下载并加载模型到`dlib`中，像下面的代码片段一样使用它：
 
-```
+```py
 predictor = dlib.shape_predictor( 		    'shape_predictor_68_face_landmarks.dat') 
 face_shape = predictor(face_image, face_coords)
 ```
@@ -179,7 +179,7 @@ face_shape = predictor(face_image, face_coords)
 
 在 DeepFake 中，我们使用面部标志点进行面部对齐，稍后我会解释。 在此之前，我们需要将`lib`格式的标志点转换为 NumPy 数组：
 
-```
+```py
 def shape_to_np(shape):
     coords = []
     for i in range(0, shape.num_parts):        
@@ -212,13 +212,13 @@ face_shape = shape_to_np(face_shape)
 
 矩阵 *A* 包含线性变换（缩放和旋转）的参数，而矩阵 *B* 用于平移。深度伪造使用 S. Umeyama 的算法来估计这些参数。该算法的源代码包含在我已经上传到 GitHub 仓库的一个文件中。我们通过传递检测到的面部特征点和均值面部特征点来调用该函数，如下方的代码所示。如前所述，我们省略了下巴的特征点，因为它们不包含在均值面中：
 
-```
+```py
 from umeyama import umeyama def get_align_mat(face_landmarks):    return umeyama(face_landmarks[17:], \  			   mean_landmarks, False)[0:2]affine_matrix = get_align_mat(face_image)
 ```
 
 我们现在可以将仿射矩阵传递给 `cv2.warpAffine()` 来执行仿射变换，如下方的代码所示：
 
-```
+```py
 def align_face(face_image, affine_matrix, size, padding=50):
     affine_matrix = affine_matrix * \ 				(size[0] - 2 * padding) 
     affine_matrix[:, 2] += padding
@@ -245,7 +245,7 @@ def align_face(face_image, affine_matrix, size, padding=50):
 
 我们将进行一些随机扭曲，稍微扭曲面部图像，但不会造成严重的变形。以下代码展示了如何进行面部扭曲。你不必理解每一行代码，知道它使用之前描述的映射将面部扭曲为较小维度即可：
 
-```
+```py
 coverage = 200 range_ = numpy.linspace(128 - coverage//2, 128 + coverage//2, 5)mapx = numpy.broadcast_to(range_, (5, 5))
 mapy = mapx.T
 mapx = mapx + numpy.random.normal(size=(5, 5), scale=5)
@@ -265,7 +265,7 @@ warped_image = cv2.remap(image, interp_mapx,  				   interp_mapy, cv2.INTER_LI
 
 正如我们在上一章所学，编码器负责将高维图像转换为低维表示。我们将首先编写一个函数来封装卷积层；在下采样过程中使用 Leaky ReLU 激活：
 
-```
+```py
 def downsample(filters):
     return Sequential([
         Conv2D(filters, kernel_size=5, strides=2, 			padding='same'),
@@ -274,7 +274,7 @@ def downsample(filters):
 
 在常规自编码器实现中，编码器的输出是一个大约大小为 100 到 200 的 1D 向量，但深伪造使用了更大的尺寸 1,024。此外，它将 1D 潜在向量重塑并放大回 3D 激活。因此，编码器的输出不是一个大小为 (1,024) 的 1D 向量，而是一个大小为 (8, 8, 512) 的张量，如下代码所示：
 
-```
+```py
 def Encoder(z_dim=1024):
     inputs = Input(shape=IMAGE_SHAPE)
     x = inputs
@@ -313,7 +313,7 @@ def Encoder(z_dim=1024):
 
 1.  与之前类似，我们首先编写一个上采样模块的函数，其中包含上采样函数、卷积层和 Leaky ReLU，如下代码所示：
 
-    ```
+    ```py
     def upsample(filters, name=''):
         return Sequential([
             UpSampling2D((2,2)),
@@ -324,7 +324,7 @@ def Encoder(z_dim=1024):
 
 1.  然后我们将上采样模块堆叠在一起。最后一层是一个卷积层，将通道数调整为 `3`，以匹配 RGB 颜色通道：
 
-    ```
+    ```py
     def Decoder(input_shape=(8, 8 ,512)):
         inputs = Input(shape=input_shape)
         x = inputs    
@@ -347,7 +347,7 @@ def Encoder(z_dim=1024):
 
 如前所述，DeepFake 模型由两个共享相同编码器的自编码器组成。构建自编码器的第一步是实例化编码器和解码器：
 
-```
+```py
 class deepfake:
     def __init__(self, z_dim=1024):
         self.encoder = Encoder(z_dim)
@@ -357,7 +357,7 @@ class deepfake:
 
 然后，我们通过将编码器与相应的解码器连接在一起来构建两个独立的自编码器，如下所示：
 
-```
+```py
         x = Input(shape=IMAGE_SHAPE)
         self.ae_a = Model(x, self.decoder_a(self.encoder(x)),
                           name=”Autoencoder_A”)
@@ -374,7 +374,7 @@ class deepfake:
 
 现在，我们可以将这两个生成器传递给`train_step()`来训练自编码器模型，如下所示：
 
-```
+```py
 def train_step(self, gen_a, gen_b):
     warped_a, target_a = next(gen_a)
     warped_b, target_b = next(gen_b)
@@ -397,7 +397,7 @@ def train_step(self, gen_a, gen_b):
 
 自编码器生成的新面部是大小为 64×64 的对齐面部，因此我们需要将其扭曲到原始图像中面部的位置、大小和角度。我们将使用在*步骤 1*中从面部提取阶段获得的仿射矩阵。我们将像之前一样使用`cv2.warpAffine`，但这次使用`cv2.WARP_INVERSE_MAP`标志来反转图像变换的方向，如下所示：
 
-```
+```py
 h, w, _ = image.shape
 size = 64
 new_image = np.zeros_like(image, dtype=np.uint8)
@@ -412,7 +412,7 @@ new_image = cv2.warpAffine(np.array(new_face, 						   dtype=np.uint8)
 
 我们将创建的第一个遮罩是围绕原始图像中面部特征点轮廓的遮罩。以下代码首先会找到给定面部特征点的轮廓，然后用 1 填充轮廓内部，并将其作为外壳遮罩返回：
 
-```
+```py
 def get_hull_mask(image, landmarks):
     hull = cv2.convexHull(face_shape)
     hull_mask = np.zeros_like(image, dtype=float)
@@ -428,7 +428,7 @@ def get_hull_mask(image, landmarks):
 
 然后我们使用蒙版从原始图像中去除面孔，并使用以下代码将新面孔填充进去：
 
-```
+```py
 def apply_face(image, new_image, mask):
     base_image = np.copy(image).astype(np.float32)
     foreground = cv2.multiply(mask, new_image)
@@ -441,7 +441,7 @@ def apply_face(image, new_image, mask):
 
 这就是换脸的全过程。我们对从视频中提取的每一帧图像进行换脸处理，然后将图像转换回视频序列。实现这一过程的一个方法是使用 `ffmpeg`，代码如下：
 
-```
+```py
 ffmpeg -start_number 1 -i image_%04d.png -vcodec mpeg4 output.mp4
 ```
 

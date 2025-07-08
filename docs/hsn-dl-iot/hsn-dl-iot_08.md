@@ -166,7 +166,7 @@ HAR 和/FER 的数据收集因多种原因而具有挑战性，其中包括隐�
 
 切换回 JavaScript 控制台，然后将以下 JavaScript 代码片段复制并粘贴到控制台中：
 
-```
+```py
 // Get the jquery into the JavaScript console
 var script = document.createElement('script');
 script.src = "https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js";
@@ -175,7 +175,7 @@ document.getElementsByTagName('head')[0].appendChild(script)
 
 1.  1.  上述代码片段将下载 jQuery JavaScript 库，现在你可以使用 CSS 选择器通过以下代码片段抓取 URL 列表：
 
-```
+```py
 // Grab the chosen URLs
 var urls = $('.rg_di .rg_meta').map(function() { return JSON.parse($(this).text()).ou; });
 
@@ -183,7 +183,7 @@ var urls = $('.rg_di .rg_meta').map(function() { return JSON.parse($(this).text(
 
 1.  1.  最后，使用以下代码片段将 URL 写入文件（每行一个）：
 
-```
+```py
 // write the URls to file (one per line)
 var textToSave = urls.toArray().join('\n');
 var hiddenElement = document.createElement('a');
@@ -197,7 +197,7 @@ hiddenElement.click();
 
 1.  **下载图像：**现在，你已经准备好下载图像，运行`download_images.py`（位于章节代码文件夹中），使用之前下载的`emotion_images_urls.txt`文件：
 
-```
+```py
 python download_images.py emotion_images_urls.txt
 ```
 
@@ -231,7 +231,7 @@ python download_images.py emotion_images_urls.txt
 
 +   **FER 数据集**：我们需要将 FER2013 数据集中面部图像的像素值转换为实际图像，以便进行进一步探索。我们可以使用以下代码将像素值转换为图像：
 
-```
+```py
 import os
 import csv
 import argparse
@@ -267,13 +267,13 @@ print("Finished conversion to {} images".format(id))
 
 我们可以使用以下代码执行前面的代码：
 
-```
+```py
 python imager_converter.py
 ```
 
 一旦我们有了图表，就可以运行以下代码进行图像探索：
 
-```
+```py
 python image_explorer.py
 ```
 
@@ -289,7 +289,7 @@ python image_explorer.py
 
 数据预处理是深度学习流程中的一个关键步骤。HAR 和 FER2013 数据集已经进行了良好的预处理。然而，用例二的第二个数据集的下载图像文件尚未经过预处理。如前图所示，这些图像在大小和像素上不统一，且数据集的大小也不大，因此需要进行数据增强。常见的增强技术包括翻转、旋转、缩放、裁剪、平移和高斯噪声。每个活动都有许多可用的工具。你可以使用这些工具或编写自己的脚本来进行数据增强。一款有用的工具是**Augmentor**，这是一个用于机器学习的 Python 库。我们可以在 Python 中安装该工具并使用它进行增强。以下代码（`data_augmentation.py`）是一个简单的数据增强过程，它执行图像的翻转、旋转、裁剪和调整大小：
 
-```
+```py
 # Import the module
 import Augmentor
 da = Augmentor.Pipeline("data_augmentation_test")
@@ -328,7 +328,7 @@ da.sample(25)
 
 我们可以通过运行 `LSTM -HAR.py` 代码来训练和测试模型，代码位于 `use-case-1` 文件夹中（在对你的环境做必要修改后，例如`data`目录）：
 
-```
+```py
 python LSTM-HAR.py
 ```
 
@@ -336,7 +336,7 @@ python LSTM-HAR.py
 
 我们使用了两种不同架构的卷积神经网络（CNN）来进行智能教室中的基于 FER 的情感检测。第一种是简单的 CNN 架构。为了在 FER2013 数据集上训练模型，我们需要运行`CNN-FER2013.py`，该文件可以在本章的`use-case-2`代码文件夹中找到，或者使用笔记本。要在`CNN-FER2013.py`的所有默认设置下运行*（在对设置做出必要更改后，比如`data`目录）*，我们需要在命令提示符下运行以下命令：
 
-```
+```py
 python CNN-FER2013.py
 ```
 
@@ -346,7 +346,7 @@ python CNN-FER2013.py
 
 我们可以通过运行以下代码在 FER2019 数据集上重新训练 Mobilenet V1：
 
-```
+```py
 python retrain.py \
 
 --output_graph=trained_model_mobilenetv1/retrained_graph.pb \
@@ -357,7 +357,7 @@ python retrain.py \
 
 一旦我们运行前面的命令，它们将生成重新训练的模型（`retrained_graph.pb`）和标签文本（`retrained_labels.txt`）到指定目录中。这也会将模型的摘要信息存储在一个目录中。摘要信息（`--summaries_dir`参数默认值为`retrain_logs`）可以被 TensorBoard 用于可视化模型的不同方面，包括网络结构和性能图。如果我们在终端或命令窗口中输入以下命令，它将启动 TensorBoard：
 
-```
+```py
 tensorboard --logdir retrain_logs
 ```
 
@@ -419,7 +419,7 @@ tensorboard --logdir retrain_logs
 
 +   使用以下命令运行图像分类器（不要忘记更新`test_image`路径）：
 
-```
+```py
 python label_image.py
 ```
 

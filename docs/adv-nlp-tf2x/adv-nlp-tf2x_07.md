@@ -110,7 +110,7 @@ Google 还发布了一个新的 Conceptual Captions 数据集，地址为 [`ai.g
 
 鉴于这些是大文件下载，你可能希望使用最适合你的下载方式。如果你的环境中有 `wget`，你可以使用它来下载文件，方法如下：
 
-```
+```py
 $ wget http://images.cocodataset.org/zips/train2014.zip
 $ wget http://images.cocodataset.org/zips/val2014.zip
 $ wget http://images.cocodataset.org/annotations/annotations_trainval2014.zip 
@@ -118,7 +118,7 @@ $ wget http://images.cocodataset.org/annotations/annotations_trainval2014.zip
 
 请注意，训练集和验证集的注释文件是一个压缩包。下载文件后，需要解压。每个压缩文件都会创建一个文件夹，并将内容放入其中。我们将创建一个名为 `data` 的文件夹，并将所有解压后的内容移动到其中：
 
-```
+```py
 $ mkdir data
 $ mv train2014 data/
 $ mv val2014 data/
@@ -127,7 +127,7 @@ $ mv annotations data/
 
 所有图像都在 `train2014` 或 `val2014` 文件夹中。数据的初步预处理代码位于 `data-download-preprocess.py` 文件中。训练和验证图像的标题可以在 `annotations` 子文件夹中的 `captions_train2014.json` 或 `captions_val2014.json` JSON 文件中找到。这两个文件的格式相似。文件中有四个主要键——info、image、license 和 annotation。image 键包含每个图像的记录，以及关于图像的大小、URL、名称和用于引用该图像的唯一 ID。标题以图像 ID 和标题文本的元组形式存储，并带有一个用于标题的唯一 ID。我们使用 Python 的 `json` 模块来读取和处理这些文件：
 
-```
+```py
 valcaptions = json.load(open(
     './data/annotations/captions_val2014.json', 'r'))
 trcaptions = json.load(open(
@@ -139,7 +139,7 @@ dict_keys(['info', 'images', 'licenses', 'annotations'])
 
 我们的目标是生成一个包含两列的简单文件——一列是图像文件名，另一列是该文件的标题。请注意，验证集包含的图像数量是训练集的一半。在一篇关于图像标题生成的开创性论文《*深度视觉-语义对齐用于生成图像描述*》中，Andrej Karpathy 和 Fei-Fei Li 提出了在保留 5,000 张验证集图像用于测试后，训练所有的训练集和验证集图像。我们将通过将图像名称和 ID 处理成字典来遵循这种方法：
 
-```
+```py
 prefix = "./data/"
 val_prefix = prefix + 'val2014/'
 train_prefix = prefix + 'train2014/'
@@ -156,7 +156,7 @@ truevalimg = {x['id']: x['file_name'] for x in valcaptions['images'][valset:]}
 
 现在，让我们查看训练集和验证集图像的标题，并创建一个合并的列表。我们将创建空列表来存储图像路径和标题的元组：
 
-```
+```py
 # we flatten to (caption, image_path) structure
 data = list()
 errors = list()
@@ -165,7 +165,7 @@ validation = list()
 
 接下来，我们将处理所有的训练标签：
 
-```
+```py
 for item in trcaptions['annotations']:
     if int(item['image_id']) in trimages:
         fpath = train_prefix + trimages[int(item['image_id'])]
@@ -177,7 +177,7 @@ for item in trcaptions['annotations']:
 
 对于验证标签，逻辑类似，但我们需要确保不为已预留的图像添加标签：
 
-```
+```py
 for item in valcaptions['annotations']:
     caption = item['caption']
     if int(item['image_id']) in valimages:
@@ -192,7 +192,7 @@ for item in valcaptions['annotations']:
 
 希望没有任何错误。如果遇到错误，可能是由于下载文件损坏或解压时出错。训练数据集会进行洗牌，以帮助训练。最后，会持久化保存两个 CSV 文件，分别包含训练数据和测试数据：
 
-```
+```py
 # persist for future use
 with open(prefix + 'data.csv', 'w') as file:
     writer = csv.writer(file, quoting=csv.QUOTE_ALL)
@@ -208,7 +208,7 @@ print("VALIDATION/TESTING: Total Number of Captions: {},  Total Number of Images
 print("Errors: ", errors) 
 ```
 
-```
+```py
 TRAINING: Total Number of Captions: 591751,  Total Number of Images: 118287
 VALIDATION/TESTING: Total Number of Captions: 25016,  Total Number of Images: 5000
 Errors:  [] 
@@ -242,7 +242,7 @@ CNN（卷积神经网络）是一种旨在从以下关键特性中学习的架�
 
 这里应用的特定滤波器是边缘检测滤波器。在 CNN 出现之前，计算机视觉（CV）在很大程度上依赖于手工制作的滤波器。Sobel 滤波器是用于边缘检测的特殊滤波器之一。`convolution-example.ipynb`笔记本提供了使用 Sobel 滤波器检测边缘的示例。代码非常简单。在导入模块后，图像文件被加载并转换为灰度图像：
 
-```
+```py
 tulip = Image.open("chap7-tulip.jpg") 
 # convert to gray scale image
 tulip_grey = tulip.convert('L')
@@ -251,7 +251,7 @@ tulip_ar = np.array(tulip_grey)
 
 接下来，我们定义并将 Sobel 滤波器应用到图像中：
 
-```
+```py
 # Sobel Filter
 kernel_1 = np.array([[1, 0, -1],
                      [2, 0, -2],
@@ -329,7 +329,7 @@ ResNet50 模型是在 ImageNet 数据集上训练的。该数据集包含超过 
 
 考虑到我们将处理超过 100,000 张图片，这个过程可能需要一段时间。卷积神经网络（CNN）在计算上受益于 GPU。现在让我们进入代码部分。首先，我们必须设置从上一章的 JSON 注释中创建的 CSV 文件的路径：
 
-```
+```py
 prefix = './data/'
 save_prefix = prefix + "features/"  # for storing prefixes
 annot = prefix + 'data.csv'
@@ -339,7 +339,7 @@ inputs = pd.read_csv(annot, header=None, names=["caption", "image"])
 
 ResNet50 期望每张图像为 224x224 像素，并具有三个颜色通道。来自 COCO 数据集的输入图像具有不同的尺寸。因此，我们必须将输入文件转换为 ResNet 训练时使用的标准：
 
-```
+```py
 # We are going to use the last residual block of # the ResNet50 architecture
 # which has dimension 7x7x2048 and store into individual file
 def load_image(image_path, size=(224, 224)):
@@ -353,14 +353,14 @@ def load_image(image_path, size=(224, 224)):
 
 高亮显示的代码展示了 ResNet50 包提供的一个特殊预处理函数。输入图像中的像素通过 `decode_jpeg()` 函数加载到数组中。每个像素在每个颜色通道的值介于 0 和 255 之间。`preprocess_input()` 函数将像素值归一化，使其均值为 0。由于每张输入图像都有五个描述，我们只应处理数据集中独特的图像：
 
-```
+```py
 uniq_images = sorted(inputs['image'].unique())  
 print("Unique images: ", len(uniq_images))  # 118,287 images 
 ```
 
 接下来，我们必须将数据集转换为 `tf.dat.Dataset`，这样可以更方便地批量处理和使用之前定义的便捷函数处理输入文件：
 
-```
+```py
 image_dataset = tf.data.Dataset.from_tensor_slices(uniq_images)
 image_dataset = image_dataset.map(
     load_image, num_parallel_calls=tf.data.experimental.AUTOTUNE).batch(16) 
@@ -368,7 +368,7 @@ image_dataset = image_dataset.map(
 
 为了高效地处理和生成特征，我们必须一次处理 16 张图片。下一步是加载一个预训练的 ResNet50 模型：
 
-```
+```py
 rs50 = tf.keras.applications.ResNet50(
     include_top=False,
     weights="imagenet", 
@@ -380,7 +380,7 @@ features_extract = tf.keras.Model(new_input, hidden_layer)
 features_extract.summary() 
 ```
 
-```
+```py
 __________________________________________________________________
 Layer (type)                    Output Shape         Param #     Connected to
 ==================================================================
@@ -406,7 +406,7 @@ __________________________________________________________________
 
 接下来，必须设置一个目录来存储提取的特征：
 
-```
+```py
 save_prefix = prefix + "features/"
 try:
     # Create this directory 
@@ -417,7 +417,7 @@ except FileExistsError:
 
 特征提取模型可以处理图像批次并预测输出。每张图像的输出为 2,048 个 7x7 像素的补丁。如果输入的是 16 张图像的批次，那么模型的输出将是一个[16, 7, 7, 2048]维度的张量。我们将每张图像的特征存储为单独的文件，同时将维度展平为[49, 2048]。每张图像现在已经被转换成一个包含 49 个像素的序列，嵌入大小为 2,048。以下代码执行此操作：
 
-```
+```py
 for img, path in tqdm(image_dataset):
     batch_features = features_extract(img)
     batch_features = tf.reshape(batch_features,
@@ -433,7 +433,7 @@ print("Images saved as npy files")
 
 数据预处理的最后一步是训练子词编码器。你应该对这部分非常熟悉，因为它与我们在前几章中做的完全相同：
 
-```
+```py
 # Now, read the labels and create a subword tokenizer with it
 # ~8K vocab size
 cap_tokenizer = tfds.features.text.SubwordTextEncoder.build_from_corpus(
@@ -488,7 +488,7 @@ Transformer 模型不使用 RNN。这使得它们能够在一步计算中得出�
 
 首先，我们必须计算*角度*，如前面的*w*[i]公式所示，如下所示：
 
-```
+```py
 def get_angles(pos, i, d_model):
     angle_rates = 1 / np.power(10000, (2 * (i // 2)) / np.float32(d_model))
     return pos * angle_rates 
@@ -496,7 +496,7 @@ def get_angles(pos, i, d_model):
 
 然后，我们必须计算位置编码的向量：
 
-```
+```py
 def positional_encoding(position, d_model):
     angle_rads = get_angles(np.arange(position)[:, np.newaxis],
                             np.arange(d_model)[np.newaxis, :],
@@ -511,7 +511,7 @@ def positional_encoding(position, d_model):
 
 下一步是计算输入和输出的掩码。让我们暂时关注解码器。由于我们没有使用 RNN，整个输出一次性传入解码器。然而，我们不希望解码器看到未来时间步的数据。所以，输出必须被掩蔽。就编码器而言，如果输入被填充到固定长度，则需要掩码。然而，在我们的情况下，输入总是正好是 49 的长度。所以，掩码是一个固定的全 1 向量：
 
-```
+```py
 def create_padding_mask(seq):
     seq = tf.cast(tf.math.equal(seq, 0), tf.float32)
     # add extra dimensions to add the padding
@@ -537,7 +537,7 @@ def create_look_ahead_mask(size):
 
 在位置编码中，这被称为*d*[model]。在计算键和值向量的缩放点积之后，应用 softmax，softmax 的结果再与值向量相乘。使用掩码来遮盖查询和键的乘积。
 
-```
+```py
 def scaled_dot_product_attention(q, k, v, mask):
     # (..., seq_len_q, seq_len_k)
     matmul_qk = tf.matmul(q, k, transpose_b=True)
@@ -559,7 +559,7 @@ def scaled_dot_product_attention(q, k, v, mask):
 
 多头注意力将来自多个缩放点积注意力单元的输出进行拼接，并通过一个线性层传递。嵌入输入的维度会被头数除以，用于计算键和值向量的维度。多头注意力实现为自定义层。首先，我们必须创建构造函数：
 
-```
+```py
 class MultiHeadAttention(tf.keras.layers.Layer):
     def __init__(self, d_model, num_heads):
         super(MultiHeadAttention, self).__init__()
@@ -575,7 +575,7 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
 请注意，突出显示的`assert`语句。当实例化 Transformer 模型时，选择某些参数至关重要，以确保头数能够完全除尽模型大小或嵌入维度。此层的主要计算在`call()`函数中：
 
-```
+```py
  def call(self, v, k, q, mask):
         batch_size = tf.shape(q)[0]
         q = self.wq(q)  # (batch_size, seq_len, d_model)
@@ -604,7 +604,7 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
 这三行突出显示了如何将向量分割成多个头。`split_heads()`定义如下：
 
-```
+```py
  def split_heads(self, x, batch_size):
         """
         Split the last dimension into (num_heads, depth).
@@ -617,7 +617,7 @@ self.num_heads, self.depth))
 
 这完成了多头注意力的实现。这是 Transformer 模型的关键部分。这里有一个关于 Dense 层的小细节，Dense 层用于聚合来自多头注意力的输出。它非常简单：
 
-```
+```py
 def point_wise_feed_forward_network(d_model, dff):
     return tf.keras.Sequential([
         # (batch_size, seq_len, dff)
@@ -641,7 +641,7 @@ def point_wise_feed_forward_network(d_model, dff):
 
 在*Transformer 模型*部分中展示的图表显示了编码器的结构。编码器通过位置编码和掩码处理输入，然后将其通过多头注意力和前馈层的堆栈进行传递。这个实现偏离了 TensorFlow 教程，因为教程中的输入是文本。在我们的案例中，我们传递的是 49x2,048 的向量，这些向量是通过将图像传入 ResNet50 生成的。主要的区别在于如何处理输入。`VisualEncoder`被构建为一个层，以便最终组成 Transformer 模型：
 
-```
+```py
 class VisualEncoder(tf.keras.layers.Layer):
     def __init__(self, num_layers, d_model, num_heads, dff,
                  maximum_position_encoding=**49**, dropout_rate=0.1,
@@ -672,7 +672,7 @@ class VisualEncoder(tf.keras.layers.Layer):
 
 `VisualEncoder`由多个多头注意力和前馈块组成。我们可以利用一个方便的类`EncoderLayer`来定义这样一个块。根据输入参数创建这些块的堆叠。我们稍后会检查`EncoderLayer`的内部实现。首先，让我们看看输入如何通过`VisualEncoder`传递。`call()`函数用于生成给定输入的输出：
 
-```
+```py
  def call(self, x, training, mask):
         # all inp image sequences are always 49, so mask not needed
         seq_len = tf.shape(x)[1]
@@ -692,7 +692,7 @@ class VisualEncoder(tf.keras.layers.Layer):
 
 由于之前定义的抽象，这段代码相当简单。请注意使用训练标志来开启或关闭 dropout。现在，让我们看看`EncoderLayer`是如何定义的。每个 Encoder 构建体由两个子块组成。第一个子块将输入传递通过多头注意力，而第二个子块则将第一个子块的输出通过 2 层前馈层：
 
-```
+```py
 class EncoderLayer(tf.keras.layers.Layer):
     def __init__(self, d_model, num_heads, dff, rate=0.1):
         super(EncoderLayer, self).__init__()
@@ -734,7 +734,7 @@ LayerNorm 于 2016 年在一篇同名论文中提出，作为 RNN 的 BatchNorm 
 
 解码器也由块组成，和编码器一样。然而，解码器的每个块包含三个子模块，如*Transformer 模型*部分中的图所示。首先是掩蔽多头注意力子模块，接着是多头注意力块，最后是前馈子模块。前馈子模块与编码器子模块相同。我们必须定义一个可以堆叠的解码器层来构建解码器。其构造器如下所示：
 
-```
+```py
 class DecoderLayer(tf.keras.layers.Layer):
     def __init__(self, d_model, num_heads, dff, rate=0.1):
         super(DecoderLayer, self).__init__()
@@ -754,7 +754,7 @@ class DecoderLayer(tf.keras.layers.Layer):
 
 基于前面的变量，三个子模块应该是相当明显的。输入通过这一层，并根据`call()`函数中的计算转换为输出：
 
-```
+```py
  def call(self, x, enc_output, training,
              look_ahead_mask, padding_mask):
         # enc_output.shape == (batch_size, input_seq_len, d_model)
@@ -782,7 +782,7 @@ class DecoderLayer(tf.keras.layers.Layer):
 
 我们将解码器定义为一个由多个`DecoderLayer`块组成的自定义层。Transformer 的结构是对称的。编码器和解码器的块数是相同的。构造器首先被定义：
 
-```
+```py
 class Decoder(tf.keras.layers.Layer):
     def __init__(self, num_layers, d_model, num_heads, 
                  dff, target_vocab_size,
@@ -803,7 +803,7 @@ class Decoder(tf.keras.layers.Layer):
 
 解码器的输出是通过`call()`函数计算的：
 
-```
+```py
  def call(self, x, enc_output, training,
              look_ahead_mask, padding_mask):
         seq_len = tf.shape(x)[1]
@@ -826,7 +826,7 @@ class Decoder(tf.keras.layers.Layer):
 
 Transformer 由编码器、解码器和最终的密集层组成，用于生成跨子词词汇的输出令牌分布：
 
-```
+```py
 class Transformer(tf.keras.Model):
     def __init__(self, num_layers, d_model, num_heads, dff,
                  target_vocab_size, pe_input, pe_target, rate=0.1,
@@ -864,7 +864,7 @@ class Transformer(tf.keras.Model):
 
 以下代码加载我们在预处理步骤中生成的 CSV 文件：
 
-```
+```py
 prefix = './data/'
 save_prefix = prefix + "features/"  # for storing prefixes
 annot = prefix + 'data.csv'
@@ -875,7 +875,7 @@ print("Data file loaded")
 
 数据中的标题使用我们之前生成并保存在磁盘上的 Subword Encoder 进行分词：
 
-```
+```py
 cap_tokenizer = \
           tfds.features.text.SubwordTextEncoder.load_from_file(
                                                     "captions")
@@ -898,7 +898,7 @@ max_len = int(lens.quantile(0.99) + 1)  # for special tokens
 
 最大的标题长度是为了适应 99%的标题长度而生成的。所有的标题都会被截断或填充到这个最大长度：
 
-```
+```py
 start = '<s>'
 end = '</s>'
 inputs['tokenized'] = inputs['caption'].map(
@@ -913,7 +913,7 @@ inputs['tokens'] = inputs.tokenized.map(lambda x: tokenize_pad(x))
 
 图像特征被保存在磁盘上。当训练开始时，这些特征需要从磁盘读取并与编码后的标题一起输入。然后，包含图像特征的文件名被添加到数据集中：
 
-```
+```py
 # now to compute a column with the new name of the saved 
 # image feature file
 inputs['img_features'] = inputs['image'].map(lambda x:
@@ -924,7 +924,7 @@ inputs['img_features'] = inputs['image'].map(lambda x:
 
 创建一个`tf.data.Dataset`，并设置一个映射函数，在枚举批次时读取图像特征：
 
-```
+```py
 captions = inputs.tokens.tolist()
 img_names = inputs.img_features.tolist()
 # Load the numpy file with extracted ResNet50 feature
@@ -945,7 +945,7 @@ dataset = dataset.map(lambda item1, item2: tf.numpy_function(
 
 我们将实例化一个较小的模型，具体来说是层数、注意力头数、嵌入维度和前馈单元的数量：
 
-```
+```py
 # Small Model
 num_layers = 4
 d_model = 128
@@ -955,7 +955,7 @@ num_heads = 8
 
 为了比较，BERT 基础模型包含以下参数：
 
-```
+```py
 # BERT Base Model
 # num_layers = 12
 # d_model = 768
@@ -965,7 +965,7 @@ num_heads = 8
 
 这些设置在文件中可用，但被注释掉了。使用这些设置会减慢训练速度，并需要大量的 GPU 内存。还需要设置其他一些参数，并实例化 Transformer：
 
-```
+```py
 target_vocab_size = cap_tokenizer.vocab_size  
 # already includes start/end tokens
 dropout_rate = 0.1
@@ -981,7 +981,7 @@ transformer = vt.Transformer(num_layers, d_model, num_heads, dff,
 
 这个模型包含超过 400 万个可训练参数。它比我们之前看到的模型要小：
 
-```
+```py
 Model: "transformer"
 _________________________________________________________________
 Layer (type)                 Output Shape              Param #   
@@ -1006,7 +1006,7 @@ _________________________________________________________________
 
 这个学习率调度与*Attention Is All You Need* 论文中提出的完全相同：
 
-```
+```py
 class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
     def __init__(self, d_model, warmup_steps=4000):
         super(CustomSchedule, self).__init__()
@@ -1036,7 +1036,7 @@ optimizer = tf.keras.optimizers.Adam(learning_rate,
 
 损失函数基于类别交叉熵。这是一个常见的损失函数，我们在前几章中也使用过。除了损失函数外，还定义了准确度指标，以跟踪模型在训练集上的表现：
 
-```
+```py
 loss_object = tf.keras.losses.SparseCategoricalCrossentropy(
                               from_logits=True, reduction='none')
 def loss_function(real, pred):
@@ -1056,7 +1056,7 @@ train_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(
 
 我们需要指定一个检查点目录，以便 TensorFlow 保存进度。这里我们将使用 `CheckpointManager`，它会自动管理检查点并存储有限数量的检查点。一个检查点可能非常大。对于小模型，五个检查点大约占用 243 MB 的空间。更大的模型会占用更多的空间：
 
-```
+```py
 checkpoint_path = "./checkpoints/train-small-model-40ep"
 ckpt = tf.train.Checkpoint(transformer=transformer,
                            optimizer=optimizer)
@@ -1070,7 +1070,7 @@ if ckpt_manager.latest_checkpoint:
 
 接下来，必须定义一个方法来为输入图像和字幕创建屏蔽：
 
-```
+```py
 def create_masks(inp, tar):
     # Encoder padding mask - This should just be 1's
     # input shape should be (batch_size, 49, 2048)
@@ -1095,7 +1095,7 @@ def create_masks(inp, tar):
 
 与摘要模型类似，训练时将使用教师强制（teacher forcing）。因此，将使用一个定制的训练函数。首先，我们必须定义一个函数来对一批数据进行训练：
 
-```
+```py
 @tf.function
 def train_step(inp, tar):
     tar_inp = tar[:, :-1]
@@ -1118,7 +1118,7 @@ def train_step(inp, tar):
 
 该方法与摘要训练代码非常相似。现在我们需要做的就是定义训练的轮数（epochs）和批次大小（batch size），然后开始训练：
 
-```
+```py
 # setup training parameters
 BUFFER_SIZE = 1000
 BATCH_SIZE = 64  # can +/- depending on GPU capacity
@@ -1154,7 +1154,7 @@ for epoch in range(EPOCHS):
 
 训练可以从命令行启动：
 
-```
+```py
 (tf24nlp) $ python caption-training.py 
 ```
 
@@ -1174,13 +1174,13 @@ for epoch in range(EPOCHS):
 
 一旦我们完成了适当的导入并可选地初始化了 GPU，就可以加载在数据预处理时保存的子词编码器（Subword Encoder）：
 
-```
+```py
 cap_tokenizer = tfds.features.text.SubwordTextEncoder.load_from_file("captions") 
 ```
 
 现在我们必须实例化 Transformer 模型。这是一个重要步骤，确保参数与检查点中的参数相同：
 
-```
+```py
 # Small Model
 num_layers = 4
 d_model = 128
@@ -1199,7 +1199,7 @@ transformer = vt.Transformer(num_layers, d_model, num_heads, dff,
 
 从检查点恢复模型时需要优化器，即使我们并没有训练模型。因此，我们将重用训练代码中的自定义调度器。由于该代码之前已经提供，这里省略了它。对于检查点，我使用了一个训练了 40 个周期的模型，但在编码器中没有使用位置编码：
 
-```
+```py
 checkpoint_path = "./checkpoints/train-small-model-nope-40ep"
 ckpt = tf.train.Checkpoint(transformer=transformer,
                            optimizer=optimizer)
@@ -1213,7 +1213,7 @@ if ckpt_manager.latest_checkpoint:
 
 最后，我们必须为生成的字幕设置遮罩功能。请注意，前瞻遮罩在推理过程中并没有真正的帮助，因为未来的标记尚未生成：
 
-```
+```py
 # Helper function for creating masks
 def create_masks(inp, tar):
     # Encoder padding mask - This should just be 1's
@@ -1235,7 +1235,7 @@ def create_masks(inp, tar):
 
 推理的主要代码在`evaluate()`函数中。此方法将 ResNet50 生成的图像特征作为输入，并用起始标记来初始化输出字幕序列。然后，它进入循环，每次生成一个标记，同时更新遮罩，直到遇到序列结束标记或达到字幕的最大长度：
 
-```
+```py
 def evaluate(inp_img, max_len=21):
     start_token = cap_tokenizer.encode("<s>")[0]
     end_token = cap_tokenizer.encode("</s>")[0]
@@ -1274,7 +1274,7 @@ def evaluate(inp_img, max_len=21):
 
 使用一个包装方法来调用评估方法并输出字幕：
 
-```
+```py
 def caption(image):
     end_token = cap_tokenizer.encode("</s>")[0]
     result, attention_weights = evaluate(image)
@@ -1286,7 +1286,7 @@ def caption(image):
 
 现在唯一剩下的就是实例化一个 ResNet50 模型，以便从图像文件中动态提取特征：
 
-```
+```py
 rs50 = tf.keras.applications.ResNet50(
     include_top=False,
     weights="imagenet",  # no pooling
@@ -1299,7 +1299,7 @@ features_extract = tf.keras.Model(new_input, hidden_layer)
 
 终于到了关键时刻！让我们在一张图像上尝试一下模型。我们将加载图像，对其进行 ResNet50 预处理，并从中提取特征：
 
-```
+```py
 # from keras
 image = load_img("./beach-surf.jpg", target_size=(224, 224)) 
 image = img_to_array(image)

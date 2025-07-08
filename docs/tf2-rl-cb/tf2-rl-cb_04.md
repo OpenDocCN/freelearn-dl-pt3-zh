@@ -28,7 +28,7 @@
 
 为完成这个食谱，请确保你使用的是最新版本。你需要激活 `tf2rl-cookbook` Python/conda 虚拟环境。确保更新该环境，使其与本书代码库中的最新 conda 环境规范文件（`tfrl-cookbook.yml`）匹配。如果以下 `import` 语句没有问题，那么你就可以开始了：
 
-```
+```py
 import os
 import random
 from typing import Dict
@@ -48,13 +48,13 @@ from gym import spaces
 
 1.  我们还将使用在 `trading_utils.py` 中实现的 `TradeVisualizer` 类。我们将在实际使用时更详细地讨论这个类：
 
-    ```
+    ```py
     from trading_utils import TradeVisualizer
     ```
 
 1.  为了方便配置加密货币交易环境，我们将设置一个环境配置字典。请注意，我们的加密货币交易环境已被配置好，能够基于来自 Gemini 加密货币交易所的真实数据进行比特币交易：
 
-    ```
+    ```py
     env_config = {
         "exchange": "Gemini", # Cryptocurrency exchange
         # (Gemini, coinbase, kraken, etc.)
@@ -71,7 +71,7 @@ from gym import spaces
 
 1.  让我们开始定义我们的 `CryptoTradingEnv` 类：
 
-    ```
+    ```py
     class CryptoTradingEnv(gym.Env):
         def __init__(self, env_config: Dict = env_config):
             super(CryptoTradingEnv, self).__init__()
@@ -90,7 +90,7 @@ from gym import spaces
 
 1.  我们将使用一个文件对象作为加密货币交易所的数据源。我们必须确保在加载/流式传输数据到内存之前，数据源是存在的：
 
-    ```
+    ```py
             self.ticker_file_stream = os.path.join(
                 f"{data_dir}",
                 f"{'_'.join([self.exchange, self.ticker,
@@ -110,13 +110,13 @@ from gym import spaces
 
 1.  代理账户中的初始余额通过 `env_config` 配置。让我们根据配置的值初始化初始账户余额：
 
-    ```
+    ```py
     self.opening_account_balance = env_config["opening_account_balance"]
     ```
 
 1.  接下来，让我们使用 OpenAI Gym 库提供的标准空间类型定义来定义该加密货币交易环境的动作空间和观察空间：
 
-    ```
+    ```py
             # Action: 0-> Hold; 1-> Buy; 2 ->Sell;
             self.action_space = spaces.Discrete(3)
             self.observation_features = [
@@ -140,13 +140,13 @@ from gym import spaces
 
 1.  让我们定义代理在进行交易时将执行的交易订单大小：
 
-    ```
+    ```py
             self.order_size = env_config.get("order_size")
     ```
 
 1.  至此，我们已成功初始化环境！接下来，让我们定义 `step(…)` 方法。你会注意到，为了简化理解，我们使用了两个辅助成员方法：`self.execute_trade_action` 和 `self.get_observation`，简化了 `step(…)` 方法的实现。我们将在稍后定义这些辅助方法，等到我们完成基本的 RL Gym 环境方法（`step`、`reset` 和 `render`）的实现。现在，让我们看看 `step` 方法的实现：
 
-    ```
+    ```py
     def step(self, action):
             # Execute one step within the trading environment
             self.execute_trade_action(action)
@@ -164,7 +164,7 @@ from gym import spaces
 
 1.  现在，让我们定义 `reset()` 方法，它将在每个 episode 开始时执行：
 
-    ```
+    ```py
     def reset(self):
             # Reset the state of the environment to an 
             # initial state
@@ -187,7 +187,7 @@ from gym import spaces
 
 1.  下一步，我们将定义 `render()` 方法，它将为我们提供加密货币交易环境的视图，帮助我们理解发生了什么！在这里，我们将使用来自 `trading_utils.py` 文件中的 `TradeVisualizer` 类。`TradeVisualizer` 帮助我们可视化代理在环境中学习时的实时账户余额。该可视化工具还通过显示代理在环境中执行的买卖交易，直观地呈现代理的操作。以下是 `render()` 方法输出的示例截图，供您参考：![图 4.1 – CryptoTradingEnv 环境的示例渲染](img/B15074_04_01.jpg)
 
-    ```
+    ```py
         def render(self, **kwargs):
             # Render the environment to the screen
             if self.current_step > self.horizon:
@@ -201,7 +201,7 @@ from gym import spaces
 
 1.  接下来，我们将实现一个方法，在训练完成后关闭所有可视化窗口：
 
-    ```
+    ```py
         def close(self):
             if self.viz is not None:
                 self.viz.close()
@@ -210,7 +210,7 @@ from gym import spaces
 
 1.  现在，我们可以实现 `execute_trade_action` 方法，它在之前第 9 步的 `step(…)` 方法中有所使用。我们将把实现过程分为三个步骤，每个步骤对应一个订单类型：Hold、Buy 和 Sell。我们先从 Hold 订单类型开始，因为它是最简单的。稍后你会明白为什么！
 
-    ```
+    ```py
         def execute_trade_action(self, action):
             if action == 0:  # Hold position
                 return
@@ -219,7 +219,7 @@ from gym import spaces
 
 1.  实际上，在我们继续实现买入和卖出订单执行逻辑之前，我们需要实现另一个中间步骤。在这里，我们必须确定订单类型（买入或卖出），然后获取当前模拟时间下比特币的价格：
 
-    ```
+    ```py
             order_type = "buy" if action == 1 else "sell"
             # Stochastically determine the current price 
             # based on Market Open & Close
@@ -232,7 +232,7 @@ from gym import spaces
 
 1.  现在，我们准备好实现执行买入交易订单的逻辑，代码如下：
 
-    ```
+    ```py
             if order_type == "buy":
                 allowable_coins = \
                     int(self.cash_balance / current_price)
@@ -256,7 +256,7 @@ from gym import spaces
 
 1.  让我们使用最新的买入交易更新`trades`列表：
 
-    ```
+    ```py
                 self.trades.append(
                     {
                         "type": "buy",
@@ -269,7 +269,7 @@ from gym import spaces
 
 1.  下一步是实现执行卖出交易订单的逻辑：
 
-    ```
+    ```py
             elif order_type == "sell":
                 # Simulate a SELL order and execute it at 
                 # current_price
@@ -295,7 +295,7 @@ from gym import spaces
 
 1.  为了完成我们的交易执行函数，我们需要添加几行代码来更新账户价值，一旦交易订单执行完毕：
 
-    ```
+    ```py
             if self.num_coins_held == 0:
                 self.cost_basis = 0
             # Update account value
@@ -306,7 +306,7 @@ from gym import spaces
 
 1.  到此为止，我们已经完成了一个由 Gemini 加密货币交易所提供的真实 BTCUSD 数据驱动的比特币交易强化学习环境的实现！让我们看看如何轻松创建环境并运行示例，而不是在这个环境中使用一个随机代理，所有这一切只需要六行代码：
 
-    ```
+    ```py
     if __name__ == "__main__":
         env = CryptoTradingEnv()
         obs = env.reset()
@@ -336,7 +336,7 @@ from gym import spaces
 
 为了完成这个食谱，确保你使用的是最新版本。你需要激活`tf2rl-cookbook` Python/conda 虚拟环境。确保它会更新环境，使其匹配最新的 conda 环境规格文件（`tfrl-cookbook.yml`），该文件可以在本食谱的代码库中找到。如果以下`import`语句没有问题，你就可以开始了：
 
-```
+```py
 import os
 import random
 from typing import Dict
@@ -356,7 +356,7 @@ from trading_utils import TradeVisualizer
 
 1.  让我们通过使用字典来配置环境：
 
-    ```
+    ```py
     env_config = {
         "exchange": "Gemini",  # Cryptocurrency exchange 
         # (Gemini, coinbase, kraken, etc.)
@@ -373,7 +373,7 @@ from trading_utils import TradeVisualizer
 
 1.  让我们定义`CryptoTradingVisualEnv`类并从`env_config`加载设置：
 
-    ```
+    ```py
     class CryptoTradingVisualEnv(gym.Env):
         def __init__(self, env_config: Dict = env_config):
             """Cryptocurrency trading environment for RL 
@@ -398,7 +398,7 @@ from trading_utils import TradeVisualizer
 
 1.  下一步，根据市场数据源的频率配置，加载来自输入流的加密货币交易所数据：
 
-    ```
+    ```py
         if freq == "daily":
                 self.freq_suffix = "d"
             elif freq == "hourly":
@@ -425,7 +425,7 @@ from trading_utils import TradeVisualizer
 
 1.  让我们初始化其他环境类变量，并定义状态和动作空间：
 
-    ```
+    ```py
             self.opening_account_balance = \
                 env_config["opening_account_balance"]
             # Action: 0-> Hold; 1-> Buy; 2 ->Sell;
@@ -451,7 +451,7 @@ from trading_utils import TradeVisualizer
 
 1.  让我们定义`reset`方法，以便（重新）初始化环境类变量：
 
-    ```
+    ```py
         def reset(self):
             # Reset the state of the environment to an 
             # initial state
@@ -474,7 +474,7 @@ from trading_utils import TradeVisualizer
 
 1.  这个环境的关键特性是，智能体的观察是价格图表的图像，类似于你在人工交易员的计算机屏幕上看到的图表。这个图表包含闪烁的图形、红绿条和蜡烛！让我们定义`get_observation`方法，以返回图表屏幕的图像：
 
-    ```
+    ```py
         def get_observation(self):
             """Return a view of the Ticker price chart as 
                image observation
@@ -496,7 +496,7 @@ from trading_utils import TradeVisualizer
 
 1.  现在，我们将实现交易环境的交易执行逻辑。必须从市场数据流中提取以太坊加密货币（以美元计）的当前价格（在本例中为一个文件）：
 
-    ```
+    ```py
         def execute_trade_action(self, action):
             if action == 0:  # Hold position
                 return
@@ -512,7 +512,7 @@ from trading_utils import TradeVisualizer
 
 1.  如果智能体决定执行买入订单，我们必须计算智能体在单步中可以购买的以太坊代币/币的数量，并在模拟交易所执行“买入”订单：
 
-    ```
+    ```py
                 # Buy Order             allowable_coins = \
                     int(self.cash_balance / current_price)
                 if allowable_coins < self.order_size:
@@ -543,7 +543,7 @@ from trading_utils import TradeVisualizer
 
 1.  相反，如果智能体决定卖出，以下逻辑将执行卖出订单：
 
-    ```
+    ```py
                # Simulate a SELL order and execute it at 
                # current_price
                 if self.num_coins_held < self.order_size:
@@ -568,7 +568,7 @@ from trading_utils import TradeVisualizer
 
 1.  让我们更新账户余额，以反映买卖交易的影响：
 
-    ```
+    ```py
             if self.num_coins_held == 0:
                 self.cost_basis = 0
             # Update account value
@@ -579,7 +579,7 @@ from trading_utils import TradeVisualizer
 
 1.  我们现在准备实现`step`方法：
 
-    ```
+    ```py
         def step(self, action):
             # Execute one step within the trading environment
             self.execute_trade_action(action)
@@ -596,7 +596,7 @@ from trading_utils import TradeVisualizer
 
 1.  让我们实现一个方法，将当前状态渲染为图像并显示到屏幕上。这将帮助我们理解智能体在学习交易时环境中发生了什么：
 
-    ```
+    ```py
         def render(self, **kwargs):
             # Render the environment to the screen
             if self.current_step > self.horizon:
@@ -610,7 +610,7 @@ from trading_utils import TradeVisualizer
 
 1.  这就完成了我们的实现！让我们快速查看一下使用随机智能体的环境：
 
-    ```
+    ```py
     if __name__ == "__main__":
         env = CryptoTradingVisualEnv()
         obs = env.reset()
@@ -640,7 +640,7 @@ from trading_utils import TradeVisualizer
 
 为了完成这个方案，你需要确保你拥有最新版本的内容。你需要激活`tf2rl-cookbook` Python/conda 虚拟环境。确保你更新环境，以便它符合最新的 conda 环境规范文件（`tfrl-cookbook.yml`），该文件可以在这个食谱的代码库中找到。如果以下的`import`语句没有任何问题地运行，那么你就可以开始了：
 
-```
+```py
 import os
 import random
 from typing import Dict
@@ -660,7 +660,7 @@ from trading_utils import TradeVisualizer
 
 1.  首先，我们需要定义该环境允许的配置参数：
 
-    ```
+    ```py
     env_config = {
         "exchange": "Gemini",  # Cryptocurrency exchange 
          # (Gemini, coinbase, kraken, etc.)
@@ -675,7 +675,7 @@ from trading_utils import TradeVisualizer
 
 1.  让我们直接进入学习环境类的定义：
 
-    ```
+    ```py
     class CryptoTradingVisualContinuousEnv(gym.Env):
         def __init__(self, env_config: Dict = env_config):
             """Cryptocurrency trading environment for RL 
@@ -703,7 +703,7 @@ from trading_utils import TradeVisualizer
 
 1.  这一步很直接，因为我们只需要将市场数据从输入源加载到内存中：
 
-    ```
+    ```py
             self.ticker_file_stream = os.path.join(
                 f"{data_dir}",
                 f"{'_'.join([self.exchange, self.ticker, \
@@ -726,7 +726,7 @@ from trading_utils import TradeVisualizer
 
 1.  现在，让我们定义环境的连续动作空间和观察空间：
 
-    ```
+    ```py
             self.action_space = spaces.Box(
                 low=np.array([-1]), high=np.array([1]), \
                              dtype=np.float
@@ -750,7 +750,7 @@ from trading_utils import TradeVisualizer
 
 1.  让我们定义环境中`step`方法的大致框架。接下来的步骤中我们将完成帮助方法的实现：
 
-    ```
+    ```py
         def step(self, action):
             # Execute one step within the environment
             self.execute_trade_action(action)
@@ -767,7 +767,7 @@ from trading_utils import TradeVisualizer
 
 1.  第一个帮助方法是`execute_trade_action`方法。接下来的几步实现应该很简单，因为前面几个食谱已经实现了在交易所按汇率买卖加密货币的逻辑：
 
-    ```
+    ```py
         def execute_trade_action(self, action):
             if action == 0:  # Indicates "HODL" action
                 # HODL position; No trade to be executed
@@ -785,7 +785,7 @@ from trading_utils import TradeVisualizer
 
 1.  可以通过如下方式模拟交易所中的买入订单：
 
-    ```
+    ```py
             if order_type == "buy":
                 allowable_coins = \
                     int(self.cash_balance / current_price)
@@ -816,7 +816,7 @@ from trading_utils import TradeVisualizer
 
 1.  同样地，卖出订单可以通过以下方式模拟：
 
-    ```
+    ```py
             elif order_type == "sell":
                 # Simulate a SELL order and execute it at 
                 # current_price
@@ -842,7 +842,7 @@ from trading_utils import TradeVisualizer
 
 1.  一旦买入/卖出订单执行完毕，账户余额需要更新：
 
-    ```
+    ```py
             if self.num_coins_held == 0:
                 self.cost_basis = 0
             # Update account value
@@ -853,7 +853,7 @@ from trading_utils import TradeVisualizer
 
 1.  为了测试`CryptoTradingVisualcontinuousEnv`，你可以使用以下代码行来进行`__main__`函数的测试：
 
-    ```
+    ```py
     if __name__ == "__main__":
         env = CryptoTradingVisualContinuousEnv()
         obs = env.reset()
@@ -875,7 +875,7 @@ Soft Actor-Critic（SAC）代理是目前最流行、最先进的强化学习代
 
 为了完成这个配方，请确保你使用的是最新版本。你需要激活`tf2rl-cookbook`的 Python/conda 虚拟环境。确保更新环境，使其与最新的 conda 环境规格文件（`tfrl-cookbook.yml`）匹配，该文件可以在本配方的代码库中找到。如果以下`import`语句没有问题，说明你可以开始操作了：
 
-```
+```py
 mport functools
 import os
 import random
@@ -899,7 +899,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  SAC 是一个演员-评论家代理，所以它有演员和评论家两个组件。让我们先定义使用 TensorFlow 2.x 的演员神经网络：
 
-    ```
+    ```py
     def actor(state_shape, action_shape, units=(512, 256, 64)):
         state_shape_flattened = \
             functools.reduce(lambda x, y: x * y, state_shape)
@@ -920,7 +920,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  接下来，让我们定义评论家神经网络：
 
-    ```
+    ```py
     def critic(state_shape, action_shape, units=(512, 256, 64)):
         state_shape_flattened = \
             functools.reduce(lambda x, y: x * y, state_shape)
@@ -940,7 +940,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  给定当前模型的权重和目标模型的权重，让我们实现一个快速的函数，利用`tau`作为平均因子，慢慢更新目标权重。这就像 Polyak 平均步骤：
 
-    ```
+    ```py
     def update_target_weights(model, target_model, tau=0.005):
         weights = model.get_weights()
         target_weights = target_model.get_weights()
@@ -953,7 +953,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  我们现在准备初始化我们的 SAC 代理类：
 
-    ```
+    ```py
     class SAC(object):
         def __init__(
             self,
@@ -983,7 +983,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  作为下一步，我们将初始化演员网络，并打印演员神经网络的摘要：
 
-    ```
+    ```py
             # Define and initialize actor network
             self.actor = actor(self.state_shape, 
                               self.action_shape, actor_units)
@@ -996,7 +996,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  接下来，我们将定义两个评论家网络，并打印评论家神经网络的摘要：
 
-    ```
+    ```py
             self.critic_1 = critic(self.state_shape, 
                              self.action_shape, critic_units)
             self.critic_target_1 = critic(self.state_shape,
@@ -1018,7 +1018,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  让我们初始化`alpha`温度参数和目标熵：
 
-    ```
+    ```py
             self.auto_alpha = auto_alpha
             if auto_alpha:
                 self.target_entropy = \
@@ -1037,7 +1037,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  我们还将初始化 SAC 的其他超参数：
 
-    ```
+    ```py
             self.gamma = gamma  # discount factor
             self.tau = tau  # target model update
             self.batch_size = batch_size
@@ -1045,7 +1045,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  这完成了 SAC 代理的`__init__`方法。接下来，我们将实现一个方法来（预）处理采取的动作：
 
-    ```
+    ```py
         def process_actions(self, mean, log_std, test=False, 
         eps=1e-6):
             std = tf.math.exp(log_std)
@@ -1065,7 +1065,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  我们现在准备实现`act`方法，以便在给定状态下生成 SAC 代理的动作：
 
-    ```
+    ```py
         def act(self, state, test=False, use_random=False):
             state = state.reshape(-1)  # Flatten state
             state = \
@@ -1092,7 +1092,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  为了将经验保存到回放记忆中，让我们实现`remember`函数：
 
-    ```
+    ```py
         def remember(self, state, action, reward, next_state, 
         done):
             state = state.reshape(-1)  # Flatten state
@@ -1106,7 +1106,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  现在，让我们开始实现经验回放过程。我们将从初始化回放方法开始。我们将在接下来的步骤中完成回放方法的实现：
 
-    ```
+    ```py
         def replay(self):
             if len(self.memory) < self.batch_size:
                 return
@@ -1120,7 +1120,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  让我们启动一个持久化的`GradientTape`函数，并开始累积梯度。我们通过处理动作并获取下一组动作和对数概率来实现这一点：
 
-    ```
+    ```py
             with tf.GradientTape(persistent=True) as tape:
                 # next state action log probs
                 means, log_stds = self.actor(next_states)
@@ -1133,7 +1133,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  这样，我们现在可以计算两个评论者网络的损失：
 
-    ```
+    ```py
                 current_q_1 = self.critic_1([states, 
                                              actions])
                 current_q_2 = self.critic_2([states,
@@ -1162,7 +1162,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  当前的状态-动作对和由演员提供的对数概率可以通过以下方式计算：
 
-    ```
+    ```py
                 means, log_stds = self.actor(states)
                 log_stds = tf.clip_by_value(log_stds, 
                                             self.log_std_min,
@@ -1173,7 +1173,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  我们现在可以计算演员的损失并将梯度应用到评论者上：
 
-    ```
+    ```py
                 current_q_1 = self.critic_1([states, 
                                              actions])
                 current_q_2 = self.critic_2([states,
@@ -1200,7 +1200,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  类似地，我们可以计算并应用演员的梯度：
 
-    ```
+    ```py
             critic_grad = tape.gradient(
                 critic_loss_2, 
             self.critic_2.trainable_variables
@@ -1220,7 +1220,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  现在，让我们将摘要记录到 TensorBoard：
 
-    ```
+    ```py
             # tensorboard info
             self.summaries["q1_loss"] = critic_loss_1
             self.summaries["q2_loss"] = critic_loss_2
@@ -1238,7 +1238,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  这完成了我们的经验回放方法。现在，我们可以继续`train`方法的实现。让我们从初始化`train`方法开始。我们将在接下来的步骤中完成此方法的实现：
 
-    ```
+    ```py
         def train(self, max_epochs=8000, random_epochs=1000,
         max_steps=1000, save_freq=50):
             current_time = datetime.datetime.now().\
@@ -1261,7 +1261,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  现在，我们准备开始主训练循环。首先，让我们处理结束集的情况：
 
-    ```
+    ```py
             while epoch < max_epochs:
                 if steps > max_steps:
                     done = True
@@ -1297,7 +1297,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  每次进入环境时，SAC 代理学习需要执行以下步骤：
 
-    ```
+    ```py
                 if epoch > random_epochs and \
                     len(self.memory) > self.batch_size:
                     use_random = False
@@ -1325,7 +1325,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  处理完代理更新后，我们现在可以将一些有用的信息记录到 TensorBoard 中：
 
-    ```
+    ```py
                 # Tensorboard update
                 with summary_writer.as_default():
                     if len(self.memory) > self.batch_size:
@@ -1366,7 +1366,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  作为我们`train`方法实现的最后一步，我们可以保存演员和评论者模型，以便在需要时恢复训练或从检查点重新加载：
 
-    ```
+    ```py
             self.save_model(
                 "sac_actor_final_episode{}.h5".format(episode),
                 "sac_critic_final_episode{}.h5".format(episode),
@@ -1375,7 +1375,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  现在，我们将实际实现之前引用的`save_model`方法：
 
-    ```
+    ```py
         def save_model(self, a_fn, c_fn):
             self.actor.save(a_fn)
             self.critic_1.save(c_fn)
@@ -1383,7 +1383,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  让我们快速实现一个方法，从保存的模型中加载演员和评论者的状态，以便在需要时可以从之前保存的检查点恢复或继续：
 
-    ```
+    ```py
         def load_actor(self, a_fn):
             self.actor.load_weights(a_fn)
             print(self.actor.summary())
@@ -1397,7 +1397,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  要以“测试”模式运行 SAC 代理，我们可以实现一个辅助方法：
 
-    ```
+    ```py
         def test(self, render=True, fps=30, 
         filename="test_render.mp4"):
             cur_state, done, rewards = self.env.reset(), \
@@ -1418,7 +1418,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 1.  这完成了我们的 SAC 代理实现。我们现在准备在`CryptoTradingContinuousEnv`中训练 SAC 代理：
 
-    ```
+    ```py
     if __name__ == "__main__":
         gym_env = CryptoTradingContinuousEnv()
         sac = SAC(gym_env)
@@ -1436,7 +1436,7 @@ from crypto_trading_continuous_env import CryptoTradingContinuousEnv
 
 SAC 是一种强大的 RL 算法，已证明在各种 RL 仿真环境中有效。SAC 不仅优化最大化每集奖励，还最大化代理策略的熵。您可以通过 TensorBoard 观察代理的学习进度，因为这个示例包括了记录代理进展的代码。您可以使用以下命令启动 TensorBoard：
 
-```
+```py
 tensorboard –-logdir=logs
 ```
 

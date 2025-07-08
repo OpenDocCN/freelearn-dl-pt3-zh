@@ -48,7 +48,7 @@
 
 在重新审视泰坦尼克号的例子时，我们将使用 scikit-learn 和 pandas 库。所以首先，让我们开始读取训练集和测试集，并获取一些数据的统计信息：
 
-```
+```py
 # reading the train and test sets using pandas
 train_data = pd.read_csv('data/train.csv', header=0)
 test_data = pd.read_csv('data/test.csv', header=0)
@@ -88,7 +88,7 @@ df_titanic_data = df_titanic_data.reindex_axis(train_data.columns, axis=1)
 
 例如，如果我们有一个二值变量，可能的取值为-1 和 1，我们可以添加另一个值（0）来表示缺失值。你可以使用以下代码将**Cabin**特征的空值替换为`U0`：
 
-```
+```py
 # replacing the missing value in cabin variable "U0"
 df_titanic_data['Cabin'][df_titanic_data.Cabin.isnull()] = 'U0'
 ```
@@ -99,14 +99,14 @@ df_titanic_data['Cabin'][df_titanic_data.Cabin.isnull()] = 'U0'
 
 以下代码将`Fare`特征中非缺失值的中位数分配给缺失值：
 
-```
+```py
 # handling the missing values by replacing it with the median fare
 df_titanic_data['Fare'][np.isnan(df_titanic_data['Fare'])] = df_titanic_data['Fare'].median()
 ```
 
 或者，你可以使用以下代码查找`Embarked`特征中出现频率最高的值，并将其分配给缺失值：
 
-```
+```py
 # replacing the missing values with the most common value in the variable
 df_titanic_data.Embarked[df_titanic_data.Embarked.isnull()] = df_titanic_data.Embarked.dropna().mode().values
 ```
@@ -115,11 +115,11 @@ df_titanic_data.Embarked[df_titanic_data.Embarked.isnull()] = df_titanic_data.Em
 
 这是我们将用于泰坦尼克号示例中`Age`特征的方法。`Age`特征是预测乘客生还的一个重要步骤，采用前述方法通过计算均值填补会使我们丧失一些信息。
 
-```
+```py
 Age feature:
 ```
 
-```
+```py
 # Define a helper function that can use RandomForestClassifier for handling the missing values of the age variable
 def set_missing_ages():
     global df_titanic_data
@@ -140,7 +140,7 @@ def set_missing_ages():
 
 ```
 
-```
+```py
     # Filling the predicted ages in the original titanic dataframe
     age_data.loc[(age_data.Age.isnull()), 'Age'] = predicted_ages
 ```
@@ -163,7 +163,7 @@ def set_missing_ages():
 
 以下代码将展示如何进行这种转换：
 
-```
+```py
 # constructing binary features
 def process_embarked():
     global df_titanic_data
@@ -184,14 +184,14 @@ def process_embarked():
 
 这种方法用于从其他特征创建一个数值型分类特征。在 pandas 中，`factorize()`函数可以做到这一点。如果你的特征是字母数字的分类变量，那么这种转换就非常有用。在泰坦尼克号数据中，我们可以将`Cabin`特征转换为分类特征，表示舱位的字母：
 
-```
+```py
 # the cabin number is a sequence of of alphanumerical digits, so we are going to create some features
 # from the alphabetical part of it
 df_titanic_data['CabinLetter'] = df_titanic_data['Cabin'].map(lambda l: get_cabin_letter(l))
 df_titanic_data['CabinLetter'] = pd.factorize(df_titanic_data['CabinLetter'])[0]
 ```
 
-```
+```py
 def get_cabin_letter(cabin_value):
     # searching for the letters in the cabin alphanumerical value
     letter_match = re.compile("([a-zA-Z]+)").search(cabin_value)
@@ -212,15 +212,15 @@ def get_cabin_letter(cabin_value):
 
 以下代码将通过从每个值中减去其均值并将其缩放到单位方差来缩放`Age`特征：
 
-```
+```py
 # scale by subtracting the mean from each value
 ```
 
-```
+```py
 scaler_processing = preprocessing.StandardScaler()
 ```
 
-```
+```py
 df_titanic_data['Age_scaled'] = scaler_processing.fit_transform(df_titanic_data['Age'])
 ```
 
@@ -230,7 +230,7 @@ df_titanic_data['Age_scaled'] = scaler_processing.fit_transform(df_titanic_data[
 
 以下代码对`Fare`特征应用了这种转换：
 
-```
+```py
 # Binarizing the features by binning them into quantiles
 df_titanic_data['Fare_bin'] = pd.qcut(df_titanic_data['Fare'], 4)
 
@@ -256,14 +256,14 @@ if keep_binary:
 
 `name`变量本身对大多数数据集来说是没有用的，但它有两个有用的属性。第一个是名字的长度。例如，名字的长度可能反映你的地位，从而影响你上救生艇的机会：
 
-```
+```py
 # getting the different names in the names variable
 df_titanic_data['Names'] = df_titanic_data['Name'].map(lambda y: len(re.split(' ', y)))
 ```
 
 第二个有趣的属性是`Name`标题，它也可以用来表示地位和/或性别：
 
-```
+```py
 # Getting titles for each person
 df_titanic_data['Title'] = df_titanic_data['Name'].map(lambda y: re.compile(", (.*?)\.").findall(y)[0])
 
@@ -287,7 +287,7 @@ if keep_binary:
 
 在泰坦尼克号数据中，`Cabin`特征由一个字母表示甲板，和一个数字表示房间号。房间号随着船的后部增加，这将提供乘客位置的有用信息。我们还可以通过不同甲板上的乘客状态，帮助判断谁可以上救生艇：
 
-```
+```py
 # repllacing the missing value in cabin variable "U0"
 df_titanic_data['Cabin'][df_titanic_data.Cabin.isnull()] = 'U0'
 
@@ -318,7 +318,7 @@ df_titanic_data['CabinNumber'] = df_titanic_data['Cabin'].map(lambda x: get_cabi
 
 以下代码尝试分析车票特征代码，以得出前述提示：
 
-```
+```py
 # Helper function for constructing features from the ticket variable
 def process_ticket():
     global df_titanic_data
@@ -369,7 +369,7 @@ def get_ticket_num(ticket_value):
 
 交互特征是通过对一组特征执行数学运算得到的，表示变量之间关系的影响。我们对数值特征进行基本的数学运算，观察变量之间关系的效果：
 
-```
+```py
 # Constructing features manually based on  the interaction between the individual features
 numeric_features = df_titanic_data.loc[:,
                    ['Age_scaled', 'Fare_scaled', 'Pclass_scaled', 'Parch_scaled', 'SibSp_scaled',
@@ -409,7 +409,7 @@ print("\n", new_fields_count, "new features constructed")
 
 我们还可以去除高度相关的特征，因为这些特征的存在不会为模型提供任何额外的信息。我们可以使用斯皮尔曼相关系数来识别和去除高度相关的特征。斯皮尔曼方法的输出中有一个秩系数，可以用来识别高度相关的特征：
 
-```
+```py
 # using Spearman correlation method to remove the feature that have high correlation
 
 # calculating the correlation matrix
@@ -444,11 +444,11 @@ df_titanic_data.drop(features_to_drop, axis=1, inplace=True)
 
 三个特征的简单线性组合可能类似于以下形式：
 
-```
+```py
 If 0.5*red + 0.3*green + 0.2*blue > 0.6 : return cat;
 ```
 
-```
+```py
 else return dog;
 ```
 
@@ -468,7 +468,7 @@ else return dog;
 
 一种简单实用的方法来对原始训练特征应用 PCA 是使用以下代码：
 
-```
+```py
 # minimum variance percentage that should be covered by the reduced number of variables
 variance_percentage = .99
 
@@ -490,7 +490,7 @@ print(pca_df.shape[1], " reduced components which describe ", str(variance_perce
 
 在本节中，我们将把特征工程和维度减少的各个部分结合起来：
 
-```
+```py
 import re
 import numpy as np
 import pandas as pd

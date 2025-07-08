@@ -112,7 +112,7 @@ TF Lite 跨平台，可部署在 Android、iOS、Linux 和硬件设备（如 Ras
 
 1.  通过确保图像的形状为 28x28x1，并将像素转换为浮动类型变量来进行数据预处理，以供训练使用。同时，这里我们定义 NUM_CLASSES = 10，因为图像中有 10 个不同的数字。
 
-```
+```py
 x_train = x_train.reshape(x_train.shape[0], IMAGE_SIZE, IMAGE_SIZE, 1)
 x_test = x_test.reshape(x_test.shape[0], IMAGE_SIZE, IMAGE_SIZE, 1)
 x_train = x_train.astype('float32')
@@ -128,7 +128,7 @@ y_test = keras.utils.to_categorical(y_test, NUM_CLASSES)
 
 1.  定义模型为具有两个卷积层（使用相同的过滤器大小）、两个全连接层、两个丢弃层（丢弃概率分别为 0.25 和 0.5）、每个全连接层或卷积层后都有一个修正线性单元（ReLU，除最后一层外），以及一个最大池化层。此外，我们还添加了 Softmax 激活函数，将模型的输出转化为每个数字的概率。请注意，我们使用此模型是因为它能产生良好的结果。你可以通过添加更多层或尝试不同形状的现有层来改进该模型。
 
-```
+```py
 model = Sequential()
 model.add(Conv2D(32, kernel_size=(3, 3),
 activation='relu',
@@ -154,7 +154,7 @@ model.add(Dense(NUM_CLASSES))model.add(Activation('softmax', name = 'softmax_ten
 
 定义这些内容的代码如下：
 
-```
+```py
 model.compile(loss=keras.losses.categorical_crossentropy,
 
 optimizer=keras.optimizers.Adadelta(),
@@ -164,7 +164,7 @@ metrics=['accuracy'])
 
 1.  启用 TensorBoard 日志记录，以可视化模型图和训练进度。代码定义如下：
 
-```
+```py
 tensorboard = TensorBoard(log_dir=MODEL_DIR)
 ```
 
@@ -174,7 +174,7 @@ tensorboard = TensorBoard(log_dir=MODEL_DIR)
 
     +   批量大小 = 128：
 
-```
+```py
 self.model.fit(self.x_train, self.y_train,
 batch_size=BATCH_SIZE,
 
@@ -211,7 +211,7 @@ score = self.model.evaluate(self.x_test, self.y_test, verbose=0)
 
 1.  一旦你训练了模型，你的模型文件夹中必须有一个以`events.out.tfevents.`为前缀的文件。进入`logs`文件夹并在终端中输入以下命令：
 
-```
+```py
 tensorboard --logdir <model_folder>
 ```
 
@@ -221,7 +221,7 @@ tensorboard --logdir <model_folder>
 
 1.  接下来实现一个名为`freeze_sesssion`的函数，该函数接受 TF 会话作为输入，将所有变量转换为常量，并返回冻结的图。执行此函数后，你将在`<model_folder>/logs/freeze`文件夹中获得一个名为`MNIST_model.pb`的冻结图文件。
 
-```
+```py
 from TensorFlow.python.framework.graph_util import convert_variables_to_constants
 
 def freeze_session(session, keep_var_names=None, output_names=None, clear_devices=True):
@@ -254,7 +254,7 @@ return frozen_graph
 
 1.  现在，事情变得有些奇怪：你不能通过 TensorBoard 直接可视化`MNIST_model.pb`文件。你需要将图写成 TensorBoard 能够识别的格式。执行下面提到的`pb_to_tensorboard`函数，你将会在`<model_folder>/logs/freeze`文件夹中看到一个以`events.out.tfevents`为前缀的文件。
 
-```
+```py
 
 def pb_to_tensorboard(input_graph_dir,graph_type ="freeze"):
 
@@ -296,7 +296,7 @@ def pb_to_tensorboard(input_graph_dir,graph_type ="freeze"):
 
 执行下文提到的`optimize_graph`函数，以去除图中的所有 Dropout 操作。它会手动将所有 Dropout 操作从图中清除。这将导致在`<model_folder>/logs/optimized`文件夹下生成一个名为`MNIST_optimized.pb`的新文件。
 
-```
+```py
 def optimize_graph(input_dir, output_dir):
 input_graph = os.path.join(input_dir, FREEZE_FILE_NAME)
 output_graph = os.path.join(output_dir, OPTIMIZE_FILE_NAME)
@@ -323,7 +323,7 @@ f.write(output_graph_def.SerializeToString())
 
 1.  获取移动友好格式的模型的最后一步是将其转换为 `.tflite` 文件。对于此步骤，您将使用`toco`命令，该命令代表 TensorFlow Lite 优化转换器（[`www.tensorflow.org/lite/convert/`](https://www.tensorflow.org/lite/convert/)）。以下是提供的代码：
 
-```
+```py
 toco \
 --input_file=<model_folder>/logs/optimized/MNIST_optimized.pb\
 --input_format=TensorFlow_GRAPHDEF \

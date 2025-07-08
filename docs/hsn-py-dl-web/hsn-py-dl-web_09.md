@@ -168,7 +168,7 @@ Google 项目——或简而言之，**项目**——是你在学习 GCP 时遇�
 
 1.  要安装 Dialogflow Python SDK，我们在终端使用以下命令：
 
-```
+```py
 pip install dialogflow
 ```
 
@@ -176,7 +176,7 @@ pip install dialogflow
 
 1.  安装完成后，您可以使用以下导入代码将 Dialogflow API 导入到您的项目中：
 
-```
+```py
 import dialogflow
 ```
 
@@ -202,7 +202,7 @@ GCP 服务账户管理用于访问 GCP 资源的权限。我们创建的 Dialogf
 
 +   +   在 Linux（终端）中：
 
-```
+```py
 export GOOGLE_APPLICATION_CREDENTIALS="<your_service_account_file_location>"
 export DIALOGFLOW_PROJECT_ID="<your_project_id>"
 
@@ -210,7 +210,7 @@ export DIALOGFLOW_PROJECT_ID="<your_project_id>"
 
 +   +   在 Windows（命令提示符）中：
 
-```
+```py
 set GOOGLE_APPLICATION_CREDENTIALS=<your_service_account_file_location>
 set DIALOGFLOW_PROJECT_ID=<your_project_id>
 
@@ -226,26 +226,26 @@ set DIALOGFLOW_PROJECT_ID=<your_project_id>
 
 1.  首先，我们必须将 Dialogflow 模块导入项目。为此，请使用以下代码：
 
-```
+```py
 import dialogflow
 ```
 
 1.  要将项目 ID 引入脚本中，我们可以从运行时环境变量中获取它。为此，请使用以下代码：
 
-```
+```py
 import os
 project_id = os.getenv("DIALOGFLOW_PROJECT_ID")
 ```
 
 1.  我们还将声明一个唯一的会话 ID，以存储与用户进行的任何单个会话的对话记录：
 
-```
+```py
 session_id="any_random_unique_string"
 ```
 
 1.  现在我们将创建一个方便的函数，允许我们反复执行一组调用 Dialogflow 代理所需的预处理语句：
 
-```
+```py
 def detect_intent(project_id, session_id, text, language_code):
 
     session_client = dialogflow.SessionsClient()
@@ -266,7 +266,7 @@ def detect_intent(project_id, session_id, text, language_code):
 
 1.  现在让我们使用这个方法。首先，声明一个消息并传递给 Dialogflow 代理。回想一下我们为 `Dummy Intent` 提供的训练短语。我们将传递一个类似于训练短语的消息：
 
-```
+```py
 message = "Can I talk to the dummy?"
 
 fulfillment_text = detect_intent(project_id, session_id, message, 'en')
@@ -278,7 +278,7 @@ print(fulfillment_text)
 
 1.  在 `detect_intent()` 方法中生成响应变量，可以通过在 `detect_intent()` 函数中添加以下代码行来实现：
 
-```
+```py
 def detect_intent(project_id, session_id, text, language_code):
     ...
     response = session_client.detect_intent(session=session, query_input=query_input)
@@ -289,7 +289,7 @@ def detect_intent(project_id, session_id, text, language_code):
 
 您将获得以下 JSON：
 
-```
+```py
 response_id: "d1a7b2bf-0000-0000-0000-81161394cc24"
 query_result {
   query_text: "talk to the dummy?"
@@ -383,7 +383,7 @@ Cloud Vision API 通过一组适用于不同编程语言的库提供，这些库
 
 1.  要安装 Python Cloud Vision Client 库，我们在终端中使用以下命令：
 
-```
+```py
 pip install --upgrade google-cloud-vision
 ```
 
@@ -413,14 +413,14 @@ pip install --upgrade google-cloud-vision
 
 +   +   在 Linux（终端）中：
 
-```
+```py
 export GOOGLE_APPLICATION_CREDENTIALS="/home/user/Downloads/service-account-file.json"
 
 ```
 
 +   +   在 Windows（命令提示符）中：
 
-```
+```py
 set GOOGLE_APPLICATION_CREDENTIALS=/home/user/Downloads/service-account-file.json
 ```
 
@@ -442,19 +442,19 @@ set GOOGLE_APPLICATION_CREDENTIALS=/home/user/Downloads/service-account-file.jso
 
 1.  为此，我们使用以下代码：
 
-```
+```py
 from google.cloud import vision
 ```
 
 1.  有了这些，我们就准备好继续使用客户端库了。在我们的示例中，我们将对一张图像进行标注。图像标注服务是通过 Vision 库中的 `imageAnnotatorClient()` 函数提供的。我们将创建该方法的一个对象：
 
-```
+```py
 client = vision.ImageAnnotatorClient()
 ```
 
 1.  现在，让我们将要进行标注的文件加载到程序中：
 
-```
+```py
 with open("test.jpg", 'rb') as image_file:
     content = image_file.read()
 ```
@@ -463,13 +463,13 @@ with open("test.jpg", 'rb') as image_file:
 
 1.  该文件目前是程序的原始二进制数据文件。为了让 Cloud Vision API 正常工作，我们需要将其转换为 Vision 客户端可以接受的图像类型：
 
-```
+```py
 image = vision.types.Image(content=content)
 ```
 
 1.  最后，我们通过 Cloud Vision API 调用 GCP 来对图像进行标注：
 
-```
+```py
 response = client.label_detection(image=image)
 labels = response.label_annotations
 ```
@@ -504,7 +504,7 @@ Cloud Translation API 的 AutoML 变体允许我们根据需要构建针对语�
 
 1.  为此，请在终端中使用以下 `pip` 命令：
 
-```
+```py
 pip install google-cloud-translate
 ```
 
@@ -518,19 +518,19 @@ pip install google-cloud-translate
 
 1.  为此，请使用以下代码：
 
-```
+```py
 from google.cloud import translate_v2 as translate
 ```
 
 1.  我们需要创建一个 Cloud Translate API 对象来进行服务调用。我们可以按如下方式操作：
 
-```
+```py
 translate_client = translate.Client()
 ```
 
 1.  现在，让我们开始翻译过程。首先，我们需要一条要翻译的消息：
 
-```
+```py
 original = u'नमस्ते'
 ```
 
@@ -538,13 +538,13 @@ original = u'नमस्ते'
 
 我们使用以下代码调用 API 将文本翻译成英语：
 
-```
+```py
 translation = translate_client.translate(original, target_language="en")
 ```
 
 如果你观察 `translation` 变量，你会发现它包含了以下详细信息：
 
-```
+```py
 {
     'translatedText': 'Hello', 
     'detectedSourceLanguage': 'hi', 

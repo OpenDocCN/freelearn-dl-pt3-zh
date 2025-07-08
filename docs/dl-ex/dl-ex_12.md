@@ -110,7 +110,7 @@
 
 更有趣的消息是，你不需要切换到一个完全不同的环境。你现在可以在 TensorFlow 中将 Keras 作为模块访问，并像以下代码一样导入包：
 
-```
+```py
 from tensorflow.python.keras.models 
 import Sequential
 from tensorflow.python.keras.layers 
@@ -133,7 +133,7 @@ import pad_sequences
 
 让我们从导入一些必需的包开始：
 
-```
+```py
 %matplotlib inline
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -148,7 +148,7 @@ from tensorflow.python.keras.preprocessing.sequence import pad_sequences
 
 然后我们加载数据集：
 
-```
+```py
 import imdb
 imdb.maybe_download_and_extract()
 
@@ -158,12 +158,12 @@ Download finished. Extracting files.
 Done.
 ```
 
-```
+```py
 input_text_train, target_train = imdb.load_data(train=True)
 input_text_test, target_test = imdb.load_data(train=False)
 ```
 
-```
+```py
 print("Size of the trainig set: ", len(input_text_train))
 print("Size of the testing set:  ", len(input_text_test))
 
@@ -176,7 +176,7 @@ Size of the testing set: 25000
 
 我们来看看训练集中的一个例子，它是如何呈现的：
 
-```
+```py
 #combine dataset
 text_data = input_text_train + input_text_test
 input_text_train[1]
@@ -196,20 +196,20 @@ Output:
 
 此外，我们可以说我们希望最大使用 10,000 个单词，因此它将只使用数据集中最流行的 10,000 个单词：
 
-```
+```py
 num_top_words = 10000
 tokenizer_obj = Tokenizer(num_words=num_top_words)
 ```
 
 现在，我们将从数据集中获取所有文本，并在文本上调用这个函数`fit`：
 
-```
+```py
 tokenizer_obj.fit_on_texts(text_data)
 ```
 
 分词器大约需要 10 秒钟，然后它将构建出词汇表。它看起来是这样的：
 
-```
+```py
 tokenizer_obj.word_index
 
 Output:
@@ -288,7 +288,7 @@ Output:
 
 所以，现在每个单词都与一个整数相关联；因此，单词`the`的编号是`1`：
 
-```
+```py
 tokenizer_obj.word_index['the']
 
 Output:
@@ -297,7 +297,7 @@ Output:
 
 这里，`and`的编号是`2`：
 
-```
+```py
 tokenizer_obj.word_index['and']
 
 Output:
@@ -306,7 +306,7 @@ Output:
 
 单词`a`的编号是`3`：
 
-```
+```py
 tokenizer_obj.word_index['a']
 
 Output:
@@ -315,7 +315,7 @@ Output:
 
 以此类推。我们看到`movie`的编号是`17`：
 
-```
+```py
 tokenizer_obj.word_index['movie']
 
 Output:
@@ -324,7 +324,7 @@ Output:
 
 并且`film`的编号是`19`：
 
-```
+```py
 tokenizer_obj.word_index['film']
 
 Output:
@@ -335,7 +335,7 @@ Output:
 
 让我们以单词编号`743`为例，这就是单词`romantic`：
 
-```
+```py
 tokenizer_obj.word_index['romantic']
 
 Output:
@@ -344,7 +344,7 @@ Output:
 
 所以，每当我们在输入文本中看到单词`romantic`时，我们将其映射到令牌整数`743`。我们再次使用分词器将训练集中的所有单词转换为整数令牌：
 
-```
+```py
 input_text_train[1]
 Output:
 'This is a really heart-warming family movie. It has absolutely brilliant animal training and "acting" (if you can call it like that) as well (just think about the dog in "How the Grinch stole Christmas"... it was plain bad training). The Paulie story is extremely well done, well reproduced and in general the characters are really elaborated too. Not more to say except that this is a GREAT MOVIE!<br /><br />My ratings: story 8.5/10, acting 7.5/10, animals+fx 8.5/10, cinematography 8/10.<br /><br />My overall rating: 8/10 - BIG FAMILY MOVIE AND VERY WORTH WATCHING!
@@ -352,7 +352,7 @@ Output:
 
 当我们将这些文本转换为整数令牌时，它就变成了一个整数数组：
 
-```
+```py
 np.array(input_train_tokens[1])
 
 Output:
@@ -372,7 +372,7 @@ array([ 11, 6, 3, 62, 488, 4679, 236, 17, 9, 45, 419,
 
 我们还需要转换剩余的文本：
 
-```
+```py
 input_test_tokens = tokenizer_obj.texts_to_sequences(input_text_test)
 ```
 
@@ -380,7 +380,7 @@ input_test_tokens = tokenizer_obj.texts_to_sequences(input_text_test)
 
 所以，我们可以确保数据集中的所有序列都具有相同的长度，或者编写一个自定义数据生成器，确保单个批次中的序列具有相同的长度。现在，确保数据集中的所有序列具有相同的长度要简单得多，但问题是有一些极端值。我们有一些句子，我认为，它们超过了 2,200 个单词。如果所有的*短*句子都超过 2,200 个单词，将极大地影响我们的内存。所以我们做的折衷是：首先，我们需要统计每个输入序列中的单词数，或者标记数。我们看到，序列中单词的平均数大约是 221：
 
-```
+```py
 total_num_tokens = [len(tokens) for tokens in input_train_tokens + input_test_tokens]
 total_num_tokens = np.array(total_num_tokens)
 
@@ -393,7 +393,7 @@ Output:
 
 我们看到，最大单词数超过了 2200 个：
 
-```
+```py
 np.max(total_num_tokens)
 
 Output:
@@ -404,7 +404,7 @@ Output:
 
 所以我们要做的折衷是，填充所有序列并截断那些太长的序列，使它们有`544`个单词。我们计算这一点的方式是——我们取了数据集中所有序列的平均单词数，并加上了两个标准差：
 
-```
+```py
 max_num_tokens = np.mean(total_num_tokens) + 2 * np.std(total_num_tokens)
 max_num_tokens = int(max_num_tokens)
 max_num_tokens
@@ -415,7 +415,7 @@ Output:
 
 这样做的结果是什么？我们覆盖了数据集中文本的约 95%，所以只有大约 5%的文本超过了`544`个单词：
 
-```
+```py
 np.sum(total_num_tokens < max_num_tokens) / len(total_num_tokens)
 
 Output:
@@ -436,7 +436,7 @@ Output:
 
 让我们回到并转换整个数据集，使其被截断并填充；这样，它就变成了一个庞大的数据矩阵：
 
-```
+```py
 seq_pad = 'pre'
 
 input_train_pad = pad_sequences(input_train_tokens, maxlen=max_num_tokens,
@@ -448,7 +448,7 @@ input_test_pad = pad_sequences(input_test_tokens, maxlen=max_num_tokens,
 
 我们检查这个矩阵的形状：
 
-```
+```py
 input_train_pad.shape
 
 Output:
@@ -462,7 +462,7 @@ Output:
 
 那么，让我们来看一下在填充前后的特定样本标记：
 
-```
+```py
 np.array(input_train_tokens[1])
 
 Output:
@@ -480,7 +480,7 @@ array([ 11, 6, 3, 62, 488, 4679, 236, 17, 9, 45, 419,
 
 填充后，这个样本将如下所示：
 
-```
+```py
 input_train_pad[1]
 
 Output:
@@ -538,12 +538,12 @@ array([ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 此外，我们需要一个功能来进行反向映射，使其能够将整数标记映射回文本单词；我们在这里只需要这个。它是一个非常简单的辅助函数，所以让我们继续实现它：
 
-```
+```py
 index = tokenizer_obj.word_index
 index_inverse_map = dict(zip(index.values(), index.keys()))
 ```
 
-```
+```py
 def convert_tokens_to_string(input_tokens):
 
  # Convert the tokens back to words
@@ -557,7 +557,7 @@ return combined_text
 
 现在，举个例子，数据集中的原始文本是这样的：
 
-```
+```py
 input_text_train[1]
 Output:
 
@@ -568,7 +568,7 @@ input_text_train[1]
 
 如果我们使用一个辅助函数将标记转换回文本单词，我们会得到以下文本：
 
-```
+```py
 convert_tokens_to_string(input_train_tokens[1])
 
 'this is a really heart warming family movie it has absolutely brilliant animal training and acting if you can call it like that as well just think about the dog in how the grinch stole christmas it was plain bad training the paulie story is extremely well done well and in general the characters are really too not more to say except that this is a great movie br br my ratings story 8 5 10 acting 7 5 10 animals fx 8 5 10 cinematography 8 10 br br my overall rating 8 10 big family movie and very worth watching'
@@ -588,7 +588,7 @@ convert_tokens_to_string(input_train_tokens[1])
 
 所以，我们将嵌入大小设置为 8，然后使用 Keras 将这个嵌入层添加到 RNN 中。它必须是网络中的第一个层：
 
-```
+```py
 embedding_layer_size = 8
 
 rnn_type_model.add(Embedding(input_dim=num_top_words,
@@ -601,31 +601,31 @@ rnn_type_model.add(Embedding(input_dim=num_top_words,
 
 所以，让我们定义我们的 GRU 架构；我们设定输出维度为 16，并且需要返回序列：
 
-```
+```py
 rnn_type_model.add(GRU(units=16, return_sequences=True))
 ```
 
 如果我们看一下*图 4*中的流程图，我们想要添加第二个循环层：
 
-```
+```py
 rnn_type_model.add(GRU(units=8, return_sequences=True))
 ```
 
 然后，我们有第三个也是最后一个循环层，它不会输出一个序列，因为它后面会跟随一个全连接层；它应该只给出 GRU 的最终输出，而不是一整个输出序列：
 
-```
+```py
 rnn_type_model.add(GRU(units=4))
 ```
 
 然后，这里输出的结果将被输入到一个全连接或密集层，这个层应该只输出每个输入序列的一个值。它通过 sigmoid 激活函数处理，因此输出一个介于 0 和 1 之间的值：
 
-```
+```py
 rnn_type_model.add(Dense(1, activation='sigmoid'))
 ```
 
 然后，我们说我们想使用 Adam 优化器，并设定学习率，同时损失函数应该是 RNN 输出与训练集中的实际类别值之间的二元交叉熵，这个值应该是 0 或 1：
 
-```
+```py
 model_optimizer = Adam(lr=1e-3)
 
 rnn_type_model.compile(loss='binary_crossentropy',
@@ -635,7 +635,7 @@ rnn_type_model.compile(loss='binary_crossentropy',
 
 现在，我们可以打印出模型的摘要：
 
-```
+```py
 rnn_type_model.summary()
 
 _________________________________________________________________
@@ -663,7 +663,7 @@ _________________________
 
 现在，是时候开始训练过程了，这里非常简单：
 
-```
+```py
 Output:
 rnn_type_model.fit(input_train_pad, target_train,
           validation_split=0.05, epochs=3, batch_size=64)
@@ -682,7 +682,7 @@ Epoch 3/3
 
 让我们在测试集上测试训练好的模型：
 
-```
+```py
 model_result = rnn_type_model.evaluate(input_test_pad, target_test)
 
 Output:
@@ -697,26 +697,26 @@ Accuracy: 85.26%
 
 所以首先，我们计算测试集中前 1,000 个序列的预测类别，然后取实际类别值。我们将它们进行比较，并得到一个索引列表，其中包含不匹配的地方：
 
-```
+```py
 target_predicted = rnn_type_model.predict(x=input_test_pad[0:1000])
 target_predicted = target_predicted.T[0]
 ```
 
 使用阈值来表示所有大于`0.5`的值将被认为是正类，其他的将被认为是负类：
 
-```
+```py
 class_predicted = np.array([1.0 if prob>0.5 else 0.0 for prob in target_predicted])
 ```
 
 现在，我们来获取这 1,000 个序列的实际类别：
 
-```
+```py
 class_actual = np.array(target_test[0:1000])
 ```
 
 让我们从输出中获取错误的样本：
 
-```
+```py
 incorrect_samples = np.where(class_predicted != class_actual)
 incorrect_samples = incorrect_samples[0]
 len(incorrect_samples)
@@ -727,12 +727,12 @@ Output:
 
 我们看到有 122 个文本被错误分类，占我们计算的 1,000 个文本的 12.1%。让我们来看一下第一个被错误分类的文本：
 
-```
+```py
 index = incorrect_samples[0]
 index
 ```
 
-```
+```py
 Output:
 9
 
@@ -740,7 +740,7 @@ incorrectly_predicted_text = input_text_test[index]
 incorrectly_predicted_text
 ```
 
-```
+```py
 Output:
 
 'I am not a big music video fan. I think music videos take away personal feelings about a particular song.. Any song. In other words, creative thinking goes out the window. Likewise, Personal feelings aside about MJ, toss aside. This was the best music video of alltime. Simply wonderful. It was a movie. Yes folks it was. Brilliant! You had awesome acting, awesome choreography, and awesome singing. This was spectacular. Simply a plot line of a beautiful young lady dating a man, but was he a man or something sinister. Vincent Price did his thing adding to the song and video. MJ was MJ, enough said about that. This song was to video, what Jaguars are for cars. Top of the line, PERFECTO. What was even better about this was, that we got the real MJ without the thousand facelifts. Though ironically enough, there was more than enough makeup and costumes to go around. Folks go to Youtube. Take 14 mins. out of your life and see for yourself what a wonderful work of art this particular video really is.'
@@ -748,11 +748,11 @@ Output:
 
 让我们看看这个样本的模型输出以及实际类别：
 
-```
+```py
 target_predicted[index]
 ```
 
-```
+```py
 Output:
 0.1529513
 
@@ -763,7 +763,7 @@ Output:
 
 现在，让我们测试一下我们训练好的模型，看看它在一组新数据样本上的表现：
 
-```
+```py
 test_sample_1 = "This movie is fantastic! I really like it because it is so good!"
 test_sample_2 = "Good movie!"
 test_sample_3 = "Maybe I like this movie."
@@ -777,13 +777,13 @@ test_samples = [test_sample_1, test_sample_2, test_sample_3, test_sample_4, test
 
 现在，让我们将它们转换为整数标记：
 
-```
+```py
 test_samples_tokens = tokenizer_obj.texts_to_sequences(test_samples)
 ```
 
 然后进行填充：
 
-```
+```py
 test_samples_tokens_pad = pad_sequences(test_samples_tokens, maxlen=max_num_tokens,
                            padding=seq_pad, truncating=seq_pad)
 test_samples_tokens_pad.shape
@@ -794,7 +794,7 @@ Output:
 
 最后，让我们将模型应用于这些数据：
 
-```
+```py
 rnn_type_model.predict(test_samples_tokens_pad)
 
 Output:

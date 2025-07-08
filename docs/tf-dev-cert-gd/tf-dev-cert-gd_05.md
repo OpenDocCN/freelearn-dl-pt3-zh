@@ -134,53 +134,53 @@
 
 1.  在加载数据之前，我们需要加载必要的库。我们在这里做这件事：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
-    ```
+    ```py
     from tensorflow import keras
     ```
 
-    ```
+    ```py
     import pandas as pd
     ```
 
-    ```
+    ```py
     import random
     ```
 
-    ```
+    ```py
     import numpy as np
     ```
 
-    ```
+    ```py
     import matplotlib.pyplot as plt #helper libraries
     ```
 
-    ```
+    ```py
     from tensorflow.keras.utils import plot_model
     ```
 
 1.  接下来，我们从 TensorFlow 导入 `fashion_mnist` 数据集，并使用 `load_data()` 方法创建我们的训练集和测试集：
 
-    ```
+    ```py
     #Lets import the fashion mnist
     ```
 
-    ```
+    ```py
     fashion_data = keras.datasets.fashion_mnist
     ```
 
-    ```
+    ```py
     #Lets create of numpy array of training and testing data
     ```
 
-    ```
+    ```py
     (train_images, train_labels), (test_images,
     ```
 
-    ```
+    ```py
         test_labels) = fashion_data.load_data()
     ```
 
@@ -192,15 +192,15 @@
 
 1.  现在，我们不再使用数字标签，而是创建与数据匹配的标签，这样我们可以把一件衣服叫做“衣服”，而不是叫它编号 3。我们将通过创建一个标签列表，并将其映射到相应的数字值来实现这一点：
 
-    ```
+    ```py
     #We create a list of the categories
     ```
 
-    ```
+    ```py
     class_names=['Top', 'Trouser','Pullover', 'Dress', 'Coat', 
     ```
 
-    ```
+    ```py
         'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankleboot']
     ```
 
@@ -212,23 +212,23 @@
 
 1.  我们将使用`matplotlib`库生成索引为`i`的图像样本，其中`i`在 60,000 个训练样本中：
 
-    ```
+    ```py
     # Display a sample image from the training data (index 7)
     ```
 
-    ```
+    ```py
     plt.imshow(train_images[7])
     ```
 
-    ```
+    ```py
     plt.grid(False)
     ```
 
-    ```
+    ```py
     plt.axis('off')
     ```
 
-    ```
+    ```py
     plt.show()
     ```
 
@@ -242,43 +242,43 @@
 
 1.  让我们来看一下我们数据的样本：
 
-    ```
+    ```py
     #Lets check the shape of our training images and testing images
     ```
 
-    ```
+    ```py
     train_images.shape, test_images.shape
     ```
 
     如预期的那样，我们可以看到训练图像由 60,000 张 28 x 28 的图像组成，而测试图像有 10,000 张，分辨率为 28 x 28：
 
-    ```
+    ```py
     ((60000, 28, 28), (10000, 28, 28))
     ```
 
 1.  接下来，让我们检查数据的分布情况。最好先了解数据的分布情况，以确保每个我们希望训练模型的服装类别都有足够的样本。让我们在这里进行检查：
 
-    ```
+    ```py
     df=pd.DataFrame(np.unique(train_labels,
     ```
 
-    ```
+    ```py
         return_counts=True)).T
     ```
 
-    ```
+    ```py
     dict = {0: ‹Label›,1: ‹Count›}
     ```
 
-    ```
+    ```py
     df.rename(columns=dict,
     ```
 
-    ```
+    ```py
         inplace=True)
     ```
 
-    ```
+    ```py
     df
     ```
 
@@ -292,39 +292,39 @@
 
 1.  让我们在这里可视化一些训练数据中的样本图像。让我们来看 16 个来自训练数据的样本：
 
-    ```
+    ```py
     plt.figure(figsize=(9,9))
     ```
 
-    ```
+    ```py
     for i in range(16):
     ```
 
-    ```
+    ```py
         plt.subplot(4,4,i+1)
     ```
 
-    ```
+    ```py
         plt.xticks([])
     ```
 
-    ```
+    ```py
         plt.yticks([])
     ```
 
-    ```
+    ```py
         plt.grid(False)
     ```
 
-    ```
+    ```py
         plt.imshow(train_images[i])
     ```
 
-    ```
+    ```py
         plt.title(class_names[train_labels[i]])
     ```
 
-    ```
+    ```py
     plt.show()
     ```
 
@@ -336,7 +336,7 @@
 
 现在我们已经确认了数据大小、数据分布和形状，并查看了一些样本图像和标签。在我们开始构建和训练图像分类器之前，回顾一下我们的数据由灰度图像组成，值范围从 0 到 255。为了对数据进行归一化并提升模型在训练过程中的表现，我们需要对数据进行归一化处理。我们可以通过简单地将训练数据和测试数据除以 255 来实现这一点：
 
-```
+```py
 #it's important that the training and testing set are preprocessed in the same way.
 train_images=train_images/255.0
 test_images=test_images/255.0
@@ -348,7 +348,7 @@ test_images=test_images/255.0
 
 让我们将到目前为止在本章中学到的所有知识付诸实践：
 
-```
+```py
 #Step 1:  Model configuration
 model=keras.Sequential([
     keras.layers.Flatten(input_shape=(28,28)),
@@ -368,7 +368,7 @@ model=keras.Sequential([
 
 下一步是编译模型。我们将使用`compile`方法来完成这个操作。在这里，我们传入我们希望使用的优化器；在这种情况下，我们使用**Adam**，它是我们的默认优化器。我们还指定了损失函数和评估指标。由于我们的标签是数字值，因此我们使用稀疏分类交叉熵作为损失函数。对于评估指标，我们使用准确率，因为我们的数据集是平衡的。准确率指标将真实反映我们模型的性能：
 
-```
+```py
 #Step 2: Compiling the model, we add the loss, optimizer and evaluation metrics here
 model.compile(optimizer='adam',
     loss=›sparse_categorical_crossentropy',
@@ -381,7 +381,7 @@ model.compile(optimizer='adam',
 
 为了可视化我们的模型，我们使用`summary()`方法。这将为我们提供一个详细的视觉表示，展示模型的架构、各层、参数数量（可训练和不可训练）以及输出形状：
 
-```
+```py
 model.summary()
 ```
 
@@ -395,7 +395,7 @@ model.summary()
 
 另一方面，我们还可以通过以下代码将模型显示为流程图，如*图 5.12*所示：
 
-```
+```py
 plot_model(model, to_file='model_plot.png', show_shapes=True, 
     show_layer_names=True)
 ```
@@ -412,14 +412,14 @@ plot_model(model, to_file='model_plot.png', show_shapes=True,
 
 到现在为止，你应该已经熟悉这个过程。通过一行代码，我们可以使用`fit`方法来拟合我们的训练图像(*X*)和训练标签(*y*)：
 
-```
+```py
 #Step 3: We fit our data to the model
  history= model.fit(train_images, train_labels, epochs=5)
 ```
 
 在这里，我们将数据训练了五个 epoch。我们的模型返回了损失和准确率：
 
-```
+```py
 1875/1875 [==============================] – 4s 2ms/step – loss: 0.5206 – accuracy: 0.8183
 Epoch 2/5
 1875/1875 [==============================] – 4s 2ms/step – loss: 0.3937 – accuracy: 0.8586
@@ -437,7 +437,7 @@ Epoch 5/5
 
 我们在拟合训练数据时返回一个`history`对象。在这里，我们使用`history`对象来创建损失和准确率曲线。以下是绘制图表的代码：
 
-```
+```py
 # Plot history for accuracy
 plt.plot(history.history['accuracy'])
 plt.title('model accuracy')
@@ -466,7 +466,7 @@ plt.show()
 
 我们在测试集上评估我们模型的整体表现如下：
 
-```
+```py
 test_loss,test_acc =model.evaluate(test_images,test_labels)
 print('Test Accuracy: ', test_acc)
 ```
@@ -479,14 +479,14 @@ print('Test Accuracy: ', test_acc)
 
 要对模型进行预测，我们在测试集的未见数据上使用`model.predict()`方法。让我们看看模型在测试数据的第一个实例上的预测：
 
-```
+```py
 predictions=model.predict(test_images)
 predictions[0].round(2)
 ```
 
 当我们运行代码时，我们得到一个概率数组：
 
-```
+```py
 array([0.  , 0.  , 0.  , 0.  , 0.  ,
     0.13, 0.  , 0.16, 0.  , 0.7 ],
     dtype=float32)
@@ -494,13 +494,13 @@ array([0.  , 0.  , 0.  , 0.  , 0.  ,
 
 如果我们检查概率，会发现在第九个元素的概率最高。因此，这个标签的概率为 70%。我们将使用`np.argmax`来提取标签，并将其与索引为`0`的测试标签进行比较：
 
-```
+```py
 np.argmax(predictions[0]),test_labels[0]
 ```
 
 我们看到预测标签和测试标签的值都是`9`。我们的模型正确预测了这一点。接下来，让我们绘制 16 张随机图片，并将预测结果与真实标签进行比较。这次，我们不会返回标签的数值，而是返回标签本身，以便更清晰地展示：
 
-```
+```py
 # Let us plot 16 random images and compare the labels with the model's prediction
 figure = plt.figure(figsize=(9, 9))
 for i, index in enumerate(np.random.choice(test_images.shape[0],

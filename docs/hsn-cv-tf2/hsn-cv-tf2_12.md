@@ -60,7 +60,7 @@
 
 要使用它，调用`trace_on`并将`profiler`设置为`True`。然后，您可以运行 TensorFlow 或 Keras 操作，并将跟踪信息导出到一个文件夹：
 
-```
+```py
 logdir = './logs/model'
 writer = tf.summary.create_file_writer(logdir)
 
@@ -74,7 +74,7 @@ with writer.as_default():
 
 一旦模型开始运行并启用追踪，我们可以通过在命令行执行以下命令来将 TensorBoard 指向该文件夹：
 
-```
+```py
 $ tensorboard --logdir logs
 ```
 
@@ -286,7 +286,7 @@ TensorFlow 追踪可能会占用大量磁盘空间。因此，我们建议仅在
 
 大多数 TensorFlow 对象都可以导出为 SavedModel。例如，以下代码导出一个训练过的 Keras 模型：
 
-```
+```py
 tf.saved_model.save(model, export_dir='./saved_model')
 ```
 
@@ -296,7 +296,7 @@ tf.saved_model.save(model, export_dir='./saved_model')
 
 要将 SavedModel 转换为冻结图，可以使用以下代码：
 
-```
+```py
 from tensorflow.python.tools import freeze_graph
 
 output_node_names = ['dense/Softmax']
@@ -399,7 +399,7 @@ MobileNet 使用**深度可分离**卷积。实际上，这意味着该架构由
 
 我们可以将模型转换为`.mlmodel`格式：
 
-```
+```py
 import tfcoreml as tf_converter
 
 tf_converter.convert('frozen_model.pb',
@@ -444,7 +444,7 @@ tf_converter.convert('frozen_model.pb',
 
 完整的应用程序可以在章节仓库中找到。构建和运行它需要一台 Mac 计算机和一台 iOS 设备。让我们简要介绍一下如何从模型中获取预测的步骤。请注意，以下代码是用 Swift 编写的，它与 Python 语法类似：
 
-```
+```py
 private lazy var model: VNCoreMLModel = try! VNCoreMLModel(for: mobilenet().model)
 
 private lazy var classificationRequest: VNCoreMLRequest = {
@@ -466,7 +466,7 @@ private lazy var classificationRequest: VNCoreMLRequest = {
 
 我们还使用本机的 `VNDetectFaceRectanglesRequest` 和 `VNSequenceRequestHandler` 函数加载用于面部检测的模型：
 
-```
+```py
 private let faceDetectionRequest = VNDetectFaceRectanglesRequest()
 private let faceDetectionHandler = VNSequenceRequestHandler()
 ```
@@ -475,7 +475,7 @@ private let faceDetectionHandler = VNSequenceRequestHandler()
 
 作为输入，我们访问 `pixelBuffer`，它包含设备摄像头的视频流中的像素。我们运行面部检测模型并获得 `faceObservations`。这将包含检测结果。如果该变量为空，则表示未检测到面部，我们将不会进一步处理该函数：
 
-```
+```py
 try faceDetectionHandler.perform([faceDetectionRequest], on: pixelBuffer, orientation: exifOrientation)
 
 guard let faceObservations = faceDetectionRequest.results as? [VNFaceObservation], faceObservations.isEmpty == false else {
@@ -485,7 +485,7 @@ guard let faceObservations = faceDetectionRequest.results as? [VNFaceObservation
 
 然后，对于每个 `faceObservation` 在 `faceObservations` 中，我们将对包含面部的区域进行分类：
 
-```
+```py
 let classificationHandler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .right, options: [:])
 
 let box = faceObservation.boundingBox
@@ -513,7 +513,7 @@ try classificationHandler.perform([self.classificationRequest])
 
 TensorFlow 集成了一个功能，用于将 SavedModel 模型转换为 TF Lite 格式。为此，我们首先创建一个 TensorFlow Lite 转换器对象：
 
-```
+```py
 # From a Keras model
 converter = tf.lite.TFLiteConverter.from_keras_model(model)
 ## Or from a SavedModel
@@ -522,7 +522,7 @@ converter = tf.lite.TFLiteConverter('./saved_model')
 
 然后，将模型保存到磁盘：
 
-```
+```py
 tflite_model = converter.convert()
 open("result.tflite", "wb").write(tflite_model)
 ```
@@ -533,7 +533,7 @@ open("result.tflite", "wb").write(tflite_model)
 
 在将模型转换为`.tflite`格式后，我们可以将其添加到 Android 应用的 assets 文件夹中。然后，我们可以使用辅助函数`loadModelFile`加载模型：
 
-```
+```py
 tfliteModel = loadModelFile(activity);
 
 ```
@@ -542,7 +542,7 @@ tfliteModel = loadModelFile(activity);
 
 然后，我们可以创建`Interpreter`。在 TensorFlow Lite 中，解释器用于运行模型并返回预测结果。在我们的示例中，我们传递默认的`Options`构造函数。`Options`构造函数可以用来改变线程数或模型的精度：
 
-```
+```py
 Interpreter.Options tfliteOptions = new Interpreter.Options();
 tflite = new Interpreter(tfliteModel, tfliteOptions);
 
@@ -550,7 +550,7 @@ tflite = new Interpreter(tfliteModel, tfliteOptions);
 
 最后，我们将创建`ByteBuffer`。这是一种包含输入图像数据的数据结构：
 
-```
+```py
 imgData =
     ByteBuffer.allocateDirect(
         DIM_BATCH_SIZE
@@ -573,7 +573,7 @@ imgData =
 
 为了处理预测，我们稍后将填充这个`imgData`缓冲区并传递给解释器。我们的面部表情检测模型已经准备好使用。在开始使用我们的完整流程之前，我们只需要实例化人脸检测器：
 
-```
+```py
 faceDetector = new FaceDetector.Builder(this.getContext())
         .setMode(FaceDetector.FAST_MODE)
         .setTrackingEnabled(false)
@@ -587,7 +587,7 @@ faceDetector = new FaceDetector.Builder(this.getContext())
 
 对于我们的示例应用，我们将处理位图图像。你可以将位图视为一个原始像素矩阵。它们与 Android 上的大多数图像库兼容。我们从显示相机视频流的视图`textureView`获取这个位图：
 
-```
+```py
 Bitmap bitmap = textureView.getBitmap(previewSize.getHeight() / 4, previewSize.getWidth() / 4)
 
 ```
@@ -596,14 +596,14 @@ Bitmap bitmap = textureView.getBitmap(previewSize.getHeight() / 4, previewSize.g
 
 接下来，我们将从位图创建`vision.Frame`。这个步骤是必要的，以便将图像传递给`faceDetector`：
 
-```
+```py
 Frame frame = new Frame.Builder().setBitmap(bitmap).build();
 faces = faceDetector.detect(frame);
 ```
 
 然后，对于`faces`中的每个`face`，我们可以在位图中裁剪出用户的面部。在 GitHub 仓库中提供的`cropFaceInBitmap`辅助函数正是执行此操作——它接受面部坐标并裁剪位图中的相应区域：
 
-```
+```py
 Bitmap faceBitmap = cropFaceInBitmap(face, bitmap);
 Bitmap resized = Bitmap.createScaledBitmap(faceBitmap, 
 classifier.getImageSizeX(), classifier.getImageSizeY(), true)
@@ -611,7 +611,7 @@ classifier.getImageSizeX(), classifier.getImageSizeY(), true)
 
 在调整位图大小以适应模型输入后，我们填充`imgData`，即`ByteBuffer`，它是`Interpreter`接受的格式：
 
-```
+```py
 imgData.rewind();
 resized.getPixels(intValues, 0, resized.getWidth(), 0, 0, resized.getWidth(), resized.getHeight());
 
@@ -626,7 +626,7 @@ for (int i = 0; i < getImageSizeX(); ++i) {
 
 如您所见，我们遍历位图的像素并将其添加到`imgData`中。为此，我们使用`addPixelValue`。这个函数处理每个像素的预处理。它会根据模型的特性有所不同。在我们的案例中，模型使用的是灰度图像。因此，我们必须将每个像素从彩色转换为灰度：
 
-```
+```py
 protected void addPixelValue(int pixelValue) {
   float mean =  (((pixelValue >> 16) & 0xFF) + ((pixelValue >> 8) & 0xFF) + (pixelValue & 0xFF)) / 3.0f;
   imgData.putFloat(mean / 127.5f - 1.0f);
@@ -637,7 +637,7 @@ protected void addPixelValue(int pixelValue) {
 
 在此过程的最后，`imgData`包含了正确格式的输入信息。最后，我们可以运行推理：
 
-```
+```py
 float[][] labelProbArray = new float[1][getNumLabels()];
 tflite.run(imgData, labelProbArray);
 ```
@@ -664,7 +664,7 @@ tflite.run(imgData, labelProbArray);
 
 然后，转换模型的过程与 TensorFlow Lite 的过程非常相似。不同之处在于，它不是在 Python 中完成，而是通过命令行完成：
 
-```
+```py
 $ tensorflowjs_converter ./saved_model --input_format=tf_saved_model my-tfjs --output_format tfjs_graph_model
 ```
 
@@ -684,7 +684,7 @@ $ tensorflowjs_converter ./saved_model --input_format=tf_saved_model my-tfjs --o
 
 在我们的 JavaScript 应用程序中，导入 TensorFlow.js 后，我们可以加载模型。请注意，以下代码是用 JavaScript 编写的。它的语法类似于 Python：
 
-```
+```py
 import * as tf from '@tensorflow/tfjs';
 const model = await tf.loadModel(MOBILENET_MODEL_PATH);
 
@@ -692,14 +692,14 @@ const model = await tf.loadModel(MOBILENET_MODEL_PATH);
 
 我们还将使用一个名为`face-api.js`的库来提取人脸：
 
-```
+```py
 import * as faceapi from 'face-api.js';
 await faceapi.loadTinyFaceDetectorModel(DETECTION_MODEL_PATH)
 ```
 
 一旦两个模型加载完毕，我们就可以开始处理用户的图像：
 
-```
+```py
 const video = document.getElementById('video');
 const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
 
@@ -713,7 +713,7 @@ if (detection) {
 
 `predict`函数处理图像的预处理和分类。它的具体操作如下：
 
-```
+```py
 async function predict(imgElement) {
   let img = await tf.browser.fromPixels(imgElement, 3).toFloat();
 

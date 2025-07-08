@@ -216,7 +216,7 @@ Anaconda 是一个免费的 Python 包分发工具，适用于 Windows、Mac 或
 
 1.  可以使用以下命令创建 Python 虚拟环境：
 
-    ```
+    ```py
     $ python -m venv venv
     $ source venv/bin/activate
     ```
@@ -227,7 +227,7 @@ Anaconda 是一个免费的 Python 包分发工具，适用于 Windows、Mac 或
 
 1.  激活虚拟环境后，请通过在 `requirements.txt` 文件上执行 `pip`，确保正确的组件已安装（[`packt.live/300skHu`](https://packt.live/300skHu)）。
 
-    ```
+    ```py
     $ pip install –r requirements.txt
     ```
 
@@ -239,7 +239,7 @@ Anaconda 是一个免费的 Python 包分发工具，适用于 Windows、Mac 或
 
 1.  这将会在虚拟环境中安装本书中使用的库。如果这些库已经存在，它将不会做任何操作。如果库正在安装，将显示进度条，否则会提示“`requirement is already specified`”。要检查已安装的可用库，请使用以下命令：
 
-    ```
+    ```py
     $ pip list
     ```
 
@@ -257,7 +257,7 @@ Anaconda 是一个免费的 Python 包分发工具，适用于 Windows、Mac 或
 
 1.  运行以下脚本检查 Python 3、TensorFlow 和 Keras 的依赖项是否可用。使用以下命令：
 
-    ```
+    ```py
     $ python3 Chapter01/Exercise1.01/test_stack.py
     ```
 
@@ -275,7 +275,7 @@ Anaconda 是一个免费的 Python 包分发工具，适用于 Windows、Mac 或
 
 1.  在终端中运行以下脚本命令，获取有关如何配置 TensorBoard 的更多信息：
 
-    ```
+    ```py
     $ tensorboard –help
     ```
 
@@ -323,7 +323,7 @@ CIFAR 数据集是一个机器学习数据集，包含按不同类别组织的�
 
 注意
 
-```
+```py
 \ ) to split the logic across multiple lines. When the code is executed, Python will ignore the backslash, and treat the code on the next line as a direct continuation of the current line.
 model = Sequential()
 model.add(Convolution2D(filters = 10, kernel_size = 3, \
@@ -354,7 +354,7 @@ model.add(Dense(10, activation = 'softmax'))
 
 1.  在其中一个终端中，使用以下命令启动 TensorBoard 服务器：
 
-    ```
+    ```py
     $ tensorboard --logdir logs/fit
     ```
 
@@ -362,7 +362,7 @@ model.add(Dense(10, activation = 'softmax'))
 
     ![图 1.10：TensorBoard 服务器    ](img/B15911_01_10.jpg)
 
-    ```
+    ```py
     $ python mnist.py
     ```
 

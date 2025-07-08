@@ -56,7 +56,7 @@
 
 1.  通过去除均值并将其缩放到单位方差，转换`'Amount'`：
 
-```
+```py
 def preprocess_data(data):
 data = data.drop(['Time'], axis=1)
 data['Amount'] = StandardScaler().fit_transform(data['Amount'].values.reshape(-1, 1))
@@ -68,7 +68,7 @@ return
 
 1.  为了构建我们的数据集，将其分为训练数据和测试数据，训练数据仅包含非欺诈交易，测试数据包含欺诈和非欺诈交易：
 
-```
+```py
 def get_train_and_test_data(processed_data):
 X_train, X_test = train_test_split(processed_data, test_size=0.25, random_state=RANDOM_SEED)
 X_train = X_train[X_train.Class == 0]
@@ -82,7 +82,7 @@ return X_train, X_test,y_test
 
 1.  使用以下代码定义模型：
 
-```
+```py
 def define_model(self):
 dim_input = self.train_data.shape[1]
 layer_input = Input(shape=(dim_input,))
@@ -97,7 +97,7 @@ return autoencoder
 
 1.  一旦模型定义完成，使用 Keras 训练模型：
 
-```
+```py
 def train_model(self):
 self.model.compile(optimizer=OPTIMIZER,
 loss=LOSS,
@@ -135,7 +135,7 @@ self.plot_loss_curves()
 
 1.  存储一个`TensorBoard`文件，以可视化图形或其他变量。同时，通过 Keras 提供的检查点存储表现最佳的模型。生成训练和测试数据的损失曲线：
 
-```
+```py
 def plot_loss_curves(self):
 fig = plt.figure(num="Loss Curves")
 fig.set_size_inches(12, 6)
@@ -164,7 +164,7 @@ plt.clf()
 
 一旦训练过程完成，通过欺诈交易和非欺诈（正常）交易区分测试集中的重建误差。生成不同类别交易的重建误差：
 
-```
+```py
 def plot_reconstruction_error_by_class(self):
 self.get_test_predictions()
 mse = np.mean(np.power(self.test_data - self.test_predictions, 2), axis=1)
@@ -200,7 +200,7 @@ plt.clf()
 
 为了评估模型，我们将使用在第四章《*使用 TensorFlow Lite 进行数字分类*》中定义的精确度和召回率度量。首先，让我们来看一下在不同重构误差阈值下的精确度和召回率：
 
-```
+```py
 def get_precision_recall_curves(self):
 precision, recall, threshold = precision_recall_curve(self.recon_error.true_class, self.recon_error.recon_error)
 # Plotting the precision curve
@@ -240,7 +240,7 @@ plt.clf()
 
 这是生成混淆矩阵的代码，`min_recall`设置为 80%：
 
-```
+```py
 def get_confusion_matrix(self, min_recall = 0.8):
 # Get the confusion matrix with min desired recall on the testing dataset used.
 precision, recall, threshold = precision_recall_curve(self.recon_error.true_class, self.recon_error.recon_error)

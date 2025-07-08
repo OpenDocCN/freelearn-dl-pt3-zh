@@ -62,7 +62,7 @@
 
 首先，让我们编辑笔记本的第一行并导入 TensorFlow 2。请输入以下代码到第一个单元格并执行：
 
-```
+```py
 %tensorflow_version 2.x
 import tensorflow as tf
 import os
@@ -72,7 +72,7 @@ tf.__version__
 
 执行此单元格后输出应如下所示：
 
-```
+```py
 TensorFlow 2.x is selected.
 '2.4.0' 
 ```
@@ -83,7 +83,7 @@ TensorFlow 2.x is selected.
 
 可以使用以下代码完成这一操作：
 
-```
+```py
 # Download the zip file
 path_to_zip = tf.keras.utils.get_file("smsspamcollection.zip",
 origin="https://archive.ics.uci.edu/ml/machine-learning-databases/00228/smsspamcollection.zip",
@@ -94,7 +94,7 @@ origin="https://archive.ics.uci.edu/ml/machine-learning-databases/00228/smsspamc
 
 以下输出确认了数据已经下载并解压：
 
-```
+```py
 Archive:  /root/.keras/datasets/smsspamcollection.zip
   inflating: data/SMSSpamCollection  
   inflating: data/readme 
@@ -102,7 +102,7 @@ Archive:  /root/.keras/datasets/smsspamcollection.zip
 
 读取数据文件非常简单：
 
-```
+```py
 # Let's see if we read the data correctly
 lines = io.open('data/SMSSpamCollection').read().strip().split('\n')
 lines[0] 
@@ -110,7 +110,7 @@ lines[0]
 
 最后一行代码显示了一条数据示例：
 
-```
+```py
 'ham\tGo until jurong point, crazy.. Available only in bugis n great world' 
 ```
 
@@ -120,7 +120,7 @@ lines[0]
 
 请注意，以下代码为清晰起见，做了详细描述：
 
-```
+```py
 spam_dataset = []
 for line in lines:
   label, text = line.split('\t')
@@ -131,7 +131,7 @@ for line in lines:
 print(spam_dataset[0]) 
 ```
 
-```
+```py
 (0, 'Go until jurong point, crazy.. Available only in bugis n great world la e buffet... Cine there got amore wat...') 
 ```
 
@@ -175,14 +175,14 @@ print(spam_dataset[0])
 
 为此，首先，我们将数据转换为一个`pandas` DataFrame：
 
-```
+```py
 import pandas as pd
 df = pd.DataFrame(spam_dataset, columns=['Spam', 'Message']) 
 ```
 
 接下来，让我们构建一些简单的函数，计算消息的长度、首字母大写字母的数量和标点符号的数量。Python 的正则表达式包 `re` 将用于实现这些功能：
 
-```
+```py
 import re
 def message_length(x):
   # returns total number of characters
@@ -199,7 +199,7 @@ def num_punctuation(x):
 
 将会向 DataFrame 添加额外的特征列，然后将数据集拆分为测试集和训练集：
 
-```
+```py
 df['Capitals'] = df['Message'].apply(num_capitals)
 df['Punctuation'] = df['Message'].apply(num_punctuation)
 df['Length'] = df['Message'].apply(message_length)
@@ -214,7 +214,7 @@ df.describe()
 
 以下代码可用于将数据集拆分为训练集和测试集，其中 80%的记录用于训练集，剩余的用于测试集。此外，还会从训练集和测试集中删除标签：
 
-```
+```py
 train=df.sample(frac=0.8,random_state=42)
 test=df.drop(train.index)
 x_train = train[['Length', 'Capitals', 'Punctuation']]
@@ -233,7 +233,7 @@ y_test = test[['Spam']]
 
 定义了一个函数，允许构建具有不同输入和隐藏单元数量的模型：
 
-```
+```py
 # Basic 1-layer neural network model for evaluation
 def make_model(input_dims=3, num_units=12):
   model = tf.keras.Sequential()
@@ -252,12 +252,12 @@ def make_model(input_dims=3, num_units=12):
 
 我们可以仅使用三个特征来训练我们的简单基线模型，如下所示：
 
-```
+```py
 model = make_model()
 model.fit(x_train, y_train, epochs=10, batch_size=10) 
 ```
 
-```
+```py
 Train on 4459 samples
 Epoch 1/10
 4459/4459 [==============================] - 1s 281us/sample - loss: 0.6062 - accuracy: 0.8141
@@ -269,18 +269,18 @@ Epoch 10/10
 
 这并不差，因为我们的三个简单特征帮助我们达到了 93%的准确率。快速检查显示测试集中有 592 条垃圾邮件，所有邮件总数为 4,459 条。因此，这个模型比一个非常简单的模型要好，后者会将所有邮件都预测为非垃圾邮件。那个模型的准确率是 87%。这个数字可能让人吃惊，但在数据中存在严重类别不平衡的分类问题中，这种情况是相当常见的。在训练集上的评估给出了大约 93.4%的准确率：
 
-```
+```py
 model.evaluate(x_test, y_test) 
 ```
 
-```
+```py
 1115/1115 [==============================] - 0s 94us/sample - loss: 0.1949 - accuracy: 0.9336
 [0.19485870356516988, 0.9336323] 
 ```
 
 请注意，您看到的实际性能可能会因为数据拆分和计算偏差而略有不同。可以通过绘制混淆矩阵来快速验证性能：
 
-```
+```py
 y_train_pred = model.predict_classes(x_train)
 # confusion matrix
 tf.math.confusion_matrix(tf.constant(y_train.Spam), 
@@ -329,14 +329,14 @@ array([[3771,   96],
 
 幸运的是，大多数语言不像日语那样复杂，使用空格来分隔单词。在 Python 中，通过空格分割是非常简单的。让我们看一个例子：
 
-```
+```py
 Sentence = 'Go until Jurong point, crazy.. Available only in bugis n great world'
 sentence.split() 
 ```
 
 前面的分割操作的输出结果如下：
 
-```
+```py
 ['Go',
  'until',
  'jurong',
@@ -353,13 +353,13 @@ sentence.split()
 
 上述输出中两个高亮的行显示，Python 中的简单方法会导致标点符号被包含在单词中，等等。因此，这一步是通过像 StanfordNLP 这样的库来完成的。使用 `pip`，我们可以在 Colab 笔记本中安装此包：
 
-```
+```py
 !pip install stanfordnlp 
 ```
 
 StanfordNLP 包使用 PyTorch 底层支持，同时还使用了一些其他包。这些包和其他依赖项将会被安装。默认情况下，该包不会安装语言文件，这些文件需要手动下载。以下代码展示了这一过程：
 
-```
+```py
 Import stanfordnlp as snlp
 en = snlp.download('en') 
 ```
@@ -374,7 +374,7 @@ Google Colab 在不活动时会回收运行时。这意味着如果你在不同�
 
 这个包提供了开箱即用的分词、词性标注和词形还原功能。为了开始分词，我们实例化一个管道并对一个示例文本进行分词，看看这个过程是如何工作的：
 
-```
+```py
 en = snlp.Pipeline(lang='en', processors='tokenize') 
 ```
 
@@ -388,25 +388,25 @@ en = snlp.Pipeline(lang='en', processors='tokenize')
 
 目前，只需要进行文本分词，所以只使用分词器：
 
-```
+```py
 tokenized = en(sentence)
 len(tokenized.sentences) 
 ```
 
-```
+```py
 2 
 ```
 
 这表明分词器正确地将文本分成了两个句子。为了调查删除了哪些单词，可以使用以下代码：
 
-```
+```py
 for snt in tokenized.sentences:
   for word in snt.tokens:
     print(word.text)
   print("<End of Sentence>") 
 ```
 
-```
+```py
 Go
 until
 jurong
@@ -429,26 +429,26 @@ world
 
 考虑上述日语示例。为了查看 StanfordNLP 在日语分词上的表现，可以使用以下代码片段：
 
-```
+```py
 jp = snlp.download('ja') 
 ```
 
 这是第一步，涉及下载日语语言模型，类似于之前下载并安装的英语模型。接下来，将实例化一个日语处理管道，单词将会被处理：
 
-```
+```py
 jp = snlp.download('ja')
 jp_line = jp("![](img/B16252_01_001.png)") 
 ```
 
 你可能记得，日文文本的内容是“选举管理委员会”。正确的分词应该生成三个单词，其中前两个单词各包含两个字符，最后一个单词包含三个字符：
 
-```
+```py
 for snt in jp_line.sentences:
   for word in snt.tokens:
     print(word.text) 
 ```
 
-```
+```py
 ![](img/B16252_01_002.png) 
 ```
 
@@ -460,7 +460,7 @@ for snt in jp_line.sentences:
 
 可能垃圾邮件的单词数量与常规邮件不同。第一步是定义一个方法来计算单词数：
 
-```
+```py
 en = snlp.Pipeline(lang='en')
 def word_counts(x, pipeline=en):
   doc = pipeline(x)
@@ -470,7 +470,7 @@ def word_counts(x, pipeline=en):
 
 接下来，使用训练和测试数据集的划分，添加一个字数特征列：
 
-```
+```py
 train['Words'] = train['Message'].apply(word_counts)
 test['Words'] = test['Message'].apply(word_counts)
 x_train = train[['Length', 'Punctuation', 'Capitals', 'Words']]
@@ -486,7 +486,7 @@ model = make_model(input_dims=4)
 
 当你在 StanfordNLP 库中执行函数时，可能会看到如下警告：
 
-```
+```py
 `/pytorch/aten/src/ATen/native/LegacyDefinitions.cpp:19: UserWarning: masked_fill_ received a mask with dtype torch.uint8, this behavior is now deprecated,please use a mask with dtype torch.bool instead.` 
 ```
 
@@ -496,7 +496,7 @@ model = make_model(input_dims=4)
 
 这个模型可以通过以下方式进行训练：
 
-```
+```py
 model.fit(x_train, y_train, epochs=10, batch_size=10)
 Train on 4459 samples
 Epoch 1/10
@@ -508,7 +508,7 @@ Epoch 10/10
 
 准确度的提高只是微乎其微。一种假设是，单词的数量没有太大用处。如果垃圾邮件的平均单词数比常规消息的单词数要小或大，那将是有用的。使用 pandas 可以快速验证这一点：
 
-```
+```py
 train.loc[train.Spam == 1].describe() 
 ```
 
@@ -518,7 +518,7 @@ train.loc[train.Spam == 1].describe()
 
 让我们将上述结果与常规消息的统计数据进行比较：
 
-```
+```py
 train.loc[train.Spam == 0].describe() 
 ```
 
@@ -546,24 +546,24 @@ train.loc[train.Spam == 0].describe()
 
 以下命令将通过笔记本安装该包：
 
-```
+```py
 !pip install stopwordsiso 
 ```
 
 可以使用以下命令检查支持的语言：
 
-```
+```py
 import stopwordsiso as stopwords
 stopwords.langs() 
 ```
 
 英语的停用词也可以检查，以了解其中的一些词汇：
 
-```
+```py
 sorted(stopwords.stopwords('en')) 
 ```
 
-```
+```py
 "'ll",
  "'tis",
  "'twas",
@@ -591,7 +591,7 @@ sorted(stopwords.stopwords('en'))
 
 鉴于分词已经在前面的`word_counts()`方法中实现，可以更新该方法的实现，加入移除停用词的步骤。然而，所有的停用词都是小写字母。之前讨论过的大小写规范化对垃圾邮件检测来说是一个有用的特征。在这种情况下，词元需要转换为小写字母才能有效地去除它们：
 
-```
+```py
 en_sw = stopwords.stopwords('en')
 def word_counts(x, pipeline=en):
   doc = pipeline(x)
@@ -615,7 +615,7 @@ def word_counts(x, pipeline=en):
 
 现在，去除停用词后的特征已经计算出来，可以将其加入模型中，看看它的影响：
 
-```
+```py
 train['Words'] = train['Message'].apply(word_counts)
 test['Words'] = test['Message'].apply(word_counts)
 x_train = train[['Length', 'Punctuation', 'Capitals', 'Words']]
@@ -626,7 +626,7 @@ model = make_model(input_dims=4)
 model.fit(x_train, y_train, epochs=10, batch_size=10) 
 ```
 
-```
+```py
 Epoch 1/10
 4459/4459 [==============================] - 2s 361us/sample - loss: 0.5186 - accuracy: 0.8652
 Epoch 2/10
@@ -639,11 +639,11 @@ Epoch 10/10
 
 这一准确度相较于之前的模型有了轻微的提升：
 
-```
+```py
 model.evaluate(x_test, y_test) 
 ```
 
-```
+```py
 1115/1115 [==============================] - 0s 74us/sample - loss: 0.1954 - accuracy: 0.9372
  [0.19537461110027382, 0.93721974] 
 ```
@@ -686,7 +686,7 @@ StanfordNLP 使用带有 **双向长短期记忆**（**BiLSTM**）单元的监�
 
 本部分的代码位于笔记本的 *POS 基础特征* 部分。
 
-```
+```py
 en = snlp.Pipeline(lang='en')
 txt = "Yo you around? A friend of mine's lookin."
 pos = en(txt) 
@@ -694,7 +694,7 @@ pos = en(txt)
 
 上述代码实例化了一个英语处理流程并处理了一段示例文本。下一段代码是一个可重用的函数，用于打印带有词性标记的句子标记：
 
-```
+```py
 def print_pos(doc):
     text = ""
     for sentence in doc.sentences:
@@ -707,11 +707,11 @@ def print_pos(doc):
 
 这个方法可以用来调查前面示例句子的标记：
 
-```
+```py
 print(print_pos(pos)) 
 ```
 
-```
+```py
 Yo/PRON you/PRON around/ADV ?/PUNCT 
 A/DET friend/NOUN of/ADP mine/PRON 's/PART lookin/NOUN ./PUNCT 
 ```
@@ -720,7 +720,7 @@ A/DET friend/NOUN of/ADP mine/PRON 's/PART lookin/NOUN ./PUNCT
 
 下一步，让我们更新`word_counts()`方法，添加一个特征，用于显示消息中符号和标点符号的百分比——假设垃圾邮件消息可能使用更多标点符号和符号。还可以构建关于不同语法元素类型的其他特征。这些留给你自己实现。我们更新后的`word_counts()`方法如下：
 
-```
+```py
 en_sw = stopwords.stopwords('en')
 def word_counts_v3(x, pipeline=en):
   doc = pipeline(x)
@@ -741,21 +741,21 @@ def word_counts_v3(x, pipeline=en):
 
 这个函数与之前的稍有不同。由于每一行的消息需要执行多个计算，这些操作被组合起来并返回一个带有列标签的`Series`对象。这样可以像下面这样与主数据框合并：
 
-```
+```py
 train_tmp = train['Message'].apply(word_counts_v3)
 train = pd.concat([train, train_tmp], axis=1) 
 ```
 
 在测试集上可以执行类似的过程：
 
-```
+```py
 test_tmp = test['Message'].apply(word_counts_v3)
 test = pd.concat([test, test_tmp], axis=1) 
 ```
 
 对训练集中垃圾邮件和非垃圾邮件消息的统计进行快速检查，首先是非垃圾邮件消息：
 
-```
+```py
 train.loc[train['Spam']==0].describe() 
 ```
 
@@ -765,7 +765,7 @@ train.loc[train['Spam']==0].describe()
 
 然后是垃圾邮件消息：
 
-```
+```py
 train.loc[train['Spam']==1].describe() 
 ```
 
@@ -779,7 +779,7 @@ train.loc[train['Spam']==1].describe()
 
 将这些特征插入模型后，得到以下结果：
 
-```
+```py
 x_train = train[['Length', 'Punctuation', 'Capitals', 'Words_NoPunct', 'Punct']]
 y_train = train[['Spam']]
 x_test = test[['Length', 'Punctuation', 'Capitals' , 'Words_NoPunct', 'Punct']]
@@ -789,7 +789,7 @@ model = make_model(input_dims=5)
 model.fit(x_train, y_train, epochs=10, batch_size=10) 
 ```
 
-```
+```py
 Train on 4459 samples
 Epoch 1/10
 4459/4459 [==============================] - 1s 236us/sample - loss: 3.1958 - accuracy: 0.6028
@@ -801,11 +801,11 @@ Epoch 10/10
 
 准确率略有提高，目前达到了 94.66%。测试结果显示，它似乎成立：
 
-```
+```py
 model.evaluate(x_test, y_test) 
 ```
 
-```
+```py
 1115/1115 [==============================] - 0s 91us/sample - loss: 0.2076 - accuracy: **0.9426**
 [0.20764057086989485, 0.9426009] 
 ```
@@ -836,7 +836,7 @@ model.evaluate(x_test, y_test)
 
 这是一个简单的代码片段，用于处理前述句子并解析它们：
 
-```
+```py
 text = "Stemming is aimed at reducing vocabulary and aid understanding of morphological processes. This helps people understand the morphology of words and reduce size of corpus."
 lemma = en(text) 
 ```
@@ -845,7 +845,7 @@ lemma = en(text)
 
 每个单词的词性（POS）也会被打印出来，帮助我们理解过程是如何进行的。以下输出中一些关键字已被突出显示：
 
-```
+```py
 lemmas = ""
 for sentence in lemma.sentences:
         for token in sentence.tokens:
@@ -855,7 +855,7 @@ for sentence in lemma.sentences:
 print(lemmas) 
 ```
 
-```
+```py
 stem/NOUN be/AUX aim/VERB at/SCONJ **reduce/VERB** vocabulary/NOUN and/CCONJ aid/NOUN **understanding/NOUN** of/ADP **morphological/ADJ** process/NOUN ./PUNCT 
 this/PRON help/VERB people/NOUN **understand/VERB** the/DET **morphology/NOUN** of/ADP word/NOUN and/CCONJ **reduce/VERB** size/NOUN of/ADP corpus/ADJ ./PUNCT 
 ```
@@ -876,7 +876,7 @@ this/PRON help/VERB people/NOUN **understand/VERB** the/DET **morphology/NOUN** 
 
 基于计数的向量化思想其实很简单。语料库中每个唯一出现的单词都会被分配一个词汇表中的列。每个文档（对应垃圾邮件示例中的个别信息）都会分配一行。文档中出现的单词的计数会填写在对应文档和单词的单元格中。如果有`n`个独特的文档包含`m`个独特的单词，那么就会得到一个`n`行`m`列的矩阵。假设有如下的语料库：
 
-```
+```py
 corpus = [
           "I like fruits. Fruits like bananas",
           "I love bananas but eat an apple",
@@ -890,20 +890,20 @@ corpus = [
 
 在 Google Colab 中，该库应该已经安装。如果在你的 Python 环境中没有安装，可以通过笔记本以如下方式安装：
 
-```
+```py
 !pip install sklearn 
 ```
 
 `CountVectorizer` 类提供了一个内置的分词器，用于分隔长度大于或等于两个字符的标记。这个类提供了多种选项，包括自定义分词器、停用词列表、将字符转换为小写字母后再进行分词的选项，以及一个二进制模式，将每个正向计数转换为 1。默认选项对于英语语料库来说提供了一个合理的选择：
 
-```
+```py
 from sklearn.feature_extraction.text import CountVectorizer
 vectorizer = CountVectorizer()
 X = vectorizer.fit_transform(corpus)
 vectorizer.get_feature_names() 
 ```
 
-```
+```py
 ['an',
  'apple',
  'away',
@@ -921,11 +921,11 @@ vectorizer.get_feature_names()
 
 在前面的代码中，模型被拟合到语料库上。最后一行输出的是作为列使用的标记。完整的矩阵可以如下所示：
 
-```
+```py
 X.toarray() 
 ```
 
-```
+```py
 array([[0, 0, 0, 1, 0, 0, 0, 0, 2, 0, 2, 0, 0],
        [1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0],
        [1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1]]) 
@@ -933,7 +933,7 @@ array([[0, 0, 0, 1, 0, 0, 0, 0, 2, 0, 2, 0, 0],
 
 该过程已经将像 "I like fruits. Fruits like bananas" 这样的句子转化为一个向量（`0, 0, 0, 1, 0, 0, 0, 2, 0, 2, 0, 0`）。这是**无关上下文**向量化的一个例子。无关上下文是指文档中单词的顺序在生成向量时没有任何影响。这仅仅是对文档中单词出现的次数进行计数。因此，具有多重含义的单词可能会被归为一个类别，例如 *bank*。它可以指代河岸边的地方或存钱的地方。然而，它确实提供了一种比较文档并推导相似度的方法。可以计算两个文档之间的余弦相似度或距离，以查看哪些文档与其他文档相似：
 
-```
+```py
 from sklearn.metrics.pairwise import cosine_similarity
 cosine_similarity(X.toarray())
 array([[1\.        , 0.13608276, 0\.        ],
@@ -943,7 +943,7 @@ array([[1\.        , 0.13608276, 0\.        ],
 
 这表明第一句和第二句的相似度分数为 0.136（0 到 1 的范围）。第一句和第三句没有任何相似之处。第二句和第三句的相似度分数为 0.308——这是这个集合中的最高值。这个技术的另一个应用场景是检查给定关键词的文档相似度。假设查询是 *apple and bananas*。第一步是计算这个查询的向量，然后计算它与语料库中各文档的余弦相似度分数：
 
-```
+```py
 query = vectorizer.transform(["apple and bananas"])
 cosine_similarity(X, query)
 array([[0.23570226],
@@ -977,7 +977,7 @@ IDF 的定义如下：
 
 让我们将前一部分中的计数转换为它们的 TF-IDF 等效值：
 
-```
+```py
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfTransformer
 transformer = TfidfTransformer(smooth_idf=False)
@@ -994,7 +994,7 @@ pd.DataFrame(tfidf.toarray(),
 
 现在，这可以应用于检测垃圾信息的问题。到目前为止，每条信息的特征已经基于一些聚合统计值进行计算，并添加到`pandas` DataFrame 中。接下来，信息的内容将被标记化，并转换为一组列。每个词或标记的 TF-IDF 分数将被计算为数组中每条信息的值。使用`sklearn`，这实际上是非常简单的，代码如下：
 
-```
+```py
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn. pre-processing import LabelEncoder
 tfidf = TfidfVectorizer(binary=True)
@@ -1003,7 +1003,7 @@ X_test = tfidf.transform(test['Message']).astype('float32')
 X.shape 
 ```
 
-```
+```py
 (4459, 7741) 
 ```
 
@@ -1013,7 +1013,7 @@ X.shape
 
 使用这些 TF-IDF 特征，让我们训练一个模型并看看它的表现：
 
-```
+```py
 _, cols = X.shape
 model2 = make_model(cols)  # to match tf-idf dimensions
 y_train = train[['Spam']]
@@ -1021,7 +1021,7 @@ y_test = test[['Spam']]
 model2.fit(X.toarray(), y_train, epochs=10, batch_size=10) 
 ```
 
-```
+```py
 Train on 4459 samples
 Epoch 1/10
 4459/4459 [==============================] - 2s 380us/sample - loss: 0.3505 - accuracy: 0.8903
@@ -1032,18 +1032,18 @@ Epoch 10/10
 
 哇—我们能够正确分类每一个！说实话，模型可能存在过拟合问题，因此应该应用一些正则化。测试集给出的结果如下：
 
-```
+```py
 model2.evaluate(X_test.toarray(), y_test) 
 ```
 
-```
+```py
 1115/1115 [==============================] - 0s 134us/sample - loss: 0.0581 - accuracy: 0.9839
 [0.05813191874545786, 0.9838565] 
 ```
 
 98.39%的准确率迄今为止是我们在任何模型中获得的最佳结果。查看混淆矩阵，可以明显看出这个模型确实表现得非常好：
 
-```
+```py
 y_test_pred = model2.predict_classes(X_test.toarray())
 tf.math.confusion_matrix(tf.constant(y_test.Spam), 
                          y_test_pred)
@@ -1086,13 +1086,13 @@ array([[958,   2],
 
 由于我们只对实验预训练模型感兴趣，可以使用 Gensim 库及其预训练嵌入。Gensim 应该已经安装在 Google Colab 中，可以通过以下方式安装：
 
-```
+```py
 !pip install gensim 
 ```
 
 在进行必要的导入之后，可以下载并加载预训练嵌入。请注意，这些嵌入的大小大约是 1.6 GB，因此可能需要很长时间才能加载（你也可能会遇到一些内存问题）：
 
-```
+```py
 from gensim.models.word2vec import Word2Vec
 import gensim.downloader as api
 model_w2v = api.load("word2vec-google-news-300") 
@@ -1100,11 +1100,11 @@ model_w2v = api.load("word2vec-google-news-300")
 
 你可能会遇到的另一个问题是，如果下载等待时间过长，Colab 会话可能会过期。此时可能是切换到本地笔记本的好时机，这对后续章节也会有所帮助。现在，我们准备好检查相似词汇了：
 
-```
+```py
 model_w2v.most_similar("cookies",topn=10) 
 ```
 
-```
+```py
 [('cookie', 0.745154082775116),
  ('oatmeal_raisin_cookies', 0.6887780427932739),
  ('oatmeal_cookies', 0.662139892578125),
@@ -1119,17 +1119,17 @@ model_w2v.most_similar("cookies",topn=10)
 
 这非常不错。让我们看看这个模型在词类比任务中的表现：
 
-```
+```py
 model_w2v.doesnt_match(["USA","Canada","India","Tokyo"]) 
 ```
 
-```
+```py
 'Tokyo' 
 ```
 
 该模型能够猜测，与其他所有国家名称相比，东京是唯一的异常词，因为它是一个城市。现在，让我们在这些词向量上试试一个非常著名的数学例子：
 
-```
+```py
 king = model_w2v['king']
 man = model_w2v['man']
 woman = model_w2v['woman']
@@ -1137,7 +1137,7 @@ queen = king - man + woman
 model_w2v.similar_by_vector(queen) 
 ```
 
-```
+```py
 [('king', 0.8449392318725586),
  ('queen', 0.7300517559051514),
  ('monarch', 0.6454660892486572),

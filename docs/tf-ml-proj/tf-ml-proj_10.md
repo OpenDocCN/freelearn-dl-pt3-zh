@@ -72,7 +72,7 @@
 
 压缩函数在代码中的实现如下：
 
-```
+```py
 def squash(vectors, name=None):
  """
  Squashing Function as implemented in the paper
@@ -100,7 +100,7 @@ def squash(vectors, name=None):
 
 使用以下代码实现迭代路由算法：
 
-```
+```py
 def routing(u):
     """
     This function performs the routing algorithm as mentioned in the paper
@@ -136,7 +136,7 @@ def routing(u):
 
 请注意，在前面的代码中，我们将实际的路由函数分成了两部分，以便我们能够专注于动态路由算法部分。该函数的第一部分接收来自下层胶囊的向量**u**作为输入。首先，它使用权重向量**W**生成向量 ![](img/e99506b5-2cc6-4303-97e8-a8458ab3a538.png)。此外，注意我们定义了一个名为 ![](img/b8ffc378-2e7a-43e7-8fe4-366e59603847.png)的临时变量，初始值为零，直到训练开始时。 ![](img/789003d1-8295-41a1-873d-997492b18576.png)的值将在算法中更新，并最终存储在**c[ij]**中。该函数的第二部分实现了实际的迭代路由算法，具体如下：
 
-```
+```py
 # Routing Algorithm Begins here
 for r in range(ROUTING_ITERATIONS):
     with tf.variable_scope('iterations_' + str(r)):
@@ -309,7 +309,7 @@ CapsNet 架构由两部分组成，每部分包含三层。前三层是编码器
 
 前述步骤的代码如下：
 
-```
+```py
 def load_data(load_type='train'):
     '''
 
@@ -350,7 +350,7 @@ def load_data(load_type='train'):
 
 1.  通过创建在*理解编码器*部分中定义的三个神经网络层，来实现编码器：
 
-```
+```py
 with tf.variable_scope('Conv1_layer'):
     conv1_layer = tf.layers.conv2d(self.X, name="conv1_layer", **CONV1_LAYER_PARAMS) # [batch_size, 20, 20, 256]
 
@@ -380,7 +380,7 @@ with tf.variable_scope('DigitCaps_layer'):
 
 上述步骤的代码如下：
 
-```
+```py
 # Decoder
 with tf.variable_scope('Masking'):
     self.v_norm = tf.sqrt(tf.reduce_sum(tf.square(self.digitcaps_output), axis=2, keep_dims=True) + tf.keras.backend.epsilon())
@@ -407,7 +407,7 @@ with tf.variable_scope('Decoder'):
 
 1.  使用*定义损失函数*部分中提到的公式实现边缘损失，如下所示：
 
-```
+```py
 with tf.variable_scope('Margin_Loss'):
     # max(0, m_plus-||v_c||)²
     positive_error = tf.square(tf.maximum(0., 0.9 - self.v_norm)) # [batch_size, 10, 1, 1]
@@ -424,7 +424,7 @@ with tf.variable_scope('Margin_Loss'):
 
 1.  使用*定义损失函数*部分中提到的公式实现重建损失：
 
-```
+```py
 with tf.variable_scope('Reconstruction_Loss'):
     ground_truth = tf.reshape(self.X, shape=(BATCH_SIZE, -1))
     self.reconstruction_loss = tf.reduce_mean(tf.square(self.decoder_output - ground_truth))
@@ -432,7 +432,7 @@ with tf.variable_scope('Reconstruction_Loss'):
 
 1.  定义优化器为 Adam 优化器，使用默认参数和准确性度量作为常规分类准确率。这些需要在 CapsNet 类中使用以下代码实现：
 
-```
+```py
 def define_accuracy(self):
     with tf.variable_scope('Accuracy'):
         correct_predictions = tf.equal(tf.to_int32(tf.argmax(self.Y, axis=1)), self.y_predicted)
@@ -448,7 +448,7 @@ def define_optimizer(self):
 
 1.  实现对检查点和恢复模型的支持。根据验证集准确率选择最佳模型；我们只在验证集准确率下降的时期进行模型检查点操作，最后，将摘要输出记录到 TensorBoard 进行可视化。我们将模型训练 10 个周期，每个周期的批次大小为 128。记住，你可以调整这些参数来提高模型的准确性：
 
-```
+```py
 def train(model):
     global fd_train
     x_train, y_train, x_valid, y_valid = load_data(load_type='train')
@@ -534,7 +534,7 @@ def train(model):
 
 重建上述图像的代码如下：
 
-```
+```py
 def reconstruct_sample(model, n_samples=5):
     x_test, y_test = load_data(load_type='test')
     sample_images, sample_labels = x_test[:BATCH_SIZE], y_test[:BATCH_SIZE]
@@ -550,7 +550,7 @@ def reconstruct_sample(model, n_samples=5):
 
 用于绘制图像并保存的重建函数如下所示：
 
-```
+```py
 def reconstruction(x, y, decoder_output, y_pred, n_samples):
     '''
     This function is used to reconstruct sample images for analysis

@@ -52,7 +52,7 @@ TensorFlow 是一个面向生产的框架，能够处理不同的计算架构（
 
 1.  **导入或生成数据集**：我们所有的机器学习算法都依赖于数据集。在本书中，我们将生成数据或使用外部数据源。有时，依赖生成的数据更好，因为我们可以控制如何变化并验证预期结果。大多数情况下，我们将访问给定食谱的公共数据集。有关如何访问这些数据集的详细信息，请参见本章末尾的 *附加资源* 章节：
 
-    ```
+    ```py
     import tensorflow as tf
     import tensorflow_datasets as tfds
     import numpy as np
@@ -61,7 +61,7 @@ TensorFlow 是一个面向生产的框架，能够处理不同的计算架构（
 
 1.  **转换和规范化数据**：通常，输入数据集的形式并不是我们实现目标所需要的精确形式。TensorFlow 期望我们将数据转换为接受的形状和数据类型。实际上，数据通常不符合我们算法所期望的正确维度或类型，我们必须在使用之前正确地转换它。大多数算法还期望规范化数据（这意味着变量的均值为零，标准差为一），我们也将在这里讨论如何实现这一点。TensorFlow 提供了内置函数，可以加载数据、将数据拆分为批次，并允许您使用简单的 NumPy 函数转换变量和规范化每个批次，包括以下内容：
 
-    ```
+    ```py
     for batch in data.batch(batch_size, drop_remainder=True):
         labels = tf.one_hot(batch['label'], 3)
         X = batch['features']
@@ -72,7 +72,7 @@ TensorFlow 是一个面向生产的框架，能够处理不同的计算架构（
 
 1.  **设置算法参数（超参数）**：我们的算法通常会有一组参数，这些参数在整个过程中保持不变。例如，这可能是迭代次数、学习率或我们选择的其他固定参数。通常建议将这些参数一起初始化为全局变量，以便读者或用户能够轻松找到它们，如下所示：
 
-    ```
+    ```py
     epochs = 1000 
     batch_size = 32
     input_size = 4
@@ -82,7 +82,7 @@ TensorFlow 是一个面向生产的框架，能够处理不同的计算架构（
 
 1.  **初始化变量**：TensorFlow 依赖于知道它可以修改什么以及不能修改什么。在优化过程中，TensorFlow 将修改/调整变量（模型的权重/偏置），以最小化损失函数。为了实现这一点，我们通过输入变量输入数据。我们需要初始化变量和占位符的大小和类型，以便 TensorFlow 知道该期待什么。TensorFlow 还需要知道期望的数据类型。在本书的大部分内容中，我们将使用 `float32`。TensorFlow 还提供了 `float64` 和 `float16` 数据类型。请注意，使用更多字节来获得更高精度会导致算法变慢，而使用更少字节则会导致结果算法的精度降低。请参考以下代码，了解如何在 TensorFlow 中设置一个权重数组和一个偏置向量的简单示例：
 
-    ```
+    ```py
     weights = tf.Variable(tf.random.normal(shape=(input_size, 
                                                   output_size), 
                                             dtype=tf.float32))
@@ -92,20 +92,20 @@ TensorFlow 是一个面向生产的框架，能够处理不同的计算架构（
 
 1.  **定义模型结构**：在获得数据并初始化变量之后，我们必须定义模型。这是通过构建计算图来完成的。这个示例中的模型将是一个逻辑回归模型（logit *E*(*Y*) = b*X* + a）：
 
-    ```
+    ```py
     logits = tf.add(tf.matmul(X, weights), biases) 
     ```
 
 1.  **声明损失函数**：在定义模型之后，我们必须能够评估输出。这就是我们声明损失函数的地方。损失函数非常重要，因为它告诉我们预测值与实际值之间的偏差。不同类型的损失函数将在 *第二章*，*TensorFlow 实践方式* 中的 *实现反向传播* 这一章节中详细探讨。在此，我们以交叉熵为例，使用 logits 计算 softmax 交叉熵与标签之间的差异：
 
-    ```
+    ```py
     loss = tf.reduce_mean(
         tf.nn.softmax_cross_entropy_with_logits(labels, logits)) 
     ```
 
 1.  **初始化并训练模型**：现在我们已经准备好了一切，需要创建图的实例，输入数据，并让 TensorFlow 调整变量，以更好地预测我们的训练数据。以下是初始化计算图的一种方法，通过多次迭代，使用 SDG 优化器收敛模型结构中的权重：
 
-    ```
+    ```py
     optimizer = tf.optimizers.SGD(learning_rate)
     with tf.GradientTape() as tape:
        logits = tf.add(tf.matmul(X, weights), biases)
@@ -117,7 +117,7 @@ TensorFlow 是一个面向生产的框架，能够处理不同的计算架构（
 
 1.  **评估模型**：一旦我们建立并训练了模型，我们应该通过某些指定的标准评估模型，看看它在新数据上的表现如何。我们会在训练集和测试集上进行评估，这些评估将帮助我们判断模型是否存在过拟合或欠拟合的问题。我们将在后续的内容中讨论这个问题。在这个简单的例子中，我们评估最终的损失，并将拟合值与真实的训练值进行比较：
 
-    ```
+    ```py
     print(f"final loss is: {loss.numpy():.3f}")
     preds = tf.math.argmax(tf.add(tf.matmul(X, weights), biases), axis=1)
     ground_truth = tf.math.argmax(labels, axis=1)
@@ -169,26 +169,26 @@ TensorFlow 是一个面向生产的框架，能够处理不同的计算架构（
 
     +   在以下代码中，我们创建了一个全为 0 的张量：
 
-    ```
+    ```py
     row_dim, col_dim = 3, 3
     zero_tsr = tf.zeros(shape=[row_dim, col_dim], dtype=tf.float32) 
     ```
 
     +   在以下代码中，我们创建了一个全为 1 的张量：
 
-    ```
+    ```py
     ones_tsr = tf.ones([row_dim, col_dim]) 
     ```
 
     +   在以下代码中，我们创建了一个常量填充的张量：
 
-    ```
+    ```py
     filled_tsr = tf.fill([row_dim, col_dim], 42) 
     ```
 
     +   在以下代码中，我们从一个现有常量创建了一个张量：
 
-    ```
+    ```py
     constant_tsr = tf.constant([1,2,3]) 
     ```
 
@@ -196,7 +196,7 @@ TensorFlow 是一个面向生产的框架，能够处理不同的计算架构（
 
 1.  **相似形状的张量**：我们也可以根据其他张量的形状初始化变量，如下所示：
 
-    ```
+    ```py
     zeros_similar = tf.zeros_like(constant_tsr) 
     ones_similar = tf.ones_like(constant_tsr) 
     ```
@@ -205,7 +205,7 @@ TensorFlow 是一个面向生产的框架，能够处理不同的计算架构（
 
 1.  **序列张量**：在 TensorFlow 中，所有的参数都被文档化为张量。即使需要标量，API 也会将其作为零维标量提及。因此，TensorFlow 允许我们指定包含定义区间的张量也就不足为奇了。以下函数的行为与 NumPy 的`linspace()`输出和`range()`输出非常相似（参考： [`docs.scipy.org/doc/numpy/reference/generated/numpy.linspace.html`](https://docs.scipy.org/doc/numpy/reference/generated/numpy.linspace.html)）。请看以下函数：
 
-    ```
+    ```py
     linear_tsr = tf.linspace(start=0.0, stop=1.0, num=3) 
     ```
 
@@ -213,7 +213,7 @@ TensorFlow 是一个面向生产的框架，能够处理不同的计算架构（
 
     结果张量的序列为[0.0, 0.5, 1.0]（`print(linear_tsr`命令将提供必要的输出）。请注意，此函数包括指定的终止值。以下是`tf.range`函数的对比：
 
-    ```
+    ```py
     integer_seq_tsr = tf.range(start=6, limit=15, delta=3) 
     ```
 
@@ -221,7 +221,7 @@ TensorFlow 是一个面向生产的框架，能够处理不同的计算架构（
 
 1.  **随机张量**：以下生成的随机数来自均匀分布：
 
-    ```
+    ```py
     randunif_tsr = tf.random.uniform([row_dim, col_dim], 
                                      minval=0, maxval=1) 
     ```
@@ -230,28 +230,28 @@ TensorFlow 是一个面向生产的框架，能够处理不同的计算架构（
 
 若要获得从正态分布中随机抽取的张量，可以运行以下代码：
 
-```
+```py
 randnorm_tsr = tf.random.normal([row_dim, col_dim], 
                                  mean=0.0, stddev=1.0) 
 ```
 
 还有一些情况，我们希望生成在某些范围内保证的正态分布随机值。`truncated_normal()`函数总是从指定均值的两个标准差内挑选正态值：
 
-```
+```py
 runcnorm_tsr = tf.random.truncated_normal([row_dim, col_dim], 
                                           mean=0.0, stddev=1.0) 
 ```
 
 我们可能还对随机化数组的条目感兴趣。为此，两个函数可以帮助我们：`random.shuffle()`和`image.random_crop()`。以下代码执行此操作：
 
-```
+```py
 shuffled_output = tf.random.shuffle(input_tensor) 
 cropped_output = tf.image.random_crop(input_tensor, crop_size) 
 ```
 
 在本书后续的内容中，我们将关注对大小为（高度，宽度，3）的图像进行随机裁剪，其中包含三种颜色光谱。为了在`cropped_output`中固定某一维度，你必须为该维度指定最大值：
 
-```
+```py
 height, width = (64, 64)
 my_image = tf.random.uniform([height, width, 3], minval=0,
          maxval=255, dtype=tf.int32)
@@ -265,7 +265,7 @@ cropped_image = tf.image.random_crop(my_image,
 
 一旦我们决定了如何创建张量，我们还可以通过将张量包装在`Variable()`函数中来创建相应的变量，如下所示：
 
-```
+```py
 my_var = tf.Variable(tf.zeros([row_dim, col_dim])) 
 ```
 
@@ -289,7 +289,7 @@ TensorFlow 1.x 的表现最优，因为它在编译静态计算图之后执行�
 
 你基本上不需要做任何事情；在 TensorFlow 2.x 中，**急切执行（eager execution）**是默认的操作方式。当你导入 TensorFlow 并开始使用它的功能时，你会在急切执行模式下工作，因为你可以在执行时进行检查：
 
-```
+```py
 tf.executing_eagerly()
 True 
 ```
@@ -300,7 +300,7 @@ True
 
 只需运行 TensorFlow 操作，结果将立即返回：
 
-```
+```py
 x = [[2.]]
 m = tf.matmul(x, x)
 print("the result is {}".format(m))
@@ -331,7 +331,7 @@ the result is [[4.]]
 
 1.  **创建矩阵**：我们可以从 NumPy 数组或嵌套列表创建二维矩阵，正如本章开头的*声明和使用变量与张量*方案中所描述的那样。我们可以使用张量创建函数，并为如 `zeros()`、`ones()` 和 `truncated_normal()` 等函数指定二维形状。TensorFlow 还允许我们使用 `diag()` 函数从一维数组或列表创建对角矩阵，示例如下：
 
-    ```
+    ```py
     identity_matrix = tf.linalg.diag([1.0, 1.0, 1.0]) 
     A = tf.random.truncated_normal([2, 3]) 
     B = tf.fill([2,3], 5.0) 
@@ -359,7 +359,7 @@ the result is [[4.]]
 
     请注意，C 张量是随机创建的，它可能与你的会话中显示的内容有所不同。
 
-    ```
+    ```py
     print(D) 
     [[ 1\.  2\.  3.] 
      [-3\. -7\. -1.] 
@@ -368,7 +368,7 @@ the result is [[4.]]
 
 1.  **加法、减法和乘法**：要对相同维度的矩阵进行加法、减法或乘法，TensorFlow 使用以下函数：
 
-    ```
+    ```py
     print(A+B) 
     [[ 4.61596632  5.39771316  4.4325695 ] 
      [ 3.26702736  5.14477345  4.98265553]] 
@@ -384,7 +384,7 @@ the result is [[4.]]
 
     如果你需要对两个形状和类型相同的矩阵进行逐元素乘法（这非常重要，否则会报错），只需使用`tf.multiply`函数：
 
-    ```
+    ```py
     print(tf.multiply(D, identity_matrix))
     [[ 1\.  0\.  0.] 
      [-0\. -7\. -0.] 
@@ -395,7 +395,7 @@ the result is [[4.]]
 
 1.  **转置**：转置矩阵（翻转列和行），如下所示：
 
-    ```
+    ```py
     print(tf.transpose(C)) 
     [[0.33184157 0.53189191 0.95889051]
      [0.08907614 0.67605299 0.67061249]] 
@@ -405,14 +405,14 @@ the result is [[4.]]
 
 1.  **行列式**：要计算行列式，请使用以下代码：
 
-    ```
+    ```py
     print(tf.linalg.det(D))
     -38.0 
     ```
 
 1.  **逆矩阵**：要找到一个方阵的逆矩阵，请参阅以下内容：
 
-    ```
+    ```py
     print(tf.linalg.inv(D))
     [[-0.5        -0.5        -0.5       ] 
      [ 0.15789474  0.05263158  0.21052632] 
@@ -423,7 +423,7 @@ the result is [[4.]]
 
 1.  **分解**：对于 Cholesky 分解，请使用以下代码：
 
-    ```
+    ```py
     print(tf.linalg.cholesky(identity_matrix))
     [[ 1\.  0\.  1.] 
      [ 0\.  1\.  0.] 
@@ -432,7 +432,7 @@ the result is [[4.]]
 
 1.  **特征值和特征向量**：对于特征值和特征向量，请使用以下代码：
 
-    ```
+    ```py
     print(tf.linalg.eigh(D))
     [[-10.65907521  -0.22750691   2.88658212] 
      [  0.21749542   0.63250104  -0.74339638] 
@@ -462,7 +462,7 @@ TensorFlow 为我们提供了所有开始进行数值计算的工具，并将这
 
 除了标准的算术操作外，TensorFlow 还为我们提供了更多需要了解的操作。在继续之前，我们应该认识到这些操作并学习如何使用它们。再次提醒，我们只需要导入 TensorFlow：
 
-```
+```py
 import tensorflow as tf 
 ```
 
@@ -476,7 +476,7 @@ TensorFlow 提供了张量的标准操作，即`add()`、`subtract()`、`multipl
 
 1.  值得注意的是，`division()`返回与输入相同类型的结果。这意味着如果输入是整数，它实际上返回除法的地板值（类似 Python 2）。要返回 Python 3 版本的除法，即在除法前将整数转换为浮点数并始终返回浮点数，TensorFlow 提供了`truediv()`函数，具体如下：
 
-    ```
+    ```py
     print(tf.math.divide(3, 4))
     0.75 
     print(tf.math.truediv(3, 4)) 
@@ -485,21 +485,21 @@ TensorFlow 提供了张量的标准操作，即`add()`、`subtract()`、`multipl
 
 1.  如果我们有浮点数并且需要整数除法，可以使用`floordiv()`函数。请注意，这仍然会返回浮点数，但它会向下舍入到最接近的整数。该函数如下：
 
-    ```
+    ```py
     print(tf.math.floordiv(3.0,4.0)) 
     tf.Tensor(0.0, shape=(), dtype=float32) 
     ```
 
 1.  另一个重要的函数是`mod()`。该函数返回除法后的余数，具体如下：
 
-    ```
+    ```py
     print(tf.math.mod(22.0, 5.0))
     tf.Tensor(2.0, shape=(), dtype=float32) 
     ```
 
 1.  两个张量的叉积通过`cross()`函数实现。请记住，叉积仅对两个三维向量定义，因此它只接受两个三维张量。以下代码展示了这一用法：
 
-    ```
+    ```py
     print(tf.linalg.cross([1., 0., 0.], [0., 1., 0.]))
     tf.Tensor([0\. 0\. 1.], shape=(3,), dtype=float32) 
     ```
@@ -542,7 +542,7 @@ TensorFlow 提供了张量的标准操作，即`add()`、`subtract()`、`multipl
 
 了解哪些函数对我们可用是很重要的，这样我们才能将它们添加到我们的计算图中。我们将主要关注前面提到的函数。我们也可以通过组合这些函数生成许多不同的自定义函数，如下所示：
 
-```
+```py
 # Tangent function (tan(pi/4)=1) 
 def pi_tan(x):
     return tf.tan(3.1416/x)
@@ -556,7 +556,7 @@ tf.Tensor(1.0000036, shape=(), dtype=float32)
 
 如果我们希望向图中添加其他未列出的操作，我们必须从前面的函数中创建自己的操作。下面是一个示例，这是之前未使用过的操作，我们可以将其添加到图中。我们可以使用以下代码添加一个自定义的多项式函数，*3 * x² - x + 10*：
 
-```
+```py
 def custom_polynomial(value): 
     return tf.math.subtract(3 * tf.math.square(value), value) + 10
 print(custom_polynomial(11))
@@ -579,21 +579,21 @@ tf.Tensor(362, shape=(), dtype=int32)
 
 1.  修正线性单元（ReLU）是最常见和最基本的方式，用于在神经网络中引入非线性。这个函数就叫做 `max(0,x)`。它是连续的，但不光滑。它的形式如下：
 
-    ```
+    ```py
     print(tf.nn.relu([-3., 3., 10.]))
     tf.Tensor([ 0\.  3\. 10.], shape=(3,), dtype=float32) 
     ```
 
 1.  有时我们希望限制前面 ReLU 激活函数的线性增涨部分。我们可以通过将 `max(0,x)` 函数嵌套在 `min()` 函数中来实现。TensorFlow 实现的版本被称为 ReLU6 函数，定义为 `min(max(0,x),6)`。这是一个硬 sigmoid 函数的版本，计算速度更快，并且不容易遇到梯度消失（趋近于零）或梯度爆炸的问题。这在我们后续讨论卷积神经网络和递归神经网络时会非常有用。它的形式如下：
 
-    ```
+    ```py
     print(tf.nn.relu6([-3., 3., 10.]))
     tf.Tensor([ 0\.  3\. 6.], shape=(3,), dtype=float32) 
     ```
 
 1.  Sigmoid 函数是最常见的连续且平滑的激活函数。它也被称为 logistic 函数，形式为 *1 / (1 + exp(-x))*。由于在训练过程中容易导致反向传播的梯度消失，sigmoid 函数并不常用。它的形式如下：
 
-    ```
+    ```py
     print(tf.nn.sigmoid([-1., 0., 1.]))
     tf.Tensor([0.26894143 0.5 0.7310586 ], shape=(3,), dtype=float32) 
     ```
@@ -602,27 +602,27 @@ tf.Tensor(362, shape=(), dtype=int32)
 
 1.  另一个平滑的激活函数是双曲正切函数。双曲正切函数与 sigmoid 函数非常相似，只不过它的范围不是 0 到 1，而是 -1 到 1。这个函数的形式是双曲正弦与双曲余弦的比值。另一种写法如下：
 
-    ```
+    ```py
     ((exp(x) – exp(-x))/(exp(x) + exp(-x)) 
     ```
 
     这个激活函数如下：
 
-    ```
+    ```py
     print(tf.nn.tanh([-1., 0., 1.]))
     tf.Tensor([-0.7615942  0\. 0.7615942], shape=(3,), dtype=float32) 
     ```
 
 1.  `softsign` 函数也被用作激活函数。这个函数的形式是 *x/(|x| + 1)*。`softsign` 函数应该是符号函数的一个连续（但不光滑）近似。见以下代码：
 
-    ```
+    ```py
     print(tf.nn.softsign([-1., 0., -1.]))
     tf.Tensor([-0.5  0\.  -0.5], shape=(3,), dtype=float32) 
     ```
 
 1.  另一个函数是 `softplus` 函数，它是 ReLU 函数的平滑版本。这个函数的形式是 *log(exp(x) + 1)*。它的形式如下：
 
-    ```
+    ```py
     print(tf.nn.softplus([-1., 0., -1.]))
     tf.Tensor([0.31326166 0.6931472  0.31326166], shape=(3,), dtype=float32) 
     ```
@@ -631,7 +631,7 @@ tf.Tensor(362, shape=(), dtype=int32)
 
 1.  **指数线性单元** (**ELU**) 与 softplus 函数非常相似，只不过它的下渐近线是 -1，而不是 0。其形式为 *（exp(x) + 1)*，当 *x < 0* 时；否则为 *x*。它的形式如下：
 
-    ```
+    ```py
     print(tf.nn.elu([-1., 0., -1.])) 
     tf.Tensor([-0.63212055  0\. -0.63212055], shape=(3,), dtype=float32) 
     ```
@@ -648,7 +648,7 @@ tf.Tensor(362, shape=(), dtype=int32)
 
 我们甚至可以轻松创建自定义的激活函数，如 Swish，公式为 *x**sigmoid(*x*)*（参见 *Swish: a Self-Gated Activation Function*, Ramachandran 等，2017，[`arxiv.org/abs/1710.05941`](https://arxiv.org/abs/1710.05941)），它可以作为 ReLU 激活函数在图像和表格数据问题中的一个更高效的替代品：
 
-```
+```py
 def swish(x):
     return x * tf.nn.sigmoid(x)
 print(swish([-1., 0., 1.]))
@@ -673,7 +673,7 @@ tf.Tensor([-0.26894143  0\.  0.7310586 ], shape=(3,), dtype=float32)
 
 为了安装 TFDS，只需在控制台中运行以下安装命令：
 
-```
+```py
 pip install tensorflow-datasets 
 ```
 
@@ -683,7 +683,7 @@ pip install tensorflow-datasets
 
 1.  **鸢尾花数据集**：这个数据集可以说是机器学习中经典的结构化数据集，可能也是所有统计学示例中的经典数据集。它是一个测量三种不同类型鸢尾花的萼片长度、萼片宽度、花瓣长度和花瓣宽度的数据集：*Iris setosa*、*Iris virginica* 和 *Iris versicolor*。总共有 150 个测量值，这意味着每个物种有 50 个测量值。要在 Python 中加载该数据集，我们将使用 TFDS 函数，代码如下：
 
-    ```
+    ```py
     import tensorflow_datasets as tfds
     iris = tfds.load('iris', split='train') 
     ```
@@ -694,7 +694,7 @@ pip install tensorflow-datasets
 
 1.  **出生体重数据**：该数据最初来自 1986 年 Baystate 医疗中心（马萨诸塞州斯普林菲尔德）。该数据集包含了出生体重和母亲的其他人口统计学及医学测量数据，以及家庭病史的记录。数据集有 189 条记录，包含 11 个变量。以下代码展示了如何将该数据作为`tf.data.dataset`来访问：
 
-    ```
+    ```py
     import tensorflow_datasets as tfds
     birthdata_url = 'https://raw.githubusercontent.com/PacktPublishing/TensorFlow-2-Machine-Learning-Cookbook-Third-Edition/master/birthweight.dat' 
     path = tf.keras.utils.get_file(birthdata_url.split("/")[-1], birthdata_url)
@@ -709,7 +709,7 @@ pip install tensorflow-datasets
 
 1.  **波士顿房价数据集**：卡内基梅隆大学在其`StatLib`库中维护了一系列数据集。该数据可以通过加州大学欧文分校的机器学习仓库轻松访问（[`archive.ics.uci.edu/ml/index.php`](https://archive.ics.uci.edu/ml/index.php)）。该数据集包含 506 条房价观察记录，以及各种人口统计数据和房屋属性（14 个变量）。以下代码展示了如何在 TensorFlow 中访问该数据：
 
-    ```
+    ```py
     import tensorflow_datasets as tfds
     housing_url = 'http://archive.ics.uci.edu/ml/machine-learning-databases/housing/housing.data'
     path = tf.keras.utils.get_file(housing_url.split("/")[-1], housing_url)
@@ -723,7 +723,7 @@ pip install tensorflow-datasets
 
 1.  **MNIST 手写数字数据集**：**美国国家标准与技术研究院**（**NIST**）的手写数据集的子集即为**MNIST**数据集。MNIST 手写数字数据集托管在 Yann LeCun 的网站上（[`yann.lecun.com/exdb/mnist/`](http://yann.lecun.com/exdb/mnist/)）。该数据库包含 70,000 张单个数字（0-9）的图像，其中大约 60,000 张用于训练集，10,000 张用于测试集。这个数据集在图像识别中使用非常频繁，以至于 TensorFlow 提供了内置函数来访问该数据。在机器学习中，提供验证数据以防止过拟合（目标泄露）也是很重要的。因此，TensorFlow 将训练集中的 5,000 张图像分配为验证集。以下代码展示了如何在 TensorFlow 中访问此数据：
 
-    ```
+    ```py
     import tensorflow_datasets as tfds
     mnist = tfds.load('mnist', split=None)
     mnist_train = mnist['train']
@@ -732,7 +732,7 @@ pip install tensorflow-datasets
 
 1.  **垃圾邮件-正常邮件文本数据**。UCI 的机器学习数据集库也包含了一个垃圾邮件-正常邮件文本数据集。我们可以访问这个`.zip`文件并获取垃圾邮件-正常邮件文本数据，方法如下：
 
-    ```
+    ```py
     import tensorflow_datasets as tfds
     zip_url = 'http://archive.ics.uci.edu/ml/machine-learning-databases/00228/smsspamcollection.zip'
     path = tf.keras.utils.get_file(zip_url.split("/")[-1], zip_url, extract=True)
@@ -747,7 +747,7 @@ pip install tensorflow-datasets
 
 1.  **电影评论数据**：康奈尔大学的 Bo Pang 发布了一个电影评论数据集，将评论分类为好或坏。你可以在康奈尔大学网站上找到该数据：[`www.cs.cornell.edu/people/pabo/movie-review-data/`](http://www.cs.cornell.edu/people/pabo/movie-review-data/)。要下载、解压并转换这些数据，我们可以运行以下代码：
 
-    ```
+    ```py
     import tensorflow_datasets as tfds
     movie_data_url = 'http://www.cs.cornell.edu/people/pabo/movie-review-data/rt-polaritydata.tar.gz'
     path = tf.keras.utils.get_file(movie_data_url.split("/")[-1], movie_data_url, extract=True)
@@ -768,7 +768,7 @@ pip install tensorflow-datasets
 
 1.  **CIFAR-10 图像数据**：加拿大高级研究院发布了一个包含 8000 万标记彩色图像的图像集（每张图像的尺寸为 32 x 32 像素）。该数据集包含 10 个不同的目标类别（如飞机、汽车、鸟类等）。CIFAR-10 是一个子集，包含 60,000 张图像，其中训练集有 50,000 张图像，测试集有 10,000 张图像。由于我们将在多种方式下使用该数据集，并且它是我们较大的数据集之一，我们不会每次都运行脚本来获取它。要获取该数据集，只需执行以下代码来下载 CIFAR-10 数据集（这可能需要较长时间）：
 
-    ```
+    ```py
     import tensorflow_datasets as tfds
     ds, info = tfds.load('cifar10', shuffle_files=True, with_info=True)
     print(info)
@@ -778,7 +778,7 @@ pip install tensorflow-datasets
 
 1.  **莎士比亚作品文本数据**：Project Gutenberg 是一个发布免费书籍电子版的项目。他们已经将莎士比亚的所有作品汇编在一起。以下代码展示了如何通过 TensorFlow 访问这个文本文件：
 
-    ```
+    ```py
     import tensorflow_datasets as tfds
     shakespeare_url = 'https://raw.githubusercontent.com/PacktPublishing/TensorFlow-2-Machine-Learning-Cookbook-Third-Edition/master/shakespeare.txt'
     path = tf.keras.utils.get_file(shakespeare_url.split("/")[-1], shakespeare_url)
@@ -792,7 +792,7 @@ pip install tensorflow-datasets
 
 1.  **英语-德语句子翻译数据**：Tatoeba 项目（[`tatoeba.org`](http://tatoeba.org)）收集了多种语言的句子翻译。他们的数据已根据创意共享许可证发布。从这些数据中，ManyThings.org（[`www.manythings.org`](http://www.manythings.org)）编译了可供下载的文本文件，包含逐句翻译。在这里，我们将使用英语-德语翻译文件，但你可以根据需要更改 URL 来使用其他语言：
 
-    ```
+    ```py
     import os
     import pandas as pd
     from zipfile import ZipFile
@@ -828,7 +828,7 @@ pip install tensorflow-datasets
 
 通常，当我们使用来自 TensorFlow 数据集的数据时，方法通常如下所示：
 
-```
+```py
 import tensorflow_datasets as tfds
 dataset_name = "..."
 data = tfds.load(dataset_name, split=None)

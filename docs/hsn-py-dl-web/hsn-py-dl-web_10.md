@@ -106,7 +106,7 @@ AWS 控制台中的搜索框还允许您搜索可能已经听说过的 AWS API�
 
 boto3 是 AWS 官方提供的库，用于与 AWS API 通信。您可以在 [`aws.amazon.com/sdk-for-python/`](https://aws.amazon.com/sdk-for-python/) 找到该库，并可以通过以下命令安装：
 
-```
+```py
 pip install boto3
 ```
 
@@ -136,7 +136,7 @@ pip install boto3
 
 一旦库成功安装，你可以通过以下代码行加载刚才创建的环境变量：
 
-```
+```py
 import os
 aws_access_key_id= os.environ['aws_access_key_id']
 aws_secret_access_key = os.environ['aws_secret_access_key']
@@ -166,7 +166,7 @@ aws_secret_access_key = os.environ['aws_secret_access_key']
 
 现在，你可以通过 Python 代码访问你的 S3 存储桶。以下代码行将展示可用的存储桶：
 
-```
+```py
 import boto3
 s3 = boto3.resource(
     's3',
@@ -177,14 +177,14 @@ s3 = boto3.resource(
 
 你在 `resource()` 的第一个参数中指定了你有兴趣访问 S3。你可以通过访问 [`bit.ly/2VHsvnP`](https://bit.ly/2VHsvnP) 来阅读相关文档。现在，你可以通过以下代码找到可用的存储桶：
 
-```
+```py
 for bucket in s3.buckets.all():
  print(bucket.name)
 ```
 
 你应该会得到一个列表作为输出。现在，假设你想将一张图片上传到某个存储桶。如果你想上传的图片就在当前工作目录中，以下代码行应将图像上传到指定的 S3 存储桶：
 
-```
+```py
 data = open('my_image.jpeg', 'rb')
 s3.Bucket('demo-bucket-sayak').put_object(Key='my_image.jpeg', Body=data)
 ```
@@ -197,7 +197,7 @@ s3.Bucket('demo-bucket-sayak').put_object(Key='my_image.jpeg', Body=data)
 
 如果代码成功执行，你应该会收到以下输出：
 
-```
+```py
 s3.Object(bucket_name='demo-bucket-sayak', key='my_image.jpeg')
 ```
 
@@ -241,7 +241,7 @@ Rekognition API 提供的解决方案已经被许多组织证明是非常有用�
 
 1.  导入 AWS 账户凭证的环境变量。你需要将之前在 boto3 配置部分获得的账户凭证导入到脚本中。为此，可以使用以下代码：
 
-```
+```py
 import os
 aws_access_key_id= os.environ['aws_access_key_id']
 aws_secret_access_key = os.environ['aws_secret_access_key']
@@ -249,7 +249,7 @@ aws_secret_access_key = os.environ['aws_secret_access_key']
 
 1.  使用 boto3 创建 AWS Rekognition API 客户端。我们现在准备实例化一个 boto3 Rekognition API 客户端对象。为此，我们需要将要使用的 API 和所需的 AWS 区域名称传递给 `boto3` 对象。还需要传入之前步骤中获取的凭证，代码如下：
 
-```
+```py
 import boto3
 client=boto3.client('rekognition', region_name='us-east-1', aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key) 
 ```
@@ -260,19 +260,19 @@ client=boto3.client('rekognition', region_name='us-east-1', aws_access_key_id=aw
 
 1.  首先，使用 Python 的原生方法将图像读取到一个变量中，代码如下：
 
-```
+```py
 image = open("image.jpg", "rb")
 ```
 
 1.  现在，通过我们之前实例化的客户端将其传递给 API，使用以下代码行：
 
-```
+```py
 response = client.recognize_celebrities(Image={'Bytes':image.read()})
 ```
 
 1.  观察响应。一旦 API 调用成功，你的 `response` 变量将保存 API 返回的信息。要查看该信息，可以打印该变量：
 
-```
+```py
 {'CelebrityFaces': [{'Urls': ['www.imdb.com/name/nm1682433'],
  'Name': 'Barack Obama',
  'Id': '3R3sg9u',
@@ -309,7 +309,7 @@ API 识别我们的图像为 Barack Obama（巴拉克·奥巴马）。它还提�
 
 1.  获取图像的匹配部分。为了准备图像中已识别区域的裁剪版本，我们可以使用以下代码：
 
-```
+```py
 from PIL import Image
 from IPython.display import display
 
@@ -373,7 +373,7 @@ Alexa 中的技能是将功能引入平台的核心。每个技能需要通过 A
 
 技能需要在服务之间建立一定的连接才能工作。此外，部署在 AWS Lambda 上的技能逻辑需要配置为可以在 Alexa 上使用。请在工作文件夹的根目录中创建一个名为`setup.txt`的文件，内容如下。随着我们逐步完成本节中的步骤，我们将不断添加内容：
 
-```
+```py
 [LWA Client ID]
 amzn1.application-oa2-client.XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
@@ -456,7 +456,7 @@ https://alexa.amazon.co.jp/api/skill/link/XXXXXXXXXXXXXX
 
 1.  在创建策略编辑器的 JSON 选项卡中输入以下 JSON：
 
-```
+```py
 {
  "Version": "2012-10-17",
  "Statement": [
@@ -598,7 +598,7 @@ https://alexa.amazon.co.jp/api/skill/link/XXXXXXXXXXXXXX
 
 1.  导入必要的模块。为了使函数正常工作，我们需要一些常见库的支持，具体代码如下：
 
-```
+```py
 import boto3
 import json
 import random
@@ -610,7 +610,7 @@ boto3 API 用于连接我们设置的 Amazon DynamoDB 实例。JSON 模块帮助
 
 1.  创建 `AlexaResponse` 类。为了能够完全复制 Alexa 技能期望的响应格式，我们可以快速设置一个辅助类，用于生成 Lambda 函数调用的响应。我们将其命名为 `AlexaResponse`；类的初始化如下代码片段所示：
 
-```
+```py
 class AlexaResponse:
 
     def __init__(self, **kwargs):
@@ -649,7 +649,7 @@ class AlexaResponse:
 
 前面的 `AlexaResponse` 类初始化方法设置了预期的输出格式及各种常量设置，比如有效负载的版本号，以及一些输出对象的基本验证。接下来，我们创建了添加内容属性的方法和用于设置响应中 cookies 的另一个方法。最后，另一个方法被添加用于设置有效负载的端点：
 
-```
+```py
 def add_context_property(self, **kwargs):
     self.context_properties.append(self.create_context_property(**kwargs))
 
@@ -668,7 +668,7 @@ def add_payload_endpoint(self, **kwargs):
 
 1.  接下来，我们将设置方法以生成 `AlexaResponse` 类的最终响应。最后，我们创建方法将所有不同的部分——上下文、事件、有效负载、端点和 cookies——合并为一个准备好与 Alexa 技能交互的对象：
 
-```
+```py
     def get(self, remove_empty=True):
 
         response = {
@@ -703,13 +703,13 @@ def add_payload_endpoint(self, **kwargs):
 
 1.  `AlexaResponse` 类现在已完成。接下来我们将使用以下代码连接到 DynamoDB 服务：
 
-```
+```py
 aws_dynamodb = boto3.client('dynamodb')
 ```
 
 1.  接下来，我们定义文件的主要方法和入口点——`lambda_handler` 方法：
 
-```
+```py
 def lambda_handler(request, context):
 
     # JSON dump for the request
@@ -723,7 +723,7 @@ def lambda_handler(request, context):
 
 我们将继续为此步骤的其余部分添加到前面的代码中。在前面的代码行中，我们声明了 `lambda_handler` 方法，该方法接受来自 Alexa 技能的 `request` 和 `context` 对象。然后，它对请求进行 JSON 转储，以便我们可以稍后从 Amazon CloudWatch 仪表板观察它。接下来，它还对请求中附加的上下文进行转储（如果有的话）：
 
-```
+```py
     # Validate we have an Alexa directive
     if 'directive' not in request:
         aer = AlexaResponse(
@@ -735,7 +735,7 @@ def lambda_handler(request, context):
 
 我们接下来验证请求中是否包含有效的 Alexa 指令，如果没有找到，则生成错误信息并作为响应返回。请注意这里使用了 `AlexaResponse` 类对象。我们将来会使用它来生成来自该脚本的响应：
 
-```
+```py
     # Check the payload version
     payload_version = request['directive']['header']['payloadVersion']
     if payload_version != '3':
@@ -750,14 +750,14 @@ def lambda_handler(request, context):
 
 1.  首先，我们打开请求并查看请求了什么：
 
-```
+```py
     name = request['directive']['header']['name']
     namespace = request['directive']['header']['namespace']
 ```
 
 1.  然后，我们根据 `namespace` 处理来自 Alexa 的请求。请注意，这个示例接受任何 `grant` 请求，但在您的实现中，您将使用代码和令牌来获取并存储访问令牌：
 
-```
+```py
     if namespace == 'Alexa.Authorization':
         if name == 'AcceptGrant':
             grant_code = request['directive']['payload']['grant']['code']
@@ -770,7 +770,7 @@ def lambda_handler(request, context):
 
 1.  对于发现和关闭开关的操作，我们使用以下代码：
 
-```
+```py
     if namespace == 'Alexa.Discovery':
         if name == 'Discover':
             adr = AlexaResponse(namespace='Alexa.Discovery', name='Discover.Response')
@@ -794,7 +794,7 @@ def lambda_handler(request, context):
 
 1.  现在，我们在设置状态时检查是否有错误：
 
-```
+```py
         state_set = set_device_state(endpoint_id=endpoint_id, state='powerState', value=power_state_value)
         if not state_set:
             return AlexaResponse(
@@ -810,7 +810,7 @@ def lambda_handler(request, context):
 
 1.  注意前一步代码中 `send_response` 方法的使用。我们需要定义这个方法。它的任务是以 JSON 格式发送 `AlexaResponse` 对象，并将其记录以便在 Amazon CloudWatch 中观察：
 
-```
+```py
 def send_response(response):
     print('Response: ')
     print(json.dumps(response))
@@ -819,7 +819,7 @@ def send_response(response):
 
 1.  更新 `device state` 方法。由于我们正在为使用 Alexa 的简单开关设备构建自动化，我们需要维护开关的状态信息。我们通过将其状态存储在 DynamoDB 中来实现这一点。我们将为此添加一个更新方法，如下所示：
 
-```
+```py
 def set_device_state(endpoint_id, state, value):
     attribute_key = state + 'Value'
     response = aws_dynamodb.update_item(
@@ -849,7 +849,7 @@ def set_device_state(endpoint_id, state, value):
 
 1.  在编辑器中输入以下 JSON：
 
-```
+```py
 {
   "directive": {
     "header": {

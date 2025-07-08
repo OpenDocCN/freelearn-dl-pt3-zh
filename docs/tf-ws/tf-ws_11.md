@@ -68,7 +68,7 @@ LSTM 通过四个简单的步骤处理信息。
 
 你可以通过以下方式使用顺序模型创建 LSTM 模型。该 LSTM 包含四个隐藏层，分别具有`50`、`60`、`80`和`120`个单元，并使用 ReLU 激活函数。`return_sequences`参数对于除最后一层之外的所有层都设置为`True`，因为它们不是网络中的最终 LSTM 层：
 
-```
+```py
 regressor = Sequential()
 regressor.add(LSTM(units= 50, activation = 'relu', \
                    return_sequences = True, \
@@ -109,7 +109,7 @@ regressor.add(Dense(units = 1))
 
 在这里，你创建了一个名为`clean_text`的函数，它返回经过清洗后的单词列表。现在，使用`lower()`方法将所有文本保存为小写，用`utf8`编码进行字符标准化。最后，输出你的语料库中的 10 个标题：
 
-```
+```py
 def clean_text(txt):
     txt = "".join(v for v in txt \
                   if v not in string.punctuation).lower()
@@ -125,7 +125,7 @@ corpus[:10]
 
 神经网络期望输入数据以一致的数值格式提供。就像处理图像分类模型的图像一样，其中每个图像表示为三维数组，并且通常调整大小以满足模型的期望一样，文本必须进行类似处理。幸运的是，Keras 具有许多实用的类和函数来帮助处理神经网络的文本数据。其中一个类是从 Keras 导入的`Tokenizer`：
 
-```
+```py
 from keras.preprocessing.text import Tokenizer
 ```
 
@@ -133,7 +133,7 @@ from keras.preprocessing.text import Tokenizer
 
 在这里，你创建了一个名为`get_seq_of_tokens`的函数。使用`tokenizer.fit_on_texts`，你从语料库中提取 token。每个整数输出对应一个特定的单词。`input_seq`参数初始化为空列表，`[]`。使用`token_list =` `tokenizer.texts_to_sequences`，你将文本转换为 token 序列的等效形式。使用`n_gram_sequence = token_list`，你生成 n-gram 序列。通过`input_seq.append(n_gram_sequence)`，你将每个序列追加到特征列表中：
 
-```
+```py
 tokenizer = Tokenizer()
 def get_seq_of_tokens(corpus):
     tokenizer.fit_on_texts(corpus)
@@ -156,7 +156,7 @@ your_sequences[:10]
 
 在这里，你创建一个 `generate_padded_sequences` 函数，接受 `input_seq` 作为输入。`pad_sequences` 函数用于填充序列，使它们的长度相等。在函数中，首先通过计算每个输入序列的长度来确定最大序列长度。一旦确定了最大序列长度，所有其他序列将被填充以匹配。接下来，创建 `predictors` 和 `label` 参数。`label` 参数是序列中的最后一个单词，`predictors` 参数是所有前面的单词。最后，`label` 参数被转换为分类数组：
 
-```
+```py
 def generate_padded_sequences(input_seq):
     max_sequence_len = max([len(x) for x in input_seq])
     input_seq = np.array(pad_sequences\
@@ -188,7 +188,7 @@ predictors, label, max_sequence_len = generate_padded_sequences\
 
 1.  导入以下库：
 
-    ```
+    ```py
     from keras.preprocessing.sequence import pad_sequences
     from keras.models import Sequential
     from keras.layers import Embedding, LSTM, Dense, Dropout
@@ -205,13 +205,13 @@ predictors, label, max_sequence_len = generate_padded_sequences\
 
     你应该得到以下输出：
 
-    ```
+    ```py
     Using TensorFlow backend.
     ```
 
 1.  通过将 `your_dir` 设置为 `content/`，本地加载数据集。创建一个空的 `your_headlines` 参数，并使用 `for` 循环遍历：
 
-    ```
+    ```py
     your_dir = 'content/'
     your_headlines = []
     for filename in os.listdir(your_dir):
@@ -225,13 +225,13 @@ predictors, label, max_sequence_len = generate_padded_sequences\
 
     输出将表示数据集中标题的数量：
 
-    ```
+    ```py
     831
     ```
 
 1.  现在，创建一个 `clean_text` 函数来返回清理后的单词列表。使用 `lower()` 方法将文本转换为小写，并使用 `utf8` 编码进行字符标准化。最后，从你的语料库中输出 20 个标题：
 
-    ```
+    ```py
     def clean_text(txt):
         txt = "".join(v for v in txt \
                       if v not in string.punctuation).lower()
@@ -249,7 +249,7 @@ predictors, label, max_sequence_len = generate_padded_sequences\
 
 1.  使用`tokenizer.fit`从语料库中提取词元。每个整数输出对应一个特定的词。`input_seq`参数初始化为空列表`[]`。使用`token_list =` `tokenizer.texts_to_sequences`，将每个句子转换为其词元化的等效形式。使用`n_gram_sequence = token_list`，你可以生成 n-gram 序列。通过`input_seq.append(n_gram_sequence)`，将每个序列添加到特征列表中：
 
-    ```
+    ```py
     tokenizer = Tokenizer()
     def get_seq_of_tokens(corpus):
         tokenizer.fit_on_texts(corpus)
@@ -276,7 +276,7 @@ predictors, label, max_sequence_len = generate_padded_sequences\
 
 1.  填充序列并获取变量`predictors`和`target`：
 
-    ```
+    ```py
     def generate_padded_sequences(input_seq):
         max_sequence_len = max([len(x) for x in input_seq])
         input_seq = np.array(pad_sequences\
@@ -291,7 +291,7 @@ predictors, label, max_sequence_len = generate_padded_sequences\
 
 1.  准备好你的模型进行训练。添加一个输入嵌入层，使用`model.add(Embedding)`，一个隐藏的 LSTM 层，使用`model.add(LSTM(100))`，并设置 10%的 dropout。然后，使用`model.add(Dense)`添加输出层，使用 softmax 激活函数。通过`compile()`方法配置模型进行训练，并将损失函数设置为`categorical_crossentropy`。使用 Adam 优化器：
 
-    ```
+    ```py
     def create_model(max_sequence_len, all_words):
         input_len = max_sequence_len - 1
         model = Sequential()
@@ -318,7 +318,7 @@ predictors, label, max_sequence_len = generate_padded_sequences\
 
 1.  训练模型并将`epochs`设置为`200`，`verbose`设置为`5`：
 
-    ```
+    ```py
     model.fit(predictors, label, epochs=200, verbose=5)
     ```
 
@@ -330,7 +330,7 @@ predictors, label, max_sequence_len = generate_padded_sequences\
 
 1.  创建一个函数，该函数将在给定的种子文本、生成单词的数量、模型和最大序列长度的基础上生成一个头条新闻。该函数将包括一个`for`循环来迭代生成单词的次数。在每次迭代中，tokenizer 将对文本进行分词，然后对序列进行填充，并预测序列中的下一个单词。接着，迭代会将 token 转换回单词并将其添加到句子中。一旦`for`循环完成，生成的头条新闻将被返回：
 
-    ```
+    ```py
     def generate_text(seed_text, next_words, model, max_sequence_len):
         for _ in range(next_words):
             token_list = tokenizer.texts_to_sequences([seed_text])[0]
@@ -350,7 +350,7 @@ predictors, label, max_sequence_len = generate_padded_sequences\
 
 1.  最后，通过`print`函数输出一些生成的文本，打印你在*步骤 9*中创建的函数的输出。使用种子词`10 ways`、`europe looks to`、`best way`、`homeless in`、`unexpected results`和`critics warn`，以及对应生成的单词数，即`11`、`8`、`10`、`10`、`10`和`10`，来生成文本：
 
-    ```
+    ```py
     print (generate_text("10 ways", 11, model, max_sequence_len))
     print (generate_text("europe looks to", 8, model, \
                          max_sequence_len))
@@ -442,7 +442,7 @@ GAN 包括以下组件：
 
 现在，编写生成器的代码，第一步是定义生成器模型。你从使用`define_your_gen`创建生成器函数开始。生成器的输出数量应与您要合成的数据的大小匹配。因此，生成器的最后一层应该是一个密集层，其单元数等于期望的输出大小：
 
-```
+```py
 model.add(Dense(n_outputs, activation='linear'))
 ```
 
@@ -450,7 +450,7 @@ model.add(Dense(n_outputs, activation='linear'))
 
 代码块看起来可能如下所示：
 
-```
+```py
 def define_your_gen(latent_dim, n_outputs=2):
     model = Sequential()
     model.add(Dense(5, activation='relu', \
@@ -492,20 +492,20 @@ def define_your_gen(latent_dim, n_outputs=2):
 
 你的输出层只需要一个节点来进行二分类。为了确保输出为零或一，你将使用 sigmoid 激活函数：
 
-```
+```py
 model.add(Dense(1, activation='sigmoid'))
 ```
 
 模型将尝试最小化你的损失函数。使用 Adam 作为你的随机梯度下降法：
 
-```
+```py
 model.compile(loss='binary_crossentropy', \
               optimizer='adam', metrics=['accuracy'])
 ```
 
 这是你的判别器模型代码：
 
-```
+```py
 def define_disc(n_inputs=2):
     model = Sequential()
     model.add(Dense(25, activation='relu', \
@@ -569,7 +569,7 @@ GAN 由两个网络组成，一个是生成器，表示为 ![16a](img/B16341_11_
 
 然后，在编译模型时指定`binary_crossentropy`作为损失函数，Adam 作为优化器：
 
-```
+```py
 def define_your_gan(generator, discriminator):
     discriminator.trainable = False
     model = Sequential()
@@ -583,7 +583,7 @@ def define_your_gan(generator, discriminator):
 
 现在，从数据集中提取真实样本，并与假样本进行对比。你可以使用之前定义的`generate_real()`函数。在函数的第一行，`rand(n) - 0.5`，生成范围在`-0.5`到`0.5`之间的`n`个随机数。使用`hstack`来堆叠你的数组。现在，你可以使用`y = ones((n, 1))`来生成类别标签：
 
-```
+```py
 def generate_real(n):
     X1 = rand(n) - 0.5
     X2 = X1 * X1
@@ -598,7 +598,7 @@ def generate_real(n):
 
 接下来，使用生成器模型来创建假样本。你需要通过`gen_latent_points()`函数在潜在空间中生成相同数量的点。这些潜在点将被传递给生成器以创建样本。该函数使用 NumPy 的`randn`函数生成均匀随机样本。生成的数量将对应潜在维度与待生成样本数的乘积。然后，这个随机数数组将被重新调整形状以匹配生成器的预期输入：
 
-```
+```py
 def gen_latent_points(latent_dim, n):
     x_input = randn(latent_dim * n)
     x_input = x_input.reshape(n, latent_dim)
@@ -609,7 +609,7 @@ def gen_latent_points(latent_dim, n):
 
 `gen_fake()`函数生成类别标签为零的假样本。该函数使用前一步创建的函数生成潜在点。然后，生成器将基于潜在点生成样本。最后，类别标签`y`将生成一个零的数组，表示这是合成数据：
 
-```
+```py
 def gen_fake(generator, latent_dim, n):
     x_input = gen_latent_points(latent_dim, n)
     X = generator.predict(x_input)
@@ -621,7 +621,7 @@ def gen_fake(generator, latent_dim, n):
 
 以下`performance_summary()`函数用于绘制真实和假数据点。该函数生成真实值和合成数据，并通过判别器在识别合成图像时的准确性来评估其性能。然后，最终将真实和合成图像绘制出来以进行视觉检查：
 
-```
+```py
 def performance_summary(epoch, generator, \
                         discriminator, latent_dim, n=100):
     x_real, y_real = generate_real(n)
@@ -641,7 +641,7 @@ def performance_summary(epoch, generator, \
 
 现在，通过`train()`函数训练你的模型。该函数包含一个`for`循环，用于迭代训练轮次。在每一轮中，真实数据的大小等于批次大小的一半，然后生成合成数据。接着，判别器在真实数据上进行训练，随后是在合成数据上的训练。然后，GAN 模型也会进行训练。当训练轮次是输入参数`n_eval`的倍数时，将生成性能总结：
 
-```
+```py
 def train(g_model, d_model, your_gan_model, \
           latent_dim, n_epochs=1000, n_batch=128, n_eval=100):
     half_batch = int(n_batch / 2)
@@ -662,7 +662,7 @@ def train(g_model, d_model, your_gan_model, \
 
 你可以将所有步骤结合起来构建并训练模型。在这里，`latent_dim` 设置为 `5`，表示五个潜在维度：
 
-```
+```py
 latent_dim = 5
 generator = define_gen(latent_dim)
 discriminator = define_discrim()
@@ -680,7 +680,7 @@ train(generator, discriminator, your_gan_model, latent_dim)
 
 1.  打开一个新的 Jupyter 或 Colab 笔记本，并导入以下库：
 
-    ```
+    ```py
     from keras.models import Sequential
     from numpy import hstack, zeros, ones
     from numpy.random import rand, randn
@@ -692,7 +692,7 @@ train(generator, discriminator, your_gan_model, latent_dim)
 
     对于生成器网络的最后一层，使用 Keras 的 `linear` 激活函数，因为输出向量应包含连续的实数值，类似于正态分布。输出向量的第一个元素的范围是 `[-0.5,0.5]`。由于你只会考虑这两个值之间的 `x` 值，第二个元素的范围是 `[0.0,0.25]`：
 
-    ```
+    ```py
     def define_gen(latent_dim, n_outputs=2):
         model = Sequential()
         model.add(Dense(15, activation='relu', \
@@ -706,7 +706,7 @@ train(generator, discriminator, your_gan_model, latent_dim)
 
     你正在创建一个简单的 GAN，因此使用一个包含 `25` 个节点的隐藏层。使用 ReLU 激活函数和 `he_uniform` 权重初始化。你的输出层只需要一个节点用于二分类。使用 Adam 作为优化器。模型将尝试最小化你的损失函数：
 
-    ```
+    ```py
     def define_disc(n_inputs=2):
         model = Sequential()
         model.add(Dense(25, activation='relu', \
@@ -720,7 +720,7 @@ train(generator, discriminator, your_gan_model, latent_dim)
 
 1.  现在，使用 `model.add(generator)` 和 `model.add(discriminator)` 将两个模型添加到一起。然后，在编译模型时指定二元交叉熵作为损失函数，Adam 作为优化器：
 
-    ```
+    ```py
     def define_your_gan(generator, discriminator):
         discriminator.trainable = False
         model = Sequential()
@@ -732,7 +732,7 @@ train(generator, discriminator, your_gan_model, latent_dim)
 
 1.  从数据集中提取真实样本，以便与伪造样本进行比较。使用之前定义的 `generate_real()` 函数。`rand(n) – 0.5` 创建一个范围在 `-0.5` 到 `0.5` 之间的 `n` 个随机数。使用 `hstack` 来堆叠你的数组。现在，使用 `y = ones((n, 1))` 生成类别标签：
 
-    ```
+    ```py
     def generate_real(n):
         X1 = rand(n) - 0.5
         X2 = X1 * X1
@@ -745,7 +745,7 @@ train(generator, discriminator, your_gan_model, latent_dim)
 
 1.  接下来，设置生成器模型来生成伪造样本。使用你的 `gen_latent_points()` 函数在潜在空间中生成相同数量的点。然后，将它们传递给生成器并用来创建样本：
 
-    ```
+    ```py
     def gen_latent_points(latent_dim, n):
         x_input = randn(latent_dim * n)
         x_input = x_input.reshape(n, latent_dim)
@@ -754,7 +754,7 @@ train(generator, discriminator, your_gan_model, latent_dim)
 
 1.  使用生成器生成带有类别标签的伪造样本：
 
-    ```
+    ```py
     def gen_fake(generator, latent_dim, n):
         x_input = gen_latent_points(latent_dim, n)
         X = generator.predict(x_input)
@@ -764,7 +764,7 @@ train(generator, discriminator, your_gan_model, latent_dim)
 
 1.  评估鉴别器模型。`performance_summary()`函数将绘制真实数据和虚假数据点：
 
-    ```
+    ```py
     def performance_summary(epoch, generator, \
                             discriminator, latent_dim, n=100):
         x_real, y_real = generate_real(n)
@@ -782,7 +782,7 @@ train(generator, discriminator, your_gan_model, latent_dim)
 
 1.  现在，使用`train()`函数训练你的模型：
 
-    ```
+    ```py
     def train(g_model, d_model, your_gan_model, \
               latent_dim, n_epochs=1000, \
               n_batch=128, n_eval=100):
@@ -802,7 +802,7 @@ train(generator, discriminator, your_gan_model, latent_dim)
 
 1.  创建一个潜在维度的参数，并将其设置为`5`。然后，使用各自的函数创建生成器、鉴别器和 GAN。使用`train`函数训练生成器、鉴别器和 GAN 模型：
 
-    ```
+    ```py
     latent_dim = 5
     generator = define_gen(latent_dim)
     discriminator = define_disc()
@@ -890,7 +890,7 @@ DCGANs 使用卷积神经网络而非简单神经网络来构建鉴别器和生�
 
 请参阅以下示例，了解如何初始化定义您 DCGAN 的所有常量：
 
-```
+```py
 gen_res = 3
 gen_square = 32 * gen_res
 img_chan = 3
@@ -907,7 +907,7 @@ num_buffer = 1000
 
 现在，您可以构建生成器和判别器。首先定义您的生成器函数，使用`def create_generator`，并将`seed_size`和`channels`作为参数：
 
-```
+```py
 def create_generator(seed_size, channels):
     model = Sequential()
 ```
@@ -918,38 +918,38 @@ def create_generator(seed_size, channels):
 
 使用以下代码添加一个层，将您的输入重塑为匹配`4*4*256`的输出空间：
 
-```
+```py
 model.add(Reshape((4,4,256)))
 ```
 
 您的`UpSampling2D`层是一个简单的层，它将输入的尺寸加倍。它必须跟随一个卷积层（`Conv2D`）：
 
-```
+```py
 model.add(UpSampling2D())
 ```
 
 添加您的`Conv2D`层，并将输入设置为`256`。您可以为`3x3`的卷积滤波器选择`kernel_size=3`。通过`padding="same"`，您可以确保该层的输出与其输入具有相同的空间尺寸：
 
-```
+```py
 model.add(Conv2D(256,kernel_size=3,padding="same"))
 ```
 
 使用批量归一化来规范化您的各个层，并帮助防止梯度问题。动量可以在`0.0`到`0.99`之间选择。在这里，使用`momentum=0.8`：
 
-```
+```py
 model.add(BatchNormalization(momentum=0.8))
 ```
 
 在您的最终 CNN 层，您将使用 tanh 激活函数，以确保输出图像的范围为`-1`到`1`：
 
-```
+```py
 model.add(Conv2D(channels,kernel_size=3,padding="same"))
 model.add(Activation("tanh"))
 ```
 
 完整的代码块应如下所示：
 
-```
+```py
 def create_generator(seed_size, channels):
     model = Sequential()
     model.add(Dense(4*4*256,activation="relu", \
@@ -980,14 +980,14 @@ def create_generator(seed_size, channels):
 
 现在，您可以定义您的判别器：
 
-```
+```py
 def create_discriminator(image_shape):
     model = Sequential()
 ```
 
 这里，使用 `Conv2D` 层。你可以选择 `kernel_size=3` 来作为 `3x3` 卷积滤波器。通过 `strides=2`，你指定了“滑动窗口”的步幅。设置 `input_shape=image_shape` 来确保它们匹配，再通过 `padding="same"` 来确保该层的输出与输入具有相同的空间维度。为所有判别器层添加 LeakyReLU 激活函数：
 
-```
+```py
 model.add(Conv2D(32, kernel_size=3, \
                  strides=2, input_shape=image_shape, \
                  padding="same"))
@@ -996,19 +996,19 @@ model.add(LeakyReLU(alpha=0.2))
 
 `Flatten` 层将你的数据转换成一个单一的特征向量，以便输入到最后一层：
 
-```
+```py
 model.add(Flatten())
 ```
 
 对于你的激活函数，使用 sigmoid 作为二分类输出：
 
-```
+```py
 model.add(Dense(1, activation='sigmoid'))
 ```
 
 完整的代码块应如下所示：
 
-```
+```py
 def create_discriminator(image_shape):
     model = Sequential()
     model.add(Conv2D(32, kernel_size=3, strides=2, \
@@ -1046,7 +1046,7 @@ def create_discriminator(image_shape):
 
 你可以使用 `tf.keras.losses.BinaryCrossentropy` 来计算 `cross_entropy`。这个函数计算真实标签与预测标签之间的损失。然后，使用 `tf.ones` 和 `tf.zeros` 从 `real_output` 和 `fake_output` 参数定义 `discrim_loss` 函数，以计算 `total_loss`：
 
-```
+```py
 cross_entropy = tf.keras.losses.BinaryCrossentropy()
 def discrim_loss(real_output, fake_output):
     real_loss = cross_entropy(tf.ones_like(real_output), \
@@ -1062,7 +1062,7 @@ def gen_loss(fake_output):
 
 生成器和判别器都使用 Adam 优化器，并且具有相同的学习率和动量：
 
-```
+```py
 gen_optimizer = tf.keras.optimizers.Adam(1.5e-4,0.5)
 disc_optimizer = tf.keras.optimizers.Adam(1.5e-4,0.5)
 ```
@@ -1071,7 +1071,7 @@ disc_optimizer = tf.keras.optimizers.Adam(1.5e-4,0.5)
 
 然后，为判别器创建 `real_output` 和 `fake_output`。用这个来计算生成器的损失（`g_loss`）。现在，你可以计算判别器的损失（`d_loss`），计算生成器和判别器的梯度，分别使用 `gradients_of_generator` 和 `gradients_of_discriminator`，并应用它们：
 
-```
+```py
 @tf.function
 def train_step(images):
     seed = tf.random.normal([num_batch, seed_vector])
@@ -1097,7 +1097,7 @@ def train_step(images):
 
 接下来，使用 `fixed_seeds` 创建一些固定的种子，每个图像显示一个种子，每个种子向量也是如此。这样做是为了你能跟踪相同的图像，观察随时间变化的变化。通过 `for epoch in range`，你可以跟踪时间。通过 `for image_batch in dataset` 遍历每个批次。现在，继续通过 `generator_loss` 和 `discriminator_loss` 跟踪生成器和判别器的损失。现在，你可以看到所有这些信息的良好展示，随着训练的进行：
 
-```
+```py
 def train(dataset, epochs):
     fixed_seed = np.random.normal\
                 (0, 1, (img_rows * img_cols, seed_vector))
@@ -1137,7 +1137,7 @@ def train(dataset, epochs):
 
 1.  加载 Google Colab 和 Google Drive：
 
-    ```
+    ```py
     try:
         from google.colab import drive
         drive.mount('/content/drive', force_remount=True)
@@ -1151,14 +1151,14 @@ def train(dataset, epochs):
 
     你的输出应该类似于这样：
 
-    ```
+    ```py
     Mounted at /content/drive
     Note: using Google Colab
     ```
 
 1.  导入相关库：
 
-    ```
+    ```py
     import tensorflow as tf
     from tensorflow.keras.layers
     import Input, Reshape, Dropout, Dense 
@@ -1183,7 +1183,7 @@ def train(dataset, epochs):
 
 1.  格式化时间字符串以跟踪你的时间使用：
 
-    ```
+    ```py
     def time_string(sec_elapsed):
         hour = int(sec_elapsed / (60 * 60))
         minute = int((sec_elapsed % (60 * 60)) / 60)
@@ -1197,7 +1197,7 @@ def train(dataset, epochs):
 
     最后，打印参数：
 
-    ```
+    ```py
     gen_res = 3 
     gen_square = 32 * gen_res
     img_chan = 3
@@ -1230,7 +1230,7 @@ def train(dataset, epochs):
 
 1.  加载并预处理图像。在这里，你将保存一个 NumPy 预处理文件。加载之前训练的 NumPy 文件。图像的二进制文件名包含图像的尺寸信息：
 
-    ```
+    ```py
     training_binary_path = os.path.join(data_path,\
             f'training_data_{gen_square}_{gen_square}.npy')
     print(f"Looking for file: {training_binary_path}")
@@ -1259,14 +1259,14 @@ def train(dataset, epochs):
 
 1.  批处理并打乱数据。使用`tensorflow.data.Dataset`对象库及其功能来打乱数据集并创建批次：
 
-    ```
+    ```py
     train_dataset = tf.data.Dataset.from_tensor_slices(train_data) \
                       .shuffle(num_buffer).batch(num_batch)
     ```
 
 1.  构建生成器：
 
-    ```
+    ```py
     def create_generator(seed_size, channels):
         model = Sequential()
         model.add(Dense(4*4*256,activation="relu", \
@@ -1297,7 +1297,7 @@ def train(dataset, epochs):
 
 1.  构建判别器：
 
-    ```
+    ```py
     def create_discriminator(image_shape):
         model = Sequential()
         model.add(Conv2D(32, kernel_size=3, strides=2, \
@@ -1333,7 +1333,7 @@ def train(dataset, epochs):
 
 1.  在训练过程中，展示生成的图像以获得一些关于进展的见解。保存这些图像。在每 100 个周期时，保存一组图像，以评估进展：
 
-    ```
+    ```py
     def save_images(cnt,noise):
         img_array = np.full(( 
           img_margin + (img_rows * (gen_square+img_margin)), 
@@ -1359,7 +1359,7 @@ def train(dataset, epochs):
 
 1.  现在，创建一个生成噪声的生成器：
 
-    ```
+    ```py
     generator = create_generator(seed_vector, img_chan)
     noise = tf.random.normal([1, seed_vector])
     gen_img = generator(noise, training=False)
@@ -1374,7 +1374,7 @@ def train(dataset, epochs):
 
 1.  输入以下命令查看生成的图像之一：
 
-    ```
+    ```py
     img_shape = (gen_square,gen_square,img_chan)
     discriminator = create_discriminator(img_shape)
     decision = discriminator(gen_img)
@@ -1383,13 +1383,13 @@ def train(dataset, epochs):
 
     你的输出应该类似于这样：
 
-    ```
+    ```py
     tf.Tensor([[0.4994658]], shape=(1,1), dtype=float32)
     ```
 
 1.  创建你的损失函数。由于判别器和生成器网络的输出不同，你需要为它们定义两个独立的损失函数。此外，它们需要在通过网络的独立传递中分别训练。使用`tf.keras.losses.BinaryCrossentropy`作为`cross_entropy`。它计算真实标签与预测标签之间的损失。然后，使用`tf.ones`和`tf.zeros`从`real_output`和`fake_output`定义`discrim_loss`函数来计算`total_loss`：
 
-    ```
+    ```py
     cross_entropy = tf.keras.losses.BinaryCrossentropy()
     def discrim_loss(real_output, fake_output):
         real_loss = cross_entropy(tf.ones_like(real_output), \
@@ -1405,7 +1405,7 @@ def train(dataset, epochs):
 
 1.  创建两个 Adam 优化器（一个用于生成器，一个用于判别器），为每个优化器使用相同的学习率和动量：
 
-    ```
+    ```py
     gen_optimizer = tf.keras.optimizers.Adam(1.5e-4,0.5)
     disc_optimizer = tf.keras.optimizers.Adam(1.5e-4,0.5)
     ```
@@ -1414,7 +1414,7 @@ def train(dataset, epochs):
 
     然后，创建`real_output`和`fake_output`用于鉴别器。将其用于生成器的损失（`g_loss`）。接着，计算鉴别器的损失（`d_loss`），并计算生成器和鉴别器的梯度，分别使用`gradients_of_generator`和`gradients_of_discriminator`，并应用它们：
 
-    ```
+    ```py
     @tf.function
     def train_step(images):
         seed = tf.random.normal([num_batch, seed_vector])
@@ -1440,7 +1440,7 @@ def train(dataset, epochs):
 
 1.  创建一个固定种子的数组，`fixed_seeds`的数量等于沿一个维度显示的图像数，另一个维度则是种子向量，以便你能够跟踪相同的图像。这使你能够看到单个种子如何随时间变化。使用`for image_batch in dataset`循环遍历每个批次。继续跟踪生成器和鉴别器的损失，分别使用`generator_loss`和`discriminator_loss`。在训练过程中，你会得到一个很好的信息展示：
 
-    ```
+    ```py
     def train(dataset, epochs):
         fixed_seed = np.random.normal(0, 1, (img_rows * img_cols, 
                                             seed_vector))
@@ -1466,7 +1466,7 @@ def train(dataset, epochs):
 
 1.  在你的训练数据集上进行训练：
 
-    ```
+    ```py
     train(train_dataset, epochs)
     ```
 
@@ -1478,7 +1478,7 @@ def train(dataset, epochs):
 
 1.  仔细观察生成的图像，`train-0`、`train-100`、`train-250`、`train-500`和`train-999`。这些图像是在训练过程中自动保存的，正如在`train`函数中指定的那样：
 
-    ```
+    ```py
     a = imread('/content/drive/MyDrive/Datasets'\
                '/apple-or-tomato/training_set/output/train-0.png')
     plt.imshow(a)
@@ -1492,7 +1492,7 @@ def train(dataset, epochs):
 
 现在，运行以下命令：
 
-```
+```py
 a = imread('/content/drive/MyDrive/Datasets'\
            '/apple-or-tomato/training_set/output/train-100.png')
 plt.imshow(a)
@@ -1506,7 +1506,7 @@ plt.imshow(a)
 
 此外，运行以下命令：
 
-```
+```py
 a = imread('/content/drive/MyDrive/Datasets'\
            '/apple-or-tomato/training_set/output/train-500.png')
 plt.imshow(a)
@@ -1520,7 +1520,7 @@ plt.imshow(a)
 
 现在，运行以下命令：
 
-```
+```py
 a = imread('/content/drive/MyDrive/Datasets'\
            '/apple-or-tomato/training_set/output/train-999.png')
 plt.imshow(a)

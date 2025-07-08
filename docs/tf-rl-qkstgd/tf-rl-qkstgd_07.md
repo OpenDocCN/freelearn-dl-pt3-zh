@@ -90,7 +90,7 @@ PPO 中涉及的三个损失函数中的第一个称为裁剪替代目标。令 
 
 1.  **导入包**：首先，我们将按照以下方式导入所需的包：
 
-```
+```py
 import numpy as np
 import gym
 import sys
@@ -98,7 +98,7 @@ import sys
 
 1.  **设置神经网络初始化器**：然后，我们将设置神经网络的参数（我们将使用两个隐藏层）以及权重和偏置的初始化器。正如我们在过去的章节中所做的那样，我们将使用 Xavier 初始化器来初始化权重，偏置的初始值则设置为一个小的正值：
 
-```
+```py
 nhidden1 = 64 
 nhidden2 = 64 
 
@@ -110,7 +110,7 @@ regularizer = tf.contrib.layers.l2_regularizer(scale=0.0
 
 1.  **定义 PPO** **类**：现在已经定义了`PPO()`类。首先，使用传递给类的参数定义`__init__()`构造函数。这里，`sess`是 TensorFlow 的`session`；`S_DIM`和`A_DIM`分别是状态和动作的维度；`A_LR`和`C_LR`分别是演员和评论员的学习率；`A_UPDATE_STEPS`和`C_UPDATE_STEPS`是演员和评论员的更新步骤数；`CLIP_METHOD`存储了 epsilon 值：
 
-```
+```py
 class PPO(object):
 
     def __init__(self, sess, S_DIM, A_DIM, A_LR, C_LR, A_UPDATE_STEPS, C_UPDATE_STEPS, CLIP_METHOD):
@@ -126,7 +126,7 @@ class PPO(object):
 
 1.  **定义 TensorFlow 占位符**：接下来，我们需要定义 TensorFlow 的占位符：`tfs`用于状态，`tfdc_r`用于折扣奖励，`tfa`用于动作，`tfadv`用于优势函数：
 
-```
+```py
 # tf placeholders
 self.tfs = tf.placeholder(tf.float32, [None, self.S_DIM], 'state')
 self.tfdc_r = tf.placeholder(tf.float32, [None, 1], 'discounted_r')
@@ -138,7 +138,7 @@ self.tfadv = tf.placeholder(tf.float32, [None, 1], 'advantage')
 
 请注意，这个损失与本章理论部分之前提到的*L^(value)*相同：
 
-```
+```py
 # critic
 with tf.variable_scope('critic'):
     l1 = tf.layers.dense(self.tfs, nhidden1, activation=None, kernel_initializer=xavier, bias_initializer=bias_const, kernel_regularizer=regularizer)
@@ -154,7 +154,7 @@ with tf.variable_scope('critic'):
 
 1.  **调用** **_build_anet** **函数**：我们通过一个即将指定的`_build_anet()`函数来定义 actor。具体来说，该函数输出策略分布和模型参数列表。我们为当前策略调用一次此函数，再为旧策略调用一次。可以通过调用`self.pi`的`mean()`和`stddev()`函数分别获得均值和标准差：
 
-```
+```py
 # actor
 self.pi, self.pi_params = self._build_anet('pi', trainable=True) 
 self.oldpi, self.oldpi_params = self._build_anet('oldpi', trainable=False)
@@ -165,21 +165,21 @@ self.pi_sigma = self.pi.stddev()
 
 1.  **示例动作**：我们可以通过策略分布`self.pi`，使用`sample()`函数从 TensorFlow 的分布中采样动作：
 
-```
+```py
 with tf.variable_scope('sample_action'):
     self.sample_op = tf.squeeze(self.pi.sample(1), axis=0) 
 ```
 
 1.  **更新旧策略参数**：可以通过简单地将新策略的值赋给旧策略，使用 TensorFlow 的`assign()`函数来更新旧策略网络的参数。请注意，新策略已经过优化——旧策略仅仅是当前策略的一个副本，尽管是来自一次更新周期之前的。
 
-```
+```py
 with tf.variable_scope('update_oldpi'):
     self.update_oldpi_op = [oldp.assign(p) for p, oldp in zip(self.pi_params, self.oldpi_params)]
 ```
 
 1.  **计算策略分布比率**：策略分布比率在`self.tfa`动作处计算，并存储在`self.ratio`中。请注意，指数地，分布的对数差异等于分布的比率。然后将这个比率裁剪，限制在*1-ε*和*1+ε*之间，正如理论部分中所解释的：
 
-```
+```py
 with tf.variable_scope('loss'):
     self.ratio = tf.exp(self.pi.log_prob(self.tfa) - self.oldpi.log_prob(self.tfa))
     self.clipped_ratio = tf.clip_by_value(self.ratio, 1.-self.CLIP_METHOD['epsilon'], 1.+self.CLIP_METHOD['epsilon'])
@@ -187,7 +187,7 @@ with tf.variable_scope('loss'):
 
 1.  **计算损失**：前面提到的策略总损失包含三个损失，当策略和价值神经网络共享权重时，这些损失会结合在一起。然而，由于我们考虑到本章前面理论中提到的另一种设置，其中策略和价值各自拥有独立的神经网络，因此策略优化将有两个损失。第一个是未剪切比率与优势函数及其剪切类比的乘积的最小值——这个值存储在`self.aloss`中。第二个损失是香农熵，它是策略分布与其对数的乘积，所有值相加，并带上负号。这个项通过超参数*c[1]* = 0.01 进行缩放，并从损失中减去。暂时将熵损失项设置为零，就像在 PPO 论文中一样。我们可以考虑稍后加入此熵损失项，看看它是否对策略的学习有任何影响。我们使用 Adam 优化器。请注意，我们需要最大化本章前面提到的原始策略损失，但 Adam 优化器具有`minimize()`函数，因此我们在`self.aloss`中加入了负号（参见下面代码的第一行），因为最大化一个损失等同于最小化它的负值：
 
-```
+```py
 self.aloss = -tf.reduce_mean(tf.minimum(self.ratio*self.tfadv, self.clipped_ratio*self.tfadv))
 
 # entropy 
@@ -201,7 +201,7 @@ with tf.variable_scope('atrain'):
 
 1.  **定义** **更新** **函数**：接下来定义`update()`函数，它将`state`（状态）`a`（动作）和`r`（奖励）作为参数。该函数涉及通过调用 TensorFlow 的`self.update_oldpi_op`操作来更新旧策略网络的参数。然后计算优势，结合状态和动作，利用`A_UPDATE_STEPS`（演员迭代次数）进行更新。接着，利用`C_UPDATE_STEPS`（评论者迭代次数）对评论者进行更新，运行 TensorFlow 会话以执行评论者训练操作：
 
-```
+```py
 def update(self, s, a, r):
 
     self.sess.run(self.update_oldpi_op)
@@ -220,7 +220,7 @@ def update(self, s, a, r):
 
 请注意，动作的均值是有限制的，因此使用`tanh`激活函数，并进行小幅裁剪以避免极值；对于标准差，使用`softplus`激活函数，并将其偏移`0.1`以避免出现零的标准差。一旦我们获得了动作的均值和标准差，TensorFlow 的`Normal`分布被用来将策略视为高斯分布。我们还可以调用`tf.get_collection()`来获取模型参数，`Normal`分布和模型参数将从函数中返回：
 
-```
+```py
     def _build_anet(self, name, trainable):
         with tf.variable_scope(name):
             l1 = tf.layers.dense(self.tfs, nhidden1, activation=None, trainable=trainable, kernel_initializer=xavier, bias_initializer=bias_const, kernel_regularizer=regularizer)
@@ -243,7 +243,7 @@ def update(self, s, a, r):
 
 1.  **定义** **choose_action** **函数**：我们还定义了一个`choose_action()`函数，从策略中采样以获取动作：
 
-```
+```py
    def choose_action(self, s):
         s = s[np.newaxis, :]
         a = self.sess.run(self.sample_op, {self.tfs: s})
@@ -252,7 +252,7 @@ def update(self, s, a, r):
 
 1.  **定义** **get_v** **函数**：最后，我们还定义了一个`get_v()`函数，通过在`self.v`上运行 TensorFlow 会话来返回状态值：
 
-```
+```py
    def get_v(self, s):
         if s.ndim < 2: s = s[np.newaxis, :]
         vv = self.sess.run(self.v, {self.tfs: s})
@@ -267,7 +267,7 @@ def update(self, s, a, r):
 
 1.  **导入包**：首先，我们导入所需的包：
 
-```
+```py
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
@@ -280,7 +280,7 @@ from class_ppo import *
 
 1.  **定义函数**：接着，我们定义了一个奖励塑造函数，该函数将根据良好或差劲的表现分别给予额外的奖励和惩罚。这样做是为了鼓励小车朝向位于山顶的旗帜一侧行驶，否则学习速度会变慢：
 
-```
+```py
 def reward_shaping(s_):
 
      r = 0.0
@@ -299,7 +299,7 @@ def reward_shaping(s_):
 
 1.  接下来，我们选择`MountainCarContinuous`作为环境。我们将训练智能体的总集数设置为`EP_MAX`，并将其设置为`1000`。`GAMMA`折扣因子设置为`0.9`，学习率为`2e-4`。我们使用`32`的批量大小，并在每个周期执行`10`次更新步骤。状态和动作维度分别存储在`S_DIM`和`A_DIM`中。对于 PPO 的`clip`参数`epsilon`，我们使用`0.1`的值。`train_test`在训练时设置为`0`，在测试时设置为`1`：
 
-```
+```py
 env = gym.make('MountainCarContinuous-v0')
 
 EP_MAX = 1000
@@ -333,7 +333,7 @@ if (irestart == 0):
 
 1.  我们创建一个 TensorFlow 会话，并命名为`sess`。创建一个`PPO`类的实例，命名为`ppo`。我们还创建了一个 TensorFlow 的保存器。然后，如果我们是从头开始训练，我们通过调用`tf.global_variables_initializer()`初始化所有模型参数；如果我们是从保存的智能体继续训练或进行测试，则从`ckpt/model`路径恢复：
 
-```
+```py
 sess = tf.Session()
 
 ppo = PPO(sess, S_DIM, A_DIM, A_LR, C_LR, A_UPDATE_STEPS, C_UPDATE_STEPS, CLIP_METHOD)
@@ -348,7 +348,7 @@ else:
 
 1.  然后定义了一个主要的`for loop`，用于遍历集数。在循环内部，我们重置环境，并将缓冲区设置为空列表。终止布尔值`done`和时间步骤数`t`也被初始化：
 
-```
+```py
 for ep in range(iter_num, EP_MAX):
 
     print("-"*70)
@@ -366,7 +366,7 @@ for ep in range(iter_num, EP_MAX):
 
 在外部循环中，我们有一个内层的`while`循环来处理时间步。这个问题涉及较短的时间步，在这些时间步内，汽车可能没有显著移动，因此我们使用粘性动作，其中动作每`8`个时间步才从策略中采样一次。`PPO`类中的`choose_action()`函数会为给定的状态采样动作。为了进行探索，我们会在动作中加入小的高斯噪声，并将其限制在`-1.0`到`1.0`的范围内，这是`MountainCarContinuous`环境所要求的。然后，动作被输入到环境的`step()`函数中，后者将输出下一个`s_`状态、`r`奖励以及终止标志`done`。调用`reward_shaping()`函数来调整奖励。为了跟踪智能体推动极限的程度，我们还计算它在`max_pos`和`max_speed`中分别的最大位置和速度：
 
-```
+```py
     while not done: 
 
         env.render()
@@ -406,7 +406,7 @@ for ep in range(iter_num, EP_MAX):
 
 1.  如果我们处于训练模式，状态、动作和奖励会被追加到缓冲区。新的状态会被设置为当前状态，如果回合尚未结束，我们将继续进行下一个时间步。`ep_r`回合总奖励和`t`时间步数也会被更新：
 
-```
+```py
 if (train_test == 0):
     buffer_s.append(s)
     buffer_a.append(a)
@@ -419,7 +419,7 @@ if (train_test == 0):
 
 如果我们处于训练模式，当样本数量等于一个批次，或者回合已经结束时，我们将训练神经网络。为此，首先使用`ppo.get_v`获取新状态的状态值。然后，我们计算折扣奖励。缓冲区列表也会被转换为 NumPy 数组，并且缓冲区列表会被重置为空列表。接下来，这些`bs`、`ba`和`br` NumPy 数组将被用来更新`ppo`对象的演员和评论员网络：
 
-```
+```py
 if (train_test == 0):
     if (t+1) % BATCH == 0 or done == True:
         v_s_ = ppo.get_v(s_)
@@ -440,7 +440,7 @@ if (train_test == 0):
 
 1.  如果我们处于测试模式，Python 会短暂暂停以便更好地进行可视化。如果回合已结束，`while`循环会通过`break`语句退出。然后，我们会在屏幕上打印最大的位置和速度值，并将它们以及回合奖励写入名为`performance.txt`的文件中。每 10 个回合，我们还会通过调用`saver.save`来保存模型：
 
-```
+```py
     if (train_test == 1):
         time.sleep(0.1)
 
@@ -465,13 +465,13 @@ if (train_test == 0):
 
 PPO 智能体通过以下命令进行训练：
 
-```
+```py
 python train_test.py
 ```
 
 一旦训练完成，我们可以通过设置以下内容来测试智能体：
 
-```
+```py
 train_test = 1
 ```
 
@@ -483,7 +483,7 @@ train_test = 1
 
 现在，我们将动作设置为`1.0`，即全油门：
 
-```
+```py
 import sys
 import numpy as np
 import gym
@@ -516,7 +516,7 @@ for _ in range(100):
 
 如果我们尝试随机的油门值呢？我们将编写`mountaincar_random_throttle.py`，在`-1.0`到`1.0`的范围内进行随机操作：
 
-```
+```py
 import sys
 import numpy as np
 import gym

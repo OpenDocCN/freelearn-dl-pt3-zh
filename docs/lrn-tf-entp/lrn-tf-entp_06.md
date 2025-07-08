@@ -30,7 +30,7 @@ TensorFlow Hub 包含了许多可重用的模型。例如，在图像分类任�
 
 1.  你可以使用 Google Cloud AI 平台的 JupyterLab 环境进行这项工作。一旦进入 AI 平台的 JupyterLab 环境，你可以通过导入必要的模块并下载图像来开始：
 
-    ```
+    ```py
     import tensorflow as tf
     import tensorflow_hub as hub
     import matplotlib.pyplot as plt
@@ -47,13 +47,13 @@ TensorFlow Hub 包含了许多可重用的模型。例如，在图像分类任�
 
 1.  在一个新的单元格中，我们可以运行以下命令来查看数据的目录结构：
 
-    ```
+    ```py
     !ls -lrt {data_dir}
     ```
 
     前面的命令将返回以下结构：
 
-    ```
+    ```py
     -rw-r----- 1 jupyter jupyter 418049 Feb  9  2016 LICENSE.txt
     drwx------ 2 jupyter jupyter  45056 Feb 10  2016 tulips
     drwx------ 2 jupyter jupyter  36864 Feb 10  2016 sunflowers
@@ -68,7 +68,7 @@ TensorFlow Hub 包含了许多可重用的模型。例如，在图像分类任�
 
     该文档指出，图像在模型入口点处的期望高度和宽度为`224`。让我们继续指定这些参数以及训练的批量大小：
 
-    ```
+    ```py
     pixels =224
     BATCH_SIZE = 32 
     IMAGE_SIZE = (pixels, pixels)  
@@ -92,7 +92,7 @@ TensorFlow 提供了 API 和工作流，用于创建专门为 TensorFlow 模型�
 
 1.  将这些因素组织成元组。这些因素作为输入关键字指定给`ImageDataGenerator`或`flow_from_directory`。我们可以将这些参数及其值作为元组传递给这些函数。在执行函数时，元组将被解包。这些参数存储在这些字典中：
 
-    ```
+    ```py
     datagen_kwargs = dict(rescale=1./255, 
                           validation_split=.20)
     dataflow_kwargs = dict(target_size=IMAGE_SIZE, 
@@ -104,7 +104,7 @@ TensorFlow 提供了 API 和工作流，用于创建专门为 TensorFlow 模型�
 
 1.  将这些元组传递给`ImageGenerator`。这些元组封装了所有这些因素。现在，我们将把这些元组传递给生成器，如下代码所示：
 
-    ```
+    ```py
     valid_datagen = tf.keras.preprocessing.image.ImageDataGenerator(
         **datagen_kwargs)
     valid_generator = valid_datagen.flow_from_directory(
@@ -113,13 +113,13 @@ TensorFlow 提供了 API 和工作流，用于创建专门为 TensorFlow 模型�
 
     你将看到交叉验证数据中图像和类别数量的输出：
 
-    ```
+    ```py
     Found 731 images belonging to 5 classes.
     ```
 
 1.  对于训练数据，如果你愿意，可以考虑使用数据增强选项。如果是这样，我们可以在`ImageDataGenerator`中设置这些参数：
 
-    ```
+    ```py
     rotation_range
     horizontal_flip
     Width_shift_range
@@ -132,7 +132,7 @@ TensorFlow 提供了 API 和工作流，用于创建专门为 TensorFlow 模型�
 
 1.  目前，我们暂时不需要处理这个问题，因此我们将`do_data_augmentation = False`，如下代码所示。如果你愿意，也可以将其设置为`True`。这里提供了建议的增强参数：
 
-    ```
+    ```py
     do_data_augmentation = False 
     if do_data_augmentation:
       train_datagen = tf.keras.preprocessing.image.ImageDataGenerator(
@@ -150,7 +150,7 @@ TensorFlow 提供了 API 和工作流，用于创建专门为 TensorFlow 模型�
 
     执行上述代码后，你将看到以下输出：
 
-    ```
+    ```py
     Found 731 images belonging to 5 classes.
     Found 2939 images belonging to 5 classes.
     ```
@@ -159,13 +159,13 @@ TensorFlow 提供了 API 和工作流，用于创建专门为 TensorFlow 模型�
 
 1.  和所有分类任务一样，标签会转换为整数索引。生成器使用`train_generator.class_indices`来映射标签：
 
-    ```
+    ```py
     labels_idx = (train_generator.class_indices)
     ```
 
 1.  我们可以通过创建一个反向查找，轻松地将索引映射回标签，反向查找的形式也是一个字典。这可以通过反转`labels_idx`中的键值对来完成，其中键是索引，值是花卉类型：
 
-    ```
+    ```py
     idx_labels = dict((v,k) for k,v in labels_idx.items())
     print(idx_labels)
     {0: 'daisy', 1: 'dandelion', 2: 'roses', 3: 'sunflowers', 4: 'tulips'}
@@ -181,14 +181,14 @@ TensorFlow 提供了 API 和工作流，用于创建专门为 TensorFlow 模型�
 
 1.  我们将首先定义参数，如下所示：
 
-    ```
+    ```py
     FINE_TUNING_CHOICE = True
     NUM_CLASSES = len(idx_labels)
     ```
 
 1.  接下来，我们将使用以下代码来构建模型：
 
-    ```
+    ```py
     mdl = tf.keras.Sequential([
         tf.keras.layers.InputLayer(input_shape=IMAGE_SIZE + 
                                    (3,)),
@@ -202,7 +202,7 @@ TensorFlow 提供了 API 和工作流，用于创建专门为 TensorFlow 模型�
 
 1.  现在，让我们使用以下代码行来构建模型：
 
-    ```
+    ```py
     mdl.build([None, 224, 224, 3])
     ```
 
@@ -210,13 +210,13 @@ TensorFlow 提供了 API 和工作流，用于创建专门为 TensorFlow 模型�
 
 1.  我们可以通过以下代码行来确认模型架构：
 
-    ```
+    ```py
     mdl.summary()
     ```
 
     执行前面的代码行后，您将看到三个层的顺序及其预期的输出形状：
 
-    ```
+    ```py
     Model: 'sequential_1'
     _________________________________________________________________
     Layer (type)                 Output Shape              Param #   
@@ -239,31 +239,31 @@ TensorFlow 提供了 API 和工作流，用于创建专门为 TensorFlow 模型�
 
 如需更深入的讨论，请参阅 *TensorFlow 2.0 快速入门指南*，作者 *Tony Holroyd*，由 *Packt Publishing* 出版。您可以参考 *第四章* *使用 TensorFlow 2 的监督机器学习*，以及名为 *逻辑回归* 的部分，讨论有关损失函数和优化器的内容。这就是我们定义优化器的方法：
 
-```
+```py
 my_optimizer = tf.keras.optimizers.SGD(lr=0.005, momentum=0.9)
 ```
 
 由于我们希望为每个类别输出概率，因此我们设置 `from_logits = True`。同时，我们希望模型不要变得过于自信，因此我们将 `label_smoothing = 0.1` 作为正则化项，以惩罚极高的概率。我们可以按如下方式定义 `loss` 函数：
 
-```
+```py
 my_loss_function = tf.keras.losses.CategoricalCrossentropy(from_logits=True, label_smoothing=0.1)
 ```
 
 我们需要配置模型以进行训练。这是通过在模型的训练过程中定义 `loss` 函数和优化器来完成的，因为训练过程需要知道 `loss` 函数用于优化的目标是什么，以及使用什么优化器。要编译模型并指定优化器和 `loss` 函数，请执行以下代码：
 
-```
+```py
 mdl.compile(
 ```
 
-```
+```py
   optimizer=my_optimizer,
 ```
 
-```
+```py
   loss=my_loss_function,
 ```
 
-```
+```py
   metrics=['accuracy'])
 ```
 
@@ -273,73 +273,73 @@ mdl.compile(
 
 对于模型训练，我们将使用`tf.keras.fit`函数。我们只会训练五个周期：
 
-```
+```py
 steps_per_epoch = train_generator.samples // train_generator.batch_size
 ```
 
-```
+```py
 validation_steps = valid_generator.samples // valid_generator.batch_size
 ```
 
-```
+```py
 hist = mdl.fit(
 ```
 
-```
+```py
     train_generator,
 ```
 
-```
+```py
     epochs=5, steps_per_epoch=steps_per_epoch,
 ```
 
-```
+```py
     validation_data=valid_generator,
 ```
 
-```
+```py
     validation_steps=validation_steps).history
 ```
 
 训练结果应类似于此：
 
-```
+```py
 Epoch 1/5
 ```
 
-```
+```py
 91/91 [==============================] - 404s 4s/step - loss: 1.4899 - accuracy: 0.7348 - val_loss: 1.3749 - val_accuracy: 0.8565
 ```
 
-```
+```py
 Epoch 2/5
 ```
 
-```
+```py
 91/91 [==============================] - 404s 4s/step - loss: 1.3083 - accuracy: 0.9309 - val_loss: 1.3359 - val_accuracy: 0.8963
 ```
 
-```
+```py
 Epoch 3/5
 ```
 
-```
+```py
 91/91 [==============================] - 405s 4s/step - loss: 1.2723 - accuracy: 0.9704 - val_loss: 1.3282 - val_accuracy: 0.9077
 ```
 
-```
+```py
 Epoch 4/5
 ```
 
-```
+```py
 91/91 [==============================] - 1259s 14s/step - loss: 1.2554 - accuracy: 0.9869 - val_loss: 1.3302 - val_accuracy: 0.9020
 ```
 
-```
+```py
 Epoch 5/5
 ```
 
-```
+```py
 91/91 [==============================] - 403s 4s/step - loss: 1.2487 - accuracy: 0.9935 - val_loss: 1.3307 - val_accuracy: 0.8963
 ```
 
@@ -357,19 +357,19 @@ GPU 非常适合深度学习模型的训练，因为它可以并行处理多个�
 
 1.  所以，在下一个单元格中，你可以使用`wget`将其下载到你的笔记本中：
 
-    ```
+    ```py
     !wget https://dataverse.harvard.edu/api/access/datafile/4159750
     ```
 
 1.  接着，解压它：
 
-    ```
+    ```py
     /flower_photos/small_test directory available in the left panel of your notebook instance. 
     ```
 
 1.  创建一个数据生成器实例用于测试数据。由于我们的`train_datagen`已经知道如何实现这一点，我们可以重用该对象。确保你指定`working_dir`目录作为测试图像所在文件路径：
 
-    ```
+    ```py
     working_dir = ‘flower_photos/small_test’
     test_generator =     
     	train_datagen.flow_from_directory
@@ -382,19 +382,19 @@ GPU 非常适合深度学习模型的训练，因为它可以并行处理多个�
 
 1.  让我们记录下标签的索引：
 
-    ```
+    ```py
     print(test_generator.class_indices)
     ```
 
     输出结果表示每个标签在概率数组中的相对位置：
 
-    ```
+    ```py
     {'daisy': 0, 'dandelion': 1, 'roses': 2, 'sunflowers': 3, 'tulips': 4}
     ```
 
 1.  我们还定义了一个辅助函数来绘制图像：
 
-    ```
+    ```py
     def plotImages(images_arr):
         fig, axes = plt.subplots(1, 5, figsize=(10,10))
         axes = axes.flatten()
@@ -407,14 +407,14 @@ GPU 非常适合深度学习模型的训练，因为它可以并行处理多个�
 
 1.  现在，我们来看一下测试图像及其对应的标签（真实标签）：
 
-    ```
+    ```py
     sample_test_images, ground_truth_labels = next(test_generator)
     print(ground_truth_labels)
     ```
 
     测试图像的输出结果如下所示。在前三行中，one-hot 编码在第一位置为`1`，根据`test_generator.class_indices`，这对应于`雏菊`，而在最后两行中，`1`位于最后位置，表示最后两张图像是`郁金香`：
 
-    ```
+    ```py
     [[1\. 0\. 0\. 0\. 0.]
      [1\. 0\. 0\. 0\. 0.]
      [1\. 0\. 0\. 0\. 0.]
@@ -424,7 +424,7 @@ GPU 非常适合深度学习模型的训练，因为它可以并行处理多个�
 
 1.  然后，我们可以绘制这些图像：
 
-    ```
+    ```py
     plotImages(sample_test_images[:5])
     ```
 
@@ -434,13 +434,13 @@ GPU 非常适合深度学习模型的训练，因为它可以并行处理多个�
 
 1.  要让模型对这些图像进行预测，请执行以下代码：
 
-    ```
+    ```py
     prediction = mdl.predict(sample_test_images[:5])
     ```
 
     预测的输出结果如下：
 
-    ```
+    ```py
     array([[9.9985600e-01, 3.2907694e-05, 2.3326173e-05,            
             6.8752386e-05, 1.8940274e-05],
            [9.9998152e-01, 7.6931758e-07, 9.4449973e-07, 
@@ -459,27 +459,27 @@ GPU 非常适合深度学习模型的训练，因为它可以并行处理多个�
 
 1.  让我们将概率大小与位置关联，并定义一个标签参考：
 
-    ```
+    ```py
     labelings = tf.math.argmax(prediction, axis = -1)
     label_reference = np.asarray(list(labels_idx))
     ```
 
 1.  编写一个辅助函数，将位置映射到实际标签：
 
-    ```
+    ```py
     def find_label(idx):
         return label_reference[idx]
     ```
 
 1.  现在我们可以映射每个观测值的最高概率位置：
 
-    ```
+    ```py
     predicted_idx = tf.math.argmax(prediction, axis = -1)
     ```
 
 1.  我们可以查看 `predicted_idx`：
 
-    ```
+    ```py
     <tf.Tensor: shape=(5,), dtype=int64, numpy=array([0, 0, 0, 4, 4])>
     ```
 
@@ -487,7 +487,7 @@ GPU 非常适合深度学习模型的训练，因为它可以并行处理多个�
 
 1.  然后，将辅助函数应用于预测输出的每一行，并将测试图像的文件名（`test_generator.filenames`）与预测结果一起插入到格式良好的 pandas DataFrame 中：
 
-    ```
+    ```py
     import pandas as pd
     predicted_label = list(map(find_label, predicted_idx))
     file_name = test_generator.filenames
@@ -520,7 +520,7 @@ Keras 是一个深度学习 API，封装了 TensorFlow、Theano 和微软认知�
 
 1.  这是我们感兴趣的表格：
 
-    ```
+    ```py
     DATASET_GCP_PROJECT_ID = 'bigquery-public-data'
     DATASET_ID = 'covid19_geotab_mobility_impact'
     TABLE_ID = 'us_border_volumes'
@@ -534,7 +534,7 @@ Keras 是一个深度学习 API，封装了 TensorFlow、Theano 和微软认知�
 
 1.  让我们通过运行以下查询来查看数据：
 
-    ```
+    ```py
     SELECT * FROM `bigquery-public-data.covid19_geotab_mobility_impact.us_border_volumes` ORDER BY RAND() LIMIT 1000
     ```
 
@@ -566,7 +566,7 @@ Keras 是一个深度学习 API，封装了 TensorFlow、Theano 和微软认知�
 
 1.  我们将从以下代码开始，导入必要的库并设置环境变量：
 
-    ```
+    ```py
     import tensorflow as tf
     from tensorflow import feature_column
     from tensorflow_io.bigquery import BigQueryClient
@@ -582,7 +582,7 @@ Keras 是一个深度学习 API，封装了 TensorFlow、Theano 和微软认知�
 
 1.  创建一个会话来读取 BigQuery：
 
-    ```
+    ```py
     read_session3 = client.read_session(
        'projects/' + PROJECT_ID,
        DATASET_GCP_PROJECT_ID, TABLE_ID, DATASET_ID,
@@ -610,7 +610,7 @@ Keras 是一个深度学习 API，封装了 TensorFlow、Theano 和微软认知�
 
 1.  我们刚刚从 BigQuery 中的表中选择了感兴趣的字段。现在，表已经作为数据集被读取，我们需要将每一列指定为特征或目标。让我们使用这个辅助函数：
 
-    ```
+    ```py
     def transfrom_row(row_dict):
     	# Identify column names for features.
     	feature_dict = { column:
@@ -627,13 +627,13 @@ Keras 是一个深度学习 API，封装了 TensorFlow、Theano 和微软认知�
 
 1.  现在我们将这个函数应用于训练数据集的每一行。这本质上是对数据集的一次转换，因为我们应用了一个函数，它将数据集拆分为两个字典的元组——特征和目标：
 
-    ```
+    ```py
     transformed_ds = dataset3.map(transfrom_row)
     ```
 
 1.  现在我们将对数据集进行洗牌并分批处理：
 
-    ```
+    ```py
     BATCH_SIZE = 32
     SHUFFLE_BUFFER = 1024
     training_dataset3 = transformed_ds.shuffle
@@ -650,7 +650,7 @@ Keras 是一个深度学习 API，封装了 TensorFlow、Theano 和微软认知�
 
 1.  对于每个类别列，我们需要跟踪可能的类别。通过以下辅助函数来实现：
 
-    ```
+    ```py
     def get_categorical_feature_values(column):
         query = 'SELECT DISTINCT TRIM({}) FROM `{}`.{}.{}'. 	        format(column, DATASET_GCP_PROJECT_ID, 
                     DATASET_ID, TABLE_ID)
@@ -665,7 +665,7 @@ Keras 是一个深度学习 API，封装了 TensorFlow、Theano 和微软认知�
 
 1.  然后，我们可以使用以下代码片段创建`feature_columns`对象（实际上是一个 Python 列表）：
 
-    ```
+    ```py
     feature_columns = []
     # Numeric columns
     for header in ['day_of_week',     
@@ -686,7 +686,7 @@ Keras 是一个深度学习 API，封装了 TensorFlow、Theano 和微软认知�
 
 1.  现在，我们只需创建一个层来作为模型的输入。第一个层是特征列输入模型的层，这是一个多层感知机，由一系列可重用的`Dense`层定义：
 
-    ```
+    ```py
     feature_layer = tf.keras.layers.DenseFeatures(feature_columns)
     Dense = tf.keras.layers.Dense
     model = tf.keras.Sequential(
@@ -711,7 +711,7 @@ Keras 是一个深度学习 API，封装了 TensorFlow、Theano 和微软认知�
 
 1.  使用适当的`loss`函数和回归任务中使用的指标来编译模型：
 
-    ```
+    ```py
     model.compile(
        loss='mse',
        metrics=['mae', 'mse'])
@@ -719,13 +719,13 @@ Keras 是一个深度学习 API，封装了 TensorFlow、Theano 和微软认知�
 
 1.  训练模型：
 
-    ```
+    ```py
     model.fit(training_dataset3, epochs=5)
     ```
 
 1.  一旦模型训练完成，我们可以创建一个包含两个观测值的样本测试数据集。测试数据必须采用字典格式：
 
-    ```
+    ```py
     test_samples = {
        'trip_direction' : np.array(['Mexico to US', 
                                     'US to Canada']),
@@ -739,13 +739,13 @@ Keras 是一个深度学习 API，封装了 TensorFlow、Theano 和微软认知�
 
 1.  为了对这个测试样本进行评分，执行以下代码：
 
-    ```
+    ```py
     model.predict(test_samples)
     ```
 
     上述代码的输出如下：
 
-    ```
+    ```py
     array([[29.453201],
            [10.395596]], dtype=float32)
     ```
@@ -766,15 +766,15 @@ TensorFlow 估算器也是可复用的组件。估算器是更高层的 API，�
 
 在这个例子中，我们将设置相同的回归问题并构建一个回归模型。数据来源是我们在流式训练数据中使用的相同数据，通过 Google Cloud 的 BigQuery 提供：
 
-```
+```py
 DATASET_GCP_PROJECT_ID = 'bigquery-public-data'
 ```
 
-```
+```py
 DATASET_ID = 'covid19_geotab_mobility_impact'
 ```
 
-```
+```py
 TABLE_ID = 'us_border_volumes'
 ```
 
@@ -788,11 +788,11 @@ TABLE_ID = 'us_border_volumes'
 
 使用`estimator`对象调用`.train()`并传递一个输入函数给它。这个输入函数负责解析训练数据和标签。由于我们正在设置一个回归问题，接下来以预制的线性回归估算器为例。这是训练过程的常见模式：
 
-```
+```py
 linear_est = tf.estimator.LinearRegressor(feature_columns=feature_columns, model_dir=MODEL_DIR)
 ```
 
-```
+```py
 linear_est.train(input_fn)
 ```
 
@@ -810,7 +810,7 @@ linear_est.train(input_fn)
 
 1.  通常，我们从所需库的`import`操作开始：
 
-    ```
+    ```py
     import tensorflow as tf
     from tensorflow_io.bigquery import BigQueryClient
     from tensorflow import feature_column
@@ -823,7 +823,7 @@ linear_est.train(input_fn)
 
 1.  现在我们为 BigQuery 中的目标表指定一些参数。确保指定你自己的`PROJECT_ID`：
 
-    ```
+    ```py
     PROJECT_ID = '<YOUR_PROJECT_ID>'
     DATASET_GCP_PROJECT_ID = 'bigquery-public-data'
     DATASET_ID = 'covid19_geotab_mobility_impact'
@@ -832,7 +832,7 @@ linear_est.train(input_fn)
 
 1.  接下来，我们将指定训练过程的输入函数。这个输入函数将通过`transform_row`函数处理读取操作、数据注解、转换，以及将目标与特征分离。这些操作与之前在*利用 TensorFlow Keras API*部分中描述的`tf.keras`示例完全相同。唯一的区别是我们现在将所有代码封装如下：
 
-    ```
+    ```py
     def input_fn():
      PROJECT_ID = 'project1-190517' # This is from what you created in your Google Cloud Account.
      DATASET_GCP_PROJECT_ID = 'bigquery-public-data'
@@ -868,7 +868,7 @@ linear_est.train(input_fn)
 
 1.  我们还重新组织了如何在数据中指定特征和目标，通过`input_fn`内部的`transform_row`函数。
 
-    ```
+    ```py
     def transform_row(row_dict):
        # Trim all string tensors
        feature_dict = { column:
@@ -889,7 +889,7 @@ linear_est.train(input_fn)
 
 1.  就像我们在*利用 TensorFlow Keras API*部分中讨论的`tf.keras`示例一样，我们也需要构建一个`feature_columns`对象来进行特征注解。我们可以重用相同的代码：
 
-    ```
+    ```py
     feature_columns = []
     # Numeric columns
     for header in ['day_of_week',     
@@ -908,20 +908,20 @@ linear_est.train(input_fn)
 
 1.  现在，让我们设置一个目录来保存模型的检查点：
 
-    ```
+    ```py
     MODEL_DIR = os.path.join('models', datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
     ```
 
 1.  使用以下命令创建目录：
 
-    ```
+    ```py
     %mkdir models
     %mkdir {MODEL_DIR}
     ```
 
 1.  启动训练过程：
 
-    ```
+    ```py
     linear_est = tf.estimator.LinearRegressor(feature_columns=feature_columns, model_dir=MODEL_DIR)
     linear_est.train(input_fn)
     ```
@@ -940,7 +940,7 @@ linear_est.train(input_fn)
 
 1.  我们可以重用*模型训练*部分中展示的相同测试数据：
 
-    ```
+    ```py
     test_samples = {
        'trip_direction' : np.array(['Mexico to US', 
                                     'US to Canada']),
@@ -954,21 +954,21 @@ linear_est.train(input_fn)
 
 1.  创建一个辅助函数，通过以下代码将`test_samples`转换为数据集：
 
-    ```
+    ```py
     def scoring_input_fn():
      return tf.data.Dataset.from_tensor_slices(test_samples).batch(2)
     ```
 
 1.  下一步是使用以下代码行对测试数据进行评分：
 
-    ```
+    ```py
     y = linear_est.predict(   
             input_fn=scoring_input_fn)
     ```
 
 1.  最后，让我们打印预测结果，如下所示：
 
-    ```
+    ```py
     predictions = list(p['predictions'] for p in itertools.islice(y, 2))
     print('Predictions: {}'.format(str(predictions)))
     Above code prints the output:

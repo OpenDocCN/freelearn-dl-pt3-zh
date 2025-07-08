@@ -102,7 +102,7 @@
 
 1.  我们导入必要的模块。这个是一个简单的例子，因此我们只使用 NumPy、pandas 和 Matplotlib：
 
-    ```
+    ```py
     import tensorflow as tf
     import numpy as np
     import matplotlib.pyplot as plt
@@ -111,7 +111,7 @@
 
 1.  接下来，我们生成具有线性关系的随机数据。为了使其更具现实性，我们还添加了一个随机噪声元素。你可以看到两个变量（原因，`area`，和效果，`price`）呈正线性关系：
 
-    ```
+    ```py
     #Generate a random data
     np.random.seed(0)
     area = 2.5 * np.random.randn(100) + 25
@@ -128,26 +128,26 @@
 
 1.  现在，我们使用我们定义的方程来计算两个回归系数。你可以看到结果非常接近我们模拟的线性关系：
 
-    ```
+    ```py
     W = sum(price*(area-np.mean(area))) / sum((area-np.mean(area))**2)
     b = np.mean(price) - W*np.mean(area)
     print("The regression coefficients are", W,b) 
     ```
 
-    ```
+    ```py
     -----------------------------------------------
     The regression coefficients are 24.815544052284988 43.4989785533412 
     ```
 
 1.  现在，让我们尝试使用获得的权重和偏置值预测新的价格：
 
-    ```
+    ```py
     y_pred = W * area + b 
     ```
 
 1.  接下来，我们将预测的价格与实际价格一起绘制出来。你可以看到，预测的价格与面积呈线性关系：
 
-    ```
+    ```py
     plt.plot(area, y_pred, color='red',label="Predicted Price")
     plt.scatter(data['area'], data['price'], label="Training Data")
     plt.xlabel("Area")
@@ -203,7 +203,7 @@
 
 1.  我们从导入所需的包开始。注意到在导入包时添加了`Keras`模块和`Dense`层：
 
-    ```
+    ```py
     import tensorflow as tf
     import numpy as np
     import matplotlib.pyplot as plt
@@ -214,7 +214,7 @@
 
 1.  接下来，我们生成数据，像之前的案例一样：
 
-    ```
+    ```py
     #Generate a random data
     np.random.seed(0)
     area = 2.5 * np.random.randn(100) + 25
@@ -227,20 +227,20 @@
 
 1.  神经网络的输入应该进行标准化；这是因为输入会与权重相乘，如果我们有非常大的数值，那么乘积结果会很大，很快我们的度量可能会超出计算机能够处理的最大值（无穷大）：
 
-    ```
+    ```py
     data = (data - data.min()) / (data.max() - data.min())  #Normalize 
     ```
 
 1.  现在让我们构建模型；由于这是一个简单的线性回归器，我们使用一个仅有一个单元的`Dense`层：
 
-    ```
+    ```py
     model = K.Sequential([
                           Dense(1, input_shape = [1,], activation=None)
     ])
     model.summary() 
     ```
 
-    ```
+    ```py
     Model: "sequential"
     ____________________________________________________________
      Layer (type)           Output Shape              Param #   
@@ -256,17 +256,17 @@
 
 1.  要训练一个模型，我们需要定义损失函数和优化器。损失函数定义了我们的模型试图最小化的量，而优化器决定了我们使用的最小化算法。此外，我们还可以定义度量指标，即在模型训练过程中我们希望记录的量。我们通过`compile`函数定义损失函数、`optimizer`（参见*第一章*，*神经网络基础与 TF*）和度量指标：
 
-    ```
+    ```py
     model.compile(loss='mean_squared_error', optimizer='sgd') 
     ```
 
 1.  现在模型已经定义好了，我们只需要使用`fit`函数训练它。注意我们使用了`batch_size`为 32，并通过`fit`函数的`validation_split`参数将数据划分为训练集和验证集：
 
-    ```
+    ```py
     model.fit(x=data['area'],y=data['price'], epochs=100, batch_size=32, verbose=1, validation_split=0.2) 
     ```
 
-    ```
+    ```py
     model.fit(x=data['area'],y=data['price'], epochs=100, batch_size=32, verbose=1, validation_split=0.2)
     Epoch 1/100
     3/3 [==============================] - 0s 78ms/step - loss: 1.2643 - val_loss: 1.4828
@@ -300,13 +300,13 @@
 
 1.  好的，你已经成功地训练了一个神经网络来执行线性回归任务。训练 100 个 epoch 后的均方误差为训练数据上的 0.0815，验证数据上的 0.074。我们可以通过`predict`函数获得给定输入的预测值：
 
-    ```
+    ```py
     y_pred = model.predict(data['area']) 
     ```
 
 1.  接下来，我们绘制预测数据与实际数据的图表：
 
-    ```
+    ```py
     plt.plot(data['area'], y_pred, color='red',label="Predicted Price")
     plt.scatter(data['area'], data['price'], label="Training Data")
     plt.xlabel("Area")
@@ -322,7 +322,7 @@
 
 1.  如果你有兴趣了解系数`W`和`b`，我们可以通过打印模型的权重`model.weights`来查看：
 
-    ```
+    ```py
     [<tf.Variable 'dense/kernel:0' shape=(1, 1) dtype=float32, numpy=array([[-0.33806288]], dtype=float32)>,
     <tf.Variable 'dense/bias:0' shape=(1,) dtype=float32, numpy=array([0.68142694], dtype=float32)>] 
     ```
@@ -341,7 +341,7 @@
 
 1.  我们首先导入我们需要的模块。在前面的示例中，我们使用了 DataFrame 操作来标准化数据。在本示例中，我们将使用 Keras 的`Normalization`层。`Normalization`层将数据移到均值为零，标准差为一的位置。此外，由于我们有多个自变量，我们将使用 Seaborn 来可视化不同变量之间的关系：
 
-    ```
+    ```py
     import tensorflow as tf
     import numpy as np
     import matplotlib.pyplot as plt
@@ -353,7 +353,7 @@
 
 1.  让我们首先从 UCI ML 数据库下载数据。
 
-    ```
+    ```py
     url = 'https://archive.ics.uci.edu/ml/machine-learning-databases/auto-mpg/auto-mpg.data'
     column_names = ['mpg', 'cylinders', 'displacement', 'horsepower', 'weight', 'acceleration', 'model_year', 'origin']
     data = pd.read_csv(url, names=column_names, na_values='?', comment='\t', sep=' ', skipinitialspace=True) 
@@ -361,7 +361,7 @@
 
 1.  数据包括八个特征：mpg、气缸数、排量、马力、重量、加速度、模型年份和原产地。尽管车辆的原产地也可能影响燃油效率“mpg”（*每加仑英里数*），但我们只使用七个特征来预测 mpg 值。此外，我们删除包含 NaN 值的行：
 
-    ```
+    ```py
     data = data.drop('origin', 1)
     print(data.isna().sum())
     data = data.dropna() 
@@ -369,14 +369,14 @@
 
 1.  我们将数据集分为训练集和测试集。在这里，我们将 392 个数据点的 80%作为训练数据，20%作为测试数据：
 
-    ```
+    ```py
     train_dataset = data.sample(frac=0.8, random_state=0)
     test_dataset = data.drop(train_dataset.index) 
     ```
 
 1.  接下来，我们使用 Seaborn 的`pairplot`来可视化不同变量之间的关系：
 
-    ```
+    ```py
     sns.pairplot(train_dataset[['mpg', 'cylinders', 'displacement','horsepower', 'weight', 'acceleration', 'model_year']], diag_kind='kde') 
     ```
 
@@ -388,7 +388,7 @@
 
 1.  为了方便，我们还将变量分为输入变量和我们想要预测的标签：
 
-    ```
+    ```py
     train_features = train_dataset.copy()
     test_features = test_dataset.copy() 
     train_labels = train_features.pop('mpg')
@@ -397,7 +397,7 @@
 
 1.  现在，我们使用 Keras 的归一化层对数据进行归一化。请注意，尽管我们将输入归一化为均值为 0，标准差为 1 的值，但输出预测的`'mpg'`保持不变：
 
-    ```
+    ```py
     #Normalize
     data_normalizer = Normalization(axis=1)
     data_normalizer.adapt(np.array(train_features)) 
@@ -405,7 +405,7 @@
 
 1.  我们构建了模型。模型有两个隐藏层，分别有 64 个和 32 个神经元。对于隐藏层，我们使用了**修正线性单元**（**ReLU**）作为激活函数；这应该有助于逼近燃油效率与其他变量之间的非线性关系：
 
-    ```
+    ```py
     model = K.Sequential([
         data_normalizer,
         Dense(64, activation='relu'),
@@ -417,19 +417,19 @@
 
 1.  之前我们使用随机梯度作为优化器，这次我们尝试使用 Adam 优化器（更多细节请参见*第一章*，*神经网络基础与 TF*）。我们选择的回归损失函数仍然是均方误差：
 
-    ```
+    ```py
     model.compile(optimizer='adam', loss='mean_squared_error') 
     ```
 
 1.  接下来，我们训练模型 100 个 epoch：
 
-    ```
+    ```py
     history = model.fit(x=train_features,y=train_labels, epochs=100, verbose=1, validation_split=0.2) 
     ```
 
 1.  很酷，现在模型已经训练好了，我们可以通过绘制损失曲线来检查我们的模型是过拟合、欠拟合，还是拟合良好。随着训练 epoch 的增加，验证损失和训练损失彼此接近；这表明我们的模型已经得到了适当的训练：
 
-    ```
+    ```py
     plt.plot(history.history['loss'], label='loss')
     plt.plot(history.history['val_loss'], label='val_loss')
     plt.xlabel('Epoch')
@@ -444,7 +444,7 @@
 
 1.  最后，让我们比较预测的燃油效率与测试数据集的真实燃油效率。记住，模型之前从未见过测试数据集，因此这个预测来自于模型对输入与燃油效率之间关系的泛化能力。如果模型已经很好地学习了这个关系，二者应该形成线性关系：
 
-    ```
+    ```py
     y_pred = model.predict(test_features).flatten()
     a = plt.axes(aspect='equal')
     plt.scatter(test_labels, y_pred)
@@ -462,7 +462,7 @@
 
 1.  此外，我们还可以绘制预测值与真实燃油效率之间的误差：
 
-    ```
+    ```py
     error = y_pred - test_labels
     plt.hist(error, bins=30)
     plt.xlabel('Prediction Error [MPG]')
@@ -523,7 +523,7 @@
 
 1.  第一阶段，和往常一样，导入所需的模块。请注意，在这里我们使用了 Keras API 中另一个非常有用的层——`Flatten` 层。`Flatten` 层帮助我们将 MNIST 数据集中的 28 x 28 的二维输入图像调整为一个 784 的展平数组：
 
-    ```
+    ```py
     import tensorflow as tf
     import numpy as np
     import matplotlib.pyplot as plt
@@ -534,13 +534,13 @@
 
 1.  我们从 `tensorflow.keras` 数据集中获取 MNIST 输入数据：
 
-    ```
+    ```py
     ((train_data, train_labels),(test_data, test_labels)) = tf.keras.datasets.mnist.load_data() 
     ```
 
 1.  接下来，我们对数据进行预处理。我们对图像进行归一化；MNIST 数据集中的图像是黑白图像，每个像素的强度值介于 0 到 255 之间。我们将其除以 255，使得现在的值介于 0 到 1 之间：
 
-    ```
+    ```py
     train_data = train_data/np.float32(255)
     train_labels = train_labels.astype(np.int32)  
     test_data = test_data/np.float32(255)
@@ -549,7 +549,7 @@
 
 1.  现在，我们定义了一个非常简单的模型；它只有一个 `Dense` 层，具有 `10` 个单元，输入的大小是 784。你可以从模型摘要的输出中看到，只有 `Dense` 层具有可训练的参数：
 
-    ```
+    ```py
     model = K.Sequential([
         Flatten(input_shape=(28, 28)),
         Dense(10, activation='sigmoid')
@@ -557,7 +557,7 @@
     model.summary() 
     ```
 
-    ```
+    ```py
     Model: "sequential"
     ____________________________________________________________
      Layer (type)           Output Shape              Param #   
@@ -575,14 +575,14 @@
 
 1.  由于测试标签是整数值，我们将使用 `SparseCategoricalCrossentropy` 损失，并将 `logits` 设置为 `True`。选择的优化器是 Adam。此外，我们还定义了准确度作为训练过程中要记录的指标。我们将训练模型 50 个 epoch，训练-验证拆分比例为 80:20：
 
-    ```
+    ```py
     model.compile(optimizer='adam', loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=['accuracy'])
     history = model.fit(x=train_data,y=train_labels, epochs=50, verbose=1, validation_split=0.2) 
     ```
 
 1.  让我们通过绘制损失图来看看我们简单模型的表现。你可以看到，由于验证损失和训练损失在分歧，训练损失在减少，而验证损失在增加，因此模型出现了过拟合。你可以通过添加隐藏层来提高模型性能：
 
-    ```
+    ```py
     plt.plot(history.history['loss'], label='loss')
     plt.plot(history.history['val_loss'], label='val_loss')
     plt.xlabel('Epoch')
@@ -597,7 +597,7 @@
 
 1.  为了更好地理解结果，我们构建了两个实用函数；这些函数帮助我们可视化手写数字及输出中 10 个单元的概率：
 
-    ```
+    ```py
     def plot_image(i, predictions_array, true_label, img):
         true_label, img = true_label[i], img[i]
         plt.grid(False)
@@ -628,7 +628,7 @@
 
 1.  使用这些实用函数，我们绘制了预测结果：
 
-    ```
+    ```py
     predictions = model.predict(test_data)
     i = 56
     plt.figure(figsize=(10,5))
@@ -647,7 +647,7 @@
 
 1.  在这段代码中，为了保持逻辑回归的特点，我们使用了 Sigmoid 激活函数和仅有的一个 `Dense` 层。为了获得更好的性能，添加更多的密集层并使用 Softmax 作为最终激活函数将会更有帮助。例如，以下模型在验证数据集上达到了 97% 的准确率：
 
-    ```
+    ```py
     better_model = K.Sequential([
         Flatten(input_shape=(28, 28)),
         Dense(128,  activation='relu'),

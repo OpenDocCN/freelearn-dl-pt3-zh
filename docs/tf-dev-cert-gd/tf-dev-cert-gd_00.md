@@ -68,14 +68,14 @@
 
 一段代码如下所示：
 
-```
+```py
 import numpy as np 
 from numpy import 
 ```
 
 当我们希望引起你对代码块中特定部分的注意时，相关的行或项目会以粗体显示：
 
-```
+```py
 (<tf.Tensor: shape=(2, 3), dtype=int64, 
     numpy=array([[10, 11, 12], [ 3, 4, 5]])>,
  <tf.Tensor: shape=(2,),

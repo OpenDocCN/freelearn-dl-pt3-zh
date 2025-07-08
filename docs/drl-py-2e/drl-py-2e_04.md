@@ -448,25 +448,25 @@
 
 导入 Gym 库：
 
-```
+```py
 import gym 
 ```
 
 blackjack 环境的 ID 是 `Blackjack-v0`。因此，我们可以使用如下的 `make` 函数来创建 blackjack 游戏：
 
-```
+```py
 env = gym.make('Blackjack-v0') 
 ```
 
 现在，让我们看看 blackjack 环境的状态；我们可以重置环境并查看初始状态：
 
-```
+```py
 print(env.reset()) 
 ```
 
 请注意，每次运行前面的代码时，我们可能会得到不同的结果，因为初始状态是随机初始化的。前面的代码将打印如下内容：
 
-```
+```py
 (15, 9, True) 
 ```
 
@@ -482,13 +482,13 @@ print(env.reset())
 
 让我们看看 blackjack 环境的动作空间：
 
-```
+```py
 print(env.action_space) 
 ```
 
 前面的代码将打印：
 
-```
+```py
 Discrete(2) 
 ```
 
@@ -514,7 +514,7 @@ Discrete(2)
 
 导入必要的库：
 
-```
+```py
 import gym
 import pandas as pd
 from collections import defaultdict 
@@ -522,7 +522,7 @@ from collections import defaultdict
 
 创建一个黑杰克环境：
 
-```
+```py
 env = gym.make('Blackjack-v0') 
 ```
 
@@ -532,7 +532,7 @@ env = gym.make('Blackjack-v0')
 
 如下所示的代码，我们的策略函数以状态作为输入，如果**state[0]**，即我们牌的总和，值大于 19，那么它将返回动作**0**（停牌），否则它将返回动作**1**（要牌）：
 
-```
+```py
 def policy(state):
     return 0 if state[0] > 19 else 1 
 ```
@@ -541,26 +541,26 @@ def policy(state):
 
 例如，让我们通过重置环境生成一个初始状态，如下所示：
 
-```
+```py
 state = env.reset()
 print(state) 
 ```
 
 假设前面的代码打印了以下内容：
 
-```
+```py
 (20, 5, False) 
 ```
 
 正如我们所注意到的，`state[0] = 20`；也就是说，我们牌的总和是 20，因此在这种情况下，我们的策略将返回动作 0（停牌），如下所示：
 
-```
+```py
 print(policy(state)) 
 ```
 
 前面的代码将打印：
 
-```
+```py
 0 
 ```
 
@@ -572,55 +572,55 @@ print(policy(state))
 
 首先，让我们设定时间步数：
 
-```
+```py
 num_timesteps = 100 
 ```
 
 为了更清楚地理解，让我们逐行查看这个函数：
 
-```
+```py
 def generate_episode(policy): 
 ```
 
 让我们定义一个名为`episode`的列表，用于存储集：
 
-```
+```py
  episode = [] 
 ```
 
 通过重置环境来初始化状态：
 
-```
+```py
  state = env.reset() 
 ```
 
 然后，对于每一个时间步：
 
-```
+```py
  for t in range(num_timesteps): 
 ```
 
 根据给定的策略选择动作：
 
-```
+```py
  action = policy(state) 
 ```
 
 执行动作并存储下一个状态信息：
 
-```
+```py
  next_state, reward, done, info = env.step(action) 
 ```
 
 将状态、动作和奖励存入我们的集列表：
 
-```
+```py
  episode.append((state, action, reward)) 
 ```
 
 如果下一个状态是最终状态，则跳出循环，否则将下一个状态更新为当前状态：
 
-```
+```py
  if done:
             break
 
@@ -630,13 +630,13 @@ def generate_episode(policy):
 
 让我们看看`generate_episode`函数的输出是什么样子的。请注意，我们使用之前定义的策略生成了一集：
 
-```
+```py
 print(generate_episode(policy)) 
 ```
 
 前面的代码会打印如下内容：
 
-```
+```py
 [((10, 2, False), 1, 0), ((20, 2, False), 0, 1.0)] 
 ```
 
@@ -650,56 +650,56 @@ print(generate_episode(policy))
 
 首先，我们将`total_return`和`N`定义为字典，分别用于存储回合中每个状态的总回报和该状态被访问的次数：
 
-```
+```py
 total_return = defaultdict(float)
 N = defaultdict(int) 
 ```
 
 设置我们希望生成的迭代次数，即回合数：
 
-```
+```py
 num_iterations = 500000 
 ```
 
 然后，对于每次迭代：
 
-```
+```py
 for i in range(num_iterations): 
 ```
 
 使用给定的策略生成回合；即，使用我们之前定义的策略函数生成回合：
 
-```
+```py
  episode = generate_episode(policy) 
 ```
 
 存储从回合中获得的所有状态、动作和奖励：
 
-```
+```py
  states, actions, rewards = zip(*episode) 
 ```
 
 然后，对于回合中的每一步：
 
-```
+```py
  for t, state in enumerate(states): 
 ```
 
 计算状态的回报`R`，作为奖励的总和，*R*(*s*[t]) = sum(rewards[t:])：
 
-```
+```py
  R = (sum(rewards[t:])) 
 ```
 
 将状态的`total_return`更新为 total_return(*s*[t]) = total_return(*s*[t]) + R(*s*[t])：
 
-```
+```py
  total_return[state] =  total_return[state] + R 
 ```
 
 将状态在回合中被访问的次数更新为*N*(*s*[t]) = *N*(*s*[t]) + 1：
 
-```
+```py
  N[state] =  N[state] + 1 
 ```
 
@@ -707,25 +707,25 @@ for i in range(num_iterations):
 
 将`total_returns`字典转换为数据框：
 
-```
+```py
 total_return = pd.DataFrame(total_return.items(),columns=['state', 'total_return']) 
 ```
 
 将计数器`N`字典转换为数据框：
 
-```
+```py
 N = pd.DataFrame(N.items(),columns=['state', 'N']) 
 ```
 
 按状态合并两个数据框：
 
-```
+```py
 df = pd.merge(total_return, N, on="state") 
 ```
 
 查看数据框的前几行：
 
-```
+```py
 df.head(10) 
 ```
 
@@ -741,13 +741,13 @@ df.head(10)
 
 因此，我们可以写出：
 
-```
+```py
 df['value'] = df['total_return']/df['N'] 
 ```
 
 我们来看一下数据框的前几行：
 
-```
+```py
 df.head(10) 
 ```
 
@@ -763,13 +763,13 @@ df.head(10)
 
 让我们评估状态 `(21,9,False)` 的值。正如我们所看到的，我们的牌面总和已经是 21，因此这是一个好状态，应该有较高的值。让我们看看我们估算的状态值：
 
-```
+```py
 df[df['state']==(21,9,False)]['value'].values 
 ```
 
 上述代码将打印类似如下内容：
 
-```
+```py
 array([1.0]) 
 ```
 
@@ -777,13 +777,13 @@ array([1.0])
 
 现在，让我们检查状态 `(5,8,False)` 的值。正如我们所注意到的，牌面总和仅为 5，即使庄家的单张牌值很高，达到了 8，在这种情况下，状态的值应该较低。让我们看看我们估算的状态值：
 
-```
+```py
 df[df['state']==(5,8,False)]['value'].values 
 ```
 
 上述代码将打印类似如下内容：
 
-```
+```py
 array([-1.0]) 
 ```
 
@@ -795,7 +795,7 @@ array([-1.0])
 
 使用首次访问蒙特卡洛方法预测值函数的方法与使用每次访问蒙特卡洛方法预测值函数的方式完全相同，唯一的区别是，这里我们只计算状态第一次在回合中出现时的返回值。首次访问蒙特卡洛的代码与我们在每次访问蒙特卡洛中看到的代码相同，只不过在这里，我们只计算状态第一次出现时的返回值，具体代码如下所示：
 
-```
+```py
 for i in range(num_iterations):
 
     episode = generate_episode(env,policy)
@@ -1051,7 +1051,7 @@ for i in range(num_iterations):
 
 以下代码片段展示了 epsilon-greedy 策略的 Python 实现：
 
-```
+```py
 def epsilon_greedy_policy(state, epsilon):
     if random.uniform(0,1) < epsilon:
          return env.action_space.sample()
@@ -1095,7 +1095,7 @@ def epsilon_greedy_policy(state, epsilon):
 
 首先，导入必要的库：
 
-```
+```py
 import gym
 import pandas as pd
 import random
@@ -1104,25 +1104,25 @@ from collections import defaultdict
 
 创建一个黑杰克环境：
 
-```
+```py
 env = gym.make('Blackjack-v0') 
 ```
 
 初始化字典，用于存储 Q 值：
 
-```
+```py
 Q = defaultdict(float) 
 ```
 
 初始化字典，用于存储状态-动作对的总回报：
 
-```
+```py
 total_return = defaultdict(float) 
 ```
 
 初始化字典，用于存储状态-动作对的访问次数：
 
-```
+```py
 N = defaultdict(int) 
 ```
 
@@ -1130,19 +1130,19 @@ N = defaultdict(int)
 
 我们了解到，我们是基于 epsilon-greedy 策略选择动作的，因此我们定义了一个名为 `epsilon_greedy_policy` 的函数，它接受状态和 Q 值作为输入，并返回在给定状态下要执行的动作：
 
-```
+```py
 def epsilon_greedy_policy(state,Q): 
 ```
 
 将 epsilon 值设置为 0.5：
 
-```
+```py
  epsilon = 0.5 
 ```
 
 从均匀分布中随机采样一个值；如果采样值小于 epsilon，则选择一个随机动作，否则选择具有最大 Q 值的最佳动作，如下所示：
 
-```
+```py
  if random.uniform(0,1) < epsilon:
         return env.action_space.sample()
     else:
@@ -1155,55 +1155,55 @@ def epsilon_greedy_policy(state,Q):
 
 首先，设置时间步数：
 
-```
+```py
 num_timesteps = 100 
 ```
 
 现在，让我们定义函数：
 
-```
+```py
 def generate_episode(Q): 
 ```
 
 初始化一个列表，用于存储回合：
 
-```
+```py
  episode = [] 
 ```
 
 使用 `reset` 函数初始化状态：
 
-```
+```py
  state = env.reset() 
 ```
 
 然后，对于每个时间步：
 
-```
+```py
  for t in range(num_timesteps): 
 ```
 
 根据 epsilon-greedy 策略选择动作：
 
-```
+```py
  action = epsilon_greedy_policy(state,Q) 
 ```
 
 执行所选动作并存储下一个状态信息：
 
-```
+```py
  next_state, reward, done, info = env.step(action) 
 ```
 
 在回合列表中存储状态、动作和奖励：
 
-```
+```py
  episode.append((state, action, reward)) 
 ```
 
 如果下一个状态是终止状态，则跳出循环，否则将下一个状态更新为当前状态：
 
-```
+```py
  if done:
             break
 
@@ -1215,13 +1215,13 @@ def generate_episode(Q):
 
 现在，让我们学习如何计算最优策略。首先，设置我们想要生成的迭代次数，即回合数：
 
-```
+```py
 num_iterations = 500000 
 ```
 
 对于每次迭代：
 
-```
+```py
 for i in range(num_iterations): 
 ```
 
@@ -1229,49 +1229,49 @@ for i in range(num_iterations):
 
 所以，在这里我们传递初始化的 Q 函数来生成一个回合：
 
-```
+```py
  episode = generate_episode(Q) 
 ```
 
 获取回合中的所有状态-动作对：
 
-```
+```py
  all_state_action_pairs = [(s, a) for (s,a,r) in episode] 
 ```
 
 将回合中获得的所有奖励存储在奖励列表中：
 
-```
+```py
  rewards = [r for (s,a,r) in episode] 
 ```
 
 每个回合中的每一步：
 
-```
+```py
  for t, (state, action,_) in enumerate(episode): 
 ```
 
 如果状态-动作对在该回合中首次出现：
 
-```
+```py
  if not (state, action) in all_state_action_pairs[0:t]: 
 ```
 
 计算状态-动作对的回报 `R`，作为奖励的总和，*R*(*s*[t], *a*[t]) = sum(rewards[t:])：
 
-```
+```py
  R = sum(rewards[t:]) 
 ```
 
 更新状态-动作对的总回报为 total_return(*s*[t], *a*[t]) = total_return(*s*[t], *a*[t]) + R(*s*[t], *a*[t])：
 
-```
+```py
  total_return[(state,action)] = total_return[(state,action)] + R 
 ```
 
 更新状态-动作对被访问的次数为 *N*(*s*[t], *a*[t]) = *N*(*s*[t], *a*[t]) + 1：
 
-```
+```py
  N[(state, action)] += 1 
 ```
 
@@ -1279,7 +1279,7 @@ for i in range(num_iterations):
 
 ![](img/B15558_04_127.png)
 
-```
+```py
  Q[(state,action)] = total_return[(state, action)] / N[(state, action)] 
 ```
 
@@ -1287,13 +1287,13 @@ for i in range(num_iterations):
 
 所有迭代结束后，我们可以查看 pandas 数据框中每个状态-动作对的 Q 值，以获得更清晰的了解。首先，让我们将 Q 值字典转换为 pandas 数据框：
 
-```
+```py
 df = pd.DataFrame(Q.items(),columns=['state_action pair','value']) 
 ```
 
 让我们看一下数据框的前几行：
 
-```
+```py
 df.head(11) 
 ```
 
@@ -1307,7 +1307,7 @@ df.head(11)
 
 让我们查看该状态 `(21,8, True)` 中所有动作的 Q 值：
 
-```
+```py
 df[124:126] 
 ```
 

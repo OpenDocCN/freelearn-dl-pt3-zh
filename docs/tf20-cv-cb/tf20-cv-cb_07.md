@@ -40,7 +40,7 @@
 
 我们需要的依赖是`tqdm`（用于显示漂亮的进度条）和`Pillow`（用于使用 TensorFlow 的内置函数加载和处理图像）：
 
-```
+```py
 $> pip install Pillow tqdm
 ```
 
@@ -60,7 +60,7 @@ $> pip install Pillow tqdm
 
 1.  导入所有必要的依赖项：
 
-    ```
+    ```py
     import glob
     import os
     import pathlib
@@ -80,7 +80,7 @@ $> pip install Pillow tqdm
 
 1.  定义`ImageCaptionFeatureExtractor`类及其构造函数：
 
-    ```
+    ```py
     class ImageCaptionFeatureExtractor(object):
         def __init__(self,
                      output_path,
@@ -92,7 +92,7 @@ $> pip install Pillow tqdm
 
 1.  接下来，我们必须接收输出存储路径，以及我们将用于分隔文本序列起始和结束的标记。我们还必须将特征提取器的输入形状作为参数。接下来，让我们将这些值存储为成员：
 
-    ```
+    ```py
             self.input_shape = input_shape
             if feature_extractor is None:
                 input = Input(shape=input_shape)
@@ -111,7 +111,7 @@ $> pip install Pillow tqdm
 
 1.  如果没有接收到任何`feature_extractor`，我们将默认使用`VGG16`。接下来，定义一个公共方法，该方法根据图像路径提取图像的特征：
 
-    ```
+    ```py
         def extract_image_features(self, image_path):
             image = load_img(image_path,
                            target_size=self.input_shape[:2])
@@ -123,7 +123,7 @@ $> pip install Pillow tqdm
 
 1.  为了清理标题，我们必须去除所有标点符号和单个字母的单词（如*a*）。`_clean_captions()`方法执行了这个任务，并且还添加了特殊标记，也就是`self.start_token`和`self.end_token`：
 
-    ```
+    ```py
         def _clean_captions(self, captions):
             def remove_punctuation(word):
                 translation = str.maketrans('', '',
@@ -145,7 +145,7 @@ $> pip install Pillow tqdm
 
 1.  我们还需要计算最长标题的长度，可以通过`_get_max_seq_length()`方法来实现。方法定义如下：
 
-    ```
+    ```py
         def _get_max_seq_length(self, captions):
             max_sequence_length = -1
             for caption in captions:
@@ -158,14 +158,14 @@ $> pip install Pillow tqdm
 
 1.  定义一个公共方法`extract_features()`，它接收一个包含图像路径和标题的列表，并利用这些数据从图像和文本序列中提取特征：
 
-    ```
+    ```py
         def extract_features(self, images_path, captions):
             assert len(images_path) == len(captions)
     ```
 
 1.  请注意，两个列表必须具有相同的大小。接下来的步骤是清理标题，计算最大序列长度，并为所有标题适配一个分词器：
 
-    ```
+    ```py
             captions = self._clean_captions(captions)
             self.max_seq_length=self._get_max_seq_ 
                                        length(captions) 
@@ -174,7 +174,7 @@ $> pip install Pillow tqdm
 
 1.  我们将遍历每一对图像路径和标题，从图像中提取特征。然后，我们将在`data_mapping`的`dict`中保存一个条目，将图像 ID（存在于`image_path`中）与相应的视觉特征和清理后的标题相关联：
 
-    ```
+    ```py
             data_mapping = {}
             print('\nExtracting features...')
             for i in tqdm(range(len(images_path))):
@@ -191,7 +191,7 @@ $> pip install Pillow tqdm
 
 1.  我们将把这个`data_mapping`保存到磁盘，以 pickle 格式存储：
 
-    ```
+    ```py
             out_path = f'{self.output_path}/data_mapping.pickle'
             with open(out_path, 'wb') as f:
                 pickle.dump(data_mapping, f, protocol=4)
@@ -199,13 +199,13 @@ $> pip install Pillow tqdm
 
 1.  我们将通过创建和存储将在未来输入图像标题网络的序列来完成此方法：
 
-    ```
+    ```py
             self._create_sequences(data_mapping)
     ```
 
 1.  以下方法创建了用于训练图像标题模型的输入和输出序列（详细说明请见*如何实现……*部分）。我们将从确定输出类别数开始，这个数值是词汇大小加一（以便考虑超出词汇表的标记）。我们还必须定义存储序列的列表：
 
-    ```
+    ```py
         def _create_sequences(self, mapping):
             num_classes = len(self.tokenizer.word_index) + 1
             in_feats = []
@@ -215,7 +215,7 @@ $> pip install Pillow tqdm
 
 1.  接下来，我们将迭代每个特征-标题对。我们将把标题从字符串转换为表示句子中单词的数字序列：
 
-    ```
+    ```py
             print('\nCreating sequences...')
             for _, data in tqdm(mapping.items()):
                 feature = data['features']
@@ -227,7 +227,7 @@ $> pip install Pillow tqdm
 
 1.  接下来，我们将生成与标题中单词数量相同的输入序列。每个输入序列将用于生成序列中的下一个单词。因此，对于给定的索引`i`，输入序列将是到`i-1`的所有元素，而相应的输出序列或标签将是在`i`处的独热编码元素（即下一个单词）。为了确保所有输入序列的长度相同，我们必须对它们进行填充：
 
-    ```
+    ```py
                 for i in range(1, len(seq)):
                     input_seq = seq[:i]
                     input_seq, = 
@@ -242,7 +242,7 @@ $> pip install Pillow tqdm
 
 1.  然后，我们将视觉特征向量、输入序列和输出序列添加到相应的列表中：
 
-    ```
+    ```py
                     in_feats.append(feature)
                     in_seqs.append(input_seq)
                     out_seqs.append(out_seq)
@@ -250,7 +250,7 @@ $> pip install Pillow tqdm
 
 1.  最后，我们必须将序列以 pickle 格式写入磁盘：
 
-    ```
+    ```py
             file_paths = [
                 f'{self.output_path}/input_features.pickle',
                 f'{self.output_path}/input_sequences.pickle',
@@ -267,7 +267,7 @@ $> pip install Pillow tqdm
 
 1.  让我们定义`Flickr8k`图像和标题的路径：
 
-    ```
+    ```py
     BASE_PATH = (pathlib.Path.home() / '.keras' / 'datasets'       
                                           /'flickr8k')
     IMAGES_PATH = str(BASE_PATH / 'Images')
@@ -276,19 +276,19 @@ $> pip install Pillow tqdm
 
 1.  创建我们刚刚实现的特征提取器类的实例：
 
-    ```
+    ```py
     extractor = ImageCaptionFeatureExtractor(output_path='.')
     ```
 
 1.  列出`Flickr8k`数据集中的所有图像文件：
 
-    ```
+    ```py
     image_paths = list(glob.glob(f'{IMAGES_PATH}/*.jpg'))
     ```
 
 1.  读取标题文件的内容：
 
-    ```
+    ```py
     with open(CAPTIONS_PATH, 'r') as f:
         text = f.read()
         lines = text.split('\n')
@@ -296,7 +296,7 @@ $> pip install Pillow tqdm
 
 1.  现在，我们必须创建一个映射，将每个图像与多个标题关联起来。键是图像 ID，而值是与该图像相关的所有标题的列表：
 
-    ```
+    ```py
     mapping = {}
     for line in lines:
         if '.jpg' not in line:
@@ -313,7 +313,7 @@ $> pip install Pillow tqdm
 
 1.  我们将仅保留每个图像的一个标题：
 
-    ```
+    ```py
     captions = []
     for image_path in image_paths:
         image_id = image_path.split('/')[-1].split('.')[0]
@@ -322,13 +322,13 @@ $> pip install Pillow tqdm
 
 1.  最后，我们必须使用我们的提取器生成数据映射和相应的输入序列：
 
-    ```
+    ```py
     extractor.extract_features(image_paths, captions)
     ```
 
     这个过程可能需要一些时间。几分钟后，我们应该在输出路径中看到以下文件：
 
-    ```
+    ```py
     data_mapping.pickle     input_features.pickle   input_sequences.pickle  output_sequences.pickle
     ```
 
@@ -364,7 +364,7 @@ $> pip install Pillow tqdm
 
 在这个食谱中，我们将使用的外部依赖是`Pillow`、`nltk`和`tqdm`。你可以通过以下命令一次性安装它们：
 
-```
+```py
 $> pip install Pillow nltk tqdm
 ```
 
@@ -384,7 +384,7 @@ $> pip install Pillow nltk tqdm
 
 1.  首先，我们必须导入所有必需的包：
 
-    ```
+    ```py
     import glob
     import pathlib
     import pickle
@@ -402,7 +402,7 @@ $> pip install Pillow nltk tqdm
 
 1.  定义图像和字幕的路径，以及输出路径，这将是我们存储在本食谱中创建的工件的位置：
 
-    ```
+    ```py
     BASE_PATH = (pathlib.Path.home() / '.keras' / 'datasets'     
                  /'flickr8k')
     IMAGES_PATH = str(BASE_PATH / 'Images')
@@ -412,7 +412,7 @@ $> pip install Pillow nltk tqdm
 
 1.  定义一个函数，该函数将加载图像路径及其对应的字幕列表。此实现类似于*步骤* *20*到*22*，来自*实现可重用的图像字幕特征提取器*食谱：
 
-    ```
+    ```py
     def load_paths_and_captions():
         image_paths = list(glob.glob(f'{IMAGES_PATH}/*.jpg'))
         with open(f'{CAPTIONS_PATH}', 'r') as f:
@@ -434,7 +434,7 @@ $> pip install Pillow nltk tqdm
 
 1.  编译所有字幕：
 
-    ```
+    ```py
         all_captions = []
         for image_path in image_paths:
             image_id = image_path.split('/')[-
@@ -445,7 +445,7 @@ $> pip install Pillow nltk tqdm
 
 1.  定义一个函数，该函数将构建网络的架构，接收词汇表大小、最大序列长度以及编码器的输入形状：
 
-    ```
+    ```py
     def build_network(vocabulary_size,
                       max_sequence_length,
                       input_shape=(4096,)):
@@ -453,7 +453,7 @@ $> pip install Pillow nltk tqdm
 
 1.  网络的第一部分接收特征向量并将其通过一个全连接的`ReLU`激活层：
 
-    ```
+    ```py
         x = Dropout(rate=0.5)(feature_inputs)
         x = Dense(units=256)(x)
         feature_output = ReLU()(x)
@@ -461,7 +461,7 @@ $> pip install Pillow nltk tqdm
 
 1.  层的第二部分接收文本序列，这些文本序列被转换为数值向量，并训练一个包含 256 个元素的嵌入层。然后，它将该嵌入传递给`LSTM`层：
 
-    ```
+    ```py
         sequence_inputs = 
                 Input(shape=(max_sequence_length,))
         y = Embedding(input_dim=vocabulary_size,
@@ -473,7 +473,7 @@ $> pip install Pillow nltk tqdm
 
 1.  我们将这两部分的输出连接起来，并通过一个全连接网络传递，输出层的单元数量与词汇表中的单词数相同。通过对该输出进行`Softmax`激活，我们得到一个对应词汇表中某个单词的 one-hot 编码向量：
 
-    ```
+    ```py
         z = Add()([feature_output, sequence_output])
         z = Dense(units=256)(z)
         z = ReLU()(z)
@@ -483,7 +483,7 @@ $> pip install Pillow nltk tqdm
 
 1.  最后，我们构建模型，传入图像特征和文本序列作为输入，并输出 one-hot 编码向量：
 
-    ```
+    ```py
         return Model(inputs=[feature_inputs, 
                       sequence_inputs],
                      outputs=outputs)
@@ -491,14 +491,14 @@ $> pip install Pillow nltk tqdm
 
 1.  定义一个函数，通过使用分词器的内部映射将整数索引转换为单词：
 
-    ```
+    ```py
     def get_word_from_index(tokenizer, index):
         return tokenizer.index_word.get(index, None)
     ```
 
 1.  定义一个函数来生成标题。它将从将`beginsequence`标记输入到网络开始，网络会迭代构建句子，直到达到最大序列长度或遇到`endsequence`标记：
 
-    ```
+    ```py
     def produce_caption(model,
                         tokenizer,
                         image,
@@ -521,7 +521,7 @@ $> pip install Pillow nltk tqdm
 
 1.  定义一个函数来评估模型的表现。首先，我们将为测试数据集中每个图像的特征生成一个标题：
 
-    ```
+    ```py
     def evaluate_model(model, features, captions, 
                          tokenizer,
                        max_seq_length):
@@ -538,7 +538,7 @@ $> pip install Pillow nltk tqdm
 
 1.  接下来，我们将使用不同的权重计算**BLEU**分数。虽然**BLEU**分数超出了本教程的范围，但你可以在*另见*部分找到一篇详细解释的优秀文章。你需要知道的是，它用于衡量生成的标题与一组参考标题的相似度：
 
-    ```
+    ```py
         for index, weights in enumerate([(1, 0, 0, 0),
                                          (.5, .5, 0, 0),
                                          (.3, .3, .3, 0),
@@ -551,13 +551,13 @@ $> pip install Pillow nltk tqdm
 
 1.  加载图像路径和标题：
 
-    ```
+    ```py
     image_paths, all_captions = load_paths_and_captions()
     ```
 
 1.  创建图像提取模型：
 
-    ```
+    ```py
     extractor_model = VGG16(weights='imagenet')
     inputs = extractor_model.inputs
     outputs = extractor_model.layers[-2].output
@@ -566,7 +566,7 @@ $> pip install Pillow nltk tqdm
 
 1.  创建图像标题特征提取器（传入我们在*步骤 15*中创建的常规图像提取器），并用它从数据中提取序列：
 
-    ```
+    ```py
     extractor = ImageCaptionFeatureExtractor(
         feature_extractor=extractor_model,
         output_path=OUTPUT_PATH)
@@ -575,7 +575,7 @@ $> pip install Pillow nltk tqdm
 
 1.  加载我们在*步骤 16*中创建的已序列化输入和输出序列：
 
-    ```
+    ```py
     pickled_data = []
     for p in [f'{OUTPUT_PATH}/input_features.pickle',
               f'{OUTPUT_PATH}/input_sequences.pickle',
@@ -587,7 +587,7 @@ $> pip install Pillow nltk tqdm
 
 1.  使用 80% 的数据进行训练，20% 用于测试：
 
-    ```
+    ```py
     (train_input_feats, test_input_feats,
      train_input_seqs, test_input_seqs,
      train_output_seqs,
@@ -600,7 +600,7 @@ $> pip install Pillow nltk tqdm
 
 1.  实例化并编译模型。因为最终这是一个多类分类问题，我们将使用`categorical_crossentropy`作为损失函数：
 
-    ```
+    ```py
     vocabulary_size = len(extractor.tokenizer.word_index) + 1
     model = build_network(vocabulary_size,
                           extractor.max_seq_length)
@@ -610,7 +610,7 @@ $> pip install Pillow nltk tqdm
 
 1.  由于训练过程非常消耗资源，并且网络通常在早期就能给出最佳结果，因此我们创建了一个`ModelCheckpoint`回调，它将存储具有最低验证损失的模型：
 
-    ```
+    ```py
     checkpoint_path = ('model-ep{epoch:03d}-
                          loss{loss:.3f}-'
                        'val_loss{val_loss:.3f}.h5')
@@ -623,7 +623,7 @@ $> pip install Pillow nltk tqdm
 
 1.  在 30 个训练周期内拟合模型。请注意，我们必须传入两组输入或特征，但只有一组标签：
 
-    ```
+    ```py
     EPOCHS = 30
     model.fit(x=[train_input_feats, train_input_seqs],
               y=train_output_seqs,
@@ -636,14 +636,14 @@ $> pip install Pillow nltk tqdm
 
 1.  加载最佳模型。这个模型可能会因运行而异，但在本教程中，它存储在`model-ep003-loss3.847-val_loss4.328.h5`文件中：
 
-    ```
+    ```py
     model = load_model('model-ep003-loss3.847-
                        val_loss4.328.h5')
     ```
 
 1.  加载数据映射，其中包含所有特征与真实标题的配对。将特征和映射提取到不同的集合中：
 
-    ```
+    ```py
     with open(f'{OUTPUT_PATH}/data_mapping.pickle', 'rb') as f:
         data_mapping = pickle.load(f)
     feats = [v['features'] for v in data_mapping.values()]
@@ -652,7 +652,7 @@ $> pip install Pillow nltk tqdm
 
 1.  评估模型：
 
-    ```
+    ```py
     evaluate_model(model,
                    features=feats,
                    captions=captions,
@@ -662,7 +662,7 @@ $> pip install Pillow nltk tqdm
 
     这个步骤可能需要一些时间。最终，你会看到类似这样的输出：
 
-    ```
+    ```py
     BLEU-1: 0.35674398077995173
     BLEU-2: 0.17030332240763874
     BLEU-3: 0.12170338107914261
@@ -711,7 +711,7 @@ $> pip install Pillow nltk tqdm
 
 1.  和往常一样，让我们首先导入必要的依赖项：
 
-    ```
+    ```py
     import glob
     import pickle
     import matplotlib.pyplot as plt
@@ -726,14 +726,14 @@ $> pip install Pillow nltk tqdm
 
 1.  定义一个函数，将整数索引转换为分词器映射中的对应单词：
 
-    ```
+    ```py
     def get_word_from_index(tokenizer, index):
         return tokenizer.index_word.get(index, None)
     ```
 
 1.  定义`produce_caption()`函数，该函数接受标题生成模型、分词器、要描述的图像以及生成文本描述所需的最大序列长度：
 
-    ```
+    ```py
     def produce_caption(model,
                         tokenizer,
                         image,
@@ -758,7 +758,7 @@ $> pip install Pillow nltk tqdm
 
 1.  定义一个预训练的**VGG16**网络，我们将其用作图像特征提取器：
 
-    ```
+    ```py
     extractor_model = VGG16(weights='imagenet')
     inputs = extractor_model.inputs
     outputs = extractor_model.layers[-2].output
@@ -767,14 +767,14 @@ $> pip install Pillow nltk tqdm
 
 1.  将图像提取器传递给`ImageCaptionFeatureExtractor()`的一个实例：
 
-    ```
+    ```py
     extractor = ImageCaptionFeatureExtractor(
         feature_extractor=extractor_model)
     ```
 
 1.  加载我们用于训练模型的清理过的标题。我们需要它们来拟合*步骤 7*中的分词器：
 
-    ```
+    ```py
     with open('data_mapping.pickle', 'rb') as f:
         data_mapping = pickle.load(f)
     captions = [v['caption'] for v in 
@@ -783,7 +783,7 @@ $> pip install Pillow nltk tqdm
 
 1.  实例化`Tokenizer()`并将其拟合到所有标题。还需计算最大序列长度：
 
-    ```
+    ```py
     tokenizer = Tokenizer()
     tokenizer.fit_on_texts(captions)
     max_seq_length = extractor._get_max_seq_length(captions)
@@ -791,14 +791,14 @@ $> pip install Pillow nltk tqdm
 
 1.  加载训练好的网络（在本例中，网络名称为`model-ep003-loss3.847-val_loss4.328.h5`）：
 
-    ```
+    ```py
     model = load_model('model-ep003-loss3.847-
                          val_loss4.328.h5')
     ```
 
 1.  遍历当前目录中的所有测试图像，提取相应的数字特征：
 
-    ```
+    ```py
     for idx, image_path in enumerate(glob.glob('*.jpg'), 
                                        start=1):
         img_feats = (extractor
@@ -807,7 +807,7 @@ $> pip install Pillow nltk tqdm
 
 1.  生成标题并移除`beginsequence`和`endsequence`特殊标记：
 
-    ```
+    ```py
         description = produce_caption(model,
                                       tokenizer,
                                       img_feats,
@@ -819,7 +819,7 @@ $> pip install Pillow nltk tqdm
 
 1.  打开图像，将生成的标题作为其标题并保存：
 
-    ```
+    ```py
         image = plt.imread(image_path)
         plt.imshow(image)
         plt.title(description)
@@ -896,7 +896,7 @@ $> pip install Pillow nltk tqdm
 
 1.  导入所有必要的依赖项：
 
-    ```
+    ```py
     import json
     import os
     import time
@@ -919,13 +919,13 @@ $> pip install Pillow nltk tqdm
 
 1.  为 `tf.data.experimental.AUTOTUNE` 定义一个别名：
 
-    ```
+    ```py
     AUTOTUNE = tf.data.experimental.AUTOTUNE
     ```
 
 1.  定义一个函数来加载图像。它必须返回图像及其路径：
 
-    ```
+    ```py
     def load_image(image_path):
         image = tf.io.read_file(image_path)
         image = tf.image.decode_jpeg(image, channels=3)
@@ -936,14 +936,14 @@ $> pip install Pillow nltk tqdm
 
 1.  定义一个函数来获取最大序列长度。这将在稍后使用：
 
-    ```
+    ```py
     def get_max_length(tensor):
         return max(len(t) for t in tensor)
     ```
 
 1.  为图像标注网络定义一个函数，从磁盘加载图像（存储为 `NumPy` 格式）：
 
-    ```
+    ```py
     def load_image_and_caption(image_name, caption):
         image_name = image_name.decode('utf-8').split('/')
                                           [-1]
@@ -953,7 +953,7 @@ $> pip install Pillow nltk tqdm
 
 1.  使用模型子类化实现**巴赫达努的注意力机制**：
 
-    ```
+    ```py
     class BahdanauAttention(Model):
         def __init__(self, units):
             super(BahdanauAttention, self).__init__()
@@ -964,7 +964,7 @@ $> pip install Pillow nltk tqdm
 
 1.  前面的代码块定义了网络层。现在，我们在`call()`方法中定义前向传播：
 
-    ```
+    ```py
         def call(self, features, hidden):
             hidden_with_time_axis = tf.expand_dims(hidden, 
                                                      1)
@@ -979,7 +979,7 @@ $> pip install Pillow nltk tqdm
 
 1.  定义图像编码器。这只是一个`ReLU`：
 
-    ```
+    ```py
     class CNNEncoder(Model):
         def __init__(self, embedding_dim):
             super(CNNEncoder, self).__init__()
@@ -992,7 +992,7 @@ $> pip install Pillow nltk tqdm
 
 1.  定义解码器。它是一个`GRU`和注意力机制，学习如何从视觉特征向量和文本输入序列中生成标题：
 
-    ```
+    ```py
     class RNNDecoder(Model):
         def __init__(self, embedding_size, units, 
                          vocab_size):
@@ -1012,7 +1012,7 @@ $> pip install Pillow nltk tqdm
 
 1.  现在我们已经定义了**RNN**架构中的各个层，接下来实现前向传播。首先，我们必须通过注意力子网络传递输入：
 
-    ```
+    ```py
         def call(self, x, features, hidden):
             context_vector, attention_weights = \
                 self.attention(features, hidden)
@@ -1020,7 +1020,7 @@ $> pip install Pillow nltk tqdm
 
 1.  然后，我们必须将输入序列（`x`）通过嵌入层，并将其与从注意力机制中获得的上下文向量进行连接：
 
-    ```
+    ```py
             x = self.embedding(x)
             expanded_context = tf.expand_dims(context_vector, 
                                                1)
@@ -1029,7 +1029,7 @@ $> pip install Pillow nltk tqdm
 
 1.  接下来，我们必须将合并后的张量传递给`GRU`层，然后通过全连接层。这样返回的是输出序列、状态和注意力权重：
 
-    ```
+    ```py
             output, state = self.gru(x)
             x = self.fc1(output)
             x = tf.reshape(x, (-1, x.shape[2]))
@@ -1038,14 +1038,14 @@ $> pip install Pillow nltk tqdm
 
 1.  最后，我们必须定义一个方法来重置隐藏状态：
 
-    ```
+    ```py
         def reset_state(self, batch_size):
             return tf.zeros((batch_size, self.units))
     ```
 
 1.  定义`ImageCaptionerClass`。构造函数实例化基本组件，包括编码器、解码器、分词器、以及训练整个系统所需的优化器和损失函数：
 
-    ```
+    ```py
     class ImageCaptioner(object):
         def __init__(self, embedding_size, units, 
                      vocab_size,
@@ -1063,7 +1063,7 @@ $> pip install Pillow nltk tqdm
 
 1.  创建一个方法来计算损失函数：
 
-    ```
+    ```py
         def loss_function(self, real, predicted):
             mask = tf.math.logical_not(tf.math.equal(real, 
                                                    0))
@@ -1075,7 +1075,7 @@ $> pip install Pillow nltk tqdm
 
 1.  接下来，定义一个函数来执行单个训练步骤。我们将从创建隐藏状态和输入开始，输入仅是包含`<start>`标记索引的单一序列批次，`<start>`是一个特殊元素，用于指示句子的开始：
 
-    ```
+    ```py
         @tf.function
         def train_step(self, image_tensor, target):
             loss = 0
@@ -1090,7 +1090,7 @@ $> pip install Pillow nltk tqdm
 
 1.  现在，我们必须编码图像张量。然后，我们将反复将结果特征传递给解码器，连同到目前为止的输出序列和隐藏状态。关于**RNNs**如何工作的更深层次解释，请参考*另见*部分：
 
-    ```
+    ```py
           with tf.GradientTape() as tape:
                 features = self.encoder(image_tensor)
                 for i in range(1, target.shape[1]):
@@ -1106,7 +1106,7 @@ $> pip install Pillow nltk tqdm
 
 1.  请注意，在前面的代码块中我们在每个时间步计算了损失。为了获得总损失，我们必须计算平均值。为了让网络真正学习，我们必须通过反向传播计算梯度，并通过优化器应用这些梯度：
 
-    ```
+    ```py
             total_loss = loss / int(target.shape[1])
             trainable_vars = (self.encoder.trainable_
                                 variables +
@@ -1120,7 +1120,7 @@ $> pip install Pillow nltk tqdm
 
 1.  本类中的最后一个方法负责训练系统：
 
-    ```
+    ```py
         def train(self, dataset, epochs, num_steps):
             for epoch in range(epochs):
                 start = time.time()
@@ -1134,7 +1134,7 @@ $> pip install Pillow nltk tqdm
 
 1.  每经过 100 个 epoch，我们将打印损失。在每个 epoch 结束时，我们还将打印该 epoch 的损失和已用时间：
 
-    ```
+    ```py
                     if batch % 100 == 0:
                         loss = batch_loss.numpy()
                         loss = loss / int(target.shape[1])
@@ -1151,7 +1151,7 @@ $> pip install Pillow nltk tqdm
 
 1.  下载并解压`COCO`数据集的注释文件。如果它们已经在系统中，只需存储文件路径：
 
-    ```
+    ```py
     INPUT_DIR = os.path.abspath('.')
     annots_folder = '/annotations/'
     if not os.path.exists(INPUT_DIR + annots_folder):
@@ -1172,7 +1172,7 @@ $> pip install Pillow nltk tqdm
 
 1.  下载并解压`COCO`数据集的图像文件。如果它们已经在系统中，只需存储文件路径：
 
-    ```
+    ```py
     image_folder = '/train2014/'
     if not os.path.exists(INPUT_DIR + image_folder):
         origin_url = ('http://images.cocodataset.org/zips/'
@@ -1190,7 +1190,7 @@ $> pip install Pillow nltk tqdm
 
 1.  加载图像路径和标题。我们必须将特殊的`<start>`和`<end>`标记添加到每个标题中，以便它们包含在我们的词汇表中。这些特殊标记使我们能够分别指定序列的开始和结束位置：
 
-    ```
+    ```py
     with open(annots_file, 'r') as f:
         annotations = json.load(f)
     captions = []
@@ -1205,7 +1205,7 @@ $> pip install Pillow nltk tqdm
 
 1.  由于`COCO`数据集庞大，训练一个模型需要很长时间，我们将选择 30,000 张图像及其对应的标题作为随机样本：
 
-    ```
+    ```py
     train_captions, train_image_paths = shuffle(captions,
                                             image_paths, 
                                           random_state=42)
@@ -1217,7 +1217,7 @@ $> pip install Pillow nltk tqdm
 
 1.  我们使用`InceptionV3`的预训练实例作为我们的图像特征提取器：
 
-    ```
+    ```py
     feature_extractor = InceptionV3(include_top=False,
                                     weights='imagenet')
     feature_extractor = Model(feature_extractor.input,
@@ -1227,7 +1227,7 @@ $> pip install Pillow nltk tqdm
 
 1.  创建一个 `tf.data.Dataset`，将图像路径映射到张量。使用它遍历我们样本中的所有图像，将它们转换为特征向量，并将其保存为 `NumPy` 数组。这将帮助我们在将来节省内存：
 
-    ```
+    ```py
     BATCH_SIZE = 8
     image_dataset = (tf.data.Dataset
                      .from_tensor_slices(train_images)
@@ -1248,7 +1248,7 @@ $> pip install Pillow nltk tqdm
 
 1.  在我们标题中的前 5,000 个单词上训练一个分词器。然后，将每个文本转换为数字序列，并进行填充，使它们的大小一致。同时，计算最大序列长度：
 
-    ```
+    ```py
     top_k = 5000
     filters = '!”#$%&()*+.,-/:;=?@[\]^_`{|}~ '
     tokenizer = Tokenizer(num_words=top_k,
@@ -1265,7 +1265,7 @@ $> pip install Pillow nltk tqdm
 
 1.  我们将使用 20% 的数据来测试模型，其余 80% 用于训练：
 
-    ```
+    ```py
     (images_train, images_val, caption_train, caption_val) = \
         train_test_split(train_img_paths,
                          captions_seqs,
@@ -1275,7 +1275,7 @@ $> pip install Pillow nltk tqdm
 
 1.  我们将一次加载 64 张图像的批次（以及它们的标题）。请注意，我们使用的是 *第 5 步* 中定义的 `load_image_and_caption()` 函数，它读取与图像对应的特征向量，这些向量以 `NumPy` 格式存储。此外，由于该函数在 `NumPy` 层面工作，我们必须通过 `tf.numpy_function` 将其包装，以便它能作为有效的 TensorFlow 函数在 `map()` 方法中使用：
 
-    ```
+    ```py
     BATCH_SIZE = 64
     BUFFER_SIZE = 1000
     dataset = (tf.data.Dataset
@@ -1294,7 +1294,7 @@ $> pip install Pillow nltk tqdm
 
 1.  让我们实例化一个 `ImageCaptioner`。嵌入层将包含 256 个元素，解码器和注意力模型的单元数将是 512。词汇表大小为 5,001。最后，我们必须传入 *第 27 步* 中拟合的分词器：
 
-    ```
+    ```py
     image_captioner = ImageCaptioner(embedding_size=256,
                                      units=512,
                                      vocab_size=top_k + 1,
@@ -1306,7 +1306,7 @@ $> pip install Pillow nltk tqdm
 
 1.  定义一个函数，用于在图像上评估图像标题生成器。它必须接收编码器、解码器、分词器、待描述的图像、最大序列长度以及注意力向量的形状。我们将从创建一个占位符数组开始，这里将存储构成注意力图的子图：
 
-    ```
+    ```py
     def evaluate(encoder, decoder, tokenizer, image, 
                   max_length,
                  attention_shape):
@@ -1316,7 +1316,7 @@ $> pip install Pillow nltk tqdm
 
 1.  接下来，我们必须初始化隐藏状态，提取输入图像的特征，并将其传递给编码器。我们还必须通过创建一个包含 `<start>` 标记索引的单一序列来初始化解码器输入：
 
-    ```
+    ```py
         hidden = decoder.reset_state(batch_size=1)
         temp_input = tf.expand_dims(load_image(image)[0], 
                                         0)
@@ -1333,7 +1333,7 @@ $> pip install Pillow nltk tqdm
 
 1.  现在，让我们构建标题，直到达到最大序列长度或遇到 `<end>` 标记：
 
-    ```
+    ```py
         for i in range(max_length):
             (preds, hidden, attention_w) = \
                 decoder(dec_input, feats, hidden)
@@ -1353,7 +1353,7 @@ $> pip install Pillow nltk tqdm
 
 1.  让我们定义一个函数，用于绘制网络对每个单词的注意力。它接收图像、构成标题的单个单词列表（`result`）、由 `evaluate()` 返回的 `attention_plot`，以及我们将存储图形的输出路径：
 
-    ```
+    ```py
     def plot_attention(image, result,
                        attention_plot, output_path):
         tmp_image = np.array(load_image(image)[0])
@@ -1362,7 +1362,7 @@ $> pip install Pillow nltk tqdm
 
 1.  我们将遍历每个单词，创建相应注意力图的子图，并以其链接的特定单词为标题：
 
-    ```
+    ```py
         for l in range(len(result)):
             temp_att = np.resize(attention_plot[l], (8, 8))
             ax = fig.add_subplot(len(result) // 2,
@@ -1378,7 +1378,7 @@ $> pip install Pillow nltk tqdm
 
 1.  最后，我们可以保存完整的图：
 
-    ```
+    ```py
         plt.tight_layout()
         plt.show()
         plt.savefig(output_path)
@@ -1386,7 +1386,7 @@ $> pip install Pillow nltk tqdm
 
 1.  在验证集上评估网络的随机图像：
 
-    ```
+    ```py
     attention_features_shape = 64
     random_id = np.random.randint(0, len(images_val))
     image = images_val[random_id]
@@ -1394,7 +1394,7 @@ $> pip install Pillow nltk tqdm
 
 1.  构建并清理实际（真实标签）标题：
 
-    ```
+    ```py
     actual_caption = ' '.join([tokenizer.index_word[i]
                              for i in caption_val[random_id]
                                if i != 0])
@@ -1405,7 +1405,7 @@ $> pip install Pillow nltk tqdm
 
 1.  为验证图像生成标题：
 
-    ```
+    ```py
     result, attention_plot = evaluate(image_captioner               
                                     encoder,
                        image_captioner.decoder,
@@ -1417,7 +1417,7 @@ $> pip install Pillow nltk tqdm
 
 1.  构建并清理预测的标题：
 
-    ```
+    ```py
     predicted_caption = (' '.join(result)
                          .replace('<start>', '')
                          .replace('<end>', '')) 
@@ -1425,7 +1425,7 @@ $> pip install Pillow nltk tqdm
 
 1.  打印真实标签和生成的标题，然后将注意力图保存到磁盘：
 
-    ```
+    ```py
     print(f'Actual caption: {actual_caption}')
     print(f'Predicted caption: {predicted_caption}')
     output_path = './attention_plot.png'
@@ -1434,7 +1434,7 @@ $> pip install Pillow nltk tqdm
 
 1.  在以下代码块中，我们可以欣赏到真实标题与模型输出标题之间的相似性：
 
-    ```
+    ```py
     Actual caption: a lone giraffe stands in the midst of a grassy area
     Predicted caption: giraffe standing in a dry grass near trees
     ```

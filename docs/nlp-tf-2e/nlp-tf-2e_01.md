@@ -246,7 +246,7 @@ Python 在 Windows、macOS 或 Linux 等常用操作系统中安装起来非常�
 
 要检查 Anaconda 是否正确安装，请打开一个终端窗口（Windows 中的命令提示符），然后运行以下命令：
 
-```
+```py
 conda --version 
 ```
 
@@ -306,7 +306,7 @@ Anaconda 的一个吸引人的特性之一是它允许你创建多个 Conda 或�
 
 1.  接下来，输入以下命令：
 
-    ```
+    ```py
     import tensorflow as tf 
     print(tf. version ) 
     ```

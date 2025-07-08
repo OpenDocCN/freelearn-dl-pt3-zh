@@ -78,7 +78,7 @@
 
 +   **反向翻译**：该方法由 Sennrich 等人在 2016 年提出。其基本思想是将一句话翻译成另一种语言，然后再翻译回原语言。我们可以使用语言翻译 API 或 Python 模块，如 `googletrans`。以下代码片段将一句话从英语翻译成德语并再翻译回英语。为了使代码能够工作，我们需要安装 `googletrans`：
 
-```
+```py
 from googletrans import Translator
 translator = Translator()
 text = 'I am going to the market for a walk'

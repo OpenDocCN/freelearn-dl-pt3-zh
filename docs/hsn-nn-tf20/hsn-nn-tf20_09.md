@@ -30,7 +30,7 @@ ImageNet 是一个包含超过 1500 万张高分辨率图像的数据集，涵�
 
 `(tf2)`
 
-```
+```py
 import tensorflow_datasets as tfds
 
 dataset, info = tfds.load("tf_flowers", with_info=True)
@@ -39,7 +39,7 @@ print(info)
 
 前面的代码生成了以下的数据集描述：
 
-```
+```py
 tfds.core.DatasetInfo(
     name='tf_flowers',
     version=1.0.0,
@@ -89,7 +89,7 @@ tfds.core.DatasetInfo(
 
 数据集已经准备好，尽管它并未按指导原则正确划分。事实上，数据集只有一个划分，而推荐使用三个划分（训练集、验证集和测试集）。让我们通过创建三个独立的`tf.data.Dataset`对象来创建这三个不重叠的划分。我们将使用数据集对象的`take`和`skip`方法：
 
-```
+```py
 dataset = dataset["train"]
 tot = 3670
 
@@ -166,7 +166,7 @@ TensorFlow Hub 是一个用于发布、发现和使用可重用机器学习模�
 
 `(tf2)`
 
-```
+```py
 pip install tensorflow-hub>0.3
 ```
 
@@ -214,7 +214,7 @@ Inception v3 的特征提取器肯定足够好，可以作为我们花卉分类�
 
 `(tf2)`
 
-```
+```py
 def to_float_image(example):
     example["image"] = tf.image.convert_image_dtype(example["image"], tf.float32)
     return example
@@ -224,7 +224,7 @@ def to_float_image(example):
 
 `(tf2)`
 
-```
+```py
 def resize(example):
     example["image"] = tf.image.resize(example["image"], (299, 299))
     return example
@@ -234,7 +234,7 @@ def resize(example):
 
 `(tf2)`
 
-```
+```py
 train = train.map(to_float_image).map(resize)
 validation = validation.map(to_float_image).map(resize)
 test = test.map(to_float_image).map(resize)
@@ -256,7 +256,7 @@ TensorFlow Hub Python 包已经安装好，这就是我们所需要做的全部�
 
 这三点操作是在 `KerasLayer tensorflow-hub` 函数的钩子下执行的：
 
-```
+```py
 import tensorflow_hub as hub
 
 hub.KerasLayer(
@@ -271,7 +271,7 @@ hub.KerasLayer(
 
 `(tf2)`
 
-```
+```py
 num_classes = 5
 
 model = tf.keras.Sequential(
@@ -294,7 +294,7 @@ model = tf.keras.Sequential(
 
 要启用进度条，`hub.KerasLayer` 需要使用 `TFHUB_DOWNLOAD_PROGRESS` 环境变量。因此，可以在脚本顶部添加以下代码片段，定义这个环境变量并将值设置为 1；这样，在第一次下载时，将会显示一个方便的进度条：
 
-```
+```py
 import os
 os.environ["TFHUB_DOWNLOAD_PROGRESS"] = "1"
 ```
@@ -305,7 +305,7 @@ os.environ["TFHUB_DOWNLOAD_PROGRESS"] = "1"
 
 由于数据集标签是 `tf.int64` 标量，因此使用的损失函数是标准的稀疏分类交叉熵，并将 `from_logits` 参数设置为 `True`。如上一章所述，第五章，*高效的数据输入管道与估算器 API*，将此参数设置为 `True` 是一种良好的做法，因为这样损失函数本身会应用 softmax 激活函数，确保以数值稳定的方式计算，从而防止损失变为 `NaN`：
 
-```
+```py
 # Training utilities
 loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
 step = tf.Variable(1, name="global_step", trainable=False)
@@ -364,7 +364,7 @@ for epoch in range(num_epochs):
 
 训练循环产生了以下输出（剪辑以突出显示仅重要部分）：
 
-```
+```py
 10 loss: 1.15977693 acccuracy: 0.527777791
 20 loss: 0.626715124 acccuracy: 0.75
 30 loss: 0.538604617 acccuracy: 0.8125
@@ -401,7 +401,7 @@ accuracy: 0.866957486
 
 `(tf2)`
 
-```
+```py
 from time import time
 
 # [...]
@@ -425,7 +425,7 @@ for epoch in range(num_epochs):
 
 平均而言，在配备 Nvidia k40 GPU 的 Colab 笔记本（[`colab.research.google.com`](https://colab.research.google.com)）上运行训练循环，我们获得的执行速度如下：
 
-```
+```py
 Time per epoch: 16.206
 ```
 
@@ -479,7 +479,7 @@ Time per epoch: 16.206
 
 `(tf2)`
 
-```
+```py
 hub.KerasLayer(
     "https://tfhub.dev/google/tf2-preview/inception_v3/feature_vector/2",
     output_shape=[2048],
@@ -494,7 +494,7 @@ hub.KerasLayer(
 
 `(tf2)`
 
-```
+```py
 optimizer = tf.optimizers.Adam(1e-5)
 # [ ... ]
 model = tf.keras.Sequential(
@@ -516,7 +516,7 @@ model = tf.keras.Sequential(
 
 在以下框中，展示了第一次和最后一次训练时期的输出：
 
-```
+```py
 10 loss: 1.59038031 acccuracy: 0.288194448
 20 loss: 1.25725865 acccuracy: 0.55625
 30 loss: 0.932323813 acccuracy: 0.721875

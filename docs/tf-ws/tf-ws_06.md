@@ -60,14 +60,14 @@ L1 正则化有时被称为 `0`。因此，只有相关特征用于进行预测�
 
 在 TensorFlow 中，你可以使用以下代码片段定义 L1 正则化：
 
-```
+```py
 from tensorflow.keras.regularizers import l1
 l1_reg = l1(l=0.01)
 ```
 
 `l` 参数对应于 ![公式 2](img/B16341_06_04b.png) 超参数。实例化的 L1 正则化可以被添加到 TensorFlow Keras 的任何层中：
 
-```
+```py
 from tensorflow.keras.layers import Dense
 Dense(10, kernel_regularizer=l1_reg)
 ```
@@ -86,7 +86,7 @@ L2 正则化倾向于减少不相关特征的权重。它们会接近 `0`，但�
 
 在 TensorFlow 中，你可以按以下方式定义 L2 正则化：
 
-```
+```py
 from tensorflow.keras.regularizers import l2
 from tensorflow.keras.layers import Dense
 l2_reg = l2(l=0.01)
@@ -97,7 +97,7 @@ Dense(20, kernel_regularizer=l2_reg)
 
 TensorFlow 提供了另一个正则化器类，它结合了 L1 和 L2 正则化器。你可以使用以下代码片段实例化它：
 
-```
+```py
 from tensorflow.keras.regularizers 
 import l1_l2
 l1_l2_reg = l1_l2(l1=0.01, l2=0.001)
@@ -123,13 +123,13 @@ l1_l2_reg = l1_l2(l1=0.01, l2=0.001)
 
 1.  导入 pandas 库，并使用 `pd` 作为别名：
 
-    ```
+    ```py
     import pandas as pd
     ```
 
 1.  创建一个名为 `file_url` 的变量，其中包含数据集的 URL：
 
-    ```
+    ```py
     file_url = 'https://raw.githubusercontent.com/PacktWorkshops'\
               '/The-TensorFlow-Workshop/master/Chapter06/dataset'\
               '/connect-4.csv'
@@ -137,7 +137,7 @@ l1_l2_reg = l1_l2(l1=0.01, l2=0.001)
 
 1.  使用 `read_csv()` 函数将数据集加载到名为 `data` 的 DataFrame 中，并提供 CSV 文件的 URL。使用 `head()` 函数打印前五行：
 
-    ```
+    ```py
     data = pd.read_csv(file_url)
     data.head()
     ```
@@ -154,38 +154,38 @@ l1_l2_reg = l1_l2(l1=0.01, l2=0.001)
 
 1.  使用 `pop()` 方法提取目标变量（`class` 列），并将其保存为名为 `target` 的变量：
 
-    ```
+    ```py
     target = data.pop('class')
     ```
 
 1.  导入 TensorFlow 库，并使用 `tf` 作为别名。然后，从 `tensorflow.keras.layers` 中导入 `Dense` 类：
 
-    ```
+    ```py
     import tensorflow as tf
     from tensorflow.keras.layers import Dense
     ```
 
 1.  设置种子为 `8`，以获得可重复的结果：
 
-    ```
+    ```py
     tf.random.set_seed(8)
     ```
 
 1.  使用 `tf.keras.Sequential()` 实例化一个顺序模型，并将其存储在名为 `model` 的变量中：
 
-    ```
+    ```py
     model = tf.keras.Sequential()
     ```
 
 1.  使用 `Dense()` 创建一个包含 `512` 个单元的全连接层，并指定 ReLu 作为激活函数，输入形状为 `(42,)`，对应数据集中的特征数量。将其保存为名为 `fc1` 的变量：
 
-    ```
+    ```py
     fc1 = Dense(512, input_shape=(42,), activation='relu')
     ```
 
 1.  使用 `Dense()` 创建三个全连接层，分别包含 `512`、`128` 和 `128` 个单元，并指定 ReLu 作为激活函数。将它们分别保存为 `fc2`、`fc3` 和 `fc4` 变量：
 
-    ```
+    ```py
     fc2 = Dense(512, activation='relu')
     fc3 = Dense(128, activation='relu')
     fc4 = Dense(128, activation='relu')
@@ -193,13 +193,13 @@ l1_l2_reg = l1_l2(l1=0.01, l2=0.001)
 
 1.  使用 `Dense()` 创建一个包含三个单元的全连接层（对应类别的数量），并指定 softmax 作为激活函数。将其保存为名为 `fc5` 的变量：
 
-    ```
+    ```py
     fc5 = Dense(3, activation='softmax')
     ```
 
 1.  使用 `add()` 方法按顺序将所有五个全连接层添加到模型中：
 
-    ```
+    ```py
     model.add(fc1)
     model.add(fc2)
     model.add(fc3)
@@ -209,7 +209,7 @@ l1_l2_reg = l1_l2(l1=0.01, l2=0.001)
 
 1.  使用 `summary()` 方法打印模型的摘要：
 
-    ```
+    ```py
     model.summary()
     ```
 
@@ -223,26 +223,26 @@ l1_l2_reg = l1_l2(l1=0.01, l2=0.001)
 
 1.  从`tf.keras.losses`实例化`SparseCategoricalCrossentropy()`函数，并将其保存为名为`loss`的变量：
 
-    ```
+    ```py
     loss = tf.keras.losses.SparseCategoricalCrossentropy()
     ```
 
 1.  从`tf.keras.optimizers`实例化`Adam()`，将学习率设置为`0.001`并保存为名为`optimizer`的变量：
 
-    ```
+    ```py
     optimizer = tf.keras.optimizers.Adam(0.001)
     ```
 
 1.  使用`compile()`方法编译模型，并指定你在*步骤 14*和*步骤 15*中创建的优化器和损失函数，以及`accuracy`作为显示的度量指标：
 
-    ```
+    ```py
     model.compile(optimizer=optimizer, loss=loss, \
                   metrics=['accuracy'])
     ```
 
 1.  使用`fit()`方法启动模型训练过程，训练五个周期，并将数据拆分为包含 20% 数据的验证集：
 
-    ```
+    ```py
     model.fit(data, target, epochs=5, validation_split=0.2)
     ```
 
@@ -256,7 +256,7 @@ l1_l2_reg = l1_l2(l1=0.01, l2=0.001)
 
 1.  创建五个完全连接的层，类似于先前模型的结构，并为`kernel_regularizer`参数指定 L2 正则化器。将正则化器因子设置为`0.001`。将这些层保存在五个变量中，分别命名为`reg_fc1`、`reg_fc2`、`reg_fc3`、`reg_fc4`和`reg_fc5`：
 
-    ```
+    ```py
     reg_fc1 = Dense(512, input_shape=(42,), activation='relu', \
                     kernel_regularizer=tf.keras.regularizers\
                                          .l2(l=0.1))
@@ -274,7 +274,7 @@ l1_l2_reg = l1_l2(l1=0.01, l2=0.001)
 
 1.  使用`tf.keras.Sequential()`实例化一个顺序模型，将其保存在名为`model2`的变量中，并使用`add()`方法按顺序将所有五个完全连接的层添加到模型中：
 
-    ```
+    ```py
     model2 = tf.keras.Sequential()
     model2.add(reg_fc1)
     model2.add(reg_fc2)
@@ -285,7 +285,7 @@ l1_l2_reg = l1_l2(l1=0.01, l2=0.001)
 
 1.  打印模型摘要：
 
-    ```
+    ```py
     model2.summary()
     ```
 
@@ -297,14 +297,14 @@ l1_l2_reg = l1_l2(l1=0.01, l2=0.001)
 
 1.  使用`compile()`方法编译模型，并指定你在*步骤 14*和*步骤 15*中创建的优化器和损失函数，以及`accuracy`作为显示的度量指标：
 
-    ```
+    ```py
     model2.compile(optimizer=optimizer, loss=loss, \
                    metrics=['accuracy'])
     ```
 
 1.  使用`fit()`方法启动模型训练过程，训练五个周期，并将数据拆分为包含 20% 数据的验证集：
 
-    ```
+    ```py
     model2.fit(data, target, epochs=5, validation_split=0.2)
     ```
 
@@ -328,7 +328,7 @@ l1_l2_reg = l1_l2(l1=0.01, l2=0.001)
 
 上述示例展示了一个 dropout 为 50%的架构。这意味着在每次迭代中，模型的 50%的单元被关闭。以下代码片段展示了如何在 TensorFlow 中创建一个 50% dropout 层：
 
-```
+```py
 from tensorflow.keras.layers import Dropout
 do = Dropout(0.5)
 ```
@@ -349,13 +349,13 @@ do = Dropout(0.5)
 
 1.  导入 pandas 库并使用`pd`作为别名：
 
-    ```
+    ```py
     import pandas as pd
     ```
 
 1.  创建一个变量`file_url`，用于存储数据集的 URL：
 
-    ```
+    ```py
     file_url = 'https://raw.githubusercontent.com/PacktWorkshops'\
                '/The-TensorFlow-Workshop/master/Chapter06/dataset'\
                '/connect-4.csv'
@@ -363,7 +363,7 @@ do = Dropout(0.5)
 
 1.  使用`read_csv()`函数将数据集加载到一个 DataFrame `data`中，并提供 CSV 文件的 URL。使用`head()`函数打印前五行：
 
-    ```
+    ```py
     data = pd.read_csv(file_url)
     data.head()
     ```
@@ -376,38 +376,38 @@ do = Dropout(0.5)
 
 1.  使用`pop()`方法提取目标变量（名为`class`的列），并将其保存到一个名为`target`的变量中：
 
-    ```
+    ```py
     target = data.pop('class')
     ```
 
 1.  导入 TensorFlow 库并使用`tf`作为别名。然后，从`tensorflow.keras.layers`导入`Dense`类：
 
-    ```
+    ```py
     import tensorflow as tf
     from tensorflow.keras.layers import Dense
     ```
 
 1.  将种子设置为`8`，以获得可重复的结果：
 
-    ```
+    ```py
     tf.random.set_seed(8)
     ```
 
 1.  使用`tf.keras.Sequential()`实例化一个顺序模型，并将其存储在一个名为`model`的变量中：
 
-    ```
+    ```py
     model = tf.keras.Sequential()
     ```
 
 1.  创建一个`512`个单元的全连接层，使用`Dense()`并指定 ReLu 作为激活函数，输入形状为`(42,)`，对应数据集中的特征数量。将其保存为一个名为`fc1`的变量：
 
-    ```
+    ```py
     fc1 = Dense(512, input_shape=(42,), activation='relu')
     ```
 
 1.  创建三个全连接层，分别为`512`、`128`和`128`个单元，使用`Dense()`并指定 ReLu 作为激活函数。将它们分别保存为三个变量，命名为`fc2`、`fc3`和`fc4`：
 
-    ```
+    ```py
     fc2 = Dense(512, activation='relu')
     fc3 = Dense(128, activation='relu')
     fc4 = Dense(128, activation='relu')
@@ -415,13 +415,13 @@ do = Dropout(0.5)
 
 1.  创建一个具有三个单元（对应类别数）的全连接层，使用`Dense()`并指定 softmax 作为激活函数。将其保存为一个名为`fc5`的变量：
 
-    ```
+    ```py
     fc5 = Dense(3, activation='softmax')
     ```
 
 1.  顺序地将所有五个全连接层添加到模型中，每个层之间插入一个`0.75`的 dropout 层，使用`add()`方法：
 
-    ```
+    ```py
     model.add(fc1)
     model.add(Dropout(0.75))
     model.add(fc2)
@@ -435,7 +435,7 @@ do = Dropout(0.5)
 
 1.  打印模型的摘要：
 
-    ```
+    ```py
     model.summary()
     ```
 
@@ -447,26 +447,26 @@ do = Dropout(0.5)
 
 1.  从`tf.keras.losses`实例化一个`SparseCategoricalCrossentropy()`函数，并将其保存为一个名为`loss`的变量：
 
-    ```
+    ```py
     loss = tf.keras.losses.SparseCategoricalCrossentropy()
     ```
 
 1.  从`tf.keras.optimizers`中实例化`Adam()`，学习率设置为`0.001`，并将其保存在名为`optimizer`的变量中：
 
-    ```
+    ```py
     optimizer = tf.keras.optimizers.Adam(0.001)
     ```
 
 1.  使用`compile()`方法编译模型，指定优化器和损失函数，并设置`accuracy`为要显示的指标：
 
-    ```
+    ```py
     model.compile(optimizer=optimizer, loss=loss, \
                   metrics=['accuracy'])
     ```
 
 1.  使用`fit()`方法开始模型训练过程，进行五个 epoch，并将数据分成 20%的验证集：
 
-    ```
+    ```py
     model.fit(data, target, epochs=5, validation_split=0.2)
     ```
 
@@ -494,7 +494,7 @@ do = Dropout(0.5)
 
 在 TensorFlow 中，你可以通过设置回调函数来实现这一点，回调函数会分析每个 epoch 结束时模型的表现，并比较训练集和测试集之间的得分。要定义提前停止回调函数，你需要做如下操作：
 
-```
+```py
 from tensorflow.keras.callbacks import EarlyStopping
 EarlyStopping(monitor='val_accuracy', patience=5)
 ```
@@ -549,7 +549,7 @@ EarlyStopping(monitor='val_accuracy', patience=5)
 
 不幸的是，Keras Tuner 包并不包含在 TensorFlow 中。您需要通过运行以下命令手动安装它：
 
-```
+```py
 pip install keras-tuner
 ```
 
@@ -567,7 +567,7 @@ pip install keras-tuner
 
 以下代码片段展示了如何定义一个超参数 `learning_rate`，它只能取四个值中的一个——`0.1`、`0.01`、`0.001` 或 `0.0001`：
 
-```
+```py
 hp.Choice('learning_rate', values = [0.1, 0.01, 0.001, 0.0001])
 ```
 
@@ -575,20 +575,20 @@ Keras Tuner 包中的调优器是一种算法，它将查看超参数搜索空�
 
 一旦使用你选择的算法定义了超参数，你可以调用 `search()` 方法来启动在训练集和测试集上的超参数调优过程，如下所示：
 
-```
+```py
 tuner.search(X_train, y_train, validation_data=(X_test, y_test))
 ```
 
 搜索完成后，你可以通过 `get_best_hyperparameters()` 获取最佳组合，然后具体查看你定义的某个超参数：
 
-```
+```py
 best_hps = tuner.get_best_hyperparameters()[0]
 best_hps.get('learning_rate')
 ```
 
 最后，`hypermodel.build()` 方法将使用找到的最佳超参数实例化一个 TensorFlow Keras 模型：
 
-```
+```py
 model = tuner.hypermodel.build(best_hps)
 ```
 
@@ -610,7 +610,7 @@ model = tuner.hypermodel.build(best_hps)
 
 在 Keras Tuner 中，在实例化调优器之前，你需要定义一个模型构建函数，该函数将定义用于训练的 TensorFlow Keras 模型的架构，并设置你希望测试的超参数。以下是一个这样的函数示例：
 
-```
+```py
 def model_builder(hp):
     model = tf.keras.Sequential()
     hp_lr = hp.Choice('learning_rate', \
@@ -629,7 +629,7 @@ def model_builder(hp):
 
 一旦定义了模型构建函数，你可以像下面这样实例化一个随机搜索调参器：
 
-```
+```py
 import kerastuner as kt
 tuner = kt.RandomSearch(model_builder, objective='val_accuracy', \
                         max_trials=10)
@@ -653,13 +653,13 @@ tuner = kt.RandomSearch(model_builder, objective='val_accuracy', \
 
 1.  导入 pandas 库，并使用`pd`作为别名：
 
-    ```
+    ```py
     import pandas as pd
     ```
 
 1.  创建一个名为`file_url`的变量，包含数据集的 URL：
 
-    ```
+    ```py
     file_url = 'https://raw.githubusercontent.com/PacktWorkshops'\
               '/The-TensorFlow-Workshop/master/Chapter06/dataset'\
               '/connect-4.csv'
@@ -667,7 +667,7 @@ tuner = kt.RandomSearch(model_builder, objective='val_accuracy', \
 
 1.  使用`read_csv()`方法将数据集加载到一个名为`data`的 DataFrame 中，并提供 CSV 文件的 URL。使用`head()`方法打印前五行：
 
-    ```
+    ```py
     data = pd.read_csv(file_url)
     data.head()
     ```
@@ -680,19 +680,19 @@ tuner = kt.RandomSearch(model_builder, objective='val_accuracy', \
 
 1.  使用`pop()`方法提取目标变量（名为`class`的列），并将其保存在一个名为`target`的变量中：
 
-    ```
+    ```py
     target = data.pop('class')
     ```
 
 1.  从`sklearn.model_selection`导入`train_test_split`：
 
-    ```
+    ```py
     from sklearn.model_selection import train_test_split
     ```
 
 1.  使用`train_test_split()`将数据拆分为训练集和测试集，20%的数据用于测试，`42`作为`random_state`：
 
-    ```
+    ```py
     X_train, X_test, y_train, y_test = train_test_split\
                                        (data, target, \
                                         test_size=0.2, \
@@ -701,27 +701,27 @@ tuner = kt.RandomSearch(model_builder, objective='val_accuracy', \
 
 1.  安装`kerastuner`包，然后导入并将其别名设为`kt`：
 
-    ```
+    ```py
     !pip install keras-tuner
     import kerastuner as kt
     ```
 
 1.  导入 TensorFlow 库，并使用`tf`作为别名。然后，从`tensorflow.keras.layers`导入`Dense`类：
 
-    ```
+    ```py
     import tensorflow as tf
     from tensorflow.keras.layers import Dense
     ```
 
 1.  使用`tf.random.set_seed()`将种子设置为`8`，以获得可重复的结果：
 
-    ```
+    ```py
     tf.random.set_seed(8)
     ```
 
 1.  定义一个名为`model_builder`的函数，该函数将创建一个与*练习 6.02*相同架构的顺序模型，使用 L2 正则化，但这次为正则化因子提供一个`hp.Choice`超参数：
 
-    ```
+    ```py
     def model_builder(hp):
         model = tf.keras.Sequential()
         p_l2 = hp.Choice('l2', values = [0.1, 0.01, 0.001, 0.0001])
@@ -753,33 +753,33 @@ tuner = kt.RandomSearch(model_builder, objective='val_accuracy', \
 
 1.  实例化一个`RandomSearch`调参器，将`val_accuracy`赋值给`objective`，并将`10`赋值给`max_trials`：
 
-    ```
+    ```py
     tuner = kt.RandomSearch(model_builder, objective='val_accuracy', \
                             max_trials=10)
     ```
 
 1.  使用`search()`方法在训练集和测试集上启动超参数搜索：
 
-    ```
+    ```py
     tuner.search(X_train, y_train, validation_data=(X_test, y_test))
     ```
 
 1.  使用`get_best_hyperparameters()`提取最佳的超参数组合（索引`0`），并将其保存到一个名为`best_hps`的变量中：
 
-    ```
+    ```py
     best_hps = tuner.get_best_hyperparameters()[0]
     ```
 
 1.  提取`l2`正则化超参数的最佳值，保存到一个名为`best_l2`的变量中，并打印其值：
 
-    ```
+    ```py
     best_l2 = best_hps.get('l2')
     best_l2
     ```
 
     你应该得到以下结果：
 
-    ```
+    ```py
     0.0001
     ```
 
@@ -787,7 +787,7 @@ tuner = kt.RandomSearch(model_builder, objective='val_accuracy', \
 
 1.  使用`fit()`方法开始模型训练过程，训练五个周期，并使用测试集作为`validation_data`：
 
-    ```
+    ```py
     model = tuner.hypermodel.build(best_hps)
     model.fit(X_train, y_train, epochs=5, \
               validation_data=(X_test, y_test))
@@ -807,7 +807,7 @@ tuner = kt.RandomSearch(model_builder, objective='val_accuracy', \
 
 Hyperband 是 Keras Tuner 包中另一个可用的调优器。像随机搜索一样，它从搜索空间中随机选择候选项，但效率更高。其背后的思想是测试一组组合仅进行一到两次迭代，只保留表现最好的候选项，并对其进行更长时间的训练。因此，算法不会像随机搜索那样浪费时间训练表现不佳的组合，而是直接将它们从下一轮中丢弃。只有那些实现更高性能的组合才会进行更长时间的训练。要实例化 Hyperband 调优器，执行以下命令：
 
-```
+```py
 tuner = kt.Hyperband(model_builder, objective='val_accuracy', \
                      max_epochs=5)
 ```
@@ -828,13 +828,13 @@ tuner = kt.Hyperband(model_builder, objective='val_accuracy', \
 
 1.  导入 pandas 库并将其别名设为`pd`：
 
-    ```
+    ```py
     import pandas as pd
     ```
 
 1.  创建一个名为`file_url`的变量，其中包含数据集的 URL：
 
-    ```
+    ```py
     file_url = 'https://raw.githubusercontent.com/PacktWorkshops'\
                '/The-TensorFlow-Workshop/master/Chapter06/dataset'\
                '/connect-4.csv'
@@ -842,7 +842,7 @@ tuner = kt.Hyperband(model_builder, objective='val_accuracy', \
 
 1.  使用 `read_csv()` 方法将数据集加载到名为 `data` 的 DataFrame 中，并提供 CSV 文件的 URL。使用 `head()` 方法打印前五行：
 
-    ```
+    ```py
     data = pd.read_csv(file_url)
     data.head()
     ```
@@ -855,19 +855,19 @@ tuner = kt.Hyperband(model_builder, objective='val_accuracy', \
 
 1.  使用`pop()`方法提取目标变量（`class`），并将其保存到名为`target`的变量中：
 
-    ```
+    ```py
     target = data.pop('class')
     ```
 
 1.  从`sklearn.model_selection`导入`train_test_split`：
 
-    ```
+    ```py
     from sklearn.model_selection import train_test_split
     ```
 
 1.  使用`train_test_split()`将数据划分为训练集和测试集，20%的数据用于测试，`42`作为`random_state`：
 
-    ```
+    ```py
     X_train, X_test, y_train, y_test = train_test_split\
                                        (data, target, \
                                         test_size=0.2, \
@@ -876,27 +876,27 @@ tuner = kt.Hyperband(model_builder, objective='val_accuracy', \
 
 1.  安装`keras-tuner`包，然后导入并将其别名为`kt`：
 
-    ```
+    ```py
     !pip install keras-tuner
     import kerastuner as kt
     ```
 
 1.  导入 TensorFlow 库并使用`tf`作为别名，然后从`tensorflow.keras.layers`导入`Dense`类：
 
-    ```
+    ```py
     import tensorflow as tf
     from tensorflow.keras.layers import Dense
     ```
 
 1.  使用`tf.random.set_seed()`将种子设置为`8`，以获得可重复的结果：
 
-    ```
+    ```py
     tf.random.set_seed(8)
     ```
 
 1.  定义一个名为`model_builder`的函数，创建一个与*练习 6.02*、*使用 Dropout 预测 Connect-4 游戏结果*相同架构的顺序模型，并应用 L2 正则化，正则化因子为`0.0001`。但这次，提供一个超参数`hp.Choice`用于学习率（`0.01`、`0.001`或`0.0001`），并使用`hp.Int`函数设置输入全连接层单元数（在`128`到`512`之间，步长为`64`）：
 
-    ```
+    ```py
     def model_builder(hp):
         model = tf.keras.Sequential()
         hp_units = hp.Int('units', min_value=128, max_value=512, \
@@ -931,33 +931,33 @@ tuner = kt.Hyperband(model_builder, objective='val_accuracy', \
 
 1.  实例化一个 Hyperband 调优器，并将`val_accuracy`分配给`objective`度量，将`5`赋值给`max_epochs`：
 
-    ```
+    ```py
     tuner = kt.Hyperband(model_builder, objective='val_accuracy', \
                          max_epochs=5)
     ```
 
 1.  使用`search()`在训练集和测试集上启动超参数搜索：
 
-    ```
+    ```py
     tuner.search(X_train, y_train, validation_data=(X_test, y_test))
     ```
 
 1.  使用`get_best_hyperparameters()`提取最佳超参数组合（索引`0`），并将其保存到名为`best_hps`的变量中：
 
-    ```
+    ```py
     best_hps = tuner.get_best_hyperparameters()[0]
     ```
 
 1.  提取输入层单元数的最佳值，将其保存在名为`best_units`的变量中，并打印其值：
 
-    ```
+    ```py
     best_units = best_hps.get('units')
     best_units
     ```
 
     你将获得以下输出：
 
-    ```
+    ```py
     192
     ```
 
@@ -965,14 +965,14 @@ tuner = kt.Hyperband(model_builder, objective='val_accuracy', \
 
 1.  提取学习率的最佳值，将其保存在名为`best_lr`的变量中，并打印其值：
 
-    ```
+    ```py
     best_lr = best_hps.get('learning_rate')
     best_lr
     ```
 
 1.  输出将是以下内容：
 
-    ```
+    ```py
     0.001
     ```
 
@@ -980,7 +980,7 @@ tuner = kt.Hyperband(model_builder, objective='val_accuracy', \
 
 1.  使用`fit()`方法开始模型训练过程，训练 5 个 epoch，并使用测试集作为`validation_data`：
 
-    ```
+    ```py
     model.fit(X_train, y_train, epochs=5, \
               validation_data=(X_test, y_test))
     ```
@@ -999,7 +999,7 @@ tuner = kt.Hyperband(model_builder, objective='val_accuracy', \
 
 贝叶斯优化是另一种非常流行的用于自动超参数调整的算法。它使用概率来确定最佳的超参数组合。其目标是从一组超参数中迭代地构建优化目标函数的概率模型。在每次迭代中，概率模型都会根据获得的结果进行更新。因此，与随机搜索和 Hyperband 不同，贝叶斯优化会考虑过去的结果以改善新的结果。下面的代码片段将展示如何在 Keras Tuner 中实例化一个贝叶斯优化器：
 
-```
+```py
 tuner = kt.BayesianOptimization(model_builder, \
                                 objective='val_accuracy', \
                                 max_trials=10)

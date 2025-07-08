@@ -8,27 +8,27 @@
 
 1.  导入 TensorFlow 库：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
 1.  使用 TensorFlow 的 `Variable` 类创建两个秩为 `0` 的张量：
 
-    ```
+    ```py
     var1 = tf.Variable(2706, tf.int32)
     var2 = tf.Variable(2386, tf.int32)
     ```
 
 1.  创建一个新变量，将创建的两个标量相加，并打印结果：
 
-    ```
+    ```py
     var_sum = var1 + var2
     var_sum.numpy()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     5092
     ```
 
@@ -36,7 +36,7 @@
 
 1.  使用 TensorFlow 的 `Variable` 类创建两个张量，一个是秩为 `0` 的标量，另一个是秩为 `1` 的向量：
 
-    ```
+    ```py
     scalar1 = tf.Variable(95, tf.int32)
     vector1 = tf.Variable([2706, 2799, 5102], \
                           tf.int32)
@@ -44,14 +44,14 @@
 
 1.  创建一个新变量，将创建的标量和向量相加，并打印结果：
 
-    ```
+    ```py
     vector_scalar_sum = scalar1 + vector1
     vector_scalar_sum.numpy()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     array([2801, 2894, 5197])
     ```
 
@@ -59,7 +59,7 @@
 
 1.  现在使用 TensorFlow 的 `Variable` 类创建三个秩为 2 的张量，表示每个产品、销售人员和地点的收入：
 
-    ```
+    ```py
     matrix1 = tf.Variable([[2706, 2799, 5102], \
                            [2386, 4089, 5932]], tf.int32)
     matrix2 = tf.Variable([[5901, 1208, 645], \
@@ -70,7 +70,7 @@
 
 1.  创建一个新变量，作为三个张量的和，并打印结果：
 
-    ```
+    ```py
     matrix_sum = matrix1 + matrix2 + matrix3
     matrix_sum.numpy()
     ```
@@ -91,71 +91,71 @@
 
 1.  导入 TensorFlow 库：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
 1.  使用 TensorFlow 的 `Variable` 类创建一个包含 24 个元素的单维数组。验证矩阵的形状：
 
-    ```
+    ```py
     array1 = tf.Variable([*range(24)])
     array1.shape.as_list()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     [24]
     ```
 
 1.  使用 TensorFlow 的 `reshape` 函数将矩阵重塑为 12 行 2 列。验证新矩阵的形状：
 
-    ```
+    ```py
     reshape1 = tf.reshape(array1, shape=[12, 2])
     reshape1.shape.as_list()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     [12, 2]
     ```
 
 1.  使用 TensorFlow 的 `reshape` 函数将矩阵重塑为 `3x4x2` 的形状。验证新矩阵的形状：
 
-    ```
+    ```py
     reshape2 = tf.reshape(array1, shape=[3, 4, 2])
     reshape2.shape.as_list()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     [3, 4, 2]
     ```
 
 1.  通过使用 TensorFlow 的 `rank` 函数验证这个新张量的秩为 `3`：
 
-    ```
+    ```py
     tf.rank(reshape2).numpy()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     3
     ```
 
 1.  转置 *步骤 3* 中创建的张量。验证新张量的形状：
 
-    ```
+    ```py
     transpose1 = tf.transpose(reshape1)
     transpose1.shape.as_list()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     [2, 12]
     ```
 
@@ -167,13 +167,13 @@
 
 1.  导入 TensorFlow 库：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
 1.  创建一个`3x4`的张量作为输入，其中行表示来自不同销售代表的销售数据，列表示经销商提供的各种汽车，值表示与建议零售价（MSRP）的平均百分比差异。根据销售人员是否能够以高于或低于 MSRP 的价格销售，值可以是正数或负数：
 
-    ```
+    ```py
     input1 = tf.Variable([[-0.013, 0.024, 0.06, 0.022], \
                           [0.001, -0.047, 0.039, 0.016], \
                           [0.018, 0.030, -0.021, -0.028]], \
@@ -182,7 +182,7 @@
 
 1.  创建一个`4x1`的`weights`张量，形状为`4x1`，表示汽车的建议零售价（MSRP）：
 
-    ```
+    ```py
     weights = tf.Variable([[19995.95], [24995.50], \
                            [36745.50], [29995.95]], \
                           tf.float32)
@@ -190,14 +190,14 @@
 
 1.  创建一个大小为`3x1`的偏置张量，表示与每个销售人员相关的固定成本：
 
-    ```
+    ```py
     bias = tf.Variable([[-2500.0],[-2500.0],[-2500.0]], \
                        tf.float32)
     ```
 
 1.  将输入矩阵与权重进行矩阵乘法，显示所有汽车的平均偏差值，并加上偏置来减去销售人员的固定成本：
 
-    ```
+    ```py
     output = tf.matmul(input1,weights) + bias
     output
     ```
@@ -210,7 +210,7 @@
 
 1.  应用 ReLU 激活函数来突出显示净正销售的销售人员：
 
-    ```
+    ```py
     output = tf.keras.activations.relu(output)
     output 
     ```
@@ -235,13 +235,13 @@
 
 1.  在新的 Jupyter Notebook 单元格中，导入 pandas 库，如下所示：
 
-    ```
+    ```py
     import pandas as pd
     ```
 
 1.  创建一个新的 pandas DataFrame，命名为`df`，并将`Bias_correction_ucl.csv`文件读取到其中。通过打印结果 DataFrame 来检查数据是否正确加载：
 
-    ```
+    ```py
     df = pd.read_csv('Bias_correction_ucl.csv')
     ```
 
@@ -251,13 +251,13 @@
 
 1.  使用`drop`方法删除`date`列。由于你正在删除列，请将`1`传递给`axis`参数，将`True`传递给`inplace`参数：
 
-    ```
+    ```py
     df.drop('Date', inplace=True, axis=1)
     ```
 
 1.  绘制`Present_Tmax`列的直方图，表示数据集中不同日期和气象站的最高温度：
 
-    ```
+    ```py
     ax = df['Present_Tmax'].hist(color='gray')
     ax.set_xlabel("Normalized Temperature")
     ax.set_ylabel("Frequency")
@@ -273,7 +273,7 @@
 
 1.  导入`MinMaxScaler`并使用它来拟合和转换特征 DataFrame：
 
-    ```
+    ```py
     from sklearn.preprocessing import MinMaxScaler
     scaler = MinMaxScaler()
     df2 = scaler.fit_transform(df)
@@ -282,7 +282,7 @@
 
 1.  绘制变换后的 `Present_Tmax` 列的直方图：
 
-    ```
+    ```py
     ax = df2['Present_Tmax'].hist(color='gray')
     ax.set_xlabel("Normalized Temperature")
     ax.set_ylabel("Frequency")
@@ -306,14 +306,14 @@
 
 1.  在新的 Jupyter Notebook 单元格中，导入 Keras 的预处理包中的 `ImageDataGenerator` 类：
 
-    ```
+    ```py
     from tensorflow.keras.preprocessing.image \
         import ImageDataGenerator
     ```
 
 1.  实例化 `ImageDataGenerator` 类，并传入 `rescale` 参数，值为 `1/255`，以将图像值转换为介于 `0` 和 `1` 之间：
 
-    ```
+    ```py
     train_datagen = ImageDataGenerator(rescale = 1./255,\
                                        shear_range = 0.2,\
                                        rotation_range= 180,\
@@ -323,7 +323,7 @@
 
 1.  使用数据生成器的 `flow_from_directory` 方法将数据生成器指向图像数据。传入目标大小、批量大小和类别模式等参数：
 
-    ```
+    ```py
     training_set = train_datagen.flow_from_directory\
                    ('image_data',\
                     target_size = (64, 64),\
@@ -333,7 +333,7 @@
 
 1.  创建一个函数来显示批次中的图像：
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     def show_batch(image_batch, label_batch):\
         lookup = {v: k for k, v in 
@@ -350,7 +350,7 @@
 
 1.  从数据生成器中获取一个批次，并将其传递给函数以显示图像及其标签：
 
-    ```
+    ```py
     image_batch, label_batch = next(training_set)
     show_batch(image_batch, label_batch)
     ```
@@ -371,14 +371,14 @@
 
 1.  在新的 Jupyter Notebook 单元格中，导入 TensorFlow 和 `os` 库：
 
-    ```
+    ```py
     import tensorflow as tf
     import os
     ```
 
 1.  创建一个函数，使用 TensorFlow 的 `read_file` 函数加载音频文件，然后用 `decode_wav` 函数返回音频数据，最终返回结果张量的转置：
 
-    ```
+    ```py
     def load_audio(file_path, sample_rate=44100):
         # Load audio at 44.1kHz sample-rate
         audio = tf.io.read_file(file_path)
@@ -391,7 +391,7 @@
 
 1.  使用 `os.list_dir` 将音频数据的路径加载为列表：
 
-    ```
+    ```py
     prefix = " ../Datasets/data_speech_commands_v0.02"\
             "/zero/"
     paths = [os.path.join(prefix, path) for path in \
@@ -400,7 +400,7 @@
 
 1.  创建一个函数，接收数据集对象，对其进行洗牌，并使用在*步骤 2*中创建的函数加载音频数据。然后，将绝对值和 `log1p` 函数应用到数据集。此函数将每个值加 `1`，然后取对数。接着，重复数据集对象，批量化，并使用等于批量大小的缓冲区大小预取数据：
 
-    ```
+    ```py
     def prep_ds(ds, shuffle_buffer_size=1024, \
                 batch_size=16):
         # Randomly shuffle (file_path, label) dataset
@@ -422,14 +422,14 @@
 
 1.  使用 TensorFlow 的`from_tensor_slices`函数创建数据集对象，并传入音频文件的路径。然后，将你在*第 5 步*中创建的函数应用到数据集对象上：
 
-    ```
+    ```py
     ds = tf.data.Dataset.from_tensor_slices(paths)
     train_ds = prep_ds(ds)
     ```
 
 1.  获取数据集的第一批数据并打印出来：
 
-    ```
+    ```py
     for x in train_ds.take(1):\
          print(x)
     ```
@@ -444,7 +444,7 @@
 
 1.  绘制第一批音频文件：
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     plt.plot(x[0,:,:].numpy().T, color = 'gray')
     plt.xlabel('Sample')
@@ -467,21 +467,21 @@
 
 1.  导入 TensorFlow 库并设置种子：
 
-    ```
+    ```py
     import tensorflow as tf
     tf.random.set_seed(42)
     ```
 
 1.  设置日志目录并初始化一个文件写入对象以写入追踪记录：
 
-    ```
+    ```py
     logdir = 'logs/'
     writer = tf.summary.create_file_writer(logdir)
     ```
 
 1.  创建一个 TensorFlow 函数，用于将两个张量相乘，并使用`ones_like`函数将`1`加到结果张量的所有元素中，`ones_like`函数创建一个与矩阵乘法结果相同形状的张量。然后，对张量的每个值应用 sigmoid 函数：
 
-    ```
+    ```py
     @tf.function
     def my_func(x, y):
         r1 = tf.matmul(x, y)
@@ -492,20 +492,20 @@
 
 1.  创建形状为`5x5x5`的两个张量：
 
-    ```
+    ```py
     x = tf.random.uniform((5, 5, 5))
     y = tf.random.uniform((5, 5, 5))
     ```
 
 1.  开启图形追踪：
 
-    ```
+    ```py
     tf.summary.trace_on(graph=True, profiler=True)
     ```
 
 1.  将该函数应用于两个张量，并将追踪记录导出到日志目录：
 
-    ```
+    ```py
     z = my_func(x, y)
     with writer.as_default():
         tf.summary.trace_export(name="my_func_trace",\
@@ -515,7 +515,7 @@
 
 1.  在命令行启动 TensorBoard 并在浏览器中查看图形：
 
-    ```
+    ```py
     tensorboard --logdir=./logs
     ```
 
@@ -535,7 +535,7 @@
 
 1.  导入 TensorFlow 和 TensorFlow Hub 并打印库的版本：
 
-    ```
+    ```py
     import tensorflow as tf
     import tensorflow_hub as hub
     print('TF version: ', tf.__version__)
@@ -550,27 +550,27 @@
 
 1.  设置通用句子编码器模块的句柄：
 
-    ```
+    ```py
     module_handle ="https://tfhub.dev/google"\
                    "/universal-sentence-encoder/4"
     ```
 
 1.  使用 TensorFlow Hub 的`KerasLayer`类创建 hub 层，传入以下参数：`module_handle`、`input_shape`和`dtype`：
 
-    ```
+    ```py
     hub_layer = hub.KerasLayer(module_handle, input_shape=[],\ 
                                dtype=tf.string)
     ```
 
 1.  创建一个包含待编码字符串的列表：
 
-    ```
+    ```py
     text = ['The TensorFlow Workshop']
     ```
 
 1.  应用`hub_layer`到文本上，将句子嵌入为一个向量：
 
-    ```
+    ```py
     hub_layer(text)
     ```
 
@@ -594,14 +594,14 @@
 
 1.  导入 TensorFlow 和 pandas 库：
 
-    ```
+    ```py
     import tensorflow as tf
     import pandas as pd
     ```
 
 1.  使用 pandas 的`read_csv`函数加载数据集：
 
-    ```
+    ```py
     df = pd.read_csv('superconductivity.csv')
     ```
 
@@ -611,20 +611,20 @@
 
 1.  删除`date`列并删除任何包含空值的行：
 
-    ```
+    ```py
     df.dropna(inplace=True)
     ```
 
 1.  创建目标和特征数据集：
 
-    ```
+    ```py
     target = df['critical_temp']
     features = df.drop('critical_temp', axis=1)
     ```
 
 1.  重新缩放特征数据集：
 
-    ```
+    ```py
     from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
     feature_array = scaler.fit_transform(features)
@@ -633,13 +633,13 @@
 
 1.  初始化一个`Sequential`类的 Keras 模型：
 
-    ```
+    ```py
     model = tf.keras.Sequential()
     ```
 
 1.  使用模型的`add`方法为模型添加输入层，并将`input_shape`设置为特征数据集中的列数。向模型中添加四个大小分别为`64`、`32`、`16`和`8`的隐藏层，第一个隐藏层使用 ReLU 激活函数，然后添加一个包含一个单元的输出层：
 
-    ```
+    ```py
     model.add(tf.keras.layers.InputLayer\
              (input_shape=features.shape[1],), \
               name='Input_layer'))
@@ -653,20 +653,20 @@
 
 1.  使用 RMSprop 优化器编译模型，学习率为`0.001`，损失使用均方误差：
 
-    ```
+    ```py
     model.compile(tf.optimizers.RMSprop(0.001), loss='mse')
     ```
 
 1.  创建一个 TensorBoard 回调：
 
-    ```
+    ```py
     tensorboard_callback = tf.keras.callbacks\
                              .TensorBoard(log_dir="./logs")
     ```
 
 1.  将模型拟合到训练数据上，训练`100`个 epoch，批次大小为`32`，验证集比例为 20%：
 
-    ```
+    ```py
     model.fit(x=features.to_numpy(), y=target.to_numpy(), \
               epochs=100, callbacks=[tensorboard_callback], \
               batch_size=32, validation_split=0.2)
@@ -680,20 +680,20 @@
 
 1.  在训练数据上评估模型：
 
-    ```
+    ```py
     loss = model.evaluate(features.to_numpy(), target.to_numpy())
     print('loss:', loss)
     ```
 
     这将导致以下输出：
 
-    ```
+    ```py
     loss: 165.735601268987
     ```
 
 1.  通过在命令行中调用以下内容来可视化 TensorBoard 中的模型架构和模型拟合过程：
 
-    ```
+    ```py
     tensorboard –-logdir=logs/
     ```
 
@@ -719,14 +719,14 @@
 
 1.  导入 TensorFlow 和 pandas 库：
 
-    ```
+    ```py
     import tensorflow as tf
     import pandas as pd
     ```
 
 1.  使用 pandas 的`read_csv`函数加载数据集：
 
-    ```
+    ```py
     df = pd.read_csv('superconductivity.csv')
     ```
 
@@ -736,20 +736,20 @@
 
 1.  删除任何包含空值的行：
 
-    ```
+    ```py
     df.dropna(inplace=True)
     ```
 
 1.  当`critical_temp`列的值大于`77.36`时，将目标值设置为`true`，小于时设置为`false`。特征数据集是数据集中剩余的列：
 
-    ```
+    ```py
     target = df['critical_temp'].apply(lambda x: 1 if x>77.36 else 0)
     features = df.drop('critical_temp', axis=1)
     ```
 
 1.  重新缩放特征数据集：
 
-    ```
+    ```py
     from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
     feature_array = scaler.fit_transform(features)
@@ -758,13 +758,13 @@
 
 1.  初始化一个`Sequential`类的 Keras 模型：
 
-    ```
+    ```py
     model = tf.keras.Sequential()
     ```
 
 1.  使用模型的`add`方法添加一个输入层，并将`input_shape`设置为特征数据集中的列数。向模型添加三个隐藏层，大小分别为`32`、`16`和`8`，然后添加一个输出层，包含`1`个单位并使用 sigmoid 激活函数：
 
-    ```
+    ```py
     model.add(tf.keras.layers.InputLayer\
              (input_shape=features.shape[1], \
               name='Input_layer'))
@@ -777,21 +777,21 @@
 
 1.  使用 RMSprop 优化器编译模型，学习率设置为`0.0001`，损失函数使用二元交叉熵，并计算准确度指标：
 
-    ```
+    ```py
     model.compile(tf.optimizers.RMSprop(0.0001), \
                   loss= 'binary_crossentropy', metrics=['accuracy'])
     ```
 
 1.  创建一个 TensorBoard 回调：
 
-    ```
+    ```py
     tensorboard_callback = tf.keras.callbacks.TensorBoard\
                            (log_dir="./logs")
     ```
 
 1.  将模型拟合到训练数据上，进行`50`个周期，并且设置验证集比例为 20%：
 
-    ```
+    ```py
     model.fit(x=features.to_numpy(), y=target.to_numpy(),\
               epochs=50, callbacks=[tensorboard_callback],\
               validation_split=0.2)
@@ -805,7 +805,7 @@
 
 1.  在训练数据上评估模型：
 
-    ```
+    ```py
     loss, accuracy = model.evaluate(features.to_numpy(), \
                                     target.to_numpy())
     print(f'loss: {loss}, accuracy: {accuracy}')
@@ -813,13 +813,13 @@
 
     这将显示以下输出：
 
-    ```
+    ```py
     loss: 0.21984571637242145, accuracy: 0.8893383145332336
     ```
 
 1.  通过在命令行中调用以下命令，在 TensorBoard 中可视化模型架构和模型拟合过程：
 
-    ```
+    ```py
     tensorboard –-logdir=logs/
     ```
 
@@ -849,13 +849,13 @@
 
 1.  导入 pandas 库并使用`pd`作为别名：
 
-    ```
+    ```py
     import pandas as pd
     ```
 
 1.  创建一个名为`file_url`的变量，其中包含数据集的 URL：
 
-    ```
+    ```py
     file_url = 'https://raw.githubusercontent.com/PacktWorkshops'\
               '/The-TensorFlow-Workshop/master/Chapter05'\
               '/dataset/letter-recognition.data'
@@ -863,7 +863,7 @@
 
 1.  使用`read_csv()`方法将数据集加载到一个名为`data`的`DataFrame()`函数中，提供 CSV 文件的 URL，并设置`header=None`，因为数据集没有提供列名。使用`head()`方法打印前五行。
 
-    ```
+    ```py
     data = pd.read_csv(file_url, header=None)
     data.head()
     ```
@@ -878,81 +878,81 @@
 
 1.  使用`pop()`方法提取目标变量（列`0`），并将其保存在名为`target`的变量中：
 
-    ```
+    ```py
     target = data.pop(0)
     ```
 
 1.  将`data`划分为训练集，保留前 15,000 个观测值，并将其保存在名为`X_train`的变量中。对`target`进行相同的划分，并将前 15,000 个案例保存在名为`y_train`的变量中：
 
-    ```
+    ```py
     X_train = data[:15000]
     y_train = target[:15000]
     ```
 
 1.  将`data`划分为测试集，保留最后 5,000 个观测值，并将其保存在名为`X_test`的变量中。对`target`进行相同的划分，并将最后 5,000 个案例保存在名为`y_test`的变量中：
 
-    ```
+    ```py
     X_test = data[15000:]
     y_test = target[15000:]
     ```
 
 1.  导入 TensorFlow 库，并使用`tf`作为别名：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
 1.  使用`tf.random.set_seed()`将种子设置为`8`，以获得可重复的结果：
 
-    ```
+    ```py
     tf.random.set_seed(8)
     ```
 
 1.  使用`tf.keras.Sequential()`实例化一个顺序模型，并将其保存在名为`model`的变量中：
 
-    ```
+    ```py
     model = tf.keras.Sequential()
     ```
 
 1.  从`tensorflow.keras.layers`导入`Dense()`类：
 
-    ```
+    ```py
     from tensorflow.keras.layers import Dense
     ```
 
 1.  使用`Dense()`创建一个包含`512`个单元的全连接层，指定 ReLu 为激活函数，输入形状为`(16,)`，这对应数据集中的特征数量。将其保存在名为`fc1`的变量中：
 
-    ```
+    ```py
     fc1 = Dense(512, input_shape=(16,), activation='relu')
     ```
 
 1.  使用`Dense()`创建一个包含`512`个单元的全连接层，并指定 ReLu 为激活函数。将其保存在名为`fc2`的变量中：
 
-    ```
+    ```py
     fc2 = Dense(512, activation='relu')
     ```
 
 1.  使用`Dense()`创建一个包含`128`个单元的全连接层，并指定 ReLu 为激活函数。将其保存在名为`fc3`的变量中：
 
-    ```
+    ```py
     fc3 = Dense(128, activation='relu')
     ```
 
 1.  使用`Dense()`创建一个包含`128`个单元的全连接层，并指定 ReLu 为激活函数。将其保存在名为`fc4`的变量中：
 
-    ```
+    ```py
     fc4 = Dense(128, activation='relu')
     ```
 
 1.  使用`Dense()`创建一个包含`26`个单元的全连接层，并指定 softmax 为激活函数。将其保存在名为`fc5`的变量中：
 
-    ```
+    ```py
     fc5 = Dense(26, activation='softmax')
     ```
 
 1.  使用`add()`方法顺序地将所有五个全连接层添加到模型中。
 
-    ```
+    ```py
     model.add(fc1)
     model.add(fc2)
     model.add(fc3)
@@ -962,7 +962,7 @@
 
 1.  使用`summary()`方法打印模型的总结。
 
-    ```
+    ```py
     model.summary()
     ```
 
@@ -976,26 +976,26 @@
 
 1.  从`tf.keras.losses`实例化`SparseCategoricalCrossentropy()`，并将其保存在名为`loss`的变量中：
 
-    ```
+    ```py
     loss = tf.keras.losses.SparseCategoricalCrossentropy()
     ```
 
 1.  从`tf.keras.optimizers`实例化`Adam()`，学习率为`0.001`，并将其保存在名为`optimizer`的变量中：
 
-    ```
+    ```py
     optimizer = tf.keras.optimizers.Adam(0.001)
     ```
 
 1.  使用`compile()`方法编译模型，指定刚刚创建的优化器和损失函数参数，并使用准确度作为报告的指标：
 
-    ```
+    ```py
     model.compile(optimizer=optimizer, loss=loss, \
                   metrics=['accuracy'])
     ```
 
 1.  使用`fit()`方法开始模型的训练过程，在训练集上训练五个 epoch：
 
-    ```
+    ```py
     model.fit(X_train, y_train, epochs=5)
     ```
 
@@ -1009,7 +1009,7 @@
 
 1.  使用`evaluate()`方法评估模型在测试集上的表现。
 
-    ```
+    ```py
     model.evaluate(X_test, y_test)
     ```
 
@@ -1021,25 +1021,25 @@
 
 1.  使用`predict()`方法预测测试集上每个类别的概率，并将结果保存在名为`preds_proba`的变量中：
 
-    ```
+    ```py
     preds_proba = model.predict(X_test)
     ```
 
 1.  使用`argmax()`方法并设置`axis=1`，将类别概率转换为单一的预测值：
 
-    ```
+    ```py
     preds = preds_proba.argmax(axis=1)
     ```
 
 1.  从`tensorflow.math`导入`confusion_matrix`：
 
-    ```
+    ```py
     from tensorflow.math import confusion_matrix
     ```
 
 1.  打印测试集上的混淆矩阵：
 
-    ```
+    ```py
     confusion_matrix(y_test, preds)
     ```
 
@@ -1059,13 +1059,13 @@
 
 1.  导入 pandas 库并将其别名设为`pd`：
 
-    ```
+    ```py
     import pandas as pd
     ```
 
 1.  创建一个名为`feature_url`的变量，包含数据集的 URL：
 
-    ```
+    ```py
     feature_url = 'https://raw.githubusercontent.com'\
                   '/PacktWorkshops'/The-TensorFlow-Workshop'\
                   '/master/Chapter05'/dataset/IMDB-F-features.csv'
@@ -1073,7 +1073,7 @@
 
 1.  使用`read_csv()`方法将数据集加载到名为`feature`的 DataFrame 中，并提供 CSV 文件的 URL。使用`head()`方法打印前五行：
 
-    ```
+    ```py
     feature = pd.read_csv(feature_url)
     feature.head()
     ```
@@ -1086,7 +1086,7 @@
 
 1.  创建一个名为`target_url`的变量，包含数据集的 URL：
 
-    ```
+    ```py
     target_url = 'https://raw.githubusercontent.com'\
                  '/PacktWorkshops/The-TensorFlow-Workshop'\
                  '/master/Chapter05'/dataset/IMDB-F-targets.csv'
@@ -1094,7 +1094,7 @@
 
 1.  使用`read_csv()`方法将数据集加载到名为`target`的 DataFrame 中，并提供 CSV 文件的 URL。使用`head()`方法打印前五行：
 
-    ```
+    ```py
     target = pd.read_csv(target_url)
     target.head()
     ```
@@ -1107,75 +1107,75 @@
 
 1.  将数据拆分为训练集，保留前 15,000 条观察数据并将其保存在名为`X_train`的变量中。对`target`进行相同的拆分，将前 15,000 条数据保存在名为`y_train`的变量中：
 
-    ```
+    ```py
     X_train = feature[:15000]
     y_train = target[:15000]
     ```
 
 1.  将数据拆分为测试集，保留最后的 5,000 条观察数据并将其保存在名为`X_test`的变量中。对`target`进行相同的拆分，将最后的 5,000 条数据保存在名为`y_test`的变量中：
 
-    ```
+    ```py
     X_test = feature[15000:]
     y_test = target[15000:]
     ```
 
 1.  导入 TensorFlow 库并将其别名设为`tf`：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
 1.  使用`tf.random.set_seed()`将`tensorflow`的种子设置为`8`，这将帮助获得可重复的结果：
 
-    ```
+    ```py
     tf.random.set_seed(8)
     ```
 
 1.  使用`tf.keras.Sequential()`实例化一个顺序模型，并将其保存在名为`model`的变量中：
 
-    ```
+    ```py
     model = tf.keras.Sequential()
     ```
 
 1.  从`tensorflow.keras.layers`导入`Dense()`类：
 
-    ```
+    ```py
     from tensorflow.keras.layers import Dense
     ```
 
 1.  使用`Dense()`创建一个包含`512`个单元的全连接层，并指定 ReLu 作为激活函数，输入形状为`(1001,)`，对应数据集的特征数量。将其保存在名为`fc1`的变量中：
 
-    ```
+    ```py
     fc1 = Dense(512, input_shape=(1001,), activation='relu')
     ```
 
 1.  使用`Dense()`创建一个包含`512`个单元的全连接层，并指定 ReLu 作为激活函数。将其保存在一个名为`fc2`的变量中：
 
-    ```
+    ```py
     fc2 = Dense(512, activation='relu')
     ```
 
 1.  使用`Dense()`创建一个包含`128`个单元的全连接层，并指定 ReLu 作为激活函数。将其保存在一个名为`fc3`的变量中：
 
-    ```
+    ```py
     fc3 = Dense(128, activation='relu')
     ```
 
 1.  使用`Dense()`创建一个包含`128`个单元的全连接层，并指定 ReLu 作为激活函数。将其保存在一个名为`fc4`的变量中：
 
-    ```
+    ```py
     fc4 = Dense(128, activation='relu')
     ```
 
 1.  使用`Dense()`创建一个包含`28`个单元的全连接层，并指定 sigmoid 作为激活函数。将其保存在一个名为`fc5`的变量中：
 
-    ```
+    ```py
     fc5 = Dense(28, activation='sigmoid')
     ```
 
 1.  使用`add()`方法依次将所有五个全连接层添加到模型中。
 
-    ```
+    ```py
     model.add(fc1)
     model.add(fc2)
     model.add(fc3)
@@ -1185,7 +1185,7 @@
 
 1.  使用`summary()`方法打印模型的总结。
 
-    ```
+    ```py
     model.summary()
     ```
 
@@ -1197,26 +1197,26 @@
 
 1.  从`tf.keras.losses`实例化`BinaryCrossentropy()`并将其保存在一个名为`loss`的变量中：
 
-    ```
+    ```py
     loss = tf.keras.losses.BinaryCrossentropy()
     ```
 
 1.  从`tf.keras.optimizers`实例化`Adam()`，设置学习率为`0.001`，并将其保存在一个名为`optimizer`的变量中：
 
-    ```
+    ```py
     optimizer = tf.keras.optimizers.Adam(0.001)
     ```
 
 1.  使用`compile()`方法编译模型，并指定刚刚创建的优化器和损失函数参数，同时设置准确率为报告的指标：
 
-    ```
+    ```py
     model.compile(optimizer=optimizer, loss=loss, \
                   metrics=['accuracy'])
     ```
 
 1.  使用`fit()`方法开始在训练集上进行模型训练，训练 20 个 epoch：
 
-    ```
+    ```py
     model.fit(X_train, y_train, epochs=20)
     ```
 
@@ -1230,7 +1230,7 @@
 
 1.  使用`evaluate()`方法评估模型在测试集上的表现：
 
-    ```
+    ```py
     model.evaluate(X_test, y_test)
     ```
 
@@ -1252,19 +1252,19 @@
 
 1.  导入 pandas 库并使用`pd`作为别名：
 
-    ```
+    ```py
     import pandas as pd
     ```
 
 1.  创建一个名为`usecols`的列表，包含列名`AAGE`、`ADTIND`、`ADTOCC`、`SEOTR`、`WKSWORK`和`PTOTVAL`：
 
-    ```
+    ```py
     usecols = ['AAGE','ADTIND','ADTOCC','SEOTR','WKSWORK', 'PTOTVAL']
     ```
 
 1.  创建一个名为`train_url`的变量，包含训练集的 URL：
 
-    ```
+    ```py
     train_url = 'https://raw.githubusercontent.com/PacktWorkshops'\
                 '/The-TensorFlow-Workshop/master/Chapter06'\
                 '/dataset/census-income-train.csv'
@@ -1272,7 +1272,7 @@
 
 1.  使用`read_csv()`方法将训练数据集加载到`train_data`的 DataFrame 中。为`usecols`参数提供 CSV 文件的 URL 和`usecols`列表。使用`head()`方法打印前五行：
 
-    ```
+    ```py
     train_data = pd.read_csv(train_url, usecols=usecols)
     train_data.head()
     ```
@@ -1285,13 +1285,13 @@
 
 1.  使用`pop()`方法提取目标变量（`PTOTVAL`），并将其保存在名为`train_target`的变量中：
 
-    ```
+    ```py
     train_target = train_data.pop('PTOTVAL')
     ```
 
 1.  创建一个名为`test_url`的变量，包含测试集的 URL：
 
-    ```
+    ```py
     test_url = 'https://github.com/PacktWorkshops'\
                '/The-TensorFlow-Workshop/blob/master/Chapter06'\
                '/dataset/census-income-test.csv?raw=true'
@@ -1299,7 +1299,7 @@
 
 1.  使用`read_csv()`方法将测试数据集加载到`X_test`的 DataFrame 中。为`usecols`参数提供 CSV 文件的 URL 和`usecols`列表。使用`head()`方法打印前五行：
 
-    ```
+    ```py
     test_data = pd.read_csv(test_url, usecols=usecols)
     test_data.head()
     ```
@@ -1312,44 +1312,44 @@
 
 1.  使用`pop()`方法提取目标变量（`PTOTVAL`），并将其保存在名为`test_target`的变量中：
 
-    ```
+    ```py
     test_target = test_data.pop('PTOTVAL')
     ```
 
 1.  导入 TensorFlow 库并使用`tf`作为别名。然后，从`tensorflow.keras.layers`导入`Dense`类：
 
-    ```
+    ```py
     import tensorflow as tf
     from tensorflow.keras.layers import Dense
     ```
 
 1.  使用`tf.random.set_seed()`将种子设置为`8`，以获取可复现的结果：
 
-    ```
+    ```py
     tf.random.set_seed(8)
     ```
 
 1.  使用`tf.keras.Sequential()`实例化一个顺序模型，并将其保存在名为`model`的变量中：
 
-    ```
+    ```py
     model = tf.keras.Sequential()
     ```
 
 1.  从`tensorflow.keras.layers`导入`Dense`类：
 
-    ```
+    ```py
     from tensorflow.keras.layers import Dense
     ```
 
 1.  使用`Dense()`创建一个包含`1048`个单元的全连接层，指定 ReLu 作为激活函数，并将输入形状设置为`(5,)`，这对应数据集中的特征数量。将其保存在名为`fc1`的变量中：
 
-    ```
+    ```py
     fc1 = Dense(1048, input_shape=(5,), activation='relu')
     ```
 
 1.  使用`Dense()`创建三个全连接层，分别包含`512`、`128`和`64`个单元，并指定 ReLu 作为激活函数。将它们分别保存在名为`fc2`、`fc3`和`fc4`的三个变量中：
 
-    ```
+    ```py
     fc2 = Dense(512, activation='relu')
     fc3 = Dense(128, activation='relu')
     fc4 = Dense(64, activation='relu')
@@ -1357,19 +1357,19 @@
 
 1.  使用`Dense()`创建一个包含三个单元的全连接层（对应类别数量），并指定 softmax 作为激活函数。将其保存在名为`fc5`的变量中：
 
-    ```
+    ```py
     fc5 = Dense(3, activation='softmax')
     ```
 
 1.  使用`Dense()`创建一个包含单个单元的全连接层。将其保存在名为`fc5`的变量中：
 
-    ```
+    ```py
     fc5 = Dense(1)
     ```
 
 1.  按顺序使用`add()`方法将五个全连接层添加到模型中：
 
-    ```
+    ```py
     model.add(fc1)
     model.add(fc2)
     model.add(fc3)
@@ -1379,7 +1379,7 @@
 
 1.  打印模型的总结：
 
-    ```
+    ```py
     model.summary()
     ```
 
@@ -1391,19 +1391,19 @@
 
 1.  从`tf.keras.optimizers`实例化`Adam()`，学习率为`0.05`，并将其保存到名为`optimizer`的变量中：
 
-    ```
+    ```py
     optimizer = tf.keras.optimizers.Adam(0.05)
     ```
 
 1.  编译模型，指定优化器，并将`mse`设置为损失函数和显示的度量：
 
-    ```
+    ```py
     model.compile(optimizer=optimizer, loss='mse', metrics=['mse'])
     ```
 
 1.  使用`fit()`方法开始模型训练过程，训练五个周期，并将数据拆分为 20%的验证集：
 
-    ```
+    ```py
     model.fit(train_data, train_target, epochs=5, \
               validation_split=0.2)
     ```
@@ -1418,7 +1418,7 @@
 
 1.  创建五个全连接层，类似于之前的模型，并为`kernel_regularizer`参数指定 L1 和 L2 正则化器。正则化器因子使用`0.001`。将其保存为五个变量，分别命名为`reg_fc1`、`reg_fc2`、`reg_fc3`、`reg_fc4`和`reg_fc5`：
 
-    ```
+    ```py
     reg_fc1 = Dense(1048, input_shape=(5,), activation='relu', \
                     kernel_regularizer=tf.keras.regularizers\
                                          .l1_l2(l1=0.001, l2=0.001))
@@ -1436,7 +1436,7 @@
 
 1.  使用`tf.keras.Sequential()`实例化一个顺序模型，将其存储在名为`model2`的变量中，并使用`add()`方法将五个全连接层按顺序添加到模型中：
 
-    ```
+    ```py
     model2 = tf.keras.Sequential()
     model2.add(reg_fc1)
     model2.add(reg_fc2)
@@ -1447,7 +1447,7 @@
 
 1.  打印模型概览：
 
-    ```
+    ```py
     model2.summary()
     ```
 
@@ -1459,14 +1459,14 @@
 
 1.  使用`compile()`方法编译模型，指定优化器，并将`mse`作为损失函数和要显示的评估指标：
 
-    ```
+    ```py
     optimizer = tf.keras.optimizers.Adam(0.1)
     model2.compile(optimizer=optimizer, loss='mse', metrics=['mse'])
     ```
 
 1.  使用`fit()`方法启动模型训练过程，进行五轮训练，并将数据分为验证集，其中 20%的数据用于验证：
 
-    ```
+    ```py
     model2.fit(train_data, train_target, epochs=5, \
                validation_split=0.2)
     ```
@@ -1487,19 +1487,19 @@
 
 1.  导入 pandas 库，并使用`pd`作为别名：
 
-    ```
+    ```py
     import pandas as pd
     ```
 
 1.  创建一个名为`usecols`的列表，包含以下列名：`AAGE`、`ADTIND`、`ADTOCC`、`SEOTR`、`WKSWORK`和`PTOTVAL`：
 
-    ```
+    ```py
     usecols = ['AAGE','ADTIND','ADTOCC','SEOTR','WKSWORK', 'PTOTVAL']
     ```
 
 1.  创建一个名为`train_url`的变量，包含训练集的 URL：
 
-    ```
+    ```py
     train_url = 'https://raw.githubusercontent.com/PacktWorkshops'\
                 '/The-TensorFlow-Workshop/master/Chapter06'\
                 '/dataset/census-income-train.csv'
@@ -1507,7 +1507,7 @@
 
 1.  使用`read_csv()`方法将训练数据集加载到名为`train_data`的 DataFrame 中，并将 CSV 文件的 URL 和`usecols`列表提供给`usecols`参数。使用`head()`方法打印前五行：
 
-    ```
+    ```py
     train_data = pd.read_csv(train_url, usecols=usecols)
     train_data.head()
     ```
@@ -1518,13 +1518,13 @@
 
 1.  使用`pop()`方法提取目标变量（`PTOTVAL`），并将其保存到名为`train_target`的变量中：
 
-    ```
+    ```py
     train_target = train_data.pop('PTOTVAL')
     ```
 
 1.  创建一个名为`test_url`的变量，包含测试集的 URL：
 
-    ```
+    ```py
     test_url = 'https://github.com/PacktWorkshops'\
                '/The-TensorFlow-Workshop/blob/master/Chapter06'\
                '/dataset/census-income-test.csv?raw=true'
@@ -1532,7 +1532,7 @@
 
 1.  使用`read_csv()`方法将测试数据集加载到名为`X_test`的 DataFrame 中，并将 CSV 文件的 URL 和`usecols`列表提供给`usecols`参数。使用`head()`方法打印前五行：
 
-    ```
+    ```py
     test_data = pd.read_csv(test_url, usecols=usecols)
     test_data.head()
     ```
@@ -1545,26 +1545,26 @@
 
 1.  使用`pop()`方法提取目标变量（`PTOTVAL`），并将其保存到名为`test_target`的变量中：
 
-    ```
+    ```py
     test_target = test_data.pop('PTOTVAL')
     ```
 
 1.  导入 TensorFlow 库并使用`tf`作为别名。然后，从`tensorflow.keras.layers`导入`Dense`类：
 
-    ```
+    ```py
     import tensorflow as tf
     from tensorflow.keras.layers import Dense
     ```
 
 1.  使用`tf.random.set_seed()`设置种子为`8`，以获得可复现的结果：
 
-    ```
+    ```py
     tf.random.set_seed(8)
     ```
 
 1.  定义一个名为`model_builder`的函数，用于创建一个与*活动 6.01*、*使用 L1 和 L2 正则化预测收入*相同架构的顺序模型。 但这次，提供一个超参数`hp.Choice`来选择学习率，`hp.Int`来设置输入层的单元数，`hp.Choice`来设置 L2 正则化：
 
-    ```
+    ```py
     def model_builder(hp):
     model = tf.keras.Sequential()
     hp_l2 = hp.Choice('l2', values = [0.1, 0.01, 0.001])
@@ -1596,14 +1596,14 @@
 
 1.  安装`keras-tuner`包，然后导入它并赋予`kt`别名：
 
-    ```
+    ```py
     !pip install keras-tuner
     import kerastuner as kt
     ```
 
 1.  实例化一个`BayesianOptimization`调优器，并将`val_mse`赋值给`objective`，将`10`赋值给`max_trials`：
 
-    ```
+    ```py
     tuner = kt.BayesianOptimization(model_builder, \
                                     objective = 'val_mse', \
                                     max_trials = 10)
@@ -1611,27 +1611,27 @@
 
 1.  使用`search()`方法在训练集和测试集上启动超参数搜索：
 
-    ```
+    ```py
     tuner.search(train_data, train_target, \
                  validation_data=(test_data, test_target))
     ```
 
 1.  使用`get_best_hyperparameters()`提取最佳超参数组合（索引为`0`），并将其保存在名为`best_hps`的变量中：
 
-    ```
+    ```py
     best_hps = tuner.get_best_hyperparameters()[0]
     ```
 
 1.  提取输入层单元数的最佳值，将其保存在名为`best_units`的变量中，并打印其值：
 
-    ```
+    ```py
     best_units = best_hps.get('units')
     best_units
     ```
 
     你将得到以下输出：
 
-    ```
+    ```py
     128
     ```
 
@@ -1639,33 +1639,33 @@
 
 1.  提取学习率的最佳值，将其保存在名为`best_lr`的变量中，并打印其值：
 
-    ```
+    ```py
     best_lr = best_hps.get('learning_rate')
     best_lr
     ```
 
     Hyperband 找到的学习率超参数的最佳值是`0.001`：
 
-    ```
+    ```py
     0.001
     ```
 
 1.  提取 L2 正则化的最佳值，将其保存在名为`best_l2`的变量中，并打印其值：
 
-    ```
+    ```py
     best_l2 = best_hps.get('l2')
     best_l2
     ```
 
 1.  Hyperband 找到的学习率超参数的最佳值是`0.001`：
 
-    ```
+    ```py
     0.001
     ```
 
 1.  使用`fit()`方法开始模型训练过程，训练五个周期，并将测试集作为`validation_data`：
 
-    ```
+    ```py
     model = tuner.hypermodel.build(best_hps)
     model.fit(X_train, y_train, epochs=5, \
               validation_data=(X_test, y_test))
@@ -1691,13 +1691,13 @@
 
 1.  导入 TensorFlow 库：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
 1.  导入所需的附加库：
 
-    ```
+    ```py
     import numpy as np
     import matplotlib.pyplot as plt
     import tensorflow as tf
@@ -1710,7 +1710,7 @@
 
 1.  直接从`tensorflow_datasets`加载`CIFAR-100`数据集并查看其属性：
 
-    ```
+    ```py
     (c100_train_dataset, c100_test_dataset), \
     dataset_info = tfds.load('cifar100',\
                              split = ['train', 'test'],\
@@ -1739,7 +1739,7 @@
 
 1.  使用重缩放层对图像进行重缩放。然后，通过重缩放、缓存、打乱、批处理和预取图像，构建测试和训练数据管道：
 
-    ```
+    ```py
     normalization_layer = Rescaling(1./255)
     c100_train_dataset = c100_train_dataset.map\
                          (lambda x, y: (normalization_layer(x), y), \
@@ -1762,7 +1762,7 @@
 
 1.  使用函数式 API 构建模型：
 
-    ```
+    ```py
     input_layer = Input(shape=image_shape)
     x = Conv2D(filters = 32, kernel_size = \
                (3, 3), strides=2)(input_layer)
@@ -1783,7 +1783,7 @@
 
 1.  编译并拟合模型：
 
-    ```
+    ```py
     c100_classification_model.compile(\
         optimizer='adam', \
         loss='sparse_categorical_crossentropy', \
@@ -1805,7 +1805,7 @@
 
 1.  使用以下代码绘制损失和准确率：
 
-    ```
+    ```py
     def plot_trend_by_epoch(tr_values, val_values, title):
         epoch_number = range(len(tr_values))
         plt.plot(epoch_number, tr_values, 'r')
@@ -1837,7 +1837,7 @@
 
 1.  显示一个错误分类的示例。使用以下代码：
 
-    ```
+    ```py
     test_labels = []
     test_images = []
     for image, label in tfds.as_numpy(c100_test_dataset.unbatch()):
@@ -1871,13 +1871,13 @@
 
 1.  导入 TensorFlow 库为`tf`：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
 1.  创建一个名为`file_url`的变量，包含数据集的链接：
 
-    ```
+    ```py
     file_url = 'https://github.com/PacktWorkshops/'\
               'The-TensorFlow-Workshop/blob/master'\
               '/Chapter08/dataset/fruits360.zip'
@@ -1885,47 +1885,47 @@
 
 1.  使用`tf.keras.get_file`下载数据集，参数为`'fruits360.zip'`、`origin=file_url`和`extract=True`，并将结果保存到名为`zip_dir`的变量中：
 
-    ```
+    ```py
     zip_dir = tf.keras.utils.get_file('fruits360.zip', \
                                       origin=file_url, extract=True)
     ```
 
 1.  导入`pathlib`库：
 
-    ```
+    ```py
     import pathlib
     ```
 
 1.  创建一个名为`path`的变量，使用`pathlib.Path(zip_dir).parent`存储`fruits360_filtered`目录的完整路径：
 
-    ```
+    ```py
     path = pathlib.Path(zip_dir).parent / 'fruits360_filtered'
     ```
 
 1.  创建两个变量`train_dir`和`validation_dir`，分别存储训练（`Training`）和验证（`Test`）文件夹的完整路径：
 
-    ```
+    ```py
     train_dir = path / 'Training'
     validation_dir = path / 'Test'
     ```
 
 1.  创建两个变量`total_train`和`total_val`，获取训练集和验证集中的图像数量：
 
-    ```
+    ```py
     total_train = 11398
     total_val = 4752
     ```
 
 1.  从`tensorflow.keras.preprocessing`导入`ImageDataGenerator`：
 
-    ```
+    ```py
     from tensorflow.keras.preprocessing.image
         import ImageDataGenerator
     ```
 
 1.  创建一个名为`train_img_gen`的`ImageDataGenerator`模型，进行数据增强：
 
-    ```
+    ```py
     train_img_gen = ImageDataGenerator(rescale=1./255, \
                                        rotation_range=40, \
                                        width_shift_range=0.1, \
@@ -1938,13 +1938,13 @@
 
 1.  创建一个名为`val_img_gen`的`ImageDataGenerator`模型，按`255`进行重缩放：
 
-    ```
+    ```py
     val_img_gen = ImageDataGenerator(rescale=1./255)
     ```
 
 1.  创建四个变量`batch_size`、`img_height`、`img_width`和`channel`，并分别赋值为`32`、`224`、`224`和`3`：
 
-    ```
+    ```py
     Batch_size = 32
     img_height = 224
     img_width = 224
@@ -1953,7 +1953,7 @@
 
 1.  使用`flow_from_directory()`创建一个名为`train_data_gen`的数据生成器，并指定批处理大小、训练文件夹和目标大小：
 
-    ```
+    ```py
     train_data_gen = train_image_generator.flow_from_directory\
                      (batch_size=batch_size, directory=train_dir, \
                       target_size=(img_height, img_width))
@@ -1961,7 +1961,7 @@
 
 1.  使用`flow_from_directory()`创建一个名为`val_data_gen`的数据生成器，并指定批处理大小、验证文件夹和目标大小：
 
-    ```
+    ```py
     val_data_gen = validation_image_generator.flow_from_directory\
                    (batch_size=batch_size, directory=validation_dir,\
                     target_size=(img_height, img_width))
@@ -1969,7 +1969,7 @@
 
 1.  导入`numpy`为`np`，`tensorflow`为`tf`，以及从`tensorflow.keras`导入`layers`：
 
-    ```
+    ```py
     import numpy as np
     import tensorflow as tf
     from tensorflow.keras import layers
@@ -1977,21 +1977,21 @@
 
 1.  设置`8`为`numpy`和`tensorflow`的随机种子：
 
-    ```
+    ```py
     np.random.seed(8)
     tf.random.set_seed(8)
     ```
 
 1.  从`tensorflow.keras.applications`导入`NASNetMobile`：
 
-    ```
+    ```py
     from tensorflow.keras.applications
     import NASNetMobile
     ```
 
 1.  实例化一个`NASNetMobile`模型并保存到名为`base_model`的变量中：
 
-    ```
+    ```py
     base_model = NASNetMobile(input_shape=(img_height, img_width, \
                                            channel), \
                               weights='imagenet', include_top=False)
@@ -1999,7 +1999,7 @@
 
 1.  打印`NASNetMobile`模型的摘要：
 
-    ```
+    ```py
     base_model.summary()
     ```
 
@@ -2011,7 +2011,7 @@
 
 1.  使用`tf.keras.Sequential()`创建一个新模型，将基础模型添加到`Flatten`和`Dense`层中，并将此模型保存到名为`model`的变量中：
 
-    ```
+    ```py
     model = tf.keras.Sequential([base_model,\
                                  layers.Flatten(),\
                                  layers.Dense(500, \
@@ -2022,20 +2022,20 @@
 
 1.  实例化一个`tf.keras.optimizers.Adam()`类，设置学习率为`0.001`，并将其保存到名为`optimizer`的变量中：
 
-    ```
+    ```py
     optimizer = tf.keras.optimizers.Adam(0.001)
     ```
 
 1.  使用`compile()`方法编译神经网络，设置`categorical_crossentropy`为损失函数，使用学习率为`0.001`的 Adam 优化器，并将`accuracy`作为显示的指标：
 
-    ```
+    ```py
     model.compile(loss='categorical_crossentropy', \
                   optimizer=optimizer, metrics=['accuracy'])
     ```
 
 1.  使用`fit()`方法训练神经网络。该模型可能需要几分钟才能完成训练：
 
-    ```
+    ```py
     model.fit(train_data_gen,
               steps_per_epoch=len(features_train) // batch_size,\
               epochs=5,\
@@ -2060,67 +2060,67 @@
 
 1.  导入 TensorFlow 库：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
 1.  创建一个名为`file_url`的变量，包含指向数据集的链接：
 
-    ```
+    ```py
     file_url = 'https://storage.googleapis.com'\
                '/mledu-datasets/cats_and_dogs_filtered.zip'
     ```
 
 1.  使用`tf.keras.get_file`下载数据集，设置参数`cats_and_dogs.zip`、`origin=file_url`和`extract=True`，并将结果保存到名为`zip_dir`的变量中：
 
-    ```
+    ```py
     zip_dir = tf.keras.utils.get_file('cats_and_dogs.zip', \
                                       origin=file_url, extract=True)
     ```
 
 1.  导入`pathlib`库：
 
-    ```
+    ```py
     import pathlib
     ```
 
 1.  创建一个名为`path`的变量，使用`pathlib.Path(zip_dir).parent`获取`cats_and_dogs_filtered`目录的完整路径：
 
-    ```
+    ```py
     path = pathlib.Path(zip_dir).parent / 'cats_and_dogs_filtered'
     ```
 
 1.  创建两个变量，分别命名为`train_dir`和`validation_dir`，并赋值为`train`和`validation`文件夹的完整路径：
 
-    ```
+    ```py
     train_dir = path / 'train'
     validation_dir = path / 'validation'
     ```
 
 1.  创建两个变量，分别命名为`total_train`和`total_val`，它们将获取训练集和验证集的图像数量（分别为`2000`和`1000`）：
 
-    ```
+    ```py
     total_train = 2000
     total_val = 1000
     ```
 
 1.  从`tensorflow.keras.preprocessing`导入`ImageDataGenerator`：
 
-    ```
+    ```py
     from tensorflow.keras.preprocessing.image 
     import ImageDataGenerator
     ```
 
 1.  实例化两个`ImageDataGenerator`类，并分别命名为`train_image_generator`和`validation_image_generator`。它们将通过除以`255`来重新缩放图像：
 
-    ```
+    ```py
     train_image_generator = ImageDataGenerator(rescale=1./255)
     validation_image_generator = ImageDataGenerator(rescale=1./255)
     ```
 
 1.  创建三个变量，分别命名为`batch_size`、`img_height`和`img_width`，并分别赋值为`32`、`224`和`224`：
 
-    ```
+    ```py
     batch_size = 32
     img_height = 224
     img_width = 224
@@ -2128,7 +2128,7 @@
 
 1.  创建一个名为`train_data_gen`的数据生成器，使用`flow_from_directory()`并指定批次大小、训练文件夹路径、目标大小和类的模式：
 
-    ```
+    ```py
     train_data_gen = train_image_generator.flow_from_directory\
                      (batch_size=batch_size, directory=train_dir, \
                       shuffle=True, target_size=(img_height, \
@@ -2138,7 +2138,7 @@
 
 1.  创建一个名为`val_data_gen`的数据生成器，使用`flow_from_directory()`并指定批次大小、验证文件夹路径、目标大小和类的模式：
 
-    ```
+    ```py
     val_data_gen = validation_image_generator.flow_from_directory\
                    (batch_size=batch_size, \
                     directory=validation_dir, \
@@ -2148,7 +2148,7 @@
 
 1.  导入`numpy`作为`np`，`tensorflow`作为`tf`，以及从`tensorflow.keras`导入`layers`：
 
-    ```
+    ```py
     import numpy as np
     import tensorflow as tf
     from tensorflow.keras import layers
@@ -2156,20 +2156,20 @@
 
 1.  设置`8`（这是完全任意的）作为`numpy`和 tensorflow 的`seed`：
 
-    ```
+    ```py
     np.random.seed(8)
     tf.random.set_seed(8)
     ```
 
 1.  导入`tensorflow_hub`，如下所示：
 
-    ```
+    ```py
     import tensorflow_hub as hub
     ```
 
 1.  从 TensorFlow Hub 加载 EfficientNet B0 特征向量：
 
-    ```
+    ```py
     MODULE_HANDLE = 'https://tfhub.dev/google/efficientnet/b0'\
                     '/feature-vector/1'
     module = hub.load(MODULE_HANDLE)
@@ -2177,7 +2177,7 @@
 
 1.  创建一个新的模型，结合 EfficientNet B0 模块和两个新的顶层，单位分别为`500`和`1`，激活函数为 ReLu 和 sigmoid：
 
-    ```
+    ```py
     model = tf.keras.Sequential\
             ([hub.KerasLayer(MODULE_HANDLE,\
                              input_shape=(224, 224, 3)),
@@ -2187,7 +2187,7 @@
 
 1.  编译该模型，提供`binary_crossentropy`作为`loss`函数，使用学习率为`0.001`的 Adam 优化器，并设置`accuracy`作为显示的指标：
 
-    ```
+    ```py
     model.compile(loss='binary_crossentropy', \
                   optimizer=tf.keras.optimizers.Adam(0.001), \
                   metrics=['accuracy'])
@@ -2195,7 +2195,7 @@
 
 1.  拟合模型并提供训练和验证数据生成器。运行五个 epoch：
 
-    ```
+    ```py
     model.fit(train_data_gen, \
               steps_per_epoch = total_train // batch_size, \
               epochs=5, \
@@ -2223,7 +2223,7 @@
 
 1.  导入所需的库。使用`numpy`、`pandas`、`datetime`和`MinMaxScaler`将数据集缩放到零到一之间：
 
-    ```
+    ```py
     import numpy as np
     import pandas as pd
     import datetime
@@ -2232,13 +2232,13 @@
 
 1.  使用`read_csv()`函数读取 CSV 文件并将数据集存储在一个 pandas DataFrame 中，命名为`data`：
 
-    ```
+    ```py
     data = pd.read_csv("household_power_consumption.csv")
     ```
 
 1.  使用以下代码通过组合`Date`和`Time`列来创建一个新的列`Datetime`：
 
-    ```
+    ```py
     data['Date'] = pd.to_datetime(data['Date'], format="%d/%m/%Y")
     data['Datetime'] = data['Date'].dt.strftime('%Y-%m-%d') + ' ' \
                        +  data['Time']
@@ -2247,13 +2247,13 @@
 
 1.  使用`Datetime`列按升序排序 DataFrame：
 
-    ```
+    ```py
     data = data.sort_values(['Datetime'])
     ```
 
 1.  创建一个名为`num_cols`的列表，其中包含具有数值值的列——`Global_active_power`、`Global_reactive_power`、`Voltage`、`Global_intensity`、`Sub_metering_1`、`Sub_metering_2`和`Sub_metering_3`：
 
-    ```
+    ```py
     num_cols = ['Global_active_power', 'Global_reactive_power', \
                 'Voltage', 'Global_intensity', 'Sub_metering_1', \
                 'Sub_metering_2', 'Sub_metering_3']
@@ -2261,14 +2261,14 @@
 
 1.  将`num_cols`中列出的所有列转换为数值数据类型：
 
-    ```
+    ```py
     for col in num_cols:
         data[col] = pd.to_numeric(data[col], errors='coerce')
     ```
 
 1.  在数据上调用`head()`函数，查看 DataFrame 的前五行：
 
-    ```
+    ```py
     data.head()
     ```
 
@@ -2280,7 +2280,7 @@
 
 1.  在数据上调用`tail()`函数，查看 DataFrame 的最后五行：
 
-    ```
+    ```py
     data.tail()
     ```
 
@@ -2292,21 +2292,21 @@
 
 1.  迭代`num_cols`中的列，并使用以下代码用平均值填充缺失值：
 
-    ```
+    ```py
     for col in num_cols:
         data[col].fillna(data[col].mean(), inplace=True)
     ```
 
 1.  使用`drop()`删除 DataFrame 中的`Date`、`Time`、`Global_reactive_power`和`Datetime`列，并将结果保存在名为`df`的变量中：
 
-    ```
+    ```py
     df = data.drop(['Date', 'Time', 'Global_reactive_power', 'Datetime'], \
                    axis = 1)
     ```
 
 1.  使用`MinMaxScaler`从 DataFrame 中创建一个缩放器，将数据转换到 0 到 1 之间。使用`fit_transform`将模型拟合到数据，并根据拟合的模型转换数据：
 
-    ```
+    ```py
     scaler = MinMaxScaler()
     scaled_data = scaler.fit_transform(df)
     scaled_data 
@@ -2322,14 +2322,14 @@
 
 1.  创建两个空列表，命名为`X`和`y`，它们将用于存储特征和目标变量：
 
-    ```
+    ```py
     X = []
     y = []
     ```
 
 1.  创建一个训练数据集，包含前 60 分钟的用电量，以便预测下一分钟的值。使用`for`循环在 60 个时间步长中创建数据：
 
-    ```
+    ```py
     for i in range(60, scaled_data.shape[0]):
         X.append(scaled_data [i-60:i])
         y.append(scaled_data [i, 0])
@@ -2337,13 +2337,13 @@
 
 1.  将`X`和`y`转换为 NumPy 数组，为训练模型做准备：
 
-    ```
+    ```py
     X, y = np.array(X), np.array(y)
     ```
 
 1.  将数据集分为训练集和测试集，分别使用索引`217440`之前和之后的数据：
 
-    ```
+    ```py
     X_train = X[:217440]
     y_train = y[:217440]
     X_test = X[217440:]
@@ -2352,14 +2352,14 @@
 
 1.  构建 LSTM 时，你需要一些额外的库。使用`Sequential`初始化神经网络，使用`Dense`添加密集层，使用`LSTM`添加 LSTM 层，使用`Dropout`帮助防止过拟合：
 
-    ```
+    ```py
     from tensorflow.keras import Sequential
     from tensorflow.keras.layers import Dense, LSTM, Dropout
     ```
 
 1.  初始化你的神经网络。添加 LSTM 层，其中包含`20`、`40`和`80`个单元。使用 ReLU 激活函数，并将`return_sequences`设置为`True`。`input_shape`应为训练集的维度（特征数和天数）。最后，添加 Dropout 层：
 
-    ```
+    ```py
     regressor = Sequential()
     regressor.add(LSTM(units= 20, activation = 'relu',\
                        return_sequences = True,\
@@ -2377,7 +2377,7 @@
 
 1.  使用`summary()`函数打印模型的架构：
 
-    ```
+    ```py
     regressor.summary()
     ```
 
@@ -2389,25 +2389,25 @@
 
 1.  使用`compile()`方法配置你的模型进行训练。选择 Adam 作为优化器，使用均方误差来衡量损失函数：
 
-    ```
+    ```py
     regressor.compile(optimizer='adam', loss = 'mean_squared_error')
     ```
 
 1.  拟合你的模型，并设置运行两次迭代。将批处理大小设置为`32`：
 
-    ```
+    ```py
     regressor.fit(X_train, y_train, epochs=2, batch_size=32)
     ```
 
 1.  使用`regressor.predict(X_test)`将测试集的预测值保存在名为`y_pred`的变量中：
 
-    ```
+    ```py
     y_pred = regressor.predict(X_test)
     ```
 
 1.  查看测试集数据中最后一小时的真实家庭用电量和你的预测值：
 
-    ```
+    ```py
     plt.figure(figsize=(14,5))
     plt.plot(y_test[-60:], color = 'black', \
              label = "Real Power Consumption")
@@ -2438,14 +2438,14 @@
 
 1.  导入所需的库。使用`numpy`进行计算，使用`pandas`处理数据集：
 
-    ```
+    ```py
     import numpy as np
     import pandas as pd
     ```
 
 1.  使用`read_csv`方法读取 CSV 文件，并将数据集存储在 pandas 的 DataFrame `data`中：
 
-    ```
+    ```py
     data = pd.read_csv("https://raw.githubusercontent.com"\
                        "/PacktWorkshops/The-TensorFlow-Workshop"\
                        "/master/Chapter09/Datasets/tweets.csv")
@@ -2453,7 +2453,7 @@
 
 1.  调用数据的`head()`方法，查看 DataFrame 的前五行：
 
-    ```
+    ```py
     data.head()
     ```
 
@@ -2467,7 +2467,7 @@
 
 1.  在数据上调用`tail()`以查看数据框的最后五行：
 
-    ```
+    ```py
     data.tail()
     ```
 
@@ -2479,31 +2479,31 @@
 
 1.  创建一个新的数据框`df`，该数据框仅包含`text`作为特征，`airline_sentiment`作为目标变量：
 
-    ```
+    ```py
     df = data[['text','airline_sentiment']]
     ```
 
 1.  使用以下命令，通过移除`airline_sentiment`等于`neutral`的所有行，来子集化`df`：
 
-    ```
+    ```py
     df = df[df['airline_sentiment'] != 'neutral']
     ```
 
 1.  将`airline_sentiment`列转换为数值类型，将`negative`替换为`0`，`positive`替换为`1`。将结果保存到变量`y`中：
 
-    ```
+    ```py
     y = df['airline_sentiment'].map({'negative':0, 'positive':1}).values
     ```
 
 1.  创建一个变量`X`，它将包含`df`中`text`列的数据：
 
-    ```
+    ```py
     X = df['text']
     ```
 
 1.  从`tensorflow.keras.preprocessing.text`导入`Tokenizer`，从`tensorflow.keras.preprocessing.sequence`导入`pad_sequences`：
 
-    ```
+    ```py
     from tensorflow.keras.preprocessing.text import Tokenizer
     from tensorflow.keras.preprocessing.sequence \
         import pad_sequences
@@ -2511,19 +2511,19 @@
 
 1.  实例化`Tokenizer()`类，并将`num_words`设置为`10000`。这将仅保留前 10,000 个最频繁的单词，并将其保存到一个名为`tokenizer`的变量中：
 
-    ```
+    ```py
     tokenizer = Tokenizer(num_words=10000)
     ```
 
 1.  在数据`X`上拟合`tokenizer`：
 
-    ```
+    ```py
     tokenizer.fit_on_texts(X)
     ```
 
 1.  打印`tokenizer`中的词汇：
 
-    ```
+    ```py
     tokenizer.word_index
     ```
 
@@ -2537,31 +2537,31 @@
 
 1.  创建`vocab_size`变量，包含 tokenizer 词汇的长度，并加上一个额外的字符，用于表示未知单词：
 
-    ```
+    ```py
     vocab_size = len(tokenizer.word_index) + 1
     ```
 
 1.  使用`tokenizer`的词汇，将`X`中的原始文本转换为编码版本。将结果保存在名为`encoded_tweets`的变量中：
 
-    ```
+    ```py
     encoded_tweets = tokenizer.texts_to_sequences(X)
     ```
 
 1.  对`encoded_tweets`进行填充，填充字符为`0`，最大长度为 280 个字符。将结果保存在名为`padded_tweets`的变量中：
 
-    ```
+    ```py
     padded_tweets = pad_sequences(encoded_tweets, maxlen=280, padding='post')
     ```
 
 1.  打印`padded_tweets`的形状：
 
-    ```
+    ```py
     padded_tweets.shape
     ```
 
     你应该得到如下结果：
 
-    ```
+    ```py
     (11541, 280)
     ```
 
@@ -2569,20 +2569,20 @@
 
 1.  随机排列`padded_tweets`的索引。将结果保存到`indices`变量中：
 
-    ```
+    ```py
     indices = np.random.permutation(padded_tweets.shape[0])
     ```
 
 1.  创建两个变量，`train_idx`和`test_idx`，分别包含前 10,000 个索引和剩余的索引：
 
-    ```
+    ```py
     train_idx = indices[:10000]
     test_idx = indices[10000:]
     ```
 
 1.  使用`padded_tweets`和`y`，将数据拆分为训练集和测试集，并保存为四个不同的变量，分别命名为`X_train`、`X_test`、`y_train`和`y_test`：
 
-    ```
+    ```py
     X_train = padded_tweets[train_idx,]
     X_test = padded_tweets[test_idx,]
     y_train = y[train_idx,]
@@ -2591,14 +2591,14 @@
 
 1.  你将需要一些额外的库来构建你的模型。使用以下代码导入`Sequential`、`Dense`、`LSTM`、`Dropout`和`Embedding`：
 
-    ```
+    ```py
     from tensorflow.keras import Sequential
     from tensorflow.keras.layers import Dense, LSTM, Dropout, Embedding
     ```
 
 1.  初始化你的神经网络。通过提供词汇表长度、嵌入层长度和输入长度来添加嵌入层。添加两个 LSTM 层，单元数分别为`50`和`100`。使用 ReLU 激活函数，并将`return_sequences`设置为`True`。然后，为每个 LSTM 层添加一个丢弃层，丢弃率为 20%。最后，添加一个全连接层，并将 sigmoid 作为最终激活函数：
 
-    ```
+    ```py
     model = Sequential()
 
     model.add(Embedding(vocab_size, embedding_vector_length, input_length=280))
@@ -2611,7 +2611,7 @@
 
 1.  使用`summary()`函数检查模型的摘要：
 
-    ```
+    ```py
     model.summary()
     ```
 
@@ -2623,13 +2623,13 @@
 
 1.  使用`compile()`方法配置你的模型进行训练。选择`adam`作为优化器，`binary_crossentropy`作为损失函数，并将`accuracy`作为显示的指标：
 
-    ```
+    ```py
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     ```
 
 1.  拟合你的模型并设置为运行两个 epoch。将批处理大小设置为`32`：
 
-    ```
+    ```py
     model.fit(X_train, y_train, epochs=2, batch_size=32)
     ```
 
@@ -2653,26 +2653,26 @@
 
 1.  如果你使用的是 Google Colab，你可以使用以下代码在本地上传数据集。否则，跳到*步骤 4*。点击`选择文件`来导航到 CSV 文件并点击`打开`。将文件保存为`uploaded`。然后，进入你保存数据集的文件夹：
 
-    ```
+    ```py
     from google.colab import files
     uploaded = files.upload()
     ```
 
 1.  解压当前文件夹中的数据集：
 
-    ```
+    ```py
     !unzip \*.zip
     ```
 
 1.  创建一个变量`directory`，它包含数据集的路径：
 
-    ```
+    ```py
     directory = "/content/gdrive/My Drive/Datasets/pneumonia-or-healthy/"
     ```
 
 1.  导入所有必要的库：
 
-    ```
+    ```py
     import numpy as np
     import pandas as pd
     import pathlib
@@ -2689,20 +2689,20 @@
 
 1.  创建一个变量`path`，该变量包含使用`pathlib.Path`访问数据的完整路径：
 
-    ```
+    ```py
     path = pathlib.Path(directory)
     ```
 
 1.  创建两个变量，分别命名为`train_dir`和`validation_dir`，它们保存训练和验证文件夹的完整路径：
 
-    ```
+    ```py
     train_dir = path / 'training_set'
     validation_dir = path / 'test_set'
     ```
 
 1.  创建四个变量，分别命名为`train_table_dir`、`train_glass_dir`、`validation_table_dir`和`validation_glass_dir`，它们分别保存训练和验证集中的眼镜和桌子文件夹的完整路径：
 
-    ```
+    ```py
     train_table_dir = train_dir / 'table'
     train_glass_dir = train_dir /'glass'
     validation_table_dir = validation_dir / 'table'
@@ -2711,7 +2711,7 @@
 
 1.  创建四个变量，这些变量将包含用于训练和验证集的眼镜和桌子的图像数量：
 
-    ```
+    ```py
     num_train_table = len([f for f in os.listdir(train_table_dir)if \
                            os.path.isfile(os.path.join\
                                           (train_table_dir, f))])
@@ -2730,7 +2730,7 @@
 
 1.  显示一个条形图，展示眼镜和桌子的图像总数：
 
-    ```
+    ```py
     plt.bar(['table', 'glass'], \
             [num_train_table + num_validation_table, \
              num_train_glass + num_validation_glass], \
@@ -2749,7 +2749,7 @@
 
 1.  创建两个变量，分别命名为`total_train`和`total_val`，它们将获取训练集和验证集的图像数量：
 
-    ```
+    ```py
     total_train = len(os.listdir(train_table_dir)) + \
                   len(os.listdir(validation_table_dir))
     total_val = len(os.listdir(train_glass_dir)) + \
@@ -2758,21 +2758,21 @@
 
 1.  导入`ImageDataGenerator`类：
 
-    ```
+    ```py
     from tensorflow.keras.preprocessing.image \
         import ImageDataGenerator
     ```
 
 1.  实例化两个`ImageDataGenerator`类，`train_image_generator`和`validation_image_generator`，它们会通过除以 255 来重新缩放图像：
 
-    ```
+    ```py
     train_image_generator = ImageDataGenerator(rescale=1./255)
     validation_image_generator = ImageDataGenerator(rescale=1./255)
     ```
 
 1.  创建三个变量，分别命名为`batch_size`、`img_height`和`img_width`，它们的值分别为`32`、`100`和`100`：
 
-    ```
+    ```py
     batch_size = 32
     img_height = 100
     img_width = 100
@@ -2780,7 +2780,7 @@
 
 1.  使用`flow_from_directory()`方法创建一个数据生成器，命名为`train_data_gen`，并指定批量大小、训练文件夹路径、`shuffle`参数的值、目标大小和类别模式：
 
-    ```
+    ```py
     train_data_gen = train_image_generator.flow_from_directory\
                      (batch_size=batch_size, directory=train_dir, \
                       shuffle=True, \
@@ -2790,7 +2790,7 @@
 
 1.  使用`flow_from_directory()`方法创建一个数据生成器，命名为`val_data_gen`，并指定批量大小、验证文件夹路径、目标大小和类别模式：
 
-    ```
+    ```py
     val_data_gen = validation_image_generator.flow_from_directory\
                    (batch_size=batch_size, directory=validation_dir,\
                     target_size=(img_height, img_width), \
@@ -2799,7 +2799,7 @@
 
 1.  创建你的自定义损失函数。使用`def`定义并选择一个名称作为自定义损失函数，本例中为`custom_loss_function`。然后，添加两个参数，`y_true`和`y_pred`。接下来，创建一个变量`squared_difference`来存储`y_true`减去`y_pred`的平方。最后，使用`tf.reduce_mean`返回由`squared_difference`计算出的损失值：
 
-    ```
+    ```py
     def custom_loss_function(y_true, y_pred):
         squared_difference = tf.square(float(y_true) - float(y_pred))
         return tf.reduce_mean(squared_difference, axis=-1)
@@ -2807,7 +2807,7 @@
 
 1.  创建一个函数，将输入作为张量并为其添加 ReLU 和批归一化：
 
-    ```
+    ```py
     def relu_batchnorm_layer(input):
         return BatchNormalization()(ReLU()(input))
     ```
@@ -2816,7 +2816,7 @@
 
     由于你在`residual_block`中使用了`Add`层进行跳跃连接，因此需要确保其输入始终具有相同的形状。`downsample`参数用于指定第一个 Conv2D 层的步幅。若`True`，则指定`strides=2`；若`False`，则指定`strides=1`。当`strides=1`时，输出（`int_output`）与输入相同大小。而当`strides=2`时，`int_output`的维度会减半。为了解决这个问题，在跳跃连接中添加一个`kernel_size=1`的 Conv2D 层：
 
-    ```
+    ```py
     def residual_block(input, downsample: bool, filters: int, \
                        kernel_size: int = 3):
         int_output = Conv2D(filters=filters, kernel_size=kernel_size, 
@@ -2837,7 +2837,7 @@
 
 1.  现在，使用`keras.layers.Input()`层来定义模型的输入层。这里，形状是 100 像素乘 100 像素，并且有三种颜色（RGB）。然后，使用自定义架构创建模型。最后，使用`model = Model(inputs, outputs)`引用输入和输出张量：
 
-    ```
+    ```py
     inputs = Input(shape=(100, 100, 3))
     num_filters = 32
 
@@ -2864,7 +2864,7 @@
 
 1.  获取你的模型摘要：
 
-    ```
+    ```py
     model.summary()
     ```
 
@@ -2878,7 +2878,7 @@
 
 1.  使用自定义损失函数、Adam 优化器和准确率作为度量标准，编译该模型并显示：
 
-    ```
+    ```py
     model.compile(
            optimizer='adam',
            loss=custom_loss_function,
@@ -2888,7 +2888,7 @@
 
 1.  拟合模型，并提供训练和验证数据生成器、epoch 数量、每个 epoch 的步骤数以及验证步骤数：
 
-    ```
+    ```py
     history = model.fit(
         Train_data_gen,
         steps_per_epoch=total_train // batch_size,
@@ -2908,7 +2908,7 @@
 
 1.  绘制你的训练和验证准确率：
 
-    ```
+    ```py
     plt.plot(history.history['accuracy'])
     plt.plot(history.history['val_accuracy'])
     plt.title('Training Accuracy vs Validation Accuracy')
@@ -2928,7 +2928,7 @@
 
 1.  绘制你的训练和验证损失：
 
-    ```
+    ```py
     plt.plot(history.history['loss'])
     plt.plot(history.history['val_loss'])
     plt.title('Training Loss vs Validation Loss')
@@ -2958,7 +2958,7 @@
 
 1.  加载 Google Colab 和 Google Drive：
 
-    ```
+    ```py
     try:
         from google.colab import drive
         drive.mount('/content/drive', force_remount=True)
@@ -2972,14 +2972,14 @@
 
     你的输出应该类似于此：
 
-    ```
+    ```py
     Mounted at /content/drive
     Note: using Google CoLab
     ```
 
 1.  导入你将使用的库：
 
-    ```
+    ```py
     import tensorflow as tf
     from tensorflow.keras.models import Sequential, Model, load_model
     from tensorflow.keras.layers import InputLayer, Reshape, Dropout, Dense 
@@ -3000,7 +3000,7 @@
 
 1.  创建一个函数来格式化时间字符串，以跟踪你的时间使用情况：
 
-    ```
+    ```py
     def time_string(sec_elapsed):
         hour = int(sec_elapsed / (60 * 60))
         minute = int((sec_elapsed % (60 * 60)) / 60)
@@ -3010,7 +3010,7 @@
 
 1.  将生成分辨率设置为 `3`。同时，将 `img_rows` 和 `img_cols` 设置为 `5`，`img_margin` 设置为 `16`，这样你的预览图像将是一个 `5x5` 数组（25 张图片），并有 16 像素的边距。将 `seed_vector` 设置为 `200`，`data_path` 设置为存储图像数据集的位置，`epochs` 设置为 `500`。最后，打印参数：
 
-    ```
+    ```py
     gen_res = 3 
     gen_square = 32 * gen_res
     img_chan = 3
@@ -3042,7 +3042,7 @@
 
 1.  如果之前执行时已经存在一个 NumPy 预处理文件，则将其加载到内存中；否则，预处理数据并保存图像二进制文件：
 
-    ```
+    ```py
     training_binary_path = os.path.join(data_path,
             f'training_data_{gen_square}_{gen_square}.npy')
     print(f"Looking for file: {training_binary_path}")
@@ -3072,14 +3072,14 @@
 
 1.  对数据进行批处理并打乱顺序。使用 `tensorflow.data.Dataset` 对象库，利用其函数打乱数据集并创建批次：
 
-    ```
+    ```py
     train_dataset = tf.data.Dataset.from_tensor_slices(train_data) \
                            .shuffle(num_buffer).batch(num_batch)
     ```
 
 1.  为 DCGAN 构建生成器：
 
-    ```
+    ```py
     def create_dc_generator(seed_size, channels):
         model = Sequential()
         model.add(Dense(4*4*256,activation="relu",input_dim=seed_size))
@@ -3111,7 +3111,7 @@
 
 1.  为 DCGAN 构建判别器：
 
-    ```
+    ```py
     def create_dc_discriminator(image_shape):
         model = Sequential()
         model.add(Conv2D(32, kernel_size=3, strides=2, \
@@ -3143,7 +3143,7 @@
 
 1.  为原始 GAN 构建生成器：
 
-    ```
+    ```py
     def create_generator(seed_size, channels):
         model = Sequential()
         model.add(Dense(96*96*3,activation="tanh",input_dim=seed_size))
@@ -3153,7 +3153,7 @@
 
 1.  为原始 GAN 构建判别器：
 
-    ```
+    ```py
     def create_discriminator(img_size):
         model = Sequential()
         model.add(InputLayer(input_shape=img_size))
@@ -3165,7 +3165,7 @@
 
 1.  创建一个函数来生成并保存图像，用于查看模型训练过程中的进展：
 
-    ```
+    ```py
     def save_images(generator, cnt, noise, prefix=None):
         img_array = np.full(( 
             img_margin + (img_rows * (gen_square+img_margin)), 
@@ -3194,7 +3194,7 @@
 
 1.  初始化 DCGAN 的生成器并查看输出：
 
-    ```
+    ```py
     dc_generator = create_dc_generator(seed_vector, img_chan)
     noise = tf.random.normal([1, seed_vector])
     gen_img = dc_generator(noise, training=False)
@@ -3209,7 +3209,7 @@
 
 1.  初始化原始 GAN 的生成器并查看输出：
 
-    ```
+    ```py
     generator = create_generator(seed_vector, img_chan)
     gen_van_img = generator(noise, training=False)
     plt.imshow(gen_van_img[0, :, :, 0])
@@ -3223,7 +3223,7 @@
 
 1.  打印 DCGAN 判别器在种子图像上评估的决策：
 
-    ```
+    ```py
     img_shape = (gen_square,gen_square,img_chan)
     discriminator = create_discriminator(img_shape)
     decision = discriminator(gen_img)
@@ -3232,13 +3232,13 @@
 
     你的输出应该如下所示：
 
-    ```
+    ```py
     tf.Tensor([[0.4994658]], shape=(1,1), dtype=float32)
     ```
 
 1.  打印原始 GAN 在种子图像上评估的决策：
 
-    ```
+    ```py
     discriminator = create_discriminator(img_shape)
     decision = discriminator(gen_img)
     print(decision)
@@ -3246,13 +3246,13 @@
 
     你的输出应该如下所示：
 
-    ```
+    ```py
     tf.Tensor([[0.5055983]], shape=(1,1), dtype=float32)
     ```
 
 1.  创建你的损失函数。由于判别器和生成器网络的输出不同，你可以为它们分别定义两个独立的损失函数。此外，它们需要在独立的网络传递中分别进行训练。两个 GAN 都可以为它们的判别器和生成器使用相同的损失函数。你可以使用`tf.keras.losses.BinaryCrossentropy`来计算`cross_entropy`。这会计算真实标签和预测标签之间的损失。然后，使用`tf.ones`和`tf.zeros`从`real_output`和`fake_output`定义`discrim_loss`函数，以计算`total_loss`：
 
-    ```
+    ```py
     cross_entropy = tf.keras.losses.BinaryCrossentropy()
     def discrim_loss(real_output, fake_output):
         real_loss = cross_entropy(tf.ones_like(real_output), real_output)
@@ -3265,7 +3265,7 @@
 
 1.  创建两个 Adam 优化器，一个用于生成器，一个用于判别器。每个优化器使用相同的学习率和动量：
 
-    ```
+    ```py
     gen_optimizer = tf.keras.optimizers.Adam(1.5e-4,0.5)
     disc_optimizer = tf.keras.optimizers.Adam(1.5e-4,0.5)
     ```
@@ -3274,7 +3274,7 @@
 
 1.  为判别器创建`real_output`和`fake_output`。将此用作生成器的损失（`g_loss`）。然后，计算判别器损失（`d_loss`）以及生成器和判别器的梯度，通过`gradients_of_generator`和`gradients_of_discriminator`并应用它们。将这些步骤封装在一个函数中，传入生成器、判别器和图像，并返回生成器损失（`g_loss`）和判别器损失（`d_loss`）：
 
-    ```
+    ```py
     @tf.function
     def train_step(generator, discriminator, images):
         seed = tf.random.normal([num_batch, seed_vector])
@@ -3300,7 +3300,7 @@
 
 1.  创建一个固定种子列表，`fixed_seeds`的数量等于要显示的图像数量，这样你就可以跟踪相同的图像。这使你能够看到每个种子如何随时间变化，通过`for epoch in range`来跟踪你的时间。现在，通过`for image_batch in dataset`循环处理每个批次。继续跟踪生成器和判别器的损失，使用`generator_loss`和`discriminator_loss`。现在，你可以在训练过程中查看所有这些信息：
 
-    ```
+    ```py
     def train(generator, discriminator, dataset, epochs, prefix=None):
         fixed_seed = np.random.normal(0, 1, (img_rows * img_cols, 
                                              seed_vector))
@@ -3327,7 +3327,7 @@
 
 1.  在你的训练数据集上训练 DCGAN 模型：
 
-    ```
+    ```py
     train(dc_generator, dc_discriminator, train_dataset, \
           epochs, prefix='-dc-gan')
     ```
@@ -3342,7 +3342,7 @@
 
 1.  在你的训练数据集上训练香草模型：
 
-    ```
+    ```py
     train(generator, discriminator, train_dataset, epochs, \
           prefix='-vanilla')
     ```
@@ -3355,7 +3355,7 @@
 
 1.  查看 DCGAN 模型在第 100 个周期后的生成图像：
 
-    ```
+    ```py
     a = imread('banana-or-orange/training_set/output'\
                '/train-dc-gan-99.png')
     plt.imshow(a)
@@ -3369,7 +3369,7 @@
 
 1.  查看 DCGAN 模型在第 500 个周期后的生成图像：
 
-    ```
+    ```py
     a = imread('/ banana-or-orange/training_set'\
                '/output/train-dc-gan-499.png')
     plt.imshow(a)
@@ -3383,7 +3383,7 @@
 
 1.  查看香草 GAN 模型在第 100 个周期后的生成图像：
 
-    ```
+    ```py
     a = imread('banana-or-orange/training_set'\
                '/output/train-vanilla-99.png')
     plt.imshow(a)
@@ -3397,7 +3397,7 @@
 
 1.  查看香草 GAN 模型在第 500 个周期后的生成图像：
 
-    ```
+    ```py
     a = imread('/ banana-or-orange/training_set'\
                '/output/train-vanilla-499.png')
     plt.imshow(a)

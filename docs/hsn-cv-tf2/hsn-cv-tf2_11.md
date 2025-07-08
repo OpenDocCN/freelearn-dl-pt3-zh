@@ -252,13 +252,13 @@ LSTM 权重同样通过时间反向传播进行计算。由于 LSTM 单元中存
 
 TensorFlow 允许我们通过一行代码访问预训练模型，如第四章《有影响力的分类工具》中所描述：
 
-```
+```py
 inception_v3 = tf.keras.applications.InceptionV3(include_top=False, weights='imagenet')
 ```
 
 我们添加最大池化操作，将*8* × *8* × *2,048* 的特征图转换为*1* × *2,048* 的向量：
 
-```
+```py
 x = inception_v3.output
 pooling_output = tf.keras.layers.GlobalAveragePooling2D()(x)
 
@@ -291,7 +291,7 @@ feature_extraction_model = tf.keras.Model(inception_v3.input, pooling_output)
 
 我们将使用 TensorFlow 数据集 API 将输入馈送到我们的特征提取网络：
 
-```
+```py
 dataset = tf.data.Dataset.from_generator(frame_generator,
              output_types=(tf.float32, tf.string),
              output_shapes=((299, 299, 3), ())
@@ -301,7 +301,7 @@ dataset = tf.data.Dataset.from_generator(frame_generator,
 
 `frame_generator`的作用是选择将由网络处理的帧。我们使用 OpenCV 库从视频文件中读取数据。对于每个视频，我们每隔*N*帧采样一张图像，其中*N*等于`num_frames / SEQUENCE_LENGTH`，而`SEQUENCE_LENGTH`是 LSTM 输入序列的大小。该生成器的简化版本如下所示：
 
-```
+```py
 def frame_generator():
     video_paths = tf.io.gfile.glob(VIDEOS_PATH)
     for video_path in video_paths:
@@ -329,7 +329,7 @@ def frame_generator():
 
 最后，我们遍历数据集以生成视频特征：
 
-```
+```py
 dataset = dataset.batch(16).prefetch(tf.data.experimental.AUTOTUNE)
 current_path = None
 all_features = []
@@ -365,7 +365,7 @@ for img, batch_paths in tqdm.tqdm(dataset):
 
 我们的模型是一个简单的顺序模型，使用 Keras 层定义：
 
-```
+```py
 model = tf.keras.Sequential([
     tf.keras.layers.Masking(mask_value=0.),
     tf.keras.layers.LSTM(512, dropout=0.5, recurrent_dropout=0.5),
@@ -385,7 +385,7 @@ model = tf.keras.Sequential([
 
 我们将使用生成器加载生成帧特征时产生的`.npy`文件。代码确保所有输入序列具有相同的长度，必要时会用零进行填充：
 
-```
+```py
 def make_generator(file_list):
     def generator():
         np.random.shuffle(file_list)
@@ -406,7 +406,7 @@ def make_generator(file_list):
 
 在前面的代码中，我们定义了一个 Python **闭包函数**——一个返回另一个函数的函数。这个技术使我们能够通过一个生成器函数创建`train_dataset`（返回训练数据）和`validation_dataset`（返回验证数据）：
 
-```
+```py
 train_dataset = tf.data.Dataset.from_generator(make_generator(train_list),
                  output_types=(tf.float32, tf.int16),
                  output_shapes=((SEQUENCE_LENGTH, 2048), (len(LABELS))))

@@ -108,7 +108,7 @@ RNN 的输入输出组合：灵感来自[`karpathy.github.io/2015/05/21/rnn-effe
 
 我们将用 Python（不使用深度学习库）和 NumPy 来实现这个示例。输入和输出的示例如下：
 
-```
+```py
 In: (0, 0, 0, 0, 1, 0, 1, 0, 1, 0) 
 Out: 3
 ```
@@ -125,7 +125,7 @@ Out: 3
 
 在我们继续之前，先添加一些代码以使我们的示例能够执行。我们将导入`numpy`并定义我们的训练数据`x`和标签`y`。`x`是二维的，因为第一维表示小批量中的样本。为了简化起见，我们将使用一个只包含一个样本的小批量：
 
-```
+```py
 import numpy as np
 
 # The first dimension represents the mini-batch
@@ -136,7 +136,7 @@ y = np.array([3])
 
 由此网络定义的递归关系是![]。请注意，这是一个线性模型，因为我们在这个公式中没有应用非线性函数。我们可以按如下方式实现递归关系：
 
-```
+```py
 def step(s, x, U, W):
    return x * U + s * W
 ```
@@ -153,7 +153,7 @@ def step(s, x, U, W):
 
 前向传播解开了 RNN 在序列中的展开，并为每个步骤构建了状态栈。在以下的代码块中，我们可以看到一个前向传播的实现，它返回每个递归步骤和批次中每个样本的激活值 *s*：
 
-```
+```py
 def forward(x, U, W):
     # Number of samples in the mini-batch
     number_of_samples = len(x)
@@ -189,7 +189,7 @@ def forward(x, U, W):
 
 1.  `U` 和 `W` 的梯度分别在 `gU` 和 `gW` 中累积：
 
-```
+```py
 def backward(x, s, y, W):
     sequence_length = len(x[0])
 
@@ -218,7 +218,7 @@ def backward(x, s, y, W):
 
 1.  我们现在可以尝试使用梯度下降来优化我们的网络。我们通过`backward`函数计算`gradients`（使用均方误差），并利用它们来更新`weights`值：
 
-```
+```py
 def train(x, y, epochs, learning_rate=0.0005):
     """Train the network"""
 
@@ -259,7 +259,7 @@ def train(x, y, epochs, learning_rate=0.0005):
 
 1.  接下来，我们将实现相关的`plot_training`函数，该函数在每个周期显示`loss`函数和每个权重的梯度：
 
-```
+```py
 def plot_training(losses, gradients_u, gradients_w):
     import matplotlib.pyplot as plt
 
@@ -296,7 +296,7 @@ def plot_training(losses, gradients_u, gradients_w):
 
 1.  最后，我们可以运行以下代码：
 
-```
+```py
 losses, gradients_u, gradients_w = train(x, y, epochs=150)
 plot_training(losses, gradients_u, gradients_w)
 ```
@@ -313,7 +313,7 @@ RNN 的损失：不中断的线表示损失，其中虚线表示训练过程中�
 
 然而，前面的示例存在一个问题。让我们使用更长的序列运行训练过程：
 
-```
+```py
 x = np.array([[0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0]])
 
 y = np.array([12])
@@ -324,7 +324,7 @@ plot_training(losses, gradients_u, gradients_w)
 
 输出如下：
 
-```
+```py
 Sum of ones RNN from scratch
 chapter07-rnn/simple_rnn.py:5: RuntimeWarning: overflow encountered in multiply
   return x * U + s * W
@@ -443,7 +443,7 @@ LSTM 的关键思想是单元状态 **c***[t]*（除了隐藏的 RNN 状态 **h*
 
 1.  首先，我们进行导入：
 
-```
+```py
 import math
 import typing
 
@@ -452,7 +452,7 @@ import torch
 
 1.  接下来，我们将实现类和`__init__`方法：
 
-```
+```py
 class LSTMCell(torch.nn.Module):
 
     def __init__(self, input_size: int, hidden_size: int):
@@ -476,7 +476,7 @@ class LSTMCell(torch.nn.Module):
 
 1.  让我们继续讨论`reset_parameters`方法，该方法使用 LSTM 特定的 Xavier 初始化器初始化网络的所有权重（如果你直接复制并粘贴此代码，可能需要检查缩进）：
 
-```
+```py
 def reset_parameters(self):
     """Xavier initialization """
     size = math.sqrt(3.0 / self.hidden_size)
@@ -486,7 +486,7 @@ def reset_parameters(self):
 
 1.  接下来，我们将开始实现`forward`方法，该方法包含我们在*介绍长短期记忆*部分中描述的所有 LSTM 执行逻辑。它接收当前时间步*t*的 mini-batch，以及一个包含时间步*t-1*时刻的细胞输出和细胞状态的元组作为输入：
 
-```
+```py
 def forward(self,
             x_t: torch.Tensor,
             hidden: typing.Tuple[torch.Tensor, torch.Tensor] =      (None, None)) \
@@ -502,32 +502,32 @@ def forward(self,
 
 1.  我们将继续同时计算三个门和候选状态的激活。做法很简单，像这样：
 
-```
+```py
 gates = self.x_fc(x_t) + self.h_fc(h_t_1)
 ```
 
 1.  接下来，我们将为每个门分离输出：
 
-```
+```py
 i_t, f_t, candidate_c_t, o_t = gates.chunk(4, 1)
 ```
 
 1.  然后，我们将对它们应用`activation`函数：
 
-```
+```py
 i_t, f_t, candidate_c_t, o_t = \
     i_t.sigmoid(), f_t.sigmoid(), candidate_c_t.tanh(), o_t.sigmoid()
 ```
 
 1.  接下来，我们将计算新的细胞状态，**c**[*t*]：
 
-```
+```py
 c_t = torch.mul(f_t, c_t_1) + torch.mul(i_t, candidate_c_t)
 ```
 
 1.  最后，我们将计算细胞输出`ht`，并将其与新的细胞状态*c[t]*一起返回：
 
-```
+```py
 h_t = torch.mul(o_t, torch.tanh(c_t))
 return h_t, c_t
 ```
@@ -542,7 +542,7 @@ return h_t, c_t
 
 一旦最终输出产生，它将被传递给一个全连接层，转换为一个单一的标量值，表示网络预测的 1 的数量。以下是其实现：
 
-```
+```py
 class LSTMModel(torch.nn.Module):
     def __init__(self, input_dim, hidden_size, output_dim):
         super(LSTMModel, self).__init__()
@@ -571,7 +571,7 @@ class LSTMModel(torch.nn.Module):
 
 1.  首先，我们将生成训练和测试数据集。`generate_dataset`函数返回一个`torch.utils.data.TensorDataset`实例。它包含`TRAINING_SAMPLES = 10000`个长度为`SEQUENCE_LENGTH = 20`的二进制序列的二维张量，以及每个序列中 1 的数量的标量值标签：
 
-```
+```py
 train = generate_dataset(SEQUENCE_LENGTH, TRAINING_SAMPLES)
 train_loader = torch.utils.data.DataLoader(train, batch_size=BATCH_SIZE, shuffle=True)
 
@@ -581,20 +581,20 @@ test_loader = torch.utils.data.DataLoader(test, batch_size=BATCH_SIZE, shuffle=T
 
 1.  我们将使用`HIDDEN_UNITS = 20`来实例化模型。模型接受一个输入（每个序列元素），并输出一个值（1 的数量）：
 
-```
+```py
 model = LSTMModel(input_size=1, hidden_size=HIDDEN_UNITS, output_size=1)
 ```
 
 1.  接下来，我们将实例化`MSELoss`函数（因为这是回归问题）和 Adam 优化器：
 
-```
+```py
 loss_function = torch.nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters())
 ```
 
 1.  最后，我们可以运行`EPOCHS = 10`的训练/测试周期。`train_model`和`test_model`函数与我们在第二章《理解卷积网络》节中实现的函数相同：
 
-```
+```py
 for epoch in range(EPOCHS):
     print('Epoch {}/{}'.format(epoch + 1, EPOCHS))
 
@@ -640,14 +640,14 @@ for epoch in range(EPOCHS):
 
 1.  首先，我们将进行导入：
 
-```
+```py
 import math
 import torch
 ```
 
 1.  接下来，我们将编写类定义和 `init` 方法。在 LSTM 中，我们能够为所有门创建共享的全连接层，因为每个门都需要相同的输入组合：**x**[*t*] 和 **h**[*t-1*]。GRU 的门使用不同的输入，因此我们将为每个 GRU 门创建单独的全连接操作：
 
-```
+```py
 class GRUCell(torch.nn.Module):
 
     def __init__(self, input_size: int, hidden_size: int):
@@ -683,7 +683,7 @@ class GRUCell(torch.nn.Module):
 
 1.  然后，我们将按照 *门控循环单元* 部分中描述的步骤，使用单元实现 `forward` 方法。该方法将当前输入向量，**x**[t]，和先前的单元状态/输出，**h**[t-1]，作为输入。首先，我们将计算忘记门和更新门，类似于我们在 LSTM 单元中计算门的方式：
 
-```
+```py
 def forward(self,
             x_t: torch.Tensor,
             h_t_1: torch.Tensor = None) \
@@ -698,13 +698,13 @@ def forward(self,
 
 1.  接下来，我们将计算新的候选状态/输出，它使用重置门：
 
-```
+```py
 candidate_h_t = torch.tanh(self.x_h_fc(x_t) + self.hr_h_fc(torch.mul(r_t, h_t_1)))
 ```
 
 1.  最后，我们将根据候选状态和更新门计算新的输出：
 
-```
+```py
 h_t = torch.mul(z_t, h_t_1) + torch.mul(1 - z_t, candidate_h_t)
 ```
 
@@ -742,14 +742,14 @@ h_t = torch.mul(z_t, h_t_1) + torch.mul(1 - z_t, candidate_h_t)
 
 1.  首先，我们将添加导入：
 
-```
+```py
 import torch
 import torchtext
 ```
 
 1.  接下来，我们将实例化一个 `torchtext.data.Field` 对象：
 
-```
+```py
 TEXT = torchtext.data.Field(
     tokenize='spacy',  # use SpaCy tokenizer
     lower=True,  # convert all letters to lower case
@@ -761,13 +761,13 @@ TEXT = torchtext.data.Field(
 
 1.  然后，我们将对标签（正面或负面）做同样的处理：
 
-```
+```py
 LABEL = torchtext.data.LabelField(dtype=torch.float)
 ```
 
 1.  接下来，我们将实例化训练和测试数据集的拆分：
 
-```
+```py
 train, test = torchtext.datasets.IMDB.splits(TEXT, LABEL)
 ```
 
@@ -775,7 +775,7 @@ train, test = torchtext.datasets.IMDB.splits(TEXT, LABEL)
 
 1.  接着，我们将实例化词汇表：
 
-```
+```py
 TEXT.build_vocab(train, vectors=torchtext.vocab.GloVe(name='6B', dim=100))
 LABEL.build_vocab(train)
 ```
@@ -784,14 +784,14 @@ LABEL.build_vocab(train)
 
 1.  接下来，我们将为训练和测试数据集定义迭代器，其中 `device` 代表 GPU 或 CPU。每次调用时，迭代器将返回一个小批次：
 
-```
+```py
 train_iter, test_iter = torchtext.data.BucketIterator.splits(
     (train, test), sort_within_batch=True, batch_size=64, device=device)
 ```
 
 1.  接下来，我们将实现并实例化 `LSTMModel` 类。这是程序的核心，执行我们在本节开头的图表中定义的算法步骤：
 
-```
+```py
 class LSTMModel(torch.nn.Module):
     def __init__(self, vocab_size, embedding_size, hidden_size, output_size, pad_idx):
         super().__init__()
@@ -830,20 +830,20 @@ model = LSTMModel(vocab_size=len(TEXT.vocab),
 
 1.  接下来，我们将 GloVe 词嵌入向量复制到模型的嵌入层：
 
-```
+```py
 model.embedding.weight.data.copy_(TEXT.vocab.vectors)
 ```
 
 1.  然后，我们将把填充和未知标记的嵌入项设置为零，以避免它们对传播产生影响：
 
-```
+```py
 model.embedding.weight.data[TEXT.vocab.stoi[TEXT.unk_token]] = torch.zeros(EMBEDDING_SIZE)
 model.embedding.weight.data[TEXT.vocab.stoi[TEXT.pad_token]] = torch.zeros(EMBEDDING_SIZE)
 ```
 
 1.  最后，我们可以运行以下代码来执行整个过程（`train_model` 和 `test_model` 函数与之前相同）：
 
-```
+```py
 optimizer = torch.optim.Adam(model.parameters())
 loss_function = torch.nn.BCEWithLogitsLoss().to(device)
 

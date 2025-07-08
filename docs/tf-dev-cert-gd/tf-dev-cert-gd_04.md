@@ -142,83 +142,83 @@ F1 分数 = 2 *  0.4 * 0.5 _ (0.4 + 0.5)  = 0.44
 
 1.  我们将首先导入用于执行任务的 TensorFlow 库：
 
-    ```
+    ```py
     # import tensorflow
     ```
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
-    ```
+    ```py
     from tensorflow import keras
     ```
 
-    ```
+    ```py
     from tensorflow.keras import Sequential
     ```
 
-    ```
+    ```py
     from tensorflow.keras.layers import Dense
     ```
 
-    ```
+    ```py
     print(tf.__version__)
     ```
 
 运行代码后，我们可以看到将使用的 TensorFlow 版本。在我写这篇文章时，它是 2.8.0。你很可能会有一个更新的版本，但它应该同样可以正常工作：
 
-```
+```py
 2.8.0
 ```
 
 1.  然后，我们将导入一些额外的库，帮助我们简化工作流程。
 
-    ```
+    ```py
     #import additional libraries
     ```
 
-    ```
+    ```py
     import numpy as np
     ```
 
-    ```
+    ```py
     import pandas as pd
     ```
 
-    ```
+    ```py
     # For visualizations
     ```
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     ```
 
-    ```
+    ```py
     import seaborn as sns
     ```
 
-    ```
+    ```py
     #for splitting the data into training and test set
     ```
 
-    ```
+    ```py
     from sklearn.model_selection import train_test_split
     ```
 
-    ```
+    ```py
     # For Normalization
     ```
 
-    ```
+    ```py
     from sklearn.preprocessing import MinMaxScaler
     ```
 
-    ```
+    ```py
     # Confusion matrix
     ```
 
-    ```
+    ```py
     from sklearn.metrics import confusion_matrix, classification_report
     ```
 
@@ -226,15 +226,15 @@ F1 分数 = 2 *  0.4 * 0.5 _ (0.4 + 0.5)  = 0.44
 
 1.  现在我们已经加载了所有必要的库，让我们创建一个 DataFrame 以便于处理：
 
-    ```
+    ```py
     #Loading data from the course GitHub repository
     ```
 
-    ```
+    ```py
     df=pd.read_csv('https://raw.githubusercontent.com/PacktPublishing/TensorFlow-Developer-Certificate/main/Chapter%204/Students-Dropout-Prediction.csv', index_col=0)
     ```
 
-    ```
+    ```py
     df.head()
     ```
 
@@ -260,7 +260,7 @@ F1 分数 = 2 *  0.4 * 0.5 _ (0.4 + 0.5)  = 0.44
 
 1.  下一步是删除无关的列。通过检查可用的列，我们删除了`学生 ID`和`学生姓名`列，因为这些列对学生是否毕业没有影响。我们在这里使用 pandas 的`drop`函数来完成这一操作：
 
-    ```
+    ```py
     df = df.drop(['Student ID', 'Student Name'], axis=1)
     ```
 
@@ -274,11 +274,11 @@ F1 分数 = 2 *  0.4 * 0.5 _ (0.4 + 0.5)  = 0.44
 
 1.  现在，让我们为分类目标变量绘制一个直方图：
 
-    ```
+    ```py
     plt.hist(df['Graduated'])
     ```
 
-    ```
+    ```py
     plt.show()
     ```
 
@@ -290,23 +290,23 @@ F1 分数 = 2 *  0.4 * 0.5 _ (0.4 + 0.5)  = 0.44
 
 1.  我们的笔记本中还有更多图表可以探索，但我们会保持简洁，因为本书的主要目标是专注于使用 TensorFlow 构建模型。不过，让我们看一下一个非常重要的图表：
 
-    ```
+    ```py
     sns.set(style="darkgrid")
     ```
 
-    ```
+    ```py
     tdc =sns.scatterplot(x ='Library', y ='GPA',
     ```
 
-    ```
+    ```py
         data = df, hue ='Graduated')
     ```
 
-    ```
+    ```py
     tdc.legend(loc='center left',
     ```
 
-    ```
+    ```py
         bbox_to_anchor=(1.0, 0.5), ncol=1)
     ```
 
@@ -318,7 +318,7 @@ F1 分数 = 2 *  0.4 * 0.5 _ (0.4 + 0.5)  = 0.44
 
 从这个图表中，我们可以看到有相当一部分 GPA 高于 3.50 的学生已经毕业。然而，不要认为在`平均`、`良好`和`优秀`列中，所有 GPA 高于 3.50 的学生都已经毕业。事实上，让我们来验证一下：
 
-```
+```py
 #To get the number of students with gpa equal to or greater than 3.5 and did not graduate
 len(df[(df['GPA']>=3.50)&(df['Graduated']=="Drop out")])
 ```
@@ -333,15 +333,15 @@ len(df[(df['GPA']>=3.50)&(df['Graduated']=="Drop out")])
 
 1.  让我们从将标签转换为数值型开始：
 
-    ```
+    ```py
     #Replace the classes in the graduate column
     ```
 
-    ```
+    ```py
     df['Graduated'] = df['Graduated'].replace(
     ```
 
-    ```
+    ```py
         ['Graduated', 'Drop out'],[1,0])
     ```
 
@@ -349,7 +349,7 @@ len(df[(df['GPA']>=3.50)&(df['Graduated']=="Drop out")])
 
 1.  现在，让我们使用`corr()`函数检查我们的数值数据与目标变量之间的相关性：
 
-    ```
+    ```py
     df.corr()
     ```
 
@@ -363,15 +363,15 @@ len(df[(df['GPA']>=3.50)&(df['Graduated']=="Drop out")])
 
 1.  现在，让我们将分类变量转换为数值型变量。我们将继续使用虚拟变量（dummy variables）对分类变量进行独热编码（one-hot encoding）：
 
-    ```
+    ```py
     #Converting categorical variables to numeric values
     ```
 
-    ```
+    ```py
     df = pd.get_dummies(df, drop_first=True)
     ```
 
-    ```
+    ```py
     df.head()
     ```
 
@@ -383,15 +383,15 @@ len(df[(df['GPA']>=3.50)&(df['Graduated']=="Drop out")])
 
 1.  现在，我们已经将特征转化为数值形式，接下来让我们看看它们与目标变量的相关性：
 
-    ```
+    ```py
     tagret_corr= df.corr()
     ```
 
-    ```
+    ```py
     tagret_corr
     ```
 
-    ```
+    ```py
     tagret_corr['Graduated'].sort_values(ascending=False)
     ```
 
@@ -403,47 +403,47 @@ len(df[(df['GPA']>=3.50)&(df['Graduated']=="Drop out")])
 
 1.  我们已经成功将数据转换为数值型变量，接下来我们将数据拆分为特征（`X`）和目标变量（`y`）：
 
-    ```
+    ```py
     # We split the attributes and labels into X and y variables
     ```
 
-    ```
+    ```py
     X = df.drop("Graduated", axis=1)
     ```
 
-    ```
+    ```py
     y = df["Graduated"]
     ```
 
 1.  别忘了，我们需要对数据进行归一化处理。因此，我们将所有特征缩放到相同的尺度，以便于建模过程：
 
-    ```
+    ```py
     # create a scaler object
     ```
 
-    ```
+    ```py
     scaler = MinMaxScaler()
     ```
 
-    ```
+    ```py
     # fit and transform the data
     ```
 
-    ```
+    ```py
     X_norm = pd.DataFrame(scaler.fit_transform(X),
     ```
 
-    ```
+    ```py
         columns=X.columns)
     ```
 
-    ```
+    ```py
     X_norm.head()
     ```
 
 同样，我们使用来自 scikit-learn 库的`MinMaxScaler`，然后将数据分为训练集和测试集。在训练中，我们使用 80% 的数据，保留 20% 作为测试数据，以测试模型的泛化能力。我们设置随机种子为 10，以确保能够复现相同的数据划分：
 
-```
+```py
 # Create training and test sets
 #We set the random state to ensure reproducibility
 X_train, X_test, y_train, y_test =   train_test_split(
@@ -462,7 +462,7 @@ X_train, X_test, y_train, y_test =   train_test_split(
 
 让我们继续编译我们的模型。当我们处理二分类问题时，我们将使用*二元交叉熵*作为损失函数，而处理多分类问题时，我们将使用*类别交叉熵*或*稀疏类别交叉熵*。在*第五章*《使用神经网络进行图像分类》中，我们将深入讨论激活函数等内容，随着我们继续构建对神经网络的理解和应用：
 
-```
+```py
 #compile the model
 model1.compile(loss='binary_crossentropy',
     optimizer='adam', metrics='accuracy')
@@ -470,7 +470,7 @@ model1.compile(loss='binary_crossentropy',
 
 接下来，让我们编译我们的模型。在这里，我们将使用准确率作为评估指标。我们还将查看其他分类指标，这些指标我们在之前讨论过，当我们开始评估模型在测试数据上的表现时会用到。编译模型后，下一步是拟合我们的模型。在*第一章*《机器学习简介》中，我们谈到了训练、验证和测试数据的划分。由于我们将处理一个更大的数据集，接下来我们将使用验证集来评估模型在每个周期结束时的表现，这样我们可以在对保留的测试集进行测试之前，监控模型在未见数据上的表现。我们将`validation_split`参数设置为`0.2`；这意味着我们将在训练过程中使用 20%的训练数据作为验证数据，总共进行 40 个周期：
 
-```
+```py
 #fit the model
 history1= model1.fit(X_train, y_train, epochs=40,
     validation_split=0.2)
@@ -484,13 +484,13 @@ history1= model1.fit(X_train, y_train, epochs=40,
 
 该模型达到了 99.35%的训练准确率和 99.33%的验证准确率。仅用了两层和三个简单的步骤，在不到五分钟的时间里，我们就在训练和验证数据上达到了接近 100%的准确率。这些结果确实令人印象深刻；然而，需要知道的是，这并不总是如此，特别是当我们处理更复杂的数据集时。它们可能需要更复杂的架构和更长的训练时间才能取得良好的结果。在本书的*第二部分*中，我们将处理图像数据。继续评估我们的模型之前，让我们通过`summary`函数查看一下模型的架构：
 
-```
+```py
 model1.summary()
 ```
 
 当我们运行这行代码时，我们生成了模型的架构：
 
-```
+```py
 Model: "sequential"
 ___________________________________________________________
  Layer (type)             Output Shape              Param #
@@ -510,7 +510,7 @@ ___________________________________________________________
 
 为了在 TensorFlow 中评估我们的模型，我们只需要一行代码——使用`evaluate`函数来评估我们的模型：
 
-```
+```py
 # Evaluate the Classication model
 eval_model=model1.evaluate(X_test, y_test)
 eval_model
@@ -518,14 +518,14 @@ eval_model
 
 然后我们在保留数据上生成模型的性能：
 
-```
+```py
 157/157 [==============================] - 1s 4ms/step - loss: 0.0592 - accuracy: 0.9944
 [0.05915425345301628, 0.9944000244140625]
 ```
 
 我们在测试数据上得到了 99.44%的准确率。这是不错的结果；然而，让我们看看本章早些时候提到的其他分类指标：
 
-```
+```py
 y_pred=model1.predict(X_test).flatten()
 y_pred = np.round(y_pred).astype('int')
 df_predictions = pd.DataFrame(
@@ -537,7 +537,7 @@ len(df_predictions[(df_predictions[
 
 我们在测试数据上生成模型的预测结果。然后，我们使用`np.round()`函数将概率值进行四舍五入，并将数据类型转换为整数。接着，我们创建一个 pandas DataFrame，然后生成 DataFrame 中被误分类的标签数量。在我们的案例中，模型错误地分类了测试集中 5,000 个数据点中的 28 个。现在，我们将生成一个混淆矩阵和分类报告来评估我们的模型：
 
-```
+```py
 #Generating the confusion matrix
 eval = confusion_matrix(y_test, y_pred)
 print(eval)
@@ -553,7 +553,7 @@ print(eval)
 
 接下来，让我们打印出我们的分类报告：
 
-```
+```py
 class_names = [ 'Drop Out', 'Graduated']
 print(classification_report(y_test, y_pred,
     target_names=class_names))
@@ -569,7 +569,7 @@ print(classification_report(y_test, y_pred,
 
 现在，让我们使用 `save` 函数保存模型并展示给经理：
 
-```
+```py
 #saving our model
 model1.save('classification_model.h5')
 ```

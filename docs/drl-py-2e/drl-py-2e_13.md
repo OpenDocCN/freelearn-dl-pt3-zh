@@ -700,7 +700,7 @@ PPO 裁剪版算法的步骤如下：
 
 首先，让我们导入必要的库：
 
-```
+```py
 import warnings
 warnings.filterwarnings('ignore')
 import tensorflow.compat.v1 as tf
@@ -714,31 +714,31 @@ import gym
 
 让我们使用 Gym 创建一个摆动环境：
 
-```
+```py
 env = gym.make('Pendulum-v0').unwrapped 
 ```
 
 获取环境的状态形状：
 
-```
+```py
 state_shape = env.observation_space.shape[0] 
 ```
 
 获取环境的动作形状：
 
-```
+```py
 action_shape = env.action_space.shape[0] 
 ```
 
 请注意，摆动摆的环境是连续的，因此我们的动作空间由连续值组成。所以，我们获取动作空间的边界：
 
-```
+```py
 action_bound = [env.action_space.low, env.action_space.high] 
 ```
 
 设置在剪切目标中使用的 epsilon 值：
 
-```
+```py
 epsilon = 0.2 
 ```
 
@@ -746,7 +746,7 @@ epsilon = 0.2
 
 让我们定义一个名为 `PPO` 的类，在其中实现 PPO 算法。为了更清楚地理解，我们逐行查看代码：
 
-```
+```py
 class PPO(object): 
 ```
 
@@ -754,25 +754,25 @@ class PPO(object):
 
 首先，让我们定义 `init` 方法：
 
-```
+```py
  def __init__(self): 
 ```
 
 启动 TensorFlow 会话：
 
-```
+```py
  self.sess = tf.Session() 
 ```
 
 定义状态的占位符：
 
-```
+```py
  self.state_ph = tf.placeholder(tf.float32, [None, state_shape], 'state') 
 ```
 
 现在，让我们构建返回状态值的值网络：
 
-```
+```py
  with tf.variable_scope('value'):
             layer1 = tf.layers.dense(self.state_ph, 100, tf.nn.relu)
             self.v = tf.layers.dense(layer1, 1) 
@@ -780,69 +780,69 @@ class PPO(object):
 
 定义 Q 值的占位符：
 
-```
+```py
  self.Q = tf.placeholder(tf.float32, [None, 1], 'discounted_r') 
 ```
 
 定义优势值为 Q 值与状态值之间的差：
 
-```
+```py
  self.advantage = self.Q - self.v 
 ```
 
 计算值网络的损失：
 
-```
+```py
  self.value_loss = tf.reduce_mean(tf.square(self.advantage)) 
 ```
 
 通过使用 Adam 优化器最小化损失来训练值网络：
 
-```
+```py
  self.train_value_nw = tf.train.AdamOptimizer(0.002).minimize(self.value_loss) 
 ```
 
 现在，我们从策略网络获取新的策略及其参数：
 
-```
+```py
  pi, pi_params = self.build_policy_network('pi', trainable=True) 
 ```
 
 从策略网络获取旧策略及其参数：
 
-```
+```py
  oldpi, oldpi_params = self.build_policy_network('oldpi', trainable=False) 
 ```
 
 从新策略中采样一个动作：
 
-```
+```py
  with tf.variable_scope('sample_action'):
             self.sample_op = tf.squeeze(pi.sample(1), axis=0) 
 ```
 
 更新旧策略的参数：
 
-```
+```py
  with tf.variable_scope('update_oldpi'):
             self.update_oldpi_op = [oldp.assign(p) for p, oldp in zip(pi_params, oldpi_params)] 
 ```
 
 定义动作的占位符：
 
-```
+```py
  self.action_ph = tf.placeholder(tf.float32, [None, action_shape], 'action') 
 ```
 
 定义优势的占位符：
 
-```
+```py
  self.advantage_ph = tf.placeholder(tf.float32, [None, 1], 'advantage') 
 ```
 
 现在，让我们定义策略网络的代理目标函数：
 
-```
+```py
  with tf.variable_scope('loss'):
             with tf.variable_scope('surrogate'): 
 ```
@@ -853,38 +853,38 @@ class PPO(object):
 
 首先，我们定义比率 ![](img/B15558_13_257.png) 为 ![](img/B15558_13_248.png)：
 
-```
+```py
  ratio = pi.prob(self.action_ph) / oldpi.prob(self.action_ph) 
 ```
 
 通过将比率 ![](img/B15558_13_257.png) 和优势值 *A*[t] 相乘来定义目标：
 
-```
+```py
  objective = ratio * self.advantage_ph 
 ```
 
 使用剪切和未剪切的目标定义目标函数：
 
-```
+```py
  L = tf.reduce_mean(tf.minimum(objective, tf.clip_by_value(ratio, 1.-epsilon, 1.+ epsilon)*self.advantage_ph)) 
 ```
 
 现在，我们可以计算梯度并使用梯度上升法最大化目标函数。然而，实际上我们可以通过添加一个负号将上述最大化目标转换为最小化目标。所以，我们可以将策略网络的损失表示为：
 
-```
+```py
  self.policy_loss = -L 
 ```
 
 通过使用 Adam 优化器最小化损失来训练策略网络：
 
-```
+```py
  with tf.variable_scope('train_policy'):
             self.train_policy_nw = tf.train.AdamOptimizer(0.001).minimize(self.policy_loss) 
 ```
 
 初始化所有 TensorFlow 变量：
 
-```
+```py
  self.sess.run(tf.global_variables_initializer()) 
 ```
 
@@ -892,31 +892,31 @@ class PPO(object):
 
 现在，让我们定义 `train` 函数：
 
-```
+```py
  def train(self, state, action, reward): 
 ```
 
 更新旧策略：
 
-```
+```py
  self.sess.run(self.update_oldpi_op) 
 ```
 
 计算优势值：
 
-```
+```py
  adv = self.sess.run(self.advantage, {self.state_ph: state, self.Q: reward}) 
 ```
 
 训练策略网络：
 
-```
+```py
  [self.sess.run(self.train_policy_nw, {self.state_ph: state, self.action_ph: action, self.advantage_ph: adv}) for _ in range(10)] 
 ```
 
 训练值网络：
 
-```
+```py
  [self.sess.run(self.train_value_nw, {self.state_ph: state, self.Q: reward}) for _ in range(10)] 
 ```
 
@@ -924,38 +924,38 @@ class PPO(object):
 
 我们定义一个名为`build_policy_network`的函数，用于构建策略网络。请注意，这里我们的动作空间是连续的，因此我们的策略网络返回动作的均值和方差作为输出，然后我们使用这个均值和方差生成一个正态分布，并通过从这个正态分布中采样来选择一个动作：
 
-```
+```py
  def build_policy_network(self, name, trainable):
         with tf.variable_scope(name): 
 ```
 
 定义网络的层：
 
-```
+```py
  layer = tf.layers.dense(self.state_ph, 100, tf.nn.relu, trainable=trainable) 
 ```
 
 计算均值：
 
-```
+```py
  mu = 2 * tf.layers.dense(layer, action_shape, tf.nn.tanh, trainable=trainable) 
 ```
 
 计算标准差：
 
-```
+```py
  sigma = tf.layers.dense(layer, action_shape, tf.nn.softplus, trainable=trainable) 
 ```
 
 计算正态分布：
 
-```
+```py
  norm_dist = tf.distributions.Normal(loc=mu, scale=sigma) 
 ```
 
 获取策略网络的参数：
 
-```
+```py
  params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)
         return norm_dist, params 
 ```
@@ -964,20 +964,20 @@ class PPO(object):
 
 定义一个名为`select_action`的函数，用于选择动作：
 
-```
+```py
  def select_action(self, state):
         state = state[np.newaxis, :] 
 ```
 
 从策略网络生成的正态分布中采样一个动作：
 
-```
+```py
  action = self.sess.run(self.sample_op, {self.state_ph: state})[0] 
 ```
 
 我们将动作裁剪到动作范围内，然后返回该动作：
 
-```
+```py
  action = np.clip(action, action_bound[0], action_bound[1])
         return action 
 ```
@@ -986,7 +986,7 @@ class PPO(object):
 
 我们定义一个名为`get_state_value`的函数，用于获取通过价值网络计算的状态值：
 
-```
+```py
  def get_state_value(self, state):
         if state.ndim < 2: state = state[np.newaxis, :]
         return self.sess.run(self.v, {self.state_ph: state})[0, 0] 
@@ -996,85 +996,85 @@ class PPO(object):
 
 现在，让我们开始训练网络。首先，创建一个 PPO 类的对象：
 
-```
+```py
 ppo = PPO() 
 ```
 
 设置回合数：
 
-```
+```py
 num_episodes = 1000 
 ```
 
 设置每回合的时间步数：
 
-```
+```py
 num_timesteps = 200 
 ```
 
 设置折扣因子，![](img/B15558_03_190.png)：
 
-```
+```py
 gamma = 0.9 
 ```
 
 设置批量大小：
 
-```
+```py
 batch_size = 32 
 ```
 
 对每个回合：
 
-```
+```py
 for i in range(num_episodes): 
 ```
 
 通过重置环境来初始化状态：
 
-```
+```py
  state = env.reset() 
 ```
 
 初始化用于保存回合中获得的状态、动作和奖励的列表：
 
-```
+```py
  episode_states, episode_actions, episode_rewards = [], [], [] 
 ```
 
 初始化回报：
 
-```
+```py
  Return = 0 
 ```
 
 每一步：
 
-```
+```py
  for t in range(num_timesteps): 
 ```
 
 渲染环境：
 
-```
+```py
  env.render() 
 ```
 
 选择动作：
 
-```
+```py
  action = ppo.select_action(state) 
 ```
 
 执行所选择的动作：
 
-```
+```py
  next_state, reward, done, _ = env.step(action) 
 ```
 
 将状态、动作和奖励存储在列表中：
 
-```
+```py
  episode_states.append(state)
         episode_actions.append(action)
         episode_rewards.append((reward+8)/8) 
@@ -1082,31 +1082,31 @@ for i in range(num_episodes):
 
 更新状态到下一个状态：
 
-```
+```py
  state = next_state 
 ```
 
 更新回报：
 
-```
+```py
  Return += reward 
 ```
 
 如果我们达到了批量大小或达到了回合的最后一步：
 
-```
+```py
  if (t+1) % batch_size == 0 or t == num_timesteps-1: 
 ```
 
 计算下一个状态的值：
 
-```
+```py
  v_s_ = ppo.get_state_value(next_state) 
 ```
 
 计算 Q 值为 ![](img/B15558_13_296.png)：
 
-```
+```py
  discounted_r = []
             for reward in episode_rewards[::-1]:
                 v_s_ = reward + gamma * v_s_
@@ -1116,25 +1116,25 @@ for i in range(num_episodes):
 
 堆叠回合状态、动作和奖励：
 
-```
+```py
  es, ea, er = np.vstack(episode_states), np.vstack(episode_actions), np.array(discounted_r)[:, np.newaxis] 
 ```
 
 训练网络：
 
-```
+```py
  ppo.train(es, ea, er) 
 ```
 
 清空列表：
 
-```
+```py
  episode_states, episode_actions, episode_rewards = [], [], [] 
 ```
 
 每 10 回合打印一次回报：
 
-```
+```py
  if i %10 ==0:
          print("Episode:{}, Return: {}".format(i,Return)) 
 ```

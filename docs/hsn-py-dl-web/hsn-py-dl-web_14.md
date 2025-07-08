@@ -90,7 +90,7 @@ CAPTCHA 的起源存在争议，多个小组声称自己是发明者，但正是
 
 1.  让我们从开发身份验证模型开始，该模型确定用户是否未按常规方式操作。我们在运行 Python 3.6+的 Jupyter 笔记本中导入所需的模块，如下所示：
 
-```
+```py
 import sys
 import os
 import json
@@ -106,7 +106,7 @@ from collections import OrderedDict
 
 1.  现在我们可以将数据导入到项目中。我们将使用以下数据集：[`github.com/PacktPublishing/Hands-On-Python-Deep-Learning-for-Web/blob/master/Chapter10/model/data/data-full.csv`](https://github.com/PacktPublishing/Hands-On-Python-Deep-Learning-for-Web/blob/master/Chapter10/model/data/data-full.csv)。如下图所示，我们将数据集加载到项目中：
 
-```
+```py
 file = 'data-full.csv'
 
 df = pandas.read_csv(file, quotechar='|', header=None)
@@ -129,7 +129,7 @@ print("Malicious request logs in dataset: {:0.2f}%".format(float(num_malicious) 
 
 1.  然而，所有的数据都是字符串格式。我们需要将其转换为适当类型的值。此外，数据集目前仅包含一个 DataFrame；我们将使用以下代码将其拆分为两部分——训练列和标签列：
 
-```
+```py
 df_values = df.sample(frac=1).values
 
 X = df_values[:,0]
@@ -138,7 +138,7 @@ Y = df_values[:,1]
 
 1.  另外，我们需要删除一些列，因为我们只想使用数据集中与我们任务相关的特征：
 
-```
+```py
 for index, item in enumerate(X):
     req = json.loads(item, object_pairs_hook=OrderedDict)
     del req['timestamp']
@@ -151,14 +151,14 @@ for index, item in enumerate(X):
 
 1.  完成后，我们现在准备对请求主体进行标记。标记是一种方法，我们将大段的段落拆分为句子，并将句子拆分为单词。我们可以使用以下代码执行标记化：
 
-```
+```py
 tokenizer = Tokenizer(filters='\t\n', char_level=True)
 tokenizer.fit_on_texts(X)
 ```
 
 1.  标记化完成后，我们将每个请求主体条目转换为向量。我们这样做是因为计算机需要对数据进行数值表示才能进行计算。然后，我们进一步将数据集分成两部分——75%的数据集用于训练，其余的用于测试。同样，使用以下代码将标签列拆分：
 
-```
+```py
 num_words = len(tokenizer.word_index)+1
 X = tokenizer.texts_to_sequences(X)
 
@@ -180,7 +180,7 @@ Y_train, Y_test = Y[0:split], Y[split:len(Y)]
 
 1.  现在，我们添加层和词嵌入，帮助保持数字编码文本与实际单词之间的关系，使用以下代码：
 
-```
+```py
 clf = Sequential()
 clf.add(Embedding(num_words, 32, input_length=max_log_length))
 clf.add(Dropout(0.5))
@@ -193,7 +193,7 @@ clf.add(Dense(1, activation='sigmoid'))
 
 1.  然后，我们使用以下代码编译模型并打印摘要：
 
-```
+```py
 clf.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 print(clf.summary())
 ```
@@ -206,13 +206,13 @@ print(clf.summary())
 
 1.  我们使用模型的`fit()`方法，如下所示：
 
-```
+```py
 clf.fit(X_train, Y_train, validation_split=0.25, epochs=3, batch_size=128)
 ```
 
 1.  我们将快速检查模型的准确性。我们可以看到该模型在验证数据上的准确率超过了 96%。考虑到这是我们的第一个模型，这个分数相当令人印象深刻。我们可以使用以下代码检查模型的准确性：
 
-```
+```py
 score, acc = clf.evaluate(X_test, Y_test, verbose=1, batch_size=128)
 print("Model Accuracy: {:0.2f}%".format(acc * 100))
 ```
@@ -223,7 +223,7 @@ print("Model Accuracy: {:0.2f}%".format(acc * 100))
 
 1.  让我们保存这些权重。我们将使用它们创建一个用于认证用户的 API。我们可以使用以下代码保存模型：
 
-```
+```py
 clf.save_weights('weights.h5')
 clf.save('model.h5')
 ```
@@ -236,7 +236,7 @@ clf.save('model.h5')
 
 1.  我们首先导入创建 Flask 服务器所需的模块，如下所示：
 
-```
+```py
 from sklearn.externals import joblib
 from flask import Flask, request, jsonify
 from string import digits
@@ -255,7 +255,7 @@ from collections import OrderedDict
 
 1.  现在，我们需要导入从`model`训练步骤中保存的模型和权重。一旦导入，我们需要重新编译模型并使用`make_predict_function()`方法创建其`predict`函数：
 
-```
+```py
 app = Flask(__name__)
 
 model = load_model('lstm-model.h5')
@@ -266,7 +266,7 @@ model._make_predict_function()
 
 1.  我们将使用一个数据清理函数，从客户端应用程序中剥离数字和其他无用文本：
 
-```
+```py
 def remove_digits(s: str) -> str:
     remove_digits = str.maketrans('', '', digits)
     res = s.translate(remove_digits)
@@ -277,7 +277,7 @@ def remove_digits(s: str) -> str:
 
 1.  清理完数据后，我们对其进行标记化和向量化。这些步骤与我们在训练期间所做的预处理相同。这样做是为了确保传入的请求与训练阶段处理方式一致：
 
-```
+```py
 @app.route('/login', methods=['GET, POST'])
 def login():
     req = dict(request.headers)
@@ -307,14 +307,14 @@ def login():
 
 1.  要在所需端口上运行服务器，我们需要在脚本末尾添加以下几行：
 
-```
+```py
 if __name__ == '__main__':
     app.run(port=9000, debug=True)
 ```
 
 1.  最后，我们将服务器脚本文件保存为`main.py`。我们将通过在系统上使用以下命令来启动服务器：
 
-```
+```py
 python main.py
 ```
 
@@ -334,13 +334,13 @@ python main.py
 
 现在，我们将创建一个 Django 项目。为此，我们使用以下命令：
 
-```
+```py
 django-admin startproject webapp
 ```
 
 这将创建当前文件夹中的`webapp`目录。我们将在此目录中添加所有未来的代码。当前的目录结构如下所示：
 
-```
+```py
 webapp/
     manage.py
     webapp/
@@ -358,7 +358,7 @@ webapp/
 
 如在第八章中讨论的，*使用 Python 在 Microsoft Azure 上进行深度学习*，我们现在必须将应用程序添加到网站项目中。为此，我们使用以下命令：
 
-```
+```py
 cd webapp
 python manage.py startapp billboard
 ```
@@ -369,7 +369,7 @@ python manage.py startapp billboard
 
 要将应用程序添加到项目中，我们需要在项目设置文件`settings.py`的应用程序列表中添加应用程序名称，如下所示。在`settings.py`中，添加以下更改：
 
-```
+```py
 # Application definition
 
 INSTALLED_APPS = [
@@ -389,7 +389,7 @@ INSTALLED_APPS = [
 
 要向项目添加路由，我们需要编辑`webapp`的`urls.py`文件：
 
-```
+```py
 from django.contrib import admin
 from django.urls import path, include # <--- ADD 'include' module
 
@@ -405,7 +405,7 @@ urlpatterns = [
 
 在`billboard`文件夹中创建一个名为`urls.py`的新文件，如下所示：
 
-```
+```py
 from django.urls import path
 from django.contrib.auth.decorators import login_required
 
@@ -425,7 +425,7 @@ urlpatterns = [
 
 要添加认证的路由，在`webapp/settings.py`文件的末尾添加以下内容：
 
-```
+```py
 LOGIN_URL = "/login"
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/logout'
@@ -437,7 +437,7 @@ LOGOUT_REDIRECT_URL = '/logout'
 
 要创建登录页面，我们需要将`/login`路由添加到公告板应用中的`urls.py`文件中。然而，我们已经完成了这一步。接下来，我们需要将`loginView`视图添加到公告板应用的`views.py`文件中：
 
-```
+```py
 def loginView(request):
     if request.user.is_authenticated:
         return redirect('/')
@@ -461,7 +461,7 @@ def loginView(request):
 
 然后，函数将调用身份验证检查模型 API，以验证用户登录是否符合正常行为。验证过程如以下代码所示：
 
-```
+```py
 def loginView(request):
     ...
             ## MORE CODE BELOW THIS LINE            
@@ -485,7 +485,7 @@ def loginView(request):
 
 为此，我们需要在`view.py`文件中添加一些必要的导入，如下所示：
 
-```
+```py
 from django.shortcuts import redirect
 from django.contrib.auth import authenticate, login, logout
 
@@ -509,7 +509,7 @@ import json
 
 现在，让我们创建`logout`视图。这非常简单，如下所示：
 
-```
+```py
 def logoutView(request):
     logout(request)
     return redirect('/')
@@ -523,7 +523,7 @@ def logoutView(request):
 
 在`billboard`目录下创建一个名为`templates`的文件夹。目录结构将如下所示：
 
-```
+```py
 webapp/
     manage.py
     webapp/
@@ -548,7 +548,7 @@ webapp/
 
 完成这些步骤后，我们就可以创建`login.html`文件，它将执行将登录值发送到服务器的过程：
 
-```
+```py
 {% extends 'base.html' %}
 {% block content %}
 <div class="container">
@@ -577,7 +577,7 @@ webapp/
 
 由于我们已经设置了`base.html`文件，因此可以简单地在`board.html`模板文件中扩展它，以创建公告板展示页面：
 
-```
+```py
 {% extends 'base.html' %}
 {% block content %}
 <div class="container">
@@ -607,7 +607,7 @@ webapp/
 
 要创建将账单添加到公告板的页面模板，我们使用以下代码创建`add.html`模板文件：
 
-```
+```py
 {% extends 'base.html' %}
 {% block content %}
 <div class="container">
@@ -646,7 +646,7 @@ webapp/
 
 在 `models.py` 文件中，添加以下代码：
 
-```
+```py
 from django.utils.timezone import now
 from django.contrib.auth.models import User
 
@@ -672,13 +672,13 @@ class Bills(models.Model):
 
 在 `view.py` 文件的顶部添加以下代码：
 
-```
+```py
 from .models import Bills
 ```
 
 然后，我们可以添加公告板的视图，如下所示：
 
-```
+```py
 def board(request):
     template = loader.get_template('board.html')
     context = {}
@@ -697,7 +697,7 @@ def board(request):
 
 在这个视图中，我们将创建账单。如果收到有效的 `POST` 请求，我们会创建一个新的 `Bill` 对象并保存到数据库中。否则，我们会显示添加账单的表单给用户。我们来看一下如何在以下代码中实现：
 
-```
+```py
 def addbill(request):
     if request.POST:
             billName = request.POST['billname']
@@ -719,13 +719,13 @@ def addbill(request):
 
 要创建管理员用户，请使用以下命令：
 
-```
+```py
  python manage.py createsuperuser
 ```
 
 现在，我们可以使用以下命令迁移数据库更改：
 
-```
+```py
 python manage.py makemigrations
 python manage.py migrate
 ```
@@ -754,13 +754,13 @@ python manage.py migrate
 
 1.  现在，将密钥添加到 web 应用的 `settings.py` 文件中，如下所示：
 
-```
+```py
 GOOGLE_RECAPTCHA_SECRET_KEY = '6Lfi6ncUAAAAANJYkMC66skocDgA1REblmx0-3B2'
 ```
 
 1.  接下来，我们需要将要加载的脚本添加到`add.html`模板中。我们将其添加到广告牌应用页面模板中，如下所示：
 
-```
+```py
 <script src="img/api.js?render=6Lfi6ncUAAAAAIaJgQCDaR3s-FGGczzo7Mefp0TQ"></script>
 <script>
     grecaptcha.ready(function() {
@@ -778,7 +778,7 @@ GOOGLE_RECAPTCHA_SECRET_KEY = '6Lfi6ncUAAAAANJYkMC66skocDgA1REblmx0-3B2'
 
 1.  最后，我们需要在添加广告牌视图中验证 reCAPTCHA，如下所示：
 
-```
+```py
 def addbill(request):
     if request.POST:
         recaptcha_response = request.POST.get('g-recaptcha-response')
@@ -800,7 +800,7 @@ def addbill(request):
 
 在完成前述更改后，我们终于准备好进行网站的测试，确保所有安全措施已到位。运行以下命令启动网站服务器：
 
-```
+```py
 python manage.py runserver
 ```
 

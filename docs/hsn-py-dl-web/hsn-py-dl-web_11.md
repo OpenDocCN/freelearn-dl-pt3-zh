@@ -132,7 +132,7 @@ Azure 还允许你在 7 天内免费试用该 API。但是，由于你已经拥�
 
 1.  现在，使用 Python 加载环境变量，如下所示：
 
-```
+```py
 import os
 face_api_key = os.environ['face_api_key']
 ```
@@ -143,7 +143,7 @@ face_api_key = os.environ['face_api_key']
 
 就我而言，我已将图像上传到 GitHub 仓库，并使用相应的 URL：
 
-```
+```py
 face_api_url = 'https://eastus.api.cognitive.microsoft.com/face/v1.0/detect'
 
 image_url= 'https://raw.githubusercontent.com/PacktPublishing/Hands-On-Python-Deep-Learning-for-Web/master/Chapter8/sample_image.jpg'
@@ -153,7 +153,7 @@ image_url= 'https://raw.githubusercontent.com/PacktPublishing/Hands-On-Python-De
 
 1.  现在，导入 `requests` 模块，并按如下所示设置 API 负载：
 
-```
+```py
 import requests
 params = {
 'returnFaceId': 'true',
@@ -166,7 +166,7 @@ params = {
 
 以下代码行将为您执行此操作：
 
-```
+```py
 # Define the header param
 headers = { 'Ocp-Apim-Subscription-Key': face_api_key }
 # Define the body params
@@ -179,7 +179,7 @@ params = {
 
 1.  我们现在可以显示从 API 接收到的响应：
 
-```
+```py
 # Make the call to the API
 response = requests.post(face_api_url, params=params, headers=headers, json={"url": image_url})
 # Get the response and log
@@ -189,7 +189,7 @@ print('There are {} faces im the given image'.format(str(len(faces))))
 
 在这种情况下，返回的代码如下：
 
-```
+```py
 There are 2 faces in the given image
 ```
 
@@ -197,7 +197,7 @@ There are 2 faces in the given image
 
 让我们以一种可展示的方式将从 API 获得的响应嵌入图像中。我们将显示检测到的人脸的可能性别和可能年龄。我们将使用 `matplotlib`、`PIL` 和 `io` 库，并将在 Jupyter notebook 中进行以下代码段的工作。我们将首先导入这些库：
 
-```
+```py
 %matplotlib inline #Only for Jupyter Notebook
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -209,31 +209,31 @@ from io import BytesIO
 
 1.  存储 API 响应：
 
-```
+```py
 response = requests.get(image_url)
 ```
 
 1.  从响应内容创建图像：
 
-```
+```py
 image = Image.open(BytesIO(response.content))
 ```
 
 1.  创建一个空白的图形：
 
-```
+```py
 plt.figure(figsize=(8,8))
 ```
 
 1.  显示使用响应创建的图像：
 
-```
+```py
 ax = plt.imshow(image, alpha=0.6)
 ```
 
 1.  遍历前面部分指定的人脸并提取必要的信息：
 
-```
+```py
 for face in faces:
  # Extract the information
  fr = face["faceRectangle"]
@@ -274,7 +274,7 @@ plt.show()
 
 1.  我们将通过导入所需的库来开始本节内容：
 
-```
+```py
 import requests
 import os
 from pprint import pprint
@@ -282,13 +282,13 @@ from pprint import pprint
 
 1.  然后，我们将从环境变量中加载 Text Analytics API 的 API 密钥：
 
-```
+```py
 api_key = os.environ['text_api_key']
 ```
 
 1.  现在，我们指定一些 URL 来存储 API 端点：
 
-```
+```py
 text_analytics_base_url = \
 'https://eastus.api.cognitive.microsoft.com/text/analytics/v2.0'
 language_api_url = text_analytics_base_url + "/languages"
@@ -298,13 +298,13 @@ key_phrase_api_url = text_analytics_base_url + "/keyPhrases"
 
 1.  现在，我们通过提供 API 密钥来定义 `headers` 参数：
 
-```
+```py
 headers = {"Ocp-Apim-Subscription-Key": api_key}
 ```
 
 1.  我们还将定义 body 参数。在我的示例中，我将保持与之前在基于 GUI 的演示中展示的相同的短语：
 
-```
+```py
 documents = { 'documents': [
 { 'id': '1', 'text': 'I want to attend NeurIPS someday and present a paper there.' }
 ]}
@@ -312,7 +312,7 @@ documents = { 'documents': [
 
 1.  我们现在可以调用 Text Analytics 的相应 API。首先让我们开始检测语言：
 
-```
+```py
 response = requests.post(language_api_url, headers=headers, json=documents)
 language = response.json()
 pprint(language)
@@ -324,7 +324,7 @@ pprint(language)
 
 请注意，我已经突出显示了语言部分。现在，让我们继续进行情感分析：
 
-```
+```py
 response = requests.post(sentiment_api_url, headers=headers, json=documents)
 sentiment = response.json()
 pprint(sentiment)
@@ -336,7 +336,7 @@ pprint(sentiment)
 
 请注意，这里使用的短语既不包含正面情感也不包含负面情感，因此得出了这样的评分。现在我们将从给定的文本中提取关键短语：
 
-```
+```py
 response = requests.post(key_phrase_api_url, headers=headers, json=documents)
 phrases = response.json()
 print(phrases)
@@ -368,21 +368,21 @@ CNTK 框架支持 64 位和 32 位架构的机器。然而，目前它仅支持 
 
 +   如果没有 Anaconda，请使用以下命令安装 CPU 版本：
 
-```
+```py
 # For CPU version
 pip install cntk
 ```
 
 +   使用以下命令安装 GPU 支持版本：
 
-```
+```py
 # For the GPU enabled version
 pip install cntk-gpu
 ```
 
 +   在启用 Anaconda 的机器上，可以使用 `pip` 和以下命令安装 CNTK 框架：
 
-```
+```py
 pip install <url>
 ```
 
@@ -390,7 +390,7 @@ pip install <url>
 
 该命令将类似于以下内容：
 
-```
+```py
 pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.6-cp35-cp35m-win_amd64.whl
 ```
 
@@ -400,7 +400,7 @@ pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.6-cp35-cp35m-win_amd64.w
 
 CNTK 框架在 Google Colaboratory 平台上默认不可用，因此必须与其他必要的模块一起安装。要在 Google Colaboratory 运行时安装 CNTK，请在脚本顶部使用以下命令：
 
-```
+```py
 !apt-get install --no-install-recommends openmpi-bin libopenmpi-dev libopencv-dev python3-opencv python-opencv && ln -sf /usr/lib/x86_64-linux-gnu/libmpi_cxx.so /usr/lib/x86_64-linux-gnu/libmpi_cxx.so.1 && ln -sf /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi.so /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi.so.12 && ln -sf /usr/lib/x86_64-linux-gnu/libmpi.so /usr/lib/x86_64-linux-gnu/libmpi.so.12 && pip install cntk
 ```
 
@@ -410,13 +410,13 @@ CNTK 框架在 Google Colaboratory 平台上默认不可用，因此必须与其
 
 通常，通过 `C` 别名将 CNTK 导入 Python 项目。我们使用以下代码将库导入到项目中：
 
-```
+```py
 import cntk as C
 ```
 
 我们可以使用以下命令检查安装的 CNTK 版本：
 
-```
+```py
 print(C.__version__)
 ```
 
@@ -428,7 +428,7 @@ print(C.__version__)
 
 1.  我们首先将必要的模块导入到项目中：
 
-```
+```py
 import matplotlib.pyplot as plt
 %matplotlib inline
 
@@ -446,7 +446,7 @@ import cntk as C # if you have not done this before in the project
 
 1.  接下来，设置程序执行期间需要的几个常量：
 
-```
+```py
 num_samples = 60000
 batch_size = 64
 learning_rate = 0.1
@@ -456,7 +456,7 @@ learning_rate = 0.1
 
 1.  我们接下来需要创建一个生成随机小批量数据的训练方法：
 
-```
+```py
 class Batch_Reader(object):
     def __init__(self, data , label):
         self.data = data
@@ -472,13 +472,13 @@ class Batch_Reader(object):
 
 1.  现在需要获取数据集；为此，我们使用以下代码行：
 
-```
+```py
 mnist = fetch_openml('mnist_784')
 ```
 
 数据获取完成后，可以将其分为训练集和测试集，如下所示：
 
-```
+```py
 train_data = mnist.data[:num_samples,:]
 train_label = mnist.target[:num_samples]
 test_data = mnist.data[num_samples:,:]
@@ -487,7 +487,7 @@ test_label = mnist.target[num_samples:]
 
 1.  数据集中的标签在输入训练模型之前需要进行 one-hot 编码。为此，我们使用以下代码：
 
-```
+```py
 enc = OneHotEncoder()
 enc.fit(train_label[:,None])
 train_encoded = enc.transform(train_label[:,None]).toarray()
@@ -495,13 +495,13 @@ train_encoded = enc.transform(train_label[:,None]).toarray()
 
 1.  现在我们可以为训练批量生成器创建一个生成器对象，如下所示：
 
-```
+```py
 train_reader = Batch_Reader(train_data, train_encoded)
 ```
 
 1.  让我们快速地对`test`数据集执行上述步骤：
 
-```
+```py
 enc = OneHotEncoder()
 enc.fit(test_label[:,None])
 test_encoded = enc.transform(test_label[:,None]).toarray()
@@ -511,7 +511,7 @@ test_reader = Batch_Reader(test_data, test_encoded)
 
 1.  现在，让我们创建一个 CNTK 神经网络模型。我们首先定义一些常量：
 
-```
+```py
 dimensions = 784
 classes = 10
 hidden_layers = 3
@@ -522,14 +522,14 @@ hidden_layers_neurons = 400
 
 1.  然后我们创建两个 CNTK 的`input`变量，用于在创建模型时使用。这是 CNTK 中最重要的概念之一。
 
-```
+```py
 input = C.input_variable(dimensions)
 label = C.input_variable(classes)
 ```
 
 在 CNTK 中，`input`变量本质上是一个占位符，我们在模型训练、评估或测试时用来填充样本。从数据集中获取的输入形状必须与此步骤中声明的`input`变量的维度完全匹配。这里需要特别提到的是，很多人将输入的维度与数据集的特征数混淆。一个具有*N*个特征和*M*个样本的数据集，其形状为(*M*, *N*)，因此该数据集的维度仅为`2`：
 
-```
+```py
 def create_model(features):
     with C.layers.default_options(init = C.layers.glorot_uniform(), activation = C.ops.relu):
 ​
@@ -548,7 +548,7 @@ def create_model(features):
 
 第一层包含特征本身，最终层包含一个维度等于类别数的向量。中间的所有层包含一个完全连接的网络，拥有 3 个隐藏层，每个隐藏层有 400 个神经元，并使用 ReLU 激活：
 
-```
+```py
 model = create_model(input/255.0)
 ```
 
@@ -560,14 +560,14 @@ model = create_model(input/255.0)
 
 1.  创建 `loss` 和分类误差的占位符：
 
-```
+```py
 loss = C.cross_entropy_with_softmax(model, label)
 label_error = C.classification_error(model, label)
 ```
 
 1.  现在，我们可以为 CNTK 框架设置一个 `trainer` 对象，用于执行实际的训练：
 
-```
+```py
 lrs = C.learning_rate_schedule(learning_rate, C.UnitType.minibatch)
 learner = C.sgd(model.parameters, lrs)
 trainer = C.Trainer(model, (loss, label_error), [learner])
@@ -575,7 +575,7 @@ trainer = C.Trainer(model, (loss, label_error), [learner])
 
 1.  现在，让我们进行训练：
 
-```
+```py
 epochs = 10
 num_iters = (num_samples * epochs) / batch_size
 
@@ -600,13 +600,13 @@ for i in range(int(num_iters)):
 
 在继续使用 Django 框架将此项目转换为 Web 应用程序之前，让我们快速测试一下模型在此训练中的准确性。我们将执行以下操作，从模型中进行预测：
 
-```
+```py
 predicted_label_probs = model.eval({input: test_data})
 ```
 
 这将为数据集中的每个标签创建一个 NumPy 概率数组。必须将其转换为索引并与测试数据的标签进行比较。我们按如下方式进行操作：
 
-```
+```py
 predictions = np.argmax(predicted_label_probs, axis=1)
 actual = np.argmax(test_encoded, axis=1)
 correct = np.sum(predictions == actual)
@@ -615,7 +615,7 @@ print(correct / len(actual))
 
 我们发现预测准确率约为 98%。这是一个非常好的值，我们将继续保存模型并通过 Django 使用它。保存 CNTK 模型的方法如下：
 
-```
+```py
 model.save("cntk.model")
 ```
 
@@ -637,13 +637,13 @@ Django 项目的初始结构如下所示：
 
 使用 Django 之前的首要步骤是安装它。幸运的是，这个框架可以轻松地作为一个模块从 Python PIP 仓库安装。它也可以在 Conda 仓库中找到。要安装 Django，打开一个新的终端窗口并使用以下命令：
 
-```
+```py
 conda install django
 ```
 
 或者，如果你更喜欢使用 PIP，可以使用以下命令：
 
-```
+```py
 pip install django
 ```
 
@@ -651,7 +651,7 @@ pip install django
 
 要检查是否已成功安装，请在终端中使用以下命令：
 
-```
+```py
 python -m django --version
 ```
 
@@ -661,13 +661,13 @@ python -m django --version
 
 Django 提供了一个名为`django-admin`的便捷工具，可以用来生成 Django 项目所需的模板代码。要创建一个名为`cntkdemo`的新项目，请使用以下代码：
 
-```
+```py
 django-admin startproject cntkdemo
 ```
 
 这将创建所有的模板文件和文件夹。但是，我们必须在项目中创建至少一个应用。通过终端将当前工作目录更改为`cntkdemo`文件夹。使用以下命令在此项目中创建一个应用：
 
-```
+```py
 python manage.py startapp api
 ```
 
@@ -685,7 +685,7 @@ python manage.py startapp api
 
 1.  在`api`文件夹中创建一个文件`urls.py`。这个文件相对于项目目录的完整路径是`mysite/api/urls.py`。在这个文件中，让我们使用以下代码添加`/`路由：
 
-```
+```py
 from django.urls import path
 
 from . import views
@@ -699,7 +699,7 @@ urlpatterns = [
 
 1.  `api`应用没有链接到主项目应用。我们需要在`mysite/mysite/urls.py`文件中添加以下几行，以便启用`api`应用的路由处理：
 
-```
+```py
 from django.contrib import admin
 from django.urls import path
 from django.urls import include # -- Add this line!
@@ -714,7 +714,7 @@ urlpatterns = [
 
 1.  在`api`应用目录中的`views.py`文件中，添加以下几行代码：
 
-```
+```py
 from django.http import HttpResponse
 from django.template import loader
 ```
@@ -723,7 +723,7 @@ from django.template import loader
 
 1.  现在，我们创建`indexView`方法：
 
-```
+```py
 def indexView(request):
  template = loader.get_template('api/index.html')
  context = {}
@@ -734,7 +734,7 @@ def indexView(request):
 
 1.  让我们创建一个用于存放模板的文件夹，并将其链接到项目设置中。为此，进入项目的根目录并创建一个名为`templates`的文件夹。我们需要让项目能够识别该文件夹作为模板的目录。为此，我们需要修改`mysite/mysite/settings.py`文件中的`TEMPLATES`设置：
 
-```
+```py
 TEMPLATES = [
  {
  'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -750,7 +750,7 @@ TEMPLATES = [
 
     请注意，我们在第 4 步中提到的模板文件路径存在于`api`目录中。在`templates`目录下创建一个名为`api`的文件夹。在这个文件夹中，创建`index.html`文件，并添加以下代码：
 
-```
+```py
 {% load static %}
 ...
         <div class="jumbotron">
@@ -772,7 +772,7 @@ TEMPLATES = [
 
 1.  现在，让我们在前面的代码块中，向具有`jumbotron`类的`div`元素中添加一个`canvas`元素，我们将在该元素上绘制数字。我们还将添加一个滑动条，用于选择绘图笔的宽度，如下所示：
 
-```
+```py
         <div class="jumbotron">
             <h3 class="jumbotronHeading">Draw here!</h3>        
             <div class="slidecontainer">
@@ -793,7 +793,7 @@ TEMPLATES = [
 
 1.  现在，我们将开始添加与后端 API 通信所需的 JavaScript 代码。首先，我们创建一个方法来检查是否需要 CSRF token 来与后端通信。这只是一个工具函数，与调用后端 API 无关，因为有时后端 API 会被设计为接受没有 CSRF token 的请求。我们创建这个函数，如下所示：
 
-```
+```py
 <script type="text/javascript">
     function csrfSafeMethod(method) {
         return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
@@ -802,7 +802,7 @@ TEMPLATES = [
 
 1.  然后，我们为`Predict`按钮创建一个`click`处理程序。这个处理程序函数首先设置所需的正确头信息以便与后端 API 通信，然后将画布上的绘图转换为数据 URL 字符串：
 
-```
+```py
     $("#predict-btn").click(function() {
 
         var csrftoken = $('input[name=csrfmiddlewaretoken]').val();
@@ -829,7 +829,7 @@ TEMPLATES = [
 
 1.  最后，我们将代码添加到`Predict`按钮的`click`处理函数中，以便通过 Ajax 调用后端，将画布中的数据发送出去，如下所示：
 
-```
+```py
 $("#predict-btn").click(function() {
 ...
         // MORE CODE TO BE ADDED BELOW THIS LINE
@@ -855,7 +855,7 @@ $("#predict-btn").click(function() {
 
 1.  在我们创建静态文件之前，我们需要为它们创建一个文件夹并将其链接到项目中。这与我们创建`templates`文件夹的方式类似。首先，在项目目录中创建一个名为`static`的文件夹，路径为`mysite/static/`。然后，修改`mysite/mysite/settings.py`文件中的`STATIC`配置，如下所示：
 
-```
+```py
 STATIC_URL = '/static/'
 
 STATICFILES_DIRS = [
@@ -881,7 +881,7 @@ STATICFILES_DIRS = [
 
 1.  首先，将以下行添加到`mysite/api/urls.py`中：
 
-```
+```py
 urlpatterns = [
  path('', views.indexView),
  path('predict', views.predictView), # -- Add this line!
@@ -892,7 +892,7 @@ urlpatterns = [
 
 1.  将以下行添加到`api`应用的`views.py`文件中：
 
-```
+```py
 from django.http import JsonResponse
 
 def predictView(request):
@@ -910,14 +910,14 @@ def predictView(request):
 
 1.  将以下导入语句添加到`api`应用的`views.py`文件中：
 
-```
+```py
 import os
 from django.conf import settings
 ```
 
 1.  我们需要前面的导入语句来从磁盘加载模型：
 
-```
+```py
 import cntk as C
 from cntk.ops.functions import load_model
 ```
@@ -926,14 +926,14 @@ from cntk.ops.functions import load_model
 
 以下模块用于处理进行预测时使用的图像：
 
-```
+```py
 from PIL import Image
 import numpy as np
 ```
 
 以下模块提供了处理 Base64 编码字符串的实用功能，这是`index.html`页面在请求中发送画布数据的格式：
 
-```
+```py
 import re
 import base64
 import random 
@@ -948,7 +948,7 @@ import string
 
 1.  首先，使用以下代码将 Base64 编码的图像字符串数据读取到变量中：
 
-```
+```py
 def predictView(request):
  # We will add more code below this line
 
@@ -962,7 +962,7 @@ Base64 解码后的字符串没有适当的填充，并且包含需要转换为`
 
 1.  接下来，我们将把这个 Base64 编码的字符串转换为 PNG 图像，并使用以下代码保存到磁盘：
 
-```
+```py
 filename = ''.join([random.choice(string.ascii_letters + string.digits) for n in range(32)])
 
 convertImage(imgData, filename)
@@ -972,7 +972,7 @@ convertImage(imgData, filename)
 
 1.  然而，`convertImage`方法尚未定义。在`predictView`方法外部，按如下方式添加该函数的定义：
 
-```
+```py
 def convertImage(imgData, filename):
  imgstr = re.search(r'base64,(.*)', str(imgData)).group(1)
  img = base64.b64decode(imgstr)
@@ -984,7 +984,7 @@ def convertImage(imgData, filename):
 
 1.  让我们回到 `predictView` 方法。我们将首先加载保存的 `image` 文件：
 
-```
+```py
 image = Image.open(filename+'.png').convert('1')
 ```
 
@@ -992,13 +992,13 @@ image = Image.open(filename+'.png').convert('1')
 
 1.  回想一下，MNIST 数据集中的所有图像的尺寸都是 28 x 28。我们必须将当前图像调整为相同的尺寸。我们通过以下代码来实现：
 
-```
+```py
 image.thumbnail((28,28), Image.ANTIALIAS)
 ```
 
 1.  现在，我们使用以下代码将图像转换为 NumPy 数组：
 
-```
+```py
 image_np = np.array(image.getdata()).astype(int)
 image_np_expanded = np.expand_dims(image_np, axis = 0)
 ```
@@ -1009,13 +1009,13 @@ image_np_expanded = np.expand_dims(image_np, axis = 0)
 
     我们现在在 `predictView` 方法中加载 CNTK 模型，如下所示：
 
-```
+```py
 model = load_model(os.path.join(settings.BASE_DIR, "data/cntk.model"))
 ```
 
 1.  最后，我们可以预测图像的标签，如下所示：
 
-```
+```py
 predicted_label_probs = model.eval({model.arguments[0]: image_np_expanded})
 data = np.argmax(predicted_label_probs, axis=1)
 ```
@@ -1024,7 +1024,7 @@ data = np.argmax(predicted_label_probs, axis=1)
 
 1.  要返回输出，请修改 `predictView` 方法中的 `return` 部分，如下所示：
 
-```
+```py
  # We will add more code above this line
  return JsonResponse({"data": str(data[0])})
 ```
@@ -1037,7 +1037,7 @@ data = np.argmax(predicted_label_probs, axis=1)
 
 使用以下命令启动 Django 服务器：
 
-```
+```py
 python manage.py runserver
 ```
 

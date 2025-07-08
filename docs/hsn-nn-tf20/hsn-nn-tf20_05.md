@@ -50,7 +50,7 @@ Python 应用程序通常会使用一些不包含在标准库中的包和模块�
 
 创建一个名为 `tf1` 的文件夹，进入其中，并运行以下命令来创建一个环境，激活它，并使用 `pip` 安装 TensorFlow：
 
-```
+```py
 # create the virtualenv in the current folder (tf1)
 pipenv --python 3.7
 # run a new shell that uses the just created virtualenv
@@ -70,7 +70,7 @@ pip install tensorflow==1.15
 
 与 TensorFlow 1.x 环境相同的方式，创建一个名为 `tf2` 的文件夹，进入其中，并运行以下命令：
 
-```
+```py
 # create the virtualenv in the current folder (tf2)
 pipenv --python 3.7
 # run a new shell that uses the just created virtualenv
@@ -108,7 +108,7 @@ pip install tensorflow==2.0
 
 `(tf1)`
 
-```
+```py
 import tensorflow as tf
 
 # Build the graph
@@ -133,7 +133,7 @@ writer.close()
 
 要执行 TensorBoard 并可视化计算图，只需输入以下命令，并在 TensorBoard 指定的地址打开网页浏览器：
 
-```
+```py
 tensorboard --logdir log/matmul
 ```
 
@@ -177,13 +177,13 @@ tensorboard --logdir log/matmul
 
 `(tf1)`
 
-```
+```py
 import tensorflow as tf
 ```
 
 然后，我们定义了两个 `tf.Graph` 对象（作用域系统使得轻松使用多个图成为可能）：
 
-```
+```py
 g1 = tf.Graph()
 g2 = tf.Graph()
 
@@ -206,7 +206,7 @@ with g2.as_default():
 
 然后，我们定义两个摘要写入器。我们需要使用两个不同的 `tf.summary.FileWriter` 对象来记录两个独立的图。
 
-```
+```py
 writer = tf.summary.FileWriter("log/two_graphs/g1", g1)
 writer = tf.summary.FileWriter("log/two_graphs/g2", g2)
 writer.close()
@@ -218,7 +218,7 @@ writer.close()
 
 事实上，运行脚本时，输出如下：
 
-```
+```py
 Tensor("scope_a/x:0", shape=(), dtype=int32)
 Tensor("scope_b/x:0", shape=(), dtype=int32)
 ```
@@ -270,7 +270,7 @@ Python 绑定的另一个特点是，它们简化了一些常见数学操作的�
 
 使用重载运算符时，我们无法指定节点名称，因此也无法指定输出张量的名称。事实上，在基准示例中，我们使用 `tf.add` 方法定义加法操作，是因为我们想给输出张量一个有意义的名称（result）。实际上，这两行代码是等效的：
 
-```
+```py
 # Original example, using only API calls
 y = tf.add(tf.matmul(A, x), b, name="result")
 
@@ -284,7 +284,7 @@ y = A @ x + b
 
 `tf.device` 创建一个上下文管理器，匹配一个设备。该函数允许用户请求在其创建的上下文中创建的所有操作都放置在相同的设备上。由 `tf.device` 标识的设备不仅仅是物理设备；事实上，它能够识别远程服务器、远程设备、远程工作者以及不同类型的物理设备（GPU、CPU 和 TPU）。必须遵循设备规格来正确指示框架使用所需设备。设备规格的形式如下：
 
-```
+```py
 /job:<JOB_NAME>/task:<TASK_INDEX>/device:<DEVICE_TYPE>:<DEVICE_INDEX>
 ```
 
@@ -306,13 +306,13 @@ y = A @ x + b
 
 `(tf1)`
 
-```
+```py
 import tensorflow as tf
 ```
 
 现在，使用上下文管理器将操作放置在不同的设备上，首先是在本地机器的第一个 CPU 上：
 
-```
+```py
 with tf.device("/CPU:0"):
     A = tf.constant([[1, 2], [3, 4]], dtype=tf.float32)
     x = tf.constant([[0, 10], [0, 0.5]])
@@ -321,20 +321,20 @@ with tf.device("/CPU:0"):
 
 然后，在本地机器的第一个 GPU 上：
 
-```
+```py
 with tf.device("/GPU:0"):
     mul = A @ x
 ```
 
 当设备未通过作用域强制指定时，TensorFlow 会决定哪个设备更适合放置操作：
 
-```
+```py
 y = mul + b
 ```
 
 然后，我们定义总结写入器：
 
-```
+```py
 writer = tf.summary.FileWriter("log/matmul_optimized", tf.get_default_graph())
 writer.close()
 ```
@@ -375,7 +375,7 @@ writer.close()
 
 `(tf1)`
 
-```
+```py
 # The context manager opens the session
 with tf.Session() as sess:
     # Use the session to execute operations
@@ -387,7 +387,7 @@ with tf.Session() as sess:
 
 `(tf1)`
 
-```
+```py
 # the IP and port of the TensorFlow server
 ip = "192.168.1.90"
 port = 9877
@@ -405,7 +405,7 @@ with tf.Session(f"grpc://{ip}:{port}") as sess:
 
 基础示例现在可以扩展，不仅定义一个图，还可以继续有效地构建并执行它：
 
-```
+```py
 import tensorflow as tf
 import numpy as np
 
@@ -448,7 +448,7 @@ print(f"y_new: {y_new}")
 
 因此，第一个打印调用会产生以下输出：
 
-```
+```py
 A: [[1\. 2.]
     [3\. 4.]]
 x: [[ 0\. 10\. ]
@@ -462,7 +462,7 @@ y: [[ 1\. 10.]
 
 `tf.placeholder` 只是一个占位符，目的是当外部值没有注入到图中时抛出错误。然而，`feed_dict` 参数不仅仅是传递占位符的方式。事实上，前面的示例展示了它如何被用来覆盖任何节点。通过将节点由 Python 变量 `b` 指定的变量通过 `numpy` 数组覆盖，且该数组在类型和形状上必须与被覆盖的变量兼容，得到的结果如下：
 
-```
+```py
 y_new: [[ 0\. 11.]
         [ 0\. 32.]]
 ```
@@ -491,7 +491,7 @@ y_new: [[ 0\. 11.]
 
 通过调用 `tf.Variable` 创建变量将始终创建一个新的变量，并且始终需要指定初始值。以下几行展示了如何创建一个名为 `W` 的变量，形状为 `(5, 5, size_in, size_out)`，以及一个名为 `B` 的变量，形状为 `(size_out)`：
 
-```
+```py
 w = tf.Variable(tf.truncated_normal([5, 5, size_in, size_out], stddev=0.1), name="W")
 b = tf.Variable(tf.constant(0.1, shape=[size_out]), name="B")
 ```
@@ -504,7 +504,7 @@ b = tf.Variable(tf.constant(0.1, shape=[size_out]), name="B")
 
 第一个函数创建了一个 2D 卷积层（使用 5 x 5 的卷积核），并随后进行最大池化操作，将输出的空间维度减半：
 
-```
+```py
 def conv2D(input, size_in, size_out, name="conv"):
 """Define a 2D convolutional layer + max pooling.
 Args:
@@ -530,7 +530,7 @@ Returns:
 
 `(tf1)`
 
-```
+```py
 def fc(input, size_in, size_out, name="fc"):
 """Define a fully connected layer.
 Args:
@@ -549,7 +549,7 @@ Returns:
 
 `(tf1)`
 
-```
+```py
 with tf.name_scope(name):
     w = tf.Variable(tf.truncated_normal([size_in, size_out], stddev=0.1), name="W")
     b = tf.Variable(tf.constant(0.1, shape=[size_out]), name="B")
@@ -573,7 +573,7 @@ with tf.name_scope(name):
 
 `(tf1)`
 
-```
+```py
 with tf.variable_scope("scope"):
     a = tf.get_variable("v", [1]) # a.name == "scope/v:0"
 with tf.variable_scope("scope"):
@@ -588,7 +588,7 @@ with tf.variable_scope("scope", reuse=True):
 
 `(tf1)`
 
-```
+```py
 def conv2D(input, size_in, size_out):
     w = tf.get_variable(
         'W', [5, 5, size_in, size_out],
@@ -616,7 +616,7 @@ def fc(input, size_in, size_out):
 
 调用 `conv2D` 或 `fc` 会定义当前作用域内所需的变量，因此，为了定义两个卷积层而不发生命名冲突，必须使用 `tf.variable_scope`：
 
-```
+```py
 input = tf.placeholder(tf.float32, (None, 28,28,1))
 with tf.variable_scope("first)":
     conv1 = conv2d(input, input.shape[-1].value, 10)
@@ -641,7 +641,7 @@ TensorFlow 1.x 中的 `tf.layers` 模块和 TensorFlow 2.0 中的 `tf.keras.laye
 
 `(tf1)`
 
-```
+```py
 def define_cnn(x, n_classes, reuse, is_training):
     """Defines a convolutional neural network for classification.
     Args:
@@ -666,7 +666,7 @@ def define_cnn(x, n_classes, reuse, is_training):
 
 然后，我们将数据展平为一个 1D 向量，以便使用全连接层。请注意新形状的计算方式，以及批量大小位置的负维度：
 
-```
+```py
         shape = (-1,conv2.shape[1].value * conv2.shape[2].value * conv2.shape[3].value)
         fc1 = tf.reshape(conv2, shape)
 
@@ -712,7 +712,7 @@ TensorFlow 使用自动微分——微分器是一个包含所有必要规则的
 
 因此，可以按如下方式修改前面的示例。为了定义标签的输入占位符，我们可以定义损失函数（`tf.losses.sparse_softmax_cross_entropy`），并实例化 ADAM 优化器以最小化它：
 
-```
+```py
 # Input placeholders: input is the cnn input, labels is the loss input.
 input = tf.placeholder(tf.float32, (None, 28, 28, 1))
 labels = tf.placeholder(tf.int32, (None,))
@@ -788,7 +788,7 @@ TensorFlow 的 Python API 非常完整且易于使用。因此，我们可以扩
 
 `(tf1)`
 
-```
+```py
 from tensorflow.keras.datasets import fashion_mnist
 
 (train_x, train_y), (test_x, test_y) = fashion_mnist.load_data()
@@ -806,7 +806,7 @@ test_x = np.expand_dims(test_x, -1)
 
 `(tf1)`
 
-```
+```py
 epochs = 10
 batch_size = 32
 nr_batches_train = int(train_x.shape[0] / batch_size)
@@ -828,7 +828,7 @@ print(f"Number of batches per epoch: {nr_batches_train}")
 
 `(tf1)`
 
-```
+```py
 # Define the accuracy operation over a batch
 predictions = tf.argmax(logits, 1)
 # correct predictions: [BATCH_SIZE] tensor
@@ -849,7 +849,7 @@ loss_summary = tf.summary.scalar("loss", loss)
 
 因此，既然我们希望在同一个图表中可视化训练曲线和验证曲线，我们可以创建两个不同的写入器：
 
-```
+```py
 writer = tf.summary.FileWriter("log/graph_loss", tf.get_default_graph())
 validation_summary_writer = tf.summary.FileWriter(
     "log/graph_loss/validation")
@@ -879,7 +879,7 @@ validation_summary_writer = tf.summary.FileWriter(
 
 `(tf1)`
 
-```
+```py
 def train():
     input = tf.placeholder(tf.float32, (None, 28, 28, 1))
     labels = tf.placeholder(tf.int64, (None,))

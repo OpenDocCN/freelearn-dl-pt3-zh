@@ -66,7 +66,7 @@
 
 一段代码的格式如下：
 
-```
+```py
 import numpy as np 
 import sys 
 import matplotlib.pyplot as plt
@@ -74,7 +74,7 @@ import matplotlib.pyplot as plt
 
 当我们希望您注意代码块中的特定部分时，相关行或项会以**粗体**显示：
 
-```
+```py
 def random_action():
     # a = 0 : top/north
     # a = 1 : right/east
@@ -86,7 +86,7 @@ def random_action():
 
 所有命令行输入或输出如下所示：
 
-```
+```py
 sudo apt-get install python-numpy python-scipy python-matplotlib
 ```
 

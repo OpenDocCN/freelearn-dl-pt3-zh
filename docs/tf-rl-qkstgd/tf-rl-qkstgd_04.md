@@ -70,7 +70,7 @@ DDQN 是 DQN 的扩展，在贝尔曼更新中我们使用目标网络。具体�
 
 首先，我们创建一个名为`ALGO`的变量，它将存储两个字符串之一：`DQN`或`DDQN`，这决定了我们要使用哪一个算法：
 
-```
+```py
 ALGO = "DDQN" #"DQN" # DDQN
 ```
 
@@ -78,7 +78,7 @@ ALGO = "DDQN" #"DQN" # DDQN
 
 而在 DDQN 中，我们计算与主 Q 网络中最大 Q 值对应的动作，这个值存储在`greedy_q`中，并通过`np.argmax()`进行评估。然后，我们在目标网络 Q 值中使用`greedy_q`（它现在表示一个动作）。注意，对于终止时间步骤，即`done = True`，我们不应考虑下一个状态；而对于非终止步骤，`done = False`，我们考虑下一个步骤。可以通过对`done_batch`使用`np.invert().astype(np.float32)`轻松实现。以下代码行展示了 DDQN：
 
-```
+```py
 # calculate q values and targets 
 
 if (ALGO == 'DQN'): 
@@ -165,13 +165,13 @@ elif (ALGO == 'DDQN'):
 
 我们首先在 `model.py` 中创建一个名为 `DUELING` 的布尔变量，并在使用对抗网络架构时将其赋值为 `True`，否则赋值为 `False`：
 
-```
+```py
 DUELING = True # False
 ```
 
 我们将编写带有`if`循环的代码，以便在`DUELING`变量为`False`时使用我们在 DDQN 中使用的早期代码，而当其为`True`时使用对战网络。我们将使用`flattened`对象，它是卷积层输出的扁平化版本，用来创建两个子神经网络流。我们将`flattened`分别传入两个不同的完全连接层，每个层有`512`个神经元，使用`relu`激活函数和先前定义的`winit`权重初始化器；这些完全连接层的输出值分别称为`valuestream`和`advantagestream`：
 
-```
+```py
 if (not DUELING):
 
      # Q(s,a)
@@ -190,7 +190,7 @@ if (not DUELING):
 
 `advantagestream`对象被传入一个完全连接的层，该层的神经元数量等于动作数量，即`len(self.VALID_ACTIONS)`。同样，`valuestream`对象被传入一个只有一个神经元的完全连接层。请注意，我们在计算`advantage`和`state value`函数时不使用激活函数，因为它们可以是正数也可以是负数（`relu`会将所有负值设为零！）。最后，我们使用`tf.subtract()`将`advantage`和`advantage`函数的均值相减，从而将优势流和价值流结合起来。均值通过对`advantage`函数使用`tf.reduce_mean()`来计算：
 
-```
+```py
 # A(s,a)
 self.advantage = tf.contrib.layers.fully_connected(advantagestream, len(self.VALID_ACTIONS), activation_fn=None, weights_initializer=winit)
 
@@ -287,13 +287,13 @@ Dopamine 框架基于四个设计原则：
 
 要从 GitHub 下载 Dopamine，请在终端中输入以下命令：
 
-```
+```py
 git clone https://github.com/google/dopamine.git
 ```
 
 我们可以通过在终端中输入以下命令来测试 Dopamine 是否成功安装：
 
-```
+```py
 cd dopamine
 export PYTHONPATH=${PYTHONPATH}:.
 python tests/atari_init_test.py
@@ -301,7 +301,7 @@ python tests/atari_init_test.py
 
 其输出将类似于以下内容：
 
-```
+```py
 2018-10-27 23:08:17.810679: I tensorflow/core/platform/cpu_feature_guard.cc:141] Your CPU supports instructions that this TensorFlow binary was not compiled to use: SSE4.1 SSE4.2 AVX AVX2 FMA
 2018-10-27 23:08:18.079916: I tensorflow/stream_executor/cuda/cuda_gpu_executor.cc:897] successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
 2018-10-27 23:08:18.080741: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1392] Found device 0 with properties: 
@@ -327,13 +327,13 @@ OK
 
 要运行 Rainbow DQN，请在终端中输入以下命令：
 
-```
+```py
 python -um dopamine.atari.train --agent_name=rainbow --base_dir=/tmp/dopamine --gin_files='dopamine/agents/rainbow/configs/rainbow.gin'
 ```
 
 就这样。多巴胺将开始训练 Rainbow DQN，并在屏幕上打印训练统计信息，同时保存检查点文件。配置文件存储在以下路径：
 
-```
+```py
 dopamine/dopamine/agents/rainbow/configs/rainbow.gin
 ```
 
@@ -341,7 +341,7 @@ dopamine/dopamine/agents/rainbow/configs/rainbow.gin
 
 粘性动作是一种引入学习随机性的新方法：
 
-```
+```py
 # Hyperparameters follow Hessel et al. (2018), except for sticky_actions,
 # which was False (not using sticky actions) in the original paper.
 import dopamine.agents.rainbow.rainbow_agent

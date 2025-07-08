@@ -62,7 +62,7 @@ Google AI 在 2017 年 7 月发布了一个关于使用 seq2seq 注意力模型�
 
 数据集需要首先加载。加载数据的代码在`load_data()`函数中：
 
-```
+```py
 def load_data():
     print("Loading the dataset")
     (ds_train, ds_val, ds_test), ds_info = tfds.load(
@@ -77,7 +77,7 @@ def load_data():
 
 主函数中对应的部分如下所示：
 
-```
+```py
 if __name__ == "__main__":
     setupGPU()  # OPTIONAL – only if using GPU
     ds_train, _, _ = load_data() 
@@ -85,7 +85,7 @@ if __name__ == "__main__":
 
 仅加载训练数据集。验证数据集包含约 190,000 个样本，而测试集包含超过 1,900 个样本。相比之下，训练集包含超过 380 万个样本。根据网络连接情况，下载数据集可能需要一些时间：
 
-```
+```py
 Downloading and preparing dataset gigaword/1.2.0 (download: 551.61 MiB, generated: Unknown size, total: 551.61 MiB) to /xxx/tensorflow_datasets/gigaword/1.2.0...
 /xxx/anaconda3/envs/tf21g/lib/python3.7/site-packages/urllib3/connectionpool.py:986: InsecureRequestWarning: Unverified HTTPS request is being made to host 'drive.google.com'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#ssl-warnings
   InsecureRequestWarning, 
@@ -104,7 +104,7 @@ Dataset gigaword downloaded and prepared to /xxx/tensorflow_datasets/gigaword/1.
 
 Gigaword 数据集已经使用 StanfordNLP 分词器进行了清洗、规范化和分词。所有数据都已转换为小写，并使用 StanfordNLP 分词器进行了规范化，正如前面的示例所示。本步骤的主要任务是创建词汇表。基于单词的分词器是摘要生成中最常见的选择。然而，本章将使用子词分词器。子词分词器的优点是可以在最小化未知词数量的同时限制词汇表的大小。*第三章*，*使用 BiLSTMs、CRFs 和维特比解码进行命名实体识别（NER）*，介绍了不同类型的分词器。因此，像 BERT 和 GPT-2 这样的模型使用某种变体的子词分词器。`tfds` 包提供了一种方法，可以从文本语料库初始化并创建一个子词分词器。由于生成词汇表需要遍历所有训练数据，因此这个过程可能比较慢。初始化后，分词器可以保存到磁盘以供将来使用。这个过程的代码在 `get_tokenizer()` 函数中定义：
 
-```
+```py
 def get_tokenizer(data, file="gigaword32k.enc"):
     if os.path.exists(file+.subwords):
         # data has already been tokenized - just load and return
@@ -129,7 +129,7 @@ tfds.features.text.SubwordTextEncoder.build_from_corpus(
 
 在创建词汇表后，会向其中添加两个额外的标记，表示序列的开始和结束。这些标记帮助模型开始和结束输入输出。结束标记为生成摘要的解码器提供了一种信号，表示摘要的结束。此时，主要方法如下所示：
 
-```
+```py
 if __name__ == "__main__":
     setupGPU()  # OPTIONAL - only if using GPU
     ds_train, _, _ = load_data()
@@ -149,7 +149,7 @@ if __name__ == "__main__":
 
 一旦分词器准备好，文章和摘要文本都需要进行分词。由于摘要将一次性传递给解码器一个标记，提供的摘要文本会通过添加一个 `start` 标记向右偏移，正如之前所示。一个 `end` 标记将被附加到摘要末尾，以便让解码器学会如何标识摘要生成的结束。文件 `seq2seq.py` 中的 `encode()` 方法定义了向量化步骤：
 
-```
+```py
 def encode(article, summary, start=start, end=end, 
            tokenizer=tokenizer, art_max_len=128, 
            smry_max_len=50):
@@ -173,7 +173,7 @@ def encode(article, summary, start=start, end=end,
 
 由于这是一个处理张量文本内容的 Python 函数，因此需要定义另一个函数。这个函数可以传递给数据集，以便应用到数据的所有行。这个函数也在与 `encode` 函数相同的文件中定义：
 
-```
+```py
 def tf_encode(article, summary):
     art_enc, smry_enc = tf.py_function(encode, [article, summary],
                                      [tf.int64, tf.int64])
@@ -184,7 +184,7 @@ def tf_encode(article, summary):
 
 回到 `s2s-training.py` 文件中的主函数，数据集可以借助之前的函数进行向量化，如下所示：
 
-```
+```py
 BUFFER_SIZE = 1500000  # dataset is 3.8M samples, using less
 BATCH_SIZE = 64  # try bigger batch for faster training
 train = ds_train.take(BUFFER_SIZE)  # 1.5M samples
@@ -207,7 +207,7 @@ print("Dataset batching done")
 
 这些层将在以下小节中详细介绍。模型的所有代码都在文件 `seq2seq.py` 中。这些层使用在 `s2s-training.py` 文件主函数中指定的通用超参数：
 
-```
+```py
 embedding_dim = 128
 units = 256  # from pointer generator paper 
 ```
@@ -224,7 +224,7 @@ units = 256  # from pointer generator paper
 
 嵌入层的维度为 128，正如在超参数中配置的那样。这些超参数的选择是为了与论文中的配置相似。接下来，我们创建一个嵌入单例，可以被编码器和解码器共享。该类的代码在`seq2seq.py`文件中：
 
-```
+```py
 class Embedding(object):
     embedding = None  # singleton
     @classmethod
@@ -238,7 +238,7 @@ class Embedding(object):
 
 输入序列将填充到固定长度 128。因此，将一个掩码参数传递给嵌入层，以使嵌入层忽略掩码令牌。接下来，让我们在构造函数中定义一个`Encoder`类并实例化嵌入层：
 
-```
+```py
 # Encoder
 class Encoder(tf.keras.Model):
     def __init__(self, vocab_size, embedding_dim, enc_units, batch_size):
@@ -262,7 +262,7 @@ class Encoder(tf.keras.Model):
 
 嵌入层的输出被传递给一个双向 RNN 层。每个方向有 256 个 GRU 单元。Keras 中的双向层提供了如何组合正向和反向层输出的选项。在这种情况下，我们将正向和反向 GRU 单元的输出进行连接。因此，输出将是 512 维的。此外，注意机制需要隐藏状态，所以需要传递一个参数来获取输出状态。双向 GRU 层的配置如下：
 
-```
+```py
  self.bigru = Bidirectional(GRU(self.enc_units,
                           return_sequences=True,
                           return_state=True,
@@ -274,7 +274,7 @@ class Encoder(tf.keras.Model):
 
 还设置了一个带有 ReLU 激活函数的全连接层。这两个层返回它们的隐藏层。然而，解码器和注意力层需要一个隐藏状态向量。我们将隐藏状态通过全连接层，并将维度从 512 转换为 256，这也是解码器和注意力模块所期望的。这完成了编码器类的构造器。鉴于这是一个自定义模型，计算模型的方式很具体，因此定义了一个 `call()` 方法，该方法操作一批输入以生成输出和隐藏状态。这个方法接收隐藏状态以初始化双向层：
 
-```
+```py
  def call(self, x, hidden):
         x = self.embedding(x)  # We are using a mask
         output, forward_state, backward_state = self.bigru(x, initial_state = hidden)
@@ -288,7 +288,7 @@ class Encoder(tf.keras.Model):
 
 首先，输入通过嵌入层传递。输出被送入双向层，随后获取输出和隐藏状态。这两个隐藏状态被连接并通过全连接层处理，最终生成输出隐藏状态。最后，定义一个实用方法以返回初始隐藏状态：
 
-```
+```py
 def initialize_hidden_state(self):
         return [tf.zeros((self.batch_size, self.enc_units)) 
                  for i in range(2)] 
@@ -318,7 +318,7 @@ Bahdanau 等人于 2015 年发布了这种形式的全局注意力机制。正�
 
 第一阶段是为注意力类设置构造函数：
 
-```
+```py
 class BahdanauAttention(tf.keras.layers.Layer):
     def __init__(self, units):
         super(BahdanauAttention, self).__init__()
@@ -329,7 +329,7 @@ class BahdanauAttention(tf.keras.layers.Layer):
 
 `BahdanauAttention`类的`call()`方法实现了前面显示的方程式，并附加了一些额外代码来管理张量形状。如下所示：
 
-```
+```py
 def call(self, decoder_hidden, enc_output):
     # decoder hidden state shape == (64, 256) 
     # [batch size, decoder units]
@@ -369,7 +369,7 @@ def call(self, decoder_hidden, enc_output):
 
 `Decoder`类定义在`seq2seq.py`文件中。该类的构造函数设置了维度和各个层：
 
-```
+```py
 class Decoder(tf.keras.Model):
     def __init__(self, vocab_size, embedding_dim, dec_units, batch_sz):
         super(Decoder, self).__init__()
@@ -397,7 +397,7 @@ class Decoder(tf.keras.Model):
 
 解码器的下一部分是计算输出的过程：
 
-```
+```py
 def call(self, x, hidden, enc_output):
     # enc_output shape == (batch_size, max_length, hidden_size)
     context_vector, attention_weights = self.attention(hidden,
@@ -417,7 +417,7 @@ def call(self, x, hidden, enc_output):
 
 计算过程相对简单。模型如下所示：
 
-```
+```py
 Model: "encoder"
 _________________________________________________________________
 Layer (type)                 Output Shape              Param #
@@ -455,7 +455,7 @@ Non-trainable params: 0
 
 在训练过程中，有一些步骤需要自定义的训练循环。首先，让我们定义一个执行训练循环一步的函数。这个函数定义在`s2s-training.py`文件中：
 
-```
+```py
 @tf.function
 def train_step(inp, targ, enc_hidden, max_gradient_norm=5):
     loss = 0
@@ -491,7 +491,7 @@ decoder.trainable_variables
 
 这是一个自定义的训练循环，使用`GradientTape`来跟踪模型的不同变量并计算梯度。前面的函数每处理一个输入批次就执行一次。输入通过编码器（Encoder）进行处理，得到最终的编码和最后的隐藏状态。解码器（Decoder）使用最后一个编码器隐藏状态进行初始化，并且一次生成一个 token 的摘要。然而，生成的 token 不会反馈到解码器中，而是将实际的 token 反馈回去。这种方法被称为**教师强制**（Teacher Forcing）。自定义损失函数定义在`seq2seq.py`文件中：
 
-```
+```py
 loss_object = tf.keras.losses.SparseCategoricalCrossentropy(
                     from_logits=False, reduction='none')
 def loss_function(real, pred):
@@ -504,7 +504,7 @@ def loss_function(real, pred):
 
 损失函数的关键在于使用掩码来处理不同长度的摘要。模型的最后部分使用了一个优化器。这里使用的是 Adam 优化器，并且采用了一个学习率调度器，使学习率在训练的各个 epoch 中逐渐减小。学习率退火的概念在之前的章节中有讲解。优化器的代码位于`s2s-training.py`文件的主函数中：
 
-```
+```py
 steps_per_epoch = BUFFER_SIZE // BATCH_SIZE
 embedding_dim = 128
 units = 256  # from pointer generator paper
@@ -523,7 +523,7 @@ optimizer = tf.keras.optimizers.Adam(lr_schedule)
 
 由于模型将训练很长时间，因此设置检查点非常重要，这样可以在出现问题时重新启动训练。检查点还为我们提供了一个调整训练参数的机会。主函数的下一部分设置了检查点系统。我们在上一章中看到了检查点的内容。我们将扩展所学内容，并设置一个可选的命令行参数，指定是否需要从特定检查点重新启动训练：
 
-```
+```py
 if args.checkpoint is None:
     dt = datetime.datetime.today().strftime("%Y-%b-%d-%H-%M-%S")
     checkpoint_dir = './training_checkpoints-' + dt
@@ -550,7 +550,7 @@ print("New checkpoints will be stored in: ", checkpoint_dir)
 
 现在，主函数的最后部分是开始训练过程：
 
-```
+```py
 print("Starting Training. Total number of steps / epoch: ", steps_per_epoch)
     for epoch in range(EPOCHS):
         start_tm = time.time()
@@ -577,13 +577,13 @@ strftime("%d-%b-%Y (%H:%M:%S)")
 
 训练循环每 100 个批次打印一次损失，并且每经过第二个 epoch 保存一次检查点。根据需要，您可以随意调整这些设置。以下命令可以用来开始训练：
 
-```
+```py
 $ python s2s-training.py 
 ```
 
 这个脚本的输出应该类似于：
 
-```
+```py
 Loading the dataset
 Tokenizer ready. Total vocabulary size:  32897
 Coronavirus spread surprised everyone  =>  [16166, 2342, 1980, 7546, 21092]
@@ -608,13 +608,13 @@ Time taken for 1 epoch 21.058568954467773 sec
 
 这个示例运行只使用了 2000 个样本，因为我们编辑了这一行：
 
-```
+```py
 BUFFER_SIZE = 2000  # 3500000 takes 7hr/epoch 
 ```
 
 如果训练是从检查点重新开始的，则命令行将是：
 
-```
+```py
 $ python s2s-trainingo.py --checkpoint training_checkpoints-2021-Jan-04-04-33-42 
 ```
 
@@ -626,7 +626,7 @@ $ python s2s-trainingo.py --checkpoint training_checkpoints-2021-Jan-04-04-33-42
 
 现在，我们必须从保存的检查点中加载模型。首先创建所有模型对象：
 
-```
+```py
 BATCH_SIZE = 1  # for inference
 embedding_dim = 128
 units = 256  # from pointer generator paper
@@ -641,7 +641,7 @@ optimizer = tf.keras.optimizers.Adam()
 
 然后，定义一个带有适当检查点目录的检查点：
 
-```
+```py
 # Hydrate the model from saved checkpoint
 checkpoint_dir = 'training_checkpoints-2021-Jan-25-09-26-31'
 checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
@@ -652,24 +652,24 @@ checkpoint = tf.train.Checkpoint(optimizer=optimizer,
 
 接下来，检查最后一个检查点：
 
-```
+```py
 # The last training checkpoint
 tf.train.latest_checkpoint(checkpoint_dir) 
 ```
 
-```
+```py
 'training_checkpoints-2021-Jan-25-09-26-31/ckpt-11' 
 ```
 
 由于检查点是在每个间隔 epoch 后存储的，因此这个检查点对应的是 8 个 epoch 的训练。可以使用以下代码加载并测试检查点：
 
-```
+```py
 chkpt_status = checkpoint.restore(
                         tf.train.latest_checkpoint(checkpoint_dir))
 chkpt_status.assert_existing_objects_matched() 
 ```
 
-```
+```py
 <tensorflow.python.training.tracking.util.CheckpointLoadStatus at 0x7f603ae03c90> 
 ```
 
@@ -679,12 +679,12 @@ chkpt_status.assert_existing_objects_matched()
 
 如果第二个命令无法将检查点中的变量名与模型中的变量名匹配，可能会出现错误。这种情况可能发生，因为我们在实例化模型时没有显式命名层。TensorFlow 将在实例化模型时为层动态生成名称：
 
-```
+```py
 for layer in decoder.layers:
     print(layer.name) 
 ```
 
-```
+```py
 embedding_1
 gru_1
 fc1 
@@ -692,7 +692,7 @@ fc1
 
 可以使用以下命令检查检查点中的变量名称：
 
-```
+```py
 tf.train.list_variables(
        tf.train.latest_checkpoint('./<chkpt_dir>/')
 ) 
@@ -700,7 +700,7 @@ tf.train.list_variables(
 
 如果模型再次实例化，这些名称可能会发生变化，恢复检查点时可能会失败。为了避免这种情况，有两种解决方案。一种快速的解决方法是重启笔记本内核。更好的解决方法是编辑代码，在训练之前为 Encoder 和 Decoder 构造函数中的每一层添加名称。这可以确保检查点始终能找到变量。以下是为 Decoder 中的`fc1`层使用这种方法的示例：
 
-```
+```py
 self.fc1 = tf.keras.layers.Dense(
                 vocab_size, activation='softmax', 
                 name='fc1') 
@@ -708,7 +708,7 @@ self.fc1 = tf.keras.layers.Dense(
 
 推理可以通过贪心搜索或束搜索算法来完成。这两种方法将在这里演示。在生成摘要的代码之前，将定义一个便捷的方法来绘制注意力权重图。这有助于提供一些直觉，帮助理解哪些输入对生成摘要中的特定 token 有贡献：
 
-```
+```py
 # function for plotting the attention weights
 def plot_attention(attention, article, summary):
     fig = plt.figure(figsize=(10,10))
@@ -732,7 +732,7 @@ def plot_attention(attention, article, summary):
 
 贪心搜索在每个时间步使用概率最高的词元来构造序列。预测的词元被反馈到模型中，以生成下一个词元。这与前一章中生成字符的 char-RNN 模型使用的模型相同：
 
-```
+```py
 art_max_len = 128
 smry_max_len = 50
 def greedy_search(article):
@@ -769,7 +769,7 @@ decoder(dec_input, dec_hidden, enc_out)
 
 代码的第一部分对输入进行与训练时相同的编码。这些输入通过编码器传递到最终的编码器输出和最后的隐藏状态。解码器的初始隐藏状态设置为编码器的最后隐藏状态。现在，生成输出词元的过程开始了。首先，将输入传递给解码器，解码器生成预测、隐藏状态和注意力权重。注意力权重被添加到每个时间步的运行注意力权重列表中。生成过程将继续，直到以下任一情况更早发生：产生序列结束标记，或生成 50 个词元。最终的摘要和注意力图将被返回。定义了一种摘要方法，调用这种贪心搜索算法，绘制注意力权重，并将生成的词元转换成正确的单词：
 
-```
+```py
 # Summarize
 def summarize(article, algo='greedy'):
     if algo == 'greedy':
@@ -788,13 +788,13 @@ attention_plot[:len(summary.split(' ')), :len(article.split(' '))]
 
 前面的方法中有一个地方可以稍后插入束搜索。让我们来测试一下模型：
 
-```
+```py
 # Test Summarization
 txt = "president georgi parvanov summoned france 's ambassador on wednesday in a show of displeasure over comments from french president jacques chirac chiding east european nations for their support of washington on the issue of iraq ."
 summarize(txt.lower()) 
 ```
 
-```
+```py
 Input: president georgi parvanov summoned france's ambassador on wednesday in a show of displeasure over comments from french president jacques chirac chiding east european nations for their support of washington on the issue of iraq .
 ** Predicted Summary: **bulgarian president summons french ambassador over remarks on iraq** 
 ```
@@ -845,7 +845,7 @@ Input: president georgi parvanov summoned france's ambassador on wednesday in a 
 
 定义了一个名为 `beam_search()` 的新方法。此方法的第一部分与贪婪搜索相似，输入被分词并通过编码器传递。该算法与贪婪搜索算法的主要区别在于核心循环，它一次处理一个标记。在 Beam search 中，每个 beam 都需要生成一个标记。这使得 Beam search 比贪婪搜索更慢，并且运行时间与 beam 宽度成正比。每个时间步骤，对于每个 *k* 个 beams，生成最优的 *k* 个标记，对其进行排序并剪枝至 *k* 项。这个步骤会持续执行，直到每个 beam 生成结束标记或生成了最大数量的标记。如果需要生成 *m* 个标记，那么 Beam search 将需要执行 *k * m* 次解码器的运行，以生成输出序列。主循环代码如下：
 
-```
+```py
 # initial beam with (tokens, last hidden state, attn, score)
 start_pt = [([start], dec_hidden, attention_plot, 0.0)]  # initial beam 
 for t in range(smry_max_len):
@@ -885,7 +885,7 @@ decoder(dec_input, dec_hidden, enc_out)
 
 一开始，只有一个 beam 在开始标记内。接着定义了一个列表来跟踪生成的 beams。该元组列表存储注意力图、标记、最后的隐藏状态以及该 beam 的总体代价。条件概率需要所有概率的乘积。由于所有概率值都介于 0 和 1 之间，条件概率可能变得非常小。相反，概率的对数会被相加，如前面的高亮代码所示。最佳的 beams 会最小化这个分数。最后，插入一个小部分，在函数执行完毕后打印所有顶级 beams 及其分数。这个部分是可选的，可以删除：
 
-```
+```py
  if verbose:  # to control output
         # print all the final summaries
         for idx, row in enumerate(start_pt):
@@ -896,7 +896,7 @@ decoder(dec_input, dec_hidden, enc_out)
 
 最终，函数返回最佳的 beam：
 
-```
+```py
  # return final sequence
     summary = tokenizer.decode([x for x in start_pt[0][0] if x < end_tk])
     attention_plot = start_pt[0][2] # third item in tuple
@@ -905,7 +905,7 @@ decoder(dec_input, dec_hidden, enc_out)
 
 `summarize()` 方法被扩展，因此你可以生成贪婪搜索和 Beam 搜索，示例如下：
 
-```
+```py
 # Summarize
 def summarize(article, algo='greedy', beam_width=3, verbose=True):
     if algo == 'greedy':
@@ -970,7 +970,7 @@ Beam search 生成的总结更简洁且语法正确。这些示例是使用宽�
 
 注意，所有与此部分相关的代码都在笔记本中的*带有长度归一化的束搜索*部分：
 
-```
+```py
 def length_wu(step, score, alpha=0.):
     # NMT length re-ranking score from
     # "Google's Neural Machine Translation System" paper by Wu et al
@@ -981,7 +981,7 @@ def length_wu(step, score, alpha=0.):
 
 在代码中实现起来非常简单。创建了一种新的带有归一化的束搜索方法。大部分代码与之前的实现相同。启用长度归一化的关键变化是，在方法签名中加入一个 alpha 参数，并更新分数的计算方式，以使用上述方法：
 
-```
+```py
 # Beam search implementation with normalization
 def beam_search_norm(article, beam_width=3, 
                          art_max_len=128, 
@@ -993,7 +993,7 @@ def beam_search_norm(article, beam_width=3,
 
 接下来，分数会像这样归一化（代码中的大约第 60 行）：
 
-```
+```py
  for tokid, scre in zip(indices, values):
             score = row[3] - np.log(scre) 
             score = length_wu(t, score, alpha) 
@@ -1047,14 +1047,14 @@ def beam_search_norm(article, beam_width=3,
 
 可以像下面这样导入并初始化评分库：
 
-```
+```py
 from rouge_score import rouge_scorer as rs
 scorer = rs.RougeScorer(['rougeL'], use_stemmer=True) 
 ```
 
 `summarize()`方法的一个版本，名为`summarize_quietly()`，用于在不打印任何输出（如注意力图）的情况下总结文本。将使用验证测试中的随机样本来衡量性能。加载数据和安静总结方法的代码可以在笔记本中找到，并应在运行指标之前执行。评估可以通过贪心搜索来进行，如以下代码片段所示：
 
-```
+```py
 # total eval size: 189651
 articles = 1000
 f1 = 0.
@@ -1082,31 +1082,31 @@ print("Precision: {:.6f}, Recall: {:.6f}, F1-Score: {:.6f}".format(prec, rec, f1
 
 验证集包含接近 190,000 条记录，而前面的代码仅在 1,000 条记录上运行指标。该代码还会随机打印约 1%样本的摘要。此评估的结果应该类似于以下内容：
 
-```
+```py
 Precision: 0.344725, Recall: 0.249029, F1-Score: 0.266480 
 ```
 
 这不是一个坏的开始，因为我们有高精度，但召回率较低。根据 paperswithcode.com 网站，Gigaword 数据集当前的排行榜上最高的 ROUGE-L F1 分数为 36.74。让我们用束搜索（beam search）重新运行相同的测试，看看结果。这里的代码与前面的代码相同，唯一的区别是使用了宽度为 3 的束搜索：
 
-```
+```py
 Precision: 0.382001, Recall: 0.226766, F1-Score: 0.260703 
 ```
 
 看起来精度大幅提高，但以牺牲召回率为代价。总体而言，F1 分数略有下降。束搜索确实生成了较短的摘要，这可能是召回率下降的原因。调整长度归一化可能有助于解决这个问题。另一种假设是尝试更大的束宽度。尝试使用更大的束宽度 5 产生了这个结果：
 
-```
+```py
 Precision: 0.400730, Recall: 0.219472, F1-Score: 0.258531 
 ```
 
 精度有了显著提高，但召回率进一步下降。现在，让我们尝试一些长度归一化。使用 alpha 为 0.7 的束搜索给我们带来了以下结果：
 
-```
+```py
 Precision: 0.356155, Recall: 0.253459, F1-Score: 0.271813 
 ```
 
 通过使用更大的束宽度 5 并保持相同的 alpha，我们得到了这个结果：
 
-```
+```py
 Precision: 0.356993, Recall: 0.252384, F1-Score: 0.273171 
 ```
 

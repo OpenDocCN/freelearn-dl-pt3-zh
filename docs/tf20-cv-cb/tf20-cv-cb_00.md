@@ -72,7 +72,7 @@ Keras 被作为官方 TensorFlow 高级 API，支持在急切执行和基于图�
 
 代码块如下所示：
 
-```
+```py
 iterator = (image_generator
            .flow_from_directory(directory=data_directory, 
                                  batch_size=10))
@@ -88,7 +88,7 @@ break
 
 当我们希望特别引起你对代码块中某一部分的注意时，相关的行或项会被加粗显示：
 
-```
+```py
 [default]
 exten => s,1,Dial(Zap/1|30)
 exten => s,2,Voicemail(u100)
@@ -98,7 +98,7 @@ exten => i,1,Voicemail(s0)
 
 任何命令行输入或输出都如下所示：
 
-```
+```py
 $ pip install tensorflow-hub Pillow
 $ pip install tensorflow-datasets tqdm
 ```

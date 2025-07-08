@@ -86,7 +86,7 @@
 
 一块代码设置如下：
 
-```
+```py
 # Build the model.
 model = tf.keras.models.Sequential()
 model.add(keras.layers.Dense(NB_CLASSES,
@@ -97,7 +97,7 @@ model.add(keras.layers.Dense(NB_CLASSES,
 
 当我们希望引起您对代码块中特定部分的注意时，相关的行或项将被突出显示：
 
-```
+```py
 # Build the model.
 model = tf.keras.models.Sequential()
 model.add(keras.layers.Dense(NB_CLASSES,
@@ -108,7 +108,7 @@ model.add(keras.layers.Dense(NB_CLASSES,
 
 任何命令行输入或输出如下所示：
 
-```
+```py
 pip install gym 
 ```
 

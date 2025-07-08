@@ -66,7 +66,7 @@ ANNs 已被证明能够成功学习具有复杂和非线性关系的大规模非
 
 你可以通过导入特定的库在 Python 中使用 TensorFlow。你可以使用`import`语句在 Python 中导入库：
 
-```
+```py
 import tensorflow as tf
 ```
 
@@ -84,19 +84,19 @@ import tensorflow as tf
 
 1.  通过在 Jupyter 单元格中输入以下代码来导入 TensorFlow 库：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
 1.  使用以下命令验证 TensorFlow 的版本：
 
-    ```
+    ```py
     tf.__version__
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     '2.6.0'
     ```
 
@@ -136,7 +136,7 @@ import tensorflow as tf
 
 张量可以使用 TensorFlow 库中的`Variable`类来创建，并传入一个表示张量的值。标量可以传入浮动值或整数，向量可以传入浮动值或整数的列表，矩阵可以传入浮动值或整数的嵌套列表，依此类推。以下命令演示了如何使用`Variable`类，其中传入了张量的预期值列表以及任何需要显式定义的其他属性：
 
-```
+```py
 tensor1 = tf.Variable([1,2,3], dtype=tf.int32, \
                       name='my_tensor', trainable=True)
 ```
@@ -157,7 +157,7 @@ tensor1 = tf.Variable([1,2,3], dtype=tf.int32, \
 
 `Variable`对象的`shape`属性可以按如下方式调用：
 
-```
+```py
 tensor1.shape
 ```
 
@@ -165,7 +165,7 @@ tensor1.shape
 
 可以使用 TensorFlow 中的`rank`函数来确定张量的阶数。通过将张量作为唯一的参数传递给该函数，结果将是一个整数值：
 
-```
+```py
 tf.rank(tensor1)
 ```
 
@@ -197,20 +197,20 @@ tf.rank(tensor1)
 
 1.  导入 TensorFlow 库：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
 1.  使用 TensorFlow 的 `Variable` 类创建一个整数变量，并传入 `4113` 来表示某个候选人获得的选票数。同时，传入 `tf.int16` 作为第二个参数，以确保输入的数字是整数数据类型。打印结果：
 
-    ```
+    ```py
     int_variable = tf.Variable(4113, tf.int16)
     int_variable
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     <tf.Variable 'Variable:0' shape=() dtype=int32, numpy=4113>
     ```
 
@@ -218,13 +218,13 @@ tf.rank(tensor1)
 
 1.  使用 TensorFlow 的 `rank` 函数打印创建的变量的秩：
 
-    ```
+    ```py
     tf.rank(int_variable)
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     <tf.Tensor: shape=(), dtype=int32, numpy=0>
     ```
 
@@ -232,13 +232,13 @@ tf.rank(tensor1)
 
 1.  通过调用 `numpy` 属性访问秩的整数变量：
 
-    ```
+    ```py
     tf.rank(int_variable).numpy()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     0
     ```
 
@@ -250,13 +250,13 @@ tf.rank(tensor1)
 
 1.  调用整数的 `shape` 属性以查看张量的形状：
 
-    ```
+    ```py
     int_variable.shape
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     TensorShape([])
     ```
 
@@ -264,19 +264,19 @@ tf.rank(tensor1)
 
 1.  打印标量变量的 `shape`，以 Python 列表的形式表示：
 
-    ```
+    ```py
     int_variable.shape.as_list()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     []
     ```
 
 1.  使用 TensorFlow 的 `Variable` 类创建一个 `vector` 变量。传入一个列表来表示三名候选人所获得选票的比例，并传入第二个参数 `tf.float32` 以确保它是一个 `float` 数据类型。打印结果：
 
-    ```
+    ```py
     vector_variable = tf.Variable([0.23, 0.42, 0.35], \
                                   tf.float32)
     vector_variable
@@ -284,7 +284,7 @@ tf.rank(tensor1)
 
     这将产生以下输出：
 
-    ```
+    ```py
     <tf.Variable 'Variable:0' shape(3,) dtype=float32, 
     numpy=array([0.23, 0.42, 0.35], dtype=float32)>
     ```
@@ -293,13 +293,13 @@ tf.rank(tensor1)
 
 1.  使用 TensorFlow 的 `rank` 函数打印 `vector` 变量的秩，作为 NumPy 变量：
 
-    ```
+    ```py
     tf.rank(vector_variable).numpy()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     1
     ```
 
@@ -307,19 +307,19 @@ tf.rank(tensor1)
 
 1.  打印 `vector` 变量的形状作为 Python 列表：
 
-    ```
+    ```py
     vector_variable.shape.as_list()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     [3]
     ```
 
 1.  使用 TensorFlow 的 `Variable` 类创建一个矩阵变量。传入一个整数的列表列表，表示在两个不同选区中，三个不同候选人的投票结果。该矩阵将有三列，表示候选人，和两行，表示选区。传入第二个参数，数据类型为 `tf.int32`，以确保其为整数数据类型。打印结果：
 
-    ```
+    ```py
     matrix_variable = tf.Variable([[4113, 7511, 6259], \
                                    [3870, 6725, 6962]], \
                                   tf.int32)
@@ -334,13 +334,13 @@ tf.rank(tensor1)
 
 1.  打印矩阵变量的秩作为 NumPy 变量：
 
-    ```
+    ```py
     tf.rank(matrix_variable).numpy()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     2
     ```
 
@@ -348,19 +348,19 @@ tf.rank(tensor1)
 
 1.  打印矩阵变量的形状作为 Python 列表：
 
-    ```
+    ```py
     matrix_variable.shape.as_list()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     [2, 3]
     ```
 
 1.  使用 TensorFlow 的 `Variable` 类创建一个张量变量。传入一个三重嵌套的整数列表，表示三个不同候选人在两个不同选区、三个政党中的投票结果。打印结果：
 
-    ```
+    ```py
     tensor_variable = tf.Variable([[[4113, 7511, 6259], \
                                     [3870, 6725, 6962]], \
                                    [[5102, 7038, 6591], \
@@ -378,13 +378,13 @@ tf.rank(tensor1)
 
 1.  打印张量变量的秩作为 NumPy 变量：
 
-    ```
+    ```py
     tf.rank(tensor_variable).numpy()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     3
     ```
 
@@ -392,13 +392,13 @@ tf.rank(tensor1)
 
 1.  打印张量变量的形状作为 Python 列表：
 
-    ```
+    ```py
     tensor_variable.shape.as_list()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     [3, 2, 3]
     ```
 
@@ -432,7 +432,7 @@ tf.rank(tensor1)
 
 张量加法可以通过使用`add`函数并传递张量作为参数来在 TensorFlow 中执行，或者简单地使用`+`运算符，如下所示：
 
-```
+```py
 tensor1 = tf.Variable([1,2,3])
 tensor2 = tf.Variable([4,5,6])
 tensor_add1 = tf.add(tensor1, tensor2)
@@ -461,13 +461,13 @@ A 区和 B 区三种不同政治党派不同候选人投票数如下：
 
 1.  导入 TensorFlow 库：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
 1.  使用 TensorFlow 的 `Variable` 类创建三个标量变量，表示在选区 A 中政党 X 的三位候选人所投的票数：
 
-    ```
+    ```py
     int1 = tf.Variable(4113, tf.int32)
     int2 = tf.Variable(7511, tf.int32)
     int3 = tf.Variable(6529, tf.int32)
@@ -475,25 +475,25 @@ A 区和 B 区三种不同政治党派不同候选人投票数如下：
 
 1.  创建一个新变量，用来存储政党 X 在选区 A 中的总票数：
 
-    ```
+    ```py
     int_sum = int1+int2+int3
     ```
 
 1.  打印两个变量之和作为 NumPy 变量的结果：
 
-    ```
+    ```py
     int_sum.numpy()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     18153
     ```
 
 1.  创建三个向量，表示在选区 A 中不同政党的投票数量，每个向量有一行三列：
 
-    ```
+    ```py
     vec1 = tf.Variable([4113, 3870, 5102], tf.int32)
     vec2 = tf.Variable([7511, 6725, 7038], tf.int32)
     vec3 = tf.Variable([6529, 6962, 6591], tf.int32)
@@ -501,25 +501,25 @@ A 区和 B 区三种不同政治党派不同候选人投票数如下：
 
 1.  创建一个新变量，用来存储每个政党在选区 A 中的总票数：
 
-    ```
+    ```py
     vec_sum = vec1 + vec2 + vec3
     ```
 
 1.  打印两个变量之和作为 NumPy 数组的结果：
 
-    ```
+    ```py
     vec_sum.numpy()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     array([18153, 17557, 18731])
     ```
 
 1.  通过执行对向量中每个元素的加法，验证向量加法是否符合预期：
 
-    ```
+    ```py
     print((vec1[0] + vec2[0] + vec3[0]).numpy())
     print((vec1[1] + vec2[1] + vec3[1]).numpy())
     print((vec1[2] + vec2[2] + vec3[2]).numpy())
@@ -527,7 +527,7 @@ A 区和 B 区三种不同政治党派不同候选人投票数如下：
 
     这将产生以下输出：
 
-    ```
+    ```py
     18153
     17557
     18731
@@ -537,7 +537,7 @@ A 区和 B 区三种不同政治党派不同候选人投票数如下：
 
 1.  创建三个矩阵，用来存储每个选区中各政党的候选人所投的票数：
 
-    ```
+    ```py
     matrix1 = tf.Variable([[4113, 3870, 5102], \
                            [3611, 951, 870]], tf.int32)
     matrix2 = tf.Variable([[7511, 6725, 7038], \
@@ -548,25 +548,25 @@ A 区和 B 区三种不同政治党派不同候选人投票数如下：
 
 1.  验证这三个张量是否具有相同的形状：
 
-    ```
+    ```py
     matrix1.shape == matrix2.shape == matrix3.shape
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     True
     ```
 
 1.  创建一个新变量，用来存储两个选区中每个政党所投的总票数：
 
-    ```
+    ```py
     matrix_sum = matrix1 + matrix2 + matrix3
     ```
 
 1.  打印两个变量之和作为 NumPy 数组的结果：
 
-    ```
+    ```py
     matrix_sum.numpy()
     ```
 
@@ -578,7 +578,7 @@ A 区和 B 区三种不同政治党派不同候选人投票数如下：
 
 1.  通过执行对向量中每个元素的加法，验证张量加法是否符合预期：
 
-    ```
+    ```py
     print((matrix1[0][0] + matrix2[0][0] + matrix3[0][0]).numpy())
     print((matrix1[0][1] + matrix2[0][1] + matrix3[0][1]).numpy())
     print((matrix1[0][2] + matrix2[0][2] + matrix3[0][2]).numpy())
@@ -589,7 +589,7 @@ A 区和 B 区三种不同政治党派不同候选人投票数如下：
 
     这将产生以下输出：
 
-    ```
+    ```py
     18153
     17557
     18731
@@ -622,7 +622,7 @@ A 区和 B 区三种不同政治党派不同候选人投票数如下：
 
     你应该得到以下输出：
 
-    ```
+    ```py
     5092
     ```
 
@@ -662,7 +662,7 @@ A 区和 B 区三种不同政治党派不同候选人投票数如下：
 
 张量的形状重塑可以通过 TensorFlow 的 `reshape` 函数来实现，并将张量和新张量的目标形状作为参数传入：
 
-```
+```py
 tensor1 = tf.Variable([1,2,3,4,5,6])
 tensor_reshape = tf.reshape(tensor1, shape=[3,2])
 ```
@@ -689,7 +689,7 @@ tensor_reshape = tf.reshape(tensor1, shape=[3,2])
 
 张量转置可以通过 TensorFlow 的 `transpose` 函数来实现，并将张量作为唯一参数传入：
 
-```
+```py
 tensor1 = tf.Variable([1,2,3,4,5,6])
 tensor_transpose = tf.transpose(tensor1)
 ```
@@ -706,20 +706,20 @@ tensor_transpose = tf.transpose(tensor1)
 
 1.  导入 TensorFlow 库，并使用 TensorFlow 的 `Variable` 类创建一个具有两行四列的矩阵：
 
-    ```
+    ```py
     import tensorflow as tf
     matrix1 = tf.Variable([[1,2,3,4], [5,6,7,8]])
     ```
 
 1.  通过调用矩阵的`shape`属性，将矩阵作为 Python 列表来验证矩阵的形状：
 
-    ```
+    ```py
     matrix1.shape.as_list()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     [2, 4]
     ```
 
@@ -727,7 +727,7 @@ tensor_transpose = tf.transpose(tensor1)
 
 1.  使用 TensorFlow 的 `reshape` 函数，通过传入矩阵和所需的新形状，将矩阵更改为具有四行两列的矩阵：
 
-    ```
+    ```py
     reshape1 = tf.reshape(matrix1, shape=[4, 2])
     reshape1
     ```
@@ -740,13 +740,13 @@ tensor_transpose = tf.transpose(tensor1)
 
 1.  通过调用 `shape` 属性并将其作为 Python 列表来验证重塑后的矩阵的形状：
 
-    ```
+    ```py
     reshape1.shape.as_list()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     [4, 2]
     ```
 
@@ -754,26 +754,26 @@ tensor_transpose = tf.transpose(tensor1)
 
 1.  使用 TensorFlow 的 `reshape` 函数将矩阵转换为一行八列的矩阵。将矩阵和期望的新形状作为参数传递给 `reshape` 函数：
 
-    ```
+    ```py
     reshape2 = tf.reshape(matrix1, shape=[1, 8])
     reshape2
     ```
 
     你应该会得到以下输出：
 
-    ```
+    ```py
     <tf.Tensor: shape=(1, 8), dtype=int32, numpy=array([[1, 2, 3, 4, 5, 6, 7, 8]])>
     ```
 
 1.  通过调用 `shape` 属性作为 Python 列表来验证重新塑形后的矩阵形状：
 
-    ```
+    ```py
     reshape2.shape.as_list()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     [1, 8]
     ```
 
@@ -781,7 +781,7 @@ tensor_transpose = tf.transpose(tensor1)
 
 1.  使用 TensorFlow 的 `reshape` 函数将矩阵转换为八行一列的矩阵，将矩阵和期望的新形状作为参数传递给 `reshape` 函数：
 
-    ```
+    ```py
     reshape3 = tf.reshape(matrix1, shape=[8, 1])
     reshape3
     ```
@@ -794,13 +794,13 @@ tensor_transpose = tf.transpose(tensor1)
 
 1.  通过调用 `shape` 属性作为 Python 列表来验证重新塑形后的矩阵形状：
 
-    ```
+    ```py
     reshape3.shape.as_list()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     [8, 1]
     ```
 
@@ -808,7 +808,7 @@ tensor_transpose = tf.transpose(tensor1)
 
 1.  使用 TensorFlow 的 `reshape` 函数将矩阵转换为大小为 `2x2x2` 的张量。将矩阵和期望的新形状作为参数传递给 reshape 函数：
 
-    ```
+    ```py
     reshape4 = tf.reshape(matrix1, shape=[2, 2, 2])
     reshape4
     ```
@@ -821,13 +821,13 @@ tensor_transpose = tf.transpose(tensor1)
 
 1.  通过调用 `shape` 属性作为 Python 列表来验证重新塑形后的矩阵形状：
 
-    ```
+    ```py
     reshape4.shape.as_list()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     [2, 2, 2]
     ```
 
@@ -835,19 +835,19 @@ tensor_transpose = tf.transpose(tensor1)
 
 1.  使用 TensorFlow 的 `rank` 函数验证秩是否已更改，并将结果作为 NumPy 变量打印：
 
-    ```
+    ```py
     tf.rank(reshape4).numpy()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     3
     ```
 
 1.  使用 TensorFlow 的 `transpose` 函数将大小为 `2X4` 的矩阵转换为大小为 `4x2` 的矩阵：
 
-    ```
+    ```py
     transpose1 = tf.transpose(matrix1)
     transpose1
     ```
@@ -860,7 +860,7 @@ tensor_transpose = tf.transpose(tensor1)
 
 1.  验证 `reshape` 函数和 `transpose` 函数在应用于给定矩阵时，是否会产生不同的结果：
 
-    ```
+    ```py
     transpose1 == reshape1
     ```
 
@@ -870,7 +870,7 @@ tensor_transpose = tf.transpose(tensor1)
 
 1.  使用 TensorFlow 的 `transpose` 函数转置 *步骤 9* 中的重新塑形矩阵：
 
-    ```
+    ```py
     transpose2 = tf.transpose(reshape4)
     transpose2
     ```
@@ -899,7 +899,7 @@ tensor_transpose = tf.transpose(tensor1)
 
     你应该得到以下输出：
 
-    ```
+    ```py
     [24]
     ```
 
@@ -907,7 +907,7 @@ tensor_transpose = tf.transpose(tensor1)
 
     你应该得到以下输出：
 
-    ```
+    ```py
     [12, 2]
     ```
 
@@ -915,7 +915,7 @@ tensor_transpose = tf.transpose(tensor1)
 
     你应该得到以下输出：
 
-    ```
+    ```py
     [3, 4, 2]
     ```
 
@@ -925,7 +925,7 @@ tensor_transpose = tf.transpose(tensor1)
 
     你应该得到以下输出：
 
-    ```
+    ```py
     [2, 12]
     ```
 
@@ -977,7 +977,7 @@ Figure 1.26: 矩阵 Y 乘以 X 的可视化表示，Y•X
 
 在 TensorFlow 中，可以通过使用 `matmul` 函数执行张量乘法，并按照它们需要被乘的顺序将张量作为参数传递进去：
 
-```
+```py
 tensor1 = tf.Variable([[1,2,3]])
 tensor2 = tf.Variable([[1],[2],[3]])
 tensor_mult = tf.matmul(tensor1, tensor2)
@@ -985,7 +985,7 @@ tensor_mult = tf.matmul(tensor1, tensor2)
 
 张量乘法也可以通过使用 `@` 运算符来实现，如下所示：
 
-```
+```py
 tensor_mult = tensor1 @ tensor2
 ```
 
@@ -993,7 +993,7 @@ tensor_mult = tensor1 @ tensor2
 
 在 TensorFlow 中，可以通过使用 `matmul` 函数或使用 `*` 运算符来实现标量乘法：
 
-```
+```py
 tensor1 = tf.Variable([[1,2,3]])
 scalar_mult = 5 * tensor1
 ```
@@ -1026,13 +1026,13 @@ scalar_mult = 5 * tensor1
 
 1.  导入 TensorFlow 库：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
 1.  创建一个矩阵表示不同的三明治食谱，行代表三种不同的三明治种类，列代表五种不同配料的组合和数量，使用`Variable`类：
 
-    ```
+    ```py
     matrix1 = tf.Variable([[1.0,0.0,3.0,1.0,2.0], \
                            [0.0,1.0,1.0,1.0,1.0], \
                            [2.0,1.0,0.0,2.0,0.0]], \
@@ -1048,19 +1048,19 @@ scalar_mult = 5 * tensor1
 
 1.  通过调用矩阵的`shape`属性作为 Python 列表，验证矩阵的形状：
 
-    ```
+    ```py
     matrix1.shape.as_list()
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     [3, 5]
     ```
 
 1.  创建一个第二个矩阵，表示每种配料的成本和重量，其中行代表五种配料，列代表配料的成本和重量（单位：克）：
 
-    ```
+    ```py
     matrix2 = tf.Variable([[0.49, 103], \
                            [0.18, 38], \
                            [0.24, 69], \
@@ -1077,7 +1077,7 @@ scalar_mult = 5 * tensor1
 
 1.  使用 TensorFlow 的`matmul`函数执行`matrix1`和`matrix2`的矩阵乘法：
 
-    ```
+    ```py
     matmul1 = tf.matmul(matrix1, matrix2)
     matmul1
     ```
@@ -1090,7 +1090,7 @@ scalar_mult = 5 * tensor1
 
 1.  创建一个矩阵来表示五家不同商店对三种三明治的销售预测：
 
-    ```
+    ```py
     matrix3 = tf.Variable([[120.0, 100.0, 90.0], \
                            [30.0, 15.0, 20.0], \
                            [220.0, 240.0, 185.0], \
@@ -1100,7 +1100,7 @@ scalar_mult = 5 * tensor1
 
 1.  将`matrix3`与`matrix1`和`matrix2`相乘的结果相乘，以给出每家五家商店的预期成本和重量：
 
-    ```
+    ```py
     matmul3 = matrix3 @ matmul1
     matmul3
     ```
@@ -1207,7 +1207,7 @@ TensorFlow 中有几种不同的优化器，每个优化器都基于不同的优
 
 优化器的选择会影响训练时间和模型性能。每个优化器都有超参数，比如初始学习率，这些超参数必须在训练前进行选择，而调优这些超参数也会影响训练时间和模型性能。虽然 TensorFlow 中还有其他优化器未在此明确列出（可以在此处找到：[`www.tensorflow.org/api_docs/python/tf/keras/optimizers`](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers)），但上述优化器在训练时间和模型性能上表现良好，是选择优化器时的一个安全的首选。TensorFlow 中可用的优化器位于`tf.optimizers`模块中；例如，一个学习率为`0.001`的 Adam 优化器可以如下初始化：
 
-```
+```py
 optimizer = tf.optimizer.adam(learning_rate=0.001)
 ```
 
@@ -1241,7 +1241,7 @@ optimizer = tf.optimizer.adam(learning_rate=0.001)
 
 可以通过利用`tf.keras.activations`模块中的激活函数，将激活函数应用于任何张量。例如，sigmoid 激活函数可以应用于一个张量，如下所示：
 
-```
+```py
 y=tf.keras.activations.sigmoid(x)
 ```
 

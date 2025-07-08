@@ -86,13 +86,13 @@ Q 学习是一种脱离策略的算法，最早由 Christopher Watkins 在 1989 
 
 现在，我们将学习如何在 Python 中编码上述方程，并使用 SARSA 实现悬崖行走问题。首先，让我们导入 Python 中的`numpy`、`sys`和`matplotlib`包。如果你以前没有使用过这些包，市面上有几本关于这些主题的 Packt 书籍可以帮助你尽快掌握。请在 Linux 终端中输入以下命令来安装所需的包：
 
-```
+```py
 sudo apt-get install python-numpy python-scipy python-matplotlib
 ```
 
 现在我们将总结解决网格世界问题所涉及的代码。在终端中，使用你喜欢的编辑器（例如 gedit、emacs 或 vi）编写以下代码：
 
-```
+```py
 import numpy as np 
 import sys 
 import matplotlib.pyplot as plt
@@ -100,7 +100,7 @@ import matplotlib.pyplot as plt
 
 我们将使用一个 3 x 12 的网格来解决悬崖行走问题，即有 `3` 行和 `12` 列。我们还有 `4` 个动作可以在每个单元格中执行。你可以向北、向东、向南或向西移动：
 
-```
+```py
 nrows = 3
 ncols = 12
 nact = 4 
@@ -110,7 +110,7 @@ nact = 4
 
 学习率 *α* 选择为 `0.1`，折扣因子 *γ* 选择为 `0.95`，这些是解决该问题的典型值：
 
-```
+```py
 nepisodes = 100000
 epsilon = 0.1
 alpha = 0.1
@@ -119,7 +119,7 @@ gamma = 0.95
 
 接下来，我们将为奖励分配值。对于任何不掉入悬崖的正常动作，奖励是 `-1`；如果代理掉入悬崖，奖励是 `-100`；到达目的地的奖励也是 `-1`。稍后可以探索这些奖励的其他值，并研究其对最终 Q 值以及从起点到终点路径的影响：
 
-```
+```py
 reward_normal = -1
 reward_cliff = -100
 reward_destination = -1
@@ -127,13 +127,13 @@ reward_destination = -1
 
 状态-动作对的 Q 值初始化为零。我们将使用一个 NumPy 数组来存储 Q 值，形状为 `nrows` x `ncols` x `nact`，即每个单元格有 `nact` 个条目，整个网格有 `nrows` x `ncols` 个单元格：
 
-```
+```py
 Q = np.zeros((nrows,ncols,nact),dtype=np.float)
 ```
 
 我们将定义一个函数，使代理回到起始位置，该位置的 (*x, y*) 坐标为（`x=0`，`y=nrows`）：
 
-```
+```py
 def go_to_start():
     # start coordinates
     y = nrows
@@ -143,7 +143,7 @@ def go_to_start():
 
 接下来，我们定义一个函数来执行随机动作，在该函数中我们定义 `a = 0` 表示向 `top/north` 移动，`a = 1` 表示向 `right/east` 移动，`a = 2` 表示向 `bottom/south` 移动，`a = 4` 表示向 `left/west` 移动。具体来说，我们将使用 NumPy 的 `random.randint()` 函数，如下所示：
 
-```
+```py
 def random_action():
     # a = 0 : top/north
     # a = 1 : right/east
@@ -155,7 +155,7 @@ def random_action():
 
 现在我们将定义 `move` 函数，该函数将接受代理的给定位置 (*x, y*) 和当前的动作 `a`，然后执行该动作。它将返回执行该动作后代理的新位置 (*x1, y1*) 以及代理的状态，我们定义 `state = 0` 表示代理在执行动作后 `OK`；`state = 1` 表示到达目的地；`state = 2` 表示掉入悬崖。如果代理通过左侧、顶部或右侧离开网格，它将被送回到同一网格（等同于没有执行任何动作）：
 
-```
+```py
 def move(x,y,a):
     # state = 0: OK
     # state = 1: reached destination
@@ -203,7 +203,7 @@ def move(x,y,a):
 
 接下来，我们将定义 `exploit` 函数，该函数将接受代理的 (*x, y*) 位置，并根据 Q 值采取贪婪的动作，即选择在该 (*x, y*) 位置具有最高 Q 值的 `a` 动作。如果我们处于起始位置，我们将向北移动（`a = 0`）；如果我们距离目的地一步之遥，我们将向南移动（`a = 2`）：
 
-```
+```py
 def exploit(x,y,Q):
    # start location
    if (x == 0 and y == nrows):
@@ -230,7 +230,7 @@ def exploit(x,y,Q):
 
 接下来，我们将使用以下 `bellman()` 函数执行贝尔曼更新：
 
-```
+```py
 def bellman(x,y,a,reward,Qs1a1,Q):
   if (y == nrows and x == 0):
     # at start location; no Bellman update possible
@@ -247,7 +247,7 @@ def bellman(x,y,a,reward,Qs1a1,Q):
 
 接着我们将定义一个函数，根据随机数是否小于 *ε* 来选择探索或利用，这个参数是我们在 ε-贪心探索策略中使用的。为此，我们将使用 NumPy 的 `np.random.uniform()`，它将输出一个介于零和一之间的实数随机数：
 
-```
+```py
 def explore_exploit(x,y,Q):
   # if we end up at the start location, then exploit
   if (x == 0 and y == nrows):
@@ -268,7 +268,7 @@ def explore_exploit(x,y,Q):
 
 现在我们已经具备了解决悬崖行走问题所需的所有函数。因此，我们将对回合进行循环，在每个回合中，我们从起始位置开始，接着进行探索或利用，然后根据动作移动智能体一步。以下是这部分的 Python 代码：
 
-```
+```py
 for n in range(nepisodes+1):
 
   # print every 1000 episodes 
@@ -288,7 +288,7 @@ for n in range(nepisodes+1):
 
 我们根据所获得的奖励执行贝尔曼更新；请注意，这基于本章理论部分之前呈现的方程。如果我们到达目的地或掉下悬崖，我们就停止该回合；如果没有，我们继续进行一次探索或利用策略，然后继续下去。以下代码中的`state`变量取值为`1`表示到达目的地，取值为`2`表示掉下悬崖，否则为`0`：
 
-```
+```py
    # Bellman update
    if (state == 1):
       reward = reward_destination
@@ -318,7 +318,7 @@ for n in range(nepisodes+1):
 
 上述代码将完成所有回合，现在我们已经得到了收敛的 Q 值。接下来，我们将使用 `matplotlib` 绘制每个动作的 Q 值：
 
-```
+```py
 for i in range(nact):
   plt.subplot(nact,1,i+1)
   plt.imshow(Q[:,:,i])
@@ -339,7 +339,7 @@ for i in range(nact):
 
 最后，我们将使用之前收敛的 Q 值进行路径规划。也就是说，我们将绘制出智能体从起点到终点的准确路径，使用最终收敛的 Q 值。为此，我们将创建一个名为`path`的变量，并为其存储追踪`路径`的值。然后，我们将使用 `matplotlib` 来绘制它，如下所示：
 
-```
+```py
 path = np.zeros((nrows,ncols,nact),dtype=np.float)
 x, y = go_to_start()
 while(True):
@@ -382,7 +382,7 @@ plt.savefig('path_sarsa.png')
 
 `max_Q()`函数定义如下：
 
-```
+```py
 def max_Q(x,y,Q):
   a = np.argmax(Q[y,x,:]) 
   return Q[y,x,a]
@@ -390,13 +390,13 @@ def max_Q(x,y,Q):
 
 我们将使用先前定义的`max_Q()`函数来计算新状态下的 Q 值：
 
-```
+```py
 Qs1a1 = max_Q(x1,y1,Q)
 ```
 
 此外，选择探索还是利用的动作是在`while`循环内完成的，因为在利用时我们会贪婪地选择动作：
 
-```
+```py
 # explore or exploit
 a = explore_exploit(x,y,Q)
 ```
@@ -433,7 +433,7 @@ a = explore_exploit(x,y,Q)
 
 在这里，我们将开始用 Python 编写算法：
 
-```
+```py
 import numpy as np
 import sys
 import matplotlib.pyplot as plt
@@ -456,7 +456,7 @@ obstacle_cells = [(4,1), (4,2), (8,0), (8,1)]
 
 `move()`函数现在将发生变化，因为我们还需要检查障碍物。如果代理最终进入某个障碍物单元格，它将被推回到原来的位置，如以下代码片段所示：
 
-```
+```py
 def move(x,y,a):
   # state = 0: OK
   # state = 1: reached destination

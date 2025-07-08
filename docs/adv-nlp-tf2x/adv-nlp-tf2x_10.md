@@ -28,7 +28,7 @@
 
 +   **步骤 1**：创建一个新的 `conda` 环境，使用 Python 3.7.5：
 
-    ```
+    ```py
     $ conda create -n tf24nlp python==3.7.5 
     ```
 
@@ -36,7 +36,7 @@
 
 +   **步骤 2**：激活环境并安装以下软件包：
 
-    ```
+    ```py
     $ conda activate tf24nlp
     (tf24nlp) $  conda install pandas==1.0.1 numpy==1.18.1 
     ```
@@ -45,7 +45,7 @@
 
 +   **步骤 3**：安装 TensorFlow 2.4。为此，我们需要使用 `pip`。截至写作时，TensorFlow 的 `conda` 发行版仍为 2.0。TensorFlow 发展非常迅速。通常，`conda` 发行版会稍微滞后于最新版本：
 
-    ```
+    ```py
     (tf24nlp) $ pip install tensorflow==2.4 
     ```
 
@@ -53,7 +53,7 @@
 
 +   **步骤 4**：安装 Jupyter Notebook —— 可以自由安装最新版本：
 
-    ```
+    ```py
     (tf24nlp) $ conda install Jupyter 
     ```
 
@@ -69,7 +69,7 @@
 
 需要安装`tfds`包：
 
-```
+```py
 (tf24nlp) $ pip install tensorflow_datasets==3.2.1 
 ```
 
@@ -79,7 +79,7 @@
 
 1.  通过以下命令安装`matplotlib`：
 
-    ```
+    ```py
     (tf24nlp) $ conda install matplotlib==3.1.3 
     ```
 
@@ -87,7 +87,7 @@
 
 1.  安装用于维特比解码的 TensorFlow Addons 包：
 
-    ```
+    ```py
     (tf24nlp) $ pip install tensorflow_addons==0.11.2 
     ```
 
@@ -97,13 +97,13 @@
 
 本章需要安装`sklearn`：
 
-```
+```py
 (tf24nlp) $ conda install scikit-learn==0.23.1 
 ```
 
 还需要安装 Hugging Face 的 Transformers 库：
 
-```
+```py
 (tf24nlp) $ pip install transformers==3.0.2 
 ```
 
@@ -115,7 +115,7 @@
 
 需要安装一个用于计算 ROUGE 分数的库：
 
-```
+```py
 (tf24nlp) $ pip install rouge_score 
 ```
 
@@ -123,13 +123,13 @@
 
 我们需要 Pillow 库来处理图像。该库是 Python Imaging Library 的友好版。可以通过以下命令安装：
 
-```
+```py
 (tf24nlp) conda install pillow==7.2.0 
 ```
 
 TQDM 是一个很好的工具，可以在执行长时间循环时显示进度条：
 
-```
+```py
 (tf24nlp) $ conda install tqdm==4.47.0 
 ```
 
@@ -139,19 +139,19 @@ TQDM 是一个很好的工具，可以在执行长时间循环时显示进度条
 
 在该环境中运行标注函数，并将输出存储为单独的 CSV 文件。TensorFlow 训练可以通过切换回`tf24nlp`环境并加载标注数据来运行：
 
-```
+```py
 (tf24nlp) $ pip install snorkel==0.9.5 
 ```
 
 我们还将使用 BeautifulSoup 来解析 HTML 标签：
 
-```
+```py
 (tf24nlp) $ conda install beautifulsoup4==4.9 
 ```
 
 本章有一个可选部分涉及绘制词云。此部分需要安装以下包：
 
-```
+```py
 (tf24nlp) $ pip install wordcloud==1.8 
 ```
 

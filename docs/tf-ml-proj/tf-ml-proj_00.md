@@ -86,7 +86,7 @@ TensorFlow 已经彻底改变了人们对机器学习的认知。*TensorFlow 机
 
 一段代码设置如下：
 
-```
+```py
 tf.constant(
   value,
   dtype=None,
@@ -98,7 +98,7 @@ tf.constant(
 
 任何命令行输入或输出如下所示：
 
-```
+```py
 const1 (x):  Tensor("x:0", shape=(), dtype=int32)
 const2 (y):  Tensor("y:0", shape=(), dtype=float32)
 const3 (z):  Tensor("z:0", shape=(), dtype=float16)

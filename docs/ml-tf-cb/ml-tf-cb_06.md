@@ -76,13 +76,13 @@
 
 1.  首先，通过以下方式加载 TensorFlow：
 
-    ```
+    ```py
     import tensorflow as tf 
     ```
 
 1.  现在我们需要声明我们的模型变量和输入数据。我们将输入数据设为 5，这样乘数因子将是 10（即 5*10=50），具体如下：
 
-    ```
+    ```py
     a = tf.Variable(4.)
     x_data = tf.keras.Input(shape=(1,))
     x_val = 5. 
@@ -90,7 +90,7 @@
 
 1.  接下来，我们创建一个 Lambda 层来计算操作，并创建一个具有以下输入的功能性 Keras 模型：
 
-    ```
+    ```py
     multiply_layer = tf.keras.layers.Lambda(lambda x:tf.multiply(a, x))
     outputs = multiply_layer(x_data)
     model = tf.keras.Model(inputs=x_data, outputs=outputs, name="gate_1") 
@@ -98,13 +98,13 @@
 
 1.  现在，我们将声明我们的优化算法为随机梯度下降，具体如下：
 
-    ```
+    ```py
     optimizer=tf.keras.optimizers.SGD(0.01) 
     ```
 
 1.  现在，我们可以优化我们的模型输出，使其趋向目标值 50。我们将使用损失函数作为输出与目标值 50 之间的 L2 距离。我们通过不断输入值 5 并反向传播损失来更新模型变量，使其趋向 10，具体如下所示：
 
-    ```
+    ```py
     print('Optimizing a Multiplication Gate Output to 50.')
     for i in range(10):
 
@@ -129,7 +129,7 @@
 
 1.  前面的步骤应该会得到以下输出：
 
-    ```
+    ```py
     Optimizing a Multiplication Gate Output to 50\. 
     7.0 * 5.0 = 35.0 
     8.5 * 5.0 = 42.5 
@@ -147,7 +147,7 @@
 
 1.  我们将以与前一个示例完全相同的方式开始，但会初始化两个模型变量，`a` 和 `b`，具体如下：
 
-    ```
+    ```py
     import tensorflow as tf
     # Initialize variables and input data
     x_data = tf.keras.Input(dtype=tf.float32, shape=(1,))
@@ -168,7 +168,7 @@
 
 1.  我们现在优化模型变量，将输出训练到目标值 50，具体如下所示：
 
-    ```
+    ```py
     print('Optimizing two Gate Output to 50.')
     for i in range(10):
 
@@ -197,7 +197,7 @@
 
 1.  前面的步骤应该会得到以下输出：
 
-    ```
+    ```py
     Optimizing Two Gate Output to 50\. 
     5.4 * 5.0 + 1.88 = 28.88 
     7.512 * 5.0 + 2.3024 = 39.8624 
@@ -239,7 +239,7 @@
 
 1.  我们将从加载必要的库开始。这也是我们可以提到如何在 TensorFlow 中设置随机种子的好时机。由于我们将使用 NumPy 和 TensorFlow 的随机数生成器，因此我们需要为两者设置随机种子。设置相同的随机种子后，我们应该能够复制结果。我们通过以下输入来实现：
 
-    ```
+    ```py
     import tensorflow as tf 
     import numpy as np 
     import matplotlib.pyplot as plt 
@@ -249,7 +249,7 @@
 
 1.  现在，我们需要声明我们的批处理大小、模型变量和数据模型输入。我们的计算图将包括将正态分布数据输入到两个相似的神经网络中，这两个网络仅在末端的激活函数上有所不同，如下所示：
 
-    ```
+    ```py
     batch_size = 50 
     x_data = tf.keras.Input(shape=(1,))
     x_data = tf.keras.Input(shape=(1,))
@@ -261,7 +261,7 @@
 
 1.  接下来，我们将声明我们的两个模型，sigmoid 激活模型和 ReLU 激活模型，如下所示：
 
-    ```
+    ```py
     class MyCustomGateSigmoid(tf.keras.layers.Layer):
 
      def __init__(self, units, a1, b1):
@@ -296,13 +296,13 @@
 
 1.  现在我们需要声明我们的优化算法并初始化变量，如下所示：
 
-    ```
+    ```py
     optimizer=tf.keras.optimizers.SGD(0.01) 
     ```
 
 1.  现在，我们将对两个模型进行 750 次迭代训练，如下所示的代码块所示。损失函数将是模型输出与 0.75 的 L2 范数平均值。我们还将保存损失输出和激活输出值，稍后用于绘图：
 
-    ```
+    ```py
     # Run loop across gate
     print('\n Optimizing Sigmoid AND Relu Output to 0.75')
     loss_vec_sigmoid = []
@@ -353,7 +353,7 @@
 
 1.  要绘制损失和激活输出，我们需要输入以下代码：
 
-    ```
+    ```py
     plt.plot(activation_sigmoid, 'k-', label='Sigmoid Activation') 
     plt.plot(activation_relu, 'r--', label='Relu Activation') 
     plt.ylim([0, 1.0]) 
@@ -413,7 +413,7 @@
 
 1.  为了创建计算图，我们将从加载以下必要的库开始：
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     import numpy as np
     import tensorflow as tf
@@ -422,7 +422,7 @@
 
 1.  现在，我们将加载`Iris`数据集，并通过以下代码将长度存储为目标值：
 
-    ```
+    ```py
     iris = datasets.load_iris() 
     x_vals = np.array([x[0:3] for x in iris.data]) 
     y_vals = np.array([x[3] for x in iris.data]) 
@@ -430,7 +430,7 @@
 
 1.  由于数据集较小，我们希望设置一个种子，使得结果可复现，具体如下：
 
-    ```
+    ```py
     seed = 3 
     tf.set_random_seed(seed) 
     np.random.seed(seed) 
@@ -438,7 +438,7 @@
 
 1.  为了准备数据，我们将创建一个 80-20 的训练集和测试集拆分，并通过 min-max 缩放将`x`特征规范化到`0`和`1`之间，具体如下所示：
 
-    ```
+    ```py
     train_indices = np.random.choice(len(x_vals), round(len(x_vals)*0.8), replace=False) 
     test_indices = np.array(list(set(range(len(x_vals))) - set(train_indices))) 
     x_vals_train = x_vals[train_indices] 
@@ -455,14 +455,14 @@
 
 1.  现在，我们将声明批次大小和数据模型输入，具体代码如下：
 
-    ```
+    ```py
     batch_size = 50 
     x_data = tf.keras.Input(dtype=tf.float32, shape=(3,)) 
     ```
 
 1.  关键部分是用适当的形状声明我们的模型变量。我们可以声明我们隐藏层的大小为任意大小；在下面的代码块中，我们设置它为五个隐藏节点：
 
-    ```
+    ```py
     hidden_layer_nodes = 5
     a1 = tf.Variable(tf.random.normal(shape=[3,hidden_layer_nodes], seed=seed)) 
     b1 = tf.Variable(tf.random.normal(shape=[hidden_layer_nodes], seed=seed))   
@@ -474,7 +474,7 @@
 
     请注意，我们的模型从三个输入特征到五个隐藏节点，最后到一个输出值。
 
-    ```
+    ```py
     hidden_output = tf.keras.layers.Lambda(lambda x: tf.nn.relu(tf.add(tf.matmul(x, a1), b1)))
     final_output = tf.keras.layers.Lambda(lambda x: tf.nn.relu(tf.add(tf.matmul(x, a2), b2)))
     model = tf.keras.Model(inputs=x_data, outputs=output, name="1layer_neural_network") 
@@ -482,13 +482,13 @@
 
 1.  现在我们将使用以下代码声明优化算法：
 
-    ```
+    ```py
     optimizer = tf.keras.optimizers.SGD(0.005) 
     ```
 
 1.  接下来，我们循环执行训练迭代。我们还将初始化两个列表，用于存储我们的`train`和`test_loss`函数。在每个循环中，我们还希望从训练数据中随机选择一个批次，以适应模型，如下所示：
 
-    ```
+    ```py
     # First we initialize the loss vectors for storage. 
     loss_vec = []
     test_loss = []
@@ -529,7 +529,7 @@
 
 1.  我们可以用`matplotlib`和以下代码绘制损失：
 
-    ```
+    ```py
     plt.plot(loss_vec, 'k-', label='Train Loss') 
     plt.plot(test_loss, 'r--', label='Test Loss') 
     plt.title('Loss (MSE) per Generation') 
@@ -575,14 +575,14 @@
 
 1.  我们将首先加载所需的库，如下所示：
 
-    ```
+    ```py
     import tensorflow as tf 
     import numpy as np 
     ```
 
 1.  现在我们将初始化一些参数，并使用以下代码创建输入数据层：
 
-    ```
+    ```py
     data_size = 25
     conv_size = 5
     maxpool_size = 5
@@ -595,7 +595,7 @@
 
     对于我们的示例数据，批处理大小为`1`，宽度为`1`，高度为`25`，通道大小为`1`。还请注意，我们可以通过`output_size=(W-F+2P)/S+1`公式来计算卷积层的输出尺寸，其中`W`是输入尺寸，`F`是滤波器尺寸，`P`是填充尺寸，`S`是步幅尺寸。
 
-    ```
+    ```py
     my_conv_output = tf.keras.layers.Conv1D(kernel_size=(conv_size),
                                             filters=data_size, 
                                             strides=stride_size, 
@@ -605,7 +605,7 @@
 
 1.  接下来，我们添加一个 ReLU 激活层，如下所示：
 
-    ```
+    ```py
     my_activation_output = tf.keras.layers.ReLU(name="activation_layer")(my_conv_output) 
     ```
 
@@ -613,7 +613,7 @@
 
     TensorFlow 的`maxpool`参数与卷积层的非常相似。虽然`maxpool`参数没有滤波器，但它有大小、步幅和填充选项。由于我们有一个宽度为 5 的窗口，并且使用有效填充（没有零填充），所以我们的输出数组将少 4 个元素。
 
-    ```
+    ```py
     my_maxpool_output = tf.keras.layers.MaxPool1D(strides=stride_size,
                                                                      pool_size=maxpool_size,
                                                   padding='VALID',
@@ -622,14 +622,14 @@
 
 1.  我们将连接的最后一层是全连接层。在这里，我们将使用一个密集层，如下所示的代码块：
 
-    ```
+    ```py
     my_full_output = tf.keras.layers.Dense(units=num_outputs,
                                            name="fully_connected_layer")(my_maxpool_output) 
     ```
 
 1.  现在我们将创建模型，并打印每一层的输出，如下所示：
 
-    ```
+    ```py
     print('>>>> 1D Data <<<<')
     model_1D = tf.keras.Model(inputs=x_input_1d, outputs=my_full_output, name="model_1D")
     model_1D.summary()
@@ -658,7 +658,7 @@
 
 1.  前面的步骤应该会生成以下输出：
 
-    ```
+    ```py
     >>>> 1D Data <<<<
     Model: "model_1D"
     _________________________________________________________________
@@ -699,7 +699,7 @@
 
 1.  我们将首先初始化变量，如下所示：
 
-    ```
+    ```py
     row_size = 10
     col_size = 10
     conv_size = 2
@@ -711,13 +711,13 @@
 
 1.  然后我们将初始化输入数据层。由于我们的数据已经有了高度和宽度，我们只需要在两个维度上扩展它（批处理大小为 1，通道大小为 1），如下所示：
 
-    ```
+    ```py
     x_input_2d = tf.keras.Input(dtype=tf.float32, shape=(row_size,col_size, 1), name="input_layer_2d") 
     ```
 
 1.  就像一维示例中一样，现在我们需要添加一个二维卷积层。对于滤波器，我们将使用一个随机的 2x2 滤波器，步幅为 2，方向上都为 2，并使用有效填充（换句话说，不使用零填充）。由于我们的输入矩阵是 10x10，因此卷积输出将是 5x5，如下所示：
 
-    ```
+    ```py
     my_convolution_output_2d = tf.keras.layers.Conv2D(kernel_size=(conv_size),
                                                       filters=conv_size,
                                                       strides=conv_stride_size,
@@ -727,13 +727,13 @@
 
 1.  接下来，我们添加一个 ReLU 激活层，如下所示：
 
-    ```
+    ```py
     my_activation_output_2d = tf.keras.layers.ReLU(name="activation_layer_2d")(my_convolution_output_2d) 
     ```
 
 1.  我们的最大池化层与一维情况非常相似，唯一不同的是我们需要为最大池化窗口和步幅声明宽度和高度。在我们的例子中，我们将在所有空间维度上使用相同的值，因此我们将设置整数值，如下所示：
 
-    ```
+    ```py
     my_maxpool_output_2d = tf.keras.layers.MaxPool2D(strides=maxpool_stride_size,
                                                   pool_size=maxpool_size,
                                                   padding='VALID',
@@ -742,7 +742,7 @@
 
 1.  我们的全连接层与一维输出非常相似。我们使用一个稠密层，具体如下：
 
-    ```
+    ```py
     my_full_output_2d = tf.keras.layers.Dense(units=num_outputs,
 
     name="fully_connected_layer_2d")(my_maxpool_output_2d) 
@@ -750,7 +750,7 @@
 
 1.  现在我们将创建模型，并打印每一层的输出，具体如下：
 
-    ```
+    ```py
     print('>>>> 2D Data <<<<')
     model_2D = tf.keras.Model(inputs=x_input_2d, outputs=my_full_output_2d, name="model_2D")
     model_2D.summary()
@@ -780,7 +780,7 @@
 
 1.  上述步骤应该会得到以下输出：
 
-    ```
+    ```py
     >>>> 2D Data <<<<
     Model: "model_2D"
     _________________________________________________________________
@@ -833,7 +833,7 @@
 
 1.  我们将开始加载库，具体如下：
 
-    ```
+    ```py
     import tensorflow as tf
     import matplotlib.pyplot as plt
     import csv
@@ -845,7 +845,7 @@
 
 1.  我们将使用`requests`模块从网站加载数据。之后，我们将把数据拆分为感兴趣的特征和目标值，具体如下：
 
-    ```
+    ```py
     # name of data file
     birth_weight_file = 'birth_weight.csv'
     # download data and create data file if file does not exist in current directory
@@ -879,7 +879,7 @@
 
 1.  为了帮助结果的可重复性，我们现在需要为 NumPy 和 TensorFlow 设置随机种子。然后我们声明我们的批处理大小，具体如下：
 
-    ```
+    ```py
     # make results reproducible
     seed = 3
     np.random.seed(seed)
@@ -890,7 +890,7 @@
 
 1.  接下来，我们将数据分割为 80-20 的训练集和测试集。之后，我们需要对输入特征进行归一化，使其值在 0 到 1 之间，采用最小-最大缩放，具体如下：
 
-    ```
+    ```py
     train_indices = np.random.choice(len(x_vals), round(len(x_vals)*0.8), replace=False)
     test_indices = np.array(list(set(range(len(x_vals))) - set(train_indices)))
     x_vals_train = x_vals[train_indices]
@@ -911,7 +911,7 @@
 
 1.  由于我们有多个具有相似初始化变量的层，现在我们需要创建一个函数来初始化权重和偏置。我们使用以下代码完成此任务：
 
-    ```
+    ```py
     # Define Variable Functions (weights and bias)
     def init_weight(shape, st_dev):
         weight = tf.Variable(tf.random.normal(shape, stddev=st_dev))
@@ -924,13 +924,13 @@
 
 1.  现在我们需要初始化我们的输入数据层。将有七个输入特征，输出将是出生体重（以克为单位）：
 
-    ```
+    ```py
     x_data = tf.keras.Input(dtype=tf.float32, shape=(7,)) 
     ```
 
 1.  全连接层将用于所有三个隐藏层，每个层都会使用三次。为了避免重复代码，我们将创建一个层函数，以便在初始化模型时使用，具体如下：
 
-    ```
+    ```py
     # Create a fully connected layer:
     def fully_connected(input_layer, weights, biases):
         return tf.keras.layers.Lambda(lambda x: tf.nn.relu(tf.add(tf.matmul(x, weights), biases)))(input_layer) 
@@ -940,7 +940,7 @@
 
     我们使用的模型将有 522 个变量需要拟合。为了得到这个数字，我们可以看到在数据和第一个隐藏层之间有 7*25+25=200 个变量。如果我们继续这样加总，我们会得到 200+260+33+4=497 个变量。这比我们在逻辑回归模型中使用的九个变量要大得多。
 
-    ```
+    ```py
     #--------Create the first layer (25 hidden nodes)--------
     weight_1 = init_weight(shape=[7,25], st_dev=5.0)
     bias_1 = init_bias(shape=[25], st_dev=10.0)
@@ -962,7 +962,7 @@
 
 1.  接下来，我们将声明优化器（使用 Adam 优化算法），并循环执行训练迭代。我们将使用 L1 损失函数（绝对值）。我们还将初始化两个列表，用于存储我们的`train`和`test_loss`函数。在每次循环中，我们还希望随机选择一批训练数据进行模型拟合，并在每 25 代时打印状态，如下所示：
 
-    ```
+    ```py
     # Declare Adam optimizer
     optimizer = tf.keras.optimizers.Adam(0.025)
     # Training loop
@@ -1010,7 +1010,7 @@
 
 1.  上一步应该会得到如下输出：
 
-    ```
+    ```py
     Generation: 25\. Loss = 1921.8002
     Generation: 50\. Loss = 1453.3898
     Generation: 75\. Loss = 987.57074
@@ -1023,7 +1023,7 @@
 
 1.  以下是一个代码片段，它使用`matplotlib`绘制训练和测试损失：
 
-    ```
+    ```py
     plt.plot(loss_vec, 'k-', label='Train Loss') 
     plt.plot(test_loss, 'r--', label='Test Loss') 
     plt.title('Loss per Generation') 
@@ -1041,7 +1041,7 @@
 
 1.  现在，我们需要输出训练和测试的回归结果，并通过创建一个指示器来将它们转化为分类结果，判断它们是否高于或低于 2,500 克。为了找出模型的准确性，我们需要使用以下代码：
 
-    ```
+    ```py
     # Model Accuracy
     actuals = np.array([x[0] for x in birth_data])
     test_actuals = actuals[test_indices]
@@ -1060,7 +1060,7 @@
 
 1.  上一步应该会得到如下输出：
 
-    ```
+    ```py
     Test Accuracy: 0.7631578947368421
     Train Accuracy: 0.7880794701986755 
     ```
@@ -1085,7 +1085,7 @@
 
 1.  我们首先加载库并初始化我们的计算图，如下所示：
 
-    ```
+    ```py
     import matplotlib.pyplot as plt 
     import numpy as np 
     import tensorflow as tf 
@@ -1096,7 +1096,7 @@
 
 1.  接下来，我们加载、提取并规范化数据，方法与前面的步骤相同，不同的是这里我们将使用低出生体重指标变量作为目标，而不是实际出生体重，如下所示：
 
-    ```
+    ```py
     # Name of data file
     birth_weight_file = 'birth_weight.csv'
     birthdata_url = 'https://github.com/PacktPublishing/Machine-Learning-Using-TensorFlow-Cookbook/blob/master/ch6/06_Using_Multiple_Layers/birth_weight.csv'
@@ -1143,7 +1143,7 @@
 
 1.  接下来，我们需要声明批量大小、种子（以确保结果可重复）以及输入数据层，如下所示：
 
-    ```
+    ```py
     batch_size = 90 
     seed = 98
     np.random.seed(seed)
@@ -1153,7 +1153,7 @@
 
 1.  如前所述，我们现在需要声明初始化变量和模型中各层的函数。为了创建一个更好的逻辑函数，我们需要创建一个函数，它返回输入层上的逻辑层。换句话说，我们将使用一个完全连接的层，并为每一层返回一个 sigmoid 元素。需要记住的是，我们的损失函数将包含最终的 sigmoid，因此我们希望在最后一层中指定不返回输出的 sigmoid，如下所示：
 
-    ```
+    ```py
     # Create variable definition
     def init_variable(shape):
         return(tf.Variable(tf.random.normal(shape=shape, dtype="float64", seed=seed)))
@@ -1170,7 +1170,7 @@
 
 1.  现在我们将声明三层（两层隐藏层和一层输出层）。我们将从为每一层初始化权重和偏置矩阵开始，并定义各层操作，如下所示：
 
-    ```
+    ```py
     # First logistic layer (7 inputs to 14 hidden nodes)
     A1 = init_variable(shape=[7,14])
     b1 = init_variable(shape=[14])
@@ -1189,7 +1189,7 @@
 
 1.  接下来，我们定义损失函数（交叉熵）并声明优化算法，如下所示：
 
-    ```
+    ```py
     # Loss function (Cross Entropy loss)
     def cross_entropy(final_output, y_target):
         return tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=final_output, labels=y_target)) 
@@ -1201,7 +1201,7 @@
 
 1.  为了评估和比较我们的模型与之前的模型，我们需要在图中创建一个预测和准确性操作。这将允许我们输入整个测试集并确定准确性，如下所示：
 
-    ```
+    ```py
     # Accuracy
     def compute_accuracy(final_output, y_target):
         prediction = tf.round(tf.nn.sigmoid(final_output))
@@ -1211,7 +1211,7 @@
 
 1.  我们现在准备开始我们的训练循环。我们将训练 1,500 代，并保存模型损失以及训练和测试集的准确性，以便稍后绘制图表。我们的训练循环通过以下代码启动：
 
-    ```
+    ```py
     # Training loop
     loss_vec = []
     train_acc = []
@@ -1254,7 +1254,7 @@
 
 1.  前面的步骤应产生以下输出：
 
-    ```
+    ```py
     Loss = 0.5885411040188063
     Loss = 0.581099555117532
     Loss = 0.6071769535895101
@@ -1269,7 +1269,7 @@
 
 1.  以下代码块展示了如何使用`matplotlib`绘制交叉熵损失以及训练集和测试集的准确性：
 
-    ```
+    ```py
     # Plot loss over time 
     plt.plot(loss_vec, 'k-') 
     plt.title('Cross Entropy Loss per Generation') 
@@ -1334,7 +1334,7 @@
 
 1.  我们需要首先加载此脚本所需的库，代码如下：
 
-    ```
+    ```py
     import tensorflow as tf
     import matplotlib.pyplot as plt
     import csv
@@ -1344,13 +1344,13 @@
 
 1.  接下来，我们声明用于训练模型的批次大小，代码如下：
 
-    ```
+    ```py
     batch_size = 50 
     ```
 
 1.  为了使得可视化棋盘变得更加简单，我们将创建一个函数，输出带有 X 和 O 的井字棋棋盘。可以通过以下代码实现：
 
-    ```
+    ```py
      def print_board(board):
         symbols = ['O', ' ', 'X']
         board_plus1 = [int(x) + 1 for x in board]
@@ -1375,7 +1375,7 @@
 
 1.  现在，我们需要创建一个函数，返回一个新棋盘和一个在变换下的最优响应位置。可以通过以下代码实现：
 
-    ```
+    ```py
     def get_symmetry(board, response, transformation): 
         ''' 
         :param board: list of integers 9 long: 
@@ -1418,7 +1418,7 @@
 
 1.  棋盘列表及其最优响应存储在一个`.csv`文件中，该文件位于 GitHub 仓库中的目录，网址为[`github.com/nfmcclure/tensorflow_cookbook`](https://github.com/nfmcclure/tensorflow_cookbook) 或 Packt 仓库中的[`github.com/PacktPublishing/TensorFlow-Machine-Learning-Cookbook-Second-Edition`](https://github.com/PacktPublishing/TensorFlow-Machine-Learning-Cookbook-Second-Edition)。我们将创建一个函数，加载包含棋盘和响应的文件，并将其存储为一个元组列表，代码如下：
 
-    ```
+    ```py
     def get_moves_from_csv(csv_file): 
         ''' 
         :param csv_file: csv file location containing the boards w/ responses 
@@ -1434,7 +1434,7 @@
 
 1.  现在，我们需要将所有部分结合起来，创建一个函数，返回一个随机变换的棋盘和响应。可以通过以下代码实现：
 
-    ```
+    ```py
     def get_rand_move(moves, rand_transforms=2): 
         # This function performs random transformations on a board. 
         (board, response) = random.choice(moves) 
@@ -1447,7 +1447,7 @@
 
 1.  接下来，我们加载数据并创建一个训练集，代码如下：
 
-    ```
+    ```py
     moves = get_moves_from_csv('base_tic_tac_toe_moves.csv') 
     # Create a train set: 
     train_length = 500 
@@ -1458,14 +1458,14 @@
 
 1.  请记住，我们要从训练集中删除一个棋盘和最优响应，看看模型是否能够泛化并做出最佳决策。以下棋盘的最佳走法是将棋子放在索引位置 6：
 
-    ```
+    ```py
     test_board = [-1, 0, 0, 1, -1, -1, 0, 0, 1] 
     train_set = [x for x in train_set if x[0] != test_board] 
     ```
 
 1.  现在我们可以初始化权重和偏置，并创建我们的模型：
 
-    ```
+    ```py
     def init_weights(shape): 
         return tf.Variable(tf.random_normal(shape)) 
     A1 = init_weights([9, 81])
@@ -1476,7 +1476,7 @@
 
 1.  现在，我们创建我们的模型。请注意，我们在以下模型中没有包含`softmax()`激活函数，因为它已包含在损失函数中：
 
-    ```
+    ```py
     # Initialize input data
     X = tf.keras.Input(dtype=tf.float32, batch_input_shape=[None, 9])
     hidden_output = tf.keras.layers.Lambda(lambda x: tf.nn.sigmoid(tf.add(tf.matmul(x, A1), bias1)))(X)
@@ -1486,13 +1486,13 @@
 
 1.  接下来，我们将声明优化器，代码如下：
 
-    ```
+    ```py
     optimizer = tf.keras.optimizers.SGD(0.025) 
     ```
 
 1.  现在，我们可以使用以下代码进行神经网络的训练循环。请注意，我们的`loss`函数将是最终输出对数（未经标准化）的平均 softmax：
 
-    ```
+    ```py
     # Initialize variables 
     loss_vec = []
     for i in range(10000):
@@ -1521,7 +1521,7 @@
 
 1.  以下是绘制模型训练过程中损失的代码：
 
-    ```
+    ```py
     plt.plot(loss_vec, 'k-', label='Loss') 
     plt.title('Loss (MSE) per Generation') 
     plt.xlabel('Generation') 
@@ -1539,7 +1539,7 @@
 
 1.  为了测试模型，我们需要查看它在从训练集移除的测试板上的表现。我们希望模型能够泛化并预测移动的最优索引，即索引编号 6。大多数时候，模型会成功，如下所示：
 
-    ```
+    ```py
     test_boards = [test_board] 
     logits = model.predict(test_boards)
     predictions = tf.argmax(logits, 1)
@@ -1548,13 +1548,13 @@
 
 1.  前面的步骤应该会得到以下输出：
 
-    ```
+    ```py
     [6] 
     ```
 
 1.  为了评估我们的模型，我们需要与训练好的模型对战。为此，我们必须创建一个函数来检查是否获胜。这样，程序就能知道何时停止请求更多的移动。可以通过以下代码实现：
 
-    ```
+    ```py
     def check(board): 
         wins = [[0,1,2], [3,4,5], [6,7,8], [0,3,6], [1,4,7], [2,5,8], [0,4,8], [2,4,6]] 
         for i in range(len(wins)): 
@@ -1567,7 +1567,7 @@
 
 1.  现在我们可以循环并与模型进行游戏。我们从一个空白的棋盘开始（全为零），然后让用户输入一个索引（0-8）表示要下的位置，然后将其输入模型进行预测。对于模型的移动，我们选择最大的可用预测，并且该位置必须是空的。从这场游戏中，我们可以看到我们的模型并不完美，如下所示：
 
-    ```
+    ```py
     game_tracker = [0., 0., 0., 0., 0., 0., 0., 0., 0.]
     win_logical = False
     num_moves = 0
@@ -1599,7 +1599,7 @@
 
 1.  前面的步骤应该会得到以下交互式输出：
 
-    ```
+    ```py
     Input index of your move (0-8):  4
     Model has moved
        |   |  

@@ -274,7 +274,7 @@ PointNet 是一个**多层感知器**（**MLP**）。这是一个前馈网络，
 
 我们可以通过 `pip` 安装它：
 
-```
+```py
 pip install gym[box2d]
 ```
 
@@ -322,7 +322,7 @@ pip install gym[box2d]
 
 但首先，让我们实现`data_transform`转换列表，这些转换会在将图像输入网络之前修改图像。完整实现请参见[`github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/blob/master/Chapter11/imitation_learning/util.py`](https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/blob/master/Chapter11/imitation_learning/util.py)。我们将把图像转换为灰度图，规范化颜色值到`[0, 1]`范围，并裁剪图像的底部（黑色矩形框，显示奖励和其他信息）。实现如下：
 
-```
+```py
 data_transform = torchvision.transforms.Compose([
    torchvision.transforms.ToPILImage(),
     torchvision.transforms.Grayscale(1),
@@ -335,13 +335,13 @@ data_transform = torchvision.transforms.Compose([
 
 接下来，让我们将注意力转回到`create_datasets`函数。我们将从声明开始：
 
-```
+```py
 def create_datasets():
 ```
 
 然后，我们将实现`TensorDatasetTransforms`辅助类，以便对输入图像应用`data_transform`转换。实现如下（请注意缩进，因为这段代码仍然是`create_datasets`函数的一部分）：
 
-```
+```py
     class TensorDatasetTransforms(torch.utils.data.TensorDataset):
         def __init__(self, x, y):
             super().__init__(x, y)
@@ -353,14 +353,14 @@ def create_datasets():
 
 接下来，我们将完全读取之前生成的数据集：
 
-```
+```py
     x, y = read_data()
     x = np.moveaxis(x, 3, 1)  # channel first (torch requirement)
 ```
 
 然后，我们将创建训练和验证数据加载器（`train_loader`和`val_loader`）。最后，我们将它们作为`create_datasets`函数的结果返回：
 
-```
+```py
     # train dataset
     x_train = x[:int(len(x) * TRAIN_VAL_SPLIT)]
     y_train = y[:int(len(y) * TRAIN_VAL_SPLIT)]
@@ -401,7 +401,7 @@ def create_datasets():
 
 以下代码块展示了网络实现：
 
-```
+```py
 def build_network():
     return torch.nn.Sequential(
         torch.nn.Conv2d(1, 32, 8, 4),
@@ -431,7 +431,7 @@ def build_network():
 
 我们将通过`train`函数实现训练，该函数接受网络和`cuda`设备作为参数。我们将使用交叉熵损失函数和 Adam 优化器（这是分类任务的常用组合）。该函数简单地迭代`EPOCHS`次数，并对每个周期调用`train_epoch`和`test`函数。以下是实现：
 
-```
+```py
 def train(model: torch.nn.Module, device: torch.device):
     loss_function = torch.nn.CrossEntropyLoss()
 
@@ -454,7 +454,7 @@ def train(model: torch.nn.Module, device: torch.device):
 
 然后，我们将实现`train_epoch`函数进行单轮训练。该函数遍历所有的小批量并对每个小批量执行前向和反向传播。以下是实现：
 
-```
+```py
 def train_epoch(model, device, loss_function, optimizer, data_loader):
     model.train() # set model to training mode
     current_loss, current_acc = 0.0, 0.0
@@ -491,7 +491,7 @@ def train_epoch(model, device, loss_function, optimizer, data_loader):
 
 首先，我们将实现初始化部分，将*Esc*键与环境初始化绑定：
 
-```
+```py
 def nn_agent_drive(model: torch.nn.Module, device: torch.device):
     env = gym.make('CarRacing-v0')
 
@@ -510,7 +510,7 @@ def nn_agent_drive(model: torch.nn.Module, device: torch.device):
 
 接下来，我们将实现主循环，其中智能体（车辆）采取`action`，环境返回新的`state`，以此类推。这个动态反映在无限`while`循环中（请注意缩进，因为这段代码仍然是`nn_agent_play`的一部分）：
 
-```
+```py
     while 1:
         env.render()
 
@@ -548,7 +548,7 @@ def nn_agent_drive(model: torch.nn.Module, device: torch.device):
 
 以下代码片段构建并恢复（如果可用）网络，运行训练并评估网络：
 
-```
+```py
 # create cuda device
 dev = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 

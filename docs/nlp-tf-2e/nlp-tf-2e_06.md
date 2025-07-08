@@ -311,7 +311,7 @@ CoNLL 2003 数据集支持多种语言，英文数据来源于路透社语料库
 
 接下来，我们将读取数据并将其转换为适合我们模型的特定格式。但在此之前，我们需要看看原始数据的样子：
 
-```
+```py
 -DOCSTART- -X- -X- O
 EU NNP B-NP B-ORG
 rejects VBZ B-VP O
@@ -358,7 +358,7 @@ sheep NN B-NP O
 
 现在让我们来看一下加载我们下载的数据到内存中的代码，这样我们就可以开始使用它了：
 
-```
+```py
 def read_data(filename):
     '''
     Read data from a file with given filename
@@ -407,7 +407,7 @@ def read_data(filename):
 
 在这里，我们将存储所有句子（作为`sentences`中的字符串列表）和与每个标记相关的所有标签（作为`ner_labels`中的列表列表）。我们将逐行读取文件。我们会维护一个布尔值`is_sos`，用来表示我们是否在句子的开头。我们还会有两个临时列表（`sentence_tokens`和`sentence_labels`），用来累积当前句子的标记和 NER 标签。当我们处于句子的开始时，我们会重置这些临时列表。否则，我们会将每个在文件中看到的标记和 NER 标签写入这些临时列表。现在，我们可以在训练集、验证集和测试集上运行这个函数：
 
-```
+```py
 # Train data
 train_sentences, train_labels = read_data(train_filepath) 
 # Validation data
@@ -418,7 +418,7 @@ test_sentences, test_labels = read_data(test_filepath)
 
 我们将打印几个样本，看看我们得到了什么：
 
-```
+```py
 # Print some data
 print('\nSample data\n')
 for v_sent, v_labels in zip(valid_sentences[:5], valid_labels[:5]):
@@ -429,7 +429,7 @@ for v_sent, v_labels in zip(valid_sentences[:5], valid_labels[:5]):
 
 这产生了：
 
-```
+```py
 Sentence: West Indian all-rounder Phil Simmons took four for 38 on Friday as Leicestershire beat Somerset by an innings and 39 runs in two days to take over at the head of the county championship .
 Labels: ['B-MISC', 'I-MISC', 'O', 'B-PER', 'I-PER', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'B-ORG', 'O', 'B-ORG', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O']
 Sentence: Their stay on top , though , may be short-lived as title rivals Essex , Derbyshire and Surrey all closed in on victory while Kent made up for lost time in their rain-affected match against Nottinghamshire .
@@ -440,7 +440,7 @@ Labels: ['O', 'O', 'B-ORG', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'O', 'B-LOC', 'I-
 
 NER 任务的一个独特特点是类别不平衡。也就是说，并非所有类别的样本数量大致相等。正如你可能猜到的，在语料库中，非命名实体的数量要多于命名实体。这导致标签之间出现显著的类别不平衡。因此，让我们来看看不同类别之间样本的分布：
 
-```
+```py
 from itertools import chain
 # Print the value count for each label
 print("Training data label counts")
@@ -449,7 +449,7 @@ print(pd.Series(chain(*train_labels)).value_counts())
 
 为了分析数据，我们将首先把 NER 标签转换为 pandas 的`Series`对象。可以通过简单地在`train_labels`、`valid_labels`和`test_labels`上调用`pd.Series()`构造函数来完成。但请记住，这些是列表的列表，其中每个内部列表代表句子中所有标记的 NER 标签。为了创建一个扁平化的列表，我们可以使用内置的 Python 库`itertools`中的`chain()`函数。它会将多个列表连接在一起，形成一个单一的列表。之后，我们在这个 pandas `Series`上调用`value_counts()`函数。这将返回一个新列表，其中索引是原始`Series`中找到的唯一标签，而值是每个标签出现的次数。这样我们就得到了：
 
-```
+```py
 Training data label counts
 O         169578
 B-LOC       7140
@@ -465,7 +465,7 @@ dtype: int64
 
 正如你所看到的，O 标签的数量远远超过其他标签的数量。在训练模型时，我们需要记住这一点。接下来，我们将分析每个句子的序列长度（即标记的数量）。我们稍后需要这些信息来将句子填充到固定长度。
 
-```
+```py
 pd.Series(train_sentences).str.split().str.len().describe(percentiles=[0.05, 0.95]) 
 ```
 
@@ -473,7 +473,7 @@ pd.Series(train_sentences).str.split().str.len().describe(percentiles=[0.05, 0.9
 
 然后，我们将查看这些长度的 5% 和 95% 分位数。这将产生：
 
-```
+```py
 count    14041.000000
 mean        14.501887
 std         11.602756
@@ -499,7 +499,7 @@ dtype: float64
 
 首先让我们编写一个函数来获取类标签到类 ID 的映射。这个函数利用 pandas 的`unique()`函数获取训练集中的唯一标签，并生成一个整数到唯一标签的映射。
 
-```
+```py
 def get_label_id_map(train_labels):
     # Get the unique list of labels
     unique_train_labels = pd.Series(chain(*train_labels)).unique()
@@ -513,13 +513,13 @@ def get_label_id_map(train_labels):
 
 如果你运行以下代码：
 
-```
+```py
 labels_map = get_label_id_map(train_labels) 
 ```
 
 然后你将得到：
 
-```
+```py
 labels_map: {'B-ORG': 0, 'O': 1, 'B-MISC': 2, 'B-PER': 3, 'I-PER': 4, 'B-LOC': 5, 'I-ORG': 6, 'I-MISC': 7, 'I-LOC': 8} 
 ```
 
@@ -535,7 +535,7 @@ labels_map: {'B-ORG': 0, 'O': 1, 'B-MISC': 2, 'B-PER': 3, 'I-PER': 4, 'B-LOC': 5
 
 现在让我们来看一下执行上述操作的代码：
 
-```
+```py
 def get_padded_int_labels(labels, labels_map, max_seq_length,
 return_mask=True):
     # Convert string labels to integers 
@@ -569,13 +569,13 @@ return_mask=True):
 
 根据我们在上一章中的发现，我们将最大序列长度设置为`40`。记住，95%的分位数落在 37 个词的长度上：
 
-```
+```py
 max_seq_length = 40 
 ```
 
 现在我们将为所有训练、验证和测试数据生成处理后的标签和掩码：
 
-```
+```py
 # Convert string labels to integers for all train/validation/test data
 # Pad train/validation/test data
 padded_train_labels, train_mask = get_padded_int_labels(
@@ -591,7 +591,7 @@ padded_test_labels, test_mask  = get_padded_int_labels(
 
 最后，我们将打印前两个序列的处理后的标签和掩码：
 
-```
+```py
 # Print some labels IDs
 print(padded_train_labels[:2])
 print(train_mask[:2]) 
@@ -599,7 +599,7 @@ print(train_mask[:2])
 
 它返回：
 
-```
+```py
 [[0 1 2 1 1 1 2 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
   1 1 1 1]
  [3 4 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
@@ -630,7 +630,7 @@ print(train_mask[:2])
 
 以下是定义的内容：
 
-```
+```py
 # The maximum length of sequences
 max_seq_length = 40
 # Size of token embeddings
@@ -661,51 +661,51 @@ epochs = 3
 
 `TextVectorization`层可以看作是一个现代化的分词器，可以插入到模型中。在这里，我们将仅操作`TextVectorization`层，而不涉及模型其他部分的复杂性。首先，我们将导入`TextVectorization`层：
 
-```
+```py
 from tensorflow.keras.layers.experimental.preprocessing import TextVectorization 
 ```
 
 现在我们将定义一个简单的文本语料库：
 
-```
+```py
 toy_corpus = ["I went to the market on Sunday", "The Market was empty."] 
 ```
 
 我们可以按如下方式实例化文本向量化层：
 
-```
+```py
 toy_vectorization_layer = TextVectorization() 
 ```
 
 实例化后，您需要在一些数据上拟合该层。这样，像我们之前使用的分词器一样，它可以学习单词到数字 ID 的映射。为此，我们通过传递文本语料库作为输入，调用该层的`adapt()`方法：
 
-```
+```py
 # Fit it on a corpus of data
 toy_vectorization_layer.adapt(toy_corpus) 
 ```
 
 我们可以按如下方式生成分词输出：
 
-```
+```py
 toy_vectorized_output = toy_vectorization_layer(toy_corpus) 
 ```
 
 它将包含：
 
-```
+```py
 [[ 9  4  6  2  3  8  7]
  [ 2  3  5 10  0  0  0]] 
 ```
 
 我们还可以查看该层所学到的词汇：
 
-```
+```py
 Vocabulary: ['', '[UNK]', 'the', 'market', 'went', 'was', 'to', 'sunday', 'on', 'i', 'empty'] 
 ```
 
 我们可以看到该层已经完成了一些预处理（例如将单词转换为小写并去除了标点符号）。接下来让我们看看如何限制词汇表的大小。我们可以通过`max_tokens`参数来实现：
 
-```
+```py
 toy_vectorization_layer = TextVectorization(max_tokens=5)
 toy_vectorization_layer.adapt(toy_corpus)
 toy_vectorized_output = toy_vectorization_layer(toy_corpus) 
@@ -713,20 +713,20 @@ toy_vectorized_output = toy_vectorization_layer(toy_corpus)
 
 如果你将`toy_corpus`转换为单词 ID，你将看到：
 
-```
+```py
 [[1 4 1 2 3 1 1]
  [2 3 1 1 0 0 0]] 
 ```
 
 词汇表将如下所示：
 
-```
+```py
 Vocabulary: ['', '[UNK]', 'the', 'market', 'went'] 
 ```
 
 现在我们可以看到，词汇表中只有五个元素，就像我们指定的那样。现在，如果你需要跳过层内部发生的文本预处理，你可以通过将层中的`standardize`参数设置为`None`来实现：
 
-```
+```py
 toy_vectorization_layer = TextVectorization(standardize=None)
 toy_vectorization_layer.adapt(toy_corpus)
 toy_vectorized_output = toy_vectorization_layer(toy_corpus) 
@@ -734,20 +734,20 @@ toy_vectorized_output = toy_vectorization_layer(toy_corpus)
 
 这将产生：
 
-```
+```py
 [[12  2  4  5  7  6 10]
  [ 9 11  3  8  0  0  0]] 
 ```
 
 词汇表将如下所示：
 
-```
+```py
 Vocabulary: ['', '[UNK]', 'went', 'was', 'to', 'the', 'on', 'market', 'empty.', 'The', 'Sunday', 'Market', 'I'] 
 ```
 
 最后，我们还可以通过`output_sequence_length`命令控制序列的填充/截断。例如，以下命令将在长度为`4`的位置进行填充/截断：
 
-```
+```py
 toy_vectorization_layer = TextVectorization(output_sequence_length=4)
 toy_vectorization_layer.adapt(toy_corpus)
 toy_vectorized_output = toy_vectorization_layer(toy_corpus) 
@@ -755,14 +755,14 @@ toy_vectorized_output = toy_vectorization_layer(toy_corpus)
 
 这将产生：
 
-```
+```py
 [[ 9  4  6  2]
  [ 2  3  5 10]] 
 ```
 
 这里的词汇表是：
 
-```
+```py
 Vocabulary: ['', '[UNK]', 'the', 'market', 'went', 'was', 'to', 'sunday', 'on', 'i', 'empty'] 
 ```
 
@@ -772,7 +772,7 @@ Vocabulary: ['', '[UNK]', 'the', 'market', 'went', 'was', 'to', 'sunday', 'on', 
 
 首先，我们将导入必要的模块：
 
-```
+```py
 import tensorflow.keras.layers as layers
 import tensorflow.keras.backend as K
 from tensorflow.keras.layers.experimental.preprocessing import TextVectorization 
@@ -780,14 +780,14 @@ from tensorflow.keras.layers.experimental.preprocessing import TextVectorization
 
 我们将定义一个输入层，该层有一个单列（即每个句子表示为一个单元），并且`dtype=tf.string`：
 
-```
+```py
 # Input layer
 word_input = tf.keras.layers.Input(shape=(1,), dtype=tf.string) 
 ```
 
 接下来，我们将定义一个函数，该函数接收一个语料库、最大序列长度和词汇表大小，并返回训练好的`TextVectorization`层和词汇表大小：
 
-```
+```py
 def get_fitted_token_vectorization_layer(corpus, max_seq_length, vocabulary_size=None):
     """ Fit a TextVectorization layer on given data """
 
@@ -808,21 +808,21 @@ def get_fitted_token_vectorization_layer(corpus, max_seq_length, vocabulary_size
 
 最后，我们还将`output_sequence_length`设置为我们在分析过程中找到的序列长度。这样，我们就可以按如下方式创建文本向量化层：
 
-```
+```py
 # Text vectorization layer
 vectorize_layer, n_vocab = get_fitted_token_vectorization_layer(train_sentences, max_seq_length) 
 ```
 
 然后将`word_input`传递给`vectorize_layer`并获取输出：
 
-```
+```py
 # Vectorized output (each word mapped to an int ID)
 vectorized_out = vectorize_layer(word_input) 
 ```
 
 来自`vectorize_layer`的输出（即`vectorized_out`）将传递到一个嵌入层。这个嵌入层是一个随机初始化的嵌入层，输出的维度为`embedding_size`：
 
-```
+```py
 # Look up embeddings for the returned IDs
 embedding_layer = layers.Embedding(
     input_dim=n_vocab,
@@ -845,7 +845,7 @@ mask_zero=True
 
 接下来，我们将定义模型的核心层——RNN：
 
-```
+```py
 # Define a simple RNN layer, it returns an output at each position
 rnn_layer = layers.SimpleRNN(
     units=rnn_hidden_size, return_sequences=True
@@ -861,14 +861,14 @@ rnn_out = rnn_layer(embedding_layer)
 
 `rnn_layer` 接受一个形状为 `[batch size, sequence length, embedding size]` 的张量，并返回一个形状为 `[batch size, sequence length, rnn hidden size]` 的张量。最后，来自 RNN 的时间分布输出将传递给一个具有 `n_classes` 输出节点和 `softmax` 激活函数的全连接层：
 
-```
+```py
 dense_layer = layers.Dense(n_classes, activation='softmax')
 dense_out = dense_layer(rnn_out) 
 ```
 
 最后，我们可以按如下方式定义最终模型。它接收一批字符串句子作为输入，并返回一批标签序列作为输出：
 
-```
+```py
 model = tf.keras.Model(inputs=word_input, outputs=dense_out) 
 ```
 
@@ -902,7 +902,7 @@ model = tf.keras.Model(inputs=word_input, outputs=dense_out)
 
 在下文中，我们定义了一个函数来计算宏观准确率，输入为一批真实目标（`y_true`）和预测值（`y_pred`）。`y_true`的形状为`[batch_size, sequence length]`，`y_pred`的形状为`[batch size, sequence length, n_classes]`：
 
-```
+```py
 def macro_accuracy(y_true, y_pred):
 
     # [batch size, time] => [batch size * time]
@@ -945,13 +945,13 @@ def macro_accuracy(y_true, y_pred):
 
 最后，我们将这个函数封装在一个`MeanMetricWrapper`中，这将产生一个`tf.keras.metrics.Metric`对象，我们可以将其传递给`model.compile()`函数：
 
-```
+```py
 mean_accuracy_metric = tf.keras.metrics.MeanMetricWrapper(fn=macro_accuracy, name='macro_accuracy') 
 ```
 
 通过调用以下方式来编译模型：
 
-```
+```py
 model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=[mean_accuracy_metric]) 
 ```
 
@@ -961,7 +961,7 @@ model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=
 
 让我们在准备好的数据上训练模型。但首先，我们需要定义一个函数来处理数据集中的类别不平衡问题。我们将把样本权重传递给`model.fit()`函数。为了计算样本权重，我们首先定义一个名为`get_class_weights()`的函数，用来计算每个类别的`class_weights`。接下来，我们将把类别权重传递给另一个函数`get_sample_weights_from_class_weights()`，该函数将生成样本权重：
 
-```
+```py
 def get_class_weights(train_labels):
 
     label_count_ser = pd.Series(chain(*train_labels)).value_counts()
@@ -978,7 +978,7 @@ def get_class_weights(train_labels):
 
 最后，输出被转换为一个字典，其中类别 ID 作为键，类别权重作为值。接下来，我们需要将`class_weights`转换为`sample_weights`。我们只需对每个标签执行字典查找操作，按元素逐一生成样本权重，基于`class_weights`。`sample_weights`的形状将与`train_labels`相同，因为每个样本都有一个权重：
 
-```
+```py
 def get_sample_weights_from_class_weights(labels, class_weights):
     """ From the class weights generate sample weights """
     return np.vectorize(class_weights.get)(labels) 
@@ -986,7 +986,7 @@ def get_sample_weights_from_class_weights(labels, class_weights):
 
 我们可以使用 NumPy 的`np.vectorize()`函数来实现这一点。`np.vectorize()`接受一个函数（例如，`class_weights.get()`是 Python 提供的键查找函数），并将其应用于所有元素，从而得到样本权重。调用我们之前定义的函数来生成实际的权重：
 
-```
+```py
 train_class_weights = get_class_weights(train_labels)
 print("Class weights: {}".format(train_class_weights))
 # Get sample weights (we cannot use class_weight with TextVectorization
@@ -996,7 +996,7 @@ train_sample_weights = get_sample_weights_from_class_weights(padded_train_labels
 
 在我们拥有了样本权重后，我们可以训练模型。你可以通过打印`class_weights`来查看它们。这将给出：
 
-```
+```py
 labels_map: {
     'B-ORG': 0, 
     'O': 1, 
@@ -1023,7 +1023,7 @@ Class weights: {
 
 你可以看到类别`Other`的权重最低（因为它是最频繁的类别），而类别`I-MISC`的权重最高，因为它是最不频繁的类别。现在我们将使用准备好的数据训练我们的模型：
 
-```
+```py
 # Make train_sequences an array
 train_sentences = np.array(train_sentences)
 # Training the model
@@ -1039,7 +1039,7 @@ model.fit(
 
 你应该能得到大约 78-79%的准确率，没有进行任何特殊的性能优化技巧。接下来，你可以使用以下命令在测试数据上评估模型：
 
-```
+```py
 model.evaluate(np.array(test_sentences), padded_test_labels) 
 ```
 
@@ -1049,7 +1049,7 @@ model.evaluate(np.array(test_sentences), padded_test_labels)
 
 为了分析输出，我们将使用测试集中的前五个句子：
 
-```
+```py
 n_samples = 5
 visual_test_sentences = test_sentences[:n_samples]
 visual_test_labels = padded_test_labels[:n_samples] 
@@ -1057,20 +1057,20 @@ visual_test_labels = padded_test_labels[:n_samples]
 
 接下来使用模型进行预测，并将这些预测转换为预测的类别 ID：
 
-```
+```py
 visual_test_predictions = model.predict(np.array(visual_test_sentences))
 visual_test_pred_labels = np.argmax(visual_test_predictions, axis=-1) 
 ```
 
 我们将创建一个反转的`labels_map`，它将标签 ID 映射到标签字符串：
 
-```
+```py
 rev_labels_map = dict(zip(labels_map.values(), labels_map.keys())) 
 ```
 
 最后，我们将打印出结果：
 
-```
+```py
 for i, (sentence, sent_labels, sent_preds) in enumerate(zip(visual_test_sentences, visual_test_labels, visual_test_pred_labels)):    
     n_tokens = len(sentence.split())
     print("Sample:\t","\t".join(sentence.split()))
@@ -1083,7 +1083,7 @@ for i, (sentence, sent_labels, sent_preds) in enumerate(zip(visual_test_sentence
 
 这将打印出：
 
-```
+```py
 Sample:     SOCCER    -    JAPAN    GET    LUCKY    WIN    ,    CHINA    IN    SURPRISE    DEFEAT    .
 True:         O    O    B-LOC    O    O    O    O    B-LOC    O    O    O    O
 Pred:         O    O    B-MISC    O    O    O    O    B-PER    O    B-LOC    O    O
@@ -1120,7 +1120,7 @@ Pred:         B-LOC    I-LOC    O    O    O    O    B-MISC    I-MISC    I-MISC  
 
 我们需要做的第一件事是分析语料库中每个标记的字符统计信息。类似于之前的方法，我们可以使用 pandas 来完成：
 
-```
+```py
 vocab_ser = pd.Series(
     pd.Series(train_sentences).str.split().explode().unique()
 )
@@ -1131,7 +1131,7 @@ vocab_ser.str.len().describe(percentiles=[0.05, 0.95])
 
 我们现在将使用`str.len()`函数获取每个标记的长度（即字符数），并查看其中的 95%分位数。我们将得到以下结果：
 
-```
+```py
 count    23623.000000
 mean         6.832705
 std          2.749288
@@ -1145,7 +1145,7 @@ dtype: float64
 
 我们可以看到大约 95%的单词字符数小于或等于 12 个。接下来，我们将编写一个函数来填充较短的标记：
 
-```
+```py
 def prepare_corpus_for_char_embeddings(tokenized_sentences, max_seq_length):
     """ Pads each sequence to a maximum length """
     proc_sentences = []
@@ -1168,7 +1168,7 @@ def prepare_corpus_for_char_embeddings(tokenized_sentences, max_seq_length):
 
 让我们在一个小型的玩具数据集上运行这个函数：
 
-```
+```py
 # Define sample data
 data = ['aaaa bb c', 'd eee']
 # Pad sequences
@@ -1177,13 +1177,13 @@ tokenized_sentences = prepare_corpus_for_char_embeddings([d.split() for d in dat
 
 这将返回：
 
-```
+```py
 Padded sequence: [[['aaaa'], ['bb'], ['c']], [['d'], ['eee'], ['']]] 
 ```
 
 现在我们将定义一个新的`TextVectorization`层来应对我们对数据所做的变化。新的`TextVectorization`层必须在字符级进行标记化，而不是在标记级进行。为此，我们需要做一些更改。我们将再次编写一个函数来包含这个向量化层：
 
-```
+```py
 def get_fitted_char_vectorization_layer(corpus, max_seq_length, max_token_length, vocabulary_size=None):
     """ Fit a TextVectorization layer on given data """
     def _split_char(token):
@@ -1223,7 +1223,7 @@ def get_fitted_char_vectorization_layer(corpus, max_seq_length, max_token_length
 
 首先，我们将定义如下两个超参数：
 
-```
+```py
 max_seq_length = 40
 max_token_length = 12 
 ```
@@ -1232,7 +1232,7 @@ max_token_length = 12
 
 接着，我们定义一个与之前相同的数据类型为`tf.strings`的输入层：
 
-```
+```py
 # Input layer (tokens)
 word_input = tf.keras.layers.Input(shape=(1,), dtype=tf.string) 
 ```
@@ -1243,7 +1243,7 @@ word_input = tf.keras.layers.Input(shape=(1,), dtype=tf.string)
 
 然后，我们像上面一样定义标记级别的`TextVectorization`层：
 
-```
+```py
 # Text vectorize layer (token)
 token_vectorize_layer, n_token_vocab = get_fitted_token_vectorization_layer(train_sentences, max_seq_length)
 # Vectorized output (each word mapped to an int ID)
@@ -1254,7 +1254,7 @@ token_vectorized_out = token_vectorize_layer(word_input)
 
 对于字符级别的向量化层，我们将使用上面定义的`get_fitted_char_vectorization_layer()`函数：
 
-```
+```py
 # Text vectorize layer (char)
 char_vectorize_layer, n_char_vocab = get_fitted_char_vectorization_layer(train_sentences, max_seq_length, max_token_length) 
 ```
@@ -1267,7 +1267,7 @@ char_vectorize_layer, n_char_vocab = get_fitted_char_vectorization_layer(train_s
 
 这意味着句子需要被标记化为一系列令牌。为此，我们将使用`tf.keras.layers.Lambda()`层和`tf.strings.split()`函数：
 
-```
+```py
 tokenized_word_input = layers.Lambda(
     lambda x: tf.strings.split(x).to_tensor(default_value='', 
     shape=[None, max_seq_length, 1])
@@ -1281,7 +1281,7 @@ char_vectorized_out = char_vectorize_layer(tokenized_word_input)
 
 然后我们将定义一个嵌入层，通过它我们可以查找来自`char_vectorize_layer`的字符 ID 对应的嵌入向量：
 
-```
+```py
 # Produces a [batch size, seq length, token_length, emb size]
 char_embedding_layer = layers.Embedding(input_dim=n_char_vocab, output_dim=32, mask_zero=True)(char_vectorized_out) 
 ```
@@ -1292,7 +1292,7 @@ char_embedding_layer = layers.Embedding(input_dim=n_char_vocab, output_dim=32, m
 
 我们将定义一个 1D 卷积层，卷积核大小为 5（即卷积窗口大小），步幅为 1，`'same'`填充，并使用 ReLU 激活函数。然后我们将前一部分的输出传递给这个层：
 
-```
+```py
 # A 1D convolutional layer that will generate token embeddings by shifting # a convolutional kernel over the sequence of chars in each token (padded)
 char_token_output = layers.Conv1D(filters=1, kernel_size=5, strides=1, padding='same', activation='relu')(char_embedding_layer) 
 ```
@@ -1303,7 +1303,7 @@ char_token_output = layers.Conv1D(filters=1, kernel_size=5, strides=1, padding='
 
 记住，我们有一个大小为`[批次大小, 序列长度, 标记长度, 1]`的输出。它在最后有一个额外的维度 1。我们将写一个简单的`Lambda`层来去掉这个维度：
 
-```
+```py
 # There is an additional dimension of size 1 (out channel dimension) that
 # we need to remove
 char_token_output = layers.Lambda(lambda x: x[:, :, :, 0])(char_token_output) 
@@ -1311,14 +1311,14 @@ char_token_output = layers.Lambda(lambda x: x[:, :, :, 0])(char_token_output)
 
 为了得到最终的输出嵌入（即标记嵌入和基于字符的嵌入的结合），我们在最后一个维度上连接这两种嵌入。这样会得到一个长度为 48 的向量（即 32 长度的标记嵌入 + 12 长度的基于字符的标记嵌入）：
 
-```
+```py
 # Concatenate the token and char embeddings
 concat_embedding_out = layers.Concatenate()([token_embedding_out, char_token_output]) 
 ```
 
 剩下的模型部分，我们保持不变。首先定义一个 RNN 层，并将`concat_embedding_out`作为输入：
 
-```
+```py
 # Define a simple bidirectional RNN layer, it returns an output at each
 # position
 rnn_layer_1 = layers.SimpleRNN(
@@ -1329,7 +1329,7 @@ rnn_out_1 = rnn_layer_1(concat_embedding_out)
 
 记住，我们已将`return_sequences=True`，这意味着它会在每个时间步产生一个输出，而不是仅在最后一个时间步产生输出。接下来，我们定义最终的 Dense 层，它有`n_classes`个输出节点（即 9 个），并使用`softmax`激活函数：
 
-```
+```py
 # Defines the final prediction layer
 dense_layer = layers.Dense(n_classes, activation='softmax')
 dense_out = dense_layer(rnn_out_1) 
@@ -1337,7 +1337,7 @@ dense_out = dense_layer(rnn_out_1)
 
 我们像以前一样定义并编译模型：
 
-```
+```py
 # Defines the model
 char_token_embedding_rnn = tf.keras.Model(inputs=word_input, outputs=dense_out)
 
@@ -1353,7 +1353,7 @@ char_token_embedding_rnn.compile(loss='sparse_categorical_crossentropy', optimiz
 
 模型训练与我们为标准 RNN 模型所做的训练相同，因此我们将不再进一步讨论。
 
-```
+```py
 # Make train_sequences an array
 train_sentences = np.array(train_sentences)
 # Get sample weights (we cannot use class_weight with TextVectorization
@@ -1377,7 +1377,7 @@ char_token_embedding_rnn.fit(
 
 +   **更多 RNN 层** — 添加更多堆叠的 RNN 层。通过增加更多的隐藏 RNN 层，我们可以使模型学习到更精细的潜在表示，从而提高性能。以下是一个示例用法：
 
-    ```
+    ```py
     rnn_layer_1 = layers.SimpleRNN(
         units=64, activation='tanh', use_bias=True, return_sequences=True
     )
@@ -1390,7 +1390,7 @@ char_token_embedding_rnn.fit(
 
 +   **使 RNN 层具有双向性** – 到目前为止，我们讨论的 RNN 模型都是单向的，即从前向后看文本序列。然而，另一种变体称为双向 RNN，会从两个方向查看序列，即从前向后和从后向前。这有助于模型更好地理解语言，并不可避免地提高性能。我们将在接下来的章节中更详细地讨论这一变体。下面是一个示例用法：
 
-    ```
+    ```py
     rnn_layer_1 = layers.Bidreictional(layers.SimpleRNN(
         units=64, activation='tanh', use_bias=True, return_sequences=True
     )) 

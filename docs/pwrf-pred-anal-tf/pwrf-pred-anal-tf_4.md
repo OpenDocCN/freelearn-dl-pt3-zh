@@ -100,7 +100,7 @@
 
     加载所需的库和所需的包/模块：
 
-    ```
+    ```py
     import tensorflow as tf
     import tensorflow.contrib.slim as slim
     import numpy as np
@@ -110,7 +110,7 @@
 
     在这个示例中，我使用的是四臂强盗。`getBandit` 函数从正态分布中生成一个随机数，均值为 0。Bandit 数字越低，获得正奖励的概率越大。如前所述，这只是一种简单但贪婪的方式来训练智能体，使其学会选择一个不仅能产生正奖励，而且能产生最大奖励的强盗。这里，我列出了强盗的列表，其中 Bandit 4 最常提供正奖励：
 
-    ```
+    ```py
     def getBandit(bandit):
         ''
         This function creates the reward to the bandits on the basis of randomly generated numbers. It then returns either a positive or negative reward.
@@ -126,20 +126,20 @@
 
     以下代码创建了一个非常简单的神经代理，它包含一个为每个`bandits`设置的值。每个值根据`bandits`的回报值估算为 1。我们使用策略梯度方法通过将所选行动的值朝着获得的奖励方向更新代理。首先，我们需要重置图形，如下所示：
 
-    ```
+    ```py
     tf.reset_default_graph()
     ```
 
     然后，接下来的两行代码实际完成选择操作，建立网络的前馈部分：
 
-    ```
+    ```py
     weight_op = tf.Variable(tf.ones([num_bandits]))
     action_op = tf.argmax(weight_op,0)
     ```
 
     现在，在开始训练过程之前，我们需要启动训练过程本身。因为我们已经知道奖励，现在是时候将奖励输入并选择网络中的行动来计算损失，并用它来更新网络：
 
-    ```
+    ```py
     reward_holder = tf.placeholder(shape=[1],dtype=tf.float32)
     action_holder = tf.placeholder(shape=[1],dtype=tf.int32)
     responsible_weight = tf.slice(weight_op,action_holder,[1])
@@ -147,26 +147,26 @@
 
     我们需要定义目标函数，即损失函数：
 
-    ```
+    ```py
     loss = -(tf.log(responsible_weight)*reward_holder)
     ```
 
     然后让我们将训练过程放慢，以便更全面地利用学习率：
 
-    ```
+    ```py
     LR = 0.001
     ```
 
     然后我们使用梯度下降`optimizer`并实例化`training`操作：
 
-    ```
+    ```py
     optimizer = tf.train.GradientDescentOptimizer(learning_rate=LR)
     training_op = optimizer.minimize(loss)
     ```
 
     现在，是时候定义训练参数了，比如训练代理的总迭代次数、`reward`函数和一个`random`行动。这里的奖励将`bandits`的计分板设置为`0`，通过选择随机行动，我们设置采取随机行动的概率：
 
-    ```
+    ```py
     total_episodes = 10000
     total_reward = np.zeros(num_bandits) 
     chance_of_random_action = 0.1 
@@ -174,7 +174,7 @@
 
     最后，我们初始化全局变量：
 
-    ```
+    ```py
     init_op = tf.global_variables_initializer() 
     ```
 
@@ -182,7 +182,7 @@
 
     我们需要通过采取行动与环境互动并获得奖励来训练代理。我们从创建一个 TensorFlow 会话并启动 TensorFlow 图开始。接着，迭代训练过程直到达到总迭代次数。然后，我们选择一个随机行为或从网络中选择一个行为。接下来，我们计算选择一个`bandits`后的奖励。然后，我们使训练过程保持一致并更新网络。最后，我们更新计分板：
 
-    ```
+    ```py
     with tf.Session() as sess:
         sess.run(init_op)
         i = 0
@@ -201,7 +201,7 @@
 
     现在让我们按如下方式评估上述模型：
 
-    ```
+    ```py
     print("The agent thinks bandit " + str(np.argmax(ww)+1) + " would be the most efficient one.")
     if np.argmax(ww) == np.argmax(-np.array(bandits)):
         print(" and it was right at the end!")
@@ -212,7 +212,7 @@
 
     第一次迭代生成以下输出：
 
-    ```
+    ```py
     Running reward for all the 4 bandits: [-1\. 0\. 0\. 0.]
     Running reward for all the 4 bandits: [ -1\. -2\. 14\. 0.]
     …
@@ -223,7 +223,7 @@
 
     第二次迭代生成一个不同的结果，如下所示：
 
-    ```
+    ```py
     Running reward for all the 4 bandits: [ 1\. 0\. 0\. 0.]
     Running reward for all the 4 bandits: [ -1\. 11\. -3\. 0.]
     Running reward for all the 4 bandits: [ -2\. 1\. -2\. 20.]
@@ -255,7 +255,7 @@
 
     此外，如果你仔细观察，大多数强化学习算法遵循类似的实现模式。因此，创建一个包含相关方法的类是个好主意，以便以后引用，例如抽象类或接口：
 
-    ```
+    ```py
     class contextualBandit():
         def __init__(self):
             self.state = 0        
@@ -286,7 +286,7 @@
 
     在这里，我尝试开发一个代理，使其在给定强盗的情况下使用一组权重来选择特定的手臂。使用策略梯度方法通过将特定动作的值朝最大奖励的方向移动来更新代理：
 
-    ```
+    ```py
     class ContextualAgent():
         def __init__(self, lr, s_size,a_size):
             '''
@@ -309,13 +309,13 @@
 
     首先，我们清除默认的 TensorFlow 图：
 
-    ```
+    ```py
     tf.reset_default_graph()
     ```
 
     然后，我们定义一些参数，供训练代理时使用：
 
-    ```
+    ```py
     lrarning_rate = 0.001 # learning rate 
     chance_of_random_action = 0.1 # Chance of a random action.
     max_iteration = 10000 #Max iteration to train the agent.
@@ -323,27 +323,27 @@
 
     现在，在开始训练之前，我们需要加载强盗，并接着加载我们的代理：
 
-    ```
+    ```py
     contextualBandit = contextualBandit() #Load the bandits.
     contextualAgent = ContextualAgent(lr=lrarning_rate, s_size=contextualBandit.num_bandits, a_size=contextualBandit.num_actions) #Load the agent.
     ```
 
     现在，为了最大化目标函数对总回报的影响，我们使用`weights`来评估网络。我们还将`bandits`的记分板初始设置为`0`：
 
-    ```
+    ```py
     weights = tf.trainable_variables()[0] 
     total_reward = np.zeros([contextualBandit.num_bandits,contextualBandit.num_actions])
     ```
 
     然后，我们使用`global_variables_initializer()`函数初始化所有变量：
 
-    ```
+    ```py
     init_op = tf.global_variables_initializer()
     ```
 
     最后，我们将开始训练。这个训练与我们在前面示例中进行的随机训练类似。然而，在这里，训练的主要目标是计算每个强盗的平均回报，以便我们稍后可以通过利用它们来评估代理的预测准确性：
 
-    ```
+    ```py
     with tf.Session() as sess:
         sess.run(init_op)
         i = 0
@@ -377,14 +377,14 @@
 
     现在，我们已经有了所有四个强盗的平均回报，是时候利用它们来预测一些有趣的事情，也就是哪个强盗的臂将最大化回报。首先，我们可以初始化一些变量来估计预测准确性：
 
-    ```
+    ```py
     right_flag = 0
     wrong_flag = 0
     ```
 
     然后让我们开始评估代理的预测性能：
 
-    ```
+    ```py
     for a in range(contextualBandit.num_bandits):
         print("The agent thinks action " + str(np.argmax(ww[a])+1) + " for bandit " + str(a+1) + " would be the most efficient one.")
         if np.argmax(ww[a]) == np.argmin(contextualBandit.bandits[a]):
@@ -403,7 +403,7 @@
 
     如你所见，所有的预测都是正确的预测。现在我们可以按如下方式计算准确率：
 
-    ```
+    ```py
     prediction_accuracy = (right_flag/right_flag+wrong_flag)
     print("Prediction accuracy (%):", prediction_accuracy * 100)
     >>>
@@ -438,7 +438,7 @@
 
 现在，让我们尝试熟悉这个模块：
 
-```
+```py
 >>> from yahoo_finance import Share
 >>> msoft = Share('MSFT')
 >>> print(msoft.get_open())
@@ -454,14 +454,14 @@
 
 要安装 `yahoo_finance`，请执行以下命令：
 
-```
+```py
 $ sudo pip3 install yahoo_finance 
 
 ```
 
 现在，值得查看一下历史数据。以下函数帮助我们获取微软公司的历史数据：
 
-```
+```py
 def get_prices(share_symbol, start_date, end_date, cache_filename):
     try:
         stock_prices = np.load(cache_filename)
@@ -477,7 +477,7 @@ def get_prices(share_symbol, start_date, end_date, cache_filename):
 
 以下函数帮助我们绘制价格：
 
-```
+```py
 def plot_prices(prices):
     plt.title('Opening stock prices')
     plt.xlabel('day')
@@ -488,7 +488,7 @@ def plot_prices(prices):
 
 现在我们可以通过指定实际参数来调用这两个函数，如下所示：
 
-```
+```py
 if __name__ == '__main__':
     prices = get_prices('MSFT', '2000-07-01', '2017-07-01', 'historical_stock_prices.npy')
     plot_prices(prices)
@@ -530,7 +530,7 @@ if __name__ == '__main__':
 
 但在此之前，让我们创建一个抽象类，以便我们可以相应地实现它：
 
-```
+```py
 class DecisionPolicy:
     def select_action(self, current_state, step):
         pass
@@ -540,7 +540,7 @@ class DecisionPolicy:
 
 接下来的任务是从这个父类继承，实施一个随机决策策略：
 
-```
+```py
 class RandomDecisionPolicy(DecisionPolicy):
     def __init__(self, actions):
         self.actions = actions
@@ -559,7 +559,7 @@ class RandomDecisionPolicy(DecisionPolicy):
 
 太棒了，现在我们有了策略，接下来就是利用这个策略做决策并返回性能指标。现在，假设一个实际场景——假设你在外汇或 ForTrade 平台上进行交易，那么你也需要计算投资组合和当前的利润或损失，即奖励。通常，这些可以按以下方式计算：
 
-```
+```py
 portfolio = budget + number of stocks * share value
 reward = new_portfolio - current_portfolio
 ```
@@ -570,7 +570,7 @@ reward = new_portfolio - current_portfolio
 
 此外，我们已经定义了随机策略，因此可以从当前策略中选择一个动作。然后，我们在每次迭代中根据动作更新投资组合的值，并可以计算出采取该动作后的新投资组合值。接着，我们需要计算在某个状态下采取行动所获得的奖励。然而，我们还需要在经历新动作后更新策略。最后，我们计算最终的投资组合价值：
 
-```
+```py
 def run_simulation(policy, initial_budget, initial_num_stocks, prices, hist, debug=False):
     budget = initial_budget
     num_stocks = initial_num_stocks
@@ -604,7 +604,7 @@ def run_simulation(policy, initial_budget, initial_num_stocks, prices, hist, deb
 
 之前的仿真预测出了一个相对不错的结果；然而，它也经常产生随机结果。因此，为了获得更可靠的成功度量，让我们多次运行仿真并对结果进行平均。这样做可能需要一段时间，比如 100 次，但结果会更可靠：
 
-```
+```py
 def run_simulations(policy, budget, num_stocks, prices, hist):
     num_tries = 100
     final_portfolios = list()
@@ -617,7 +617,7 @@ def run_simulations(policy, budget, num_stocks, prices, hist):
 
 之前的函数通过迭代先前的仿真函数 100 次来计算平均投资组合和标准差。现在，是时候评估之前的代理了。正如之前所说，股票交易代理将采取三种可能的行动，如买入、卖出和持有。我们有一个 202 维的状态向量和仅 $`1000` 的预算。接下来，评估过程如下：
 
-```
+```py
 actions = ['Buy', 'Sell', 'Hold']
     hist = 200
     policy = RandomDecisionPolicy(actions)
@@ -631,7 +631,7 @@ actions = ['Buy', 'Sell', 'Hold']
 
 第一个是均值，第二个是最终投资组合的标准差。所以，我们的股票预测代理预测作为交易者的你/我们可以赚取大约 $513。不错。然而，问题在于，由于我们使用了随机决策策略，结果并不是很可靠。更具体地说，第二次执行肯定会产生不同的结果：
 
-```
+```py
 >>> 
 1518.12039077 603.15350649 
 ```
@@ -650,7 +650,7 @@ actions = ['Buy', 'Sell', 'Hold']
 
 +   `update_q`：该函数通过更新模型参数来更新 Q 函数。
 
-    ```
+    ```py
     class QLearningDecisionPolicy(DecisionPolicy):
         def __init__(self, actions, input_dim):
             self.epsilon = 0.9
@@ -690,7 +690,7 @@ actions = ['Buy', 'Sell', 'Hold']
 
 请参考以下代码：
 
-```
+```py
         action_q_vals = np.squeeze(np.asarray(action_q_vals))
         self.sess.run(self.train_op, feed_dict={self.x: state, self.y: action_q_vals})
 ```

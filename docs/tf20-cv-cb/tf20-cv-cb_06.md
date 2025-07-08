@@ -40,7 +40,7 @@ GANs 很棒，但在计算能力方面非常消耗资源。因此，GPU 是必�
 
 这两个依赖项可以按如下方式安装：
 
-```
+```py
 $> pip install tensorflow-datasets tqdm
 ```
 
@@ -52,7 +52,7 @@ $> pip install tensorflow-datasets tqdm
 
 1.  导入必要的依赖项：
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     import tensorflow as tf
     import tensorflow_datasets as tfds
@@ -65,13 +65,13 @@ $> pip install tensorflow-datasets tqdm
 
 1.  定义 `AUTOTUNE` 设置的别名，我们将在后续处理中使用它来确定处理数据集时的并行调用数量：
 
-    ```
+    ```py
     AUTOTUNE = tf.data.experimental.AUTOTUNE
     ```
 
 1.  定义一个 `DCGAN()` 类来封装我们的实现。构造函数创建判别器、生成器、损失函数以及两个子网络各自的优化器：
 
-    ```
+    ```py
     class DCGAN(object):
         def __init__(self):
             self.loss = BinaryCrossentropy(from_logits=True)
@@ -83,7 +83,7 @@ $> pip install tensorflow-datasets tqdm
 
 1.  定义一个静态方法来创建生成器网络。它从一个 100 元素的输入张量重建一个 28x28x1 的图像。注意，使用了转置卷积（`Conv2DTranspose`）来扩展输出体积，随着网络的深入，卷积层数量也增多。同时，注意激活函数为 `'tanh'`，这意味着输出将处于 [-1, 1] 的范围内：
 
-    ```
+    ```py
        @staticmethod
         def create_generator(alpha=0.2):
             input = Input(shape=(100,))
@@ -96,7 +96,7 @@ $> pip install tensorflow-datasets tqdm
 
 1.  添加第一个转置卷积块，具有 128 个滤波器：
 
-    ```
+    ```py
             x = Conv2DTranspose(filters=128,
                                 strides=(1, 1),
                                 kernel_size=(5, 5),
@@ -108,7 +108,7 @@ $> pip install tensorflow-datasets tqdm
 
 1.  创建第二个转置卷积块，具有 64 个滤波器：
 
-    ```
+    ```py
             x = Conv2DTranspose(filters=64,
                                 strides=(2, 2),
                                 kernel_size=(5, 5),
@@ -120,7 +120,7 @@ $> pip install tensorflow-datasets tqdm
 
 1.  添加最后一个转置卷积块，只有一个滤波器，对应于网络的输出：
 
-    ```
+    ```py
             x = Conv2DTranspose(filters=1,
                                 strides=(2, 2),
                                 kernel_size=(5, 5),
@@ -132,7 +132,7 @@ $> pip install tensorflow-datasets tqdm
 
 1.  定义一个静态方法来创建判别器。该架构是一个常规的 CNN：
 
-    ```
+    ```py
         @staticmethod
         def create_discriminator(alpha=0.2, dropout=0.3):
             input = Input(shape=(28, 28, 1))
@@ -155,7 +155,7 @@ $> pip install tensorflow-datasets tqdm
 
 1.  定义一个方法来计算判别器的损失，它是实际损失和假损失的总和：
 
-    ```
+    ```py
         def discriminator_loss(self, real, fake):
             real_loss = self.loss(tf.ones_like(real), real)
             fake_loss = self.loss(tf.zeros_like(fake), fake)
@@ -164,14 +164,14 @@ $> pip install tensorflow-datasets tqdm
 
 1.  定义一个方法来计算生成器的损失：
 
-    ```
+    ```py
         def generator_loss(self, fake):
             return self.loss(tf.ones_like(fake), fake)
     ```
 
 1.  定义一个方法来执行单次训练步骤。我们将从生成一个随机高斯噪声向量开始：
 
-    ```
+    ```py
         @tf.function
         def train_step(self, images, batch_size):
             noise = tf.random.normal((batch_size,noise_dimension))
@@ -179,7 +179,7 @@ $> pip install tensorflow-datasets tqdm
 
 1.  接下来，将随机噪声传递给生成器以生成假图像：
 
-    ```
+    ```py
             with tf.GradientTape() as gen_tape, \
                     tf.GradientTape() as dis_tape:
                 generated_images = self.generator(noise,
@@ -188,7 +188,7 @@ $> pip install tensorflow-datasets tqdm
 
 1.  将真实图像和假图像传递给判别器，并计算两个子网络的损失：
 
-    ```
+    ```py
                 real = self.discriminator(images, 
                                           training=True)
                 fake = self.discriminator(generated_images,
@@ -200,7 +200,7 @@ $> pip install tensorflow-datasets tqdm
 
 1.  计算梯度：
 
-    ```
+    ```py
             generator_grad = gen_tape \
                 .gradient(gen_loss,
                           self.generator.trainable_variables)
@@ -211,7 +211,7 @@ $> pip install tensorflow-datasets tqdm
 
 1.  接下来，使用各自的优化器应用梯度：
 
-    ```
+    ```py
             opt_args = zip(generator_grad,
                           self.generator.trainable_variables)
             self.generator_opt.apply_gradients(opt_args)
@@ -223,7 +223,7 @@ $> pip install tensorflow-datasets tqdm
 
 1.  最后，定义一个方法来训练整个架构。每训练 10 个周期，我们将绘制生成器生成的图像，以便直观地评估它们的质量：
 
-    ```
+    ```py
         def train(self, dataset, test_seed, epochs, 
                    batch_size):
             for epoch in tqdm(range(epochs)):
@@ -239,7 +239,7 @@ $> pip install tensorflow-datasets tqdm
 
 1.  定义一个函数来生成新图像，然后将它们的 4x4 马赛克保存到磁盘：
 
-    ```
+    ```py
     def generate_and_save_images(model, epoch, test_input):
         predictions = model(test_input, training=False)
         plt.figure(figsize=(4, 4))
@@ -255,7 +255,7 @@ $> pip install tensorflow-datasets tqdm
 
 1.  定义一个函数来将来自 `EMNIST` 数据集的图像缩放到 [-1, 1] 区间：
 
-    ```
+    ```py
     def process_image(input):
         image = tf.cast(input['image'], tf.float32)
         image = (image - 127.5) / 127.5
@@ -264,7 +264,7 @@ $> pip install tensorflow-datasets tqdm
 
 1.  使用 `tfds` 加载 `EMNIST` 数据集。我们只使用 `'train'` 数据集，其中包含超过 60 万张图像。我们还会确保将每张图像缩放到 `'tanh'` 范围内：
 
-    ```
+    ```py
     BUFFER_SIZE = 1000
     BATCH_SIZE = 512
     train_dataset = (tfds
@@ -277,7 +277,7 @@ $> pip install tensorflow-datasets tqdm
 
 1.  创建一个测试种子，在整个 DCGAN 训练过程中用于生成图像：
 
-    ```
+    ```py
     noise_dimension = 100
     num_examples_to_generate = 16
     seed_shape = (num_examples_to_generate, 
@@ -287,7 +287,7 @@ $> pip install tensorflow-datasets tqdm
 
 1.  最后，实例化并训练一个 `DCGAN()` 实例，训练 200 个周期：
 
-    ```
+    ```py
     EPOCHS = 200
     dcgan = DCGAN()
     dcgan.train(train_dataset, test_seed, EPOCHS, BATCH_SIZE)
@@ -339,7 +339,7 @@ $> pip install tensorflow-datasets tqdm
 
 我们不需要额外的东西来访问 `Fashion-MNIST`，因为它与 TensorFlow 一起捆绑提供。为了显示一个好看的进度条，让我们安装 `tqdm`：
 
-```
+```py
 $> pip install tqdm
 ```
 
@@ -351,7 +351,7 @@ $> pip install tqdm
 
 1.  让我们开始导入所需的包：
 
-    ```
+    ```py
     import numpy as np
     from numpy.random import *
     from tensorflow.keras import backend as K
@@ -364,7 +364,7 @@ $> pip install tqdm
 
 1.  定义 `pick_supervised_subset()` 函数来选择数据的子集。这将帮助我们模拟数据稀缺的情况，非常适合半监督学习。
 
-    ```
+    ```py
     def pick_supervised_subset(feats,
                                labels,
                                n_samples=1000,
@@ -386,7 +386,7 @@ $> pip install tqdm
 
 1.  现在，定义一个函数来选择一个随机数据样本用于分类。这意味着我们将使用原始数据集中的标签：
 
-    ```
+    ```py
     def pick_samples_for_classification(feats, labels, 
                                          n_samples):
         sample_idx = randint(low=0,
@@ -399,7 +399,7 @@ $> pip install tqdm
 
 1.  定义 `pick_samples_for_discrimination()` 函数以选择一个随机样本用于判别。与上一个函数的主要区别在于这里的标签都是 1，表示所有的图像都是真实的，这清楚地表明该样本是为判别器准备的：
 
-    ```
+    ```py
     def pick_samples_for_discrimination(feats, n_samples):
         sample_idx = randint(low=0,
                              high=feats.shape[0],
@@ -411,7 +411,7 @@ $> pip install tqdm
 
 1.  实现 `generate_fake_samples()` 函数来生成一批潜在点，换句话说，就是一组随机噪声向量，生成器将利用这些向量生成假图像：
 
-    ```
+    ```py
     def generate_fake_samples(model, latent_size, 
                               n_samples):
         z_input = generate_latent_points(latent_size, 
@@ -423,7 +423,7 @@ $> pip install tqdm
 
 1.  创建 `generate_fake_samples()` 函数，用生成器生成假数据：
 
-    ```
+    ```py
     def generate_fake_samples(model, latent_size, 
                               n_samples):
         z_input = generate_latent_points(latent_size, 
@@ -435,7 +435,7 @@ $> pip install tqdm
 
 1.  我们已经准备好定义我们的半监督式 DCGAN，接下来将它封装在此处定义的 `SSGAN()` 类中。我们将从构造函数开始：
 
-    ```
+    ```py
     class SSGAN(object):
         def __init__(self,
                      latent_size=100,
@@ -448,14 +448,14 @@ $> pip install tqdm
 
 1.  在将参数作为成员存储后，让我们实例化判别器：
 
-    ```
+    ```py
             (self.classifier,
              self.discriminator) = self._create_discriminators()
     ```
 
 1.  现在，编译分类器和判别器模型：
 
-    ```
+    ```py
             clf_opt = Adam(learning_rate=2e-4, beta_1=0.5)
             self.classifier.compile(
                 loss='sparse_categorical_crossentropy',
@@ -468,13 +468,13 @@ $> pip install tqdm
 
 1.  创建生成器：
 
-    ```
+    ```py
             self.generator = self._create_generator()
     ```
 
 1.  创建 GAN 并进行编译：
 
-    ```
+    ```py
             self.gan = self._create_gan()
             gan_opt = Adam(learning_rate=2e-4, beta_1=0.5)
             self.gan.compile(loss='binary_crossentropy',
@@ -483,7 +483,7 @@ $> pip install tqdm
 
 1.  定义私有的 `_create_discriminators()` 方法来创建判别器。内部的 `custom_activation()` 函数用于激活分类器模型的输出，生成一个介于 0 和 1 之间的值，用于判断图像是真实的还是假的：
 
-    ```
+    ```py
         def _create_discriminators(self, num_classes=10):
             def custom_activation(x):
                 log_exp_sum = K.sum(K.exp(x), axis=-1,
@@ -493,7 +493,7 @@ $> pip install tqdm
 
 1.  定义分类器架构，它只是一个常规的 softmax 激活的 CNN：
 
-    ```
+    ```py
             input = Input(shape=self.input_shape)
             x = input
             for _ in range(3):
@@ -511,20 +511,20 @@ $> pip install tqdm
 
 1.  判别器与分类器共享权重，但不同的是，它不再使用 softmax 激活输出，而是使用之前定义的 `custom_activation()` 函数：
 
-    ```
+    ```py
             dis_output = Lambda(custom_activation)(x)
             discriminator_model = Model(input, dis_output)
     ```
 
 1.  返回分类器和判别器：
 
-    ```
+    ```py
             return clf_model, discriminator_model
     ```
 
 1.  创建私有的 `_create_generator()` 方法来实现生成器架构，实际上它只是一个解码器，正如本章第一节中所解释的那样：
 
-    ```
+    ```py
         def _create_generator(self):
             input = Input(shape=(self.latent_size,))
             x = Dense(units=128 * 7 * 7)(input)
@@ -545,7 +545,7 @@ $> pip install tqdm
 
 1.  定义私有的 `_create_gan()` 方法来创建 GAN 本身，实际上它只是生成器和判别器之间的连接：
 
-    ```
+    ```py
         def _create_gan(self):
             self.discriminator.trainable = False
             output = 
@@ -555,7 +555,7 @@ $> pip install tqdm
 
 1.  最后，定义 `train()` 函数来训练整个系统。我们将从选择将要训练的 `Fashion-MNIST` 子集开始，然后定义所需的批次和训练步骤数量来适配架构：
 
-    ```
+    ```py
         def train(self, X, y, epochs=20, num_batches=100):
             X_sup, y_sup = pick_supervised_subset(X, y)
             batches_per_epoch = int(X.shape[0] / num_batches)
@@ -565,7 +565,7 @@ $> pip install tqdm
 
 1.  选择用于分类的样本，并使用这些样本来训练分类器：
 
-    ```
+    ```py
             for _ in tqdm(range(num_steps)):
                 X_sup_real, y_sup_real = \
                     pick_samples_for_classification(X_sup,
@@ -577,7 +577,7 @@ $> pip install tqdm
 
 1.  选择真实样本进行判别，并使用这些样本来训练判别器：
 
-    ```
+    ```py
                 X_real, y_real = \
                     pick_samples_for_discrimination(X,
                                               num_samples)
@@ -586,7 +586,7 @@ $> pip install tqdm
 
 1.  使用生成器生成假数据，并用这些数据来训练判别器：
 
-    ```
+    ```py
                 X_fake, y_fake = \
                     generate_fake_samples(self.generator,
                                         self.latent_size,
@@ -597,7 +597,7 @@ $> pip install tqdm
 
 1.  生成潜在点，并利用这些点训练 GAN：
 
-    ```
+    ```py
                 X_gan = generate_latent_points(self.latent_size,
                           num_batches)
                 y_gan = np.ones((num_batches, 1))
@@ -606,7 +606,7 @@ $> pip install tqdm
 
 1.  加载 `Fashion-MNIST` 数据集并对训练集和测试集进行归一化处理：
 
-    ```
+    ```py
     (X_train, y_train), (X_test, y_test) = fmnist.load_data()
     X_train = np.expand_dims(X_train, axis=-1)
     X_train = (X_train.astype(np.float32) - 127.5) / 127.5
@@ -616,14 +616,14 @@ $> pip install tqdm
 
 1.  实例化一个 `SSCGAN()` 并训练 30 个 epoch：
 
-    ```
+    ```py
     ssgan = SSGAN()
     ssgan.train(X_train, y_train, epochs=30)
     ```
 
 1.  报告分类器在训练集和测试集上的准确率：
 
-    ```
+    ```py
     train_acc = ssgan.classifier.evaluate(X_train, 
                                           y_train)[1]
     train_acc *= 100
@@ -659,7 +659,7 @@ GAN 最有趣的应用之一是图像到图像的翻译，顾名思义，它包�
 
 我们将使用 `cityscapes` 数据集，它可以在此处找到：https://people.eecs.berkeley.edu/~tinghuiz/projects/pix2pix/datasets/cityscapes.tar.gz。下载并解压到你选择的位置。为了本教程的目的，我们假设它被放置在 `~/.keras/datasets` 目录下，命名为 `cityscapes`。为了在训练过程中显示进度条，安装 `tqdm`：
 
-```
+```py
 $> pip install tqdm
 ```
 
@@ -677,7 +677,7 @@ $> pip install tqdm
 
 1.  导入依赖项：
 
-    ```
+    ```py
     import pathlib
     import cv2
     import numpy as np
@@ -691,7 +691,7 @@ $> pip install tqdm
 
 1.  定义 TensorFlow 的自动调优和调整大小选项的常量，以及图像尺寸。我们将调整数据集中的所有图像：
 
-    ```
+    ```py
     AUTOTUNE = tf.data.experimental.AUTOTUNE
     NEAREST_NEIGHBOR = tf.image.ResizeMethod.NEAREST_NEIGHBOR
     IMAGE_WIDTH = 256
@@ -700,7 +700,7 @@ $> pip install tqdm
 
 1.  数据集中的每张图像由输入和目标组成，因此在处理完图像后，我们需要将它们拆分成单独的图像。`load_image()` 函数实现了这一点：
 
-    ```
+    ```py
     def load_image(image_path):
         image = tf.io.read_file(image_path)
         image = tf.image.decode_jpeg(image)
@@ -715,7 +715,7 @@ $> pip install tqdm
 
 1.  让我们创建 `resize()` 函数来调整输入图像和目标图像的大小：
 
-    ```
+    ```py
      def resize(input_image, real_image, height, width):
         input_image = tf.image.resize(input_image,
                                   size=(height,width),
@@ -728,7 +728,7 @@ $> pip install tqdm
 
 1.  现在，实施 `random_crop()` 函数，对图像进行随机裁剪：
 
-    ```
+    ```py
     def random_crop(input_image, real_image):
         stacked_image = tf.stack([input_image, 
                                  real_image],axis=0)
@@ -742,7 +742,7 @@ $> pip install tqdm
 
 1.  接下来，编写 `normalize()` 函数，将图像归一化到 [-1, 1] 范围内：
 
-    ```
+    ```py
     def normalize(input_image, real_image):
         input_image = (input_image / 127.5) - 1
         real_image = (real_image / 127.5) - 1
@@ -751,7 +751,7 @@ $> pip install tqdm
 
 1.  定义 `random_jitter()` 函数，对输入图像进行随机抖动（注意它使用了 *第 4 步* 和 *第 5 步* 中定义的函数）：
 
-    ```
+    ```py
     @tf.function
     def random_jitter(input_image, real_image):
         input_image, real_image = resize(input_image, 
@@ -770,7 +770,7 @@ $> pip install tqdm
 
 1.  创建 `load_training_image()` 函数，用于加载和增强训练图像：
 
-    ```
+    ```py
     def load_training_image(image_path):
         input_image, real_image = load_image(image_path)
         input_image, real_image = \
@@ -782,7 +782,7 @@ $> pip install tqdm
 
 1.  现在，让我们实现 `load_test_image()` 函数，顾名思义，它将用于加载测试图像：
 
-    ```
+    ```py
     def load_test_image(image_path):
         input_image, real_image = load_image(image_path)
         input_image, real_image = resize(input_image, 
@@ -796,7 +796,7 @@ $> pip install tqdm
 
 1.  现在，让我们继续创建 `generate_and_save_images()` 函数，来存储生成器模型生成的合成图像。结果图像将是 `input`、`target` 和 `prediction` 的拼接：
 
-    ```
+    ```py
     def generate_and_save_images(model, input, target,epoch):
         prediction = model(input, training=True)
         display_list = [input[0], target[0], prediction[0]]
@@ -810,7 +810,7 @@ $> pip install tqdm
 
 1.  接下来，定义 `Pix2Pix()` 类，封装此架构的实现。首先是构造函数：
 
-    ```
+    ```py
     class Pix2Pix(object):
         def __init__(self, output_channels=3, 
                      lambda_value=100):
@@ -827,7 +827,7 @@ $> pip install tqdm
 
 1.  *第 11 步* 中实现的构造函数定义了要使用的损失函数（**二元交叉熵**）、lambda 值（用于 *第 18 步*），并实例化了生成器和判别器及其各自的优化器。我们的生成器是一个修改过的 **U-Net**，它是一个 U 形网络，由下采样和上采样块组成。现在，让我们创建一个静态方法来生成下采样块：
 
-    ```
+    ```py
         @staticmethod
         def downsample(filters, size, batch_norm=True):
            initializer = tf.random_normal_initializer(0.0, 0.02)
@@ -847,7 +847,7 @@ $> pip install tqdm
 
 1.  下采样块是一个卷积块，可选地进行批归一化，并激活 `LeakyReLU()`。现在，让我们实现一个静态方法来创建上采样块：
 
-    ```
+    ```py
         @staticmethod
         def upsample(filters, size, dropout=False):
             init = tf.random_normal_initializer(0.0, 0.02)
@@ -867,7 +867,7 @@ $> pip install tqdm
 
 1.  上采样块是一个转置卷积，后面可选地跟随 dropout，并激活 `ReLU()`。现在，让我们使用这两个便捷方法来实现 U-Net 生成器：
 
-    ```
+    ```py
         def create_generator(self, input_shape=(256, 256,3)):
             down_stack = [self.downsample(64,4,batch_norm=False)]
             for filters in (128, 256, 512, 512, 512, 512, 
@@ -878,7 +878,7 @@ $> pip install tqdm
 
 1.  在定义了下采样堆栈后，让我们对上采样层做同样的事情：
 
-    ```
+    ```py
             up_stack = []
             for _ in range(3):
                 up_block = self.upsample(512, 4,dropout=True)
@@ -890,7 +890,7 @@ $> pip install tqdm
 
 1.  将输入通过下采样和上采样堆栈，同时添加跳跃连接，以防止网络的深度妨碍其学习：
 
-    ```
+    ```py
             inputs = Input(shape=input_shape)
             x = inputs
             skip_layers = []
@@ -906,7 +906,7 @@ $> pip install tqdm
 
 1.  输出层是一个转置卷积，激活函数为 `'tanh'`：
 
-    ```
+    ```py
             init = tf.random_normal_initializer(0.0, 0.02)
             output = Conv2DTranspose(
                 filters=self.output_channels,
@@ -920,7 +920,7 @@ $> pip install tqdm
 
 1.  定义一个方法来计算生成器的损失，正如 Pix2Pix 的作者所推荐的那样。注意 `self._lambda` 常量的使用：
 
-    ```
+    ```py
         def generator_loss(self,
                            discriminator_generated_output,
                            generator_output,
@@ -938,7 +938,7 @@ $> pip install tqdm
 
 1.  本步骤中定义的判别器接收两张图像；输入图像和目标图像：
 
-    ```
+    ```py
         def create_discriminator(self):
             input = Input(shape=(256, 256, 3))
             target = Input(shape=(256, 256, 3))
@@ -951,7 +951,7 @@ $> pip install tqdm
 
 1.  注意，最后几层是卷积层，而不是 `Dense()` 层。这是因为判别器一次处理的是图像的一个小块，并判断每个小块是真实的还是假的：
 
-    ```
+    ```py
             init = tf.random_normal_initializer(0.0, 0.02)
             x = Conv2D(filters=512,
                        kernel_size=4,
@@ -971,7 +971,7 @@ $> pip install tqdm
 
 1.  定义判别器的损失：
 
-    ```
+    ```py
         def discriminator_loss(self,
                                discriminator_real_output,
                              discriminator_generated_output):
@@ -986,7 +986,7 @@ $> pip install tqdm
 
 1.  定义一个执行单个训练步骤的函数，命名为`train_step()`，该函数包括：将输入图像传入生成器，然后使用判别器对输入图像与原始目标图像配对，再对输入图像与生成器输出的假图像配对进行处理：
 
-    ```
+    ```py
         @tf.function
         def train_step(self, input_image, target):
             with tf.GradientTape() as gen_tape, \
@@ -1002,7 +1002,7 @@ $> pip install tqdm
 
 1.  接下来，计算损失值以及梯度：
 
-    ```
+    ```py
                 (gen_total_loss, gen_gan_loss,   
                    gen_l1_loss) = \
                     self.generator_loss(dis_gen_output,
@@ -1022,7 +1022,7 @@ $> pip install tqdm
 
 1.  使用梯度通过相应的优化器更新模型：
 
-    ```
+    ```py
             opt_args = zip(gen_grads,
                            self.generator.trainable_variables)
             self.gen_opt.apply_gradients(opt_args)
@@ -1033,7 +1033,7 @@ $> pip install tqdm
 
 1.  实现`fit()`方法来训练整个架构。对于每一轮，我们将生成的图像保存到磁盘，以便通过视觉方式评估模型的性能：
 
-    ```
+    ```py
         def fit(self, train, epochs, test):
             for epoch in tqdm.tqdm(range(epochs)):
                 for example_input, example_target in 
@@ -1048,7 +1048,7 @@ $> pip install tqdm
 
 1.  组装训练集和测试集数据的路径：
 
-    ```
+    ```py
     dataset_path = (pathlib.Path.home() / '.keras' / 
                     'datasets' /'cityscapes')
     train_dataset_pattern = str(dataset_path / 'train' / 
@@ -1059,7 +1059,7 @@ $> pip install tqdm
 
 1.  定义训练集和测试集数据：
 
-    ```
+    ```py
     BUFFER_SIZE = 400
     BATCH_SIZE = 1
     train_ds = (tf.data.Dataset
@@ -1076,7 +1076,7 @@ $> pip install tqdm
 
 1.  实例化`Pix2Pix()`并训练 150 轮：
 
-    ```
+    ```py
     pix2pix = Pix2Pix()
     pix2pix.fit(train_ds, epochs=150, test=test_ds)
     ```
@@ -1125,7 +1125,7 @@ $> pip install tqdm
 
 使用`pip`同时安装这些：
 
-```
+```py
 $> pip install opencv-contrib-python tqdm tensorflow-datasets
 ```
 
@@ -1147,7 +1147,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  导入必要的依赖项：
 
-    ```
+    ```py
     import cv2
     import numpy as np
     import tensorflow as tf
@@ -1161,13 +1161,13 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  定义`tf.data.experimental.AUTOTUNE`的别名：
 
-    ```
+    ```py
     AUTOTUNE = tf.data.experimental.AUTOTUNE
     ```
 
 1.  定义一个函数来执行图像的随机裁剪：
 
-    ```
+    ```py
     def random_crop(image):
         return tf.image.random_crop(image, size=(256, 256, 
                                                    3))
@@ -1175,7 +1175,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  定义一个函数，将图像归一化到[-1, 1]的范围：
 
-    ```
+    ```py
     def normalize(image):
         image = tf.cast(image, tf.float32)
         image = (image / 127.5) - 1
@@ -1184,7 +1184,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  定义一个函数，执行图像的随机抖动：
 
-    ```
+    ```py
     def random_jitter(image):
         method = tf.image.ResizeMethod.NEAREST_NEIGHBOR
         image = tf.image.resize(image, (286, 286), 
@@ -1196,7 +1196,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  定义一个函数来预处理并增强训练图像：
 
-    ```
+    ```py
     def preprocess_training_image(image, _):
         image = random_jitter(image)
         image = normalize(image)
@@ -1205,7 +1205,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  定义一个函数来预处理测试图像：
 
-    ```
+    ```py
     def preprocess_test_image(image, _):
         image = normalize(image)
         return image
@@ -1213,7 +1213,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  定义一个函数，使用生成器模型生成并保存图像。生成的图像将是输入图像与预测结果的拼接：
 
-    ```
+    ```py
     def generate_images(model, test_input, epoch):
         prediction = model(test_input)
         image = np.hstack([test_input[0], prediction[0]])
@@ -1226,7 +1226,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  定义一个自定义实例归一化层，从构造函数开始：
 
-    ```
+    ```py
     class InstanceNormalization(Layer):
         def __init__(self, epsilon=1e-5):
             super(InstanceNormalization, self).__init__()
@@ -1235,7 +1235,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  现在，定义`build()`方法，它创建`InstanceNormalization()`类的内部组件：
 
-    ```
+    ```py
         def build(self, input_shape):
             init = tf.random_normal_initializer(1.0, 0.02)
             self.scale = self.add_weight(name='scale',
@@ -1250,7 +1250,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  创建`call()`方法，该方法实现实例归一化输入张量`x`的逻辑：
 
-    ```
+    ```py
         def call(self, x):
             mean, variance = tf.nn.moments(x,
                                            axes=(1, 2),
@@ -1262,7 +1262,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  定义一个类来封装 CycleGAN 的实现。首先是构造函数：
 
-    ```
+    ```py
     class CycleGAN(object):
         def __init__(self, output_channels=3, 
                      lambda_value=10):
@@ -1287,7 +1287,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  现在，让我们创建一个静态方法来生成下采样块（这与上一个示例相同，只是这次我们使用实例化而不是批处理归一化）：
 
-    ```
+    ```py
         @staticmethod
         def downsample(filters, size, norm=True):
             initializer = tf.random_normal_initializer(0.0, 0.02)
@@ -1307,7 +1307,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  现在，定义一个静态方法来生成上采样块（这与上一个示例相同，只是这次我们使用实例化而不是批处理归一化）：
 
-    ```
+    ```py
         @staticmethod
         def upsample(filters, size, dropout=False):
             init = tf.random_normal_initializer(0.0, 0.02)
@@ -1328,7 +1328,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  定义一个方法来构建生成器。首先创建下采样层：
 
-    ```
+    ```py
         def create_generator(self):
             down_stack = [
                 self.downsample(64, 4, norm=False),
@@ -1341,7 +1341,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  现在，创建上采样层：
 
-    ```
+    ```py
             for _ in range(3):
                 up_block = self.upsample(512, 4, 
                                        dropout=True)
@@ -1353,7 +1353,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  将输入通过下采样和上采样层。添加跳跃连接以避免梯度消失问题：
 
-    ```
+    ```py
     inputs = Input(shape=(None, None, 3))
             x = inputs
             skips = []
@@ -1368,7 +1368,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  输出层是一个激活函数为`'tanh'`的转置卷积层：
 
-    ```
+    ```py
             init = tf.random_normal_initializer(0.0, 0.02)
             output = Conv2DTranspose(
                 filters=self.output_channels,
@@ -1382,7 +1382,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  定义一个方法来计算生成器损失：
 
-    ```
+    ```py
         def generator_loss(self, generated):
             return self.loss(tf.ones_like(generated), 
                              generated)
@@ -1390,7 +1390,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  定义一个方法来创建鉴别器：
 
-    ```
+    ```py
         def create_discriminator(self):
             input = Input(shape=(None, None, 3))
             x = input
@@ -1402,7 +1402,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  添加最后几层卷积层：
 
-    ```
+    ```py
             init = tf.random_normal_initializer(0.0, 0.02)
             x = Conv2D(filters=512,
                        kernel_size=4,
@@ -1421,7 +1421,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  定义一个方法来计算鉴别器损失：
 
-    ```
+    ```py
         def discriminator_loss(self, real, generated):
             real_loss = self.loss(tf.ones_like(real), 
                                          real)
@@ -1434,7 +1434,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  定义一个方法来计算真实图像和循环图像之间的损失。这个损失用于量化循环一致性，即如果你将图像 X 翻译为 Y，然后再将 Y 翻译为 X，结果应该是 X，或者接近 X：
 
-    ```
+    ```py
         def calculate_cycle_loss(self, real_image, 
                                  cycled_image):
             error = real_image - cycled_image
@@ -1444,7 +1444,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  定义一个方法来计算身份损失。这个损失确保如果你将图像 Y 通过`gen_g`传递，我们应该得到真实的图像 Y 或接近它（`gen_f`也同样适用）：
 
-    ```
+    ```py
         def identity_loss(self, real_image, same_image):
             error = real_image - same_image
             loss = tf.reduce_mean(tf.abs(error))
@@ -1453,7 +1453,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  定义一个方法来执行单步训练。它接收来自不同领域的图像 X 和 Y。然后，使用`gen_g`将 X 转换为 Y，并使用`gen_f`将 Y 转换为 X：
 
-    ```
+    ```py
         @tf.function
         def train_step(self, real_x, real_y):
             with tf.GradientTape(persistent=True) as tape:
@@ -1467,14 +1467,14 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  现在，将 X 通过`gen_f`传递，将 Y 通过`gen_y`传递，以便稍后计算身份损失：
 
-    ```
+    ```py
                 same_x = self.gen_f(real_x, training=True)
                 same_y = self.gen_g(real_y, training=True)
     ```
 
 1.  将真实的 X 和伪造的 X 传递给`dis_x`，将真实的 Y 以及生成的 Y 传递给`dis_y`：
 
-    ```
+    ```py
                 dis_real_x = self.dis_x(real_x, 
                                         training=True)
                 dis_real_y = self.dis_y(real_y, 
@@ -1486,14 +1486,14 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  计算生成器的损失：
 
-    ```
+    ```py
                 gen_g_loss = self.generator_loss(dis_fake_y)
                 gen_f_loss = self.generator_loss(dis_fake_x)
     ```
 
 1.  计算循环损失：
 
-    ```
+    ```py
                 cycle_x_loss = \
                     self.calculate_cycle_loss(real_x, 
                                               cycled_x)
@@ -1506,7 +1506,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  计算身份损失和总生成器 G 的损失：
 
-    ```
+    ```py
                 identity_y_loss = \
                     self.identity_loss(real_y, same_y)
                 total_generator_g_loss = (gen_g_loss +
@@ -1516,7 +1516,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  对生成器 F 重复此过程：
 
-    ```
+    ```py
                 identity_x_loss = \
                     self.identity_loss(real_x, same_x)
                 total_generator_f_loss = (gen_f_loss +
@@ -1526,7 +1526,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  计算鉴别器的损失：
 
-    ```
+    ```py
              dis_x_loss = \
                self.discriminator_loss(dis_real_x,dis_fake_x)
              dis_y_loss = \
@@ -1535,7 +1535,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  计算生成器的梯度：
 
-    ```
+    ```py
             gen_g_grads = tape.gradient(
                 total_generator_g_loss,
                 self.gen_g.trainable_variables)
@@ -1546,7 +1546,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  计算鉴别器的梯度：
 
-    ```
+    ```py
             dis_x_grads = tape.gradient(
                 dis_x_loss,
                 self.dis_x.trainable_variables)
@@ -1557,7 +1557,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  使用相应的优化器将梯度应用到每个生成器：
 
-    ```
+    ```py
             gen_g_opt_params = zip(gen_g_grads,
                              self.gen_g.trainable_variables)
             self.gen_g_opt.apply_gradients(gen_g_opt_params)
@@ -1568,7 +1568,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  使用相应的优化器将梯度应用到每个鉴别器：
 
-    ```
+    ```py
             dis_x_opt_params = zip(dis_x_grads,
                               self.dis_x.trainable_variables)
             self.dis_x_opt.apply_gradients(dis_x_opt_params)
@@ -1579,7 +1579,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  定义一个方法来拟合整个架构。它将在每个 epoch 之后将生成器 G 生成的图像保存到磁盘：
 
-    ```
+    ```py
         def fit(self, train, epochs, test):
             for epoch in tqdm(range(epochs)):
                 for image_x, image_y in train:
@@ -1591,7 +1591,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  加载数据集：
 
-    ```
+    ```py
     dataset, _ = tfds.load('cycle_gan/summer2winter_  yosemite',
                            with_info=True,
                            as_supervised=True)
@@ -1599,7 +1599,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  解包训练和测试集：
 
-    ```
+    ```py
     train_summer = dataset['trainA']
     train_winter = dataset['trainB']
     test_summer = dataset['testA']
@@ -1608,7 +1608,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  定义训练集的数据处理管道：
 
-    ```
+    ```py
     BUFFER_SIZE = 400
     BATCH_SIZE = 1
     train_summer = (train_summer
@@ -1627,7 +1627,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  定义测试集的数据处理管道：
 
-    ```
+    ```py
     test_summer = (test_summer
                    .map(preprocess_test_image,
                         num_parallel_calls=AUTOTUNE)
@@ -1644,7 +1644,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 1.  创建一个`CycleGAN()`实例并训练 40 个 epoch：
 
-    ```
+    ```py
     cycle_gan = CycleGAN()
     train_ds = tf.data.Dataset.zip((train_summer, 
                                     train_winter))
@@ -1703,7 +1703,7 @@ CycleGAN 的实现与 Pix2Pix 非常相似。因此，我们不会详细解释�
 
 我们将使用它来使用 FGSM 方法保存扰动后的图像：
 
-```
+```py
 $> pip install opencv-contrib-python
 ```
 
@@ -1715,7 +1715,7 @@ $> pip install opencv-contrib-python
 
 1.  导入依赖项：
 
-    ```
+    ```py
     import cv2
     import tensorflow as tf
     from tensorflow.keras.applications.nasnet import *
@@ -1724,7 +1724,7 @@ $> pip install opencv-contrib-python
 
 1.  定义一个函数来预处理图像，这包括调整图像大小并应用与我们将要使用的预训练网络相同的处理（在这个例子中是`NASNetMobile`）：
 
-    ```
+    ```py
     def preprocess(image, target_shape):
         image = tf.cast(image, tf.float32)
         image = tf.image.resize(image, target_shape)
@@ -1735,14 +1735,14 @@ $> pip install opencv-contrib-python
 
 1.  定义一个函数来根据一组概率获取人类可读的图像：
 
-    ```
+    ```py
     def get_imagenet_label(probabilities):
         return decode_predictions(probabilities, top=1)[0][0]
     ```
 
 1.  定义一个函数来保存图像。这个函数将使用预训练模型来获取正确的标签，并将其作为图像文件名的一部分，文件名中还包含预测的置信度百分比。在将图像存储到磁盘之前，它会确保图像在预期的[0, 255]范围内，并且处于 BGR 空间中，这是 OpenCV 使用的颜色空间：
 
-    ```
+    ```py
     def save_image(image, model, description):
         prediction = model.predict(image)
         _, label, conf = get_imagenet_label(prediction)
@@ -1756,7 +1756,7 @@ $> pip install opencv-contrib-python
 
 1.  定义一个函数来创建对抗性模式，该模式将在后续用于执行实际的 FGSM 攻击：
 
-    ```
+    ```py
     def generate_adv_pattern(model,
                              input_image,
                              input_label,
@@ -1774,7 +1774,7 @@ $> pip install opencv-contrib-python
 
 1.  实例化预训练的`NASNetMobile()`模型并冻结其权重：
 
-    ```
+    ```py
     pretrained_model = NASNetMobile(include_top=True,
                                     weights='imagenet')
     pretrained_model.trainable = False
@@ -1782,7 +1782,7 @@ $> pip install opencv-contrib-python
 
 1.  加载测试图像并通过网络传递：
 
-    ```
+    ```py
     image = tf.io.read_file('dog.jpg')
     image = tf.image.decode_jpeg(image)
     image = preprocess(image, pretrained_model.input.shape[1:-1])
@@ -1791,7 +1791,7 @@ $> pip install opencv-contrib-python
 
 1.  对原始图像的地面真值标签进行独热编码，并用它生成对抗性模式：
 
-    ```
+    ```py
     cce_loss = CategoricalCrossentropy()
     pug_index = 254
     label = tf.one_hot(pug_index, image_probabilities.shape[-1])
@@ -1804,7 +1804,7 @@ $> pip install opencv-contrib-python
 
 1.  执行一系列对抗性攻击，使用逐渐增大但仍然较小的`epsilon`值，这些值将在梯度方向上应用，利用`disturbances`中的模式：
 
-    ```
+    ```py
     for epsilon in [0, 0.005, 0.01, 0.1, 0.15, 0.2]:
         corrupted_image = image + epsilon * disturbances
         corrupted_image = tf.clip_by_value(corrupted_image, -1, 1)

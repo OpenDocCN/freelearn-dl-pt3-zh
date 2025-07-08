@@ -34,7 +34,7 @@
 
 我们需要安装一些外部库，比如`OpenCV`、`Pillow`和`imutils`，可以通过以下命令轻松完成：
 
-```
+```py
 $> pip install opencv-contrib-python Pillow imutils
 ```
 
@@ -46,7 +46,7 @@ $> pip install opencv-contrib-python Pillow imutils
 
 1.  导入必要的依赖项：
 
-    ```
+    ```py
     import cv2
     import imutils
     import numpy as np
@@ -58,7 +58,7 @@ $> pip install opencv-contrib-python Pillow imutils
 
 1.  接下来，定义我们的`ObjectDetector()`类，从构造函数开始：
 
-    ```
+    ```py
     class ObjectDetector(object):
         def __init__(self, 
                      classifier,
@@ -83,7 +83,7 @@ $> pip install opencv-contrib-python Pillow imutils
 
 1.  现在，我们定义一个`sliding_window()`方法，该方法提取输入图像的部分区域，尺寸等于`self.roi_size`。它将在图像上水平和垂直滑动，每次移动`self.window_step_size`像素（注意使用了`yield`而不是`return`——这是因为它是一个生成器）：
 
-    ```
+    ```py
         def sliding_window(self, image):
             for y in range(0,
                            image.shape[0],
@@ -98,7 +98,7 @@ $> pip install opencv-contrib-python Pillow imutils
 
 1.  接下来，定义`pyramid()`方法，该方法会生成输入图像的越来越小的副本，直到达到最小尺寸（类似于金字塔的各个层级）：
 
-    ```
+    ```py
         def pyramid(self, image):
             yield image
             while True:
@@ -114,7 +114,7 @@ $> pip install opencv-contrib-python Pillow imutils
 
 1.  因为在不同尺度上滑动窗口会很容易产生与同一物体相关的多个检测结果，我们需要一种方法来将重复项保持在最低限度。这就是我们下一个方法`non_max_suppression()`的作用：
 
-    ```
+    ```py
         def non_max_suppression(self, boxes, probabilities):
             if len(boxes) == 0:
                 return []
@@ -131,7 +131,7 @@ $> pip install opencv-contrib-python Pillow imutils
 
 1.  我们首先计算所有边界框的面积，并按概率升序对它们进行排序。接下来，我们将选择具有最高概率的边界框的索引，并将其添加到最终选择中（`pick`），直到剩下`indexes`个边界框需要进行修剪：
 
-    ```
+    ```py
             while len(indexes) > 0:
                 last = len(indexes) - 1
                 i = indexes[last]
@@ -140,7 +140,7 @@ $> pip install opencv-contrib-python Pillow imutils
 
 1.  我们计算选中的边界框与其他边界框之间的重叠部分，然后剔除那些重叠部分超过`self.nms_threshold`的框，这意味着它们很可能指的是同一个物体：
 
-    ```
+    ```py
                 xx_1 = np.maximum(x_1[i],x_1[indexes[:last]])
                 yy_1 = np.maximum(y_1[i],y_1[indexes[:last]])
                 xx_2 = np.maximum(x_2[i],x_2[indexes[:last]])
@@ -159,13 +159,13 @@ $> pip install opencv-contrib-python Pillow imutils
 
 1.  返回选中的边界框：
 
-    ```
+    ```py
             return boxes[pick].astype(np.int)
     ```
 
 1.  `detect()`方法将物体检测算法串联在一起。我们首先定义一个`rois`列表及其对应的`locations`（在原始图像中的坐标）：
 
-    ```
+    ```py
         def detect(self, image):
             rois = []
             locations = []
@@ -173,7 +173,7 @@ $> pip install opencv-contrib-python Pillow imutils
 
 1.  接下来，我们将使用`pyramid()`生成器在多个尺度上生成输入图像的不同副本，并在每个层级上，我们将通过`sliding_windows()`生成器滑动窗口，提取所有可能的 ROI：
 
-    ```
+    ```py
             for img in self.pyramid(image):
                 scale = image.shape[1] / 
                         float(img.shape[1])
@@ -194,7 +194,7 @@ $> pip install opencv-contrib-python Pillow imutils
 
 1.  一次性通过分类器传递所有的 ROI：
 
-    ```
+    ```py
             predictions = self.classifier.predict(rois)
             predictions = \
            imagenet_utils.decode_predictions(predictions, 
@@ -203,7 +203,7 @@ $> pip install opencv-contrib-python Pillow imutils
 
 1.  构建一个`dict`来将分类器生成的每个标签映射到所有的边界框及其概率（注意我们只保留那些概率至少为`self.confidence`的边界框）：
 
-    ```
+    ```py
             labels = {}
             for i, pred in enumerate(predictions):
                 _, label, proba = pred[0]
@@ -219,7 +219,7 @@ $> pip install opencv-contrib-python Pillow imutils
 
 1.  实例化一个在 ImageNet 上训练的`InceptionResnetV2`网络，作为我们的分类器，并将其传递给新的`ObjectDetector`。注意，我们还将`preprocess_function`作为输入传递：
 
-    ```
+    ```py
     model = InceptionResNetV2(weights='imagenet',
                               include_top=True)
     object_detector = ObjectDetector(model, preprocess_input)
@@ -227,7 +227,7 @@ $> pip install opencv-contrib-python Pillow imutils
 
 1.  加载输入图像，将其最大宽度调整为 600 像素（高度将相应计算以保持宽高比），并通过物体检测器进行处理：
 
-    ```
+    ```py
     image = cv2.imread('dog.jpg')
     image = imutils.resize(image, width=600)
     labels = object_detector.detect(image)
@@ -235,7 +235,7 @@ $> pip install opencv-contrib-python Pillow imutils
 
 1.  遍历所有对应每个标签的检测结果，首先绘制所有边界框：
 
-    ```
+    ```py
     GREEN = (0, 255, 0)
     for i, label in enumerate(labels.keys()):
         clone = image.copy()
@@ -250,7 +250,7 @@ $> pip install opencv-contrib-python Pillow imutils
 
     然后，使用**非最大抑制**（**NMS**）去除重复项，并绘制剩余的边界框：
 
-    ```
+    ```py
         clone = image.copy()
         boxes = np.array([d['box'] for d in 
                        labels[label]])
@@ -323,7 +323,7 @@ YOLO 是开创性的端到端物体检测器之一，在这个实例中，我们
 
 首先安装`tqdm`，如下所示：
 
-```
+```py
 $> pip install tqdm
 ```
 
@@ -341,7 +341,7 @@ $> pip install tqdm
 
 1.  首先导入相关的依赖：
 
-    ```
+    ```py
     import glob
     import json
     import struct
@@ -356,7 +356,7 @@ $> pip install tqdm
 
 1.  定义一个`WeightReader()`类，自动加载 YOLO 的权重，无论原作者使用了什么格式。请注意，这是一个非常底层的解决方案，但我们不需要完全理解它就可以加以利用。让我们从构造函数开始：
 
-    ```
+    ```py
     class WeightReader:
         def __init__(self, weight_file):
             with open(weight_file, 'rb') as w_f:
@@ -377,7 +377,7 @@ $> pip install tqdm
 
 1.  接下来，定义一个方法来从`weights`文件中读取指定数量的字节：
 
-    ```
+    ```py
         def read_bytes(self, size):
             self.offset = self.offset + size
             return self.all_weights[self.offset-
@@ -386,7 +386,7 @@ $> pip install tqdm
 
 1.  `load_weights()`方法加载了组成 YOLO 架构的 106 层每一层的权重：
 
-    ```
+    ```py
         def load_weights(self, model):
             for i in tqdm.tqdm(range(106)):
                 try:
@@ -408,7 +408,7 @@ $> pip install tqdm
 
 1.  加载卷积层的权重：
 
-    ```
+    ```py
                     if len(conv_layer.get_weights()) > 1:
                         bias = self.read_bytes(np.prod(
                        conv_layer.get_weights()[1].shape))
@@ -436,14 +436,14 @@ $> pip install tqdm
 
 1.  定义一个方法来重置偏移量：
 
-    ```
+    ```py
         def reset(self):
             self.offset = 0
     ```
 
 1.  定义一个`BoundBox()`类，封装边界框的顶点，以及该框中元素为物体的置信度（`objness`）：
 
-    ```
+    ```py
     class BoundBox(object):
         def __init__(self, x_min, y_min, x_max, y_max,
                      objness=None,
@@ -468,7 +468,7 @@ $> pip install tqdm
 
 1.  定义一个`YOLO()`类，封装网络的构建和检测逻辑。让我们从构造函数开始：
 
-    ```
+    ```py
     class YOLO(object):
         def __init__(self, weights_path,
                      anchors_path='resources/anchors.json',
@@ -489,7 +489,7 @@ $> pip install tqdm
 
 1.  YOLO 由一系列卷积块和可选的跳跃连接组成。 `_conv_block()` 辅助方法允许我们轻松地实例化这些块：
 
-    ```
+    ```py
         def _conv_block(self, input, convolutions, 
                        skip=True):
             x = input
@@ -516,7 +516,7 @@ $> pip install tqdm
 
 1.  检查是否需要添加批量归一化、leaky ReLU 激活和跳跃连接：
 
-    ```
+    ```py
                 if conv['bnorm']:
                     name = f'bnorm_{conv["layer_idx"]}'
                     x = BatchNormalization(epsilon=1e-3,
@@ -529,7 +529,7 @@ $> pip install tqdm
 
 1.  `_make_yolov3_architecture()` 方法，如下所示，通过堆叠一系列卷积块来构建 YOLO 网络，使用先前定义的 `_conv_block()` 方法：
 
-    ```
+    ```py
         def _make_yolov3_architecture(self):
             input_image = Input(shape=(None, None, 3))
             # Layer  0 => 4
@@ -553,7 +553,7 @@ $> pip install tqdm
 
 1.  `_load_yolo()` 方法创建架构、加载权重，并实例化一个 TensorFlow 可理解的训练过的 YOLO 模型：
 
-    ```
+    ```py
         def _load_yolo(self):
             model = self._make_yolov3_architecture()
             weight_reader = WeightReader(self.weights_path)
@@ -565,7 +565,7 @@ $> pip install tqdm
 
 1.  定义一个静态方法来计算张量的 Sigmoid 值：
 
-    ```
+    ```py
         @staticmethod
         def _sigmoid(x):
             return 1.0 / (1.0 + np.exp(-x))
@@ -573,7 +573,7 @@ $> pip install tqdm
 
 1.  `_decode_net_output()` 方法解码 YOLO 产生的候选边界框和类别预测：
 
-    ```
+    ```py
         def _decode_net_output(self, 
                                network_output,
                                anchors,
@@ -601,7 +601,7 @@ $> pip install tqdm
 
 1.  我们跳过那些不能自信地描述物体的边界框：
 
-    ```
+    ```py
                 for b in range(nb_box):
                     objectness = \
                         network_output[int(r)][int(c)][b][4]
@@ -611,7 +611,7 @@ $> pip install tqdm
 
 1.  我们从网络输出中提取坐标和类别，并使用它们来创建 `BoundBox()` 实例：
 
-    ```
+    ```py
                     x, y, w, h = \
                         network_output[int(r)][int(c)][b][:4]
                     x = (c + x) / grid_width
@@ -633,7 +633,7 @@ $> pip install tqdm
 
 1.  `_correct_yolo_boxes()` 方法将边界框调整为原始图像的尺寸：
 
-    ```
+    ```py
         @staticmethod
         def _correct_yolo_boxes(boxes,
                                 image_height,
@@ -664,7 +664,7 @@ $> pip install tqdm
 
 1.  我们稍后会执行 NMS，以减少冗余的检测。为此，我们需要一种计算两个区间重叠量的方法：
 
-    ```
+    ```py
         @staticmethod
         def _interval_overlap(interval_a, interval_b):
             x1, x2 = interval_a
@@ -683,7 +683,7 @@ $> pip install tqdm
 
 1.  接下来，我们可以计算前面定义的 `_interval_overlap()` 方法：
 
-    ```
+    ```py
         def _bbox_iou(self, box1, box2):
             intersect_w = self._interval_overlap(
                 [box1.xmin, box1.xmax],
@@ -700,7 +700,7 @@ $> pip install tqdm
 
 1.  有了这些方法，我们可以对边界框应用 NMS，从而将重复检测的数量降到最低：
 
-    ```
+    ```py
         def _non_max_suppression(self, boxes, nms_thresh):
             if len(boxes) > 0:
                 nb_class = len(boxes[0].classes)
@@ -725,7 +725,7 @@ $> pip install tqdm
 
 1.  `_get_boxes()` 方法仅保留那些置信度高于构造函数中定义的 `self.class_threshold` 方法（默认值为 0.6 或 60%）的框：
 
-    ```
+    ```py
         def _get_boxes(self, boxes):
             v_boxes, v_labels, v_scores = [], [], []
             for box in boxes:
@@ -741,7 +741,7 @@ $> pip install tqdm
 
 1.  `_draw_boxes()` 在输入图像中绘制最自信的检测结果，这意味着每个边界框都会显示其类别标签及其置信度：
 
-    ```
+    ```py
         @staticmethod
         def _draw_boxes(filename, v_boxes, v_labels, 
                         v_scores):
@@ -766,7 +766,7 @@ $> pip install tqdm
 
 1.  `YOLO()` 类中的唯一公共方法是 `detect()`，它实现了端到端的逻辑，用于检测输入图像中的物体。首先，它将图像传入模型：
 
-    ```
+    ```py
         def detect(self, image, width, height):
             image = np.expand_dims(image, axis=0)
             preds = self.model.predict(image)
@@ -775,7 +775,7 @@ $> pip install tqdm
 
 1.  然后，它解码网络的输出：
 
-    ```
+    ```py
             for i in range(len(preds)):
                 boxes.extend(
                     self._decode_net_output(preds[i][0],
@@ -787,7 +787,7 @@ $> pip install tqdm
 
 1.  接下来，它修正这些框，使它们与输入图像的比例正确。它还应用 NMS 来去除冗余的检测结果：
 
-    ```
+    ```py
             self._correct_yolo_boxes(boxes, height, width, 
                                      416,
                                      416)
@@ -796,7 +796,7 @@ $> pip install tqdm
 
 1.  最后，它获取有效的边界框，并将其绘制到输入图像中：
 
-    ```
+    ```py
             valid_boxes, valid_labels, valid_scores = \
                 self._get_boxes(boxes)
             for i in range(len(valid_boxes)):
@@ -809,13 +809,13 @@ $> pip install tqdm
 
 1.  定义了 `YOLO()` 类后，我们可以按如下方式实例化它：
 
-    ```
+    ```py
     model = YOLO(weights_path='resources/yolov3.weights')
     ```
 
 1.  最后一步是遍历所有测试图像，并在其上运行模型：
 
-    ```
+    ```py
     for image_path in glob.glob('test_images/*.jpg'):
         image = load_img(image_path, target_size=(416, 
                                                   416))
@@ -882,13 +882,13 @@ YOLO 是深度学习和物体检测领域的一个里程碑，因此阅读这篇
 
 有几个依赖项需要安装才能使这个食谱工作。让我们从最重要的开始：TensorFlow 物体检测 API。首先，`cd`到你喜欢的位置并克隆 `tensorflow/models` 仓库：
 
-```
+```py
 $> git clone –-depth 1 https://github.com/tensorflow/models
 ```
 
 接下来，像这样安装 TensorFlow 物体检测 API：
 
-```
+```py
 $> sudo apt install -y protobuf-compiler
 $> cd models/research
 $> protoc object_detection/protos/*.proto –-python_out=.
@@ -898,7 +898,7 @@ $> python -m pip install -q .
 
 就本食谱而言，我们假设它与`ch9`文件夹位于同一层级（https://github.com/PacktPublishing/Tensorflow-2.0-Computer-Vision-Cookbook/tree/master/ch9）。现在，我们必须安装`pandas`和`Pillow`：
 
-```
+```py
 $> pip install pandas Pillow
 ```
 
@@ -918,7 +918,7 @@ $> pip install pandas Pillow
 
 1.  在这个食谱中，我们将处理两个文件：第一个用于准备数据（你可以在仓库中找到它，名为`prepare.py`），第二个用于使用物体检测器进行推理（在仓库中为`inference.py`）。打开`prepare.py`并导入所有需要的包：
 
-    ```
+    ```py
     import glob
     import io
     import os
@@ -932,7 +932,7 @@ $> pip install pandas Pillow
 
 1.  定义`encode_class()`函数，将文本标签映射到它们的整数表示：
 
-    ```
+    ```py
     def encode_class(row_label):
         class_mapping = {'apple': 1, 'orange': 2, 
                          'banana': 3}
@@ -941,7 +941,7 @@ $> pip install pandas Pillow
 
 1.  定义一个函数，将标签的数据框（我们稍后会创建）拆分成组：
 
-    ```
+    ```py
     def split(df, group):
         Data = namedtuple('data', ['filename', 'object'])
         groups = df.groupby(group)
@@ -953,7 +953,7 @@ $> pip install pandas Pillow
 
 1.  TensorFlow 目标检测 API 使用一种名为`tf.train.Example`的数据结构。下一个函数接收图像的路径及其标签（即包含的所有对象的边界框集和真实类别），并创建相应的`tf.train.Example`。首先，加载图像及其属性：
 
-    ```
+    ```py
     def create_tf_example(group, path):
         groups_path = os.path.join(path, f'{group.filename}')
         with tf.gfile.GFile(groups_path, 'rb') as f:
@@ -966,7 +966,7 @@ $> pip install pandas Pillow
 
 1.  现在，存储边界框的维度以及图像中每个对象的类别：
 
-    ```
+    ```py
         xmins = []
         xmaxs = []
         ymins = []
@@ -984,7 +984,7 @@ $> pip install pandas Pillow
 
 1.  创建一个`tf.train.Features`对象，包含图像及其对象的相关信息：
 
-    ```
+    ```py
         features = tf.train.Features(feature={
             'image/height':
                 dataset_util.int64_feature(height),
@@ -1015,13 +1015,13 @@ $> pip install pandas Pillow
 
 1.  返回一个用先前创建的特征初始化的`tf.train.Example`结构：
 
-    ```
+    ```py
         return tf.train.Example(features=features)
     ```
 
 1.  定义一个函数，将包含图像边界框信息的**可扩展标记语言**（**XML**）文件转换为等效的**逗号分隔值**（**CSV**）格式文件：
 
-    ```
+    ```py
     def bboxes_to_csv(path):
         xml_list = []
         bboxes_pattern = os.path.sep.join([path, '*.xml'])
@@ -1046,7 +1046,7 @@ $> pip install pandas Pillow
 
 1.  遍历`fruits`文件夹中的`test`和`train`子集，将标签从 CSV 转换为 XML：
 
-    ```
+    ```py
     base = 'fruits'
     for subset in ['test', 'train']:
         folder = os.path.sep.join([base, f'{subset}_zip', 
@@ -1060,7 +1060,7 @@ $> pip install pandas Pillow
 
 1.  然后，使用相同的标签生成与当前正在处理的数据子集对应的`tf.train.Examples`：
 
-    ```
+    ```py
         writer = (tf.python_io.
                 TFRecordWriter(f'resources/{subset}.record'))
         examples = pd.read_csv(f'fruits/{subset}_labels.csv')
@@ -1076,7 +1076,7 @@ $> pip install pandas Pillow
 
 1.  创建一个文件，将类别映射到整数。命名为`label_map.txt`并将其放在`ch9/recipe3/resources`中：
 
-    ```
+    ```py
     item {
         id: 1
         name: 'apple'
@@ -1093,55 +1093,55 @@ $> pip install pandas Pillow
 
 1.  接下来，我们必须更改该网络的配置文件，以使其适应我们的数据集。你可以将其放置在`models/research/object_detection/configs/tf2/ssd_efficientdet_d0_512x512_coco17_tpu-8.config`（假设你已将 TensorFlow 目标检测 API 安装在与`ch9`文件夹同一级别的伴随库中），或者直接从以下网址下载：[`github.com/tensorflow/models/blob/master/research/object_detection/configs/tf2/ssd_efficientdet_d0_512x512_coco17_tpu-8.config`](https://github.com/tensorflow/models/blob/master/research/object_detection/configs/tf2/ssd_efficientdet_d0_512x512_coco17_tpu-8.config)。无论你选择哪种方式，请将文件复制到`ch9/recipe3/resources`中，并修改*第 13 行*，以反映我们数据集中类别的数量：
 
-    ```
+    ```py
     num_classes: 3
     ```
 
     然后，修改*第 140 行*，使其指向我们在*第 7 步*中下载的`EfficientDet`权重：
 
-    ```
+    ```py
     fine_tune_checkpoint: "/home/jesus/Desktop/efficientdet_d0_coco17_tpu-32/checkpoint/ckpt-0"
     ```
 
     在*第 143 行*将`fine_tune_checkpoint_type`从`classification`改为`detection`：
 
-    ```
+    ```py
     fine_tune_checkpoint_type: "detection"
     ```
 
     修改*第 180 行*，使其指向*第 8 步*中创建的`label_map.txt`文件：
 
-    ```
+    ```py
     label_map_path: "/home/jesus/Desktop/tensorflow-computer-vision/ch9/recipe3/resources/label_map.txt"
     ```
 
     修改*第 182 行*，使其指向*第 11 步*中创建的`train.record`文件，该文件对应于已准备好的训练数据：
 
-    ```
+    ```py
     input_path: "/home/jesus/Desktop/tensorflow-computer-vision/ch9/recipe3/resources/train.record"
     ```
 
     修改*第 193 行*，使其指向*第 12 步*中创建的`label_map.txt`文件：
 
-    ```
+    ```py
     label_map_path: "/home/jesus/Desktop/tensorflow-computer-vision/ch9/recipe3/resources/label_map.txt"
     ```
 
     修改*第 197 行*，使其指向*第 11 步*中创建的`test.record`文件，该文件对应于已准备好的测试数据：
 
-    ```
+    ```py
     input_path: "/home/jesus/Desktop/tensorflow-computer-vision/ch9/recipe3/resources/test.record"
     ```
 
 1.  到了训练模型的时候！首先，假设你在配套仓库的根目录下，`cd`进入 TensorFlow 对象检测 API 中的`object_detection`文件夹：
 
-    ```
+    ```py
     $> cd models/research/object_detection
     ```
 
     然后，使用以下命令训练模型：
 
-    ```
+    ```py
     $> python model_main_tf2.py --pipeline_config_path=../../../ch9/recipe3/resources/ssd_efficientdet_d0_512x512_coco17_tpu-8.config --model_dir=../../../ch9/recipe3/training --num_train_steps=10000
     ```
 
@@ -1149,13 +1149,13 @@ $> pip install pandas Pillow
 
 1.  一旦网络进行了精调，我们必须将其导出为冻结图，以便用于推理。为此，再次`cd`进入 TensorFlow 对象检测 API 中的`object_detection`文件夹：
 
-    ```
+    ```py
     $> cd models/research/object_detection
     ```
 
     现在，执行以下命令：
 
-    ```
+    ```py
     $> python exporter_main_v2.py --trained_checkpoint_dir=../../../ch9/recipe3/training/ --pipeline_config_path=../../../ch9/recipe3/resources/ssd_efficientdet_d0_512x512_coco17_tpu-8.config --output_directory=../../../ch9/recipe3/resources/inference_graph
     ```
 
@@ -1163,7 +1163,7 @@ $> pip install pandas Pillow
 
 1.  打开一个名为`inference.py`的文件，并导入所有相关的依赖项：
 
-    ```
+    ```py
     import glob
     import random
     from io import BytesIO
@@ -1179,7 +1179,7 @@ $> pip install pandas Pillow
 
 1.  定义一个函数，从磁盘加载图像并将其转换为 NumPy 数组：
 
-    ```
+    ```py
     def load_image(path):
         image_data = tf.io.gfile.GFile(path, 'rb').read()
         image = Image.open(BytesIO(image_data))
@@ -1192,7 +1192,7 @@ $> pip install pandas Pillow
 
 1.  定义一个函数，在单张图像上运行模型。首先，将图像转换为张量：
 
-    ```
+    ```py
     def infer_image(net, image):
         image = np.asarray(image)
         input_tensor = tf.convert_to_tensor(image)
@@ -1201,7 +1201,7 @@ $> pip install pandas Pillow
 
 1.  将张量传递给网络，提取检测的数量，并在结果字典中保留与检测数量相等的值：
 
-    ```
+    ```py
         num_detections = int(result.pop('num_detections'))
         result = {key: value[0, :num_detections].numpy()
                   for key, value in result.items()}
@@ -1212,7 +1212,7 @@ $> pip install pandas Pillow
 
 1.  如果有检测掩膜存在，将它们重框为图像掩膜并返回结果：
 
-    ```
+    ```py
         if 'detection_masks' in result:
             detection_masks_reframed = \
                 ops.reframe_box_masks_to_image_masks(
@@ -1230,7 +1230,7 @@ $> pip install pandas Pillow
 
 1.  从我们在*步骤 12*中创建的`label_map.txt`文件中创建类别索引，同时从*步骤 15*中生成的冻结推理图中加载模型：
 
-    ```
+    ```py
     labels_path = 'resources/label_map.txt'
     CATEGORY_IDX = \
         create_category_index_from_labelmap(labels_path,
@@ -1241,7 +1241,7 @@ $> pip install pandas Pillow
 
 1.  随机选择三张测试图像：
 
-    ```
+    ```py
     test_images = list(glob.glob('fruits/test_zip/test/*.jpg'))
     random.shuffle(test_images)
     test_images = test_images[:3]
@@ -1249,7 +1249,7 @@ $> pip install pandas Pillow
 
 1.  在样本图像上运行模型，并保存结果检测：
 
-    ```
+    ```py
     for image_path in test_images:
         image = load_image(image_path)
         result = infer_image(model, image)
@@ -1319,19 +1319,19 @@ TFHub 是物体检测领域的一个丰富宝库，充满了最先进的模型�
 
 首先，我们必须安装`Pillow`和 TFHub，步骤如下：
 
-```
+```py
 $> pip install Pillow tensorflow-hub
 ```
 
 此外，由于我们将使用的一些可视化工具位于 TensorFlow 物体检测 API 中，我们必须先安装它。首先，`cd`到你喜欢的位置，并克隆`tensorflow/models`仓库：
 
-```
+```py
 $> git clone –-depth 1 https://github.com/tensorflow/models
 ```
 
 接下来，安装 TensorFlow 物体检测 API，像这样：
 
-```
+```py
 $> sudo apt install -y protobuf-compiler
 $> cd models/research
 $> protoc object_detection/protos/*.proto –-python_out=.
@@ -1347,7 +1347,7 @@ $> python -m pip install -q .
 
 1.  导入我们需要的包：
 
-    ```
+    ```py
     import glob
     from io import BytesIO
     import matplotlib.pyplot as plt
@@ -1362,7 +1362,7 @@ $> python -m pip install -q .
 
 1.  定义一个函数，将图像加载到 NumPy 数组中：
 
-    ```
+    ```py
     def load_image(path):
         image_data = tf.io.gfile.GFile(path, 'rb').read()
         image = Image.open(BytesIO(image_data))
@@ -1375,7 +1375,7 @@ $> python -m pip install -q .
 
 1.  定义一个函数，通过模型进行预测，并将结果保存到磁盘。首先加载图像并将其传入模型：
 
-    ```
+    ```py
     def get_and_save_predictions(model, image_path):
         image = load_image(image_path)
         results = model(image)
@@ -1383,13 +1383,13 @@ $> python -m pip install -q .
 
 1.  将结果转换为 NumPy 数组：
 
-    ```
+    ```py
     model_output = {k: v.numpy() for k, v in results.items()}
     ```
 
 1.  创建一个包含检测框、得分和类别的可视化结果：
 
-    ```
+    ```py
         boxes = model_output['detection_boxes'][0]
         classes = \
            model_output['detection_classes'][0].astype('int')
@@ -1412,7 +1412,7 @@ $> python -m pip install -q .
 
 1.  将结果保存到磁盘：
 
-    ```
+    ```py
         plt.figure(figsize=(24, 32))
         plt.imshow(image_with_mask[0])
         plt.savefig(f'output/{image_path.split("/")[-1]}')
@@ -1420,14 +1420,14 @@ $> python -m pip install -q .
 
 1.  加载`COCO`的类别索引：
 
-    ```
+    ```py
     labels_path = 'resources/mscoco_label_map.pbtxt'
     CATEGORY_IDX =create_category_index_from_labelmap(labels_path)
     ```
 
 1.  从 TFHub 加载 Faster R-CNN：
 
-    ```
+    ```py
     MODEL_PATH = ('https://tfhub.dev/tensorflow/faster_rcnn/'
                   'inception_resnet_v2_1024x1024/1')
     model = hub.load(MODEL_PATH)
@@ -1435,7 +1435,7 @@ $> python -m pip install -q .
 
 1.  在所有测试图像上运行 Faster R-CNN：
 
-    ```
+    ```py
     test_images_paths = glob.glob('test_images/*')
     for image_path in test_images_paths:
         get_and_save_predictions(model, image_path)

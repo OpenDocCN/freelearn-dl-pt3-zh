@@ -8,7 +8,7 @@
 
 1.  使用终端，导航至从 [`packt.live/2ZVyf0C`](https://packt.live/2ZVyf0C) 克隆的目录，并执行以下命令启动 TensorBoard：
 
-    ```
+    ```py
     $ tensorboard --logdir logs/fit
     ```
 
@@ -28,7 +28,7 @@
 
 1.  要通过更改不同的超参数训练另一个模型，请在 `Chapter01/Activity1.01` 中打开终端，激活环境。修改 `mnist.py` 中的以下几行：
 
-    ```
+    ```py
     learning_rate = 0.0001 (at line number 47)
     epochs = 10 (at line number 56)
     ```
@@ -45,7 +45,7 @@
 
 1.  现在重复 *步骤 4*。在 `Chapter01/Activity1.01` 中打开终端，激活环境。将 `mnist.py` 中的以下几行修改为以下值：
 
-    ```
+    ```py
     learning_rate = 0.01 (at line number 47)
     epochs = 5 (at line number 56)
     ```
@@ -82,7 +82,7 @@
 
 1.  导入加载和训练深度学习模型所需的库：
 
-    ```
+    ```py
     import numpy as np
     import pandas as pd
     import matplotlib.pyplot as plt
@@ -99,13 +99,13 @@
 
 1.  使用 pandas 将训练数据集加载到内存中，如下所示：
 
-    ```
+    ```py
     train = pd.read_csv('data/train_dataset.csv')
     ```
 
 1.  现在，快速检查数据集，执行以下命令：
 
-    ```
+    ```py
     train.head()
     ```
 
@@ -115,7 +115,7 @@
 
 1.  随时使用提供的 `create_groups()` 函数来执行此操作：
 
-    ```
+    ```py
     create_groups(data=train, group_size=7)
     ```
 
@@ -123,7 +123,7 @@
 
     现在，确保将数据分为两组：训练集和验证集。我们通过将比特币价格数据集的最后一周分配给评估集来做到这一点。然后，我们训练网络以评估最后一周的数据。将训练数据的最后一周分开，并使用 `numpy.reshape()` 重新调整其形状。重新调整形状很重要，因为 LSTM 模型只接受以这种方式组织的数据：
 
-    ```
+    ```py
     X_train = data[:-1,:].reshape(1, 186, 7)
     Y_validation = data[-1].reshape(1, 7)
     ```
@@ -132,13 +132,13 @@
 
 1.  导航到 `Load Our Model` 标题并加载我们之前训练的模型：
 
-    ```
+    ```py
     model = load_model('bitcoin_lstm_v0.h5')
     ```
 
 1.  现在，使用我们的训练数据 `X_train` 和 `Y_validation` 来训练该模型：
 
-    ```
+    ```py
     %%time
     history = model.fit( x=X_train, y=Y_validation, epochs=100)
     ```
@@ -151,13 +151,13 @@
 
 1.  最后，让我们用训练好的模型进行预测。使用相同的数据`X_train`，调用以下方法：
 
-    ```
+    ```py
     model.predict(x=X_train)
     ```
 
 1.  模型立即返回一个包含下 7 天预测的归一化值的列表。使用`denormalize()`函数将数据转换为美元值。使用最新可用的值作为参考，来缩放预测结果：
 
-    ```
+    ```py
     denormalized_prediction = denormalize(predictions, \
                                           last_weeks_value)
     ```
@@ -174,7 +174,7 @@
 
 1.  当你完成实验后，使用以下命令保存你的模型：
 
-    ```
+    ```py
     model.save('bitcoin_lstm_v0_trained.h5')
     ```
 
@@ -196,7 +196,7 @@
 
 1.  使用终端，通过执行以下命令启动 TensorBoard 实例：
 
-    ```
+    ```py
     $ cd ./Chapter03/Activity3.01/
     $ tensorboard --logdir=logs/
     ```
@@ -209,7 +209,7 @@
 
 1.  打开屏幕上出现的网址，并保持该浏览器标签页打开。同时，使用以下命令启动一个 Jupyter Notebook 实例：
 
-    ```
+    ```py
     $ jupyter-lab
     ```
 
@@ -225,7 +225,7 @@
 
 1.  设置种子以避免随机性：
 
-    ```
+    ```py
     np.random.seed(0)
     ```
 
@@ -255,7 +255,7 @@
 
 1.  在本节中，我们关注探索不同规模的训练周期（epoch）。使用`train_model()`工具函数为不同的模型版本和运行命名：
 
-    ```
+    ```py
     train_model(model=model_v0, X=X_train, \
                 Y=Y_validate, epochs=100, \
                 version=0, run_number=0)
@@ -269,7 +269,7 @@
 
 1.  现在，导航到 Notebook 中的`激活函数`标题。在此部分，你只需更改以下变量：
 
-    ```
+    ```py
     activation_function = "relu”
     ```
 
@@ -337,7 +337,7 @@
 
 1.  使用你的终端，导航到`cryptonic`目录并构建所有所需组件的 Docker 镜像：
 
-    ```
+    ```py
     $ docker build --tag cryptonic:latest .
     $ docker build --tag cryptonic-cache:latest       cryptonic-cache/
     ```
@@ -346,13 +346,13 @@
 
 1.  构建完镜像后，找到`docker-compose.yml`文件并用文本编辑器打开它。将`BITCOIN_START_DATE`参数更改为`2017-01-01`以外的日期：
 
-    ```
+    ```py
     BITCOIN_START_DATE = # Use other date here
     ```
 
 1.  最后一步，使用`docker-compose up`在本地部署你的 Web 应用，如下所示：
 
-    ```
+    ```py
     docker-compose up
     ```
 

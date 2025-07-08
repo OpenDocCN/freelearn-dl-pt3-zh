@@ -74,7 +74,7 @@
 
 代码块如下所示：
 
-```
+```py
 import numpy as np
 np_array = np.array( [0, 1, 2, 3] )
 
@@ -84,7 +84,7 @@ np_zero_array = np.zeros(10)
 
 当我们希望您关注代码块的某一部分时，相关的行或项目会以粗体显示：
 
-```
+```py
 [default]
 exten => s,1,Dial(Zap/1|30)
 exten => s,2,Voicemail(u100)

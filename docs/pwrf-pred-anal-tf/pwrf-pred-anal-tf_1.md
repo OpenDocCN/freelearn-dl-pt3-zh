@@ -60,7 +60,7 @@
 
 使用该数据集的最终目标是预测哪些人幸存于 Titanic 灾难。然而，稍微进行一些数据集的探索性分析是必要的。首先，我们需要导入必要的软件包和库：
 
-```
+```py
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -68,13 +68,13 @@ import numpy as np
 
 现在读取数据集并创建一个 Pandas 的 DataFrame：
 
-```
+```py
 df = pd.read_csv('/home/asif/titanic_data.csv')
 ```
 
 在绘制数据集的分布之前，让我们先指定图表的参数：
 
-```
+```py
 fig = plt.figure(figsize=(18,6), dpi=1600)
 alpha=alpha_scatterplot = 0.2
 alpha_bar_chart = 0.55
@@ -84,7 +84,7 @@ ax = fig.add_subplot(111)
 
 绘制一个柱状图，显示谁幸存了与谁没有幸存：
 
-```
+```py
 ax1 = plt.subplot2grid((2,3),(0,0))
 ax1.set_xlim(-1, 2)            
 df.Survived.value_counts().plot(kind='bar', alpha=alpha_bar_chart)
@@ -93,7 +93,7 @@ plt.title("Survival distribution: 1 = survived")
 
 绘制一个显示`年龄`与生存情况的图表：
 
-```
+```py
 plt.subplot2grid((2,3),(0,1))
 plt.scatter(df.Survived, df.Age, alpha=alpha_scatterplot)
 plt.ylabel("Age")                      
@@ -103,7 +103,7 @@ plt.title("Survival by Age: 1 = survived")
 
 绘制一个显示`乘客`类别分布的图表：
 
-```
+```py
 ax3 = plt.subplot2grid((2,3),(0,2))
 df.Pclass.value_counts().plot(kind="barh", alpha=alpha_bar_chart)
 ax3.set_ylim(-1, len(df.Pclass.value_counts()))
@@ -112,7 +112,7 @@ plt.title("Class dist. of the passengers")
 
 绘制 1 等舱乘客年龄子集的核密度估计图：
 
-```
+```py
 plt.subplot2grid((2,3),(1,0), colspan=2)
 df.Age[df.Pclass == 1].plot(kind='kde')   
 df.Age[df.Pclass == 2].plot(kind='kde')
@@ -124,7 +124,7 @@ plt.legend(('1st Class', '2nd Class','3rd Class'),loc='best')
 
 绘制一个显示`每个登船地点的乘客`的图表：
 
-```
+```py
 ax5 = plt.subplot2grid((2,3),(1,2))
 df.Embarked.value_counts().plot(kind='bar', alpha=alpha_bar_chart)
 ax5.set_xlim(-1, len(df.Embarked.value_counts()))
@@ -144,7 +144,7 @@ plt.show()
 
 +   **安装 pandas**: Pandas 是用于数据操作的 Python 包。可以按以下步骤安装：
 
-    ```
+    ```py
     $ sudo pip3 install pandas 
     #For Python 2.7, use the following: 
     $ sudo pip install pandas
@@ -153,7 +153,7 @@ plt.show()
 
 +   **安装 matplotlib**: 在上述代码中，matplotlib 是用于数学对象绘图的库。可以按以下步骤安装：
 
-    ```
+    ```py
     $ sudo apt-get install python-matplotlib   # for Python 2.7 
     $ sudo apt-get install python3-matplotlib # for Python 3.x
 
@@ -161,7 +161,7 @@ plt.show()
 
 +   **安装 scipy**: Scipy 是用于科学计算的 Python 包。安装`blas`、`lapack`和`gfortran`是其先决条件。现在只需在您的终端上执行以下命令：
 
-    ```
+    ```py
     $ sudo apt-get install libblas-dev liblapack-dev $ sudo apt-get install gfortran $ sudo pip3 install scipy # for Python 3.x
     $ sudo pip install scipy # for Python 2.7 
 
@@ -169,7 +169,7 @@ plt.show()
 
 对于 Mac，请使用以下命令安装上述模块：
 
-```
+```py
 $ sudo easy_install pip
 $ sudo pip install matplotlib
 $ sudo pip install libblas-dev liblapack-dev
@@ -180,7 +180,7 @@ $ sudo pip install scipy
 
 对于 Windows，我假设 Python 2.7 已经安装在 C:\Python27\。然后打开命令提示符并键入以下命令：
 
-```
+```py
 C:\Users\admin-karim>cd C:/Python27
 C:\Python27> python -m pip install <package_name> # provide package name accordingly.
 
@@ -188,7 +188,7 @@ C:\Python27> python -m pip install <package_name> # provide package name accordi
 
 对于 Python3，请发出以下命令：
 
-```
+```py
 C:\Users\admin-karim>cd C:\Users\admin-karim\AppData\Local\Programs\Python\Python35\Scripts
 C:\Users\admin-karim\AppData\Local\Programs\Python\Python35\Scripts>python3 -m pip install <package_name>
 
@@ -250,14 +250,14 @@ TensorFlow 最新版本提供的主要功能包括：
 
 若要安装仅支持 CPU 版本的 TensorFlow，请输入以下命令：
 
-```
+```py
 C:\> pip3 install --upgrade tensorflow
 
 ```
 
 若要安装 TensorFlow 的 GPU 版本，请输入以下命令：
 
-```
+```py
 C:\> pip3 install --upgrade tensorflow-gpu
 
 ```
@@ -300,7 +300,7 @@ TensorFlow 的 GPU 支持版本有几个要求，如 64 位 Linux、Python 2.7�
 
 要检查 GPU 是否安装正确并正常工作，可以在终端中输入以下命令：
 
-```
+```py
 $ lspci -nnk | grep -i nvidia
 # Expected output (of course may vary for your case): 4b:00.0 VGA compatible controller [0300]: NVIDIA Corporation Device [10de:1b80] (rev a1)4b:00.1 Audio device [0403]: NVIDIA Corporation Device [10de:10f0] (rev a1)
 
@@ -310,7 +310,7 @@ $ lspci -nnk | grep -i nvidia
 
 只需在终端中输入以下命令即可：
 
-```
+```py
 $ sudo apt-get update
 $ sudo apt-get install libglu1-mesa libxi-dev libxmu-dev -y
 $ sudo apt-get — yes install build-essential
@@ -321,7 +321,7 @@ $ sudo apt-get install python-numpy python-scipy –y
 
 现在通过`wget`下载 NVIDIA 驱动程序（别忘了选择适合您机器的版本），并以静默模式运行脚本：
 
-```
+```py
 $ wget http://us.download.nvidia.com/XFree86/Linux-x86_64/367.44/NVIDIA-Linux-x86_64-367.44.run
 $ sudo chmod +x NVIDIA-Linux-x86_64-367.35.run
 $ ./NVIDIA-Linux-x86_64-367.35.run --silent
@@ -334,7 +334,7 @@ $ ./NVIDIA-Linux-x86_64-367.35.run --silent
 
 要确认驱动程序是否正确安装，请在终端中输入以下命令：
 
-```
+```py
 $ nvidia-smi
 
 ```
@@ -367,7 +367,7 @@ $ nvidia-smi
 
 使用`wget`命令在 Ubuntu 上下载 [`developer.nvidia.com/cuda-downloads`](https://developer.nvidia.com/cuda-downloads)：
 
-```
+```py
 $ wget https://developer.nvidia.com/compute/cuda/8.0/Prod2/local_installers/cuda_8.0.61_375.26_linux-run
 $ sudo chmod +x cuda_8.0.61_375.26_linux.run
 $ ./ cuda_8.0.61_375.26_linux.run --driver --silent
@@ -378,7 +378,7 @@ $ ./ cuda_8.0.61_375.26_linux.run --samples –silent
 
 此外，确保已将 CUDA 安装路径添加到`LD_LIBRARY_PATH`环境变量中，如下所示：
 
-```
+```py
 $ echo 'export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64"' >> ~/.bashrc
 $ echo 'export CUDA_HOME=/usr/local/cuda' >> ~/.bashrc
 $ source ~/.bashrc
@@ -389,7 +389,7 @@ $ source ~/.bashrc
 
 一旦 CUDA 工具包安装完成，您应该从 Linux 下载 cuDNN v5.1 库，并在下载后解压文件并将其复制到 CUDA 工具包目录（假定位于/usr/local/cuda/）：
 
-```
+```py
 $ cd /usr/local
 $sudo mkdir cuda
 $ cd ~/Downloads/
@@ -406,7 +406,7 @@ $ cp cuda/include/cudnn.h /usr/local/cuda/include/
 
 最后，您需要在机器上安装 libcupti-dev 库。这是 NVIDIA CUDA 提供的高级性能分析支持。要安装此库，请执行以下命令：
 
-```
+```py
 $ sudo apt-get install libcupti-dev
 
 ```
@@ -423,7 +423,7 @@ $ sudo apt-get install libcupti-dev
 
 如果步骤 1 到 6 已完成，请通过以下命令之一安装 TensorFlow。对于 Python 2.7，并且仅支持 CPU：
 
-```
+```py
 $ pip install tensorflow
 # For Python 3.x and of course with only CPU support:
 $ pip3 install tensorflow 
@@ -436,7 +436,7 @@ $ pip3 install tensorflow-gpu
 
 如果步骤 3 失败，请手动执行命令安装最新版本的 TensorFlow：
 
-```
+```py
 $ sudo pip install --upgrade TF_PYTHON_URL
 #For Python 3.x, use the following command: 
 $ sudo pip3 install --upgrade TF_PYTHON_URL 
@@ -447,7 +447,7 @@ $ sudo pip3 install --upgrade TF_PYTHON_URL
 
 例如，要安装仅支持 CPU 的最新版本（在撰写时为 v1.1.0），请使用以下命令：
 
-```
+```py
 $ sudo pip3 install --upgrade https://storage.googleapis.com/tensorflow/linux/cpu/tensorflow-1.1.0-cp34-cp34m-linux_x86_64.wh
 l
 
@@ -459,7 +459,7 @@ l
 
 1.  如下创建 virtualenv 环境：
 
-    ```
+    ```py
     $ virtualenv --system-site-packages targetDirectory
 
     ```
@@ -468,7 +468,7 @@ l
 
 1.  如下激活 virtualenv 环境：
 
-    ```
+    ```py
     $ source ~/tensorflow/bin/activate # bash, sh, ksh, or zsh
      $ source ~/tensorflow/bin/activate.csh  # csh or tcsh
 
@@ -476,7 +476,7 @@ l
 
     如果步骤 2 中的命令成功，则应在终端中看到以下内容：
 
-    ```
+    ```py
       (tensorflow)$
     ```
 
@@ -484,7 +484,7 @@ l
 
     按照以下命令之一，在激活的 virtualenv 环境中安装 TensorFlow。对于 Python 2.7，仅支持 CPU，请使用以下命令：
 
-    ```
+    ```py
      (tensorflow)$ pip install --upgrade tensorflow 
     #For Python 3.x with CPU support, use the following command: 
     (tensorflow)$ pip3 install --upgrade tensorflow 
@@ -497,7 +497,7 @@ l
 
     如果前面的命令成功，跳过步骤 5。如果前面的命令失败，请执行步骤 5。此外，如果步骤 3 失败，请尝试通过执行以下格式的命令，在激活的 virtualenv 环境中安装 TensorFlow：
 
-    ```
+    ```py
     #For python 2.7 (select appropriate URL with CPU or GPU support):
     (tensorflow)$ pip install --upgrade TF_PYTHON_URL 
     #For python 3.x (select appropriate URL with CPU or GPU support):
@@ -509,7 +509,7 @@ l
 
     要验证步骤 3 中的安装，必须激活虚拟环境。如果虚拟环境当前没有激活，请执行以下命令之一：
 
-    ```
+    ```py
     $ source ~/tensorflow/bin/activate  # bash, sh, ksh, or zsh
     $ source ~/tensorflow/bin/activate.csh  # csh or tcsh
 
@@ -519,14 +519,14 @@ l
 
     要卸载 TensorFlow，只需删除您创建的目录树。例如：
 
-    ```
+    ```py
     $ rm -r targetDirectory
 
     ```
 
     最后，如果您想手动控制哪些设备对 TensorFlow 可见，您应该设置`CUDA_VISIBLE_DEVICES`。例如，以下命令可强制仅使用 GPU 0：
 
-    ```
+    ```py
     $ CUDA_VISIBLE_DEVICES=0 python
 
     ```
@@ -541,14 +541,14 @@ l
 
 首先，按以下方式克隆整个 TensorFlow 存储库：
 
-```
+```py
 $git clone --recurse-submodules https://github.com/tensorflow/tensorflow
 
 ```
 
 然后是安装 Bazel 的时候了，这是一个自动化软件构建和测试的工具。此外，为了从源代码构建 TensorFlow，必须在您的机器上安装 Bazel 构建系统。为此，请执行以下命令：
 
-```
+```py
 $ sudo apt-get install software-properties-common swig
 $ sudo add-apt-repository ppa:webupd8team/java
 $ sudo apt-get update $ sudo apt-get install oracle-java8-installer
@@ -561,7 +561,7 @@ $ sudo apt-get install bazel
 
 然后运行 Bazel 安装程序，执行以下命令：
 
-```
+```py
 $ chmod +x bazel-version-installer-os.sh
 $ ./bazel-version-installer-os.sh –-user
 
@@ -569,21 +569,21 @@ $ ./bazel-version-installer-os.sh –-user
 
 此外，您可能需要一些 Python 依赖项，例如`python-numpy`、`swig`和`python-dev`。现在，执行以下命令来安装它们：
 
-```
+```py
 $ sudo apt-get install python-numpy swig python-dev
 
 ```
 
 现在是时候配置安装（GPU 或 CPU）了。通过执行以下命令来完成：
 
-```
+```py
 $ ./configure
 
 ```
 
 然后使用`bazel`创建您的 TensorFlow 包：
 
-```
+```py
 $ bazel build -c opt //tensorflow/tools/pip_package:
 $ build_pip_package
 
@@ -591,7 +591,7 @@ $ build_pip_package
 
 然而，要构建支持 GPU 的版本，请执行以下命令：
 
-```
+```py
 $ bazel build -c opt --config=cuda //tensorflow/tools/pip_package:build_pip_package
 
 ```
@@ -600,14 +600,14 @@ $ bazel build -c opt --config=cuda //tensorflow/tools/pip_package:build_pip_pack
 
 +   对于 Python 2.7：
 
-    ```
+    ```py
     $ sudo pip install --upgrade /tmp/tensorflow_pkg/tensorflow-1.1.0-*.whl
 
     ```
 
 +   对于 Python 3.4：
 
-    ```
+    ```py
     $ sudo pip3 install --upgrade /tmp/tensorflow_pkg/tensorflow-1.1.0-*.whl
 
     ```
@@ -616,26 +616,26 @@ $ bazel build -c opt --config=cuda //tensorflow/tools/pip_package:build_pip_pack
 
 我们从流行的 TensorFlow 别名`tf`开始。打开一个 Python 终端（只需在终端上键入`python`或`python3`）并执行以下代码：
 
-```
+```py
 >>> import tensorflow as tf
 ```
 
 如果您喜欢的 Python 解释器没有投诉，那么您已经准备好开始使用 TensorFlow 了！
 
-```
+```py
 >>> hello = tf.constant("Hello, TensorFlow!")
 >>> sess=tf.Session()
 ```
 
 现在验证您的安装，只需输入以下命令：
 
-```
+```py
 >>> print sess.run(hello)
 ```
 
 如果安装成功，您将看到以下输出：
 
-```
+```py
 Hello, TensorFlow!
 ```
 
@@ -711,7 +711,7 @@ TensorFlow 编程模型表示如何构建你的预测模型。一旦导入了 Te
 
 这些主要步骤定义了 TensorFlow 中的编程模型。考虑以下示例，我们要乘两个数字：
 
-```
+```py
 import tensorflow as tf
 x = tf.constant(8)
 y = tf.constant(9)
@@ -730,7 +730,7 @@ sess.close()print('The multiplicaiton of x and y: %d' % out_z)
 
 为了提高前面程序的效率，TensorFlow 还允许你通过占位符（稍后讨论）在图变量中交换数据。现在，假设以下代码段以更高效的方式执行相同的操作：
 
-```
+```py
 # Import tensorflow
 import tensorflow as tf
 # Build a graph and create session passing the graph:
@@ -753,7 +753,7 @@ TensorFlow 不是为了乘两个数而必需的；此外，这个简单操作的
 
 第一行中的这个单一导入帮助你导入 TensorFlow，之后可以使用 `tf` 来实例化它。然后，`TensorFlow` 运算符将通过 `tf` 和点符号 '.' 来表达，并通过运算符的名称来使用。接下来的行中，我们通过 `tf.Session()` 指令来构造对象 `session`：
 
-```
+```py
 with tf.Session() as sess:
 ```
 
@@ -765,7 +765,7 @@ with tf.Session() as sess:
 
 以下两行定义了变量 x 和 y，使用了占位符的概念。通过占位符，你可以定义输入（例如我们示例中的变量 x）和输出变量（例如变量 y）：
 
-```
+```py
 x = tf.placeholder(tf.float32, name='x')
 y = tf.placeholder(tf.float32, name='y')
 ```
@@ -788,25 +788,25 @@ y = tf.placeholder(tf.float32, name='y')
 
 以下语句在会话内部构建了`x`与`y`的乘积数据结构，并将操作结果赋值给占位符`z`。接下来是这样的：
 
-```
+```py
   z = tf.multiply(x, y)
 ```
 
 现在，由于结果已经由占位符`z`持有，我们通过` sess.run`语句执行计算图。这里我们提供两个值，将张量传入计算图节点。它暂时用张量值替换操作的输出（更多内容将在接下来的章节中介绍）：
 
-```
+```py
 z_output = sess.run(z,feed_dict={x: 8, y:9})
 ```
 
 然后当我们完成时，关闭 TensorFlow 会话：
 
-```
+```py
 sess.close()
 ```
 
 在最后的指令中，我们打印出结果：
 
-```
+```py
      print(z_output)
 ```
 
@@ -844,7 +844,7 @@ TensorFlow 中的数据模型由**张量**表示。无需使用复杂的数学�
 
 现在让我们看看另一种创建张量的方式，在它们可以被 TensorFlow 图形接收之前（我们稍后会看到其他接收机制）：
 
-```
+```py
 >>> X = [[2.0, 4.0],
         [6.0, 8.0]]
 >>> Y = np.array([[2.0, 4.0],
@@ -855,7 +855,7 @@ TensorFlow 中的数据模型由**张量**表示。无需使用复杂的数学�
 
 这里，`X` 是一个列表，`Y` 是来自 NumPy 库的 n 维数组，而 `Z` 本身是 TensorFlow 的张量对象。现在让我们来看它们的类型：
 
-```
+```py
 >>> print(type(X))
 >>> print(type(Y))
 >>> print(type(Z))
@@ -867,13 +867,13 @@ TensorFlow 中的数据模型由**张量**表示。无需使用复杂的数学�
 
 好的，它们的类型已经正确打印。然而，当我们正式处理张量时，相比其他类型，更方便的函数是 `tf.convert_to_tensor()`，如下所示：
 
-```
+```py
 t1 = tf.convert_to_tensor(X, dtype=tf.float32)t2 = tf.convert_to_tensor(Z, dtype=tf.float32)t3 = tf.convert_to_tensor(Z, dtype=tf.float32)
 ```
 
 现在让我们通过以下几行代码来看它们的类型：
 
-```
+```py
 >>> print(type(t1))
 >>> print(type(t2))
 >>> print(type(t3))
@@ -889,7 +889,7 @@ t1 = tf.convert_to_tensor(X, dtype=tf.float32)t2 = tf.convert_to_tensor(Z, dtype
 
 每个张量由一个叫做秩的维度单位来描述。它标识了张量的维度数，因此，秩也称为张量的阶数或 n 维度。秩为零的张量是标量，秩为一的张量是向量，而秩为二的张量是矩阵。以下代码定义了一个 TensorFlow 标量，一个 `向量`，一个 `矩阵`，以及一个 `立方矩阵`，在下一个例子中，我们将展示秩是如何工作的：
 
-```
+```py
 import tensorflow as tf
 scalar = tf.constant(100)
 vector = tf.constant([1,2,3,4,5])
@@ -903,7 +903,7 @@ print(cube_matrix.get_shape())
 
 结果打印如下：
 
-```
+```py
 >>>
 ()
 (5,)
@@ -916,7 +916,7 @@ print(cube_matrix.get_shape())
 
 张量的形状是它拥有的行数和列数。现在我们将看到如何将形状与张量的秩关联起来：
 
-```
+```py
 >>scalar1.get_shape()
 TensorShape([])
 >>vector1.get_shape()
@@ -935,7 +935,7 @@ TensorShape([Dimension(3), Dimension(3), Dimension(1)])
 
 我们认为前面的表格不言自明，因此没有详细讨论前述数据类型。现在，TensorFlow APIs 已经实现了管理数据 **到** 和 **从** NumPy 数组的功能。因此，要构建具有常量值的张量，只需将 NumPy 数组传递给 `tf.constant()` 运算符，结果将是一个包含该值的 TensorFlow 张量：
 
-```
+```py
 import tensorflow as tf
 import numpy as np
 tensor_1d = np.array([1,2,3,4,5,6,7,8,9,10])
@@ -949,7 +949,7 @@ sess.close()
 
 运行示例后，我们得到：
 
-```
+```py
 >>>
  (10,)
  [ 1  2  3  4  5  6  7  8  9 10]
@@ -957,7 +957,7 @@ sess.close()
 
 要构建具有变量值的张量，使用一个 `NumPy` 数组并将其传递给 `tf.Variable` 构造函数，结果将是一个具有该初始值的 TensorFlow 变量张量：
 
-```
+```py
 import tensorflow as tf
 import numpy as np
 tensor_2d = np.array([(1,2,3),(4,5,6),(7,8,9)])
@@ -972,7 +972,7 @@ sess.close()
 
 结果是：
 
-```
+```py
 >>>
  (3, 3)
  [[1 2 3]
@@ -982,7 +982,7 @@ sess.close()
 
 为了方便在交互式 Python 环境中使用，我们可以使用 `InteractiveSession` 类，然后用该会话执行所有 `Tensor.eval()` 和 `Operation.run()` 调用：
 
-```
+```py
 import tensorflow as tf
 import numpy as np
 
@@ -1000,7 +1000,7 @@ interactive_session.close()
 
 结果是：
 
-```
+```py
 >>>
    [1 2 3 4 5]
 ```
@@ -1013,7 +1013,7 @@ IPython Notebook 现在被称为 Jupyter Notebook。它是一个交互式计算�
 
 定义张量的另一种方法是使用 TensorFlow 语句 `tf.convert_to_tensor`：
 
-```
+```py
 import tensorflow as tf
 import numpy as np
 tensor_3d = np.array([[[0, 1, 2], [3, 4, 5], [6, 7, 8]],
@@ -1042,19 +1042,19 @@ sess.close()
 
 变量是 TensorFlow 对象，用于保存和更新参数。变量必须初始化；你还可以保存并恢复它以便分析代码。变量是通过使用 `tf.Variable()` 语句创建的。在以下示例中，我们想要计算从 1 到 10 的数字，但我们先导入 TensorFlow：
 
-```
+```py
 import tensorflow as tf
 ```
 
 我们创建了一个变量，并将其初始化为标量值 `0`：
 
-```
+```py
 value = tf.Variable(0, name="value")
 ```
 
 `assign()` 和 `add()` 运算符只是计算图的节点，因此它们不会在会话运行之前执行赋值操作：
 
-```
+```py
 one = tf.constant(1)
 new_value = tf.add(value, one)
 update_value = tf.assign(value, new_value)
@@ -1063,7 +1063,7 @@ initialize_var = tf.global_variables_initializer()
 
 我们可以实例化计算图：
 
-```
+```py
 with tf.Session() as sess:
     sess.run(initialize_var)
     print(sess.run(value))
@@ -1076,7 +1076,7 @@ sess.close()
 
 让我们回顾一下，张量对象是对操作结果的符号句柄，但它并不实际保存操作输出的值：
 
-```
+```py
 >>>
 0
 1
@@ -1090,7 +1090,7 @@ sess.close()
 
 要获取操作的输出，通过在会话对象上调用 `run()` 并传入要检索的张量来执行图。除了获取单个张量节点外，你还可以获取多个张量。在以下示例中，我们一起获取了求和和乘法张量，使用 `run()` 调用：
 
-```
+```py
 import tensorflow as tf
 
 constant_A = tf.constant([100.0])
@@ -1110,7 +1110,7 @@ sess.close()
 
 输出如下：
 
-```
+```py
 >>>
 [array(400.],dtype=float32),array([ 300.],dtype=float32)]
 ```
@@ -1139,7 +1139,7 @@ sess.close()
 
 以下示例演示了如何馈送数据以构建一个随机的 2×3 矩阵：
 
-```
+```py
 import tensorflow as tf
 import numpy as np
 
@@ -1158,7 +1158,7 @@ sess.close()
 
 输出是：
 
-```
+```py
 >>>
 [[ 1.78602004  1.64606333]
  [ 1.03966308  0.99269408]
@@ -1192,7 +1192,7 @@ TensorBoard 的主要思想是将所谓的摘要与计算图的节点（操作�
 
 如果你在终端中输入`$ which tensorboard`，如果你是通过`pip`安装的，它应该会显示：
 
-```
+```py
 asif@ubuntu:~$ which tensorboard
 /usr/local/bin/tensorboard
 
@@ -1200,14 +1200,14 @@ asif@ubuntu:~$ which tensorboard
 
 你需要提供一个日志目录，所以确保你在运行计算图的目录下；你可以在终端使用类似以下命令来启动它：
 
-```
+```py
 tensorboard --logdir .
 
 ```
 
 然后打开你喜欢的网页浏览器，输入`localhost:6006`进行连接。当 TensorBoard 完全配置好后，你可以通过执行以下命令来访问它：
 
-```
+```py
 $ tensorboard –logdir=<trace_file_name>
 
 ```
@@ -1230,7 +1230,7 @@ $ tensorboard –logdir=<trace_file_name>
 
 现在，为了更好地理解前面的方程，我将编写一个简单的 Python 程序来创建二维空间中的数据。然后，我将使用 TensorFlow 寻找最适合这些数据点的直线：
 
-```
+```py
 # Import libraries (Numpy, matplotlib)
 import numpy as np
 import matplotlib.pyplot as plot
@@ -1280,7 +1280,7 @@ plt.show()
 
 在我们的例子中，代价函数是均方误差，它有助于基于每次迭代中真实数据点和估计数据点之间的距离函数，找到误差的平均值。我们首先导入 TensorFlow 库：
 
-```
+```py
 import tensorflow as tf
 W = tf.Variable(tf.random_uniform([1], -1.0, 1.0))
 b = tf.Variable(tf.zeros([1]))
@@ -1289,20 +1289,20 @@ y = W * x_data + b
 
 在前面的代码段中，我们使用不同的策略生成一个随机点，并将其存储在变量 W 中。现在我们来定义一个损失函数**loss=mean [(y−y_data) 2]**，它返回一个标量值，表示我们数据与模型预测之间所有距离的均值。按照 TensorFlow 的约定，损失函数可以表示如下：
 
-```
+```py
 loss = tf.reduce_mean(tf.square(y - y_data))
 ```
 
 不深入讨论，我们可以使用一些广泛使用的优化算法，例如梯度下降。在最基本的层面，梯度下降是一种算法，它在一组已有的参数上工作。它从一组初始参数值开始，通过迭代逐步朝着一组最小化函数的值前进，并采用另一个参数称为学习率。这个迭代最小化是通过沿着函数的负方向（称为梯度）进行步进来实现的。
 
-```
+```py
 optimizer = tf.train.GradientDescentOptimizer(0.6)
 train = optimizer.minimize(loss)
 ```
 
 在运行这个优化函数之前，我们需要初始化到目前为止所有的变量。让我们按照 TensorFlow 的约定进行初始化，如下所示：
 
-```
+```py
 init = tf.global_variables_initializer()
 sess = tf.Session()
 sess.run(init)
@@ -1310,7 +1310,7 @@ sess.run(init)
 
 由于我们已经创建了一个 TensorFlow 会话，我们已经准备好进行迭代过程，帮助我们找到`W`和`b`的最优值：
 
-```
+```py
 for i in range(16):
   sess.run(train)
   print(i, sess.run(W), sess.run(b), sess.run(loss))
@@ -1318,7 +1318,7 @@ for i in range(16):
 
 你应该看到以下输出：
 
-```
+```py
 >>>
 0 [ 0.18418592] [ 0.47198644] 0.0152888
 1 [ 0.08373772] [ 0.38146532] 0.00311204
@@ -1340,7 +1340,7 @@ for i in range(16):
 
 现在，让我们将迭代次数增加到第 16 次：
 
-```
+```py
 >>>
 0 [ 0.23306453] [ 0.47967502] 0.0259004
 1 [ 0.08183448] [ 0.38200468] 0.00311023
@@ -1366,7 +1366,7 @@ for i in range(16):
 
 现在，我们需要对前面的代码进行以下更改。不过，使用`tf.name_scope()`函数将相关节点分组是一种好习惯。因此，我们可以使用`tf.name_scope()`来组织 TensorBoard 图形视图中的内容，但我们为它起个更合适的名字：
 
-```
+```py
 with tf.name_scope("LinearRegression") as scope:
    W = tf.Variable(tf.random_uniform([1], -1.0, 1.0), name="Weights")
    b = tf.Variable(tf.zeros([1]))y = W * x_data + b
@@ -1374,14 +1374,14 @@ with tf.name_scope("LinearRegression") as scope:
 
 接着，我们以类似的方式注释损失函数，但要给它起个合适的名字，如`LossFunction`：
 
-```
+```py
 with tf.name_scope("LossFunction") as scope:
   loss = tf.reduce_mean(tf.square(y - y_data))
 ```
 
 让我们注释 TensorBoard 所需的损失、权重和偏差：
 
-```
+```py
 loss_summary = tf.summary.scalar("loss", loss)
 w_ = tf.summary.histogram("W", W)
 b_ = tf.summary.histogram("b", b)
@@ -1389,26 +1389,26 @@ b_ = tf.summary.histogram("b", b)
 
 好了，一旦你注释了图形，接下来就该通过合并它们来配置汇总：
 
-```
+```py
 merged_op = tf.summary.merge_all()
 ```
 
 现在，在运行训练之前（初始化后），使用`tf.summary.FileWriter()` API 来编写汇总信息，如下所示：
 
-```
+```py
 writer_tensorboard = tf.summary.FileWriter('/home/asif/LR/', sess.graph_def)
 ```
 
 然后按如下方式启动 TensorBoard：
 
-```
+```py
 $ tensorboard –logdir=<trace_file_name>
 
 ```
 
 在我们的例子中，它可能是如下所示：
 
-```
+```py
 $ tensorboard --logdir=/home/asif/LR/
 
 ```
@@ -1423,7 +1423,7 @@ $ tensorboard --logdir=/home/asif/LR/
 
 我们报告了之前描述的示例的完整源代码：
 
-```
+```py
 # Import libraries (Numpy, Tensorflow, matplotlib)
 import numpy as np
 import matplotlib.pyplot as plot
@@ -1499,7 +1499,7 @@ sess.close()
 
 Ubuntu 可能会提示你安装 python-tk 包。你可以通过在 Ubuntu 上执行以下命令来安装：
 
-```
+```py
 $ sudo apt-get install python-tk
 # For Python 3.x, use the following
 $ sudo apt-get install python3-tk

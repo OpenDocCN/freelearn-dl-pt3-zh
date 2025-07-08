@@ -44,7 +44,7 @@
 
 我们将使用`OpenCV`，一个著名的计算机视觉库，来创建一个马赛克，以便我们能够将原始图像与自编码器重建的图像进行对比。你可以通过`pip`轻松安装`OpenCV`：
 
-```
+```py
 $> pip install opencv-contrib-python
 ```
 
@@ -56,7 +56,7 @@ $> pip install opencv-contrib-python
 
 1.  导入必要的包来实现全连接自编码器：
 
-    ```
+    ```py
     import cv2
     import numpy as np
     from tensorflow.keras import Model
@@ -66,7 +66,7 @@ $> pip install opencv-contrib-python
 
 1.  定义一个函数来构建自编码器的架构。默认情况下，编码或潜在向量的维度是*128*，但*16*、*32*和*64*也是不错的选择：
 
-    ```
+    ```py
     def build_autoencoder(input_shape=784, encoding_dim=128):
         input_layer = Input(shape=(input_shape,))
         encoded = Dense(units=512)(input_layer)
@@ -86,7 +86,7 @@ $> pip install opencv-contrib-python
 
 1.  定义一个函数，用于将一组常规图像与其原始对应图像进行对比绘制，以便直观评估自编码器的性能：
 
-    ```
+    ```py
     def plot_original_vs_generated(original, generated):
         num_images = 15
         sample = np.random.randint(0, len(original), 
@@ -95,7 +95,7 @@ $> pip install opencv-contrib-python
 
 1.  前一个代码块选择了 15 个随机索引，我们将用它们从`original`和`generated`批次中挑选相同的样本图像。接下来，定义一个内部函数，这样我们就可以将 15 张图像按 3x5 网格排列：
 
-    ```
+    ```py
         def stack(data):
             images = data[sample]
             return np.vstack([np.hstack(images[:5]),
@@ -105,7 +105,7 @@ $> pip install opencv-contrib-python
 
 1.  现在，定义另一个内部函数，以便我们可以在图像上添加文字。这将有助于区分生成的图像和原始图像，稍后我们将看到如何操作：
 
-    ```
+    ```py
         def add_text(image, text, position):
             pt1 = position
             pt2 = (pt1[0] + 10 + (len(text) * 22),
@@ -125,7 +125,7 @@ $> pip install opencv-contrib-python
 
 1.  完成该函数，通过从原始和生成的图像组中选择相同的图像。然后，将这两组图像堆叠在一起形成马赛克，调整其大小为 860x860，使用`add_text()`在马赛克中标注原始图像和生成图像，并显示结果：
 
-    ```
+    ```py
         original = stack(original)
         generated = stack(generated)
         mosaic = np.vstack([original,
@@ -141,34 +141,34 @@ $> pip install opencv-contrib-python
 
 1.  下载（或加载缓存的）`Fashion-MNIST`。由于这不是一个分类问题，我们只保留图像，而不保留标签：
 
-    ```
+    ```py
     (X_train, _), (X_test, _) = fashion_mnist.load_data()
     ```
 
 1.  对图像进行归一化：
 
-    ```
+    ```py
     X_train = X_train.astype('float32') / 255.0
     X_test = X_test.astype('float32') / 255.0
     ```
 
 1.  将图像重塑为向量：
 
-    ```
+    ```py
     X_train = X_train.reshape((X_train.shape[0], -1))
     X_test = X_test.reshape((X_test.shape[0], -1))
     ```
 
 1.  构建自编码器并进行编译。我们将使用`'adam'`作为优化器，均方误差（`'mse'`）作为损失函数。为什么？我们不关心分类是否正确，而是尽可能准确地重建输入，这意味着要最小化总体误差：
 
-    ```
+    ```py
     autoencoder = build_autoencoder()
     autoencoder.compile(optimizer='adam', loss='mse')
     ```
 
 1.  在 300 个 epoch 上拟合自编码器，这是一个足够大的数字，能够让网络学习到输入的良好表示。为了加快训练过程，我们每次传入`1024`个向量的批次（可以根据硬件能力自由调整批次大小）。请注意，输入特征也是标签或目标：
 
-    ```
+    ```py
     EPOCHS = 300
     BATCH_SIZE = 1024
     autoencoder.fit(X_train, X_train,
@@ -180,13 +180,13 @@ $> pip install opencv-contrib-python
 
 1.  对测试集进行预测（基本上就是生成测试向量的副本）：
 
-    ```
+    ```py
     predictions = autoencoder.predict(X_test)
     ```
 
 1.  将预测值和测试向量重新调整为 28x28x1 尺寸的灰度图像：
 
-    ```
+    ```py
     original_shape = (X_test.shape[0], 28, 28)
     predictions = predictions.reshape(original_shape)
     X_test = X_test.reshape(original_shape)
@@ -194,7 +194,7 @@ $> pip install opencv-contrib-python
 
 1.  生成原始图像与自编码器生成图像的对比图：
 
-    ```
+    ```py
     plot_original_vs_generated(X_test, predictions)
     ```
 
@@ -232,7 +232,7 @@ $> pip install opencv-contrib-python
 
 因为 TensorFlow 提供了方便的函数来下载 `Fashion-MNIST`，所以我们不需要在数据端做任何手动准备。然而，我们必须安装 `OpenCV`，以便我们可以可视化自编码器的输出。可以使用以下命令来完成：
 
-```
+```py
 $> pip install opencv-contrib-python
 ```
 
@@ -244,7 +244,7 @@ $> pip install opencv-contrib-python
 
 1.  让我们导入必要的依赖：
 
-    ```
+    ```py
     import cv2
     import numpy as np
     from tensorflow.keras import Model
@@ -254,7 +254,7 @@ $> pip install opencv-contrib-python
 
 1.  定义`build_autoencoder()`函数，该函数内部构建自编码器架构，并返回编码器、解码器以及自编码器本身。首先定义输入层和第一组 32 个卷积过滤器：
 
-    ```
+    ```py
     def build_autoencoder(input_shape=(28, 28, 1),
                           encoding_size=32,
                           alpha=0.2):
@@ -269,7 +269,7 @@ $> pip install opencv-contrib-python
 
     定义第二组卷积层（这次是 64 个卷积核）：
 
-    ```
+    ```py
         encoder = Conv2D(filters=64,
                          kernel_size=(3, 3),
                          strides=2,
@@ -280,7 +280,7 @@ $> pip install opencv-contrib-python
 
     定义编码器的输出层：
 
-    ```
+    ```py
         encoder_output_shape = encoder.shape
         encoder = Flatten()(encoder)
         encoder_output = Dense(units=encoding_size)(encoder)
@@ -289,7 +289,7 @@ $> pip install opencv-contrib-python
 
 1.  在*步骤 2*中，我们定义了编码器模型，这是一个常规的卷积神经网络。下一块代码定义了解码器模型，从输入和 64 个反卷积过滤器开始：
 
-    ```
+    ```py
         decoder_input = Input(shape=(encoding_size,))
         target_shape = tuple(encoder_output_shape[1:])
         decoder = Dense(np.prod(target_shape))(decoder_input)
@@ -304,7 +304,7 @@ $> pip install opencv-contrib-python
 
     定义第二组反卷积层（这次是 32 个卷积核）：
 
-    ```
+    ```py
         decoder = Conv2DTranspose(filters=32,
                                   kernel_size=(3, 3),
                                   strides=2,
@@ -315,7 +315,7 @@ $> pip install opencv-contrib-python
 
     定义解码器的输出层：
 
-    ```
+    ```py
         decoder = Conv2DTranspose(filters=1,
                                   kernel_size=(3, 3),
                                   padding='same')(decoder)
@@ -325,7 +325,7 @@ $> pip install opencv-contrib-python
 
 1.  解码器使用`Conv2DTranspose`层，该层将输入扩展以生成更大的输出体积。注意，我们进入解码器的层数越多，`Conv2DTranspose`层使用的过滤器就越少。最后，定义自编码器：
 
-    ```
+    ```py
         encoder_model_output = encoder_model(inputs)
         decoder_model_output = 
            decoder_model(encoder_model_output)
@@ -338,7 +338,7 @@ $> pip install opencv-contrib-python
 
 1.  定义一个函数，将一般图像样本与其原始图像进行对比绘制。这将帮助我们直观评估自编码器的性能。（这是我们在前一个示例中定义的相同函数。有关更完整的解释，请参考本章的*创建简单的全连接自编码器*一节。）请看以下代码：
 
-    ```
+    ```py
     def plot_original_vs_generated(original, generated):
         num_images = 15
         sample = np.random.randint(0, len(original), 
@@ -347,7 +347,7 @@ $> pip install opencv-contrib-python
 
 1.  定义一个内部辅助函数，用于将图像样本堆叠成一个 3x5 的网格：
 
-    ```
+    ```py
         def stack(data):
             images = data[sample]
             return np.vstack([np.hstack(images[:5]),
@@ -357,7 +357,7 @@ $> pip install opencv-contrib-python
 
 1.  接下来，定义一个函数，将文本放置到图像的指定位置：
 
-    ```
+    ```py
     def add_text(image, text, position):
             pt1 = position
             pt2 = (pt1[0] + 10 + (len(text) * 22),
@@ -377,7 +377,7 @@ $> pip install opencv-contrib-python
 
 1.  最后，创建一个包含原始图像和生成图像的马赛克：
 
-    ```
+    ```py
         original = stack(original)
         generated = stack(generated)
         mosaic = np.vstack([original,
@@ -393,13 +393,13 @@ $> pip install opencv-contrib-python
 
 1.  下载（或加载，如果已缓存）`Fashion-MNIST`。我们只关心图像，因此可以丢弃标签：
 
-    ```
+    ```py
     (X_train, _), (X_test, _) = fashion_mnist.load_data()
     ```
 
 1.  对图像进行归一化并添加通道维度：
 
-    ```
+    ```py
     X_train = X_train.astype('float32') / 255.0
     X_test = X_test.astype('float32') / 255.0
     X_train = np.expand_dims(X_train, axis=-1)
@@ -408,14 +408,14 @@ $> pip install opencv-contrib-python
 
 1.  这里，我们只关心自编码器，因此会忽略`build_autoencoder()`函数的其他两个返回值。然而，在不同的情况下，我们可能需要保留它们。我们将使用`'adam'`优化器训练模型，并使用`'mse'`作为损失函数，因为我们希望减少误差，而不是优化分类准确性：
 
-    ```
+    ```py
     _, _, autoencoder = build_autoencoder(encoding_size=256)
     autoencoder.compile(optimizer='adam', loss='mse')
     ```
 
 1.  在 300 个训练周期中训练自编码器，每次批处理 512 张图像。注意，输入图像也是标签：
 
-    ```
+    ```py
     EPOCHS = 300
     BATCH_SIZE = 512
     autoencoder.fit(X_train, X_train,
@@ -428,13 +428,13 @@ $> pip install opencv-contrib-python
 
 1.  复制测试集：
 
-    ```
+    ```py
     predictions = autoencoder.predict(X_test)
     ```
 
 1.  将预测结果和测试图像的形状调整回 28x28（无通道维度）：
 
-    ```
+    ```py
     original_shape = (X_test.shape[0], 28, 28)
     predictions = predictions.reshape(original_shape)
     X_test = X_test.reshape(original_shape)
@@ -444,7 +444,7 @@ $> pip install opencv-contrib-python
 
 1.  生成原始图像与自编码器输出的复制图像的对比马赛克：
 
-    ```
+    ```py
     plot_original_vs_generated(X_test, predictions)
     ```
 
@@ -484,7 +484,7 @@ $> pip install opencv-contrib-python
 
 `Fashion-MNIST`可以通过 TensorFlow 提供的便利函数轻松访问，因此我们不需要手动下载数据集。另一方面，因为我们将使用`OpenCV`来创建一些可视化效果，所以我们必须安装它，方法如下：
 
-```
+```py
 $> pip install opencv-contrib-python
 ```
 
@@ -496,7 +496,7 @@ $> pip install opencv-contrib-python
 
 1.  导入所需的包：
 
-    ```
+    ```py
     import cv2
     import numpy as np
     from tensorflow.keras import Model
@@ -506,7 +506,7 @@ $> pip install opencv-contrib-python
 
 1.  定义`build_autoencoder()`函数，它创建相应的神经网络架构。请注意，这是我们在前一个教程中实现的相同架构；因此，我们在这里不再详细讲解。有关详细解释，请参见*创建卷积自编码器*教程：
 
-    ```
+    ```py
     def build_autoencoder(input_shape=(28, 28, 1),
                           encoding_size=128,
                           alpha=0.2):
@@ -532,7 +532,7 @@ $> pip install opencv-contrib-python
 
 1.  现在我们已经创建了编码器模型，接下来创建解码器：
 
-    ```
+    ```py
         decoder_input = Input(shape=(encoding_size,))
         target_shape = tuple(encoder_output_shape[1:])
         decoder = 
@@ -559,7 +559,7 @@ $> pip install opencv-contrib-python
 
 1.  最后，定义自编码器本身并返回三个模型：
 
-    ```
+    ```py
         encoder_model_output = encoder_model(inputs)
         decoder_model_output = 
         decoder_model(encoder_model_output)
@@ -570,7 +570,7 @@ $> pip install opencv-contrib-python
 
 1.  定义 `plot_original_vs_generated()` 函数，该函数创建原始图像与生成图像的比较拼图。我们稍后将使用此函数来显示噪声图像及其恢复后的图像。与 `build_autoencoder()` 类似，该函数的工作方式与我们在*创建一个简单的全连接自编码器*食谱中定义的相同，因此如果您需要详细解释，请查阅该食谱：
 
-    ```
+    ```py
     def plot_original_vs_generated(original, generated):
         num_images = 15
         sample = np.random.randint(0, len(original), 
@@ -579,7 +579,7 @@ $> pip install opencv-contrib-python
 
 1.  定义一个内部辅助函数，将一组图像按 3x5 网格堆叠：
 
-    ```
+    ```py
         def stack(data):
             images = data[sample]
             return np.vstack([np.hstack(images[:5]),
@@ -589,7 +589,7 @@ $> pip install opencv-contrib-python
 
 1.  定义一个函数，将自定义文本放置在图像上的特定位置：
 
-    ```
+    ```py
     def add_text(image, text, position):
             pt1 = position
             pt2 = (pt1[0] + 10 + (len(text) * 22),
@@ -609,7 +609,7 @@ $> pip install opencv-contrib-python
 
 1.  创建包含原始图像和生成图像的拼图，标记每个子网格并显示结果：
 
-    ```
+    ```py
         original = stack(original)
         generated = stack(generated)
         mosaic = np.vstack([original,
@@ -625,13 +625,13 @@ $> pip install opencv-contrib-python
 
 1.  使用 TensorFlow 的便捷函数加载 `Fashion-MNIST`。我们将只保留图像，因为标签不需要：
 
-    ```
+    ```py
     (X_train, _), (X_test, _) = fashion_mnist.load_data()
     ```
 
 1.  对图像进行归一化，并使用 `np.expand_dims()` 为其添加单一颜色通道：
 
-    ```
+    ```py
     X_train = X_train.astype('float32') / 255.0
     X_test = X_test.astype('float32') / 255.0
     X_train = np.expand_dims(X_train, axis=-1)
@@ -640,7 +640,7 @@ $> pip install opencv-contrib-python
 
 1.  生成两个与 `X_train` 和 `X_test` 相同维度的张量。它们将对应于随机的 `0.5`：
 
-    ```
+    ```py
     train_noise = np.random.normal(loc=0.5, scale=0.5,
                                    size=X_train.shape)
     test_noise = np.random.normal(loc=0.5, scale=0.5,
@@ -649,21 +649,21 @@ $> pip install opencv-contrib-python
 
 1.  通过分别向 `X_train` 和 `X_test` 添加 `train_noise` 和 `test_noise` 来故意损坏这两个数据集。确保使用 `np.clip()` 将值保持在 `0` 和 `1` 之间：
 
-    ```
+    ```py
     X_train_noisy = np.clip(X_train + train_noise, 0, 1)
     X_test_noisy = np.clip(X_test + test_noise, 0, 1)
     ```
 
 1.  创建自编码器并编译它。我们将使用`'adam'`作为优化器，`'mse'`作为损失函数，因为我们更关心减少误差，而不是提高准确率：
 
-    ```
+    ```py
     _, _, autoencoder = build_autoencoder(encoding_size=128)
     autoencoder.compile(optimizer='adam', loss='mse')
     ```
 
 1.  将模型训练 `300` 个周期，每次批量处理 `1024` 张噪声图像。注意，特征是噪声图像，而标签或目标是原始图像，即未经损坏的图像：
 
-    ```
+    ```py
     EPOCHS = 300
     BATCH_SIZE = 1024
     autoencoder.fit(X_train_noisy, X_train,
@@ -675,7 +675,7 @@ $> pip install opencv-contrib-python
 
 1.  使用训练好的模型进行预测。将噪声图像和生成图像都重新调整为 28x28，并将它们缩放到[0, 255]范围内：
 
-    ```
+    ```py
     predictions = autoencoder.predict(X_test)
     original_shape = (X_test_noisy.shape[0], 28, 28)
     predictions = predictions.reshape(original_shape)
@@ -686,7 +686,7 @@ $> pip install opencv-contrib-python
 
 1.  最后，显示噪声图像与恢复图像的拼图：
 
-    ```
+    ```py
     plot_original_vs_generated(X_test_noisy, predictions)
     ```
 
@@ -720,7 +720,7 @@ $> pip install opencv-contrib-python
 
 要安装`OpenCV`，请使用以下`pip`命令：
 
-```
+```py
 $> pip install opencv-contrib-python
 ```
 
@@ -732,7 +732,7 @@ $> pip install opencv-contrib-python
 
 1.  导入所需的包：
 
-    ```
+    ```py
     import cv2
     import numpy as np
     from sklearn.model_selection import train_test_split
@@ -743,14 +743,14 @@ $> pip install opencv-contrib-python
 
 1.  设置随机种子以保证可重复性：
 
-    ```
+    ```py
     SEED = 84
     np.random.seed(SEED)
     ```
 
 1.  定义一个函数来构建自编码器架构。这个函数遵循我们在*创建卷积自编码器*教程中学习的结构，如果你想了解更深入的解释，请回到那个教程。让我们从创建编码器模型开始：
 
-    ```
+    ```py
     def build_autoencoder(input_shape=(28, 28, 1),
                           encoding_size=96,
                           alpha=0.2):
@@ -775,7 +775,7 @@ $> pip install opencv-contrib-python
 
 1.  接下来，构建解码器：
 
-    ```
+    ```py
         decoder_input = Input(shape=(encoding_size,))
         target_shape = tuple(encoder_output_shape[1:])
         decoder = Dense(np.prod(target_shape))(decoder_input)
@@ -801,7 +801,7 @@ $> pip install opencv-contrib-python
 
 1.  最后，构建自编码器并返回三个模型：
 
-    ```
+    ```py
         encoder_model_output = encoder_model(inputs)
         decoder_model_output = 
         decoder_model(encoder_model_output)
@@ -812,7 +812,7 @@ $> pip install opencv-contrib-python
 
 1.  然后，定义一个函数来构建一个包含两个类别的数据集，其中一个类别表示异常或离群点。首先选择与这两个类别相关的实例，然后将它们打乱，以打破可能存在的顺序偏差：
 
-    ```
+    ```py
     def create_anomalous_dataset(features,
                                  labels,
                                  regular_label,
@@ -828,7 +828,7 @@ $> pip install opencv-contrib-python
 
 1.  接下来，从异常类别中选择与`corruption_proportion`成比例的实例。最后，通过将常规实例与离群点合并来创建最终的数据集：
 
-    ```
+    ```py
         num_anomalies = int(len(regular_data_idx) *
                             corruption_proportion)
         anomalous_data_idx = 
@@ -841,7 +841,7 @@ $> pip install opencv-contrib-python
 
 1.  加载`Fashion-MNIST`。将训练集和测试集合并为一个数据集：
 
-    ```
+    ```py
     (X_train, y_train), (X_test, y_test) = fmnist.load_data()
     X = np.vstack([X_train, X_test])
     y = np.hstack([y_train, y_test])
@@ -849,7 +849,7 @@ $> pip install opencv-contrib-python
 
 1.  定义常规标签和异常标签，然后创建异常数据集：
 
-    ```
+    ```py
     REGULAR_LABEL = 5  # Sandal
     ANOMALY_LABEL = 0  # T-shirt/top
     data = create_anomalous_dataset(X, y,
@@ -859,7 +859,7 @@ $> pip install opencv-contrib-python
 
 1.  向数据集中添加一个通道维度，进行归一化，并将数据集分为 80%作为训练集，20%作为测试集：
 
-    ```
+    ```py
     data = np.expand_dims(data, axis=-1)
     data = data.astype('float32') / 255.0
     X_train, X_test = train_test_split(data,
@@ -869,14 +869,14 @@ $> pip install opencv-contrib-python
 
 1.  构建自编码器并编译它。我们将使用`'adam'`作为优化器，`'mse'`作为损失函数，因为这可以很好地衡量模型的误差：
 
-    ```
+    ```py
     _, _, autoencoder = build_autoencoder(encoding_size=256)
     autoencoder.compile(optimizer='adam', loss='mse')
     ```
 
 1.  将自编码器训练 300 个 epoch，每次处理`1024`张图像：
 
-    ```
+    ```py
     EPOCHS = 300
     BATCH_SIZE = 1024
     autoencoder.fit(X_train, X_train,
@@ -887,7 +887,7 @@ $> pip install opencv-contrib-python
 
 1.  对数据进行预测以找出异常值。我们将计算原始图像与自动编码器生成图像之间的均方误差：
 
-    ```
+    ```py
     decoded = autoencoder.predict(data)
     mses = []
     for original, generated in zip(data, decoded):
@@ -897,7 +897,7 @@ $> pip install opencv-contrib-python
 
 1.  选择误差大于 99.9%分位数的图像索引。这些将是我们的异常值：
 
-    ```
+    ```py
     threshold = np.quantile(mses, 0.999)
     outlier_idx = np.where(np.array(mses) >= threshold)[0]
     print(f'Number of outliers: {len(outlier_idx)}')
@@ -905,7 +905,7 @@ $> pip install opencv-contrib-python
 
 1.  为每个异常值保存原始图像与生成图像的比较图像：
 
-    ```
+    ```py
     decoded = (decoded * 255.0).astype('uint8')
     data = (data * 255.0).astype('uint8')
     for i in outlier_idx:
@@ -938,7 +938,7 @@ $> pip install opencv-contrib-python
 
 让我们使用`pip`安装`OpenCV`。我们将用它来可视化自动编码器的输出，从而直观地评估图像搜索索引的有效性：
 
-```
+```py
 $> pip install opencv-python
 ```
 
@@ -950,7 +950,7 @@ $> pip install opencv-python
 
 1.  导入必要的库：
 
-    ```
+    ```py
     import cv2
     import numpy as np
     from tensorflow.keras import Model
@@ -960,7 +960,7 @@ $> pip install opencv-python
 
 1.  定义`build_autoencoder()`，该函数实例化自动编码器。首先，让我们组装编码器部分：
 
-    ```
+    ```py
     def build_autoencoder(input_shape=(28, 28, 1),
                           encoding_size=32,
                           alpha=0.2):
@@ -985,7 +985,7 @@ $> pip install opencv-python
 
 1.  下一步是定义解码器部分：
 
-    ```
+    ```py
         target_shape = tuple(encoder_output_shape[1:])
         decoder = Dense(np.prod(target_shape))(encoder _output)
         decoder = Reshape(target_shape)(decoder)
@@ -1011,21 +1011,21 @@ $> pip install opencv-python
 
 1.  最后，构建自动编码器并返回它：
 
-    ```
+    ```py
         autoencoder_model = Model(inputs, outputs)
         return autoencoder_model
     ```
 
 1.  定义一个计算两个向量之间欧几里得距离的函数：
 
-    ```
+    ```py
     def euclidean_dist(x, y):
         return np.linalg.norm(x - y)
     ```
 
 1.  定义`search()`函数，该函数使用搜索索引（一个将特征向量与相应图像配对的字典）来检索与查询向量最相似的结果：
 
-    ```
+    ```py
     def search(query_vector, search_index, 
                max_results=16):
         vectors = search_index['features']
@@ -1042,13 +1042,13 @@ $> pip install opencv-python
 
 1.  加载`Fashion-MNIST`数据集。仅保留以下图像：
 
-    ```
+    ```py
     (X_train, _), (X_test, _) = fashion_mnist.load_data()     
     ```
 
 1.  对图像进行归一化并添加颜色通道维度：
 
-    ```
+    ```py
     X_train = X_train.astype('float32') / 255.0
     X_test = X_test.astype('float32') / 255.0
     X_train = np.expand_dims(X_train, axis=-1)
@@ -1057,14 +1057,14 @@ $> pip install opencv-python
 
 1.  构建自动编码器并进行编译。我们将使用`'adam'`作为优化器，`'mse'`作为损失函数，因为这样可以很好地衡量模型的误差：
 
-    ```
+    ```py
     autoencoder = build_autoencoder()
     autoencoder.compile(optimizer='adam', loss='mse')
     ```
 
 1.  训练自动编码器 10 个周期，每次批处理`512`张图像：
 
-    ```
+    ```py
     EPOCHS = 50
     BATCH_SIZE = 512
     autoencoder.fit(X_train, X_train,
@@ -1076,7 +1076,7 @@ $> pip install opencv-python
 
 1.  创建一个新模型，我们将用它作为特征提取器。它将接收与自编码器相同的输入，并输出自编码器学到的编码。实质上，我们是使用自编码器的编码器部分将图像转换为向量：
 
-    ```
+    ```py
     fe_input = autoencoder.input
     fe_output = autoencoder.get_layer('encoder_output').output
     feature_extractor = Model(inputs=fe_input, 
@@ -1085,7 +1085,7 @@ $> pip install opencv-python
 
 1.  创建搜索索引，由`X_train`的特征向量和原始图像组成（原始图像必须重新调整为 28x28 并重新缩放到[0, 255]的范围）：
 
-    ```
+    ```py
     train_vectors = feature_extractor.predict(X_train)
     X_train = (X_train * 255.0).astype('uint8')
     X_train = X_train.reshape((X_train.shape[0], 28, 28))
@@ -1097,7 +1097,7 @@ $> pip install opencv-python
 
 1.  计算`X_test`的特征向量，我们将把它用作查询图像的样本。并将`X_test`调整为 28x28 的形状，并将其值重新缩放到[0, 255]的范围：
 
-    ```
+    ```py
     test_vectors = feature_extractor.predict(X_test)
     X_test = (X_test * 255.0).astype('uint8')
     X_test = X_test.reshape((X_test.shape[0], 28, 28))
@@ -1105,7 +1105,7 @@ $> pip install opencv-python
 
 1.  选择 16 个随机测试图像（以及其对应的特征向量）作为查询：
 
-    ```
+    ```py
     sample_indices = np.random.randint(0, X_test.shape[0],16)
     sample_images = X_test[sample_indices]
     sample_queries = test_vectors[sample_indices]
@@ -1113,7 +1113,7 @@ $> pip install opencv-python
 
 1.  对测试样本中的每个图像进行搜索，并保存查询图像与从索引中提取的结果之间的并排视觉对比（记住，索引是由训练数据组成的）：
 
-    ```
+    ```py
     for i, (vector, image) in \
             enumerate(zip(sample_queries, sample_images)):
         results = search(vector, search_index)
@@ -1166,7 +1166,7 @@ $> pip install opencv-python
 
 1.  导入必要的包：
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     import numpy as np
     import tensorflow as tf
@@ -1180,20 +1180,20 @@ $> pip install opencv-python
 
 1.  因为我们很快会使用`tf.function`注解，所以我们必须告诉 TensorFlow 以急切执行（eager execution）的方式运行函数：
 
-    ```
+    ```py
     tf.config.experimental_run_functions_eagerly(True)
     ```
 
 1.  定义一个类，封装我们实现`self.z_log_var`和`self.z_mean`的功能，它们是我们将学习的潜在高斯分布的参数：
 
-    ```
+    ```py
             self.z_log_var = None
             self.z_mean = None
     ```
 
 1.  定义一些成员变量，用于存储`encoder`、`decoder`和`vae`的输入和输出：
 
-    ```
+    ```py
             self.inputs = None
             self.outputs = None
             self.encoder = None
@@ -1203,7 +1203,7 @@ $> pip install opencv-python
 
 1.  定义`build_vae()`方法，该方法构建变分自编码器架构（请注意，我们使用的是全连接层而不是卷积层）：
 
-    ```
+    ```py
         def build_vae(self):
             self.inputs = Input(shape=(self.original_dimension,))
             x = Dense(self.encoding_dimension)(self.inputs)
@@ -1221,7 +1221,7 @@ $> pip install opencv-python
 
 1.  接下来，定义解码器：
 
-    ```
+    ```py
             latent_inputs = Input(shape=(self.latent_dimension,))
             x = Dense(self.encoding_dimension)(latent_inputs)
             x = ReLU()(x)
@@ -1233,7 +1233,7 @@ $> pip install opencv-python
 
 1.  解码器只是另一个完全连接的网络。解码器将从潜在维度中取样，以重构输入。最后，将编码器和解码器连接起来，创建**VAE**模型：
 
-    ```
+    ```py
             self.outputs = self.encoder(self.inputs)[2]
             self.outputs = self.decoder(self.outputs)
             self.vae = Model(self.inputs, self.outputs)
@@ -1241,7 +1241,7 @@ $> pip install opencv-python
 
 1.  定义`train()`方法，该方法训练变分自编码器。因此，它接收训练和测试数据，以及迭代次数和批次大小：
 
-    ```
+    ```py
         @tf.function
         def train(self, X_train,
                   X_test, 
@@ -1251,7 +1251,7 @@ $> pip install opencv-python
 
 1.  将重建损失定义为输入和输出之间的均方误差（MSE）：
 
-    ```
+    ```py
             reconstruction_loss = mse(self.inputs, 
                                       self.outputs)
             reconstruction_loss *= self.original_dimension
@@ -1259,7 +1259,7 @@ $> pip install opencv-python
 
     `kl_loss`是`reconstruction_loss`：
 
-    ```
+    ```py
             kl_loss = (1 + self.z_log_var -
                        K.square(self.z_mean) -
                        K.exp(self.z_log_var))
@@ -1270,7 +1270,7 @@ $> pip install opencv-python
 
 1.  配置`self.vae`模型，使其使用`vae_loss`和`Adam()`作为优化器（学习率为 0.003）。然后，在指定的迭代次数内拟合网络。最后，返回三个模型：
 
-    ```
+    ```py
             self.vae.add_loss(vae_loss)
             self.vae.compile(optimizer=Adam(lr=1e-3))
             self.vae.fit(X_train,
@@ -1282,7 +1282,7 @@ $> pip install opencv-python
 
 1.  定义一个函数，该函数将在给定两个相关参数（通过`arguments`数组传递）时生成潜在空间中的随机样本或点；即，`z_mean`和`z_log_var`：
 
-    ```
+    ```py
     def sampling(arguments):
         z_mean, z_log_var = arguments
         batch = K.shape(z_mean)[0]
@@ -1295,7 +1295,7 @@ $> pip install opencv-python
 
 1.  定义一个函数，该函数将生成并绘制从潜在空间生成的图像。这将帮助我们了解靠近分布的**形状**，以及接近曲线尾部的形状：
 
-    ```
+    ```py
     def generate_and_plot(decoder, grid_size=5):
         cell_size = 28
         figure_shape = (grid_size * cell_size,
@@ -1305,14 +1305,14 @@ $> pip install opencv-python
 
 1.  创建一个值的范围，X 轴和 Y 轴的值从-4 到 4。我们将使用这些值在每个位置生成和可视化样本：
 
-    ```
+    ```py
         grid_x = np.linspace(-4, 4, grid_size)
         grid_y = np.linspace(-4, 4, grid_size)[::-1]
     ```
 
 1.  使用解码器为每个`z_mean`和`z_log_var`的组合生成新的样本：
 
-    ```
+    ```py
         for i, z_log_var in enumerate(grid_y):
             for j, z_mean in enumerate(grid_x):
                 z_sample = np.array([[z_mean, z_log_var]])
@@ -1321,7 +1321,7 @@ $> pip install opencv-python
 
 1.  重塑样本，并将其放置在网格中的相应单元格中：
 
-    ```
+    ```py
                 fashion_item = 
                        generated.reshape(cell_size,
                                         cell_size)
@@ -1334,7 +1334,7 @@ $> pip install opencv-python
 
 1.  添加刻度和坐标轴标签，然后显示图形：
 
-    ```
+    ```py
         plt.figure(figsize=(10, 10))
         start = cell_size // 2
         end = (grid_size - 2) * cell_size + start + 1
@@ -1351,7 +1351,7 @@ $> pip install opencv-python
 
 1.  加载`Fashion-MNIST`数据集。对图像进行归一化，并添加颜色通道：
 
-    ```
+    ```py
     (X_train, _), (X_test, _) = fashion_mnist.load_data()
     X_train = X_train.astype('float32') / 255.0
     X_test = X_test.astype('float32') / 255.0
@@ -1361,7 +1361,7 @@ $> pip install opencv-python
 
 1.  实例化并构建**变分自编码器**：
 
-    ```
+    ```py
     vae = VAE(original_dimension=784,
               encoding_dimension=512,
               latent_dimension=2)
@@ -1370,14 +1370,14 @@ $> pip install opencv-python
 
 1.  训练模型 100 个周期：
 
-    ```
+    ```py
     _, decoder_model, vae_model = vae.train(X_train, X_test, 
                                             epochs=100)
     ```
 
 1.  使用解码器生成新图像并绘制结果：
 
-    ```
+    ```py
     generate_and_plot(decoder_model, grid_size=7)
     ```
 

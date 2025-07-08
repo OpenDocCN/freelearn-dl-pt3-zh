@@ -109,11 +109,11 @@ WaveRNN [28] 是一种自回归生成模型，通过将数据的分布分解为�
 
 **BERT** [16]，即**双向编码器表示模型**，是一种基于 Transformer 的语言模型，由谷歌的团队使用互联网文本进行训练。在预训练阶段，BERT 使用两个目标——**掩码语言建模**（**MLM**）和**下一个句子预测**（**NSP**）。在训练过程中，15%的输入标记会被掩码，模型需要学习预测被掩码的标记。由于 BERT 是基于 Transformer 的，它可以使用句子中任何位置的上下文信息来帮助预测被掩码的标记。BERT 模型在预训练完成后，可以通过较小的有监督数据集进行微调，用于各种下游任务，如分类、情感分析、文本蕴含等。**BERT**将在*第六章*，*Transformer*中详细介绍。
 
-```
+```py
 [MASK] in the sentence "The capital of France is [MASK].":
 ```
 
-```
+```py
 from transformers import BertTokenizer, TFBertForMaskedLM
 import tensorflow as tf
 tokenizer = BertTokenizer.from_pretrained("bert-base-cased")
@@ -379,11 +379,11 @@ CLIP 模型 [6] 通过学习预测哪些图像与哪些字幕匹配来学习图�
 
 图 10.11：CLIP 模型的架构。来自论文：《从自然语言监督中学习可迁移的视觉模型》 [34x]
 
-```
+```py
  the CLIP model’s ability to compare images and text. Here, we take an image of two cats side by side and compare it to two text strings: "a photo of a cat" and "a photo of a dog". CLIP can compare the image with the two text strings and correctly determine that the probability that the image is similar to the string "a photo of a cat" is 0.995 as opposed to a probability of 0.005 for the image being similar to the string "a photo of a dog":
 ```
 
-```
+```py
 import tensorflow as tf
 from PIL import Image
 import requests
@@ -404,7 +404,7 @@ CLIP 模型通过将文本和图像投影到单一的嵌入空间来实现这一
 
 ### CodeSearchNet
 
-```
+```py
  and query encodings for positive pairs and minimizes it for negative pairs.
 ```
 

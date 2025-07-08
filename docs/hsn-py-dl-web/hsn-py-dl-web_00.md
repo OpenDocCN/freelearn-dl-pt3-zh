@@ -93,7 +93,7 @@
 
 代码块如下所示：
 
-```
+```py
 def remove_digits(s: str) -> str:
     remove_digits = str.maketrans('', '', digits)
     res = s.translate(remove_digits)
@@ -102,7 +102,7 @@ def remove_digits(s: str) -> str:
 
 任何命令行输入或输出都写作如下：
 
-```
+```py
 python main.py
 ```
 

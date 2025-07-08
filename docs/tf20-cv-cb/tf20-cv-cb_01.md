@@ -52,7 +52,7 @@ Keras 是 TensorFlow 2.x 的官方高层 API，并且强烈建议在实验性和
 
 1.  从 Keras API 导入所需的库：
 
-    ```
+    ```py
     from sklearn.model_selection import train_test_split
     from sklearn.preprocessing import LabelBinarizer
     from tensorflow.keras import Input
@@ -64,7 +64,7 @@ Keras 是 TensorFlow 2.x 的官方高层 API，并且强烈建议在实验性和
 
 1.  使用 Sequential API 创建模型，通过将层列表传递给 Sequential 构造函数。每一层中的数字对应其包含的神经元或单元数：
 
-    ```
+    ```py
     layers = [Dense(256, input_shape=(28 * 28 * 1,), 
                     activation='sigmoid'),
               Dense(128, activation='sigmoid'),
@@ -74,7 +74,7 @@ Keras 是 TensorFlow 2.x 的官方高层 API，并且强烈建议在实验性和
 
 1.  使用 `add()` 方法逐层添加模型。每一层中的数字对应其包含的神经元或单元数：
 
-    ```
+    ```py
     sequential_model = Sequential()
     sequential_model.add(Dense(256, 
                          input_shape=(28 * 28 * 1,), 
@@ -85,7 +85,7 @@ Keras 是 TensorFlow 2.x 的官方高层 API，并且强烈建议在实验性和
 
 1.  使用功能 API 创建模型。每一层中的数字对应其包含的神经元或单元数：
 
-    ```
+    ```py
     input_layer = Input(shape=(28 * 28 * 1,))
     dense_1 = Dense(256, activation='sigmoid')(input_layer)
     dense_2 = Dense(128, activation='sigmoid')(dense_1)
@@ -96,7 +96,7 @@ Keras 是 TensorFlow 2.x 的官方高层 API，并且强烈建议在实验性和
 
 1.  使用面向对象的方法，通过子类化 `tensorflow.keras.models.Model` 来创建模型。每一层中的数字对应其包含的神经元或单元数：
 
-    ```
+    ```py
     class ClassModel(Model):
         def __init__(self):
             super(ClassModel, self).__init__()
@@ -112,7 +112,7 @@ Keras 是 TensorFlow 2.x 的官方高层 API，并且强烈建议在实验性和
 
 1.  准备数据，以便我们可以训练之前定义的所有模型。我们必须将图像重塑为向量格式，因为这是全连接网络所期望的格式：
 
-    ```
+    ```py
     (X_train, y_train), (X_test, y_test) = mnist.load_data()
     X_train = X_train.reshape((X_train.shape[0], 28 * 28 * 
                                1))
@@ -124,7 +124,7 @@ Keras 是 TensorFlow 2.x 的官方高层 API，并且强烈建议在实验性和
 
 1.  对标签进行独热编码，以消除任何不必要的排序偏差：
 
-    ```
+    ```py
     label_binarizer = LabelBinarizer()
     y_train = label_binarizer.fit_transform(y_train)
     y_test = label_binarizer.fit_transform(y_test)
@@ -132,13 +132,13 @@ Keras 是 TensorFlow 2.x 的官方高层 API，并且强烈建议在实验性和
 
 1.  将 20% 的数据用于验证：
 
-    ```
+    ```py
     X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, train_size=0.8)
     ```
 
 1.  编译、训练这些模型 50 个 epochs，并在测试集上进行评估：
 
-    ```
+    ```py
     models = {
         'sequential_model': sequential_model,
         'sequential_model_list': sequential_model_list,
@@ -193,7 +193,7 @@ Keras 是 TensorFlow 2.x 的官方高层 API，并且强烈建议在实验性和
 
 Keras 依赖于`Pillow`库来处理图像。你可以通过`pip`轻松安装它：
 
-```
+```py
 $> pip install Pillow
 ```
 
@@ -205,7 +205,7 @@ $> pip install Pillow
 
 1.  导入必要的包：
 
-    ```
+    ```py
     import glob
     import os
     import tarfile
@@ -218,7 +218,7 @@ $> pip install Pillow
 
 1.  定义`CINIC-10`数据集的 URL 和目标路径，这是著名`CIFAR-10`数据集的替代品：
 
-    ```
+    ```py
     DATASET_URL = 'https://datashare.is.ed.ac.uk/bitstream/handle/10283/3192/CINIC-10.tar.gz?sequence=4&isAllowed=y'
     DATA_NAME = 'cinic10'
     FILE_EXTENSION = 'tar.gz'
@@ -227,7 +227,7 @@ $> pip install Pillow
 
 1.  下载并解压数据。默认情况下，它将存储在`~/.keras/datasets/<FILE_NAME>`中：
 
-    ```
+    ```py
     downloaded_file_location = get_file(origin=DATASET_URL, fname=FILE_NAME, extract=False)
     # Build the path to the data directory based on the location of the downloaded file.
     data_directory, _ = downloaded_file_location.rsplit(os.path.sep, maxsplit=1)
@@ -241,7 +241,7 @@ $> pip install Pillow
 
 1.  加载所有图像路径并打印找到的图像数量：
 
-    ```
+    ```py
     data_pattern = os.path.sep.join([data_directory, 
                                      '*/*/*.png'])
     image_paths = list(glob.glob(data_pattern))
@@ -251,13 +251,13 @@ $> pip install Pillow
 
     输出应该如下所示：
 
-    ```
+    ```py
     There are 270,000 images in the dataset
     ```
 
 1.  从数据集中加载单张图像并打印其元数据：
 
-    ```
+    ```py
     sample_image = load_img(image_paths[0])
     print(f'Image type: {type(sample_image)}')
     print(f'Image format: {sample_image.format}')
@@ -267,7 +267,7 @@ $> pip install Pillow
 
     输出应该如下所示：
 
-    ```
+    ```py
     Image type: <class 'PIL.PngImagePlugin.PngImageFile'>
     Image format: PNG
     Image mode: RGB
@@ -276,7 +276,7 @@ $> pip install Pillow
 
 1.  将图像转换为`NumPy`数组：
 
-    ```
+    ```py
     sample_image_array = img_to_array(sample_image)
     print(f'Image type: {type(sample_image_array)}')
     print(f'Image array shape: {sample_image_array.shape}')
@@ -284,14 +284,14 @@ $> pip install Pillow
 
     这是输出：
 
-    ```
+    ```py
     Image type: <class 'numpy.ndarray'>
     Image array shape: (32, 32, 3)
     ```
 
 1.  使用`matplotlib`显示图像：
 
-    ```
+    ```py
     plt.imshow(sample_image_array / 255.0)
     ```
 
@@ -303,13 +303,13 @@ $> pip install Pillow
 
 1.  使用`ImageDataGenerator`加载一批图像。与前一步一样，每张图像将被重新缩放到[0, 1]的范围内：
 
-    ```
+    ```py
     image_generator = ImageDataGenerator(horizontal_flip=True, rescale=1.0 / 255.0)
     ```
 
 1.  使用`image_generator`，我们将从存储图像的目录中直接挑选并显示一批随机的 10 张图像：
 
-    ```
+    ```py
     iterator = (image_generator
             .flow_from_directory(directory=data_directory, 
                                      batch_size=10))
@@ -357,7 +357,7 @@ $> pip install Pillow
 
 1.  首先，我们需要导入本示例所需的所有包：
 
-    ```
+    ```py
     import os
     import tarfile
     import matplotlib.pyplot as plt
@@ -368,7 +368,7 @@ $> pip install Pillow
 
 1.  定义`CINIC-10`数据集的 URL 和存储路径，这是`CIFAR-10`数据集的一个替代品：
 
-    ```
+    ```py
     DATASET_URL = 'https://datashare.is.ed.ac.uk/bitstream/handle/10283/3192/CINIC-10.tar.gz?sequence=4&isAllowed=y'
     DATA_NAME = 'cinic10'
     FILE_EXTENSION = 'tar.gz'
@@ -377,7 +377,7 @@ $> pip install Pillow
 
 1.  下载并解压数据。默认情况下，它将存储在`~/keras/dataset/<FILE_NAME>`路径下：
 
-    ```
+    ```py
     downloaded_file_location = get_file(origin=DATASET_URL, fname=FILE_NAME, extract=False)
     # Build the path to the data directory based on the location of the downloaded file.
     data_directory, _ = downloaded_file_location.rsplit(os.path.sep, maxsplit=1)
@@ -391,14 +391,14 @@ $> pip install Pillow
 
 1.  使用类似 glob 模式的方式创建图像路径的数据集：
 
-    ```
+    ```py
     data_pattern = os.path.sep.join([data_directory, '*/*/*.png'])
     image_dataset = tf.data.Dataset.list_files(data_pattern)
     ```
 
 1.  从数据集中获取一个路径，并用它读取相应的图像：
 
-    ```
+    ```py
     for file_path in image_dataset.take(1):
         sample_path = file_path.numpy()
     sample_image = tf.io.read_file(sample_path)
@@ -406,7 +406,7 @@ $> pip install Pillow
 
 1.  尽管图像现在已经加载到内存中，我们仍然需要将其转换为神经网络可以处理的格式。为此，我们必须将其从 PNG 格式解码为`NumPy`数组，如下所示：
 
-    ```
+    ```py
     sample_image = tf.image.decode_png(sample_image, 
                                        channels=3)
     sample_image = sample_image.numpy()
@@ -414,7 +414,7 @@ $> pip install Pillow
 
 1.  使用`matplotlib`显示图像：
 
-    ```
+    ```py
     plt.imshow(sample_image / 255.0)
     ```
 
@@ -428,7 +428,7 @@ $> pip install Pillow
 
 1.  取`image_dataset`的前 10 个元素，解码并归一化它们，然后使用`matplotlib`进行显示：
 
-    ```
+    ```py
     plt.figure(figsize=(5, 5))
     for index, image_path in enumerate(image_dataset.take(10), start=1):
         image = tf.io.read_file(image_path)
@@ -476,7 +476,7 @@ $> pip install Pillow
 
 1.  导入我们需要的所有内容：
 
-    ```
+    ```py
     import json
     import numpy as np
     from sklearn.model_selection import train_test_split
@@ -498,7 +498,7 @@ $> pip install Pillow
 
 1.  定义一个函数来下载并准备数据，方法是对训练集和测试集进行归一化，并进行标签的独热编码：
 
-    ```
+    ```py
     def load_data():
      (X_train, y_train), (X_test, y_test) = mnist.load_data()
         # Normalize data.
@@ -516,7 +516,7 @@ $> pip install Pillow
 
 1.  定义一个用于构建网络的函数。该架构包含一个卷积层和两个全连接层：
 
-    ```
+    ```py
     def build_network():
         input_layer = Input(shape=(28, 28, 1))
         convolution_1 = Conv2D(kernel_size=(2, 2),
@@ -541,7 +541,7 @@ $> pip install Pillow
 
 1.  实现一个函数，用来使用测试集评估网络：
 
-    ```
+    ```py
     def evaluate(model, X_test, y_test):
         _, accuracy = model.evaluate(X_test, y_test, 
                                      verbose=0)
@@ -550,7 +550,7 @@ $> pip install Pillow
 
 1.  准备数据，创建验证集，并实例化神经网络：
 
-    ```
+    ```py
     X_train, y_train, X_test, y_test = load_data()
     X_train, X_valid, y_train, y_valid = train_test_split(X_train, y_train, train_size=0.8)
     model = build_network()
@@ -558,7 +558,7 @@ $> pip install Pillow
 
 1.  编译并训练模型 50 个 epoch，批次大小为`1024`。根据你机器的性能调整这些值：
 
-    ```
+    ```py
     model.compile(loss='categorical_crossentropy', 
                   optimizer='adam', 
                   metrics=['accuracy'])
@@ -571,7 +571,7 @@ $> pip install Pillow
 
 1.  使用`save()`方法将模型及其权重以 HDF5 格式保存。然后，使用`load_model()`加载保存的模型，并评估该网络在测试集上的表现：
 
-    ```
+    ```py
     # Saving model and weights as HDF5.
     model.save('model_and_weights.hdf5')
     # Loading model and weights as HDF5.
@@ -582,7 +582,7 @@ $> pip install Pillow
 
     输出如下：
 
-    ```
+    ```py
     Accuracy: 0.9836000204086304
     ```
 
@@ -608,7 +608,7 @@ $> pip install Pillow
 
 我们需要`Pillow`和`pydot`来生成网络架构的视觉表示。我们可以通过以下方式使用 pip 安装这两个库：
 
-```
+```py
 $> pip install Pillow pydot
 ```
 
@@ -618,7 +618,7 @@ $> pip install Pillow pydot
 
 1.  导入所有必需的库：
 
-    ```
+    ```py
     from PIL import Image
     from tensorflow.keras import Model
     from tensorflow.keras.layers import BatchNormalization
@@ -635,14 +635,14 @@ $> pip install Pillow pydot
 
 1.  使用我们在前一步中导入的所有层来实现一个模型。请注意，我们为方便后续引用给每个层命名。首先，让我们定义输入：
 
-    ```
+    ```py
     input_layer = Input(shape=(64, 64, 3), 
                         name='input_layer')
     ```
 
     这是第一个卷积块：
 
-    ```
+    ```py
     convolution_1 = Conv2D(kernel_size=(2, 2),
                            padding='same',
                            strides=(2, 2),
@@ -659,7 +659,7 @@ $> pip install Pillow pydot
 
     这是第二个卷积块：
 
-    ```
+    ```py
     convolution_2 = Conv2D(kernel_size=(2, 2),
                            padding='same',
                            strides=(2, 2),
@@ -677,7 +677,7 @@ $> pip install Pillow pydot
 
     最后，我们将定义密集层和模型本身：
 
-    ```
+    ```py
     flatten = Flatten(name='flatten')(dropout)
     dense_1 = Dense(units=256, name='dense_1')(flatten)
     activation_3 = LeakyReLU(name='activation_3')(dense_1)
@@ -691,7 +691,7 @@ $> pip install Pillow pydot
 
 1.  通过打印其架构的文本表示来总结模型，如下所示：
 
-    ```
+    ```py
     print(model.summary())
     ```
 
@@ -705,7 +705,7 @@ $> pip install Pillow pydot
 
 1.  绘制网络架构的图示：
 
-    ```
+    ```py
     plot_model(model, 
                show_shapes=True, 
                show_layer_names=True, 
@@ -735,13 +735,13 @@ $> pip install Pillow pydot
 
 我鼓励你在处理本教程之前先完成前面五个教程，因为我们的目标是通过本章学到的知识形成一个完整的循环。此外，确保你的系统中已经安装了`Pillow`和`pydot`。你可以使用 pip 安装它们：
 
-```
+```py
 $> pip install Pillow pydot
 ```
 
 最后，我们将使用`tensorflow_docs`包来绘制模型的损失和准确率曲线。你可以通过以下命令安装这个库：
 
-```
+```py
 $> pip install git+https://github.com/tensorflow/docs
 ```
 
@@ -751,7 +751,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  导入必要的包：
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     import numpy as np
     import tensorflow as tf
@@ -776,7 +776,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  定义一个函数来加载并准备数据集。它将对数据进行归一化处理，对标签进行独热编码，取部分训练集用于验证，并将三个数据子集包装成三个独立的`tf.data.Dataset`实例，以通过`from_tensor_slices()`提高性能：
 
-    ```
+    ```py
     def load_dataset():
         (X_train, y_train), (X_test, y_test) = fm.load_data()
         X_train = X_train.astype('float32') / 255.0
@@ -802,7 +802,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  实现一个函数，构建一个类似于`BatchNormalization`的网络，我们将使用它来使网络更快、更稳定；同时也实现`Dropout`层，帮助我们应对过拟合问题，这是由于方差过大导致网络失去泛化能力的情况。
 
-    ```
+    ```py
     def build_network():
         input_layer = Input(shape=(28, 28, 1))
         x = Conv2D(filters=20, 
@@ -835,7 +835,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  定义一个函数，该函数接收模型的训练历史记录以及一个感兴趣的度量标准，用于创建对应于训练和验证曲线的图：
 
-    ```
+    ```py
     def plot_model_history(model_history, metric, ylim=None):
         plt.style.use('seaborn-darkgrid')
         plotter = tfdocs.plots.HistoryPlotter()
@@ -851,7 +851,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  以每次 256 张图片的批次来消费训练和验证数据集。`prefetch()`方法会启动一个后台线程，填充大小为`1024`的缓冲区，缓存图像批次：
 
-    ```
+    ```py
     BATCH_SIZE = 256
     BUFFER_SIZE = 1024
     train_dataset, val_dataset, test_dataset = load_dataset()
@@ -867,7 +867,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  构建并训练网络：
 
-    ```
+    ```py
     EPOCHS = 100
     model = build_network()
     model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
@@ -876,7 +876,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  绘制训练和验证的损失与准确率：
 
-    ```
+    ```py
     plot_model_history(model_history, 'loss', [0., 2.0])
     plot_model_history(model_history, 'accuracy')
     ```
@@ -895,7 +895,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  可视化模型的架构：
 
-    ```
+    ```py
     plot_model(model, show_shapes=True, show_layer_names=True, to_file='model.png')
     ```
 
@@ -907,13 +907,13 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  保存模型：
 
-    ```
+    ```py
     model.save('model.hdf5')
     ```
 
 1.  加载并评估模型：
 
-    ```
+    ```py
     loaded_model = load_model('model.hdf5')
     results = loaded_model.evaluate(test_dataset, verbose=0)
     print(f'Loss: {results[0]}, Accuracy: {results[1]}')
@@ -921,7 +921,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
     输出如下：
 
-    ```
+    ```py
     Loss: 0.2943768735975027, Accuracy: 0.9132000207901001
     ```
 

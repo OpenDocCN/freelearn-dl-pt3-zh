@@ -253,7 +253,7 @@ MT 的问题可以这样表述：假设我们给定一个句子（或一系列�
 
 `train.de`和`train.en`分别包含德语和英语的平行句子。一旦下载，我们将按照以下方式加载这些句子：
 
-```
+```py
 n_sentences = 250000
 # Loading English sentences
 original_en_sentences = []
@@ -272,7 +272,7 @@ with open(os.path.join('data', 'train.de'), 'r', encoding='utf-8') as de_file:
 
 如果你打印刚刚加载的数据，对于这两种语言，你会看到如下的句子：
 
-```
+```py
 English: a fire restant repair cement for fire places , ovens , open fireplaces etc . 
 German: feuerfester Reparaturkitt für Feuerungsanlagen , Öfen , offene Feuerstellen etc.
 English: Construction and repair of highways and ... 
@@ -285,14 +285,14 @@ German: die Mitteilungen sollen den geschäftlichen kommerziellen Charakter trag
 
 下一步是向我们的句子开始和结束添加一些特殊标记。我们将添加`<s>`来标记句子的开始，添加`</s>`来标记句子的结束。我们可以通过以下列表推导轻松实现这一点：
 
-```
+```py
 en_sentences = [["<s>"]+sent+["</s>"] for sent in original_en_sentences]
 de_sentences = [["<s>"]+sent+["</s>"] for sent in original_de_sentences] 
 ```
 
 这将给我们带来：
 
-```
+```py
 English: <s> a fire restant repair cement for fire places , ovens , open fireplaces etc . </s> 
 German: <s> feuerfester Reparaturkitt für Feuerungsanlagen , Öfen , offene Feuerstellen etc. </s>
 English: <s> Construction and repair of highways and ... </s> 
@@ -307,7 +307,7 @@ German: <s> die Mitteilungen sollen den geschäftlichen kommerziellen Charakter 
 
 我们需要将数据集拆分成三个部分：训练集、验证集和测试集。具体来说，我们将使用 80%的句子来训练模型，10%作为验证数据，剩下的 10%作为测试数据：
 
-```
+```py
 from sklearn.model_selection import train_test_split
 train_en_sentences, valid_test_en_sentences, train_de_sentences, valid_test_de_sentences = train_test_split(
     np.array(en_sentences), np.array(de_sentences), test_size=0.2
@@ -320,7 +320,7 @@ valid_en_sentences, valid_de_sentences, test_en_sentences, test_de_sentences = t
 
 我们现在必须理解的一个关键统计数据是，我们的语料库中的句子通常有多长。两种语言的句子长度很可能会有所不同。为了学习这个统计数据，我们将使用 pandas 库，具体方法如下：
 
-```
+```py
 pd.Series(train_en_sentences).str.len().describe(percentiles=[0.05, 0.5, 0.95]) 
 ```
 
@@ -330,7 +330,7 @@ pd.Series(train_en_sentences).str.len().describe(percentiles=[0.05, 0.5, 0.95])
 
 前面的代码结果给我们带来了：
 
-```
+```py
 Sequence lengths (English)
 count    40000.000000
 mean        25.162625
@@ -345,13 +345,13 @@ dtype: float64
 
 我们可以通过以下方式获得德语句子的相同信息：
 
-```
+```py
 pd.Series(train_de_sentences).str.len().describe(percentiles=[0.05, 0.5, 0.95]) 
 ```
 
 这给我们带来了：
 
-```
+```py
 Sequence lengths (German)
 count    40000.000000
 mean        22.882550
@@ -384,7 +384,7 @@ dtype: float64
 
 我们将按如下方式使用这个函数：
 
-```
+```py
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 train_en_sentences_padded = pad_sequences(train_en_sentences, maxlen=n_en_seq_length, value=unk_token, dtype=object, truncating='post', padding='post')
 valid_en_sentences_padded = pad_sequences(valid_en_sentences, maxlen=n_en_seq_length, value=unk_token, dtype=object, truncating='post', padding='post')
@@ -424,13 +424,13 @@ test_de_sentences_padded = pad_sequences(test_de_sentences, maxlen=n_de_seq_leng
 
 在我们进入模型之前，还有一个文本处理操作剩下，那就是将处理过的文本标记转换为数字 ID。我们将使用`tf.keras.layers.Layer`来实现这一点。具体来说，我们将使用`StringLookup`层在模型中创建一个层，将每个标记转换为数字 ID。第一步，让我们加载数据中提供的词汇表文件。在此之前，我们将定义变量`n_vocab`来表示每种语言词汇表的大小：
 
-```
+```py
 n_vocab = 25000 + 1 
 ```
 
 最初，每个词汇表包含 50,000 个标记。然而，我们将只取其中的一半，以减少内存需求。请注意，我们允许额外的一个标记，因为有一个特殊的标记`<unk>`表示**超出词汇表**（**OOV**）的单词。使用 50,000 个标记的词汇表，由于我们最终要构建的预测层的大小，内存很容易就会耗尽。在减少词汇表大小的同时，我们必须确保保留最常见的 25,000 个单词。幸运的是，每个词汇表文件的组织方式是按单词出现的频率排序（从高到低）。因此，我们只需从文件中读取前 25,001 行文本：
 
-```
+```py
 en_vocabulary = []
 with open(os.path.join('data', 'vocab.50K.en'), 'r', encoding='utf-8') as en_file:
     for ri, row in enumerate(en_file):
@@ -441,7 +441,7 @@ with open(os.path.join('data', 'vocab.50K.en'), 'r', encoding='utf-8') as en_fil
 
 然后我们对德语的词汇表做相同的操作：
 
-```
+```py
 de_vocabulary = []
 with open(os.path.join('data', 'vocab.50K.de'), 'r', encoding='utf-8') as de_file:
     for ri, row in enumerate(de_file):
@@ -452,14 +452,14 @@ with open(os.path.join('data', 'vocab.50K.de'), 'r', encoding='utf-8') as de_fil
 
 每个词汇表的第一行都包含特殊的 OOV 标记`<unk>`。我们将从`en_vocabulary`和`de_vocabulary`列表中移除它，因为在下一步中我们需要它：
 
-```
+```py
 en_unk_token = en_vocabulary.pop(0)
 de_unk_token = de_vocabulary.pop(0) 
 ```
 
 下面是我们如何定义英语的`StringLookup`层：
 
-```
+```py
 en_lookup_layer = tf.keras.layers.StringLookup(
     vocabulary=en_vocabulary, oov_token=en_unk_token, 
     mask_token=pad_token, pad_to_max_tokens=False
@@ -478,7 +478,7 @@ en_lookup_layer = tf.keras.layers.StringLookup(
 
 同样，我们为德语定义一个查找层：
 
-```
+```py
 de_lookup_layer = tf.keras.layers.StringLookup(
     vocabulary=de_vocabulary, oov_token=de_unk_token, 
     mask_token=pad_token, pad_to_max_tokens=False
@@ -491,32 +491,32 @@ de_lookup_layer = tf.keras.layers.StringLookup(
 
 我们从输入层开始构建编码器。输入层将接受一个包含标记序列的批次。每个标记序列的长度为`n_en_seq_length`个元素。记住，我们已经填充或截断了句子，确保它们的固定长度为`n_en_seq_length`：
 
-```
+```py
 encoder_input = tf.keras.layers.Input(shape=(n_en_seq_length,), dtype=tf.string) 
 ```
 
 接下来，我们使用之前定义的`StringLookup`层将字符串标记转换为词 ID。如我们所见，`StringLookup`层可以接受一个独特单词的列表（即词汇表），并创建一个查找操作，将给定的标记转换为数字 ID：
 
-```
+```py
 encoder_wid_out = en_lookup_layer(encoder_input) 
 ```
 
 将词元转换为 ID 后，我们将生成的单词 ID 传递给词元嵌入层。我们传入词汇表的大小（从`en_lookup_layer`的`get_vocabulary()`方法中获取）和嵌入大小（128），最后我们要求该层对任何零值输入进行掩蔽，因为它们不包含任何信息：
 
-```
+```py
 en_full_vocab_size = len(en_lookup_layer.get_vocabulary())
 encoder_emb_out = tf.keras.layers.Embedding(en_full_vocab_size, 128, mask_zero=True)(encoder_wid_out) 
 ```
 
 嵌入层的输出存储在 `encoder_emb_out` 中。接下来，我们定义一个 GRU 层来处理英文词元嵌入序列：
 
-```
+```py
 encoder_gru_out, encoder_gru_last_state = tf.keras.layers.GRU(256, return_sequences=True, return_state=True)(encoder_emb_out) 
 ```
 
 注意，我们将 `return_sequences` 和 `return_state` 参数都设置为 `True`。总结一下，`return_sequences` 返回完整的隐藏状态序列作为输出（而不是仅返回最后一个状态），而 `return_state` 返回模型的最后状态作为额外的输出。我们需要这两个输出才能构建模型的其余部分。例如，我们需要将编码器的最后状态传递给解码器作为初始状态。为此，我们需要编码器的最后状态（存储在 `encoder_gru_last_state` 中）。我们将在后续详细讨论这个目的。现在我们已经准备好定义模型的编码器部分。它接收一批字符串词元序列，并返回完整的 GRU 隐藏状态序列作为输出。
 
-```
+```py
 encoder = tf.keras.models.Model(inputs=encoder_input, outputs=encoder_gru_out) 
 ```
 
@@ -560,26 +560,26 @@ encoder = tf.keras.models.Model(inputs=encoder_input, outputs=encoder_gru_out)
 
 为了解码器输入先前由解码器预测的标记，我们需要为解码器提供一个输入层。当以这种方式构造解码器的输入和输出时，对于长度为 *n* 的标记序列，输入和输出的长度是 *n-1* 个标记：
 
-```
+```py
 decoder_input = tf.keras.layers.Input(shape=(n_de_seq_length-1,), dtype=tf.string) 
 ```
 
 接下来，我们使用之前定义的`de_lookup_layer`将标记转换为 ID：
 
-```
+```py
 decoder_wid_out = de_lookup_layer(decoder_input) 
 ```
 
 类似于编码器，让我们为德语定义一个嵌入层：
 
-```
+```py
 de_full_vocab_size = len(de_lookup_layer.get_vocabulary())
 decoder_emb_out = tf.keras.layers.Embedding(de_full_vocab_size, 128, mask_zero=True)(decoder_wid_out) 
 ```
 
 我们在解码器中定义一个 GRU 层，它将接受标记嵌入并生成隐藏输出：
 
-```
+```py
 decoder_gru_out = tf.keras.layers.GRU(256, return_sequences=True)(decoder_emb_out, initial_state=encoder_gru_last_state) 
 ```
 
@@ -685,7 +685,7 @@ decoder_gru_out = tf.keras.layers.GRU(256, return_sequences=True)(decoder_emb_ou
 
 我们定义的类将如下所示。但不用担心，下面我们将详细讲解这两个函数：
 
-```
+```py
 class BahdanauAttention(tf.keras.layers.Layer):
     def __init__(self, units):
         super().__init__()
@@ -722,7 +722,7 @@ class BahdanauAttention(tf.keras.layers.Layer):
 
 我们很快会更详细地讨论这一层。接下来让我们来看一下`call()`函数中定义的计算：
 
-```
+```py
 def call(self, query, key, value, mask, return_attention_scores=False):
         # Compute 'Wa.ht'
         wa_query = self.Wa(query)
@@ -768,7 +768,7 @@ def call(self, query, key, value, mask, return_attention_scores=False):
 
 在这里，你可以看到*步骤 2* 执行了第一个方程，*步骤 3* 执行了第二个方程，最后*步骤 4* 执行了第三个方程。另一个值得注意的事项是，*步骤 2* 并没有提到来自第一个方程的 ![](img/B14070_09_057.png)。![](img/B14070_09_058.png) 本质上是一个权重矩阵，我们用它来计算点积。我们可以通过在定义 `AdditiveAttention` 层时设置 `use_scale=True` 来引入这个权重矩阵：
 
-```
+```py
 self.attention = tf.keras.layers.AdditiveAttention(use_scale=True) 
 ```
 
@@ -780,7 +780,7 @@ self.attention = tf.keras.layers.AdditiveAttention(use_scale=True)
 
 此外，我们还会得到注意力权重分布矩阵，用于可视化注意力模式在输入和输出之间的分布：
 
-```
+```py
 decoder_attn_out, attn_weights = BahdanauAttention(256)(
     query=decoder_gru_out, key=encoder_gru_out, value=encoder_gru_out,
     mask=(encoder_wid_out != 0),
@@ -790,27 +790,27 @@ decoder_attn_out, attn_weights = BahdanauAttention(256)(
 
 在定义注意力时，我们还会传递一个掩码，表示在计算输出时需要忽略哪些标记（例如，填充的标记）。将注意力输出与解码器的 GRU 输出结合，创建一个单一的拼接输入供预测层使用：
 
-```
+```py
 context_and_rnn_output = tf.keras.layers.Concatenate(axis=-1)([decoder_attn_out, decoder_gru_out]) 
 ```
 
 最后，预测层将拼接后的注意力上下文向量和 GRU 输出结合起来，生成每个时间步长的德语标记的概率分布：
 
-```
+```py
 # Final prediction layer (size of the vocabulary)
 decoder_out = tf.keras.layers.Dense(full_de_vocab_size, activation='softmax')(context_and_rnn_output) 
 ```
 
 在完全定义编码器和解码器后，我们来定义端到端模型：
 
-```
+```py
 seq2seq_model = tf.keras.models.Model(inputs=[encoder.inputs, decoder_input], outputs=decoder_out)
 seq2seq_model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics='accuracy') 
 ```
 
 我们还将定义一个名为`attention_visualizer`的辅助模型：
 
-```
+```py
 attention_visualizer = tf.keras.models.Model(inputs=[encoder.inputs, decoder_input], outputs=[attn_weights, decoder_out]) 
 ```
 
@@ -826,7 +826,7 @@ attention_visualizer = tf.keras.models.Model(inputs=[encoder.inputs, decoder_inp
 
 对于模型训练，我们将定义一个自定义的训练循环，因为有一个特殊的度量我们想要跟踪。不幸的是，这个度量并不是一个现成的 TensorFlow 度量。但是在此之前，我们需要定义几个工具函数：
 
-```
+```py
 def prepare_data(de_lookup_layer, train_xy, valid_xy, test_xy):
     """ Create a data dictionary from the dataframes containing data 
     """
@@ -865,7 +865,7 @@ def prepare_data(de_lookup_layer, train_xy, valid_xy, test_xy):
 
 所以，你可以看到`decoder_labels`将是`decoder_inputs`向左移动一个标记。接下来，我们定义`shuffle_data()`函数，用于打乱提供的数据集：
 
-```
+```py
 def shuffle_data(en_inputs, de_inputs, de_labels, shuffle_inds=None): 
     """ Shuffle the data randomly (but all of inputs and labels at 
     ones)"""
@@ -886,7 +886,7 @@ def shuffle_data(en_inputs, de_inputs, de_labels, shuffle_inds=None):
 
 这里的逻辑非常简单。我们使用`encoder_inputs`、`decoder_inputs`和`decoder_labels`（由`prepare_data()`步骤生成）以及`shuffle_inds`。如果`shuffle_inds`为`None`，则生成索引的随机排列。否则，我们生成提供的`shuffle_inds`的随机排列。最后，我们根据洗牌后的索引对所有数据进行索引。然后我们就可以训练模型：
 
-```
+```py
 Def train_model(model, en_lookup_layer, de_lookup_layer, train_xy, valid_xy, test_xy, epochs, batch_size, shuffle=True, predict_bleu_at_training=False):
     """ Training the model and evaluating on validation/test sets """
 
@@ -1031,7 +1031,7 @@ Def train_model(model, en_lookup_layer, de_lookup_layer, train_xy, valid_xy, tes
 
 如果批次大小较大，您可能会看到 TensorFlow 抛出如下异常：
 
-```
+```py
 Resource exhausted: OOM when allocating tensor with ... 
 ```
 
@@ -1125,13 +1125,13 @@ Resource exhausted: OOM when allocating tensor with ...
 
 记得我们专门定义了一个叫做`attention_visualizer`的模型来生成注意力矩阵吗？在模型训练完成后，我们现在可以通过向模型输入数据来查看这些注意力模式。下面是模型的定义：
 
-```
+```py
 attention_visualizer = tf.keras.models.Model(inputs=[encoder.inputs, decoder_input], outputs=[attn_weights, decoder_out]) 
 ```
 
 我们还将定义一个函数，以获取处理后的注意力矩阵以及标签数据，方便我们直接用于可视化：
 
-```
+```py
 def get_attention_matrix_for_sampled_data(attention_model, target_lookup_layer, test_xy, n_samples=5):
 
     test_x, test_y = test_xy

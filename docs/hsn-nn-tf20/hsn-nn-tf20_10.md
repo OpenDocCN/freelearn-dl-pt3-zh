@@ -38,7 +38,7 @@ TensorFlow 数据集允许我们通过一行代码下载整个数据集（约 86
 
 `(tf2)`
 
-```
+```py
 import tensorflow as tf 
 import tensorflow_datasets as tfds 
 
@@ -51,7 +51,7 @@ import tensorflow_datasets as tfds
 
 和往常一样，TensorFlow 数据集提供了很多关于数据集格式的有用信息。以下输出是`print(info)`的结果：
 
-```
+```py
 tfds.core.DatasetInfo( 
     name='voc2007', 
     version=1.0.0, 
@@ -98,13 +98,13 @@ predict the bounding box and label of each individual object.
 
 `(tf2)`
 
-```
+```py
 import matplotlib.pyplot as plt
 ```
 
 从训练集获取五张图像，绘制边界框，然后打印类别：
 
-```
+```py
 with tf.device("/CPU:0"): 
     for row in train.take(5): 
         obj = row["objects"] 
@@ -128,7 +128,7 @@ with tf.device("/CPU:0"):
 
 然后，使用以下代码绘制图像：
 
-```
+```py
             plt.imshow(image)
             plt.show()
 ```
@@ -153,7 +153,7 @@ with tf.device("/CPU:0"):
 
 `(tf2)`
 
-```
+```py
 def filter(dataset): 
     return dataset.filter(lambda row: tf.equal(tf.shape(row["objects"]["label"])[0], 1)) 
 
@@ -211,7 +211,7 @@ L2 距离可以有效地用作损失函数：目标是正确回归四个坐标�
 
 `(tf2)`
 
-```
+```py
 import tensorflow_hub as hub
 
 inputs = tf.keras.layers.Input(shape=(299,299,3))
@@ -231,7 +231,7 @@ regressor = tf.keras.Model(inputs=inputs, outputs=coordinates)
 
 `(tf2)`
 
-```
+```py
 def prepare(dataset):
     def _fn(row):
         row["image"] = tf.image.convert_image_dtype(row["image"], tf.float32)
@@ -259,7 +259,7 @@ train, test, validation = prepare(train), prepare(test), prepare(validation)
 
 `(tf2)`
 
-```
+```py
 # First option -> this requires to call the loss l2, taking care of squeezing the input
 # l2 = tf.losses.MeanSquaredError()
 
@@ -282,7 +282,7 @@ def l2(y_true, y_pred):
 
 `(tf2)`
 
-```
+```py
 def draw(dataset, regressor, step):
     with tf.device("/CPU:0"):
         row = next(iter(dataset.take(3).batch(3)))
@@ -304,7 +304,7 @@ def draw(dataset, regressor, step):
 
 1.  定义`global_step`变量，用于跟踪训练迭代，然后定义文件写入器，用于记录训练和验证摘要：
 
-```
+```py
 optimizer = tf.optimizers.Adam() 
 epochs = 500 
 batch_size = 32 
@@ -322,7 +322,7 @@ with validation_writer.as_default():
 
 1.  根据 TensorFlow 2.0 的最佳实践，我们可以将训练步骤定义为一个函数，并使用`tf.function`将其转换为图形表示：
 
-```
+```py
 @tf.function 
 def train_step(image, coordinates): 
     with tf.GradientTape() as tape: 
@@ -335,7 +335,7 @@ def train_step(image, coordinates):
 
 1.  在每个批次上定义训练循环，并在每次迭代中调用`train_step`函数：
 
-```
+```py
 train_batches = train.cache().batch(batch_size).prefetch(1) 
 with train_writer.as_default(): 
     for _ in tf.range(epochs): 
@@ -399,7 +399,7 @@ IoU 值在[0,1]范围内，其中 0 表示无匹配（没有重叠），1 表示
 
 `(tf2)`
 
-```
+```py
 def iou(pred_box, gt_box, h, w):
     """
     Compute IoU between detect box and gt boxes
@@ -413,7 +413,7 @@ def iou(pred_box, gt_box, h, w):
 
 将`y_min`、`x_min`、`y_max`和`x_max`的绝对坐标转换为`x_min`、`y_min`、`x_max`和`y_max`的像素坐标：
 
-```
+```py
     def _swap(box):
         return tf.stack([box[1] * w, box[0] * h, box[3] * w, box[2] * h])
 
@@ -430,7 +430,7 @@ def iou(pred_box, gt_box, h, w):
 
 然后，计算边界框的宽度和高度：
 
-```
+```py
     w = tf.maximum(0, xx2 - xx1)
     h = tf.maximum(0, yy2 - yy1)
 
@@ -464,7 +464,7 @@ def iou(pred_box, gt_box, h, w):
 
 `(tf2)`
 
-```
+```py
 m = tf.metrics.Precision()
 
 m.update_state([0, 1, 1, 1], [1, 0, 1, 1])
@@ -483,7 +483,7 @@ print('Final result: ', m.result().numpy()) # Final result: 0.66
 
 `(tf2)`
 
-```
+```py
 # IoU threshold
 threshold = 0.75
 # Metric object
@@ -554,13 +554,13 @@ Rich Caruna 在他的论文*多任务学习*（1997 年）中定义了多任务�
 
 1.  首先，从输入层定义开始：
 
-```
+```py
 inputs = tf.keras.layers.Input(shape=(299, 299, 3))
 ```
 
 1.  然后，使用 TensorFlow Hub，我们定义固定的（不可训练的）特征提取器：
 
-```
+```py
 net = hub.KerasLayer(
     "https://tfhub.dev/google/tf2-preview/inception_v3/feature_vector/2",
     output_shape=[2048],
@@ -570,7 +570,7 @@ net = hub.KerasLayer(
 
 1.  然后，我们定义回归头，它只是一个由全连接层堆叠组成的部分，最后以四个线性神经元结束（每个边界框坐标一个）：
 
-```
+```py
 regression_head = tf.keras.layers.Dense(512)(net)
 regression_head = tf.keras.layers.ReLU()(regression_head)
 coordinates = tf.keras.layers.Dense(4, use_bias=False)(regression_head)
@@ -578,7 +578,7 @@ coordinates = tf.keras.layers.Dense(4, use_bias=False)(regression_head)
 
 1.  接下来，我们定义分类头，它只是一个由全连接层堆叠组成的部分，经过训练用于分类由固定（不可训练）特征提取器提取的特征：
 
-```
+```py
 classification_head = tf.keras.layers.Dense(1024)(net)
 classification_head = tf.keras.layers.ReLU()(classificatio_head)
 classification_head = tf.keras.layers.Dense(128)(net)
@@ -591,7 +591,7 @@ classification_head = tf.keras.layers.Dense(num_classes, use_bias=False)(
 
 1.  最后，我们可以定义将执行分类和定位的 Keras 模型。请注意，该模型有一个输入和两个输出：
 
-```
+```py
 model = tf.keras.Model(inputs=inputs, outputs=[coordinates, classification_head])
 ```
 

@@ -46,7 +46,7 @@ TF Hub 包含了多个由 Google 专家使用最先进的算法和海量数据�
 
 你可以访问 TensorFlow Hub（[`www.tensorflow.org/hub/`](https://www.tensorflow.org/hub/)）获取最先进的、以研究为导向的图像模型，并直接将其导入到你自定义的模型中。假设我们使用的是 NasNet（[`tfhub.dev/google/imagenet/nasnet_large/feature_vector/1`](https://tfhub.dev/google/imagenet/nasnet_large/feature_vector/1)），这是一个通过架构搜索训练的图像模块。在这里，我们将在代码中使用 NasNet 模块的 URL 来导入模块，如下所示：
 
-```
+```py
 ```
 
 module = hub.Module(“https://tfhub.dev/google/imagenet/nasnet_large/feature_vect
@@ -59,7 +59,7 @@ logits = tf.layers.dense(features, NUM_CLASSES)
 
 probabilities = tf.nn.softmax(logits)
 
-```
+```py
 ```
 
 我们在模块上添加了一个带有 Softmax 非线性的全连接层。我们通过反向传播训练该层的权重，以便对丰田汽车图像进行分类。
@@ -70,7 +70,7 @@ TensorFlow 处理所有这些底层细节，这使得该模块在真正意义上
 
 假设我们确实有一个大数据集。在这种情况下，我们可以按以下方式训练模块的可重用部分：
 
-```
+```py
 ```
 
 module = hub.Module(“https://tfhub.dev/google/imagenet/nasnet_large/feature_vector/1”, trainable=True, tags {“train”})features = module(toyota_images)
@@ -79,7 +79,7 @@ logits = tf.layers.dense(features, NUM_CLASSES)
 
 probabilities = tf.nn.softmax(logits)
 
-```
+```py
 ```
 
 TensorFlow Hub 提供了用于图像分类、词嵌入、句子嵌入和其他应用的预训练模型。让我们考虑一下来自本书第三章的电影情感分析项目，*使用 Tensorflow.js 在浏览器中进行情感分析*。我们本可以使用 TensorFlow Hub 提供的每个数据集项的预训练嵌入。这些跨领域的预训练模块的可用性将帮助许多开发人员在不必担心模型背后的数学原理的情况下构建新应用。

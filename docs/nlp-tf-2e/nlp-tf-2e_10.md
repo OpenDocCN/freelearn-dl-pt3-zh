@@ -366,21 +366,21 @@ TensorFlow 在 TensorFlow Hub（[`tfhub.dev/`](https://tfhub.dev/)）托管了�
 
 我们可以使用 Hugging Face 的 `datasets` 库下载数据集，并通过传入 `"squad"` 参数来调用 `load_dataset()` 函数：
 
-```
+```py
 from datasets import load_dataset
 dataset = load_dataset("squad") 
 ```
 
 现在让我们使用以下方法打印一些示例：
 
-```
+```py
 for q, a in zip(dataset["train"]["question"][:5], dataset["train"]["answers"][:5]):
     print(f"{q} -> {a}") 
 ```
 
 它将输出：
 
-```
+```py
 To whom did the Virgin Mary allegedly appear in 1858 in Lourdes France? -> {'text': ['Saint Bernadette Soubirous'], 'answer_start': [515]}
 What is in front of the Notre Dame Main Building? -> {'text': ['a copper statue of Christ'], 'answer_start': [188]}
 The Basilica of the Sacred heart at Notre Dame is beside to which structure? -> {'text': ['the Main Building'], 'answer_start': [279]}
@@ -390,7 +390,7 @@ What sits on top of the Main Building at Notre Dame? -> {'text': ['a golden stat
 
 在这里，`answer_start` 表示答案在提供的上下文中开始的字符索引。通过对数据集中可用内容的充分理解，我们将执行一个简单的处理步骤。在训练模型时，我们将要求模型预测答案的起始和结束索引。在其原始形式中，仅存在 `answer_start`。我们需要手动将 `answer_end` 添加到数据集中。以下函数实现了这一功能。此外，它还对数据集进行了几个检查：
 
-```
+```py
 def compute_end_index(answers, contexts):
     """ Add end index to answers """
 
@@ -443,14 +443,14 @@ test_answers, test_contexts = compute_end_index(
 
 首先，我们将查看如何下载 Tokenizer。你可以使用 `transformers` 库下载 Tokenizer。只需调用 `PreTrainedTokenizerFast` 基类提供的 `from_pretrained()` 函数：
 
-```
+```py
 from transformers import BertTokenizerFast
 tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased') 
 ```
 
 我们将使用名为 `bert-base-uncased` 的分词器。它是为 BERT 基础模型开发的分词器，并且是不区分大小写的（即不区分大写字母和小写字母）。接下来，让我们看看分词器的实际应用：
 
-```
+```py
 context = "This is the context"
 question = "This is the question"
 token_ids = tokenizer(
@@ -472,7 +472,7 @@ print(token_ids)
 
 这将输出：
 
-```
+```py
 {
     'input_ids': <tf.Tensor: shape=(1, 11), dtype=int32, numpy=array([[ 101, 2023, 2003, 1996, 6123,  102, 2023, 2003, 1996, 3160,  102]])>, 
     'token_type_ids': <tf.Tensor: shape=(1, 11), dtype=int32, numpy=array([[0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1]])>, 
@@ -490,19 +490,19 @@ print(token_ids)
 
 我们还可以将这些标记 ID 转换为实际的标记，以了解它们代表什么。为此，我们使用 `convert_ids_to_tokens()` 函数：
 
-```
+```py
 print(tokenizer.convert_ids_to_tokens(token_ids['input_ids'].numpy()[0])) 
 ```
 
 这将打印：
 
-```
+```py
 ['[CLS]', 'this', 'is', 'the', 'context', '[SEP]', 'this', 'is', 'the', 'question', '[SEP]'] 
 ```
 
 你可以看到分词器如何将特殊标记如 `[CLS]` 和 `[SEP]` 插入到文本序列中。在理解了分词器的功能后，接下来让我们使用它来编码训练集和测试集：
 
-```
+```py
 # Encode train data
 train_encodings = tokenizer(train_contexts, train_questions, truncation=True, padding=True, return_tensors='tf')
 # Encode test data
@@ -511,19 +511,19 @@ test_encodings = tokenizer(test_contexts, test_questions, truncation=True, paddi
 
 你可以通过运行以下命令来检查训练编码的大小：
 
-```
+```py
 print("train_encodings.shape: {}".format(train_encodings["input_ids"].shape)) 
 ```
 
 这将输出：
 
-```
+```py
 train_encodings.shape: (87599, 512) 
 ```
 
 我们数据集中的最大序列长度为 512。因此，我们看到序列的最大长度为 512。一旦我们将数据进行分词，我们还需要进行一步数据处理。我们的 `answer_start` 和 `answer_end` 索引是基于字符的。然而，由于我们处理的是标记，我们需要将基于字符的索引转换为基于标记的索引。我们将为此定义一个函数：
 
-```
+```py
 def replace_char_with_token_indices(encodings, answers):
     start_positions = []
     end_positions = []
@@ -557,7 +557,7 @@ def replace_char_with_token_indices(encodings, answers):
 
 该函数接收由分词器生成的一组`BatchEncodings`（称为`encodings`）和一组答案（字典列表）。然后，它通过两个新键`start_positions`和`end_positions`更新提供的编码。这两个键分别保存表示答案开始和结束的基于 token 的索引。如果没有找到答案，我们将开始和结束索引设置为最后一个 token。为了将现有的基于字符的索引转换为基于 token 的索引，我们使用一个名为`char_to_token()`的函数，该函数由`BatchEncodings`类提供。它以字符索引为输入，输出相应的 token 索引。定义好该函数后，让我们在训练和测试数据上调用它：
 
-```
+```py
 replace_char_with_token_indices(train_encodings, train_answers)
 replace_char_with_token_indices(test_encodings, test_answers) 
 ```
@@ -580,7 +580,7 @@ replace_char_with_token_indices(test_encodings, test_answers)
 
 我们将首先定义一个生成器，生成这种格式的数据：
 
-```
+```py
 def data_gen(input_ids, attention_mask, start_positions, end_positions):
     """ Generator for data """
     for inps, attn, start_pos, end_pos in zip(input_ids, 
@@ -592,7 +592,7 @@ def data_gen(input_ids, attention_mask, start_positions, end_positions):
 
 接下来，我们将定义一个部分函数，可以在不传递任何参数的情况下直接调用：
 
-```
+```py
 # Define the generator as a callable
 train_data_gen = partial(data_gen,
     input_ids=train_encodings['input_ids'], attention_mask=train_
@@ -604,7 +604,7 @@ train_data_gen = partial(data_gen,
 
 然后，将此函数传递给`tf.data.Dataset.from_generator()`函数：
 
-```
+```py
 # Define the dataset
 train_dataset = tf.data.Dataset.from_generator(
     train_data_gen, output_types=(('int32', 'int32'), ('int32', 'int32'))
@@ -613,7 +613,7 @@ train_dataset = tf.data.Dataset.from_generator(
 
 然后，我们将训练数据集中的数据打乱。在打乱 TensorFlow 数据集时，我们需要提供缓冲区大小。缓冲区大小定义了用于打乱的样本数量。这里我们将其设置为 1,000 个样本：
 
-```
+```py
 # Shuffling the data
 train_dataset = train_dataset.shuffle(1000)
 print('\tDone') 
@@ -621,7 +621,7 @@ print('\tDone')
 
 接下来，我们将数据集分为两部分：训练集和验证集。我们将使用前 10,000 个样本作为验证集，其余的数据作为训练集。两个数据集都将使用批量大小为 4 的批处理：
 
-```
+```py
 # Valid set is taken as the first 10000 samples in the shuffled set
 valid_dataset = train_dataset.take(10000)
 valid_dataset = valid_dataset.batch(4)
@@ -632,7 +632,7 @@ train_dataset = train_dataset.batch(4)
 
 最后，我们按照相同的过程创建测试数据集：
 
-```
+```py
 # Creating test data
 print("Creating test data")
 # Define the generator as a callable
@@ -681,19 +681,19 @@ test_dataset = test_dataset.batch(8)
 
 在这里，我们感兴趣的是`TFBertForQuestionAnswering`。让我们导入这个类以及`BertConfig`类，我们将从中提取重要的超参数：
 
-```
+```py
 from transformers import BertConfig, TFBertForQuestionAnswering 
 ```
 
 要获取预训练的`config`，我们调用`BertConfig`的`from_pretrained()`函数，并传入我们感兴趣的模型。在这里，我们将使用`bert-base-uncased`模型：
 
-```
+```py
 config = BertConfig.from_pretrained("bert-base-uncased", return_dict=False) 
 ```
 
 你可以打印`config`并查看其中的内容：
 
-```
+```py
 BertConfig {
   "architectures": [
     "BertForMaskedLM"
@@ -723,13 +723,13 @@ BertConfig {
 
 最后，我们通过调用`TFBertForQuestionAnswering`类中的相同函数`from_pretrained()`并传入我们刚刚获得的`config`来获取模型：
 
-```
+```py
 model = TFBertForQuestionAnswering.from_pretrained("bert-base-uncased", config=config) 
 ```
 
 当你运行这个时，你会收到一个警告，内容如下：
 
-```
+```py
 All model checkpoint layers were used when initializing TFBertForQuestionAnswering.
 Some layers of TFBertForQuestionAnswering were not initialized from the model checkpoint at bert-base-uncased and are newly initialized: ['qa_outputs']
 You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference. 
@@ -739,7 +739,7 @@ You should probably TRAIN this model on a down-stream task to be able to use it 
 
 之后，我们将定义一个函数，将返回的模型包装为`tf.keras.models.Model`对象。我们需要执行这一步，因为如果我们直接使用模型，TensorFlow 会返回以下错误：
 
-```
+```py
  TypeError: The two structures don't have the same sequence type. 
     Input structure has type <class 'tuple'>, while shallow structure has type 
     <class 'transformers.modeling_tf_outputs.TFQuestionAnsweringModelOutput'>. 
@@ -747,7 +747,7 @@ You should probably TRAIN this model on a down-stream task to be able to use it 
 
 因此，我们将定义两个输入层：一个输入令牌 ID，另一个输入 attention mask 并将其传递给模型。最后，我们得到模型的输出。然后，我们使用这些输入和输出定义一个`tf.keras.models.Model`：
 
-```
+```py
 def tf_wrap_model(model):
     """ Wraps the huggingface's model with in the Keras Functional API """
     # Define inputs
@@ -769,7 +769,7 @@ def tf_wrap_model(model):
 
 正如我们在学习模型结构时所了解到的，问答 BERT 有两个头：一个用于预测答案的起始索引，另一个用于预测结束索引。因此，我们需要优化来自这两个头的两个损失。这意味着我们需要将两个损失相加以获得最终的损失。当我们有一个多输出模型时，我们可以为每个输出头传递多个损失函数。在这里，我们定义了一个单一的损失函数。这意味着两个头会使用相同的损失，并将它们加起来生成最终损失：
 
-```
+```py
 loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 acc = tf.keras.metrics.SparseCategoricalAccuracy()
 optimizer = tf.keras.optimizers.Adam(learning_rate=1e-5)
@@ -783,7 +783,7 @@ model_v2.compile(optimizer=optimizer, loss=loss, metrics=[acc])
 
 我们已经准备好了数据并定义了模型。训练模型非常简单，只需要一行代码：
 
-```
+```py
 model_v2.fit(
     train_dataset, 
     validation_data=valid_dataset,
@@ -793,7 +793,7 @@ model_v2.fit(
 
 你应该会看到以下输出：
 
-```
+```py
 Epoch 1/2
 19400/19400 [==============================] - 7175s 369ms/step 
 - loss: 2.7193 - tf_bert_for_question_answering_loss: 1.4153 - tf_bert_for_question_answering_1_loss: 1.3040 - tf_bert_for_question_answering_sparse_categorical_accuracy: 0.5975 - tf_bert_for_question_answering_1_sparse_categorical_accuracy: 0.6376 - val_loss: 2.1615 - val_tf_bert_for_question_answering_loss: 1.0898 - val_tf_bert_for_question_answering_1_loss: 1.0717 - val_tf_bert_for_question_answering_sparse_categorical_accuracy: 0.7120 - val_tf_bert_for_question_answering_1_sparse_categorical_accuracy: 0.7350
@@ -804,19 +804,19 @@ It took 14366.591783046722 seconds to complete the training
 
 你应该会看到验证集的准确率达到大约 73% 到 75% 之间。这是相当高的，考虑到我们只训练了模型两个周期。这个表现可以归功于我们下载的预训练模型已经具备了很高的语言理解能力。让我们在测试数据上评估模型：
 
-```
+```py
 model_v2.evaluate(test_dataset) 
 ```
 
 它应该输出以下内容：
 
-```
+```py
 1322/1322 [======================] - 345s 261ms/step - loss: 2.2205 - tf_bert_for_question_answering_loss: 1.1325 - tf_bert_for_question_answering_1_loss: 1.0881 - tf_bert_for_question_answering_sparse_categorical_accuracy: 0.6968 - tf_bert_for_question_answering_1_sparse_categorical_accuracy: 0.7250 
 ```
 
 我们看到它在测试数据集上的表现也相当不错。最后，我们可以保存模型。我们将保存模型的`TFBertForQuestionAnswering`组件。我们还将保存分词器：
 
-```
+```py
 import os
 # Create folders
 if not os.path.exists('models'):
@@ -836,7 +836,7 @@ tokenizer.save_pretrained(os.path.join('tokenizers', 'bert_qa'))
 
 现在，让我们编写一个简单的脚本，从训练好的模型中生成问题的答案。首先，我们定义一个示例问题来生成答案。我们还将存储输入和真实答案以进行比较：
 
-```
+```py
 i = 5
 # Define sample question
 sample_q = test_questions[i]
@@ -848,7 +848,7 @@ sample_a = test_answers[i]
 
 接下来，我们将定义模型的输入。模型的输入需要有一个批量维度。因此，我们使用`[i:i+1]`语法来确保批量维度不会被压扁：
 
-```
+```py
 # Get the input in the format BERT accepts
 sample_input = (test_encodings["input_ids"][i:i+1],
 test_encodings["attention_mask"][i:i+1]) 
@@ -858,7 +858,7 @@ test_encodings["attention_mask"][i:i+1])
 
 然后，它从分词器生成令牌 ID，将它们传递给模型，输出答案的起始和结束索引，最后从上下文的文本中提取相应的答案：
 
-```
+```py
 def ask_bert(sample_input, tokenizer, model):
     """ This function takes an input, a tokenizer, a model and returns the
     prediciton """
@@ -874,7 +874,7 @@ def ask_bert(sample_input, tokenizer, model):
 
 让我们执行以下代码行来打印模型给出的答案：
 
-```
+```py
 print("Question")
 print("\t", sample_q, "\n")
 print("Context")
@@ -890,7 +890,7 @@ print('='*50,'\n')
 
 它将输出：
 
-```
+```py
 Question
     What was the theme of Super Bowl 50? 
 Context

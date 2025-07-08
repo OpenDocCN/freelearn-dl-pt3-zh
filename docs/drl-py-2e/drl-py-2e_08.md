@@ -36,13 +36,13 @@ TensorFlow 2.0 是 TensorFlow 的最新版本。在接下来的章节中，我�
 
 你可以通过在终端输入以下命令，轻松通过 `pip` 安装 TensorFlow：
 
-```
+```py
 pip install tensorflow==1.13.1 
 ```
 
 我们可以通过运行以下简单的 `Hello TensorFlow!` 程序来检查 TensorFlow 是否安装成功：
 
-```
+```py
 import tensorflow as tf
 hello = tf.constant("Hello TensorFlow!")
 sess = tf.Session()
@@ -65,21 +65,21 @@ print(sess.run(hello))
 
 计算图中有两种依赖关系，分别称为直接依赖和间接依赖。假设我们有节点`b`，其输入依赖于节点`a`的输出；这种依赖关系称为**直接依赖**，如以下代码所示：
 
-```
+```py
 a = tf.multiply(8,5)
 b = tf.multiply(a,1) 
 ```
 
 当节点 `b` 的输入不依赖于节点 `a` 时，这称为**间接依赖**，如以下代码所示：
 
-```
+```py
 a = tf.multiply(8,5)
 b = tf.multiply(4,3) 
 ```
 
 因此，如果我们能够理解这些依赖关系，就能在可用资源中分配独立的计算，减少计算时间。每当我们导入 TensorFlow 时，默认图会自动创建，我们创建的所有节点都会与该默认图关联。我们还可以创建自己的图，而不是使用默认图，这在构建相互独立的多个模型时非常有用。可以使用`tf.Graph()`创建一个 TensorFlow 图，如下所示：
 
-```
+```py
 graph = tf.Graph()
 with graph.as_default():
      z = tf.add(x, y, name='Add') 
@@ -93,7 +93,7 @@ with graph.as_default():
 
 可以使用`tf.Session()`来创建 TensorFlow 会话，如以下代码所示：
 
-```
+```py
 sess = tf.Session() 
 ```
 
@@ -103,7 +103,7 @@ TensorFlow 中的每一个计算都由一个计算图表示，因此我们需要
 
 执行以下代码以乘法运算两个数字：
 
-```
+```py
 a = tf.multiply(3,3)
 print(a) 
 ```
@@ -114,7 +114,7 @@ print(a)
 
 为了执行计算图，我们需要初始化并运行 TensorFlow 会话，如下所示：
 
-```
+```py
 a = tf.multiply(3,3)
 with tf.Session as sess:
     print(sess.run(a)) 
@@ -132,13 +132,13 @@ with tf.Session as sess:
 
 变量是用来存储值的容器。变量作为输入用于计算图中的多个其他操作。可以使用 `tf.Variable()` 函数来创建变量，如下列代码所示：
 
-```
+```py
 x = tf.Variable(13) 
 ```
 
 让我们使用 `tf.Variable()` 创建一个名为 `W` 的变量，如下所示：
 
-```
+```py
 W = tf.Variable(tf.random_normal([500, 111], stddev=0.35), name="weights") 
 ```
 
@@ -152,7 +152,7 @@ W = tf.Variable(tf.random_normal([500, 111], stddev=0.35), name="weights")
 
 一旦创建了会话，我们运行初始化操作，初始化所有已定义的变量，只有在此之后才能运行其他操作，如下列代码所示：
 
-```
+```py
 x = tf.Variable(1212)
 init = tf.global_variables_initializer()
 with tf.Session() as sess:
@@ -164,7 +164,7 @@ with tf.Session() as sess:
 
 常量与变量不同，常量的值不能改变。也就是说，常量是不可变的。一旦赋值，它们在整个程序中都无法更改。我们可以使用 `tf.constant()` 创建常量，如下列代码所示：
 
-```
+```py
  x = tf.constant(13) 
 ```
 
@@ -174,7 +174,7 @@ with tf.Session() as sess:
 
 占位符可以通过 `tf.placeholder()` 来定义。它有一个可选参数 `shape`，表示数据的维度。如果 `shape` 设置为 `None`，则可以在运行时输入任何大小的数据。占位符可以这样定义：
 
-```
+```py
  x = tf.placeholder("float", shape=None) 
 ```
 
@@ -182,7 +182,7 @@ with tf.Session() as sess:
 
 为了更好地理解占位符，我们考虑一个简单的例子：
 
-```
+```py
 x = tf.placeholder("float", None)
 y = x+3
 with tf.Session() as sess:
@@ -194,7 +194,7 @@ with tf.Session() as sess:
 
 如以下代码所示，我们设置了`feed_dict = {x:5}`，这意味着`x`占位符的值为`5`：
 
-```
+```py
 with tf.Session() as sess:
     result = sess.run(y, feed_dict={x: 5})
     print(result) 
@@ -220,7 +220,7 @@ TensorBoard 是 TensorFlow 的可视化工具，可用于可视化计算图。�
 
 让我们构建一个基本的计算图并在 TensorBoard 中可视化它。假设我们有四个常量，如下所示：
 
-```
+```py
 x = tf.constant(1,name='x')
 y = tf.constant(1,name='y')
 a = tf.constant(3,name='a')
@@ -229,14 +229,14 @@ b = tf.constant(3,name='b')
 
 让我们将 `x` 和 `y` 以及 `a` 和 `b` 相乘，并将结果分别存储为 `prod1` 和 `prod2`，如以下代码所示：
 
-```
+```py
 prod1 = tf.multiply(x,y,name='prod1')
 prod2 = tf.multiply(a,b,name='prod2') 
 ```
 
 将 `prod1` 和 `prod2` 相加，并将结果存储在 `sum` 中：
 
-```
+```py
 sum = tf.add(prod1,prod2,name='sum') 
 ```
 
@@ -244,7 +244,7 @@ sum = tf.add(prod1,prod2,name='sum')
 
 正如其名称所示，`logdir` 指定了我们要存储图形的目录，而 `graph` 指定了我们要存储的图形：
 
-```
+```py
 with tf.Session() as sess:
     writer = tf.summary.FileWriter(logdir='./graphs',graph=sess.graph)
     print(sess.run(sum)) 
@@ -254,7 +254,7 @@ with tf.Session() as sess:
 
 要启动 TensorBoard，请打开终端，定位到工作目录，并输入以下命令：
 
-```
+```py
 tensorboard --logdir=graphs --port=8000 
 ```
 
@@ -274,7 +274,7 @@ tensorboard --logdir=graphs --port=8000
 
 在上一节中，我们看到`prod1`和`prod2`执行乘法并计算结果。我们将定义一个名为`Product`的命名范围，并将`prod1`和`prod2`操作分组，如下所示：
 
-```
+```py
 with tf.name_scope("Product"):
     with tf.name_scope("prod1"):
         prod1 = tf.multiply(x,y,name='prod1')
@@ -285,14 +285,14 @@ with tf.name_scope("Product"):
 
 现在，定义`sum`的命名范围：
 
-```
+```py
 with tf.name_scope("sum"):
     sum = tf.add(prod1,prod2,name='sum') 
 ```
 
 将文件存储在`graphs`目录中：
 
-```
+```py
 with tf.Session() as sess:
     writer = tf.summary.FileWriter('./graphs', sess.graph)
     print(sess.run(sum)) 
@@ -300,7 +300,7 @@ with tf.Session() as sess:
 
 在 TensorBoard 中可视化图形：
 
-```
+```py
 tensorboard --logdir=graphs --port=8000 
 ```
 
@@ -330,7 +330,7 @@ tensorboard --logdir=graphs --port=8000
 
 作为第一步，让我们导入所有所需的库：
 
-```
+```py
 import warnings
 warnings.filterwarnings('ignore')
 import tensorflow as tf
@@ -344,7 +344,7 @@ import matplotlib.pyplot as plt
 
 使用以下代码加载数据集：
 
-```
+```py
 mnist = input_data.read_data_sets("data/mnist", one_hot=True) 
 ```
 
@@ -352,7 +352,7 @@ mnist = input_data.read_data_sets("data/mnist", one_hot=True)
 
 我们将通过执行以下代码查看我们数据中的内容：
 
-```
+```py
 print("No of images in training set {}".format(mnist.train.images.shape))
 print("No of labels in training set {}".format(mnist.train.labels.shape))
 print("No of images in test set {}".format(mnist.test.images.shape))
@@ -367,7 +367,7 @@ No of labels in test set (10000, 10)
 
 现在，我们将绘制一个输入图像，以查看它的样子：
 
-```
+```py
 img1 = mnist.train.images[0].reshape(28,28)
 plt.imshow(img1, cmap='Greys') 
 ```
@@ -384,7 +384,7 @@ plt.imshow(img1, cmap='Greys')
 
 我们定义每一层神经元的数量如下：
 
-```
+```py
 #number of neurons in input layer
 num_input = 784
 #num of neurons in hidden layer 1
@@ -401,7 +401,7 @@ num_output = 10
 
 如我们所学，我们首先需要为 `input` 和 `output` 定义占位符。占位符的值将在运行时通过 `feed_dict` 提供：
 
-```
+```py
 with tf.name_scope('input'):
     X = tf.placeholder("float", [None, num_input])
 with tf.name_scope('output'):
@@ -412,7 +412,7 @@ with tf.name_scope('output'):
 
 我们通常会将所有权重定义在一个字典中，如下所示：
 
-```
+```py
 with tf.name_scope('weights'):
 
  weights = {
@@ -425,7 +425,7 @@ with tf.name_scope('weights'):
 
 偏置的形状应该是当前层神经元的数量。例如，`b2` 偏置的维度是隐藏层 2 中神经元的数量。我们将偏置值设置为常量；在所有层中都设置为 `0.1`：
 
-```
+```py
 with tf.name_scope('biases'):
     biases = {
         'b1': tf.Variable(tf.constant(0.1, shape=[num_hidden1]),name='bias_1'),
@@ -439,7 +439,7 @@ with tf.name_scope('biases'):
 
 现在我们将定义前向传播操作。我们将在所有层中使用 ReLU 激活函数。在最后几层，我们将应用 `sigmoid` 激活函数，如下所示的代码所示：
 
-```
+```py
 with tf.name_scope('Model'):
 
     with tf.name_scope('layer1'):
@@ -465,14 +465,14 @@ with tf.name_scope('Model'):
 
 我们使用 `tf.reduce_mean()` 计算 `loss` 函数的平均值：
 
-```
+```py
 with tf.name_scope('Loss'):
         loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=y_hat,labels=Y)) 
 ```
 
 现在，我们需要使用反向传播来最小化损失。别担心！我们不需要手动计算所有权重的导数。相反，我们可以使用 TensorFlow 的 `optimizer`：
 
-```
+```py
 learning_rate = 1e-4
 optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss) 
 ```
@@ -491,7 +491,7 @@ optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss)
 
 因此，`tf.reduce_mean(tf.cast(correct_pred, tf.float32))`给出我们平均的正确预测：
 
-```
+```py
 with tf.name_scope('Accuracy'):
 
     predicted_digit = tf.argmax(y_hat, 1)
@@ -505,14 +505,14 @@ with tf.name_scope('Accuracy'):
 
 我们还可以在 TensorBoard 中可视化我们模型的损失和准确度在多次迭代过程中的变化。所以，我们使用`tf.summary()`来获取变量的汇总。由于损失和准确度是标量变量，我们使用`tf.summary.scalar()`，如下代码所示：
 
-```
+```py
 tf.summary.scalar("Accuracy", accuracy)
 tf.summary.scalar("Loss", loss) 
 ```
 
 接下来，我们将所有在图中使用的汇总合并，使用`tf.summary.merge_all()`。我们这样做是因为当我们有许多汇总时，运行和存储它们会变得低效，因此我们在会话中只运行一次，而不是多次运行：
 
-```
+```py
 merge_summary = tf.summary.merge_all() 
 ```
 
@@ -520,13 +520,13 @@ merge_summary = tf.summary.merge_all()
 
 现在，是时候训练我们的模型了。正如我们所学的，首先我们需要初始化所有变量：
 
-```
+```py
 init = tf.global_variables_initializer() 
 ```
 
 定义批处理大小、迭代次数和学习率，如下所示：
 
-```
+```py
 learning_rate = 1e-4
 num_iterations = 1000
 batch_size = 128 
@@ -534,43 +534,43 @@ batch_size = 128
 
 启动 TensorFlow 会话：
 
-```
+```py
 with tf.Session() as sess: 
 ```
 
 初始化所有变量：
 
-```
+```py
  sess.run(init) 
 ```
 
 保存事件文件：
 
-```
+```py
  summary_writer = tf.summary.FileWriter('./graphs', graph=tf.get_default_graph() 
 ```
 
 训练模型若干次迭代：
 
-```
+```py
  for i in range(num_iterations): 
 ```
 
 根据批处理大小获取一批数据：
 
-```
+```py
  batch_x, batch_y = mnist.train.next_batch(batch_size) 
 ```
 
 训练网络：
 
-```
+```py
  sess.run(optimizer, feed_dict={ X: batch_x, Y: batch_y}) 
 ```
 
 打印每 100^(次)迭代的`loss`和`accuracy`：
 
-```
+```py
  if i % 100 == 0:
             batch_loss, batch_accuracy,summary = sess.run(
                 [loss, accuracy, merge_summary],
@@ -583,7 +583,7 @@ with tf.Session() as sess:
 
 正如你从下面的输出中可以注意到的那样，损失在不断减少，准确度在不断增加：
 
-```
+```py
 Iteration: 0, Loss: 2.30789709091, Accuracy: 0.1171875
 Iteration: 100, Loss: 1.76062202454, Accuracy: 0.859375
 Iteration: 200, Loss: 1.60075569153, Accuracy: 0.9375
@@ -642,7 +642,7 @@ Iteration: 900, Loss: 1.52060437202, Accuracy: 0.9453125
 
 TensorFlow 中的急切执行模式更加符合 Python 编程风格，允许快速原型开发。与图模式不同，在图模式下，我们每次执行操作时都需要构建一个图，而急切执行模式遵循命令式编程范式，任何操作都可以立即执行，无需构建图，就像在 Python 中一样。因此，使用急切执行模式，我们可以告别会话和占位符。它还使得调试过程更加简便，因为会立即出现运行时错误，而不是像图模式那样需要先运行会话。例如，在图模式下，为了计算任何内容，我们必须运行会话。如下面的代码所示，要计算`z`的值，我们必须运行 TensorFlow 会话：
 
-```
+```py
 x = tf.constant(11)
 y = tf.constant(11)
 z = x*y
@@ -652,7 +652,7 @@ with tf.Session() as sess:
 
 使用急切执行模式时，我们不需要创建会话；我们可以像在 Python 中一样直接计算`z`。为了启用急切执行模式，只需调用`tf.enable_eager_execution()`函数：
 
-```
+```py
 x = tf.constant(11)
 y = tf.constant(11)
 z = x*y
@@ -661,13 +661,13 @@ print(z)
 
 它将返回以下内容：
 
-```
+```py
 <tf.Tensor: id=789, shape=(), dtype=int32, numpy=121> 
 ```
 
 为了获取输出值，我们可以打印以下内容：
 
-```
+```py
 z.numpy()
 121 
 ```
@@ -678,7 +678,7 @@ z.numpy()
 
 现在，我们将使用急切执行模式探索 TensorFlow 中的一些操作：
 
-```
+```py
 x = tf.constant([1., 2., 3.])
 y = tf.constant([3., 2., 1.]) 
 ```
@@ -687,7 +687,7 @@ y = tf.constant([3., 2., 1.])
 
 使用 `tf.add` 将两个数字相加：
 
-```
+```py
 sum = tf.add(x,y)
 sum.numpy()
 array([4., 4., 4.], dtype=float32) 
@@ -695,7 +695,7 @@ array([4., 4., 4.], dtype=float32)
 
 `tf.subtract` 函数用于计算两个数字之间的差值：
 
-```
+```py
 difference = tf.subtract(x,y)
 difference.numpy()
 array([-2.,  0.,  2.], dtype=float32) 
@@ -703,7 +703,7 @@ array([-2.,  0.,  2.], dtype=float32)
 
 `tf.multiply` 函数用于乘法运算两个数：
 
-```
+```py
 product = tf.multiply(x,y)
 product.numpy()
 array([3., 4., 3.], dtype=float32) 
@@ -711,7 +711,7 @@ array([3., 4., 3.], dtype=float32)
 
 使用 `tf.divide` 除以两个数字：
 
-```
+```py
 division = tf.divide(x,y)
 division.numpy()
 array([0.33333334, 1\.        , 3\.        ], dtype=float32) 
@@ -719,7 +719,7 @@ array([0.33333334, 1\.        , 3\.        ], dtype=float32)
 
 点积可以按以下方式计算：
 
-```
+```py
 dot_product = tf.reduce_sum(tf.multiply(x, y))
 dot_product.numpy()
 10.0 
@@ -727,27 +727,27 @@ dot_product.numpy()
 
 接下来，我们来找出最小值和最大值的索引：
 
-```
+```py
 x = tf.constant([10, 0, 13, 9]) 
 ```
 
 最小值的索引使用 `tf.argmin()` 计算：
 
-```
+```py
 tf.argmin(x).numpy()
 1 
 ```
 
 最大值的索引使用 `tf.argmax()` 计算：
 
-```
+```py
 tf.argmax(x).numpy()
 2 
 ```
 
 运行以下代码，找到 `x` 和 `y` 之间的平方差：
 
-```
+```py
 x = tf.Variable([1,3,5,7,11])
 y = tf.Variable([1])
 tf.math.squared_difference(x,y).numpy()
@@ -758,34 +758,34 @@ tf.math.squared_difference(x,y).numpy()
 
 打印 `x` 的类型：
 
-```
+```py
 print(x.dtype)
 tf.int32 
 ```
 
 我们可以使用 `tf.cast` 将 `x` 的类型从 `tf.int32` 转换为 `tf.float32`，如以下代码所示：
 
-```
+```py
 x = tf.cast(x, dtype=tf.float32) 
 ```
 
 现在，检查 `x` 的类型。它将是 `tf.float32`，如下所示：
 
-```
+```py
 print(x.dtype)
 tf.float32 
 ```
 
 将两个矩阵连接起来：
 
-```
+```py
 x = [[3,6,9], [7,7,7]]
 y = [[4,5,6], [5,5,5]] 
 ```
 
 按行连接矩阵：
 
-```
+```py
 tf.concat([x, y], 0).numpy()
 array([[3, 6, 9],
        [7, 7, 7],
@@ -795,7 +795,7 @@ array([[3, 6, 9],
 
 使用以下代码按列连接矩阵：
 
-```
+```py
 tf.concat([x, y], 1).numpy()
 array([[3, 6, 9, 4, 5, 6],
        [7, 7, 7, 5, 5, 5]], dtype=int32) 
@@ -803,7 +803,7 @@ array([[3, 6, 9, 4, 5, 6],
 
 使用 `stack` 函数堆叠 `x` 矩阵：
 
-```
+```py
 tf.stack(x, axis=1).numpy()
 array([[3, 7],
        [6, 7],
@@ -812,7 +812,7 @@ array([[3, 7],
 
 现在，让我们看看如何执行 `reduce_mean` 操作：
 
-```
+```py
 x = tf.Variable([[1.0, 5.0], [2.0, 3.0]])
 x.numpy()
 array([[1., 5.],
@@ -821,21 +821,21 @@ array([[1., 5.],
 
 计算 `x` 的平均值；即，(*1.0* + *5.0* + *2.0* + *3.0*) / *4*：
 
-```
+```py
 tf.reduce_mean(input_tensor=x).numpy()
 2.75 
 ```
 
 计算行的平均值；即，(*1.0*+*5.0*)/*2,* (*2.0*+*3.0*)/*2*：
 
-```
+```py
 tf.reduce_mean(input_tensor=x, axis=0).numpy()
 array([1.5, 4\. ], dtype=float32) 
 ```
 
 计算列的平均值；即，(*1.0*+*5.0*)/*2.0,* (*2.0*+*3.0*)/*2.0*：
 
-```
+```py
 tf.reduce_mean(input_tensor=x, axis=1, keepdims=True).numpy()
 array([[3\. ],
        [2.5]], dtype=float32) 
@@ -843,14 +843,14 @@ array([[3\. ],
 
 从概率分布中绘制随机值：
 
-```
+```py
 tf.random.normal(shape=(3,2), mean=10.0, stddev=2.0).numpy()
 tf.random.uniform(shape = (3,2), minval=0, maxval=None, dtype=tf.float32,).numpy() 
 ```
 
 计算 softmax 概率：
 
-```
+```py
 x = tf.constant([7., 2., 5.])
 tf.nn.softmax(x).numpy()
 array([0.8756006 , 0.00589975, 0.11849965], dtype=float32) 
@@ -860,14 +860,14 @@ array([0.8756006 , 0.00589975, 0.11849965], dtype=float32)
 
 定义 `square` 函数：
 
-```
+```py
 def square(x):
   return tf.multiply(x, x) 
 ```
 
 使用 `tf.GradientTape` 可以计算前面 `square` 函数的梯度，如下所示：
 
-```
+```py
 with tf.GradientTape(persistent=True) as tape:
      print(square(6.).numpy())
 36.0 
@@ -879,7 +879,7 @@ TensorFlow 2.0 具有一些非常酷的特性。默认启用了急切执行模�
 
 要安装 TensorFlow 2.0，请打开终端并输入以下命令：
 
-```
+```py
 pip install tensorflow==2.0.0-alpha0 
 ```
 
@@ -911,20 +911,20 @@ Keras 是另一个广泛使用的深度学习库。它由 Google 的 François C
 
 在一个顺序模型中，我们将每一层堆叠在一起：
 
-```
+```py
 from keras.models import Sequential
 from keras.layers import Dense 
 ```
 
 首先，让我们将模型定义为`Sequential()`模型，如下所示：
 
-```
+```py
 model = Sequential() 
 ```
 
 现在，定义第一个层，如下所示：
 
-```
+```py
 model.add(Dense(13, input_dim=7, activation='relu')) 
 ```
 
@@ -932,19 +932,19 @@ model.add(Dense(13, input_dim=7, activation='relu'))
 
 定义下一个使用`relu`激活函数的层，如下所示：
 
-```
+```py
 model.add(Dense(7, activation='relu')) 
 ```
 
 定义使用`sigmoid`激活函数的输出层：
 
-```
+```py
 model.add(Dense(1, activation='sigmoid')) 
 ```
 
 顺序模型的最终代码块如下所示。正如你所看到的，Keras 代码比 TensorFlow 代码要简单得多：
 
-```
+```py
 model = Sequential()
 model.add(Dense(13, input_dim=7, activation='relu'))
 model.add(Dense(7, activation='relu'))
@@ -957,43 +957,43 @@ model.add(Dense(1, activation='sigmoid'))
 
 第一步是定义输入维度：
 
-```
+```py
 input = Input(shape=(2,)) 
 ```
 
 现在，我们将使用`Dense`类定义第一个具有`10`个神经元并使用`relu`激活的全连接层，如下所示：
 
-```
+```py
 layer1 = Dense(10, activation='relu') 
 ```
 
 我们定义了`layer1`，但是`layer1`的输入来自哪里？我们需要在末尾使用括号表示法指定`layer1`的输入，如下所示：
 
-```
+```py
 layer1 = Dense(10, activation='relu')(input) 
 ```
 
 我们定义下一个层`layer2`，具有`13`个神经元和`relu`激活。`layer2`的输入来自`layer1`，因此在末尾的括号中添加，如以下代码所示：
 
-```
+```py
 layer2 = Dense(10, activation='relu')(layer1) 
 ```
 
 现在，我们可以使用`sigmoid`激活函数定义输出层。输出层的输入来自`layer2`，因此这将在末尾的括号中添加：
 
-```
+```py
 output = Dense(1, activation='sigmoid')(layer2) 
 ```
 
 定义完所有层后，我们使用`Model`类定义模型，在这里我们需要指定`inputs`和`outputs`，如以下代码所示：
 
-```
+```py
 model = Model(inputs=input, outputs=output) 
 ```
 
 完整的功能模型代码如下所示：
 
-```
+```py
 input = Input(shape=(2,))
 layer1 = Dense(10, activation='relu')(input)
 layer2 = Dense(10, activation='relu')(layer1)
@@ -1013,7 +1013,7 @@ model = Model(inputs=input, outputs=output)
 
 运行以下代码来编译模型：
 
-```
+```py
 model.compile(loss='binary_crossentropy', optimizer='sgd', metrics=['accuracy']) 
 ```
 
@@ -1021,7 +1021,7 @@ model.compile(loss='binary_crossentropy', optimizer='sgd', metrics=['accuracy'])
 
 我们已经定义并编译了模型。现在，我们将训练模型。训练模型可以通过 `fit` 函数完成。我们需要指定特征 `x`、标签 `y`、训练轮数 `epochs` 和 `batch_size`，如下所示：
 
-```
+```py
 model.fit(x=data, y=labels, epochs=100, batch_size=10) 
 ```
 
@@ -1029,13 +1029,13 @@ model.fit(x=data, y=labels, epochs=100, batch_size=10)
 
 在训练模型后，我们将在测试集上评估模型：
 
-```
+```py
 model.evaluate(x=data_test,y=labels_test) 
 ```
 
 我们还可以在同一个训练集上评估模型，这将帮助我们理解训练的准确性：
 
-```
+```py
 model.evaluate(x=data,y=labels) 
 ```
 
@@ -1047,32 +1047,32 @@ model.evaluate(x=data,y=labels)
 
 让我们从加载数据集开始：
 
-```
+```py
 mnist = tf.keras.datasets.mnist 
 ```
 
 使用以下代码创建训练集和测试集：
 
-```
+```py
 (x_train,y_train), (x_test, y_test) = mnist.load_data() 
 ```
 
 通过将 `x` 的值除以 `x` 的最大值，即 `255.0`，来归一化训练集和测试集：
 
-```
+```py
 x_train, x_test = tf.cast(x_train/255.0, tf.float32), tf.cast(x_test/255.0, tf.float32)
 y_train, y_test = tf.cast(y_train,tf.int64),tf.cast(y_test,tf.int64) 
 ```
 
 按如下定义顺序模型：
 
-```
+```py
 model = tf.keras.models.Sequential() 
 ```
 
 现在，让我们给模型添加层。我们使用一个三层的网络，隐藏层使用 ReLU 函数，最后一层使用 softmax：
 
-```
+```py
 model.add(tf.keras.layers.Flatten())
 model.add(tf.keras.layers.Dense(256, activation="relu"))
 model.add(tf.keras.layers.Dense(128, activation="relu"))
@@ -1081,19 +1081,19 @@ model.add(tf.keras.layers.Dense(10, activation="softmax"))
 
 通过运行以下代码行来编译模型：
 
-```
+```py
 model.compile(optimizer='sgd', loss='sparse_categorical_crossentropy', metrics=['accuracy']) 
 ```
 
 训练模型：
 
-```
+```py
 model.fit(x_train, y_train, batch_size=32, epochs=10) 
 ```
 
 评估模型：
 
-```
+```py
 model.evaluate(x_test, y_test) 
 ```
 

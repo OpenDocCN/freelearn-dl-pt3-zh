@@ -68,7 +68,7 @@
 
 一块代码设置如下：
 
-```
+```py
 model.fit(x_train, y_train, epochs=2)
 print('Evaluation:')
 print(model.evaluate(x_test, y_test))
@@ -76,7 +76,7 @@ print(model.evaluate(x_test, y_test))
 
 任何命令行输入或输出的格式如下：
 
-```
+```py
 npm install -g Serverless
 serverless --version
 

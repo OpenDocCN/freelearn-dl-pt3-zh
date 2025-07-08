@@ -64,7 +64,7 @@ PyTorch 和 TensorFlow 都有预训练的 VGG 模型。我们来看一下如何�
 
 Keras 是 TensorFlow 2 的官方部分，因此我们将使用它来加载模型：
 
-```
+```py
 import tensorflow as tf
 
 # VGG16
@@ -88,7 +88,7 @@ vgg19 = tf.keras.applications.vgg19.VGG19(include_top=True,
 
 我们将继续使用 PyTorch，你可以选择是否使用预训练模型（同样会自动下载）：
 
-```
+```py
 import torchvision.models as models
 model = models.vgg16(pretrained=True)
 ```
@@ -143,7 +143,7 @@ ResNet 系列网络不仅因其准确性而流行，还因为它们相对简单�
 
 1.  像往常一样，我们从导入库开始。请注意，我们将使用 PyTorch 功能模块的简写`F`（[`pytorch.org/docs/stable/nn.html#torch-nn-functional`](https://pytorch.org/docs/stable/nn.html#torch-nn-functional)）：
 
-```
+```py
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
@@ -155,7 +155,7 @@ from torchvision import transforms
 
 1.  接下来，让我们定义预激活常规（非瓶颈）残差块。我们将其实现为`nn.Module`——所有神经网络模块的基类。我们从类定义和`__init__`方法开始：
 
-```
+```py
 class PreActivationBlock(nn.Module):
     expansion = 1
     def __init__(self, in_slices, slices, stride=1):
@@ -189,7 +189,7 @@ class PreActivationBlock(nn.Module):
 
 1.  实际的数据传播在`forward`方法中实现（请注意缩进，因为它是`PreActivationBlock`的成员）：
 
-```
+```py
 def forward(self, x):
     out = F.relu(self.bn_1(x))
 
@@ -211,7 +211,7 @@ def forward(self, x):
 
 1.  然后，让我们实现残差块的瓶颈版本。我们将使用与非瓶颈实现相同的蓝图。我们从类定义和`__init__`方法开始：
 
-```
+```py
 class PreActivationBottleneckBlock(nn.Module):
     expansion = 4
     def __init__(self, in_slices, slices, stride=1):
@@ -249,7 +249,7 @@ class PreActivationBottleneckBlock(nn.Module):
 
 1.  接下来，让我们实现`PreActivationBottleneckBlock.forward`方法。它的逻辑与`PreActivationBlock`中的方法相同：
 
-```
+```py
 def forward(self, x):
     out = F.relu(self.bn_1(x))
 
@@ -272,7 +272,7 @@ def forward(self, x):
 
 1.  接下来，让我们实现残差网络本身。我们将从类定义开始（它继承自`nn.Module`）和`__init__`方法：
 
-```
+```py
 class PreActivationResNet(nn.Module):
     def __init__(self, block, num_blocks, num_classes=10):
         """
@@ -307,7 +307,7 @@ class PreActivationResNet(nn.Module):
 
 1.  然后，我们将实现`PreActivationResNet._make_group`方法，该方法创建一个残差块组。组中的所有块的步幅为 1，只有第一个块的步幅由参数`stride`指定：
 
-```
+```py
 def _make_group(self, block, slices, num_blocks, stride):
     """Create one residual group"""
 
@@ -322,7 +322,7 @@ def _make_group(self, block, slices, num_blocks, stride):
 
 1.  接下来，我们将实现`PreActivationResNet.forward`方法，该方法通过网络传播数据。我们可以看到全连接层前的下采样平均池化：
 
-```
+```py
 def forward(self, x):
     out = self.conv_1(x)
     out = self.layer_1(out)
@@ -338,7 +338,7 @@ def forward(self, x):
 
 1.  一旦我们完成了网络的构建，就可以实现多种 ResNet 配置。以下是`ResNet34`，它有 34 层卷积层，分组为`[3, 4, 6, 3]`非瓶颈残差块：
 
-```
+```py
 def PreActivationResNet34():
     return PreActivationResNet(block=PreActivationBlock,
                                num_blocks=[3, 4, 6, 3])
@@ -346,7 +346,7 @@ def PreActivationResNet34():
 
 1.  最后，我们可以训练网络。我们将首先定义训练和测试数据集。由于我们已经在第二章 *理解卷积网络*中看过类似的场景，这里不再详细讲解实现。我们将通过给样本填充四个像素来扩增训练集，然后从中随机裁剪出 32×32 的图像。以下是实现：
 
-```
+```py
 # training data transformation
 transform_train = transforms.Compose([
     transforms.RandomCrop(32, padding=4),
@@ -386,7 +386,7 @@ test_loader = torch.utils.data.DataLoader(dataset=testset,
 
 1.  接下来，我们将实例化网络模型和训练参数——交叉熵损失和 Adam 优化器：
 
-```
+```py
 # load the pretrained model
 model = PreActivationResNet34()
 
@@ -406,7 +406,7 @@ optimizer = optim.Adam(model.parameters())
 
 1.  现在我们可以将网络训练`EPOCHS`轮。`train_model`、`test_model`和`plot_accuracy`函数与我们在第二章 *实现 PyTorch 迁移学习*部分中定义的相同，我们不会在此重复它们的实现。以下是代码：
 
-```
+```py
 # train
 EPOCHS = 15
 

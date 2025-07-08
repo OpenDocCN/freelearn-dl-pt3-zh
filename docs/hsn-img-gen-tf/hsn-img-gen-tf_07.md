@@ -66,7 +66,7 @@ Jupyter 笔记本和代码可以通过以下链接找到：
 
 然而，在接下来的文本中，我将使用更简单的代码来展示内容重构，随后会扩展以进行风格迁移。以下是使用预训练 VGG 提取`block4_conv2`输出层的代码：
 
-```
+```py
 vgg = tf.keras.applications.VGG19(include_top=False, 						 weights='imagenet')
 content_layers = ['block4_conv2']
 content_outputs = [vgg.get_layer(x).output for x in  					content_layers]
@@ -81,7 +81,7 @@ VGG 预处理
 
 以下是前向传递代码，其中图像首先进行预处理，然后输入到模型中以返回内容特征。我们然后提取内容特征并将其作为我们的目标：
 
-```
+```py
 def extract_features(image):
     image = tf.keras.applications.vgg19.\ 			preprocess_input(image *255.)
     content_ref = model(image)
@@ -92,7 +92,7 @@ content_ref = extract_features(content_image)
 
 请注意，图像已被归一化到[0., 1.]，因此我们需要通过将其乘以 255 来恢复到[0., 255.]。然后我们创建一个随机初始化的输入，它也将成为风格化后的图像：
 
-```
+```py
 image = tf.Variable(tf.random.normal( 					shape=content_image.shape))
 ```
 
@@ -102,7 +102,7 @@ image = tf.Variable(tf.random.normal( 					shape=content_image.shape))
 
 在训练步骤中，我们将图像输入到被冻结的 VGG 中以提取内容特征，并使用 L2 损失来与目标内容特征进行比较。以下是自定义的`loss`函数，用于计算每个特征层的 L2 损失：
 
-```
+```py
 def calc_loss(y_true, y_pred):
     loss = [tf.reduce_sum((x-y)**2) for x, y in  					zip(y_pred, y_true)]
     return tf.reduce_mean(loss)
@@ -110,7 +110,7 @@ def calc_loss(y_true, y_pred):
 
 接下来的训练步骤使用 `tf.GradientTape()` 来计算梯度。在普通的神经网络训练中，梯度会应用到可训练的变量，即神经网络的权重上。然而，在神经风格迁移中，梯度会应用到图像上。之后，我们将图像值裁剪到 [0., 1.] 之间，如下所示：
 
-```
+```py
 for i in range(1,steps+1):
     with tf.GradientTape() as tape:
         content_features = self.extract_features(image)
@@ -154,7 +154,7 @@ for i in range(1,steps+1):
 
 从单个卷积层激活计算 Gram 矩阵的代码如下：
 
-```
+```py
 def gram_matrix(x):
     x = tf.transpose(tf.squeeze(x), (2,0,1));
     x = tf.keras.backend.batch_flatten(x)
@@ -165,7 +165,7 @@ def gram_matrix(x):
 
 我们可以使用这个函数来获取每个我们指定为风格层的 VGG 层的 Gram 矩阵。然后，我们对目标图像和参考图像的 Gram 矩阵使用 L2 损失。损失函数和其他代码与内容重建相同。创建 Gram 矩阵列表的代码如下：
 
-```
+```py
 def extract_features(image):
     image = tf.keras.applications.vgg19.\ 				preprocess_input(image *255.)
     styles = self.model(image)
@@ -187,7 +187,7 @@ def extract_features(image):
 
 我们首先创建一个模型，提取两个特征块，一个用于内容，另一个用于风格。我们仅使用`block5_conv1`的一层作为内容层，使用从`block1_conv1`到`block5_conv1`的五层来捕捉来自不同层次的风格，如下所示：
 
-```
+```py
 vgg = tf.keras.applications.VGG19(include_top=False, 						  weights='imagenet')
 default_content_layers = ['block5_conv1']
 default_style_layers = ['block1_conv1',
@@ -204,14 +204,14 @@ self.model = Model(vgg.input, [self.content_outputs, 					    self.style_out
 
 在训练循环开始之前，我们从各自的图像中提取内容和风格特征，作为目标使用。虽然我们可以使用随机初始化的输入进行内容和风格重建，但从内容图像开始训练会更快，如下所示：
 
-```
+```py
 content_ref, _ = self.extract_features(content_image)
 _, style_ref = self.extract_features(style_image)
 ```
 
 然后，我们对内容损失和风格损失进行加权并相加。代码片段如下：
 
-```
+```py
 def train_step(self, image, content_ref, style_ref):
     with tf.GradientTape() as tape:
         content_features, style_features = \ 					self.extract_features(image)
@@ -326,7 +326,7 @@ AdaIN 仍然可以被理解为一种条件实例归一化形式，其中条件�
 
 我们将使用 TensorFlow 的子类化来创建一个自定义的`AdaIN`层，如下所示：
 
-```
+```py
 class AdaIN(layers.Layer):
     def __init__(self, epsilon=1e-5):
         super(AdaIN, self).__init__()
@@ -362,7 +362,7 @@ class AdaIN(layers.Layer):
 
 以下是从 VGG 构建编码器的代码：
 
-```
+```py
 def build_encoder(self, name='encoder'):
     self.encoder_layers = ['block1_conv1',
                            'block2_conv1',
@@ -385,7 +385,7 @@ def build_encoder(self, name='encoder'):
 
 如果我们使用反射填充，填充后的数组将是 [8, 10, 8, 9, 8]，这将提供一个更平滑的过渡到边界。然而，Keras 的 Conv2D 不支持反射填充，因此我们需要使用 TensorFlow 子类化来创建一个自定义的 Conv2D。以下代码片段（代码已简化，完整代码请参阅 GitHub）展示了如何在卷积前向输入张量添加反射填充：
 
-```
+```py
 class Conv2D(layers.Layer):
     @tf.function
     def call(self, inputs):
@@ -403,7 +403,7 @@ class Conv2D(layers.Layer):
 
 尽管我们在编码器代码中使用了 4 个 VGG 层（`block1_conv1`到`block4_conv1`），但只有编码器中的最后一层`block4_conv1`被 AdaIN 使用。因此，解码器的输入张量具有与`block4_conv1`相同的激活。解码器架构与我们在前几章中实现的相似，包含卷积层和上采样层，如下所示：
 
-```
+```py
 def build_decoder(self):
     block = tf.keras.Sequential([\
             Conv2D(512, 256, 3),
@@ -428,7 +428,7 @@ def build_decoder(self):
 
 就像我们之前构建的神经风格迁移一样，我们需要通过将颜色通道反转为 BGR 并减去颜色均值来预处理图像。代码如下：
 
-```
+```py
 def preprocess(self, image):
     # rgb to bgr
     image = tf.reverse(image, axis=[-1])
@@ -437,7 +437,7 @@ def preprocess(self, image):
 
 我们可以在后处理阶段做相同的操作，即将颜色均值加回来并反转颜色通道。然而，这可以由解码器学习，因为颜色均值相当于输出层中的偏置。我们将让训练来完成这项任务，我们所需要做的就是将像素裁剪到[0, 255]的范围内，如下所示：
 
-```
+```py
 def postprocess(self, image):
     return tf.clip_by_value(image, 0., 255.)
 ```
@@ -448,7 +448,7 @@ def postprocess(self, image):
 
 构建**STN**非常简单，只需将编码器、AdaIN 和解码器连接起来，如前面的架构图所示。STN 也是我们用于执行推理的模型。实现这一功能的代码如下：
 
-```
+```py
 content_image = self.preprocess(content_image_input)
 style_image = self.preprocess(style_image_input) 
 self.content_target = self.encoder(content_image)
@@ -464,7 +464,7 @@ self.stn = Model([content_image_input,  			  style_image_input],  			  self.
 
 就像神经和前馈风格迁移一样，内容损失和风格损失是通过固定的 VGG 提取的激活计算得出的。内容损失也是 L2 范数，但生成的风格化图像的内容特征现在与 AdaIN 的输出进行比较，而不是与内容图像的特征进行比较，如下所示。论文的作者发现，这可以加速收敛：
 
-```
+```py
 content_loss =  tf.reduce_sum((output_features[-1]-\ 					    adain_output)**2)
 ```
 
@@ -476,7 +476,7 @@ content_loss =  tf.reduce_sum((output_features[-1]-\ 					    adain_output
 
 我们像 AdaIN 层一样使用`tf.nn.moments`来计算风格化图像和风格图像的特征统计量以及 L2 范数。每个风格层的权重相同，因此我们平均内容层的损失，如下所示：
 
-```
+```py
 def calc_style_loss(self, y_true, y_pred):
     n_features = len(y_true)
     epsilon = 1e-5
@@ -493,7 +493,7 @@ def calc_style_loss(self, y_true, y_pred):
 
 最后的步骤是编写训练步骤，如下所示：
 
-```
+```py
 def train_step(self, train_data):
     with tf.GradientTape() as tape:
         adain_output, output_features, style_target = \ 					self.training_model(train_data) 

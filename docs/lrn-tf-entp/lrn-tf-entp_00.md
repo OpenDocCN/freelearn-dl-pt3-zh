@@ -56,29 +56,29 @@ TensorFlow 作为一个 **机器学习** (**ML**) 库，已经发展成为一个
 
 代码块的设置如下：
 
-```
+```py
 p2 = Person()
 ```
 
-```
+```py
 p2.name = 'Jane'
 ```
 
-```
+```py
 p2.age = 20
 ```
 
-```
+```py
 print(p2.name)
 ```
 
-```
+```py
 print(p2.age)
 ```
 
 任何命令行输入或输出都按如下方式写出：
 
-```
+```py
 sudo apt-get install xrdp -y
 ```
 

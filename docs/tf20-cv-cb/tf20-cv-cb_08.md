@@ -36,13 +36,13 @@
 
 我们需要安装几个外部库，首先是 `tensorflow_docs`：
 
-```
+```py
 $> pip install git+https://github.com/tensorflow/docs
 ```
 
 接下来，我们需要安装 TensorFlow Datasets、`Pillow` 和 `OpenCV`：
 
-```
+```py
 $> pip install tensorflow-datasets Pillow opencv-contrib-python
 ```
 
@@ -70,7 +70,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  导入所有必需的包：
 
-    ```
+    ```py
     import pathlib
     import cv2
     import matplotlib.pyplot as plt
@@ -88,13 +88,13 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  为`tf.data.experimental.AUTOTUNE`定义一个别名：
 
-    ```
+    ```py
     AUTOTUNE = tf.data.experimental.AUTOTUNE 
     ```
 
 1.  定义一个函数，用于将数据集中的图像归一化到[0, 1]范围。为了保持一致性，我们将从掩膜中的每个像素减去 1，这样它们的范围就从 0 扩展到 2：
 
-    ```
+    ```py
     def normalize(input_image, input_mask):
        input_image = tf.cast(input_image, tf.float32) / 255.0
         input_mask -= 1
@@ -103,7 +103,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  定义`load_image()`函数，给定一个 TensorFlow 数据集元素，该函数加载图像及其掩膜。我们将借此机会将图像调整为*256x256*。另外，如果`train`标志设置为`True`，我们可以通过随机镜像图像及其掩膜来进行一些数据增强。最后，我们必须对输入进行归一化：
 
-    ```
+    ```py
     @tf.function
     def load_image(dataset_element, train=True):
       input_image = tf.image.resize(dataset_element['image'],
@@ -123,7 +123,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  现在，是时候定义模型的架构了：
 
-    ```
+    ```py
     def _create_model(self):
             input = Input(shape=self.input_shape)
             x = Conv2D(filters=64,
@@ -143,7 +143,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  我们首先定义了输入和第一块卷积层以及最大池化层。现在，定义第二块卷积层，这次每个卷积使用 128 个滤波器：
 
-    ```
+    ```py
             x = Conv2D(filters=128,
                        kernel_size=(3, 3),
                        activation='relu',
@@ -162,7 +162,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  第三块包含 256 个滤波器的卷积：
 
-    ```
+    ```py
             x = Conv2D(filters=256,
                        kernel_size=(3, 3),
                        activation='relu',
@@ -186,7 +186,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  第四块使用了 512 个滤波器的卷积：
 
-    ```
+    ```py
             x = Conv2D(filters=512,
                        kernel_size=(3, 3),
                        activation='relu',
@@ -209,7 +209,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  第五块是第四块的重复，同样使用 512 个滤波器的卷积：
 
-    ```
+    ```py
             x = Conv2D(filters=512,
                        kernel_size=(3, 3),
                        activation='relu',
@@ -232,7 +232,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  我们到目前为止命名层的原因是，为了在接下来导入预训练权重时能够与它们匹配（请注意`by_name=True`）：
 
-    ```
+    ```py
             model = Model(input, block5_pool)
             model.load_weights(self.vgg_weights_path,
                                by_name=True)
@@ -240,7 +240,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  在传统的**VGG16**架构中，`output`由全连接层组成。然而，我们将用反卷积层替换它们。请注意，我们正在将这些层连接到第五块的输出：
 
-    ```
+    ```py
             output = Conv2D(filters=self.output_channels,
                             kernel_size=(7, 7),
                             activation='relu',
@@ -255,7 +255,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  创建一个 1x1 卷积层，接着是一个反卷积层，并将其连接到第四块的输出（这实际上是一个跳跃连接）：
 
-    ```
+    ```py
             pool4_n = Conv2D(filters=self.output_channels,
                              kernel_size=(1, 1),
                              activation='relu',
@@ -270,7 +270,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  将第三块的输出通过一个 1x1 卷积层。然后，将这三条路径合并成一条，传递通过最后一个反卷积层。这将通过`Softmax`激活。这个输出即为模型预测的分割掩膜：
 
-    ```
+    ```py
             pool3_n = Conv2D(filters=self.output_channels,
                              kernel_size=(1, 1),
                              activation='relu',
@@ -290,7 +290,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  现在，让我们创建一个私有辅助方法来绘制相关的训练曲线：
 
-    ```
+    ```py
         @staticmethod
         def _plot_model_history(model_history, metric, 
                                             ylim=None):
@@ -309,7 +309,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  `train()` 方法接受训练和验证数据集，以及执行的周期数和训练、验证步骤数，用于拟合模型。它还将损失和准确率图保存到磁盘，以便后续分析：
 
-    ```
+    ```py
         def train(self, train_dataset, epochs, 
                          steps_per_epoch,
                   validation_dataset, validation_steps):
@@ -325,7 +325,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  实现 `_process_mask()`，用于使分割掩膜与 OpenCV 兼容。这个函数的作用是创建一个三通道版本的灰度掩膜，并将类值上采样到 [0, 255] 范围：
 
-    ```
+    ```py
         @staticmethod
         def _process_mask(mask):
             mask = (mask.numpy() * 127.5).astype('uint8')
@@ -335,7 +335,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  `_save_image_and_masks()` 辅助方法创建了原始图像、真实标签掩膜和预测分割掩膜的马赛克图像，并将其保存到磁盘以便后续修订：
 
-    ```
+    ```py
         def _save_image_and_masks(self, image,
                                   ground_truth_mask,
                                   prediction_mask,
@@ -350,7 +350,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  为了将网络输出的体积转换为有效的分割掩膜，我们必须在每个像素位置选择值最高的索引。这对应于该像素最可能的类别。`_create_mask()` 方法执行此操作：
 
-    ```
+    ```py
         @staticmethod
         def _create_mask(prediction_mask):
             prediction_mask = tf.argmax(prediction_mask, 
@@ -362,7 +362,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  `_save_predictions()` 方法使用了我们在 *步骤 18* 中定义的 `_save_image_and_mask()` 辅助方法：
 
-    ```
+    ```py
         def _save_predictions(self, dataset, 
                                sample_size=1):
             for id, (image, mask) in \
@@ -380,7 +380,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  `evaluate()` 方法计算 **FCN** 在测试集上的准确率，并为一部分图像生成预测结果，然后将其保存到磁盘：
 
-    ```
+    ```py
         def evaluate(self, test_dataset, sample_size=5):
             result = self.model.evaluate(test_dataset)
             print(f'Accuracy: {result[1] * 100:.2f}%')
@@ -390,14 +390,14 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  使用 **TensorFlow Datasets** 下载（或加载，如果已缓存）`Oxford IIIT Pet Dataset` 及其元数据：
 
-    ```
+    ```py
     dataset, info = tfdata.load('oxford_iiit_pet', 
                                  with_info=True)
     ```
 
 1.  使用元数据定义网络在训练和验证数据集上的步数。此外，还要定义批处理和缓冲区大小：
 
-    ```
+    ```py
     TRAIN_SIZE = info.splits['train'].num_examples
     VALIDATION_SIZE = info.splits['test'].num_examples
     BATCH_SIZE = 32
@@ -410,7 +410,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  定义训练和测试数据集的管道：
 
-    ```
+    ```py
     train_dataset = (dataset['train']
                      .map(load_image, num_parallel_
                      calls=AUTOTUNE)
@@ -427,7 +427,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  实例化 **FCN** 并训练 120 个周期：
 
-    ```
+    ```py
     fcn = FCN(output_channels=3)
     fcn.train(train_dataset,
               epochs=120,
@@ -438,7 +438,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  最后，在测试数据集上评估网络：
 
-    ```
+    ```py
     unet.evaluate(test_dataset)
     ```
 
@@ -486,13 +486,13 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 在本例中，我们将依赖几个外部库，如 TensorFlow Datasets、TensorFlow Docs、`Pillow`和`OpenCV`。好消息是，我们可以通过`pip`轻松安装它们。首先，安装`tensorflow_docs`，如下所示：
 
-```
+```py
 $> pip install git+https://github.com/tensorflow/docs
 ```
 
 接下来，安装其余的库：
 
-```
+```py
 $> pip install tensorflow-datasets Pillow opencv-contrib-python
 ```
 
@@ -518,7 +518,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  让我们导入所有必需的依赖项：
 
-    ```
+    ```py
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
@@ -535,13 +535,13 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  定义`tf.data.experimental.AUTOTUNE`的别名：
 
-    ```
+    ```py
     AUTOTUNE = tf.data.experimental.AUTOTUNE 
     ```
 
 1.  定义一个函数，用于归一化数据集中的图像。我们还需要归一化掩膜，使得类别编号从 0 到 2，而不是从 1 到 3：
 
-    ```
+    ```py
     def normalize(input_image, input_mask):
         input_image = tf.cast(input_image, tf.float32) / 255.0
         input_mask -= 1
@@ -550,7 +550,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  定义一个函数，根据 TensorFlow 数据集结构中的元素加载图像。请注意，我们将图像和掩膜的大小调整为*256x256*。此外，如果`train`标志设置为`True`，我们会通过随机镜像图像及其掩膜来进行数据增强。最后，我们对输入进行归一化处理：
 
-    ```
+    ```py
     @tf.function
     def load_image(dataset_element, train=True):
       input_image = tf.image.resize(dataset element['image'],
@@ -569,7 +569,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  现在，让我们定义`_downsample()`助手方法，用于构建下采样块。它是一个卷积层，可以（可选地）进行批量归一化，并通过`LeakyReLU`激活：
 
-    ```
+    ```py
         @staticmethod
         def _downsample(filters, size, batch_norm=True):
         initializer = tf.random_normal_initializer(0.0, 0.02)
@@ -588,7 +588,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  相反，`_upsample()`助手方法通过转置卷积扩展其输入，该卷积也进行批量归一化，并通过`ReLU`激活（可选地，我们可以添加一个 dropout 层来防止过拟合）：
 
-    ```
+    ```py
         def _upsample(filters, size, dropout=False):
             init = tf.random_normal_initializer(0.0, 0.02)
             layers = Sequential()
@@ -607,7 +607,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  凭借`_downsample()`和`_upsample()`，我们可以迭代地构建完整的**U-Net**架构。网络的编码部分只是一个下采样块的堆叠，而解码部分则如预期那样，由一系列上采样块组成：
 
-    ```
+    ```py
         def _create_model(self):
             down_stack = [self._downsample(64, 4,
                                       batch_norm=False)]
@@ -627,7 +627,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  为了防止网络出现梯度消失问题（即深度网络遗忘已学内容的现象），我们必须在每个层级添加跳跃连接：
 
-    ```
+    ```py
             inputs = Input(shape=self.input_size)
             x = inputs
             skip_layers = []
@@ -643,7 +643,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
     **U-Net**的输出层是一个转置卷积，其尺寸与输入图像相同，但它的通道数与分割掩膜中的类别数相同：
 
-    ```
+    ```py
             init = tf.random_normal_initializer(0.0, 0.02)
             output = Conv2DTranspose(
                 filters=self.output_channels,
@@ -656,7 +656,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  让我们定义一个`helper`方法，用于绘制相关的训练曲线：
 
-    ```
+    ```py
         @staticmethod
         def _plot_model_history(model_history, metric, 
                                 ylim=None):
@@ -675,7 +675,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  `train()`方法接受训练和验证数据集，以及进行训练所需的轮次、训练和验证步数。它还会将损失和准确率图保存到磁盘，以供后续分析：
 
-    ```
+    ```py
         def train(self, train_dataset, epochs, 
                          steps_per_epoch,
                   validation_dataset, validation_steps):
@@ -691,7 +691,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  定义一个名为`_process_mask()`的助手方法，用于将分割掩膜与 OpenCV 兼容。此函数的作用是创建一个三通道的灰度掩膜版本，并将类别值扩大到[0, 255]的范围：
 
-    ```
+    ```py
         @staticmethod
         def _process_mask(mask):
             mask = (mask.numpy() * 127.5).astype('uint8')
@@ -701,7 +701,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  `_save_image_and_masks()`助手方法会创建一个由原始图像、真实掩膜和预测分割掩膜组成的马赛克，并将其保存到磁盘，供以后修订：
 
-    ```
+    ```py
         def _save_image_and_masks(self, image,
                                   ground_truth_mask,
                                   prediction_mask,
@@ -717,7 +717,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  为了将网络产生的输出体积传递到有效的分割掩膜，我们必须获取每个像素位置上最高值的索引，这对应于该像素最可能的类别。`_create_mask()`方法执行了这个操作：
 
-    ```
+    ```py
         @staticmethod
         def _create_mask(prediction_mask):
             prediction_mask = tf.argmax(prediction_mask, 
@@ -728,7 +728,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
     `_save_predictions()`方法使用了我们在*步骤 13*中定义的`_save_image_and_mask()`辅助方法：
 
-    ```
+    ```py
         def _save_predictions(self, dataset, 
                                 sample_size=1):
             for id, (image, mask) in \
@@ -746,7 +746,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  `evaluate()`方法计算**U-Net**在测试集上的准确度，并为一些图像样本生成预测，之后将其存储到磁盘上：
 
-    ```
+    ```py
         def evaluate(self, test_dataset, sample_size=5):
             result = self.model.evaluate(test_dataset)
             print(f'Accuracy: {result[1] * 100:.2f}%')
@@ -756,14 +756,14 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  使用 TensorFlow Datasets 下载（或加载，如果已缓存）`Oxford IIIT Pet Dataset`及其元数据：
 
-    ```
+    ```py
     dataset, info = tfdata.load('oxford_iiit_pet',
                                 with_info=True)
     ```
 
 1.  使用元数据来定义网络在训练和验证数据集上将进行的相应步数。还需定义批量和缓冲区大小：
 
-    ```
+    ```py
     TRAIN_SIZE = info.splits['train'].num_examples
     VALIDATION_SIZE = info.splits['test'].num_examples
     BATCH_SIZE = 64
@@ -776,7 +776,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  定义训练和测试数据集的管道：
 
-    ```
+    ```py
     train_dataset = (dataset['train']
                      .map(load_image, num_parallel_
                       calls=AUTOTUNE)
@@ -794,7 +794,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  实例化**U-Net**并训练 50 个 epoch：
 
-    ```
+    ```py
     unet = UNet()
     unet.train(train_dataset,
                epochs=50,
@@ -805,7 +805,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  最后，在测试数据集上评估网络：
 
-    ```
+    ```py
     unet.evaluate(test_dataset)
     ```
 
@@ -863,13 +863,13 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 本食谱与前一个食谱（*从头开始实现 U-Net*）非常相似，因此我们只会深入讨论不同的部分。为了更深入的理解，我建议在尝试本食谱之前，先完成*从头开始实现 U-Net*的食谱。正如预期的那样，我们需要的库与之前相同，都可以通过`pip`安装。让我们首先安装`tensorflow_docs`，如下所示：
 
-```
+```py
 $> pip install git+https://github.com/tensorflow/docs
 ```
 
 现在，让我们设置剩余的依赖项：
 
-```
+```py
 $> pip install tensorflow-datasets Pillow opencv-contrib-python
 ```
 
@@ -897,7 +897,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  导入所有需要的包：
 
-    ```
+    ```py
     import cv2
     import matplotlib.pyplot as plt
     import numpy as np
@@ -915,13 +915,13 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  为`tf.data.experimental.AUTOTUNE`定义一个别名：
 
-    ```
+    ```py
     AUTOTUNE = tf.data.experimental.AUTOTUNE 
     ```
 
 1.  定义一个函数，用于对数据集中的图像和掩码进行归一化处理：
 
-    ```
+    ```py
     def normalize(input_image, input_mask):
         input_image = tf.cast(input_image, tf.float32) / 
                                        255.0
@@ -931,7 +931,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  定义一个函数，根据 TensorFlow Datasets 数据结构中的一个元素加载图像及其对应的掩码。可选地，函数可以对训练图像执行图像镜像操作：
 
-    ```
+    ```py
     @tf.function
     def load_image(dataset_element, train=True):
         input_image = tf.image.resize(dataset
@@ -952,7 +952,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  现在，我们来定义`_upsample()`辅助方法，构建一个上采样模块：
 
-    ```
+    ```py
         @staticmethod
         def _upsample(filters, size, dropout=False):
             init = tf.random_normal_initializer(0.0, 0.02)
@@ -972,7 +972,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  利用我们预训练的`MobileNetV2`和`_upsample()`方法，我们可以逐步构建完整的`self.target_layers`，这些层被冻结（`down_stack.trainable = False`），这意味着我们只训练解码器或上采样模块：
 
-    ```
+    ```py
         def _create_model(self):
           layers = [self.pretrained_model.get_layer(l).output
                       for l in self.target_layers]
@@ -987,7 +987,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  现在，我们可以添加跳跃连接，以促进梯度在网络中的流动：
 
-    ```
+    ```py
             inputs = Input(shape=self.input_size)
             x = inputs
             skip_layers = down_stack(x)
@@ -1001,7 +1001,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  **U-Net**的输出层是一个转置卷积，其尺寸与输入图像相同，但通道数与分割掩码中的类别数相同：
 
-    ```
+    ```py
             init = tf.random_normal_initializer(0.0, 0.02)
             output = Conv2DTranspose(
                 filters=self.output_channels,
@@ -1014,7 +1014,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  定义`_plot_model_history()`，一个辅助方法，用于绘制相关的训练曲线：
 
-    ```
+    ```py
         @staticmethod
         def _plot_model_history(model_history, metric, 
                                  ylim=None):
@@ -1033,7 +1033,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  定义`train()`方法，负责拟合模型：
 
-    ```
+    ```py
         def train(self, train_dataset, epochs, 
                       steps_per_epoch,
                   validation_dataset, validation_steps):
@@ -1049,7 +1049,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  定义`_process_mask()`，一个辅助方法，使分割掩码与 OpenCV 兼容：
 
-    ```
+    ```py
         @staticmethod
         def _process_mask(mask):
             mask = (mask.numpy() * 127.5).astype('uint8')
@@ -1059,7 +1059,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  定义`_save_image_and_masks()`辅助方法，用于创建原始图像的可视化，以及真实和预测的掩码：
 
-    ```
+    ```py
         def _save_image_and_masks(self, image,
                                   ground_truth_mask,
                                   prediction_mask,
@@ -1074,7 +1074,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  定义`_create_mask()`，该方法根据网络的预测生成有效的分割掩码：
 
-    ```
+    ```py
         @staticmethod
         def _create_mask(prediction_mask):
             prediction_mask = tf.argmax(prediction_mask, 
@@ -1086,7 +1086,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  `_save_predictions()`方法使用了我们在*第 13 步*中定义的`_save_image_and_mask()`辅助方法：
 
-    ```
+    ```py
         def _save_predictions(self, dataset, 
                               sample_size=1):
             for id, (image, mask) in \
@@ -1104,7 +1104,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  `evaluate()`方法计算**U-Net**在测试集上的准确度，并生成一组图像样本的预测。预测结果随后会被存储到磁盘上：
 
-    ```
+    ```py
         def evaluate(self, test_dataset, sample_size=5):
             result = self.model.evaluate(test_dataset)
             print(f'Accuracy: {result[1] * 100:.2f}%')
@@ -1113,14 +1113,14 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  使用 TensorFlow Datasets 下载（或加载缓存的）`Oxford IIIT Pet Dataset`及其元数据：
 
-    ```
+    ```py
     dataset, info = tfdata.load('oxford_iiit_pet',
                                 with_info=True)
     ```
 
 1.  使用元数据定义网络在训练和验证数据集上将执行的步骤数。还要定义批量大小和缓存大小：
 
-    ```
+    ```py
     TRAIN_SIZE = info.splits['train'].num_examples
     VALIDATION_SIZE = info.splits['test'].num_examples
     BATCH_SIZE = 64
@@ -1133,7 +1133,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  定义训练和测试数据集的管道：
 
-    ```
+    ```py
     train_dataset = (dataset['train']
                      .map(load_image, num_parallel_
                       calls=AUTOTUNE)
@@ -1151,7 +1151,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  实例化**U-Net**并训练它 30 个周期：
 
-    ```
+    ```py
     unet = UNet()
     unet.train(train_dataset,
                epochs=50,
@@ -1162,7 +1162,7 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 1.  在测试数据集上评估网络：
 
-    ```
+    ```py
     unet.evaluate(test_dataset)
     ```
 
@@ -1210,19 +1210,19 @@ $> pip install tensorflow-datasets Pillow opencv-contrib-python
 
 首先，我们必须安装`Pillow`和**TFHub**，如下所示：
 
-```
+```py
 $> pip install Pillow tensorflow-hub
 ```
 
 我们还需要将`cd`安装到你选择的位置，并克隆`tensorflow/models`仓库：
 
-```
+```py
 $> git clone –-depth 1 https://github.com/tensorflow/models
 ```
 
 接下来，安装**TensorFlow 对象检测 API**，方法如下：
 
-```
+```py
 $> sudo apt install -y protobuf-compiler
 $> cd models/research
 $> protoc object_detection/protos/*.proto --python_out=.
@@ -1238,7 +1238,7 @@ $> python -m pip install -q .
 
 1.  导入必要的包：
 
-    ```
+    ```py
     import glob
     from io import BytesIO
     import matplotlib.pyplot as plt
@@ -1254,7 +1254,7 @@ $> python -m pip install -q .
 
 1.  定义一个函数，将图像加载到 NumPy 数组中：
 
-    ```
+    ```py
     def load_image(path):
         image_data = tf.io.gfile.GFile(path, 'rb').read()
         image = Image.open(BytesIO(image_data))
@@ -1267,7 +1267,7 @@ $> python -m pip install -q .
 
 1.  定义一个函数，使用**Mask-RCNN**进行预测，并将结果保存到磁盘。首先加载图像并将其输入到模型中：
 
-    ```
+    ```py
     def get_and_save_predictions(model, image_path):
         image = load_image(image_path)
         results = model(image)
@@ -1275,14 +1275,14 @@ $> python -m pip install -q .
 
 1.  将结果转换为`NumPy`数组：
 
-    ```
+    ```py
     model_output = {k: v.numpy() for k, v in 
                     results.items()}
     ```
 
 1.  从模型输出中提取检测掩膜和框，并将它们转换为张量：
 
-    ```
+    ```py
       detection_masks = model_output['detection_masks'][0]
      detection_masks = tf.convert_to_tensor(detection_masks)
      detection_boxes = model_output['detection_boxes'][0]
@@ -1291,7 +1291,7 @@ $> python -m pip install -q .
 
 1.  将框掩膜转换为图像掩膜：
 
-    ```
+    ```py
         detection_masks_reframed = \
          ops.reframe_box_masks_to_image_masks(detection_
                                     masks,detection_boxes,
@@ -1306,7 +1306,7 @@ $> python -m pip install -q .
 
 1.  创建一个可视化图，显示检测结果及其框、得分、类别和掩膜：
 
-    ```
+    ```py
         boxes = model_output['detection_boxes'][0]
         classes = \
            model_output['detection_classes'][0].astype('int')
@@ -1330,7 +1330,7 @@ $> python -m pip install -q .
 
 1.  将结果保存到磁盘：
 
-    ```
+    ```py
         plt.figure(figsize=(24, 32))
         plt.imshow(image_with_mask[0])
         plt.savefig(f'output/{image_path.split("/")[-1]}')
@@ -1338,14 +1338,14 @@ $> python -m pip install -q .
 
 1.  加载`COCO`数据集的类别索引：
 
-    ```
+    ```py
     labels_path = 'resources/mscoco_label_map.pbtxt'
     CATEGORY_IDX =create_category_index_from_labelmap(labels_path)
     ```
 
 1.  从**TFHub**加载**Mask-RCNN**：
 
-    ```
+    ```py
     MODEL_PATH = ('https://tfhub.dev/tensorflow/mask_rcnn/'
                   'inception_resnet_v2_1024x1024/1')
     mask_rcnn = hub.load(MODEL_PATH)

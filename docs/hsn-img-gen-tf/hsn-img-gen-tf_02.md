@@ -122,7 +122,7 @@
 
 我们将使用由香港中文大学创建的大规模 CelebFaces Attributes（CelebA）数据集（[`mmlab.ie.cuhk.edu.hk/projects/CelebA.html`](http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html)）。可以直接通过 Python 的`tensorflow_datasets`模块在`ch1_generate_first_image.ipynb` Jupyter 笔记本中下载，如以下代码所示：
 
-```
+```py
 import tensorflow_datasets as tfds
 import matplotlib.pyplot as plt
 import numpy as np
@@ -140,7 +140,7 @@ TensorFlow 数据集允许我们通过使用`tfds.show_examples()` API 来预览
 
 如图所示，每张图像中都有一个名人的面孔。每张图片都是独一无二的，展示了各种性别、姿势、表情和发型；有些人戴眼镜，有些则没有。我们来看看如何利用图像的概率分布帮助我们创造一个新的面孔。我们将使用最简单的统计方法之一——均值，这意味着取图像像素的平均值。更具体地说，我们是通过平均每张图像的*x*i 来计算新图像的*x*i。为了加快处理速度，我们将仅使用数据集中的 2,000 个样本来完成这项任务，如下所示：
 
-```
+```py
 sample_size = 2000
 ds_train = ds_train.batch(sample_size)
 features = next(iter(ds_train.take(1)))
@@ -209,7 +209,7 @@ CelebA 数据集的最棒之处在于，每张图像都有如下的面部属性�
 
 一本机器学习教材可能会要求你首先创建一个概率模型 `pmodel`，通过计算每个像素的联合概率。但是，由于样本空间非常庞大（记住，一个 RGB 像素可以有 16,777,216 种不同的值），实现起来计算成本非常高。此外，因为这是一本实践书，我们将直接从数据集中提取像素样本。为了在新图像中创建一个 *x*0 像素，我们通过运行以下代码从数据集中的所有图像的 *x*0 像素中随机采样：
 
-```
+```py
 new_image = np.zeros(sample_images.shape[1:], dtype=np.uint8)
 for i in range(h):
     for j in range(w):
@@ -295,7 +295,7 @@ MNIST 由 28 x 28 x 1 的灰度图像组成，展示手写数字。它只有一�
 
 在这个实验中，我们通过将图像转换为仅包含两个可能值的二进制格式来简化问题：`0`表示黑色，`1`表示白色。代码如下所示：
 
-```
+```py
 def binarize(image, label):
     image = tf.cast(image, tf.float32)
     image = tf.math.round(image/255.)
@@ -322,7 +322,7 @@ def binarize(image, label):
 
 接下来，我们将为掩膜卷积创建一个自定义层。我们可以通过从基类`tf.keras.layers.Layer`继承模型子类来在 TensorFlow 中创建自定义层，如下所示。我们将能够像使用其他 Keras 层一样使用它。以下是自定义层类的基本结构：
 
-```
+```py
 class MaskedConv2D(tf.keras.layers.Layer):
     def __init__(self):
         ...       
@@ -335,7 +335,7 @@ class MaskedConv2D(tf.keras.layers.Layer):
 
 `build()`将输入张量的形状作为参数，我们将使用这些信息来创建正确形状的变量。此函数只在构建层时运行一次。我们可以通过声明掩膜为非训练变量或常量来创建掩膜，这样 TensorFlow 就会知道它不需要反向传播的梯度：
 
-```
+```py
     def build(self, input_shape):
         self.w = self.add_weight(shape=[self.kernel,
                                         self.kernel,
@@ -357,7 +357,7 @@ class MaskedConv2D(tf.keras.layers.Layer):
 
 `call()`是执行计算的前向传播函数。在这个掩蔽卷积层中，我们通过将权重乘以掩膜将下半部分清零，然后使用低级的`tf.nn` API 执行卷积操作：
 
-```
+```py
     def call(self, inputs):
         masked_w = tf.math.multiply(self.w, self.mask)
         output = tf.nn.conv2d(inputs, masked_w, 1, "SAME") +  	                   self.b
@@ -406,7 +406,7 @@ PixelCNN 架构非常简单。经过带有掩膜 A 的第一个 7 x 7 `conv2d`�
 
 以下是用于编译和拟合`pixelcnn`模型的代码：
 
-```
+```py
 pixelcnn = SimplePixelCnn()
 pixelcnn.compile(
     loss = tf.keras.losses.BinaryCrossentropy(),

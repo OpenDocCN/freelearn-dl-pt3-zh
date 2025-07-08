@@ -238,7 +238,7 @@
 
 让我们来看一下可用的文件。我们将查看`index.py`文件，如下所示：
 
-```
+```py
 import boto3
 import numpy as np
 import tensorflow as tf
@@ -257,7 +257,7 @@ strFile = '/tmp/imagenet/inputimage.jpg'
 
 主要的不同之处在于我们在`handler`函数内部运行代码，并且需要从 S3 存储桶下载模型文件和图像文件：
 
-```
+```py
 if not os.path.exists('/tmp/imagenet/'):
  os.makedirs('/tmp/imagenet/')
 strFile = '/tmp/imagenet/inputimage.jpg'
@@ -274,7 +274,7 @@ def run_inference_on_image(image):
 
 此外，我们还可以利用 AWS Lambda 的一个优势。我们可以将模型文件保存为全局变量。基本上，我们可以将会话定义为全局变量。通过这些，如果我们在上一个 Lambda 执行完毕后立即启动 Lambda，所有模型文件将保存在 RAM 内存中：
 
-```
+```py
 global SESSION
  if SESSION is None:
  downloadFromS3(strBucket,'imagenet/imagenet_2012_challenge_label_map_proto.pbtxt','/tmp/imagenet/imagenet_2012_challenge_label_map_proto.pbtxt')
@@ -294,7 +294,7 @@ def run_inference_on_image(image):
 
 在`Serverless.yml`文件中，我们需要定义对 S3 桶的访问权限，因为我们将在那里存储模型。除此之外，它将与之前提到的其他 Lambda 的无服务器 CML 文件完全相同：
 
-```
+```py
 service: deeplearninglambda
 frameworkVersion: ">=1.2.0 <2.0.0"
 provider:
@@ -335,7 +335,7 @@ functions:
 
 现在，我们将使用以下命令调用函数：
 
-```
+```py
 serverless invoke --function main
 ```
 

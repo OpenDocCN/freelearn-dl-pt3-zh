@@ -46,7 +46,7 @@
 
 因此，将线性回归模型的输出应用于 sigmoid 函数将其转换为逻辑回归。对于神经网络也是同样的逻辑：如果您将 sigmoid 函数应用于感知器模型（线性回归），则将获得二元分类器。要实现这一点，只需在感知器模型的最后一个全连接层中指定 sigmoid 作为激活函数。在 TensorFlow 中，您可以将`activation`参数指定为:
 
-```
+```py
 from tensorflow.keras.layers import Dense
 Dense(1, activation='sigmoid')
 ```
@@ -89,7 +89,7 @@ Dense(1, activation='sigmoid')
 
 `BinaryCrossentropy` 用于计算这个损失：
 
-```
+```py
 from tensorflow.keras.losses import BinaryCrossentropy
 bce = BinaryCrossentropy()
 ```
@@ -124,13 +124,13 @@ bce = BinaryCrossentropy()
 
 1.  导入 pandas 库并使用`pd`作为别名：
 
-    ```
+    ```py
     import pandas as pd
     ```
 
 1.  创建一个名为`train_url`的变量，包含训练集的 URL：
 
-    ```
+    ```py
     train_url = 'https://raw.githubusercontent.com/PacktWorkshops'\
                 '/The-TensorFlow-Workshop/master/Chapter05'\
                 '/dataset/dota2Train.csv'
@@ -138,7 +138,7 @@ bce = BinaryCrossentropy()
 
 1.  使用`read_csv()`方法将训练数据集加载到一个名为`X_train`的`DataFrame()`函数中，提供 CSV 文件的 URL，并将`header=None`设置为数据集没有列名。使用`head()`方法打印 DataFrame 的前五行数据：
 
-    ```
+    ```py
     X_train = pd.read_csv(train_url, header=None)
     X_train.head()
     ```
@@ -153,13 +153,13 @@ bce = BinaryCrossentropy()
 
 1.  使用`pop()`方法提取目标变量（第 0 列），并将其保存在名为`y_train`的变量中：
 
-    ```
+    ```py
     y_train = X_train.pop(0)
     ```
 
 1.  使用`replace()`方法将目标变量中的所有`-1`值替换为`0`，并使用`head()`方法打印前五行数据：
 
-    ```
+    ```py
     y_train = y_train.replace(-1,0)
     y_train.head()
     ```
@@ -174,7 +174,7 @@ bce = BinaryCrossentropy()
 
 1.  创建一个名为`test_url`的变量，包含测试集的 URL：
 
-    ```
+    ```py
     test_url = 'https://raw.githubusercontent.com/PacktWorkshops'\
                '/The-TensorFlow-Workshop/master/Chapter05/dataset'\
                '/dota2Test.csv'
@@ -182,7 +182,7 @@ bce = BinaryCrossentropy()
 
 1.  使用`read_csv()`方法加载测试数据集到名为`X_test`的`DataFrame()`函数中，提供 CSV 文件的 URL，并设置`header=None`，因为数据集没有提供列名。使用`head()`方法打印前五行：
 
-    ```
+    ```py
     X_test = pd.read_csv(test_url, header=None)
     X_test.head()
     ```
@@ -197,13 +197,13 @@ bce = BinaryCrossentropy()
 
 1.  使用`pop()`方法提取目标变量（第 0 列），并将其保存为名为`y_test`的变量：
 
-    ```
+    ```py
     y_test = X_test.pop(0)
     ```
 
 1.  使用`replace()`方法将目标变量中的所有`-1`值替换为`0`，并使用`head()`方法打印前五行：
 
-    ```
+    ```py
     y_test = y_test.replace(-1,0)
     y_test.head()
     ```
@@ -216,61 +216,61 @@ bce = BinaryCrossentropy()
 
 1.  导入 TensorFlow 库并使用`tf`作为别名：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
 1.  使用`tf.random.set_seed()`设置 TensorFlow 的种子为`8`，以获得可重复的结果：
 
-    ```
+    ```py
     tf.random.set_seed(8)
     ```
 
 1.  使用`tf.keras.Sequential()`实例化一个顺序模型，并将其保存为名为`model`的变量：
 
-    ```
+    ```py
     model = tf.keras.Sequential()
     ```
 
 1.  从`tensorflow.keras.layers`导入`Dense()`类：
 
-    ```
+    ```py
     from tensorflow.keras.layers import Dense
     ```
 
 1.  使用`Dense()`创建一个包含`512`个单元的全连接层，指定 ReLu 作为激活函数，并将输入形状设置为`(116,)`，这对应于数据集中的特征数量。将其保存为名为`fc1`的变量：
 
-    ```
+    ```py
     fc1 = Dense(512, input_shape=(116,), activation='relu')
     ```
 
 1.  使用`Dense()`创建一个包含`512`个单元的全连接层，并指定 ReLu 作为激活函数。将其保存为名为`fc2`的变量：
 
-    ```
+    ```py
     fc2 = Dense(512, activation='relu')
     ```
 
 1.  使用`Dense()`创建一个包含`128`个单元的全连接层，并指定 ReLu 作为激活函数。将其保存为名为`fc3`的变量：
 
-    ```
+    ```py
     fc3 = Dense(128, activation='relu')
     ```
 
 1.  使用`Dense()`创建一个包含`128`个单元的全连接层，并指定 ReLu 作为激活函数。将其保存为名为`fc4`的变量：
 
-    ```
+    ```py
     fc4 = Dense(128, activation='relu')
     ```
 
 1.  使用`Dense()`创建一个包含`128`个单元的全连接层，并指定 sigmoid 作为激活函数。将其保存为名为`fc5`的变量：
 
-    ```
+    ```py
     fc5 = Dense(1, activation='sigmoid')
     ```
 
 1.  使用`add()`方法顺序添加所有五个全连接层到模型中：
 
-    ```
+    ```py
     model.add(fc1)
     model.add(fc2)
     model.add(fc3)
@@ -280,7 +280,7 @@ bce = BinaryCrossentropy()
 
 1.  使用`summary()`方法打印模型的摘要：
 
-    ```
+    ```py
     model.summary()
     ```
 
@@ -294,25 +294,25 @@ bce = BinaryCrossentropy()
 
 1.  从`tf.keras.losses`实例化一个`BinaryCrossentropy()`函数，并将其保存为名为`loss`的变量：
 
-    ```
+    ```py
     loss = tf.keras.losses.BinaryCrossentropy()
     ```
 
 1.  从`tf.keras.optimizers`实例化`Adam()`，学习率设置为`0.001`，并将其保存为名为`optimizer`的变量：
 
-    ```
+    ```py
     optimizer = tf.keras.optimizers.Adam(0.001)
     ```
 
 1.  使用`compile()`函数编译模型，并指定在前面步骤中创建的优化器和损失函数：
 
-    ```
+    ```py
     model.compile(optimizer=optimizer, loss=loss)
     ```
 
 1.  使用`fit()`方法在训练集上进行五个 epoch 的模型训练：
 
-    ```
+    ```py
     model.fit(X_train, y_train, epochs=5)
     ```
 
@@ -326,7 +326,7 @@ bce = BinaryCrossentropy()
 
 1.  使用`predict()`方法预测测试集的结果。将结果保存到名为`preds`的变量中，并显示其前五个值：
 
-    ```
+    ```py
     preds = model.predict(X_test)
     preds[:5]
     ```
@@ -341,7 +341,7 @@ bce = BinaryCrossentropy()
 
 1.  显示测试集前五个真实标签：
 
-    ```
+    ```py
     y_test[:5]
     ```
 
@@ -397,7 +397,7 @@ bce = BinaryCrossentropy()
 
 TensorFlow 提供了一个类 `tf.keras.metrics.Accuracy`，可以从张量中计算准确度得分。该类有一个名为 `update_state()` 的方法，它接受两个张量作为输入参数，并计算它们之间的准确度得分。你可以通过调用 `result()` 方法来访问此得分。输出结果将是一个张量。你可以使用 `numpy()` 方法将其转换为 NumPy 数组。以下是如何计算准确度得分的示例：
 
-```
+```py
 from tensorflow.keras.metrics import Accuracy
 preds = [1, 1, 1, 1, 0, 0]
 target = [1, 0, 1, 0, 1, 0]
@@ -408,7 +408,7 @@ acc.result().numpy()
 
 这将导致以下准确度得分：
 
-```
+```py
 0.5
 ```
 
@@ -486,7 +486,7 @@ TensorFlow 并没有为空准确度指标提供一个类，但你可以通过使
 
 你可以通过使用`Precision()`和`Recall()`的相应类来轻松计算 TensorFlow 中的精确度和召回率：
 
-```
+```py
 from tensorflow.keras.metrics import Precision, Recall
 preds = [1, 1, 1, 1, 0, 0]
 target = [1, 0, 1, 0, 1, 0]
@@ -528,7 +528,7 @@ TensorFlow 并未提供用于计算 F1 分数的类，但可以通过创建自�
 
 运行下面的代码查看混淆矩阵：
 
-```
+```py
 from tensorflow.math import confusion_matrix
 preds = [1, 1, 1, 1, 0, 0]
 target = [1, 0, 1, 0, 1, 0]
@@ -565,13 +565,13 @@ print(confusion_matrix(target, preds))
 
 1.  导入 pandas 库，并使用`pd`作为别名：
 
-    ```
+    ```py
     import pandas as pd
     ```
 
 1.  创建一个名为`train_url`的变量，包含训练集的 URL：
 
-    ```
+    ```py
     train_url = 'https://raw.githubusercontent.com/PacktWorkshops'\
                 '/The-TensorFlow-Workshop/master/Chapter05/dataset'\
                 '/dota2PreparedTrain.csv'
@@ -579,19 +579,19 @@ print(confusion_matrix(target, preds))
 
 1.  使用`read_csv()`方法将训练数据集加载到名为`X_train`的`DataFrame()`函数中，提供 CSV 文件的 URL，并设置`header=None`，因为数据集没有提供列名：
 
-    ```
+    ```py
     X_train = pd.read_csv(train_url, header=None)
     ```
 
 1.  使用`pop()`方法提取目标变量（第`0`列），并将其保存在名为`y_train`的变量中：
 
-    ```
+    ```py
     y_train = X_train.pop(0)
     ```
 
 1.  创建一个名为`test_url`的变量，包含测试集的 URL：
 
-    ```
+    ```py
     test_url = 'https://raw.githubusercontent.com/PacktWorkshops'\
                '/The-TensorFlow-Workshop/master/Chapter05/dataset'\
                '/dota2PreparedTest.csv'
@@ -599,26 +599,26 @@ print(confusion_matrix(target, preds))
 
 1.  使用`read_csv()`方法将测试数据集加载到名为`X_test`的`DataFrame()`函数中，提供 CSV 文件的 URL，并设置`header=None`，因为数据集没有提供列名：
 
-    ```
+    ```py
     X_test = pd.read_csv(test_url, header=None)
     ```
 
 1.  使用`pop()`方法提取目标变量（第`0`列），并将其保存在名为`y_test`的变量中：
 
-    ```
+    ```py
     y_test = X_test.pop(0)
     ```
 
 1.  使用`tf`作为别名导入`tensorflow`库，并从`tensorflow.keras.utils`导入`get_file()`方法：
 
-    ```
+    ```py
     import tensorflow as tf
     from tensorflow.keras.utils import get_file
     ```
 
 1.  创建一个名为`model_url`的变量，包含模型的 URL：
 
-    ```
+    ```py
     model_url = 'https://github.com/PacktWorkshops'\
                 '/The-TensorFlow-Workshop/blob/master/Chapter05'\
                 'model/exercise5_01_model.h5?raw=true'
@@ -626,19 +626,19 @@ print(confusion_matrix(target, preds))
 
 1.  使用`get_file()`方法，通过提供文件名（`exercise5_01_model.h5`）及其 URL 将模型下载到本地。将输出保存到一个名为`model_path`的变量中：
 
-    ```
+    ```py
     model_path = get_file('exercise5_01_model.h5', model_url)
     ```
 
 1.  使用`tf.keras.models.load_model()`加载模型，并指定模型的本地路径：
 
-    ```
+    ```py
     model = tf.keras.models.load_model(model_path)
     ```
 
 1.  使用`summary()`方法打印模型摘要：
 
-    ```
+    ```py
     model.summary()
     ```
 
@@ -652,7 +652,7 @@ print(confusion_matrix(target, preds))
 
 1.  使用`predict()`方法预测测试集的结果。将其保存在一个名为`preds_proba`的变量中，并显示其前五个值：
 
-    ```
+    ```py
     preds_proba = model.predict(X_test)
     preds_proba[:5]
     ```
@@ -667,7 +667,7 @@ print(confusion_matrix(target, preds))
 
 1.  当预测概率大于或等于`0.5`时，将其转换为`1`，当小于`0.5`时转换为`0`。将结果保存在名为`preds`的变量中，并打印其前五行：
 
-    ```
+    ```py
     preds = preds_proba >= 0.5
     preds[:5]
     ```
@@ -682,13 +682,13 @@ print(confusion_matrix(target, preds))
 
 1.  从`tensorflow.keras.metrics`导入`Accuracy`、`Precision`和`Recall`：
 
-    ```
+    ```py
     from tensorflow.keras.metrics import Accuracy, Precision, Recall
     ```
 
 1.  实例化`Accuracy`、`Precision`和`Recall`对象，并将其保存在名为`acc`、`pres`和`rec`的变量中：
 
-    ```
+    ```py
     acc = Accuracy()
     prec = Precision()
     rec = Recall()
@@ -696,7 +696,7 @@ print(confusion_matrix(target, preds))
 
 1.  使用`update_state()`、`result()`和`numpy()`方法计算测试集上的准确度分数。将结果保存在名为`acc_results`的变量中并打印其内容：
 
-    ```
+    ```py
     acc.update_state(preds, y_test)
     acc_results = acc.result().numpy()
     acc_results
@@ -704,7 +704,7 @@ print(confusion_matrix(target, preds))
 
     预期的输出如下：
 
-    ```
+    ```py
     0.59650314
     ```
 
@@ -712,7 +712,7 @@ print(confusion_matrix(target, preds))
 
 1.  使用`update_state()`、`result()`和`numpy()`方法计算测试集上的精确度分数。将结果保存在名为`prec_results`的变量中并打印其内容：
 
-    ```
+    ```py
     prec.update_state(preds, y_test)
     prec_results = prec.result().numpy()
     prec_results
@@ -720,7 +720,7 @@ print(confusion_matrix(target, preds))
 
     预期的输出如下：
 
-    ```
+    ```py
     0.59578335
     ```
 
@@ -728,7 +728,7 @@ print(confusion_matrix(target, preds))
 
 1.  使用`update_state()`、`result()`和`numpy()`方法计算测试集上的召回率分数。将结果保存在名为`rec_results`的变量中并打印其内容：
 
-    ```
+    ```py
     rec.update_state(preds, y_test)
     rec_results = rec.result().numpy()
     rec_results
@@ -736,7 +736,7 @@ print(confusion_matrix(target, preds))
 
     预期的输出如下：
 
-    ```
+    ```py
     0.6294163
     ```
 
@@ -744,14 +744,14 @@ print(confusion_matrix(target, preds))
 
 1.  使用上一节中显示的公式计算 F1 分数。将结果保存在名为`f1`的变量中并打印其内容：
 
-    ```
+    ```py
     f1 = 2*(prec_results * rec_results) / (prec_results + rec_results)
     f1
     ```
 
     预期的输出如下：
 
-    ```
+    ```py
     0.6121381493171637
     ```
 
@@ -803,7 +803,7 @@ softmax 函数的结果介于`0`和`1`之间，因为该方法将一个类别的
 
 TensorFlow 提供了两个不同的类别来计算这个损失函数：`CategoricalCrossentropy()` 和 `SparseCategoricalCrossentropy()`：
 
-```
+```py
 from tensorflow.keras.losses import CategoricalCrossentropy, 
                                     SparseCategoricalCrossentropy
 cce = CategoricalCrossentropy()
@@ -818,7 +818,7 @@ scce = SparseCategoricalCrossentropy()
 
 多类模型的输出将是一个包含每个类别概率的向量，如下所示：
 
-```
+```py
 import numpy as np
 preds_proba = np.array([0.54, 0.16, 0.09, 0.15, 0.06])
 ```
@@ -827,13 +827,13 @@ preds_proba = np.array([0.54, 0.16, 0.09, 0.15, 0.06])
 
 为了得到最终的预测（即具有最高概率的类别），你需要使用 `argmax()` 函数，它会查看向量中的所有值，找到最大值并返回与其相关的索引：
 
-```
+```py
 preds_proba.argmax()
 ```
 
 这将显示以下输出：
 
-```
+```py
 0
 ```
 
@@ -871,13 +871,13 @@ preds_proba.argmax()
 
 1.  导入 pandas 库并使用 `pd` 作为别名：
 
-    ```
+    ```py
     import pandas as pd
     ```
 
 1.  创建一个名为 `train_url` 的变量，包含训练集的 URL：
 
-    ```
+    ```py
     train_url = 'https://raw.githubusercontent.com/PacktWorkshops'\
                 '/The-TensorFlow-Workshop/master/Chapter05'\
                 '/dataset/shuttle.trn'
@@ -885,7 +885,7 @@ preds_proba.argmax()
 
 1.  使用 `read_table()` 方法将训练数据集加载到名为 `X_train` 的 DataFrame 中，提供 CSV 文件的 URL，使用 `header=None` 因为数据集没有列名，使用 `sep=' '` 因为数据集中的每一列是由空格分隔的。使用 `head()` 方法打印前五行：
 
-    ```
+    ```py
     X_train = pd.read_table(train_url, header=None, sep=' ')
     X_train.head()
     ```
@@ -900,13 +900,13 @@ preds_proba.argmax()
 
 1.  使用 `pop()` 方法提取目标变量（第 `9` 列），并将其保存在名为 `y_train` 的变量中：
 
-    ```
+    ```py
     y_train = X_train.pop(9)
     ```
 
 1.  创建一个名为 `test_url` 的变量，包含测试集的 URL：
 
-    ```
+    ```py
     test_url = 'https://raw.githubusercontent.com/PacktWorkshops'\
                '/The-TensorFlow-Workshop/master/Chapter05/dataset'\
                '/shuttle.tst'
@@ -914,7 +914,7 @@ preds_proba.argmax()
 
 1.  使用 `read_table()` 方法将测试数据集加载到名为 `X_test` 的 DataFrame 中，提供 CSV 文件的 URL，设置 `header=None` 因为数据集没有列名，使用 `sep=' '` 因为数据集中的每一列是由空格分隔的。使用 `head()` 方法打印前五行。
 
-    ```
+    ```py
     X_test = pd.read_table(test_url, header=None, sep=' ')
     X_test.head()
     ```
@@ -929,67 +929,67 @@ preds_proba.argmax()
 
 1.  使用 `pop()` 方法提取目标变量（第 `9` 列），并将其保存在名为 `y_test` 的变量中：
 
-    ```
+    ```py
     y_test = X_test.pop(9)
     ```
 
 1.  导入 TensorFlow 库并使用 `tf` 作为别名：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
 1.  使用 `tf.random.set_seed()` 将 TensorFlow 的种子设置为 `8`，以获得可重现的结果：
 
-    ```
+    ```py
     tf.random.set_seed(8)
     ```
 
 1.  使用 `tf.keras.Sequential()` 实例化一个顺序模型，并将其保存在一个名为 `model` 的变量中：
 
-    ```
+    ```py
     model = tf.keras.Sequential()
     ```
 
 1.  从 `tensorflow.keras.layers` 导入 `Dense()` 类：
 
-    ```
+    ```py
     from tensorflow.keras.layers import Dense
     ```
 
 1.  使用 `Dense()` 创建一个包含 `512` 单元的全连接层，并指定 ReLu 作为激活函数，同时将输入形状设置为 `(9,)`，这对应于数据集中的特征数量。将其保存在一个名为 `fc1` 的变量中：
 
-    ```
+    ```py
     fc1 = Dense(512, input_shape=(9,), activation='relu')
     ```
 
 1.  使用 `Dense()` 创建一个包含 `512` 单元的全连接层，并指定 ReLu 作为激活函数。将其保存在一个名为 `fc2` 的变量中：
 
-    ```
+    ```py
     fc2 = Dense(512, activation='relu')
     ```
 
 1.  使用 `Dense()` 创建一个包含 `128` 单元的全连接层，并指定 ReLu 作为激活函数。将其保存在一个名为 `fc3` 的变量中：
 
-    ```
+    ```py
     fc3 = Dense(128, activation='relu')
     ```
 
 1.  再次使用 `Dense()` 创建一个包含 `128` 单元的全连接层，并指定 ReLu 作为激活函数。将其保存在一个名为 `fc4` 的变量中：
 
-    ```
+    ```py
     fc4 = Dense(128, activation='relu')
     ```
 
 1.  使用 `Dense()` 创建一个包含 128 单元的全连接层，并指定 softmax 作为激活函数。将其保存在一个名为 `fc5` 的变量中：
 
-    ```
+    ```py
     fc5 = Dense(8, activation='softmax')
     ```
 
 1.  顺序地将所有五个全连接层添加到模型中，使用 `add()` 方法。
 
-    ```
+    ```py
     model.add(fc1)
     model.add(fc2)
     model.add(fc3)
@@ -999,7 +999,7 @@ preds_proba.argmax()
 
 1.  使用 `summary()` 方法打印模型的摘要：
 
-    ```
+    ```py
     model.summary()
     ```
 
@@ -1013,26 +1013,26 @@ preds_proba.argmax()
 
 1.  从`tf.keras.losses`中实例化`SparseCategoricalCrossentropy()`，并将其保存在名为`loss`的变量中：
 
-    ```
+    ```py
     loss = tf.keras.losses.SparseCategoricalCrossentropy()
     ```
 
 1.  从`tf.keras.optimizers`中实例化`Adam()`，将学习率设置为`0.001`，并将其保存在名为`optimizer`的变量中：
 
-    ```
+    ```py
     optimizer = tf.keras.optimizers.Adam(0.001)
     ```
 
 1.  使用`compile()`方法编译模型，指定优化器和损失参数，并将准确度作为需要报告的度量：
 
-    ```
+    ```py
     model.compile(optimizer=optimizer, loss=loss, \
                   metrics=['accuracy'])
     ```
 
 1.  使用`fit()`方法在训练集上开始模型训练过程，训练五个 epochs：
 
-    ```
+    ```py
     model.fit(X_train, y_train, epochs=5)
     ```
 
@@ -1046,7 +1046,7 @@ preds_proba.argmax()
 
 1.  使用`evaluate()`方法评估模型在测试集上的表现：
 
-    ```
+    ```py
     model.evaluate(X_test, y_test)
     ```
 
@@ -1110,14 +1110,14 @@ Sigmoid 函数将预测每个目标变量的发生概率：
 
 从概念上讲，多标签分类结合了多个逻辑回归模型。它们将共享相同的参数（权重和偏差），但每个模型有独立的二进制输出。TensorFlow 中多类分类器的最后一层将像这样：
 
-```
+```py
 from tensorflow.keras.layers import Dense
 Dense(3, activation='sigmoid')
 ```
 
 将要使用的损失函数是二元交叉熵：
 
-```
+```py
 from tensorflow.keras.losses import BinaryCrossentropy
 bce = BinaryCrossentropy()
 ```

@@ -160,7 +160,7 @@
 
 在以下代码中，我们看到一个使用`scikit-learn`的`MinMaxScaler`类进行特征工程的示例，旨在将特征缩放到给定的值范围（最小值和最大值）之间，例如`0`和`1`：
 
-```
+```py
 from sklearn import preprocessing
  import numpy as np
  raw_data = np.array([
@@ -175,7 +175,7 @@ from sklearn import preprocessing
 
 以下示例展示了`scikit-learn`的`StandardScaler`类的应用，使用`transform()`方法计算训练集的均值和标准差：
 
-```
+```py
 from sklearn import preprocessing
 import numpy as np
 raw_data = np.array([
@@ -192,7 +192,7 @@ std_scaler.transform(test_data)
 
 在下面的示例中，我们看到`scikit-learn`的`PowerTransformer`类在应用 Box-Cox 变换时，使用零均值、单位方差归一化对变换后的输出进行处理：
 
-```
+```py
 from sklearn import preprocessing
 import numpy as np
 pt = preprocessing.PowerTransformer(method='box-cox', standardize=False) 
@@ -204,7 +204,7 @@ pt.fit_transform(X_lognormal)
 
 在以下示例中，我们看到如何使用`scikit-learn`的`OrdinalEncoder`类及其`transform()`方法将类别特征编码为整数：
 
-```
+```py
 from sklearn import preprocessing
 ord_enc = preprocessing.OrdinalEncoder()
 cat_data = [['Developer', 'Remote Working', 'Windows'], ['Sysadmin', 'Onsite Working', 'Linux']]
@@ -216,7 +216,7 @@ ord_enc.transform([['Developer', 'Onsite Working', 'Linux']])
 
 以下示例展示了如何使用`scikit-learn`的`OneHotEncoder`类将类别特征转换为二进制表示：
 
-```
+```py
 from sklearn import preprocessing
 one_hot_enc = preprocessing.OneHotEncoder()
 cat_data = [['Developer', 'Remote Working', 'Windows'], ['Sysadmin', 'Onsite Working', 'Linux']]
@@ -288,7 +288,7 @@ one_hot_enc.transform([['Developer', 'Onsite Working', 'Linux']])
 
 在以下代码中，我们可以看到使用`scikit-learn`的各种方法（如`precision_recall_curve()`、`average_precision_score()`、`recall_score()`和`f1_score()`）计算 ROC 指标的示例：
 
-```
+```py
 import numpy as np
 from sklearn import metrics
 from sklearn.metrics import precision_recall_curve
@@ -306,7 +306,7 @@ metrics.f1_score(y_true, y_pred)
 
 以下代码展示了如何使用`scikit-learn`的`roc_curve()`方法计算 ROC 曲线：
 
-```
+```py
 import numpy as np
 from sklearn.metrics import roc_curve
 y_true = np.array([0, 1, 1, 1])
@@ -318,7 +318,7 @@ FPR, TPR, THR = roc_curve(y_true, y_pred)
 
 在以下示例代码中，我们可以看到如何使用`scikit-learn`的`roc_auc_score()`方法计算 AUC 曲线：
 
-```
+```py
 import numpy as np
 from sklearn.metrics import roc_auc_score
 y_true = np.array([0, 1, 1, 1])
@@ -330,7 +330,7 @@ roc_auc_score(y_true, y_pred)
 
 在以下示例中，我们使用`scikit-learn`的`brier_score_loss()`方法评估估计概率的质量：
 
-```
+```py
  import numpy as np
  from sklearn.metrics import brier_score_loss
  y_true = np.array([0, 1, 1, 1])
@@ -350,7 +350,7 @@ roc_auc_score(y_true, y_pred)
 
 将原始样本数据集划分为训练集和测试集可以通过`scikit-learn`库轻松完成，正如我们在多个例子中所做的那样：
 
-```
+```py
 from sklearn.model_selection import train_test_split
 # Create training and testing subsets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
@@ -392,7 +392,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
 在下面的示例中，我们可以看到如何使用`sklearn.model_selection`包的`learning_curve()`方法，基于不同的训练数据集大小，获取设计学习曲线所需的值，并结合**支持向量分类器**（**SVC**）进行分析：
 
-```
+```py
 from sklearn.model_selection import learning_curve
 from sklearn.svm import SVC
 _sizes = [ 60, 80, 100]
@@ -439,7 +439,7 @@ K 折交叉验证具有多个优点，包括以下几点：
 
 样本数据集仅包含四个样本。因此，每个折叠将包含两个数组，交替使用，一个用于训练，另一个用于测试。最后，注意如何使用`numpy`索引语法将不同的折叠与训练数据和测试数据关联起来：
 
-```
+```py
 import numpy as np
 from sklearn.model_selection import KFold
 X = np.array([[1., 0.], [2., 1.], [-2., -1.], [3., 2.]])

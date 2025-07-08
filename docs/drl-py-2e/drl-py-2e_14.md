@@ -116,7 +116,7 @@
 
 因此，我们可以将支撑值表示为 ![](img/B15558_14_025.png)。以下 Python 代码片段可以帮助我们更清楚地了解如何获得支撑值：
 
-```
+```py
 def get_support(N, V_min, V_max):
     dz = (V_max – V_min) / (N-1)
     return [V_min + i * dz for i in range(N)] 
@@ -334,7 +334,7 @@ def get_support(N, V_min, V_max):
 
 以下代码片段将使我们更清楚投影步骤是如何工作的：
 
-```
+```py
 m = np.zeros(num_support)
 for j in range(num_support):
     Tz = min(v_max,max(v_min,r+gamma * z[j]))
@@ -459,7 +459,7 @@ for j in range(num_support):
 
 首先，让我们导入必要的库：
 
-```
+```py
 import numpy as np
 import random
 from collections import deque
@@ -476,38 +476,38 @@ from tensorflow.python.framework import ops
 
 初始化 ![](img/B15558_14_022.png) 和 ![](img/B15558_14_012.png)：
 
-```
+```py
 v_min = 0
 v_max = 1000 
 ```
 
 初始化原子数（支持）：
 
-```
+```py
 atoms = 51 
 ```
 
 设置折扣因子，![](img/B15558_03_190.png)：
 
-```
+```py
 gamma = 0.99 
 ```
 
 设置批处理大小：
 
-```
+```py
 batch_size = 64 
 ```
 
 设置我们希望更新目标网络的时间步长：
 
-```
+```py
 update_target_net = 50 
 ```
 
 设置在 epsilon-贪婪策略中使用的 epsilon 值：
 
-```
+```py
 epsilon = 0.5 
 ```
 
@@ -515,19 +515,19 @@ epsilon = 0.5
 
 首先，让我们定义缓冲区长度：
 
-```
+```py
 buffer_length = 20000 
 ```
 
 将重放缓冲区定义为 deque 结构：
 
-```
+```py
 replay_buffer = deque(maxlen=buffer_length) 
 ```
 
 我们定义了一个名为 `sample_transitions` 的函数，它返回从重放缓冲区中随机采样的小批量转换：
 
-```
+```py
 def sample_transitions(batch_size):
     batch = np.random.permutation(len(replay_buffer))[:batch_size]
     trans = np.array(replay_buffer)[batch]
@@ -540,7 +540,7 @@ def sample_transitions(batch_size):
 
 为了更清楚地理解，我们逐行查看代码：
 
-```
+```py
 class Categorical_DQN(): 
 ```
 
@@ -548,99 +548,99 @@ class Categorical_DQN():
 
 首先，让我们定义初始化方法：
 
-```
+```py
  def __init__(self,env): 
 ```
 
 启动 TensorFlow 会话：
 
-```
+```py
  self.sess = tf.InteractiveSession() 
 ```
 
 初始化 ![](img/B15558_14_022.png) 和 ![](img/B15558_14_012.png)：
 
-```
+```py
  self.v_max = v_max
         self.v_min = v_min 
 ```
 
 初始化原子数：
 
-```
+```py
  self.atoms = atoms 
 ```
 
 初始化 epsilon 值：
 
-```
+```py
  self.epsilon = epsilon 
 ```
 
 获取环境的状态形状：
 
-```
+```py
  self.state_shape = env.observation_space.shape 
 ```
 
 获取环境的动作形状：
 
-```
+```py
  self.action_shape = env.action_space.n 
 ```
 
 初始化时间步长：
 
-```
+```py
  self.time_step = 0 
 ```
 
 初始化目标状态形状：
 
-```
+```py
  target_state_shape = [1]
         target_state_shape.extend(self.state_shape) 
 ```
 
 定义状态的占位符：
 
-```
+```py
  self.state_ph = tf.placeholder(tf.float32,target_state_shape) 
 ```
 
 定义动作的占位符：
 
-```
+```py
  self.action_ph = tf.placeholder(tf.int32,[1,1]) 
 ```
 
 定义 *m* 值的占位符（目标分布的分布式概率）：
 
-```
+```py
  self.m_ph = tf.placeholder(tf.float32,[self.atoms]) 
 ```
 
 计算 ![](img/B15558_14_015.png) 的值，作为 ![](img/B15558_14_127.png)：
 
-```
+```py
  self.delta_z = (self.v_max - self.v_min) / (self.atoms - 1) 
 ```
 
 计算支持值，作为 ![](img/B15558_14_025.png)：
 
-```
+```py
  self.z = [self.v_min + i * self.delta_z for i in range(self.atoms)] 
 ```
 
 构建类别 DQN：
 
-```
+```py
  self.build_categorical_DQN() 
 ```
 
 初始化所有 TensorFlow 变量：
 
-```
+```py
  self.sess.run(tf.global_variables_initializer()) 
 ```
 
@@ -648,55 +648,55 @@ class Categorical_DQN():
 
 定义一个名为 `build_network` 的函数，用于构建深度网络。由于我们处理的是 Atari 游戏，我们使用卷积神经网络：
 
-```
+```py
  def build_network(self, state, action, name, units_1, units_2, weights, bias): 
 ```
 
 定义第一个卷积层：
 
-```
+```py
  with tf.variable_scope('conv1'):
             conv1 = conv(state, [5, 5, 3, 6], [6], [1, 2, 2, 1], weights, bias) 
 ```
 
 定义第二卷积层：
 
-```
+```py
  with tf.variable_scope('conv2'):
             conv2 = conv(conv1, [3, 3, 6, 12], [12], [1, 2, 2, 1], weights, bias) 
 ```
 
 将第二卷积层得到的特征图展平：
 
-```
+```py
  with tf.variable_scope('flatten'):
             flatten = tf.layers.flatten(conv2) 
 ```
 
 定义第一个全连接层：
 
-```
+```py
  with tf.variable_scope('dense1'):
             dense1 = dense(flatten, units_1, [units_1], weights, bias) 
 ```
 
 定义第二个全连接层：
 
-```
+```py
  with tf.variable_scope('dense2'):
             dense2 = dense(dense1, units_2, [units_2], weights, bias) 
 ```
 
 将第二个全连接层与动作连接：
 
-```
+```py
  with tf.variable_scope('concat'):
             concatenated = tf.concat([dense2, tf.cast(action, tf.float32)], 1) 
 ```
 
 定义第三层，并对第三层的结果应用 softmax 函数，获得每个原子的概率：
 
-```
+```py
  with tf.variable_scope('dense3'):
             dense3 = dense(concatenated, self.atoms, [self.atoms], weights, bias) 
         return tf.nn.softmax(dense3) 
@@ -704,13 +704,13 @@ class Categorical_DQN():
 
 现在，让我们定义一个名为 `build_categorical_DQN` 的函数，用于构建主类别和目标类别 DQN：
 
-```
+```py
  def build_categorical_DQN(self): 
 ```
 
 定义主类别 DQN 并获取概率：
 
-```
+```py
  with tf.variable_scope('main_net'):
             name = ['main_net_params',tf.GraphKeys.GLOBAL_VARIABLES]
             weights = tf.random_uniform_initializer(-0.1,0.1)
@@ -720,7 +720,7 @@ class Categorical_DQN():
 
 定义目标类别 DQN 并获取概率：
 
-```
+```py
  with tf.variable_scope('target_net'):
             name = ['target_net_params',tf.GraphKeys.GLOBAL_VARIABLES]
             weights = tf.random_uniform_initializer(-0.1,0.1)
@@ -730,43 +730,43 @@ class Categorical_DQN():
 
 使用从主类别 DQN 获得的概率计算主要 Q 值，如 ![](img/B15558_14_129.png) 所示：
 
-```
+```py
  self.main_Q = tf.reduce_sum(self.main_p * self.z) 
 ```
 
 类似地，使用从目标类别 DQN 获得的概率计算目标 Q 值，如 ![](img/B15558_14_130.png) 所示：
 
-```
+```py
  self.target_Q = tf.reduce_sum(self.target_p * self.z) 
 ```
 
 定义交叉熵损失，如 ![](img/B15558_14_131.png) 所示：
 
-```
+```py
  self.cross_entropy_loss = -tf.reduce_sum(self.m_ph * tf.log(self.main_p)) 
 ```
 
 定义优化器，并使用 Adam 优化器最小化交叉熵损失：
 
-```
+```py
  self.optimizer = tf.train.AdamOptimizer(0.01).minimize(self.cross_entropy_loss) 
 ```
 
 获取主网络参数：
 
-```
+```py
  main_net_params = tf.get_collection("main_net_params") 
 ```
 
 获取目标网络参数：
 
-```
+```py
  target_net_params = tf.get_collection('target_net_params') 
 ```
 
 定义 `update_target_net` 操作，通过复制主网络的参数来更新目标网络参数：
 
-```
+```py
  self.update_target_net = [tf.assign(t, e) for t, e in zip(target_net_params, main_net_params)] 
 ```
 
@@ -774,43 +774,43 @@ class Categorical_DQN():
 
 让我们定义一个名为 `train` 的函数来训练网络：
 
-```
+```py
  def train(self,s,r,action,s_,gamma): 
 ```
 
 增加时间步数：
 
-```
+```py
  self.time_step += 1 
 ```
 
 获取目标 Q 值：
 
-```
+```py
  list_q_ = [self.sess.run(self.target_Q,feed_dict={self.state_ph:[s_],self.action_ph:[[a]]}) for a in range(self.action_shape)] 
 ```
 
 选择下一个状态的动作 ![](img/B15558_14_132.png)，该动作具有最大 Q 值：
 
-```
+```py
  a_ = tf.argmax(list_q_).eval() 
 ```
 
 初始化一个数组 *m*，其形状为支持的数量，并将其值设为零。*m* 表示在投影步骤后目标分布的分布概率：
 
-```
+```py
  m = np.zeros(self.atoms) 
 ```
 
 使用目标类别 DQN 获取每个原子的概率：
 
-```
+```py
  p = self.sess.run(self.target_p,feed_dict = {self.state_ph:[s_],self.action_ph:[[a_]]})[0] 
 ```
 
 执行投影步骤：
 
-```
+```py
  for j in range(self.atoms):
             Tz = min(self.v_max,max(self.v_min,r+gamma * self.z[j]))
             bj = (Tz - self.v_min) / self.delta_z 
@@ -822,13 +822,13 @@ class Categorical_DQN():
 
 通过最小化损失来训练网络：
 
-```
+```py
  self.sess.run(self.optimizer,feed_dict={self.state_ph:[s] , self.action_ph:[action], self.m_ph: m }) 
 ```
 
 通过复制主网络参数来更新目标网络参数：
 
-```
+```py
  if self.time_step % update_target_net == 0:
             self.sess.run(self.update_target_net) 
 ```
@@ -837,13 +837,13 @@ class Categorical_DQN():
 
 让我们定义一个名为 `select_action` 的函数，用于选择动作：
 
-```
+```py
  def select_action(self,s): 
 ```
 
 我们生成一个随机数，如果该数字小于 epsilon，则选择随机动作，否则选择具有最大 Q 值的动作：
 
-```
+```py
  if random.random() <= self.epsilon:
             return random.randint(0, self.action_shape - 1)
         else: 
@@ -854,85 +854,85 @@ class Categorical_DQN():
 
 现在，让我们开始训练网络。首先，使用 `gym` 创建 Atari 游戏环境。让我们创建一个网球游戏环境：
 
-```
+```py
 env = gym.make("Tennis-v0") 
 ```
 
 创建 `Categorical_DQN` 类的对象：
 
-```
+```py
 agent = Categorical_DQN(env) 
 ```
 
 设置回合数：
 
-```
+```py
 num_episodes = 800 
 ```
 
 对每一回合：
 
-```
+```py
 for i in range(num_episodes): 
 ```
 
 将 `done` 设置为 `False`：
 
-```
+```py
  done = False 
 ```
 
 初始化回报：
 
-```
+```py
  Return = 0 
 ```
 
 通过重置环境来初始化状态：
 
-```
+```py
  state = env.reset() 
 ```
 
 当回合尚未结束时：
 
-```
+```py
  while not done: 
 ```
 
 渲染环境：
 
-```
+```py
  env.render() 
 ```
 
 选择一个动作：
 
-```
+```py
  action = agent.select_action(state) 
 ```
 
 执行选定的动作：
 
-```
+```py
  next_state, reward, done, info = env.step(action) 
 ```
 
 更新回报：
 
-```
+```py
  Return = Return + reward 
 ```
 
 将过渡信息存储在回放缓冲区中：
 
-```
+```py
  replay_buffer.append([state, reward, [action], next_state]) 
 ```
 
 如果回放缓冲区的长度大于或等于缓冲区大小，则开始通过从回放缓冲区中采样过渡来训练网络：
 
-```
+```py
  if len(replay_buffer) >= batch_size:
             trans = sample_transitions(batch_size)
             for item in trans:
@@ -941,13 +941,13 @@ for i in range(num_episodes):
 
 将状态更新为下一个状态：
 
-```
+```py
  state = next_state 
 ```
 
 打印回合中获得的回报：
 
-```
+```py
  print("Episode:{}, Return: {}".format(i,Return)) 
 ```
 
@@ -1179,7 +1179,7 @@ QR-DQN 论文的作者（详见*进一步阅读*部分）还指出，与其计�
 
 以下 Python 代码片段有助于我们更好地理解 Huber 损失：
 
-```
+```py
 def huber_loss(target,predicted, kappa=1):
     #compute u as difference between target and predicted value
     u = target – predicted

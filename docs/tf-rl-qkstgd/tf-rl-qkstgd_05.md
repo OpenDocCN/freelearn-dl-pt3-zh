@@ -72,7 +72,7 @@
 
 1.  **导入所需的包**：我们将导入所需的包和其他 Python 文件：
 
-```
+```py
 import tensorflow as tf
 import numpy as np
 import gym
@@ -91,7 +91,7 @@ from TrainOrTest import *
 
 最后，我们通过使用 `tf.train.Saver()` 和 `saver.save()` 保存 TensorFlow 模型：
 
-```
+```py
 def train(args):
 
     with tf.Session() as sess:
@@ -121,7 +121,7 @@ def train(args):
 
 1.  **定义** **test()** **函数**：接下来定义 `test()` 函数。这将在我们完成训练后使用，用来测试我们的代理的表现如何。`test()` 函数的代码如下，与 `train()` 非常相似。我们将通过使用 `tf.train.Saver()` 和 `saver.restore()` 从 `train()` 恢复已保存的模型。然后我们调用 `testDDPG()` 函数来测试该模型：
 
-```
+```py
 def test(args):
 
     with tf.Session() as sess:
@@ -152,7 +152,7 @@ def test(args):
 
 1.  **调用** **train()** **或** **test()** **函数，根据需要**：运行此代码的模式为 train 或 test，并且它会调用适当的同名函数，这是我们之前定义的：
 
-```
+```py
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='provide arguments for DDPG agent')
 
@@ -190,7 +190,7 @@ if __name__ == '__main__':
 
 1.  **导入包**：首先，我们导入所需的包：
 
-```
+```py
 import tensorflow as tf
 import numpy as np
 import gym
@@ -204,7 +204,7 @@ from replay_buffer import ReplayBuffer
 
 1.  **定义权重和偏差的初始化器**：接下来，我们定义权重和偏差的初始化器：
 
-```
+```py
 winit = tf.contrib.layers.xavier_initializer()
 binit = tf.constant_initializer(0.01)
 rand_unif = tf.keras.initializers.RandomUniform(minval=-3e-3,maxval=3e-3)
@@ -213,7 +213,7 @@ regularizer = tf.contrib.layers.l2_regularizer(scale=0.0)
 
 1.  **定义** **ActorNetwork** **类**：`ActorNetwork`类定义如下。首先，它在`__init__`构造函数中接收参数。然后我们调用`create_actor_network()`，该函数将返回`inputs`、`out`和`scaled_out`对象。演员模型的参数通过调用 TensorFlow 的`tf.trainable_variables()`存储在`self.network_params`中。我们对演员的目标网络也做相同的操作。需要注意的是，目标网络是为了稳定性考虑而存在的；它的神经网络架构与演员网络相同，只是参数会逐渐变化。目标网络的参数通过再次调用`tf.trainable_variables()`被收集并存储在`self.target_network_params`中：
 
-```
+```py
 class ActorNetwork(object):
 
     def __init__(self, sess, state_dim, action_dim, action_bound, learning_rate, tau, batch_size):
@@ -239,7 +239,7 @@ class ActorNetwork(object):
 
 1.  **定义** **self.update_target_network_params**：接下来，我们定义`self.update_target_network_params`，它会将当前的演员网络参数与`tau`相乘，将目标网络的参数与`1-tau`相乘，然后将它们加在一起，存储为一个 TensorFlow 操作。这样我们就逐步更新目标网络的模型参数。注意使用`tf.multiply()`来将权重与`tau`（或者根据情况是`1-tau`）相乘。然后，我们创建一个 TensorFlow 占位符，命名为`action_gradient`，用来存储与动作相关的*Q*的梯度，这个梯度由评论员提供。我们还使用`tf.gradients()`计算策略网络输出相对于网络参数的梯度。注意，接着我们会除以`batch_size`，以便对小批量数据的求和结果进行平均。这样，我们就得到了平均策略梯度，接下来可以用来更新演员网络参数：
 
-```
+```py
 # update target using tau and 1-tau as weights
 self.update_target_network_params = \
                                    [self.target_network_params[i].assign(tf.multiply(self.network_params[i], self.tau) + tf.multiply(self.target_network_params[i], 1\. - self.tau))
@@ -256,7 +256,7 @@ self.actor_gradients = list(map(lambda x: tf.div(x, self.batch_size), self.unnor
 
 1.  **使用 Adam 优化**：我们使用 Adam 优化算法来应用策略梯度，从而优化演员的策略：
 
-```
+```py
  # adam optimization 
         self.optimize = tf.train.AdamOptimizer(self.learning_rate).apply_gradients(zip(self.actor_gradients, self.network_params))
 
@@ -266,7 +266,7 @@ self.actor_gradients = list(map(lambda x: tf.div(x, self.batch_size), self.unnor
 
 1.  **定义** **create_actor_network()** **函数**：现在我们定义`create_actor_network()`函数。我们将使用一个包含两层神经元的神经网络，第一层有`400`个神经元，第二层有`300`个神经元。权重使用**Xavier 初始化**，偏置初始值为零。我们使用`relu`激活函数，并使用批归一化（batch normalization）以确保稳定性。最终的输出层的权重使用均匀分布初始化，并采用`tanh`激活函数，以保持输出值在一定范围内。对于 Pendulum-v0 问题，动作的范围是[*-2,2*]，而`tanh`的输出范围是[*-1,1*]，因此我们需要将输出乘以 2 来进行缩放；这可以通过`tf.multiply()`来实现，其中`action_bound = 2`表示倒立摆问题中的动作范围：
 
-```
+```py
 def create_actor_network(self, scope):
       with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
         state = tf.placeholder(name='a_states', dtype=tf.float32, shape=[None, self.s_dim])
@@ -287,7 +287,7 @@ def create_actor_network(self, scope):
 
 最后，`get_num_trainable_vars()`函数返回可训练变量的数量：
 
-```
+```py
 def train(self, state, a_gradient):
         self.sess.run(self.optimize, feed_dict={self.state: state, self.action_gradient: a_gradient})
 
@@ -308,7 +308,7 @@ def get_num_trainable_vars(self):
 
 1.  **定义** **CriticNetwork 类**：现在我们将定义`CriticNetwork`类。与`ActorNetwork`类似，我们将模型超参数作为参数传递。然后调用`create_critic_network()`函数，它将返回`inputs`、`action`和`out`。我们还通过再次调用`create_critic_network()`来创建评论者的目标网络：
 
-```
+```py
 class CriticNetwork(object):
 
     def __init__(self, sess, state_dim, action_dim, learning_rate, tau, gamma, num_actor_vars):
@@ -334,7 +334,7 @@ class CriticNetwork(object):
 
 1.  **评论者目标网络**：与演员的目标网络类似，评论者的目标网络也是通过加权平均进行更新。然后，我们创建一个名为`predicted_q_value`的 TensorFlow 占位符，它是目标值。接着，我们在`self.loss`中定义 L2 范数，它是贝尔曼残差的平方误差。请注意，`self.out`是我们之前看到的*Q(s,a)*，`predicted_q_value`是贝尔曼方程中的*r + γQ(s',a')*。我们再次使用 Adam 优化器来最小化这个 L2 损失函数。然后，通过调用`tf.gradients()`来评估*Q(s,a)*相对于动作的梯度，并将其存储在`self.action_grads`中。这个梯度稍后会在计算策略梯度时使用：
 
-```
+```py
 # update target using tau and 1 - tau as weights
         self.update_target_network_params = \
             [self.target_network_params[i].assign(tf.multiply(self.network_params[i], self.tau) \
@@ -354,7 +354,7 @@ class CriticNetwork(object):
 
 1.  **定义 create_critic_network()**：接下来，我们将定义`create_critic_network()`函数。评论者网络的架构与演员相似，唯一不同的是它同时接受状态和动作作为输入。网络有两层隐藏层，分别有`400`和`300`个神经元。最后的输出层只有一个神经元，即*Q(s,a)*状态-动作值函数。请注意，最后一层没有激活函数，因为理论上`Q(s,a)`是无界的：
 
-```
+```py
 def create_critic_network(self, scope):
         with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
            state = tf.placeholder(name='c_states', dtype=tf.float32, shape=[None, self.s_dim])
@@ -374,7 +374,7 @@ def create_critic_network(self, scope):
 
 1.  最终，完成`CriticNetwork`所需的功能如下。这些与`ActorNetwork`类似，因此为了简洁起见，我们不再详细说明。不过有一个不同之处，即`action_gradients()`函数，它是*Q(s,a)*相对于动作的梯度，由评论者计算并提供给演员，以便用于策略梯度的评估：
 
-```
+```py
 def train(self, state, action, predicted_q_value):
         return self.sess.run([self.out, self.optimize], feed_dict={self.state: state, self.action: action, self.predicted_q_value: predicted_q_value})
 
@@ -399,7 +399,7 @@ def action_gradients(self, state, actions):
 
 1.  **导入包和函数**：`TrainOrTest.py`文件首先导入了相关的包和其他 Python 文件：
 
-```
+```py
 import tensorflow as tf
 import numpy as np
 import gym
@@ -417,7 +417,7 @@ from AandC import *
 
 演员的策略被采样以获得当前状态的动作。我们将这个动作输入`env.step()`，它执行该动作的一个时间步，并在此过程中移动到下一个状态，`s2`。环境还会给出这个动作的奖励`r`，并将是否终止的状态信息存储在布尔变量`terminal`中。我们将元组（`state`，`action`，`reward`，`terminal`，`new state`）添加到重放缓冲区，以便稍后采样和训练：
 
-```
+```py
 def trainDDPG(sess, env, args, actor, critic):
 
     sess.run(tf.global_variables_initializer())
@@ -452,7 +452,7 @@ def trainDDPG(sess, env, args, actor, critic):
 
 1.  **从重放缓冲区采样小批量数据**：一旦重放缓冲区中的样本数量超过小批量大小，我们就从缓冲区中采样一个小批量的数据。对于后续的状态`s2`，我们使用评论员的目标网络来计算目标*Q*值，并将其存储在`target_q`中。注意使用评论员的目标网络而不是评论员网络本身——这是出于稳定性的考虑。然后，我们使用贝尔曼方程来评估目标`y_i`，其计算为*r + γ Q*（对于非终止时间步）和*r*（对于终止时间步）：
 
-```
+```py
 # sample from replay buffer
             if replay_buffer.size() > int(args['minibatch_size']):
                 s_batch, a_batch, r_batch, t_batch, s2_batch = 
@@ -474,7 +474,7 @@ def trainDDPG(sess, env, args, actor, critic):
 
 1.  **使用前述内容训练演员和评论员**：然后，我们通过调用`critic.train()`在小批量数据上训练评论员一步。接着，我们通过调用`critic.action_gradients()`计算*Q*相对于动作的梯度，并将其存储在`grads`中；请注意，这个动作梯度将用于计算策略梯度，正如我们之前提到的。然后，我们通过调用`actor.train()`并将`grads`作为参数，以及从重放缓冲区采样的状态，训练演员一步。最后，我们通过调用演员和评论员对象的相应函数更新演员和评论员的目标网络：
 
-```
+```py
 # Update critic
                 predicted_q_value, _ = critic.train(s_batch, a_batch, np.reshape(y_i, (int(args['minibatch_size']), 1)))
 
@@ -492,7 +492,7 @@ def trainDDPG(sess, env, args, actor, critic):
 
 新状态`s2`被分配给当前状态`s`，我们继续到下一个时间步。如果回合已经结束，我们将回合的奖励和其他观测值打印到屏幕上，并将它们写入名为`pendulum.txt`的文本文件，以便后续分析。由于回合已经结束，我们还会跳出内部`for`循环：
 
-```
+```py
 s = s2
 ep_reward += r
 
@@ -507,7 +507,7 @@ if terminal:
 
 1.  **定义 testDDPG()**：这就完成了 `trainDDPG()` 函数。接下来，我们将展示 `testDDPG()` 函数，用于测试我们模型的表现。`testDDPG()` 函数与 `trainDDPG()` 函数基本相同，不同之处在于我们没有重放缓冲区，也不会训练神经网络。和之前一样，我们有两个 `for` 循环——外层循环控制回合数，内层循环遍历每个回合的时间步。我们通过 `actor.predict()` 从训练好的演员策略中采样动作，并使用 `env.step()` 让环境按照动作演化。最后，如果 `terminal == True`，我们终止当前回合：
 
-```
+```py
 def testDDPG(sess, env, args, actor, critic):
 
     # test for max_episodes number of episodes
@@ -546,7 +546,7 @@ def testDDPG(sess, env, args, actor, critic):
 
 1.  **定义 ReplayBuffer 类**：接着我们定义 `ReplayBuffer` 类，传递给 `__init__()` 构造函数的参数。`self.buffer = deque()` 函数是用来存储数据的队列实例：
 
-```
+```py
 from collections import deque
 import random
 import numpy as np
@@ -562,7 +562,7 @@ class ReplayBuffer(object):
 
 1.  **定义** **add** **和** **size** **函数**：接着我们定义 `add()` 函数，将经验作为元组（`state`，`action`，`reward`，`terminal`，`new state`）添加到缓冲区。`self.count` 函数用来记录重放缓冲区中样本的数量。如果样本数量小于重放缓冲区的大小（`self.buffer_size`），我们将当前经验添加到缓冲区，并递增计数。另一方面，如果计数等于（或大于）缓冲区大小，我们通过调用 `popleft()`（deque 的内置函数）丢弃缓冲区中的旧样本。然后，我们将新的经验添加到重放缓冲区；不需要增加计数，因为我们已经丢弃了一个旧的数据样本，并用新数据样本或经验替代了它，因此缓冲区中的样本总数保持不变。我们还定义了 `size()` 函数，用于获取当前重放缓冲区的大小：
 
-```
+```py
     def add(self, s, a, r, t, s2):
         experience = (s, a, r, t, s2)
         if self.count < self.buffer_size: 
@@ -578,7 +578,7 @@ class ReplayBuffer(object):
 
 1.  **定义** **sample_batch** **和** **clear** **函数**：接下来，我们定义 `sample_batch()` 函数，从重放缓冲区中采样 `batch_size` 个样本。如果缓冲区中的样本数量小于 `batch_size`，我们就从缓冲区中采样所有样本的数量。否则，我们从重放缓冲区中采样 `batch_size` 个样本。然后，我们将这些样本转换为 `NumPy` 数组并返回。最后，`clear()` 函数用于完全清空重放缓冲区，使其变为空：
 
-```
+```py
    def sample_batch(self, batch_size):
         batch = []
 
@@ -607,13 +607,13 @@ class ReplayBuffer(object):
 
 我们现在将在 Pendulum-v0 上训练前面的 DDPG 代码。要训练 DDPG 代理，只需在与代码文件相同的目录下，在命令行中输入以下命令：
 
-```
+```py
 python ddpg.py
 ```
 
 这将开始训练：
 
-```
+```py
 
 {'actor_lr': 0.0001,
  'buffer_size': 1000000,
@@ -638,13 +638,13 @@ python ddpg.py
 
 一旦训练完成，你也可以测试训练好的 DDPG 智能体，如下所示：
 
-```
+```py
 python ddpg.py --mode test
 ```
 
 我们还可以通过以下代码绘制训练过程中的每个回合奖励：
 
-```
+```py
 import numpy as np
 import matplotlib.pyplot as plt
 

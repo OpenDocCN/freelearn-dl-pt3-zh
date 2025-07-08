@@ -160,7 +160,7 @@ AS（算法选择）是机器学习中的一个开放问题。它涉及设计一
 
 为了让你更好地理解算法，我们还在代码块中提供了 ESBAS 的伪代码，见下方：
 
-```
+```py
 ---------------------------------------------------------------------------------
 ESBAS
 ---------------------------------------------------------------------------------
@@ -216,7 +216,7 @@ for  do
 
 在定义了所有参数的函数后，我们可以重置 TensorFlow 的默认图，并创建两个 Gym 环境（一个用于训练，另一个用于测试）。然后，我们可以通过为每个神经网络大小实例化一个`DQN_optimization`对象并将它们添加到列表中来创建投资组合：
 
-```
+```py
 def ESBAS(env_name, hidden_sizes=[32], lr=1e-2, num_epochs=2000, buffer_size=100000, discount=0.99, render_cycle=100, update_target_net=1000, batch_size=64, update_freq=4, min_buffer_size=5000, test_frequency=20, start_explor=1, end_explor=0.1, explor_steps=100000, xi=16000):
 
     tf.reset_default_graph()
@@ -231,7 +231,7 @@ def ESBAS(env_name, hidden_sizes=[32], lr=1e-2, num_epochs=2000, buffer_size=100
 
 现在，我们定义一个内部函数`DQNs_update`，它以 DQN 的方式训练投资组合中的策略。请注意，投资组合中的所有算法都是 DQN，它们唯一的区别在于神经网络的大小。优化通过`DQN_optimization`类的`optimize`和`update_target_network`方法完成：
 
-```
+```py
     def DQNs_update(step_counter):
         if len(buffer) > min_buffer_size and (step_counter % update_freq == 0):
             mb_obs, mb_rew, mb_act, mb_obs2, mb_done = buffer.sample_minibatch(batch_size)
@@ -245,7 +245,7 @@ def ESBAS(env_name, hidden_sizes=[32], lr=1e-2, num_epochs=2000, buffer_size=100
 
 一如既往，我们需要初始化一些（不言自明的）变量：重置环境，实例化`ExperienceBuffer`对象（使用我们在其他章节中使用的相同类），并设置探索衰减：
 
-```
+```py
     step_count = 0
     batch_rew = []
     episode = 0
@@ -266,7 +266,7 @@ def ESBAS(env_name, hidden_sizes=[32], lr=1e-2, num_epochs=2000, buffer_size=100
 
 第一步是通过调用我们之前定义的`DQNs_update`来完成的，整个时期的长度（具有指数长度）：
 
-```
+```py
     for ep in range(num_epochs):
         # policies training
         for i in range(2**(beta-1), 2**beta):
@@ -275,7 +275,7 @@ def ESBAS(env_name, hidden_sizes=[32], lr=1e-2, num_epochs=2000, buffer_size=100
 
 关于第二步，在轨迹运行之前，实例化并初始化了`UCB1`类的新对象。然后，一个`while`循环遍历指数大小的回合，其中，`UCB1`对象选择运行下一条轨迹的算法。在轨迹过程中，动作由`dqns[best_dqn]`选择：
 
-```
+```py
         ucb1 = UCB1(dqns, xi)
         list_bests = []
         beta += 1
@@ -304,7 +304,7 @@ def ESBAS(env_name, hidden_sizes=[32], lr=1e-2, num_epochs=2000, buffer_size=100
 
 每次回合后，`ucb1`会根据上次轨迹获得的强化学习回报进行更新。此外，环境被重置，当前轨迹的奖励被追加到列表中，以便跟踪所有奖励：
 
-```
+```py
             ucb1.update(best_dqn, g_rew)
 
             obs = env.reset()
@@ -317,7 +317,7 @@ def ESBAS(env_name, hidden_sizes=[32], lr=1e-2, num_epochs=2000, buffer_size=100
 
 `UCB1`由一个构造函数组成，该构造函数初始化计算所需的属性（见 12.3）；一个`choose_algorithm()`方法，返回当前投资组合中最佳的算法（如 12.3 所示）；以及`update(idx_algo, traj_return)`，它使用获得的最后一个奖励更新`idx_algo`算法的平均奖励，如 12.4 所理解的那样。代码如下：
 
-```
+```py
 class UCB1:
     def __init__(self, algos, epsilon):
         self.n = 0

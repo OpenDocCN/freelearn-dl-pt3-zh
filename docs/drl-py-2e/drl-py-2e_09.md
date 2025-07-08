@@ -304,7 +304,7 @@ Atari 2600 是一款由游戏公司 Atari 推出的流行视频游戏主机。At
 
 让我们实现一个 DQN 来玩 Ms Pacman 游戏。首先，导入必要的库：
 
-```
+```py
 import random
 import gym
 import numpy as np
@@ -316,19 +316,19 @@ from tensorflow.keras.optimizers import Adam
 
 现在，让我们使用 Gym 创建 Ms Pacman 游戏环境：
 
-```
+```py
 env = gym.make("MsPacman-v0") 
 ```
 
 设置状态大小：
 
-```
+```py
 state_size = (88, 80, 1) 
 ```
 
 获取动作数量：
 
-```
+```py
 action_size = env.action_space.n 
 ```
 
@@ -340,38 +340,38 @@ action_size = env.action_space.n
 
 现在，让我们定义一个名为`preprocess_state`的函数，它接收游戏状态（游戏屏幕图像）作为输入，并返回预处理后的游戏状态：
 
-```
+```py
 color = np.array([210, 164, 74]).mean()
 def preprocess_state(state): 
 ```
 
 裁剪并调整图像大小：
 
-```
+```py
  image = state[1:176:2, ::2] 
 ```
 
 将图像转换为灰度图：
 
-```
+```py
  image = image.mean(axis=2) 
 ```
 
 提高图像对比度：
 
-```
+```py
  image[image==color] = 0 
 ```
 
 对图像进行归一化处理：
 
-```
+```py
  image = (image - 128) / 128 - 1 
 ```
 
 重新调整图像并返回：
 
-```
+```py
  image = np.expand_dims(image.reshape(88, 80, 1), axis=0)
     return image 
 ```
@@ -380,7 +380,7 @@ def preprocess_state(state):
 
 让我们定义一个名为 DQN 的类，在这里我们将实现 DQN 算法。为了更清晰地理解，我们逐行查看代码。你也可以从本书的 GitHub 仓库中获取完整代码：
 
-```
+```py
 class DQN: 
 ```
 
@@ -388,61 +388,61 @@ class DQN:
 
 首先，让我们定义`init`方法
 
-```
+```py
  def __init__(self, state_size, action_size): 
 ```
 
 定义状态大小：
 
-```
+```py
  self.state_size = state_size 
 ```
 
 定义动作大小：
 
-```
+```py
  self.action_size = action_size 
 ```
 
 定义重放缓冲区：
 
-```
+```py
  self.replay_buffer = deque(maxlen=5000) 
 ```
 
 定义折扣因子：
 
-```
+```py
  self.gamma = 0.9 
 ```
 
 定义ε值：
 
-```
+```py
  self.epsilon = 0.8 
 ```
 
 定义我们希望更新目标网络的更新率：
 
-```
+```py
  self.update_rate = 1000 
 ```
 
 定义主网络：
 
-```
+```py
  self.main_network = self.build_network() 
 ```
 
 定义目标网络：
 
-```
+```py
  self.target_network = self.build_network() 
 ```
 
 将主网络的权重复制到目标网络：
 
-```
+```py
  self.target_network.set_weights(self.main_network.get_weights()) 
 ```
 
@@ -450,13 +450,13 @@ class DQN:
 
 现在，让我们构建 DQN。我们已经了解到，玩 Atari 游戏时，使用 CNN 作为 DQN，将游戏屏幕的图像作为输入并返回 Q 值。我们定义了一个包含三层卷积层的 DQN。卷积层从图像中提取特征并输出特征图，然后我们将卷积层获得的特征图展平，并将展平后的特征图输入到前馈网络（即全连接层），该网络返回 Q 值：
 
-```
+```py
  def build_network(self): 
 ```
 
 定义第一个卷积层：
 
-```
+```py
  model = Sequential()
         model.add(Conv2D(32, (8, 8), strides=4, padding='same', input_shape=self.state_size))
         model.add(Activation('relu')) 
@@ -464,40 +464,40 @@ class DQN:
 
 定义第二个卷积层：
 
-```
+```py
  model.add(Conv2D(64, (4, 4), strides=2, padding='same'))
         model.add(Activation('relu')) 
 ```
 
 定义第三个卷积层：
 
-```
+```py
  model.add(Conv2D(64, (3, 3), strides=1, padding='same'))
         model.add(Activation('relu')) 
 ```
 
 展平通过第三个卷积层获得的特征图：
 
-```
+```py
  model.add(Flatten()) 
 ```
 
 将展平的特征图输入到全连接层：
 
-```
+```py
  model.add(Dense(512, activation='relu'))
         model.add(Dense(self.action_size, activation='linear')) 
 ```
 
 使用均方误差（MSE）编译模型：
 
-```
+```py
  model.compile(loss='mse', optimizer=Adam()) 
 ```
 
 返回模型：
 
-```
+```py
  return model 
 ```
 
@@ -505,7 +505,7 @@ class DQN:
 
 我们已经了解到，通过从重放缓冲区随机采样一个小批量的转换数据来训练 DQN。因此，我们定义一个名为`store_transition`的函数，用于将转换信息存储在重放缓冲区：
 
-```
+```py
  def store_transistion(self, state, action,
                           reward, next_state, done):
         self.replay_buffer.append((state, action,
@@ -516,7 +516,7 @@ class DQN:
 
 我们了解到，在 DQN 中，为了平衡探索与利用之间的权衡，我们使用 epsilon-greedy 策略来选择动作。所以，现在我们定义一个名为 `epsilon_greedy` 的函数，通过 epsilon-greedy 策略来选择动作：
 
-```
+```py
  def epsilon_greedy(self, state):
         if random.uniform(0,1) < self.epsilon:
             return np.random.randint(self.action_size)
@@ -528,19 +528,19 @@ class DQN:
 
 现在，我们定义一个名为 `train` 的函数来进行网络训练：
 
-```
+```py
  def train(self, batch_size): 
 ```
 
 从回放缓冲区中采样一个小批量转移：
 
-```
+```py
  minibatch = random.sample(self.replay_buffer, batch_size) 
 ```
 
 使用目标网络计算目标值：
 
-```
+```py
  for state, action, reward, next_state, done in minibatch:
             if not done:
                 target_Q = (reward + self.gamma * np.amax(
@@ -551,19 +551,19 @@ class DQN:
 
 使用主网络计算预测值，并将预测值存储在 `Q_values` 中：
 
-```
+```py
  Q_values = self.main_network.predict(state) 
 ```
 
 更新目标值：
 
-```
+```py
  Q_values[0][action] = target_Q 
 ```
 
 训练主网络：
 
-```
+```py
  self.main_network.fit(state, Q_values, epochs=1, 
                                   verbose=0) 
 ```
@@ -572,7 +572,7 @@ class DQN:
 
 现在，我们定义一个名为 `update_target_network` 的函数，通过从主网络复制来更新目标网络的权重：
 
-```
+```py
  def update_target_network(self):
         self.target_network.set_weights(self.main_network.get_weights()) 
 ```
@@ -581,128 +581,128 @@ class DQN:
 
 现在，让我们开始训练网络。首先，设置我们希望训练网络的回合数：
 
-```
+```py
 num_episodes = 500 
 ```
 
 定义时间步数：
 
-```
+```py
 num_timesteps = 20000 
 ```
 
 定义批次大小：
 
-```
+```py
 batch_size = 8 
 ```
 
 设置我们希望考虑的过去游戏画面数量：
 
-```
+```py
 num_screens = 4 
 ```
 
 实例化 DQN 类：
 
-```
+```py
 dqn = DQN(state_size, action_size) 
 ```
 
 将 done 设置为 `False`：
 
-```
+```py
 done = False 
 ```
 
 初始化 `time_step`：
 
-```
+```py
 time_step = 0 
 ```
 
 对于每个回合：
 
-```
+```py
 for i in range(num_episodes): 
 ```
 
 将 `Return` 设置为 `0`：
 
-```
+```py
  Return = 0 
 ```
 
 预处理游戏画面：
 
-```
+```py
  state = preprocess_state(env.reset()) 
 ```
 
 每个回合的每一步：
 
-```
+```py
  for t in range(num_timesteps): 
 ```
 
 渲染环境：
 
-```
+```py
  env.render() 
 ```
 
 更新时间步：
 
-```
+```py
  time_step += 1 
 ```
 
 更新目标网络：
 
-```
+```py
  if time_step % dqn.update_rate == 0:
             dqn.update_target_network() 
 ```
 
 选择动作：
 
-```
+```py
  action = dqn.epsilon_greedy(state) 
 ```
 
 执行动作：
 
-```
+```py
  next_state, reward, done, _ = env.step(action) 
 ```
 
 预处理下一个状态：
 
-```
+```py
  next_state = preprocess_state(next_state) 
 ```
 
 存储转移信息：
 
-```
+```py
  dqn.store_transistion(state, action, reward, next_state, done) 
 ```
 
 将当前状态更新为下一个状态：
 
-```
+```py
  state = next_state 
 ```
 
 更新返回值：
 
-```
+```py
  Return += reward 
 ```
 
 如果回合结束，则打印返回值：
 
-```
+```py
  if done:
             print('Episode: ',i, ',' 'Return', Return)
             break 
@@ -710,7 +710,7 @@ for i in range(num_episodes):
 
 如果回放缓冲区中的转移数量大于批次大小，则训练网络：
 
-```
+```py
  if len(dqn.replay_buffer) > batch_size:
             dqn.train(batch_size) 
 ```

@@ -96,7 +96,7 @@ Retailrocket 数据集可以从 Kaggle 网站下载，网址为[`www.kaggle.com/
 
 我们使用以下命令下载数据集：
 
-```
+```py
 kaggle datasets download -d retailrocket/ecommerce-dataset
 ```
 
@@ -122,7 +122,7 @@ Retailrocket 数据集包含三个文件：
 
 1.  设置我们下载数据的文件夹路径：
 
-```
+```py
 dsroot = os.path.join(os.path.expanduser('~'),
                       'datasets',
                       'kaggle-retailrocket')
@@ -131,14 +131,14 @@ os.listdir(dsroot)
 
 1.  将`events.csv`加载到一个 pandas DataFrame 中：
 
-```
+```py
 events = pd.read_csv(os.path.join(dsroot,'events.csv'))
 print('Event data\n',events.head())
 ```
 
 事件数据包含`timestamp`、`visitorid`、`event`、`itemid`和`transactionid`五列，如下所示：
 
-```
+```py
 Event data
         timestamp  visitorid event  itemid  transactionid
 0  1433221332117     257597  view  355908            NaN
@@ -150,13 +150,13 @@ Event data
 
 1.  打印唯一的物品、用户和交易：
 
-```
+```py
 print('Unique counts:',events.nunique())
 ```
 
 我们得到如下输出：
 
-```
+```py
 Unique counts: timestamp        2750455
 visitorid        1407580
 event                  3
@@ -167,13 +167,13 @@ dtype: int64
 
 1.  验证我们之前提到的事件类型：
 
-```
+```py
 print('Kind of events:',events.event.unique())
 ```
 
 我们看到了之前描述的三种事件：
 
-```
+```py
 Kind of events: ['view' 'addtocart' 'transaction']
 ```
 
@@ -183,7 +183,7 @@ Kind of events: ['view' 'addtocart' 'transaction']
 
 1.  我们通过以下代码将`view`事件转换为`1`，`addtocart`事件转换为`2`，`transaction`事件转换为`3`：
 
-```
+```py
 events.event.replace(to_replace=dict(view=1, 
                                      addtocart=2, 
                                      transaction=3), 
@@ -192,26 +192,26 @@ events.event.replace(to_replace=dict(view=1,
 
 1.  删除我们不需要的`transactionid`和`timestamp`列：
 
-```
+```py
 events.drop(['transactionid'],axis=1,inplace=True)
 events.drop(['timestamp'],axis=1,inplace=True)
 ```
 
 1.  对数据集进行打乱，以获得用于训练和测试的数据：
 
-```
+```py
 events = events.reindex(np.random.permutation(events.index))
 ```
 
 数据集也可以通过以下命令进行打乱：
 
-```
+```py
 events = events.sample(frac=1).reset_index(drop=True)
 ```
 
 1.  将数据分为 `train`、`valid` 和 `test` 集，如下所示：
 
-```
+```py
 split_1 = int(0.8 * len(events))
 split_2 = int(0.9 * len(events))
 train = events[:split_1]
@@ -224,7 +224,7 @@ print(test.head())
 
 `train` 和 `test` 数据如下所示：
 
-```
+```py
              timestamp  visitorid  event  itemid
 1621867  1431388649092     896963      1  264947
 1060311  1440610461477    1102098      1  431592
@@ -251,32 +251,32 @@ print(test.head())
 
 1.  将访客和物品的数量存储在一个变量中，如下所示：
 
-```
+```py
 n_visitors = events.visitorid.nunique()
 n_items = events.itemid.nunique()
 ```
 
 1.  将嵌入层的潜在因子数量设置为 `5`。你可能想尝试不同的值，以观察对模型训练的影响：
 
-```
+```py
 n_latent_factors = 5
 ```
 
 1.  从 Keras 库中导入 Input、Embedding 和 Flatten 层：
 
-```
+```py
 from tensorflow.keras.layers import Input, Embedding, Flatten
 ```
 
 1.  从物品开始—创建一个输入层，如下所示：
 
-```
+```py
 item_input = Input(shape=[1],name='Items')
 ```
 
 1.  创建一个嵌入表示层，然后将该嵌入层展平，以获得我们之前设置的潜在维度的输出：
 
-```
+```py
 item_embed = Embedding(n_items + 1,
                            n_latent_factors, 
                            name='ItemsEmbedding')(item_input)
@@ -285,7 +285,7 @@ item_vec = Flatten(name='ItemsFlatten')(item_embed)
 
 1.  类似地，创建访客的向量空间表示：
 
-```
+```py
 visitor_input = Input(shape=[1],name='Visitors')
 visitor_embed = Embedding(n_visitors + 1,
                           n_latent_factors,
@@ -295,14 +295,14 @@ visitor_vec = Flatten(name='VisitorsFlatten')(visitor_embed)
 
 1.  创建一个点积层，用于表示两个向量空间的点积：
 
-```
+```py
 dot_prod = keras.layers.dot([item_vec, visitor_vec],axes=[1,1],
                              name='DotProduct') 
 ```
 
 1.  从输入层构建 Keras 模型，并将点积层作为输出层，然后按如下方式编译：
 
-```
+```py
 model = keras.Model([item_input, visitor_input], dot_prod)
 model.compile('adam', 'mse')
 model.summary()
@@ -310,7 +310,7 @@ model.summary()
 
 模型总结如下：
 
-```
+```py
 ________________________
 Layer (type)                    Output Shape         Param #     Connected to                     
 ================================================================================
@@ -337,7 +337,7 @@ ________________________________________________________________________________
 
 由于模型较为复杂，我们还可以使用以下命令将其图形化：
 
-```
+```py
 keras.utils.plot_model(model, 
                        to_file='model.png', 
                        show_shapes=True, 
@@ -352,7 +352,7 @@ display.display(display.Image('model.png'))
 
 现在让我们训练和评估模型：
 
-```
+```py
 model.fit([train.visitorid, train.itemid], train.event, epochs=50)
 score = model.evaluate([test.visitorid, test.itemid], test.event)
 print('mean squared error:', score)
@@ -366,14 +366,14 @@ print('mean squared error:', score)
 
 在这个模型中，我们为用户和物品设置了两个不同的潜在因子变量，但都将它们设置为 `5`。读者可以尝试使用不同的潜在因子值进行实验：
 
-```
+```py
 n_lf_visitor = 5
 n_lf_item = 5
 ```
 
 1.  按照我们之前的方法，构建物品和访客的嵌入表示和向量空间表示：
 
-```
+```py
 item_input = Input(shape=[1],name='Items')
 item_embed = Embedding(n_items + 1,
                            n_lf_visitor, 
@@ -389,7 +389,7 @@ visitor_vec = Flatten(name='VisitorsFlatten')(visitor_embed)
 
 1.  不再创建点积层，而是将用户和访客的表示进行连接，然后应用全连接层以获得推荐输出：
 
-```
+```py
 concat = keras.layers.concatenate([item_vec, visitor_vec], name='Concat')
 fc_1 = Dense(80,name='FC-1')(concat)
 fc_2 = Dense(40,name='FC-2')(fc_1)
@@ -400,7 +400,7 @@ output = Dense(1, activation='relu',name='Output')(fc_3)
 
 1.  按如下方式定义并编译模型：
 
-```
+```py
 optimizer = keras.optimizers.Adam(lr=0.001)
 model = keras.Model([item_input, visitor_input], output)
 model.compile(optimizer=optimizer,loss= 'mse')
@@ -412,7 +412,7 @@ model.compile(optimizer=optimizer,loss= 'mse')
 
 1.  训练和评估模型：
 
-```
+```py
 model.fit([train.visitorid, train.itemid], train.event, epochs=50)
 score = model.evaluate([test.visitorid, test.itemid], test.event)
 print('mean squared error:', score)
@@ -420,7 +420,7 @@ print('mean squared error:', score)
 
 我们得到了一定准确度，并且误差率非常低：
 
-```
+```py
 275611/275611 [==============================] - 4s 14us/step
 mean squared error: 0.05709125054560985
 ```

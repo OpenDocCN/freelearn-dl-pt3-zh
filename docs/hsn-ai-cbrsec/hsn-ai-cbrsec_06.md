@@ -276,7 +276,7 @@ DOS 头仅用于向后兼容，并且位于显示错误信息的 DOS 存根之�
 
 DOS 头包括一些用于向后兼容的字段，定义如下：
 
-```
+```py
 typedef struct _IMAGE_DOS_HEADER {      
 // DOS .EXE header
     WORD   e_magic;                     
@@ -326,7 +326,7 @@ typedef struct _IMAGE_DOS_HEADER {
 
 PE 头包含关于不同部分的信息，这些部分用于存储代码和数据，以及请求的其他库（DLL）中的导入项或提供的导出项，以防该模块实际上是一个库。请查看以下 PE 头结构：
 
-```
+```py
 typedef struct _IMAGE_NT_HEADERS {
     DWORD Signature;
     IMAGE_FILE_HEADER FileHeader;
@@ -336,7 +336,7 @@ typedef struct _IMAGE_NT_HEADERS {
 
 `FileHeader`结构字段描述文件的格式（即内容、符号等），其类型在以下结构中定义：
 
-```
+```py
 typedef struct _IMAGE_FILE_HEADER {
     WORD    Machine;
     WORD    NumberOfSections;
@@ -350,7 +350,7 @@ typedef struct _IMAGE_FILE_HEADER {
 
 `OptionalHeader`字段包含有关可执行模块的信息，包括所需的操作系统版本、内存要求和`itsentry`点（即实际执行开始的相对内存地址）：
 
-```
+```py
 typedef struct _IMAGE_OPTIONAL_HEADER {
     //
     // Standard fields.
@@ -435,13 +435,13 @@ Windows 还允许程序通过 `LoadLibrary` 和 `FreeLibrary` 显式加载和卸
 
 一旦包含库的压缩包下载并解压到本地，我们可以执行以下命令来进行安装：
 
-```
+```py
 python setup.py install
 ```
 
 如果我们按照前几章的说明在 Anaconda 中创建了一个环境，那么我们可以通过以下命令安装 `pefile` 库（假设环境名为 `py35`）：
 
-```
+```py
 conda install -n py35 -c conda-forge pefile
 ```
 
@@ -449,7 +449,7 @@ conda install -n py35 -c conda-forge pefile
 
 在输入我们的恶意软件数据集之后，正如之前讨论的那样，我们可以继续从每个文件中提取痕迹，使用 `pefile` Python 库读取相应的 `pefile` 格式字段，如以下脚本所示：
 
-```
+```py
 import os
 import pefile
 
@@ -462,7 +462,7 @@ suspect_pe = pefile.PE("suspect.exe")
 
 使用以下脚本，我们将提取 PE 文件格式的主要字段，并直接将其调用到之前定义的对象中：
 
-```
+```py
 AddressOfEntryPoint = suspect_pe.OPTIONAL_HEADER.AddressOfEntryPoint
 MajorImageVersion = suspect_pe.OPTIONAL_HEADER.MajorImageVersion
 NumberOfSections = suspect_pe.FILE_HEADER.NumberOfSections
@@ -473,7 +473,7 @@ SizeOfStackReserve = suspect_pe.OPTIONAL_HEADER.SizeOfStackReserve
 
 我们的最终提取脚本版本将如下所示：
 
-```
+```py
 import os
 import pefile
 import glob
@@ -637,7 +637,7 @@ K-Means 算法的优点之一，除了其简单易用外，它的高可扩展性
 
 因此，我们将在算法初始化阶段为`k`参数分配的聚类数为`2`，而我们选择作为可能恶意软件的区分标准的特征对应于`MajorLinkerVersion`、`MajorImageVersion`、`MajorOperatingSystemVersion`和`DllCharacteristics`字段：
 
-```
+```py
 import numpy as np 
 import pandas as pd 
 import matplotlib.pyplot as plt 
@@ -657,19 +657,19 @@ targets = malware_dataset.iloc[:, 8].values
 
 一旦从我们的数据集中选择了感兴趣的字段，我们就可以开始实例化`scikit-learn`的`KMeans`类，将`k`值作为输入参数，表示聚类的数量，为`2`（`n_clusters = 2`），并定义算法可以执行的最大**迭代次数**，在我们的例子中为`300`（`max_iter = 300`）：
 
-```
+```py
 k_means = KMeans(n_clusters=2,max_iter=300)
 ```
 
 然后我们可以调用`k_means`对象上的`fit()`方法，从而开始迭代算法过程：
 
-```
+```py
 k_means.fit(samples)
 ```
 
 我们只需评估算法获得的结果。为此，我们将使用我们之前介绍的轮廓系数，采用欧几里得距离作为度量标准，并结合**混淆矩阵**来显示结果。这将为我们提供一张表，显示各自的聚类结果，分为正确预测和错误预测：
 
-```
+```py
 k_means = KMeans(n_clusters=2,max_iter=300)
 k_means.fit(samples) 
 
@@ -683,7 +683,7 @@ print ("\nSilhouette coefficient: %0.3f" % silhouette_score(samples, k_means.lab
 
 该过程的结果如下：
 
-```
+```py
 K-means labels: [0 0 0 ... 0 1 0]
 K-means Clustering Results:
 
@@ -739,7 +739,7 @@ Silhouette coefficient: 0.975
 
 在我们的示例中，我们将使用`AddressOfEntryPoint`和`DllCharacteristics`字段作为潜在的独特特征来检测可疑的`.exe`文件：
 
-```
+```py
 import pandas as pd
 import numpy as np
 from sklearn import *
@@ -788,7 +788,7 @@ Decision Tree accuracy: 96.25860195581312
 
 以下是使用`scikit-learn`库实现的随机森林恶意软件分类器的示例：
 
-```
+```py
 import pandas as pd
 import numpy as np
 from sklearn import *
@@ -816,7 +816,7 @@ print("Random Forest Classifier accuracy: " + str(accuracy*100) )
 
 正如我们从结果中看到的，随机森林分类器改善了决策树的性能；要验证这一点，只需比较各自算法的准确性：
 
-```
+```py
 Decision Tree accuracy: 96.25860195581312
 Random Forest accuracy: 96.46142701919594
 ```
@@ -925,7 +925,7 @@ Random Forest accuracy: 96.46142701919594
 
 最后，假设为系统的各种事件和状态分配概率估计。我们将此总结在下表中，也称为**发射矩阵**，它总结了给定观察结果与特定可观察状态相关的概率（记住，每个隐藏实体相关的概率之和，按可能事件细分，必须等于 1）：
 
-```
+```py
                  Working   Not Working
 
 Malicious          0.2         0.8
@@ -937,7 +937,7 @@ Legitimate         0.4         0.6
 
 因此，如果程序之前执行了恶意（而非合法）指令，则下一条指令是恶意（而非合法）的概率为：
 
-```
+```py
              Malicious  Legitimate
 
 Malicious        0.7       0.3
@@ -947,7 +947,7 @@ Legitimate       0.1       0.9
 
 最后，我们必须分配与 HMM 起始状态相关的概率；换句话说，第一个隐藏状态的概率对应于程序执行的第一条指令是**恶意**还是**合法**的概率：
 
-```
+```py
 Malicious        0.1 
 
 Legitimate       0.9
@@ -959,13 +959,13 @@ Legitimate       0.9
 
 在我们的例子中，可能的观察结果如下：
 
-```
+```py
 ob_types = (‘W’,‘N’ )
 ```
 
 在这里，`W` 代表工作（Working），`N` 代表不工作（Not Working），而隐藏状态如下：
 
-```
+```py
 states = (‘L’, ’M')
 ```
 
@@ -973,7 +973,7 @@ states = (‘L’, ’M')
 
 接下来是观察序列，这与程序执行的单条指令相关：
 
-```
+```py
 observations = (‘W’,‘W’,‘W’,‘N’)
 ```
 
@@ -981,25 +981,25 @@ observations = (‘W’,‘W’,‘W’,‘N’)
 
 基于这一系列可观察事件，我们必须继续训练 HMM。为此，我们将把我们的概率矩阵（如前所定义）传递给算法，对应于`开始`矩阵：
 
-```
+```py
 start = np.matrix(‘0.1 0.9’)
 ```
 
 `转移`矩阵如下：
 
-```
+```py
 transition = np.matrix(‘0.7 0.3 ; 0.1 0.9’)
 ```
 
 `发射`矩阵如下：
 
-```
+```py
 emission = np.matrix(‘0.2 0.8 ; 0.4 0.6’)
 ```
 
 以下代码使用了隐藏马尔可夫（Hidden Markov）库，可以在[`github.com/rahul13ramesh/hidden_markov`](https://github.com/rahul13ramesh/hidden_markov)找到：
 
-```
+```py
 import numpy as np
 from hidden_markov import hmm
 
@@ -1024,7 +1024,7 @@ print( _hmm.viterbi(observations) )
 
 这些是脚本的结果：
 
-```
+```py
 Forward algorithm: 0.033196
 Viterbi algorithm: [’M', ’M', ’M', ’M']
 ```
@@ -1107,7 +1107,7 @@ CNN 是一种特定类型的前馈神经网络（FFN），其特点是神经层�
 
 可以通过执行以下命令，从 GitHub 仓库下载该工具：
 
-```
+```py
 git clone https://github.com/AFAgarap/malware-classification.git/
 ```
 
@@ -1115,13 +1115,13 @@ git clone https://github.com/AFAgarap/malware-classification.git/
 
 我们展示了工具的一些使用示例如下：
 
-```
+```py
 Usage: main.py [-h] -m MODEL -d DATASET -n NUM_EPOCHS -c PENALTY_PARAMETER -k CHECKPOINT_PATH -l LOG_PATH -r RESULT_PATH
 ```
 
 要使用 CNN-SVM 模型，请将`-model`参数设置为`1`，如下例所示：
 
-```
+```py
 main.py –model 1 –dataset ./dataset/malimg.npz –num_epochs 100 –penalty_parameter 10 -c ./checkpoint/ -l ./logs/ -r ./results/
 ```
 

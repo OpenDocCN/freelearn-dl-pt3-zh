@@ -72,7 +72,7 @@
 
 代码块的格式如下所示：
 
-```
+```py
 # Import the required modules
 import urllib
 from bs4 import BeautifulSoup
@@ -83,7 +83,7 @@ import simplejson
 
 当我们希望引起你注意某个代码块的特定部分时，相关的行或项目将被加粗显示：
 
-```
+```py
 import pandas as pd
 import numpy as np
 import tensorflow as tf
@@ -93,7 +93,7 @@ from keras.models import Sequential
 
 任何命令行输入或输出的格式如下所示：
 
-```
+```py
 $ mkdir css
 $ cd css
 ```

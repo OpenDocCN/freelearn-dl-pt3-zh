@@ -76,7 +76,7 @@ Keras 于 2015 年首次发布，旨在作为一个接口，便于快速进行�
 
 首先，我们导入数据。数据由 60,000 张图像组成作为训练集，10,000 张图像作为测试集：
 
-```
+```py
 import tensorflow as tf
 
 num_classes = 10
@@ -96,7 +96,7 @@ x_train, x_test = x_train / 255.0, x_test / 255.0
 
 现在我们可以开始构建实际的模型了。我们将使用一个非常简单的架构，由两个**全连接**（也叫**密集**）层组成。在我们探索架构之前，先来看看代码。正如您所看到的，Keras 代码非常简洁：
 
-```
+```py
 model = tf.keras.models.Sequential()
 model.add(tf.keras.layers.Flatten())
 model.add(tf.keras.layers.Dense(128, activation='relu'))
@@ -115,7 +115,7 @@ model.add(tf.keras.layers.Dense(num_classes, activation='softmax'))
 
 请注意，您可以通过`model.summary()`获取模型的描述、输出及其权重。以下是输出：
 
-```
+```py
 Model: "sequential"
 _________________________________________________________________
 Layer (type) Output Shape Param # 
@@ -137,7 +137,7 @@ Non-trainable params: 0
 
 Keras 使得训练变得异常简单：
 
-```
+```py
 model.compile(optimizer='sgd',
  loss='sparse_categorical_crossentropy',
  metrics=['accuracy'])
@@ -235,7 +235,7 @@ TensorFlow 2 的主要变化是**急切执行**。历史上，TensorFlow 1 默�
 
 让我们从一个非常简单的示例开始，来说明延迟执行和急切执行的区别，求和两个向量的值：
 
-```
+```py
 import tensorflow as tf
 
 a = tf.constant([1, 2, 3])
@@ -249,13 +249,13 @@ print(c)
 
 上述代码的输出取决于 TensorFlow 的版本。在 TensorFlow 1 中（默认模式为延迟执行），输出将是这样的：
 
-```
+```py
 Tensor("Add:0", shape=(3,), dtype=int32)
 ```
 
 然而，在 TensorFlow 2 中（急切执行是默认模式），你将获得以下输出：
 
-```
+```py
 tf.Tensor([1 2 4], shape=(3,), dtype=int32)
 ```
 
@@ -269,7 +269,7 @@ tf.Tensor([1 2 4], shape=(3,), dtype=int32)
 
 我们将从一个简单的示例开始，来说明图的创建和优化：
 
-```
+```py
 def compute(a, b, c):
     d = a * b + c
     e = a * b * c
@@ -286,7 +286,7 @@ def compute(a, b, c):
 
 TensorFlow AutoGraph 模块使得将 eager 代码转换为图形变得简单，从而实现自动优化。为了做到这一点，最简单的方法是在函数上方添加 `tf.function` 装饰器：
 
-```
+```py
 @tf.function
 def compute(a, b, c):
     d = a * b + c
@@ -320,7 +320,7 @@ TensorFlow AutoGraph 可以转换大多数 Python 语句，如 `for` 循环、`w
 
 在代码中，这转换为以下内容：
 
-```
+```py
 A, B = tf.constant(3.0), tf.constant(6.0)
 X = tf.Variable(20.0) # In practice, we would start with a random value
 loss = tf.math.abs(A * X - B)
@@ -328,7 +328,7 @@ loss = tf.math.abs(A * X - B)
 
 现在，为了更新*X*的值，我们希望计算损失函数关于*X*的梯度。然而，当打印损失的内容时，我们得到如下结果：
 
-```
+```py
 <tf.Tensor: id=18525, shape=(), dtype=float32, numpy=54.0>
 ```
 
@@ -336,7 +336,7 @@ loss = tf.math.abs(A * X - B)
 
 这时，梯度带就派上用场了。通过在`tf.GradientTape`上下文中运行我们的损失计算，TensorFlow 将自动记录所有操作，并允许我们在之后回放它们：
 
-```
+```py
 def train_step():
     with tf.GradientTape() as tape:
         loss = tf.math.abs(A * X - B)
@@ -351,7 +351,7 @@ for i in range(7):
 
 上述代码定义了一个训练步骤。每次调用`train_step`时，损失都会在梯度带的上下文中计算。然后，使用该上下文来计算梯度。*X*变量随后会被更新。事实上，我们可以看到*X*逐渐逼近解决方程的值：
 
-```
+```py
  X = 20.00, dX = 3.000000
  X = 17.00, dX = 3.000000
  X = 14.00, dX = 3.000000
@@ -383,7 +383,7 @@ for i in range(7):
 
 你可以使用函数式 API 来代替本章开始时使用的 Sequential API：
 
-```
+```py
 model_input = tf.keras.layers.Input(shape=input_shape)
 output = tf.keras.layers.Flatten()(model_input)
 output = tf.keras.layers.Dense(128, activation='relu')(output)
@@ -421,7 +421,7 @@ model = tf.keras.Model(model_input, output)
 
 为了说明这一点，让我们创建一个简单的`identity`函数：
 
-```
+```py
 @tf.function
 def identity(x):
   print('Creating graph !')
@@ -430,7 +430,7 @@ def identity(x):
 
 这个函数将在 TensorFlow 每次创建与其操作对应的图时打印一条消息。在这种情况下，由于 TensorFlow 缓存了图，它只会在第一次运行时打印一些信息：
 
-```
+```py
 x1 = tf.random.uniform((10, 10))
 x2 = tf.random.uniform((10, 10))
 
@@ -440,7 +440,7 @@ result2 = identity(x2) # Nothing is printed
 
 但是，请注意，如果我们更改输入类型，TensorFlow 将重新创建图：
 
-```
+```py
 x3 = tf.random.uniform((10, 10), dtype=tf.float16)
 result3 = identity(x3) # Prints 'Creating graph !'
 ```
@@ -451,7 +451,7 @@ result3 = identity(x3) # Prints 'Creating graph !'
 
 然而，每次执行具体函数时记录信息可能会很有用，而不仅仅是第一次执行时。为此，可以使用`tf.print`：
 
-```
+```py
 @tf.function
 def identity(x):
   tf.print("Running identity")
@@ -464,28 +464,28 @@ def identity(x):
 
 TensorFlow 使用`Variable`实例来存储模型权重。在我们的 Keras 示例中，我们可以通过访问`model.variables`列出模型的内容。它将返回模型中包含的所有变量的列表：
 
-```
+```py
 print([variable.name for variable in model.variables])
 # Prints ['sequential/dense/kernel:0', 'sequential/dense/bias:0', 'sequential/dense_1/kernel:0', 'sequential/dense_1/bias:0']
 ```
 
 在我们的示例中，变量管理（包括命名）完全由 Keras 处理。如前所述，我们也可以创建自己的变量：
 
-```
+```py
 a = tf.Variable(3, name='my_var')
 print(a) # Prints <tf.Variable 'my_var:0' shape=() dtype=int32, numpy=3>
 ```
 
 请注意，对于大型项目，建议为变量命名以明确代码的含义并简化调试。要更改变量的值，可以使用`Variable.assign`方法：
 
-```
+```py
 a.assign(a + 1)
 print(a.numpy()) # Prints 4
 ```
 
 如果不使用`.assign()`方法，将会创建一个新的`Tensor`方法：
 
-```
+```py
 b = a + 1
 print(b) # Prints <tf.Tensor: id=21231, shape=(), dtype=int32, numpy=4>
 ```
@@ -510,7 +510,7 @@ TPU 是 Google 定制的芯片，类似于 GPU，专门设计用于运行神经�
 
 要使用分布式策略，在其作用域内创建并编译模型：
 
-```
+```py
 mirrored_strategy = tf.distribute.MirroredStrategy()
 with mirrored_strategy.scope():
   model = make_model() # create your model here
@@ -541,7 +541,7 @@ with mirrored_strategy.scope():
 
 创建估计器的最简单方法是转换 Keras 模型。在模型编译后，调用`tf.keras.estimator.model_to_estimator()`：
 
-```
+```py
 estimator = tf.keras.estimator.model_to_estimator(model, model_dir='./estimator_dir')
 ```
 
@@ -549,7 +549,7 @@ estimator = tf.keras.estimator.model_to_estimator(model, model_dir='./estimator_
 
 训练估计器需要使用**输入函数**——一个返回特定格式数据的函数。接受的格式之一是 TensorFlow 数据集。数据集 API 在第七章中有详细描述，*复杂和稀缺数据集的训练*。现在，我们将定义以下函数，该函数以正确的格式批量返回本章第一部分定义的数据集，每批包含*32*个样本：
 
-```
+```py
 BATCH_SIZE = 32
 def train_input_fn():
     train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
@@ -559,7 +559,7 @@ def train_input_fn():
 
 一旦定义了这个函数，我们可以启动训练与估计器：
 
-```
+```py
 estimator.train(train_input_fn, steps=len(x_train)//BATCH_SIZE)
 ```
 
@@ -573,14 +573,14 @@ estimator.train(train_input_fn, steps=len(x_train)//BATCH_SIZE)
 
 虽然我们在本章第一个示例中使用的进度条提供了有用的信息，但我们可能希望访问更详细的图表。TensorFlow 提供了一个强大的监控工具——**TensorBoard**。它在安装 TensorFlow 时默认包含，并且与 Keras 的回调函数结合使用时非常简单：
 
-```
+```py
 callbacks = [tf.keras.callbacks.TensorBoard('./logs_keras')]
 model.fit(x_train, y_train, epochs=5, verbose=1, validation_data=(x_test, y_test), callbacks=callbacks)
 ```
 
 在这段更新后的代码中，我们将 TensorBoard 回调传递给 `model.fit()` 方法。默认情况下，TensorFlow 会自动将损失值和指标写入我们指定的文件夹中。然后，我们可以从命令行启动 TensorBoard：
 
-```
+```py
 $ tensorboard --logdir ./logs_keras
 ```
 
@@ -602,7 +602,7 @@ $ tensorboard --logdir ./logs_keras
 
 TensorBoard 非常灵活，有许多使用方法。每条信息都存储在 `tf.summary` 中——这可以是标量、图像、直方图或文本。例如，要记录标量，你可以先创建一个摘要写入器，然后使用以下方法记录信息：
 
-```
+```py
 writer = tf.summary.create_file_writer('./model_logs')
 with writer.as_default():
   tf.summary.scalar('custom_log', 10, step=3)
@@ -610,7 +610,7 @@ with writer.as_default():
 
 在前面的代码中，我们指定了步骤——它可以是 epoch 数、batch 数量或自定义信息。它将对应于 TensorBoard 图表中的 *x* 轴。TensorFlow 还提供了生成汇总的工具。为了手动记录准确率，你可以使用以下方法：
 
-```
+```py
 accuracy = tf.keras.metrics.Accuracy()
 ground_truth, predictions = [1, 0, 1], [1, 0, 0] # in practice this would come from the model
 accuracy.update_state(ground_truth, predictions)

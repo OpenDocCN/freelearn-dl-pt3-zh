@@ -324,7 +324,7 @@
 
 这样的模型可以在 Python 中非常容易地实现（使用 NumPy 进行向量和矩阵操作）：
 
-```
+```py
 import numpy as np
 
 class Neuron(object):
@@ -352,7 +352,7 @@ class Neuron(object):
 
 正如我们所看到的，这直接是我们之前定义的数学模型的适应。使用这个人工神经元同样简单。让我们实例化一个感知器（一个使用阶跃函数作为激活方法的神经元），并将一个随机输入通过它转发：
 
-```
+```py
 # Fixing the random number generator's seed, for reproducible results:
 np.random.seed(42)
 # Random input column array of 3 values (shape = `(1, 3)`)
@@ -401,7 +401,7 @@ out = perceptron.forward(x)
 
 像单个神经元一样，这个模型可以在 Python 中实现。实际上，我们甚至不需要对`Neuron`类做太多编辑：
 
-```
+```py
 import numpy as np
 
 class FullyConnectedLayer(object):
@@ -432,7 +432,7 @@ class FullyConnectedLayer(object):
 
 我们只需要改变一些变量的*维度*，以反映每层中神经元的多样性。通过这种实现，我们的层甚至可以一次处理多个输入！传递一个单列向量*x*（形状为 1 × *s*，其中*x*包含*s*个值）或一堆列向量（形状为*n* × *s*，其中*n*为样本数）对于我们的矩阵计算没有任何影响，我们的层将正确输出堆叠的结果（假设*b*被加到每一行）：
 
-```
+```py
 np.random.seed(42)
 # Random input column-vectors of 2 values (shape = `(1, 2)`):
 x1 = np.random.uniform(-1, 1, 2).reshape(1, 2)
@@ -478,7 +478,7 @@ out12 = layer.forward(x12)
 
 在我们实现解决方案之前，先通过加载 MNIST 数据来准备训练和测试方法。为了简便起见，我们将使用`mnist` Python 模块（[`github.com/datapythonista/mnist`](https://github.com/datapythonista/mnist)），该模块由 Marc Garcia 开发（采用 BSD 3-Clause *New*或*Revised*许可，并且已安装在本章的源代码目录中）：
 
-```
+```py
 import numpy as np
 import mnist
 np.random.seed(42)
@@ -500,7 +500,7 @@ y_train = np.eye(num_classes)[y_train]
 
 对于神经网络本身，我们需要将各个层组合在一起，并添加一些方法，供网络前向传播和根据输出向量预测类别使用。层的实现完成后，以下代码应该不言自明：
 
-```
+```py
 import numpy as np
 from layer import FullyConnectedLayer
 
@@ -548,7 +548,7 @@ class SimpleNetwork(object):
 
 我们刚刚实现了一个前馈神经网络，可以用于分类！现在是时候将其应用到我们的任务中了：
 
-```
+```py
 # Network for MNIST images, with 2 hidden layers of size 64 and 32:
 mnist_classifier = SimpleNetwork(X_train.shape[1], num_classes, [64, 32])
 
@@ -682,7 +682,7 @@ print("accuracy = {:.2f}%".format(accuracy * 100))
 
 到目前为止，我们仅实现了网络及其层的前向传播功能。首先，让我们更新 `FullyConnectedLayer` 类，以便我们可以为反向传播和优化添加方法：
 
-```
+```py
 class FullyConnectedLayer(object):
     # [...] (code unchanged)
     def __init__(self, num_inputs, layer_size, activation_fn, d_activation_fn):
@@ -720,7 +720,7 @@ class FullyConnectedLayer(object):
 
 现在，我们需要通过逐层反向传播和优化的方法，更新 `SimpleNetwork` 类，并添加一个最终的方法来涵盖整个训练过程：
 
-```
+```py
 def derivated_sigmoid(y):  # sigmoid derivative function
     return y * (1 - y)
 
@@ -775,7 +775,7 @@ class SimpleNetwork(object):
 
 一切都准备好了！我们可以训练我们的模型，看看它的表现：
 
-```
+```py
 losses, accuracies = mnist_classifier.train(
     X_train, y_train, X_test, y_test, batch_size=30, num_epochs=500)
 # > Epoch    0: training loss = 1.096978 | val accuracy = 19.10%

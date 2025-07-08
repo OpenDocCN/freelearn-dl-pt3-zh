@@ -86,7 +86,7 @@ CNN 之所以能取得突破，正是因为它们的架构，直观地使用卷�
 
 这是任何 CNN 架构中的第一层。所有后续的卷积层和池化层都期望输入以特定格式出现。输入变量将是张量，具有以下形状：
 
-```
+```py
 [batch_size, image_width, image_height, channels]
 ```
 
@@ -104,13 +104,13 @@ CNN 之所以能取得突破，正是因为它们的架构，直观地使用卷�
 
 如果数据集由 28 x 28 像素的单色图像组成，如 MNIST 数据集，那么我们输入层所需的形状如下：
 
-```
+```py
 [batch_size, 28, 28, 1].
 ```
 
 为了改变输入特征的形状，我们可以执行以下重塑操作：
 
-```
+```py
 input_layer = tf.reshape(features["x"], [-1, 28, 28, 1])
 ```
 
@@ -118,7 +118,7 @@ input_layer = tf.reshape(features["x"], [-1, 28, 28, 1])
 
 作为重塑操作的示例，假设我们将输入样本分成五个一批，并且我们的特征`["x"]`数组将包含 3,920 个输入图像的`values()`，其中该数组的每个值对应于图像中的一个像素。对于这种情况，输入层将具有以下形状：
 
-```
+```py
 [5, 28, 28, 1]
 ```
 
@@ -130,7 +130,7 @@ input_layer = tf.reshape(features["x"], [-1, 28, 28, 1])
 
 在 TensorFlow 中定义卷积步骤非常简单。例如，如果我们想对输入层应用 20 个大小为 5x5 的滤波器，并使用 ReLU 激活函数，那么可以使用以下代码来实现：
 
-```
+```py
 conv_layer1 = tf.layers.conv2d(
  inputs=input_layer,
  filters=20,
@@ -143,13 +143,13 @@ conv_layer1 = tf.layers.conv2d(
 
 因此，在我们的 MNIST 示例中，输入张量将具有以下形状：
 
-```
+```py
 [batch_size, 28, 28, 1]
 ```
 
 该卷积步骤的输出张量将具有以下形状：
 
-```
+```py
 [batch_size, 28, 28, 20]
 ```
 
@@ -181,25 +181,25 @@ ReLU 激活函数将所有负的像素值替换为零，而将卷积步骤的输
 
 我们可以使用以下代码行将卷积步骤的输出连接到池化层：
 
-```
+```py
 pool_layer1 = tf.layers.max_pooling2d(inputs=conv_layer1, pool_size=[2, 2], strides=2)
 ```
 
 池化层接收来自卷积步骤的输入，形状如下：
 
-```
+```py
 [batch_size, image_width, image_height, channels]
 ```
 
 例如，在我们的数字分类任务中，池化层的输入将具有以下形状：
 
-```
+```py
 [batch_size, 28, 28, 20]
 ```
 
 池化操作的输出将具有以下形状：
 
-```
+```py
 [batch_size, 14, 14, 20]
 ```
 
@@ -215,13 +215,13 @@ pool_layer1 = tf.layers.max_pooling2d(inputs=conv_layer1, pool_size=[2, 2], stri
 
 例如，在数字分类任务中，我们可以在卷积和池化步骤之后使用一个具有 1,024 个神经元和 ReLU 激活函数的全连接层来执行实际的分类。这个全连接层接受以下格式的输入：
 
-```
+```py
 [batch_size, features]
 ```
 
 因此，我们需要重新调整或展平来自`pool_layer2`的输入特征图，以匹配这种格式。我们可以使用以下代码行来重新调整输出：
 
-```
+```py
 pool1_flat = tf.reshape(pool_layer1, [-1, 14 * 14 * 20])
 ```
 
@@ -229,13 +229,13 @@ pool1_flat = tf.reshape(pool_layer1, [-1, 14 * 14 * 20])
 
 因此，这个重塑操作的最终输出将如下所示：
 
-```
+```py
  [batch_size, 3136]
 ```
 
 最后，我们可以使用 TensorFlow 的`dense()`函数来定义我们的全连接层，设定所需的神经元（单位）数量和最终的激活函数：
 
-```
+```py
 dense_layer = tf.layers.dense(inputs=pool1_flat, units=1024, activation=tf.nn.relu)
 ```
 
@@ -243,7 +243,7 @@ dense_layer = tf.layers.dense(inputs=pool1_flat, units=1024, activation=tf.nn.re
 
 最后，我们需要 logits 层，它将接受全连接层的输出并生成原始的预测值。例如，在数字分类任务中，输出将是一个包含 10 个值的张量，每个值代表 0-9 类中的一个类别的分数。因此，让我们为数字分类示例定义这个 logits 层，其中我们只需要 10 个输出，并且使用线性激活函数，这是 TensorFlow 的`dense()`函数的默认值：
 
-```
+```py
 logits_layer = tf.layers.dense(inputs=dense_layer, units=10)
 ```
 
@@ -253,7 +253,7 @@ logits_layer = tf.layers.dense(inputs=dense_layer, units=10)
 
 这个 logits 层的最终输出将是一个具有以下形状的张量：
 
-```
+```py
 [batch_size, 10]
 ```
 
@@ -269,13 +269,13 @@ logits_layer = tf.layers.dense(inputs=dense_layer, units=10)
 
 因此，我们的预测类别将是 10 个概率中最大值对应的类别。我们可以通过使用`argmax`函数如下获取这个值：
 
-```
+```py
 tf.argmax(input=logits_layer, axis=1)
 ```
 
 记住，`logits_layer`的形状是这样的：
 
-```
+```py
 [batch_size, 10]
 ```
 
@@ -283,7 +283,7 @@ tf.argmax(input=logits_layer, axis=1)
 
 最后，我们可以通过对`logits_layer`的输出应用`softmax`激活函数来得到下一个值，该值表示每个目标类别的概率，将每个值压缩到 0 和 1 之间：
 
-```
+```py
 tf.nn.softmax(logits_layer, name="softmax_tensor")
 ```
 
@@ -293,7 +293,7 @@ tf.nn.softmax(logits_layer, name="softmax_tensor")
 
 让我们先导入实现中所需的库：
 
-```
+```py
 %matplotlib inline
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -304,12 +304,12 @@ import math
 
 接下来，我们将使用 TensorFlow 的辅助函数下载并预处理 MNIST 数据集，如下所示：
 
-```
+```py
 from tensorflow.examples.tutorials.mnist import input_data
 mnist_data = input_data.read_data_sets('data/MNIST/', one_hot=True)
 ```
 
-```
+```py
 Output:
 Successfully downloaded train-images-idx3-ubyte.gz 9912422 bytes.
 Extracting data/MNIST/train-images-idx3-ubyte.gz
@@ -323,13 +323,13 @@ Extracting data/MNIST/t10k-labels-idx1-ubyte.gz
 
 数据集被分为三个不重叠的集合：训练集、验证集和测试集。因此，让我们打印出每个集合中的图像数量：
 
-```
+```py
 print("- Number of images in the training set:\t\t{}".format(len(mnist_data.train.labels)))
 print("- Number of images in the test set:\t\t{}".format(len(mnist_data.test.labels)))
 print("- Number of images in the validation set:\t{}".format(len(mnist_data.validation.labels)))
 ```
 
-```
+```py
 - Number of images in the training set: 55000
 - Number of images in the test set: 10000
 - Number of images in the validation set: 5000
@@ -337,13 +337,13 @@ print("- Number of images in the validation set:\t{}".format(len(mnist_data.vali
 
 图像的实际标签以独热编码格式存储，所以我们有一个包含 10 个值的数组，除了表示该图像所属类别的索引外，其余值均为零。为了后续使用，我们需要将数据集中的类别号转换为整数：
 
-```
+```py
 mnist_data.test.cls_integer = np.argmax(mnist_data.test.labels, axis=1)
 ```
 
 让我们定义一些已知的变量，以便在后续实现中使用：
 
-```
+```py
 # Default size for the input monocrome images of MNIST
 image_size = 28
 
@@ -362,7 +362,7 @@ num_classes = 10
 
 接下来，我们需要定义一个辅助函数，用于从数据集中绘制一些图像。这个辅助函数将以九个子图的网格方式绘制图像：
 
-```
+```py
 def plot_imgs(imgs, cls_actual, cls_predicted=None):
     assert len(imgs) == len(cls_actual) == 9
 
@@ -392,7 +392,7 @@ def plot_imgs(imgs, cls_actual, cls_predicted=None):
 
 让我们从测试集绘制一些图像，看看它们长什么样：
 
-```
+```py
 # Visualizing 9 images form the test set.
 imgs = mnist_data.test.images[0:9]
 
@@ -413,19 +413,19 @@ plot_imgs(imgs=imgs, cls_actual=cls_actual)
 
 现在，到了构建模型核心部分的时候。计算图包含我们在本章前面提到的所有层。我们将从定义一些用于定义特定形状变量并随机初始化它们的函数开始：
 
-```
+```py
 def new_weights(shape):
     return tf.Variable(tf.truncated_normal(shape, stddev=0.05))
 ```
 
-```
+```py
 def new_biases(length):
     return tf.Variable(tf.constant(0.05, shape=[length]))
 ```
 
 现在，让我们定义一个函数，该函数负责根据某些输入层、输入通道、滤波器大小、滤波器数量以及是否使用池化参数来创建一个新的卷积层：
 
-```
+```py
 def conv_layer(input, # the output of the previous layer.
                    input_channels, 
                    filter_size, 
@@ -469,7 +469,7 @@ def conv_layer(input, # the output of the previous layer.
 
 如前所述，池化层生成一个 4D 张量。我们需要将这个 4D 张量展平为 2D 张量，以便传递到全连接层：
 
-```
+```py
 def flatten_layer(layer):
     # Get the shape of layer.
     shape = layer.get_shape()
@@ -488,7 +488,7 @@ def flatten_layer(layer):
 
 该函数创建一个全连接层，假设输入是一个 2D 张量：
 
-```
+```py
 def fc_layer(input, # the flatten output.
                  num_inputs, # Number of inputs from previous layer
                  num_outputs, # Number of outputs
@@ -512,37 +512,37 @@ def fc_layer(input, # the flatten output.
 
 在构建网络之前，让我们定义一个占位符用于输入图像，其中第一维是`None`，表示可以输入任意数量的图像：
 
-```
+```py
 input_values = tf.placeholder(tf.float32, shape=[None, image_size_flat], name='input_values')
 ```
 
 正如我们之前提到的，卷积步骤期望输入图像的形状是 4D 张量。因此，我们需要将输入图像调整为以下形状：
 
-```
+```py
 [num_images, image_height, image_width, num_channels]
 ```
 
 所以，让我们重新调整输入值的形状以匹配这种格式：
 
-```
+```py
 input_image = tf.reshape(input_values, [-1, image_size, image_size, num_channels])
 ```
 
 接下来，我们需要定义另一个占位符用于实际类别的值，格式为独热编码：
 
-```
+```py
 y_actual = tf.placeholder(tf.float32, shape=[None, num_classes], name='y_actual')
 ```
 
 此外，我们还需要定义一个占位符来保存实际类别的整数值：
 
-```
+```py
 y_actual_cls_integer = tf.argmax(y_actual, axis=1)
 ```
 
 所以，让我们从构建第一个卷积神经网络开始：
 
-```
+```py
 conv_layer_1, conv1_weights = \
         conv_layer(input=input_image,
                    input_channels=num_channels,
@@ -553,18 +553,18 @@ conv_layer_1, conv1_weights = \
 
 让我们检查第一卷积层将产生的输出张量的形状：
 
-```
+```py
 conv_layer_1
 ```
 
-```
+```py
 Output:
 <tf.Tensor 'Relu:0' shape=(?, 14, 14, 16) dtype=float32>
 ```
 
 接下来，我们将创建第二个卷积神经网络，并将第一个网络的输出作为输入：
 
-```
+```py
 conv_layer_2, conv2_weights = \
          conv_layer(input=conv_layer_1,
                    input_channels=filters_1,
@@ -577,24 +577,24 @@ conv_layer_2, conv2_weights = \
 
 接下来，我们需要将 4D 张量展平，以匹配全连接层所期望的格式，即 2D 张量：
 
-```
+```py
 flatten_layer, number_features = flatten_layer(conv_layer_2)
 ```
 
 我们需要再次检查展平层输出张量的形状：
 
-```
+```py
 flatten_layer
 ```
 
-```
+```py
 Output:
 <tf.Tensor 'Reshape_1:0' shape=(?, 1764) dtype=float32>
 ```
 
 接下来，我们将创建一个全连接层，并将展平层的输出传递给它。我们还将把全连接层的输出输入到 ReLU 激活函数中，然后再传递给第二个全连接层：
 
-```
+```py
 fc_layer_1 = fc_layer(input=flatten_layer,
                          num_inputs=number_features,
                          num_outputs=fc_num_neurons,
@@ -603,42 +603,42 @@ fc_layer_1 = fc_layer(input=flatten_layer,
 
 让我们再次检查第一个全连接层输出张量的形状：
 
-```
+```py
 fc_layer_1
 ```
 
-```
+```py
 Output:
 <tf.Tensor 'Relu_2:0' shape=(?, 128) dtype=float32>
 ```
 
 接下来，我们需要添加另一个全连接层，它将接收第一个全连接层的输出，并为每张图像生成一个大小为 10 的数组，表示每个目标类别是正确类别的得分：
 
-```
+```py
 fc_layer_2 = fc_layer(input=fc_layer_1,
                          num_inputs=fc_num_neurons,
                          num_outputs=num_classes,
                          use_relu=False)
 ```
 
-```
+```py
 fc_layer_2
 ```
 
-```
+```py
 Output:
 <tf.Tensor 'add_3:0' shape=(?, 10) dtype=float32>
 ```
 
 接下来，我们将对第二个全连接层的得分进行归一化，并将其输入到`softmax`激活函数中，这样它会将值压缩到 0 到 1 之间：
 
-```
+```py
 y_predicted = tf.nn.softmax(fc_layer_2)
 ```
 
 然后，我们需要使用 TensorFlow 的`argmax`函数选择具有最高概率的目标类别：
 
-```
+```py
 y_predicted_cls_integer = tf.argmax(y_predicted, axis=1)
 ```
 
@@ -646,20 +646,20 @@ y_predicted_cls_integer = tf.argmax(y_predicted, axis=1)
 
 接下来，我们需要定义我们的性能衡量标准，即交叉熵。如果预测的类别是正确的，那么交叉熵的值为 0：
 
-```
+```py
 cross_entropy = tf.nn.softmax_cross_entropy_with_logits(logits=fc_layer_2,
                                                         labels=y_actual)
 ```
 
 接下来，我们需要将之前步骤得到的所有交叉熵值求平均，以便得到一个单一的性能衡量标准：
 
-```
+```py
 model_cost = tf.reduce_mean(cross_entropy)
 ```
 
 现在，我们有了一个需要优化/最小化的成本函数，因此我们将使用`AdamOptimizer`，它是一种优化方法，类似于梯度下降，但更为先进：
 
-```
+```py
 model_optimizer = tf.train.AdamOptimizer(learning_rate=1e-4).minimize(model_cost)
 ```
 
@@ -667,13 +667,13 @@ model_optimizer = tf.train.AdamOptimizer(learning_rate=1e-4).minimize(model_cost
 
 为了显示输出，让我们定义一个变量来检查预测的类别是否等于真实类别：
 
-```
+```py
 model_correct_prediction = tf.equal(y_predicted_cls_integer, y_actual_cls_integer)
 ```
 
 通过将布尔值转换并求平均，计算模型的准确性，进而统计正确分类的数量：
 
-```
+```py
 model_accuracy = tf.reduce_mean(tf.cast(model_correct_prediction, tf.float32))
 ```
 
@@ -681,25 +681,25 @@ model_accuracy = tf.reduce_mean(tf.cast(model_correct_prediction, tf.float32))
 
 让我们通过创建一个会负责执行先前定义的计算图的会话变量来启动训练过程：
 
-```
+```py
 session = tf.Session()
 ```
 
 此外，我们需要初始化到目前为止已定义的变量：
 
-```
+```py
 session.run(tf.global_variables_initializer())
 ```
 
 我们将按批次输入图像，以避免出现内存溢出错误：
 
-```
+```py
 train_batch_size = 64
 ```
 
 在开始训练过程之前，我们将定义一个辅助函数，该函数通过遍历训练批次来执行优化过程：
 
-```
+```py
 # number of optimization iterations performed so far
 total_iterations = 0
 
@@ -737,7 +737,7 @@ def optimize(num_iterations):
 
 我们还将定义一些辅助函数，帮助我们可视化模型的结果，并查看哪些图像被模型误分类：
 
-```
+```py
 def plot_errors(cls_predicted, correct):
 
     # cls_predicted is an array of the predicted class number of each image in the test set.
@@ -763,7 +763,7 @@ def plot_errors(cls_predicted, correct):
 
 我们还可以绘制预测结果与实际类别的混淆矩阵：
 
-```
+```py
 def plot_confusionMatrix(cls_predicted):
 
  # cls_predicted is an array of the predicted class number of each image in the test set.
@@ -794,7 +794,7 @@ def plot_confusionMatrix(cls_predicted):
 
 最后，我们将定义一个辅助函数，帮助我们测量训练模型在测试集上的准确率：
 
-```
+```py
 # measuring the accuracy of the trained model over the test set by splitting it into small batches
 test_batch_size = 256
 
@@ -860,18 +860,18 @@ def test_accuracy(show_errors=False,
 
 让我们打印出未经任何优化的模型在测试集上的准确率：
 
-```
+```py
 test_accuracy()
 ```
 
-```
+```py
 Output:
 Accuracy on Test-Set: 4.1% (410 / 10000)
 ```
 
 让我们通过运行一次优化过程来感受优化过程如何增强模型的能力，将图像正确分类到对应的类别：
 
-```
+```py
 optimize(num_iterations=1)
 Output:
 Iteration: 1, Accuracy Over the training set: 4.7%
@@ -882,13 +882,13 @@ Accuracy on Test-Set: 4.4% (437 / 10000)
 
 现在，让我们开始进行一项长时间的优化过程，进行 10,000 次迭代：
 
-```
+```py
 optimize(num_iterations=9999) #We have already performed 1 iteration.
 ```
 
 在输出的最后，您应该看到与以下输出非常接近的结果：
 
-```
+```py
 Iteration: 7301, Accuracy Over the training set: 96.9%
 Iteration: 7401, Accuracy Over the training set: 100.0%
 Iteration: 7501, Accuracy Over the training set: 98.4%
@@ -921,12 +921,12 @@ Iteration: 10001, Accuracy Over the training set: 98.4%
 
 现在，让我们检查模型在测试集上的泛化能力：
 
-```
+```py
 test_accuracy(show_errors=True,
                     show_confusionMatrix=True)
 ```
 
-```
+```py
 Output:
 Accuracy on Test-Set: 92.8% (9281 / 10000)
 Example errors:
@@ -937,7 +937,7 @@ Example errors:
 
 图 9.13：测试集上的准确率
 
-```
+```py
 Confusion Matrix:
 [[ 971    0    2    2    0    4    0    1    0    0]
  [   0 1110    4    2    1    2    3    0   13    0]

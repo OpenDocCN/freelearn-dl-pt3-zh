@@ -84,7 +84,7 @@
 
 数据可以通过格罗宁根大学的网站下载，具体如下：
 
-```
+```py
 # alternate: download the file from the browser and put # in the same directory as this notebook
 !wget https://gmb.let.rug.nl/releases/gmb-2.2.0.zip
 !unzip gmb-2.2.0.zip 
@@ -120,7 +120,7 @@
 
 在这些字段中，我们只使用标记和命名实体标签。然而，我们将在未来的练习中加载 POS 标签。以下代码获取这些标签文件的所有路径：
 
-```
+```py
 import os
 data_root = './gmb-2.2.0/data/'
 fnames = []
@@ -142,13 +142,13 @@ fnames[:2]
 
 让我们进入代码部分。首先，创建一个目录来存储所有处理后的文件：
 
-```
+```py
 !mkdir ner 
 ```
 
 我们希望处理这些标签，以便去除 NER 标签中的子类别。还希望收集文档中标签类型的一些统计数据：
 
-```
+```py
 import csv
 import collections
 
@@ -162,7 +162,7 @@ def strip_ner_subcat(tag):
 
 上面已设置了 NER 标签和 IOB 标签计数器。定义了一个方法来去除 NER 标签中的子类别。下一个方法接受一系列标签并将其转换为 IOB 格式：
 
-```
+```py
 def iob_format(ners):
     # converts IO tags into IOB format
     # input is a sequence of IO NER tokens
@@ -184,7 +184,7 @@ def iob_format(ners):
 
 一旦这两个便捷函数准备好后，所有的标签文件都需要被读取并处理：
 
-```
+```py
 total_sentences = 0
 outfiles = []
 for idx, file in enumerate(fnames):
@@ -215,22 +215,22 @@ for idx, file in enumerate(fnames):
 
 首先，设置一个计数器来统计句子的数量。还初始化了一个包含路径的文件列表。随着处理文件的写入，它们的路径会被添加到`outfiles`变量中。这个列表将在稍后用于加载所有数据并训练模型。文件被读取并根据两个空行符进行分割。该符号表示文件中句子的结束。文件中仅使用实际的单词、POS 标记和 NER 标记。收集完这些后，将写入一个新的 CSV 文件，包含三列：句子、POS 标签序列和 NER 标签序列。这个步骤可能需要一点时间来执行：
 
-```
+```py
 print("total number of sentences: ", total_sentences) 
 ```
 
-```
+```py
 total number of sentences:  62010 
 ```
 
 为了确认 NER 标签在处理前后的分布，我们可以使用以下代码：
 
-```
+```py
 print(ner_tags)
 print(iob_tags) 
 ```
 
-```
+```py
 Counter({'O': 1146068, 'geo-nam': 58388, 'org-nam': 48034, 'per-nam': 23790, 'gpe-nam': 20680, 'tim-dat': 12786, 'tim-dow': 11404, 'per-tit': 9800, 'per-fam': 8152, 'tim-yoc': 5290, 'tim-moy': 4262, 'per-giv': 2413, 'tim-clo': 891, 'art-nam': 866, 'eve-nam': 602, 'nat-nam': 300, 'tim-nam': 146, 'eve-ord': 107, 'org-leg': 60, 'per-ini': 60, 'per-ord': 38, 'tim-dom': 10, 'art-add': 1, 'per-mid': 1})
 Counter({'O': 1146068, 'B-geo': 48876, 'B-tim': 26296, 'B-org': 26195, 'I-per': 22270, 'B-per': 21984, 'I-org': 21899, 'B-gpe': 20436, 'I-geo': 9512, 'I-tim': 8493, 'B-art': 503, 'B-eve': 391, 'I-art': 364, 'I-eve': 318, 'I-gpe': 244, 'B-nat': 238, 'I-nat': 62}) 
 ```
@@ -241,7 +241,7 @@ Counter({'O': 1146068, 'B-geo': 48876, 'B-tim': 26296, 'B-org': 26195, 'I-per': 
 
 在本节中，将使用`pandas`和`numpy`方法。第一步是将处理过的文件内容加载到一个`DataFrame`中：
 
-```
+```py
 import glob
 import pandas as pd
 # could use `outfiles` param as well
@@ -253,11 +253,11 @@ data_pd = pd.concat([pd.read_csv(f, header=None,
 
 这一步可能需要一些时间，因为它正在处理 10,000 个文件。一旦内容加载完成，我们可以检查`DataFrame`的结构：
 
-```
+```py
 data_pd.info() 
 ```
 
-```
+```py
 <class 'pandas.core.frame.DataFrame'>
 RangeIndex: 62010 entries, 0 to 62009
 Data columns (total 3 columns):
@@ -272,7 +272,7 @@ memory usage: 1.4+ MB
 
 文本和 NER 标签都需要被分词并编码成数字，以便用于训练。我们将使用`keras.preprocessing`包提供的核心方法。首先，将使用分词器来分词文本。在这个例子中，由于文本已经被空格分割开，所以只需要通过空格进行分词：
 
-```
+```py
 ### Keras tokenizer
 from tensorflow.keras.preprocessing.text import Tokenizer
 text_tok = Tokenizer(filters='[\\]^\t\n', lower=False,
@@ -285,7 +285,7 @@ ner_tok = Tokenizer(filters='\t\n', lower=False,
 
 分词器的默认值相当合理。然而，在这种特殊情况下，重要的是只按空格进行分词，而不是清理特殊字符。否则，数据会变得格式错误：
 
-```
+```py
 text_tok.fit_on_texts(data_pd['text'])
 pos_tok.fit_on_texts(data_pd['pos'])
 ner_tok.fit_on_texts(data_pd['label']) 
@@ -295,40 +295,40 @@ ner_tok.fit_on_texts(data_pd['label'])
 
 这个分词器有一些有用的功能。它提供了一种通过词频、TF-IDF 等方式限制词汇表大小的方法。如果传入`num_words`参数并指定一个数字，分词器将根据词频限制令牌的数量为该数字。`fit_on_texts`方法接受所有文本，将其分词，并构建一个字典，稍后将在一次操作中用于分词和编码。可以在分词器适配完文本后调用方便的`get_config()`函数，以提供有关令牌的信息：
 
-```
+```py
 ner_config = ner_tok.get_config()
 text_config = text_tok.get_config()
 print(ner_config) 
 ```
 
-```
+```py
 {'num_words': None, 'filters': '\t\n', 'lower': False, 'split': ' ', 'char_level': False, 'oov_token': '<OOV>', 'document_count': 62010, 'word_counts': '{"B-geo": 48876, "O": 1146068, "I-geo": 9512, "B-per": 21984, "I-per": 22270, "B-org": 26195, "I-org": 21899, "B-tim": 26296, "I-tim": 8493, "B-gpe": 20436, "B-art": 503, "B-nat": 238, "B-eve": 391, "I-eve": 318, "I-art": 364, "I-gpe": 244, "I-nat": 62}', 'word_docs': '{"I-geo": 7738, "O": 61999, "B-geo": 31660, "B-per": 17499, "I-per": 13805, "B-org": 20478, "I-org": 11011, "B-tim": 22345, "I-tim": 5526, "B-gpe": 16565, "B-art": 425, "B-nat": 211, "I-eve": 201, "B-eve": 361, "I-art": 207, "I-gpe": 224, "I-nat": 50}', 'index_docs': '{"10": 7738, "2": 61999, "3": 31660, "7": 17499, "6": 13805, "5": 20478, "8": 11011, "4": 22345, "11": 5526, "9": 16565, "12": 425, "17": 211, "15": 201, "13": 361, "14": 207, "16": 224, "18": 50}', 'index_word': '{"1": "<OOV>", "2": "O", "3": "B-geo", "4": "B-tim", "5": "B-org", "6": "I-per", "7": "B-per", "8": "I-org", "9": "B-gpe", "10": "I-geo", "11": "I-tim", "12": "B-art", "13": "B-eve", "14": "I-art", "15": "I-eve", "16": "I-gpe", "17": "B-nat", "18": "I-nat"}', 'word_index': '{"<OOV>": 1, "O": 2, "B-geo": 3, "B-tim": 4, "B-org": 5, "I-per": 6, "B-per": 7, "I-org": 8, "B-gpe": 9, "I-geo": 10, "I-tim": 11, "B-art": 12, "B-eve": 13, "I-art": 14, "I-eve": 15, "I-gpe": 16, "B-nat": 17, "I-nat": 18}'} 
 ```
 
 配置中的`index_word`字典属性提供了 ID 与标记之间的映射。配置中包含了大量信息。词汇表可以从配置中获取：
 
-```
+```py
 text_vocab = eval(text_config['index_word'])
 ner_vocab = eval(ner_config['index_word'])
 print("Unique words in vocab:", len(text_vocab))
 print("Unique NER tags in vocab:", len(ner_vocab)) 
 ```
 
-```
+```py
 Unique words in vocab: 39422
 Unique NER tags in vocab: 18 
 ```
 
 对文本和命名实体标签进行分词和编码是非常简单的：
 
-```
+```py
 x_tok = text_tok.texts_to_sequences(data_pd['text'])
 y_tok = ner_tok.texts_to_sequences(data_pd['label']) 
 ```
 
 由于序列的大小不同，它们将被填充或截断为 50 个标记的大小。为此任务使用了一个辅助函数：
 
-```
+```py
 # now, pad sequences to a maximum length
 from tensorflow.keras.preprocessing import sequence
 max_len = 50
@@ -339,7 +339,7 @@ y_pad = sequence.pad_sequences(y_tok, padding='post',
 print(x_pad.shape, y_pad.shape) 
 ```
 
-```
+```py
 (62010, 50) (62010, 50) 
 ```
 
@@ -347,13 +347,13 @@ print(x_pad.shape, y_pad.shape)
 
 需要对标签执行额外的步骤。由于有多个标签，每个标签标记需要进行独热编码，如下所示：
 
-```
+```py
 num_classes = len(ner_vocab) + 1
 Y = tf.keras.utils.to_categorical(y_pad, num_classes=num_classes)
 Y.shape 
 ```
 
-```
+```py
 (62010, 50, 19) 
 ```
 
@@ -363,7 +363,7 @@ Y.shape
 
 我们将尝试的第一个模型是 BiLSTM 模型。首先，需要设置基本常量：
 
-```
+```py
 # Length of the vocabulary 
 vocab_size = len(text_vocab) + 1 
 # The embedding dimension
@@ -378,7 +378,7 @@ num_classes = len(ner_vocab)+1
 
 接下来，定义一个便捷函数来实例化模型：
 
-```
+```py
 from tensorflow.keras.layers import Embedding, Bidirectional, LSTM, TimeDistributed, Dense
 dropout=0.2
 def build_model_bilstm(vocab_size, embedding_dim, rnn_units, batch_size, classes):
@@ -400,7 +400,7 @@ def build_model_bilstm(vocab_size, embedding_dim, rnn_units, batch_size, classes
 
 现在可以编译模型了：
 
-```
+```py
 model = build_model_bilstm(
                         vocab_size = vocab_size,
                         embedding_dim=embedding_dim,
@@ -412,7 +412,7 @@ model.compile(optimizer="adam", loss="categorical_crossentropy",
  metrics=["accuracy"]) 
 ```
 
-```
+```py
 Model: "sequential_1"
 Layer (type)                 Output Shape              Param #   
 =================================================================
@@ -436,7 +436,7 @@ _________________________________________________________________
 
 这个模型已经准备好进行训练了。最后需要做的事情是将数据拆分为训练集和测试集：
 
-```
+```py
 # to enable TensorFlow to process sentences properly
 X = x_pad
 # create training and testing splits
@@ -450,11 +450,11 @@ Y_test = Y[0:BATCH_SIZE*test_size]
 
 现在，模型已准备好进行训练：
 
-```
+```py
 model.fit(X_train, Y_train, batch_size=BATCH_SIZE, epochs=15) 
 ```
 
-```
+```py
 Train on 49590 samples
 Epoch 1/15
 49590/49590 [==============================] - 20s 409us/sample - loss: 0.1736 - accuracy: 0.9113
@@ -468,11 +468,11 @@ Epoch 15/15
 
 经过 15 个 epochs 的训练，模型表现得相当不错，准确率超过 99%。让我们看看模型在测试集上的表现，正则化是否有所帮助：
 
-```
+```py
 model.evaluate(X_test, Y_test, batch_size=BATCH_SIZE) 
 ```
 
-```
+```py
 12420/12420 [==============================] - 3s 211us/sample - loss: 0.0926 - accuracy: 0.9624 
 ```
 
@@ -531,7 +531,7 @@ BiLSTM 模型查看一系列输入词，并预测当前词的标签。在做出�
 
 实现带有 CRF 的 BiLSTM 网络需要在上述开发的 BiLSTM 网络上添加一个 CRF 层。然而，CRF 并不是 TensorFlow 或 Keras 层的核心部分。它可以通过`tensorflow_addons`或`tfa`包来使用。第一步是安装这个包：
 
-```
+```py
 !pip install tensorflow_addons==0.11.2 
 ```
 
@@ -547,7 +547,7 @@ BiLSTM 模型查看一系列输入词，并预测当前词的标签。在做出�
 
 与上面的流程类似，模型中将包含一个嵌入层和一个 BiLSTM 层。BiLSTM 层的输出需要使用上文描述的 CRF 对数似然损失进行评估。这是训练模型时需要使用的损失函数。实现的第一步是创建一个自定义层。在 Keras 中实现自定义层需要继承 `keras.layers.Layer` 类。需要实现的主要方法是 `call()`，该方法接收层的输入，对其进行转换，并返回结果。此外，层的构造函数还可以设置所需的任何参数。我们先从构造函数开始：
 
-```
+```py
 from tensorflow.keras.layers import Layer
 from tensorflow.keras import backend as K
 class CRFLayer(Layer):
@@ -580,7 +580,7 @@ tf.random.uniform(shape=(label_size, label_size)),
 
 第二个方法是计算应用该层后的结果。请注意，作为一层，CRF 层仅在训练时重复输出。CRF 层仅在推理时有用。在推理时，它使用转移矩阵和逻辑来纠正 BiLSTM 层输出的序列，然后再返回它们。现在，这个方法相对简单：
 
-```
+```py
 def call(self, inputs, seq_lengths, training=None):
 
     if training is None:
@@ -600,7 +600,7 @@ def call(self, inputs, seq_lengths, training=None):
 
 由于模型在构建时除了自定义的 CRF 层外，还依赖于多个预先存在的层，因此显式的导入语句有助于提高代码的可读性：
 
-```
+```py
 from tensorflow.keras import Model, Input, Sequential
 from tensorflow.keras.layers import LSTM, Embedding, Dense, TimeDistributed
 from tensorflow.keras.layers import Dropout, Bidirectional
@@ -609,7 +609,7 @@ from tensorflow.keras import backend as K
 
 第一步是定义一个构造函数，该构造函数将创建各种层并存储适当的维度：
 
-```
+```py
 class NerModel(tf.keras.Model):
     def __init__(self, hidden_num, vocab_size, label_size, 
                  embedding_size, 
@@ -633,7 +633,7 @@ class NerModel(tf.keras.Model):
 
 在训练和预测过程中，将调用以下方法：
 
-```
+```py
 def call(self, text, labels=None, training=None):
         seq_lengths = tf.math.reduce_sum(
 tf.cast(tf.math.not_equal(text, 0), dtype=tf.int32), axis=-1) 
@@ -653,7 +653,7 @@ tf.cast(tf.math.not_equal(text, 0), dtype=tf.int32), axis=-1)
 
 让我们将损失函数作为 CRF 层的一部分来实现，并封装在一个同名的函数中。请注意，调用此函数时，通常会传递标签和预测值。我们将基于 TensorFlow 中的自定义损失函数来建模我们的损失函数。将以下代码添加到 CRF 层类中：
 
-```
+```py
  def loss(self, y_true, y_pred):
     y_pred = tf.convert_to_tensor(y_pred)
     y_true = tf.cast(self.get_proper_labels(y_true), y_pred.dtype)
@@ -671,7 +671,7 @@ tfa.text.crf_log_likelihood(y_pred,
 
 该函数接收真实标签和预测标签。这两个张量通常具有形状（批量大小，最大序列长度，NER 标签数量）。然而，`tfa` 包中的对数似然函数要求标签的形状为（批量大小，最大序列长度）张量。因此，使用一个便利函数，它作为 CRF 层的一部分，如下所示，用于执行标签形状的转换：
 
-```
+```py
  def get_proper_labels(self, y_true):
     shape = y_true.shape
     if len(shape) > 2:
@@ -681,7 +681,7 @@ tfa.text.crf_log_likelihood(y_pred,
 
 对数似然函数还需要每个样本的实际序列长度。这些序列长度可以从标签和在该层构造函数中设置的掩码标识符中计算出来（见上文）。这个过程被封装在另一个便利函数中，也属于 CRF 层的一部分：
 
-```
+```py
  def get_seq_lengths(self, matrix):
     # matrix is of shape (batch_size, max_seq_len)
     mask = tf.not_equal(matrix, self.mask_id)
@@ -699,7 +699,7 @@ tfa.text.crf_log_likelihood(y_pred,
 
 模型需要实例化并初始化以进行训练：
 
-```
+```py
 # Length of the vocabulary 
 vocab_size = len(text_vocab) + 1 
 # The embedding dimension
@@ -717,7 +717,7 @@ optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
 
 与之前的示例一样，将使用 Adam 优化器。接下来，我们将从上述 BiLSTM 部分加载的 DataFrame 构建 `tf.data.DataSet`：
 
-```
+```py
 # create training and testing splits
 total_sentences = 62010
 test_size = round(total_sentences / BATCH_SIZE * 0.2)
@@ -742,7 +742,7 @@ train_dataset = train_dataset.batch(BATCH_SIZE, drop_remainder=True)
 
 让我们训练这个模型 5 个时期，并观察随着训练的进行，损失是如何变化的。与之前模型训练 15 个时期的情况进行对比。自定义训练循环如下所示：
 
-```
+```py
 loss_metric = tf.keras.metrics.Mean()
 epochs = 5
 # Iterate over epochs.
@@ -769,7 +769,7 @@ blc_model.trainable_weights))
 
 创建一个指标来跟踪平均损失随时间的变化。在 5 个时期内，输入和标签每次从训练数据集中提取一批。使用 `tf.GradientTape()` 跟踪操作，按照上面列出的步骤实现。请注意，由于这是自定义训练循环，我们手动传递了可训练变量。最后，每 50 步打印一次损失指标，以显示训练进度。下面是略去部分内容后的结果：
 
-```
+```py
 Start of epoch 0
 step 0: mean loss = tf.Tensor(71.14853, shape=(), dtype=float32)
 step 50: mean loss = tf.Tensor(31.064453, shape=(), dtype=float32)
@@ -781,11 +781,11 @@ step 550: mean loss = tf.Tensor(3.8311224, shape=(), dtype=float32)
 
 由于我们实现了自定义训练循环，并且不需要模型编译，因此之前无法获取模型参数的总结。现在，为了了解模型的规模，可以获取一个摘要：
 
-```
+```py
 blc_model.summary() 
 ```
 
-```
+```py
 Model: "BilstmCrfModel"
 _________________________________________________________________
 Layer (type)                 Output Shape              Param #   
@@ -810,26 +810,26 @@ _________________________________________________________________
 
 示例句子是：
 
-```
+```py
 Writing in The Washington Post newspaper , Mr. Ushakov also 
 said it is inadmissible to move in the direction of demonizing Russia . 
 ```
 
 对应的真实标签是：
 
-```
+```py
 O O B-org I-org I-org O O B-per B-org O O O O O O O O O O O O B-geo O 
 ```
 
 这是一个对于命名实体识别（NER）来说很有挑战的例子，其中 *The Washington Post* 被标记为一个三词的组织名，第一个词非常常见，并在多个语境中使用，第二个词也是一个地理位置的名称。还需要注意 GMB 数据集中的标签不完善，其中名字 *Ushakov* 的第二个标签被标记为一个组织。训练的第一个时期结束时，模型预测结果为：
 
-```
+```py
 O O O B-geo I-org O O B-per I-per O O O O O O O O O O O O B-geo O 
 ```
 
 它在组织名没有出现在预期位置时会产生混淆。它还显示它没有学会转移概率，因为它在 B-geo 标签后面放了一个 I-org 标签。然而，它在处理人物部分时没有犯错。不幸的是，模型并不会因为准确预测人物标签而得到奖励，由于标签的不完善，这仍然会被算作一次漏检。经过五个时期的训练后，结果比最初要好：
 
-```
+```py
 O O B-org I-org I-org O O B-per I-per O O O O O O O O O O O O B-geo O 
 ```
 
@@ -882,7 +882,7 @@ O O B-org I-org I-org O O B-per I-per O O O O O O O O O O O O B-geo O
 
 实现这个算法的一个优势是，核心计算已作为 `tfa` 包中的方法提供。这个解码步骤将在上面实现的 CRF 层的 `call()` 方法中实现。修改此方法如下所示：
 
-```
+```py
  def call(self, inputs, seq_lengths, training=None):
     if training is None:
         training = K.learning_phase()
@@ -905,7 +905,7 @@ O O B-org I-org I-org O O B-per I-per O O O O O O O O O O O O B-geo O
 
 新添加的行已被突出显示。`viterbi_decode()`方法将前一层的激活值和转换矩阵与最大序列长度一起使用，计算出得分最高的路径。此得分也会返回，但在推理过程中我们忽略它。这个过程需要对批次中的每个序列执行。请注意，此方法返回不同长度的序列。这使得转换为张量变得更加困难，因此使用了一个实用程序函数来填充返回的序列：
 
-```
+```py
  def pad_viterbi(self, viterbi, max_seq_len):
     if len(viterbi) < max_seq_len:
         viterbi = viterbi + [self.mask_id] * \
@@ -919,7 +919,7 @@ Dropout 层的工作方式完全与 CRF 层相反。Dropout 层只在训练时�
 
 现在，层已修改并准备好，模型需要重新实例化并进行训练。训练后，可以像这样进行推理：
 
-```
+```py
 Y_test_int = tf.cast(Y_test, dtype=tf.int32)
 test_dataset = tf.data.Dataset.from_tensor_slices((X_test,
                                                    Y_test_int))
@@ -929,31 +929,31 @@ out = blc_model.predict(test_dataset.take(1))
 
 这将对一小批测试数据进行推理。让我们查看示例句子的结果：
 
-```
+```py
 text_tok.sequences_to_texts([X_test[2]]) 
 ```
 
-```
+```py
 ['Writing in The Washington Post newspaper , Mr. Ushakov also said it is inadmissible to move in the direction of demonizing Russia . <OOV> <OOV> <OOV> <OOV> <OOV> <OOV> <OOV> <OOV> <OOV> <OOV> <OOV> <OOV> <OOV> <OOV> <OOV> <OOV> <OOV> <OOV> <OOV> <OOV> <OOV> <OOV> <OOV> <OOV> <OOV> <OOV> <OOV>'] 
 ```
 
 正如我们在突出显示的输出中看到的，结果比实际数据更好！
 
-```
+```py
 print("Ground Truth: ", 
 ner_tok.sequences_to_texts([tf.argmax(Y_test[2], 
                                      -1).numpy()]))
 print("Prediction: ", ner_tok.sequences_to_texts([out[2]])) 
 ```
 
-```
+```py
 Ground Truth:  ['O O B-org I-org I-org O O **B-per B-org** O O O O O O O O O O O O B-geo O <OOV> <SNIP> <OOV>']
 Prediction:  ['O O B-org I-org I-org O O **B-per I-per** O O O O O O O O O O O O B-geo O <OOV> <SNIP> <OOV>'] 
 ```
 
 为了评估训练的准确性，需要实现一个自定义方法。如下所示：
 
-```
+```py
 def np_precision(pred, true):
     # expect numpy arrays
     assert pred.shape == true.shape
@@ -966,11 +966,11 @@ def np_precision(pred, true):
 
 使用`numpy`的`MaskedArray`功能，比较预测结果和标签并将其转换为整数数组，然后计算均值以计算准确率：
 
-```
+```py
 np_precision(out, tf.argmax(Y_test[:BATCH_SIZE], -1).numpy()) 
 ```
 
-```
+```py
 0.9664461247637051 
 ```
 

@@ -42,13 +42,13 @@
 
 总结一下，离散控制的参数化策略可以通过以下代码行定义：
 
-```
+```py
 p_logits = mlp(obs_ph, hidden_sizes, act_dim, activation=tf.nn.relu, last_activation=None)
 ```
 
 `mlp`是一个函数，用于构建一个多层感知器（也称为全连接神经网络），隐藏层的大小由`hidden_sizes`指定，输出为`act_dim`维度，激活函数由`activation`和`last_activation`参数指定。这些将成为连续控制的参数化策略的一部分，并将有以下变化：
 
-```
+```py
 p_means = mlp(obs_ph, hidden_sizes, act_dim, activation=tf.tanh, last_activation=None)
 log_std = tf.get_variable(name='log_std', initializer=np.zeros(act_dim, dtype=np.float32))
 ```
@@ -57,7 +57,7 @@ log_std = tf.get_variable(name='log_std', initializer=np.zeros(act_dim, dtype=np
 
 此外，如果所有的动作值都在 0 和 1 之间，最好将最后的激活函数设置为`tanh`：
 
-```
+```py
 p_means = mlp(obs_ph, hidden_sizes, act_dim, activation=tf.tanh, last_activation=tf.tanh)
 ```
 
@@ -67,13 +67,13 @@ p_means = mlp(obs_ph, hidden_sizes, act_dim, activation=tf.tanh, last_activation
 
 这里，z 是高斯噪声向量，![](img/14af4d96-9a28-42e0-bfed-11a90d8f9cd0.png)，它的形状与![](img/a2223d73-33e9-4c19-a375-0a08feeee23d.png)相同。这个操作可以通过一行代码实现：
 
-```
+```py
 p_noisy = p_means + tf.random_normal(tf.shape(p_means), 0, 1) * tf.exp(log_std)
 ```
 
 由于我们引入了噪声，我们不能确定值仍然位于动作的范围内，因此我们必须以某种方式裁剪`p_noisy`，确保动作值保持在允许的最小值和最大值之间。裁剪操作在以下代码行中完成：
 
-```
+```py
 act_smp = tf.clip_by_value(p_noisy, envs.action_space.low, envs.action_space.high)
 ```
 
@@ -83,14 +83,14 @@ act_smp = tf.clip_by_value(p_noisy, envs.action_space.low, envs.action_space.hig
 
 该公式在`gaussian_log_likelihood`函数中计算，该函数返回日志概率。因此，我们可以按以下方式检索日志概率：
 
-```
+```py
 p_log = gaussian_log_likelihood(act_ph, p_means, log_std)
 
 ```
 
 这里，`gaussian_log_likelihood`在以下代码段中定义：
 
-```
+```py
 def gaussian_log_likelihood(x, mean, log_std):
     log_p = -0.5 * (np.log(2*np.pi) + (x-mean)**2 / (tf.exp(log_std)**2 + 1e-9) + 2*log_std)
     return tf.reduce_sum(log_p, axis=-1)
@@ -220,7 +220,7 @@ TRPO 还为我们提供了一种估计步长的方法：
 
 TRPO 可以集成到 AC 架构中，其中评论员被包含在算法中，以为策略（演员）在任务学习中提供额外的支持。这样的算法的高级实现（即 TRPO 与评论员结合）用伪代码表示如下：
 
-```
+```py
 Initialize  with random weight
 Initialize environment 
 for episode 1..M do
@@ -261,7 +261,7 @@ for episode 1..M do
 
 首先，让我们创建所有的占位符以及策略（演员）和价值函数（评论员）的两个深度神经网络：
 
-```
+```py
 act_ph = tf.placeholder(shape=(None,act_dim), dtype=tf.float32, name='act')
 obs_ph = tf.placeholder(shape=(None, obs_dim[0]), dtype=tf.float32, name='obs')
 ret_ph = tf.placeholder(shape=(None,), dtype=tf.float32, name='ret')
@@ -294,7 +294,7 @@ with tf.variable_scope('critic_nn'):
 
 现在，我们可以根据标准差将正常噪声添加到预测的均值中，对动作进行剪切，并计算高斯对数似然，步骤如下：
 
-```
+```py
 p_noisy = p_means + tf.random_normal(tf.shape(p_means), 0, 1) * tf.exp(log_std)
 
 a_sampl = tf.clip_by_value(p_noisy, low_action_space, high_action_space)
@@ -304,7 +304,7 @@ p_log = gaussian_log_likelihood(act_ph, p_means, log_std)
 
 然后，我们需要计算目标函数！[](img/9c129825-9522-4ccd-a3c7-ce6dbb51176d.png)、评论员的 MSE 损失函数，并为评论员创建优化器，步骤如下：
 
-```
+```py
 # TRPO loss function
 ratio_new_old = tf.exp(p_log - old_p_log_ph)
 p_loss = - tf.reduce_mean(ratio_new_old * adv_ph)
@@ -330,7 +330,7 @@ v_opt = tf.train.AdamOptimizer(cr_lr).minimize(v_loss)
 
 从第 1 步开始，也就是估计策略损失函数的梯度：
 
-```
+```py
 def variables_in_scope(scope):    
     return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
 
@@ -347,7 +347,7 @@ p_grads_flatten = flatten_list(p_grads)
 
 关于步骤 2，策略参数是通过这种方式恢复的：
 
-```
+```py
 p_old_variables = tf.placeholder(shape=(None,), dtype=tf.float32, name='p_old_variables')
 
 # variable used as index for restoring the actor's parameters
@@ -367,7 +367,7 @@ restore_params = tf.group(*restore_params)
 
 步骤 3 中的 Fisher-向量积通过计算 KL 散度关于策略变量的二阶导数来完成：
 
-```
+```py
 # gaussian KL divergence of the two policies 
 dkl_diverg = gaussian_DKL(old_mu_ph, old_log_std_ph, p_means, log_std)
 
@@ -381,7 +381,7 @@ Fx = flatten_list(tf.gradients(dkl_matrix_product, p_variables))
 
 步骤 4 和 5 涉及将更新应用到策略中，其中`beta_ph`是![](img/6a731882-7484-4235-87ad-dfa0688ebf4c.png)，该值通过公式(7.6)计算，`alpha`是通过线性搜索找到的缩放因子：
 
-```
+```py
 # NPG update
 beta_ph = tf.placeholder(shape=(), dtype=tf.float32, name='beta')
 npg_update = beta_ph * cg_ph
@@ -420,7 +420,7 @@ p_opt = tf.group(*p_opt)
 
 第一点通过运行一些操作来实现：
 
-```
+```py
     ...    
     old_p_log, old_p_means, old_log_std = sess.run([p_log, p_means, log_std], feed_dict={obs_ph:obs_batch, act_ph:act_batch, adv_ph:adv_batch, ret_ph:rtg_batch})
     old_actor_params = sess.run(p_var_flatten)
@@ -429,7 +429,7 @@ p_opt = tf.group(*p_opt)
 
 共轭梯度算法需要一个输入函数，该函数返回估算的 Fisher 信息矩阵、目标函数的梯度和迭代次数（在 TRPO 中，该值介于 5 到 15 之间）：
 
-```
+```py
      def H_f(p):
         return sess.run(Fx, feed_dict={old_mu_ph:old_p_means, old_log_std_ph:old_log_std, p_ph:p, obs_ph:obs_batch, act_ph:act_batch, adv_ph:adv_batch, ret_ph:rtg_batch})
 
@@ -441,7 +441,7 @@ p_opt = tf.group(*p_opt)
 
 使用回溯线性搜索算法满足约束条件的`best_alpha`，并通过将所有值输入到计算图中运行优化：
 
-```
+```py
     beta_np = np.sqrt(2*delta / np.sum(conj_grad * H_f(conj_grad)))
 
     def DKL(alpha_v):
@@ -552,7 +552,7 @@ PPO 的结构和实现与演员-评论员算法非常相似，但只多了一些
 
 其中一个附加部分是广义优势估计（7.11），它只需要几行代码，利用已实现的 `discounted_rewards` 函数来计算（7.12）：
 
-```
+```py
 def GAE(rews, v, v_last, gamma=0.99, lam=0.95):
     vs = np.append(v, v_last)
     delta = np.array(rews) + gamma*vs[1:] - vs[:-1]
@@ -562,7 +562,7 @@ def GAE(rews, v, v_last, gamma=0.99, lam=0.95):
 
 `GAE` 函数在 `Buffer` 类的 `store` 方法中使用，当存储一条轨迹时：
 
-```
+```py
 class Buffer():
     def __init__(self, gamma, lam):
         ...
@@ -586,7 +586,7 @@ class Buffer():
 
 现在我们可以定义裁剪的替代损失函数（7.9）：
 
-```
+```py
 def clipped_surrogate_obj(new_p, old_p, adv, eps):
     rt = tf.exp(new_p - old_p) # i.e. pi / old_pi
     return -tf.reduce_mean(tf.minimum(rt*adv, tf.clip_by_value(rt, 1-eps, 1+eps)*adv))
@@ -596,7 +596,7 @@ def clipped_surrogate_obj(new_p, old_p, adv, eps):
 
 计算图没有什么新东西，但我们还是快速过一遍：
 
-```
+```py
 # Placeholders
 act_ph = tf.placeholder(shape=(None,act_dim), dtype=tf.float32, name='act')
 obs_ph = tf.placeholder(shape=(None, obs_dim[0]), dtype=tf.float32, name='obs')
@@ -631,7 +631,7 @@ v_opt = tf.train.AdamOptimizer(cr_lr).minimize(v_loss)
 
 一旦收集到过渡数据 ![](img/11fd3429-de91-4e1a-99fc-3aa01f1b89e2.png)（其中 *N* 是运行的轨迹数量，*T* 是每条轨迹的时间跨度），我们就可以更新策略和评价器。在这两种情况下，优化会多次运行，并且在小批量上进行。但在此之前，我们必须在完整的批量上运行`p_log`，因为裁剪目标需要旧策略的动作对数概率：
 
-```
+```py
         ...    
         obs_batch, act_batch, adv_batch, rtg_batch = buffer.get_batch()     
         old_p_log = sess.run(p_log, feed_dict={obs_ph:obs_batch, act_ph:act_batch, adv_ph:adv_batch, ret_ph:rtg_batch})

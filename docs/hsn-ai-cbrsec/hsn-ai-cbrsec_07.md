@@ -330,7 +330,7 @@ NIDS 还可以部署集成软件解决方案，如 Snort，这代表了实时检
 
 对于每个示例，都会计算算法的准确度，以便能够对比所获得的结果：
 
-```
+```py
 import numpy as np
 import pandas as pd
 
@@ -438,7 +438,7 @@ Gaussian Naive Bayes accuracy: 98.36065573770492
 
 首先，让我们导入必要的 Python 库，然后从`.csv`文件加载数据，该文件表示我们检测到的每个数据流的延迟和网络吞吐量值：
 
-```
+```py
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -449,7 +449,7 @@ dataset = pd.read_csv('../datasets/network-logs.csv')
 
 数据加载到内存后，我们验证样本的分布是否可能类似于高斯分布，并以直方图的形式显示相应的值：
 
-```
+```py
 hist_dist = dataset[['LATENCY', 'THROUGHPUT']].hist(grid=False, figsize=(10,4))
 ```
 
@@ -459,7 +459,7 @@ hist_dist = dataset[['LATENCY', 'THROUGHPUT']].hist(grid=False, figsize=(10,4))
 
 在这一点上，我们在散点图上进行数据绘制，直观地识别出可能的异常值：
 
-```
+```py
 data = dataset[['LATENCY', 'THROUGHPUT']].values
 
 plt.scatter(data[:, 0], data[:, 1], alpha=0.6)
@@ -475,7 +475,7 @@ plt.show()
 
 从视觉上看，绝大多数观察值集中在平均值周围，只有一些例外。因此，我们希望验证异常情况是否属实，然后继续估算潜在高斯分布的代表性值*µ*和*σ*：
 
-```
+```py
 """
 Anomaly Detection Module
 Thanks to Oleksii Trekhleb:
@@ -502,7 +502,7 @@ sigma squared estimation:
 
 接下来，我们估算概率和阈值，然后进行比较，以识别异常数据：
 
-```
+```py
 targets = dataset['ANOMALY'].values.reshape((data.shape[0], 1))
 probs = gaussian_anomaly_detection.multivariate_gaussian(data)
 
@@ -520,7 +520,7 @@ threshold estimation:
 
 在这一点上，我们可以通过将各个样本的概率与先前估算的最优阈值进行比较，从而识别异常值，并在散点图中可视化它们的存在：
 
-```
+```py
 outliers = np.where(probs < threshold)[0]
 plt.scatter(data[:, 0], data[:, 1], alpha=0.6, label='Dataset')
 plt.xlabel('LATENCY')
@@ -551,13 +551,13 @@ plt.plot()
 
 第一个是**真正率**（也称为**灵敏度**或召回率）：
 
-```
+```py
 Sensitivity or True Positive Rate (TPR) = True Positive / (True Positive + False Negative);
 ```
 
 然后，我们有**假正率**：
 
-```
+```py
 False Positive Rate (FPR) = False Positive / (False Positive + True Negative);
 
 Precision = True Positive / (True Positive + False Positive);
@@ -565,7 +565,7 @@ Precision = True Positive / (True Positive + False Positive);
 
 基于这些指标，可以估计`F1`值，它表示`Precision`和`Sensitivity`之间的调和平均值：
 
-```
+```py
 F1 = 2 * Precision * Sensitivity / (Precision + Sensitivity);
 ```
 
@@ -573,7 +573,7 @@ F1 = 2 * Precision * Sensitivity / (Precision + Sensitivity);
 
 在我们的高斯异常检测示例中，`F1`值如下：
 
-```
+```py
 print('F1 score: ')
 print(F1)
 
@@ -587,7 +587,7 @@ F1 score:
 
 在假阳性和假阴性之间经常需要进行权衡。减少未检测到的攻击数或未检测到的攻击数会导致检测到的假阳性攻击增加。为了展示这种权衡的存在，使用一种特定的曲线，称为**接收器工作特性**（**ROC**）曲线。在我们的例子中，通过`scikit-learn`的`roc_curve()`计算 ROC 曲线，将目标值和相应的概率作为参数传递：
 
-```
+```py
 from sklearn.metrics import roc_curve
 
 FPR, TPR, OPC = roc_curve(targets, probs)
@@ -597,7 +597,7 @@ FPR, TPR, OPC = roc_curve(targets, probs)
 
 因此，我们可以通过绘制`TPR`值与`OPC`控制系数的值来表示灵敏度：
 
-```
+```py
 # Plotting Sensitivity
 
 plt.plot(OPC,TPR)
@@ -611,7 +611,7 @@ plt.plot(OPC,TPR)
 
 同样，我们可以通过将敏感度（`TPR`）与`FPR`值进行比较来绘制 ROC 曲线：
 
-```
+```py
 # Plotting ROC curve
 
 plt.plot(FPR,TPR)

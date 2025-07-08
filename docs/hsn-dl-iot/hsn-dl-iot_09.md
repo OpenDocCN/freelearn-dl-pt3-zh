@@ -140,7 +140,7 @@ DoS 和 DDoS 入侵事件在物联网应用中非常常见。物联网设备可�
 
 以下命令是使用 Kali Linux 的`hping3`工具进行 DoS 攻击的示例。
 
-```
+```py
 hping3 -c 10000 -d 120 -S -w 64 -p 21 --flood --rand-source example.com
 
 ```
@@ -213,7 +213,7 @@ KDD Cup 1999 数据集由 **国防高级研究计划局** (**DARPA**) 在模拟�
 
 使用以下代码行是将数据集拆分为三个数据集的一个潜在方法，即`Final_App_Layer`、`Final_Transport_Layer`和`Final_Network_Layer`：
 
-```
+```py
 #Importing all the required Libraries
 import pandas as pd
 IDSdata = pd.read_csv("kddcup.data_10_percent.csv",header = None,engine = 'python',sep=",")
@@ -241,7 +241,7 @@ NetworkLayer.to_csv('Final_Network_Layer.txt',header = None,index = False)
 
 一旦数据集准备好，我们就删除重复的数据条目并归一化其余条目的值。可以使用以下代码行或函数进行重复数据删除和归一化：
 
-```
+```py
 def DataPreprocessing(IDSdataframe):
  # Duplicate entry removal
     recordcount = len(IDSdataframe)
@@ -273,7 +273,7 @@ def DataPreprocessing(IDSdataframe):
 
 数据集的最终预处理是为分类器选择最优的特征集。这个过程是可选的，但对于资源受限的物联网设备很有用，因为这将最小化网络输入层或神经元的大小。可以使用以下代码行或利用随机森林的函数进行该预处理：
 
-```
+```py
 def FeatureSelection(myinputX, myinputY):
     labels = np.array(myinputY).astype(int)
     inputX = np.array(myinputX)
@@ -324,7 +324,7 @@ axis=0)
 
 我们可以通过运行`lstm_anomaly_detection.py`文件（可在本章的代码文件夹中找到）来训练和测试模型，方法如下：
 
-```
+```py
 python lstm_anomaly_detection.py 
 ```
 
@@ -332,19 +332,19 @@ python lstm_anomaly_detection.py
 
 我们使用自编码器进行多层 IDS 实现，使用的是 KDD Cup 1999 IDS 数据集，并且已经在这三个数据集上进行了训练和测试。为了在每个层的数据集上训练模型，我们需要运行`IDS_AutoEncoder_KDD.py`文件（可在本章的代码文件夹中找到），方法如下：
 
-```
+```py
 python IDS_AutoEncoder_KDD.py
 ```
 
 我们还在整体 KDD Cup 1999 IDS 数据集上训练并测试了一个 DNN 模型。为此，我们需要运行 `DNN-KDD-Overall.py` 文件（位于本章的代码文件夹中），方法如下：
 
-```
+```py
 python DNN-KDD-Overall.py
 ```
 
 对于所有模型，我们都保存了最佳的模型，以便在 IoT 设备中导入和使用。同时，我们使用 TensorBoard 保存了模型日志，以可视化模型的不同方面，包括网络和性能图表。我们可以通过运行以下命令生成性能图表和网络：
 
-```
+```py
 tensorboard --logdir logs
 ```
 

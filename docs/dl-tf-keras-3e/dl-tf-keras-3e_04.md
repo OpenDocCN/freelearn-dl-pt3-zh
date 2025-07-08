@@ -204,7 +204,7 @@ Gensim 是一个开源的 Python 库，旨在从文本文档中提取语义意�
 
 text8 数据集是大型文本压缩基准的前 10⁸ 字节，其中包括英文维基百科的前 10⁹ 字节 [7]。text8 数据集可以作为 Gensim API 中的一个可迭代的 token 集合访问，基本上是一个标记化句子的列表。要下载 text8 语料库，创建一个 Word2Vec 模型并保存以供以后使用，请运行以下几行代码（在本章节的源代码中的 `create_embedding_with_text8.py` 中可用）：
 
-```
+```py
 import gensim.downloader as api
 from gensim.models import Word2Vec
 dataset = api.load("text8")
@@ -214,7 +214,7 @@ model.save("data/text8-word2vec.bin")
 
 这将在 text8 数据集上训练一个 Word2Vec 模型并将其保存为二进制文件。Word2Vec 模型有许多参数，但我们将使用默认值。在这种情况下，它使用 CBOW 模型 (`sg=0`)，窗口大小为 5 (`window=5`)，并生成 100 维的嵌入 (`size=100`)。详细的参数设置请参阅 Word2Vec 文档页面 [8]。要运行此代码，请在命令行中执行以下命令：
 
-```
+```py
 $ mkdir data
 $ python create_embedding_with_text8.py 
 ```
@@ -227,7 +227,7 @@ $ python create_embedding_with_text8.py
 
 让我们重新加载刚刚构建的 Word2Vec 模型，并使用 Gensim API 进行探索。实际的词向量可以通过模型的`wv`属性作为自定义的 Gensim 类进行访问：
 
-```
+```py
 from gensim.models import KeyedVectors
 model = KeyedVectors.load("data/text8-word2vec.bin")
 word_vectors = model.wv 
@@ -235,7 +235,7 @@ word_vectors = model.wv
 
 我们可以查看词汇表中的前几个词，并检查是否可以找到特定的词：
 
-```
+```py
 words = word_vectors.vocab.keys()
 print([x for i, x in enumerate(words) if i < 10])
 assert("king" in words) 
@@ -243,13 +243,13 @@ assert("king" in words)
 
 上面的代码片段产生了以下输出：
 
-```
+```py
 ['anarchism', 'originated', 'as', 'a', 'term', 'of', 'abuse', 'first', 'used', 'against'] 
 ```
 
 我们可以查找与给定词（“king”）相似的词，如下所示：
 
-```
+```py
 def print_most_similar(word_conf_pairs, k):
    for i, (word, conf) in enumerate(word_conf_pairs):
        print("{:.3f} {:s}".format(conf, word))
@@ -262,7 +262,7 @@ print_most_similar(word_vectors.most_similar("king"), 5)
 
 使用单个参数的`most_similar()`方法产生了以下输出。在这里，浮点数评分是相似度的衡量标准，较高的值优于较低的值。正如你所看到的，相似词汇看起来大多是准确的：
 
-```
+```py
 0.760 prince
 0.701 queen
 0.700 kings
@@ -273,7 +273,7 @@ print_most_similar(word_vectors.most_similar("king"), 5)
 
 你还可以像我们之前描述的国家-首都示例一样进行向量运算。我们的目标是验证“巴黎：法国”::“柏林：德国”是否成立。这等同于说巴黎和法国之间的嵌入空间距离应该与柏林和德国之间的距离相同。换句话说，法国 - 巴黎 + 柏林应该给出德国。在代码中，这将转化为：
 
-```
+```py
 print_most_similar(word_vectors.most_similar(
    positive=["france", "berlin"], negative=["paris"]), 1
 ) 
@@ -281,13 +281,13 @@ print_most_similar(word_vectors.most_similar(
 
 这将返回以下结果，正如预期的那样：
 
-```
+```py
 0.803 germany 
 ```
 
 前面报告的相似度值是余弦相似度，但*Levy*和*Goldberg* [9]提出了一种更好的相似度度量方法，该方法也在 Gensim API 中实现。这个度量方法本质上是计算对数尺度上的距离，从而放大较短距离之间的差异，减小较长距离之间的差异。
 
-```
+```py
 print_most_similar(word_vectors.most_similar_cosmul(
    positive=["france", "berlin"], negative=["paris"]), 1
 ) 
@@ -295,13 +295,13 @@ print_most_similar(word_vectors.most_similar_cosmul(
 
 这也得出了预期的结果，但相似度更高：
 
-```
+```py
 0.984 germany 
 ```
 
 Gensim 还提供了一个`doesnt_match()`函数，可以用来从一组词中检测出不同的那个词：
 
-```
+```py
 print(word_vectors.doesnt_match(["hindus", "parsis", "singapore", "christians"])) 
 ```
 
@@ -309,7 +309,7 @@ print(word_vectors.doesnt_match(["hindus", "parsis", "singapore", "christians"])
 
 我们还可以计算两个词之间的相似度。在这里，我们演示了相关词之间的距离小于不相关词之间的距离：
 
-```
+```py
 for word in ["woman", "dog", "whale", "tree"]:
    print("similarity({:s}, {:s}) = {:.3f}".format(
        "man", word,
@@ -319,7 +319,7 @@ for word in ["woman", "dog", "whale", "tree"]:
 
 这给出了以下有趣的结果：
 
-```
+```py
 similarity(man, woman) = 0.759
 similarity(man, dog) = 0.474
 similarity(man, whale) = 0.290
@@ -328,7 +328,7 @@ similarity(man, tree) = 0.260
 
 `similar_by_word()`函数在功能上与`similar()`等价，唯一的区别是后者默认在比较之前会对向量进行归一化处理。还有一个相关的`similar_by_vector()`函数，它允许你通过指定一个向量作为输入来查找相似的词汇。这里我们尝试查找与“singapore”相似的词：
 
-```
+```py
 print(print_most_similar(
    word_vectors.similar_by_word("singapore"), 5)
 ) 
@@ -336,7 +336,7 @@ print(print_most_similar(
 
 我们得到了以下输出，从地理角度来看，似乎大部分是正确的：
 
-```
+```py
 0.882 malaysia
 0.837 indonesia
 0.826 philippines
@@ -347,7 +347,7 @@ print(print_most_similar(
 
 我们还可以使用`distance()`函数计算嵌入空间中两个单词之间的距离。这个实际上就是`1 - similarity()`：
 
-```
+```py
 print("distance(singapore, malaysia) = {:.3f}".format(
    word_vectors.distance("singapore", "malaysia")
 )) 
@@ -355,7 +355,7 @@ print("distance(singapore, malaysia) = {:.3f}".format(
 
 我们还可以直接从`word_vectors`对象中查找词汇表单词的向量，或者使用以下所示的`word_vec()`包装器来查找：
 
-```
+```py
 vec_song = word_vectors["song"]
 vec_song_2 = word_vectors.word_vec("song", use_norm=True) 
 ```
@@ -374,7 +374,7 @@ vec_song_2 = word_vectors.word_vec("song", use_norm=True)
 
 像往常一样，我们将从导入开始：
 
-```
+```py
 import argparse
 import gensim.downloader as api
 import numpy as np
@@ -392,7 +392,7 @@ Scikit-learn 是一个开源的 Python 机器学习工具包，包含许多高�
 
 我们模型的数据是公开的，来自 UCI 机器学习库中的 SMS 垃圾短信数据集[11]。以下代码将下载该文件并解析它，生成 SMS 消息及其相应标签的列表：
 
-```
+```py
 def download_and_read(url):
    local_file = url.split('/')[-1]
    p = tf.keras.utils.get_file(local_file, url,
@@ -419,7 +419,7 @@ texts, labels = download_and_read(DATASET_URL)
 
 我们数据集中最长的 SMS 消息有 189 个标记（单词）。在许多应用中，可能会有一些极长的离群序列，我们可以通过设置`maxlen`标志来限制长度为较小的数字。这样，超过`maxlen`个标记的句子将被截断，少于`maxlen`个标记的句子将被填充：
 
-```
+```py
 # tokenize and pad text
 tokenizer = tf.keras.preprocessing.text.Tokenizer()
 tokenizer.fit_on_texts(texts)
@@ -434,7 +434,7 @@ print("{:d} sentences, max length: {:d}".format(
 
 我们还将把标签转换为分类格式或独热编码格式，因为我们希望选择的损失函数（分类交叉熵）要求标签采用这种格式：
 
-```
+```py
 # labels
 NUM_CLASSES = 2
 cat_labels = tf.keras.utils.to_categorical(
@@ -443,7 +443,7 @@ cat_labels = tf.keras.utils.to_categorical(
 
 分词器允许访问通过`word_index`属性创建的词汇表，该属性基本上是一个词汇单词及其在词汇表中索引位置的字典。我们还构建了反向索引，使我们能够从索引位置找到相应的单词。此外，我们为`PAD`字符创建了条目：
 
-```
+```py
 # vocabulary
 word2idx = tokenizer.word_index
 idx2word = {v:k for k, v in word2idx.items()}
@@ -455,7 +455,7 @@ print("vocab size: {:d}".format(vocab_size))
 
 最后，我们创建了网络将使用的`dataset`对象。`dataset`对象允许我们声明性地设置一些属性，比如批处理大小。在这里，我们从填充后的整数序列和分类标签中构建数据集，打乱数据，并将其拆分为训练集、验证集和测试集。最后，我们为这三个数据集设置了批处理大小：
 
-```
+```py
 # dataset
 dataset = tf.data.Dataset.from_tensor_slices(
     (text_sequences, cat_labels))
@@ -475,7 +475,7 @@ train_dataset = train_dataset.batch(BATCH_SIZE, drop_remainder=True)
 
 Gensim 工具包提供了对各种训练好的嵌入模型的访问，您可以通过在 Python 提示符下运行以下命令来查看：
 
-```
+```py
 >>> import gensim.downloader as api
 >>> api.info("models").keys() 
 ```
@@ -494,7 +494,7 @@ Gensim 工具包提供了对各种训练好的嵌入模型的访问，您可以�
 
 为了保持我们的模型小，我们只考虑词汇表中存在的词的嵌入。这是通过以下代码完成的，该代码为词汇表中的每个词创建一个较小的嵌入矩阵。矩阵中的每一行对应一个词，行本身就是对应该词的嵌入向量：
 
-```
+```py
 def build_embedding_matrix(sequences, word2idx, embedding_dim,
        embedding_file):
    if os.path.exists(embedding_file):
@@ -534,7 +534,7 @@ print("Embedding matrix:", E.shape)
 
 丢弃层的输出被输入到池化层进行扁平化，然后进入一个全连接层，该层将形状为（`batch_size`，`num_filters`）的向量转换为（`batch_size`，`num_classes`）。Softmax 激活函数将（垃圾短信、正常短信）的每个分数转换为概率分布，表示输入的短信是垃圾短信或正常短信的概率：
 
-```
+```py
 class SpamClassifierModel(tf.keras.Model):
    def __init__(self, vocab_sz, embed_sz, input_length,
            num_filters, kernel_sz, output_sz,
@@ -584,7 +584,7 @@ model.build(input_shape=(None, max_seqlen))
 
 最后，我们使用分类交叉熵损失函数和 Adam 优化器来编译模型：
 
-```
+```py
 # compile
 model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"]) 
 ```
@@ -595,7 +595,7 @@ model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accur
 
 训练 3 个周期后，我们在测试集上评估模型，并报告模型在测试集上的准确率和混淆矩阵。然而，对于不平衡数据，即使使用了类别权重，模型也可能会学习到始终预测多数类。因此，通常建议按类别报告准确率，以确保模型能够有效地区分每个类别。这可以通过使用混淆矩阵来轻松完成，方法是将每行的对角元素除以该行所有元素的和，其中每行对应一个标记类别：
 
-```
+```py
 NUM_EPOCHS = 3
 # data distribution is 4827 ham and 747 spam (total 5574), which
 # works out to approx 87% ham and 13% spam, so we take reciprocals
@@ -631,7 +631,7 @@ print(confusion_matrix(labels, predictions))
 
 每种场景可以通过设置`mode`参数的值来评估，具体如以下命令所示：
 
-```
+```py
 $ python spam_classifier --mode [scratch|vectorizer|finetune] 
 ```
 
@@ -671,7 +671,7 @@ node2vec 嵌入模型由 Grover 和 Leskovec [15] 提出，作为一种可扩展
 
 像往常一样，我们将从声明我们的导入开始：
 
-```
+```py
 import gensim
 import logging
 import numpy as np
@@ -685,7 +685,7 @@ logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=lo
 
 下一步是从 UCI 仓库下载数据，并将其转换为稀疏的词项-文档矩阵（TD），然后通过将词项-文档矩阵的转置与其自身相乘来构建文档-文档矩阵 E。我们的图是通过文档-文档矩阵表示为邻接矩阵或边矩阵。由于每个元素表示两个文档之间的相似度，我们将通过将任何非零元素设置为 1 来二值化矩阵 `E`：
 
-```
+```py
 DATA_DIR = "./data"
 UCI_DATA_URL = "https://archive.ics.uci.edu/ml/machine-learning-databases/00371/NIPS_1987-2015.csv"
 def download_and_read(url):
@@ -727,7 +727,7 @@ E[E > 0] = 1
 
 一旦我们拥有了稀疏二值化邻接矩阵`E`，我们就可以从每个顶点生成随机游走。从每个节点开始，我们构造了 32 个最大长度为 40 个节点的随机游走。每次游走有 0.15 的随机重启概率，这意味着对于任何节点，特定的随机游走有 15%的概率会结束。以下代码将构造随机游走，并将它们写入由`RANDOM_WALKS_FILE`指定的文件。为了给出输入的示例，我们提供了该文件前 10 行的快照，展示了从节点 0 开始的随机游走：
 
-```
+```py
 0 1405 4845 754 4391 3524 4282 2357 3922 1667
 0 1341 456 495 1647 4200 5379 473 2311
 0 3422 3455 118 4527 2304 772 3659 2852 4515 5135 3439 1273
@@ -742,7 +742,7 @@ E[E > 0] = 1
 
 请注意，这是一个非常缓慢的过程。输出的副本随本章的源代码一起提供，以防你希望跳过随机游走生成过程：
 
-```
+```py
 NUM_WALKS_PER_VERTEX = 32
 MAX_PATH_LENGTH = 40
 RESTART_PROB = 0.15
@@ -781,7 +781,7 @@ construct_random_walks(E, NUM_WALKS_PER_VERTEX, RESTART_PROB, MAX_PATH_LENGTH, R
 
 以下是`RANDOM_WALKS_FILE`中的几行内容。你可以想象，这些看起来像是一种语言中的句子，其中词汇表是我们图中的所有节点 ID。我们已经了解到，词嵌入利用语言的结构来生成词的分布式表示。像 DeepWalk 和 node2vec 这样的图嵌入方案也做了相同的事情，它们利用从随机游走中生成的“句子”。这些嵌入可以捕捉图中节点之间的相似性，超越了直接邻居的关系，正如我们将看到的那样：
 
-```
+```py
 0 1405 4845 754 4391 3524 4282 2357 3922 1667
 0 1341 456 495 1647 4200 5379 473 2311
 0 3422 3455 118 4527 2304 772 3659 2852 4515 5135 3439 1273
@@ -796,7 +796,7 @@ construct_random_walks(E, NUM_WALKS_PER_VERTEX, RESTART_PROB, MAX_PATH_LENGTH, R
 
 我们现在准备创建我们的词嵌入模型。Gensim 包提供了一个简单的 API，允许我们声明性地创建和训练一个 Word2Vec 模型，使用以下代码。训练后的模型将被序列化到由`W2V_MODEL_FILE`指定的文件中。`Documents`类允许我们流式传输大输入文件，以便训练 Word2Vec 模型而不会遇到内存问题。我们将在 skip-gram 模式下训练 Word2Vec 模型，窗口大小为 10，这意味着我们训练它以预测给定一个中心节点时，最多预测五个邻近节点。每个节点的结果嵌入是一个大小为 128 的稠密向量：
 
-```
+```py
 W2V_MODEL_FILE = os.path.join(DATA_DIR, "w2v-neurips-papers.model")
 class Documents(object):
    def __init__(self, input_file):
@@ -832,7 +832,7 @@ train_word2vec_model(RANDOM_WALKS_FILE, W2V_MODEL_FILE)
 
 我们得到的 DeepWalk 模型实际上就是一个 Word2Vec 模型，因此在处理单词的上下文中，您可以用 Word2Vec 做的任何事情，也可以在顶点的上下文中使用这个模型来做。让我们使用这个模型来发现文档之间的相似性：
 
-```
+```py
 def evaluate_model(td_matrix, model_file, source_id):
    model = gensim.models.Word2Vec.load(model_file).wv
    most_similar = model.most_similar(str(source_id))
@@ -852,7 +852,7 @@ evaluate_model(TD, W2V_MODEL_FILE, source_id)
 
 以下是输出结果。第一列和第二列是源节点和目标节点的 ID。第三列是源文档和目标文档对应的词向量之间的余弦相似度，第四列是 Word2Vec 模型报告的相似度分数。正如你所看到的，余弦相似度只报告了 10 对文档中的 2 对之间的相似性，但 Word2Vec 模型能够在嵌入空间中检测到潜在的相似性。这与我们注意到的一热编码和稠密嵌入之间的行为类似：
 
-```
+```py
 src_id dst_id cosine_sim w2v_score
 1971   5443        0.000     0.348
 1971   1377        0.000     0.348
@@ -898,7 +898,7 @@ Peters 等人 [21] 提出的另一种动态嵌入是**来自语言模型的嵌�
 
 TensorFlow Hub 上可用的所有与 TensorFlow 2.0 兼容的模型集合可以在 TensorFlow 2.0 的 [16] 网站上找到。在这里，我使用了一系列句子，模型将通过其默认的空格分词策略来确定标记：
 
-```
+```py
 import tensorflow as tf
 import tensorflow_hub as hub
 
@@ -911,7 +911,7 @@ print(embeddings.shape)
 
 你还可以通过将 ELMo 嵌入层包装在 `tf.keras.KerasLayer` 适配器中，将其集成到你的 TF2 模型中。在这个简单的模型中，模型将返回整个字符串的嵌入：
 
-```
+```py
 embed = hub.KerasLayer("https://tfhub.dev/google/elmo/3",input_shape=[], dtype=tf.string)
 model = tf.keras.Sequential([embed])
 embeddings = model.predict([
@@ -935,7 +935,7 @@ Kiros 等人提出了一种生成通用句子向量表示的思路，这些向�
 
 与 ELMo 一样，Google Universal Sentence Encoder 也可以从 TensorFlow Hub 加载到你的 TF2 代码中。下面是一些调用它的代码，使用了我们两个示例句子：
 
-```
+```py
 embed = hub.load("https://tfhub.dev/google/universal-sentence-encoder-large/4")
 embeddings = embed([
 "i like green eggs and ham",
@@ -982,14 +982,14 @@ BERT 预训练是一个昂贵的过程，目前只能通过 **张量处理单元
 
 BERT 项目 [33] 提供了一套 Python 脚本，可以通过命令行运行来对 BERT 进行微调：
 
-```
+```py
 $ git clone https://github.com/google-research/bert.git
 $ cd bert 
 ```
 
 然后我们下载我们想要微调的适当 BERT 模型。如前所述，BERT 有两种尺寸——BERT-base 和 BERT-large。此外，每个模型都有带大小写和不带大小写的版本。带大小写的版本区分大写和小写单词，而不带大小写的版本则不区分。对于我们的例子，我们将使用 BERT-base-uncased 预训练模型。你可以在 `README.md` 页面下方找到该模型和其他模型的下载链接：
 
-```
+```py
 $ mkdir data
 $ cd data
 $ wget \ 
@@ -999,7 +999,7 @@ $ unzip -a uncased_L-12_H-768_A-12.zip
 
 这将在你本地 BERT 项目的 `data` 目录下创建以下文件夹。`bert_config.json` 文件是用来创建原始预训练模型的配置文件，`vocab.txt` 是模型使用的词汇表，包含 30,522 个单词和词片段：
 
-```
+```py
 uncased_L-12_H-768_A-12/
  ├── bert_config.json
  ├── bert_model.ckpt.data-00000-of-00001
@@ -1012,7 +1012,7 @@ uncased_L-12_H-768_A-12/
 
 这里的输入仅是一个每行一个句子的文件。我们称其为 `sentences.txt`，并将其放入 `${CLASSIFIER_DATA}` 文件夹中。你可以通过将它们标识为 -1（最后一个隐藏层）、-2（前一个隐藏层）等，来生成来自最后隐藏层的嵌入。提取输入句子的 BERT 嵌入的命令如下：
 
-```
+```py
 $ export BERT_BASE_DIR=./data/uncased_L-12_H-768_A-12
 $ export CLASSIFIER_DATA=./data/my_data
 $ export TRAINED_CLASSIFIER=./data/my_classifier

@@ -42,7 +42,7 @@
 
 在这一部分，我们将定义一些辅助函数，帮助我们下载 CelebA 数据集。我们将通过导入实现所需的包开始：
 
-```
+```py
 import math
 import os
 import hashlib
@@ -61,13 +61,13 @@ import tensorflow as tf
 
 接下来，我们将使用 utils 脚本下载数据集：
 
-```
+```py
 #Downloading celebA dataset
 celebA_data_dir = 'input'
 utils.download_extract('celeba', celebA_data_dir)
 ```
 
-```
+```py
 Output:
 
 Downloading celeba: 1.44GB [00:21, 66.6MB/s] 
@@ -80,7 +80,7 @@ CelebA 数据集包含超过 20 万张带注释的名人图像。由于我们将
 
 现在，让我们使用`utils`脚本从数据集中显示一些图像：
 
-```
+```py
 #number of images to display
 num_images_to_show = 25
 
@@ -89,7 +89,7 @@ celebA_images = utils.get_batch(glob(os.path.join(celebA_data_dir, 'img_align_ce
 pyplot.imshow(utils.images_square_grid(celebA_images, 'RGB'))
 ```
 
-```
+```py
 Output:
 ```
 
@@ -129,7 +129,7 @@ Output:
 
 辅助函数将返回这三个输入占位符的元组。现在，让我们定义这个函数：
 
-```
+```py
 # defining the model inputs
 def inputs(img_width, img_height, img_channels, latent_space_z_dim):
     true_inputs = tf.placeholder(tf.float32, (None, img_width, img_height, img_channels),
@@ -146,7 +146,7 @@ def inputs(img_width, img_height, img_channels, latent_space_z_dim):
 
 那么，让我们定义一个函数，返回判别器的二进制输出以及 logit 值：
 
-```
+```py
 # Defining the discriminator function
 def discriminator(input_imgs, reuse=False):
     # using variable_scope to reuse variables
@@ -180,7 +180,7 @@ def discriminator(input_imgs, reuse=False):
 
 那么，让我们定义一个函数，返回生成器生成的图像：
 
-```
+```py
 def generator(z_latent_space, output_channel_dim, is_train=True):
 
     with tf.variable_scope('generator', reuse=not is_train):
@@ -215,7 +215,7 @@ def generator(z_latent_space, output_channel_dim, is_train=True):
 
 所以，让我们定义这个函数，它将使用之前定义的`generator`和`discriminator`函数：
 
-```
+```py
 # Define the error for the discriminator and generator
 def model_losses(input_actual, input_latent_z, out_channel_dim):
     # building the generator part
@@ -241,7 +241,7 @@ def model_losses(input_actual, input_latent_z, out_channel_dim):
 
 最后，在训练我们的模型之前，我们需要实现该任务的优化标准。我们将使用之前使用的命名约定来检索判别器和生成器的可训练参数并训练它们：
 
-```
+```py
 # specifying the optimization criteria
 def model_optimizer(disc_loss, gen_loss, learning_rate, beta1):
     trainable_vars = tf.trainable_variables()
@@ -267,7 +267,7 @@ def model_optimizer(disc_loss, gen_loss, learning_rate, beta1):
 
 但首先，让我们定义一个辅助函数，它将展示生成器生成的一些图像：
 
-```
+```py
 # define a function to visualize some generated images from the generator
 def show_generator_output(sess, num_images, input_latent_z, output_channel_dim, img_mode):
     cmap = None if img_mode == 'RGB' else 'gray'
@@ -285,7 +285,7 @@ def show_generator_output(sess, num_images, input_latent_z, output_channel_dim, 
 
 然后，我们将使用之前定义的辅助函数来构建模型输入、损失和优化标准。我们将它们堆叠在一起，并开始基于 CelebA 数据集训练我们的模型：
 
-```
+```py
 def model_train(num_epocs, train_batch_size, z_dim, learning_rate, beta1, get_batches, input_data_shape, data_img_mode):
     _, image_width, image_height, image_channels = input_data_shape
 
@@ -334,7 +334,7 @@ def model_train(num_epocs, train_batch_size, z_dim, learning_rate, beta1, get_ba
 
 启动训练过程，这可能会根据你的主机机器规格需要一些时间：
 
-```
+```py
 # Training the model on CelebA dataset
 train_batch_size = 64
 z_dim = 100
@@ -351,7 +351,7 @@ with tf.Graph().as_default():
 
 输出：
 
-```
+```py
 
  Epoch 1/1... Discriminator Loss: 0.9118... Generator Loss: 12.2238
  Epoch 1/1... Discriminator Loss: 0.6119... Generator Loss: 3.2168
@@ -369,7 +369,7 @@ with tf.Graph().as_default():
 
 图 3：此时训练的生成输出样本
 
-```
+```py
 Epoch 1/1... Discriminator Loss: 0.7950... Generator Loss: 1.5818
 Epoch 1/1... Discriminator Loss: 1.2417... Generator Loss: 0.7094
 Epoch 1/1... Discriminator Loss: 1.1786... Generator Loss: 1.0948
@@ -438,7 +438,7 @@ Epoch 1/1... Discriminator Loss: 0.9984... Generator Loss: 1.0042
 
 对于这个任务，我们将使用 SVHN 数据集，它是斯坦福大学的街景房屋号码（Street View House Numbers）数据集的缩写（[`ufldl.stanford.edu/housenumbers/`](http://ufldl.stanford.edu/housenumbers/)）。所以，让我们通过导入实现所需的包开始实现：
 
-```
+```py
 # Lets start by loading the necessary libraries
 %matplotlib inline
 
@@ -454,7 +454,7 @@ import os
 
 接下来，我们将定义一个辅助类来下载 SVHN 数据集（记得你需要首先手动创建`input_data_dir`目录）：
 
-```
+```py
 from urllib.request import urlretrieve
 from os.path import isfile, isdir
 from tqdm import tqdm
@@ -491,18 +491,18 @@ train_data = loadmat(input_data_dir + 'train_32x32.mat')
 test_data = loadmat(input_data_dir + 'test_32x32.mat')
 ```
 
-```
+```py
 Output:
 ```
 
-```
+```py
 trainset shape: (32, 32, 3, 73257)
 testset shape: (32, 32, 3, 26032)
 ```
 
 让我们了解一下这些图像的样子：
 
-```
+```py
 indices = np.random.randint(0, train_data['X'].shape[3], size=36)
 fig, axes = plt.subplots(6, 6, sharex=True, sharey=True, figsize=(5,5),)
 for ii, ax in zip(indices, axes.flatten()):
@@ -512,7 +512,7 @@ for ii, ax in zip(indices, axes.flatten()):
 plt.subplots_adjust(wspace=0, hspace=0)
 ```
 
-```
+```py
 Output:
 ```
 
@@ -522,7 +522,7 @@ Output:
 
 接下来，我们需要将图像缩放到-1 到 1 之间，这对于使用`tanh()`函数是必要的，因为该函数将压缩生成器输出的值：
 
-```
+```py
 # Scaling the input images
 def scale_images(image, feature_range=(-1, 1)):
     # scale image to (0, 1)
@@ -534,7 +534,7 @@ def scale_images(image, feature_range=(-1, 1)):
     return image
 ```
 
-```
+```py
 class Dataset:
     def __init__(self, train_set, test_set, validation_frac=0.5, shuffle_data=True, scale_func=None):
         split_ind = int(len(test_set['y']) * (1 - validation_frac))
@@ -597,7 +597,7 @@ class Dataset:
 
 首先，我们将定义模型输入函数，该函数将创建用于输入数据的模型占位符：
 
-```
+```py
 # defining the model inputs
 def inputs(actual_dim, z_dim):
     inputs_actual = tf.placeholder(tf.float32, (None, *actual_dim), name='input_actual')
@@ -613,7 +613,7 @@ def inputs(actual_dim, z_dim):
 
 在本节中，我们将实现 GAN 网络的第一个核心部分。该部分的架构和实现将遵循原始的 DCGAN 论文：
 
-```
+```py
 def generator(latent_z, output_image_dim, reuse_vars=False, leaky_alpha=0.2, is_training=True, size_mult=128):
     with tf.variable_scope('generator', reuse=reuse_vars):
         # define a fully connected layer
@@ -646,7 +646,7 @@ def generator(latent_z, output_image_dim, reuse_vars=False, leaky_alpha=0.2, is_
 
 现在，让我们继续构建架构中的判别器部分：
 
-```
+```py
 # Defining the discriminator part of the network
 def discriminator(input_x, reuse_vars=False, leaky_alpha=0.2, drop_out_rate=0., num_classes=10, size_mult=64):
     with tf.variable_scope('discriminator', reuse=reuse_vars):
@@ -686,40 +686,40 @@ def discriminator(input_x, reuse_vars=False, leaky_alpha=0.2, drop_out_rate=0., 
         leaky_output_10 = tf.maximum(leaky_alpha * conv_layer_9, conv_layer_9)
 ```
 
-```
+```py
 ...
 ```
 
 我们将不再在最后应用全连接层，而是执行所谓的**全局平均池化**（**GAP**），该操作在特征向量的空间维度上取平均值；这将把张量压缩为一个单一的值：
 
-```
+```py
 ...
 ```
 
-```
+```py
 # Flatten it by global average pooling
 leaky_output_features = tf.reduce_mean(leaky_output_10, (1, 2))
 ```
 
-```
+```py
 ...
 ```
 
 例如，假设经过一系列卷积操作后，我们得到一个形状为的输出张量：
 
-```
+```py
 [BATCH_SIZE, 8, 8, NUM_CHANNELS] 
 ```
 
 要应用全局平均池化，我们计算[8x8]张量片的平均值。该操作将产生一个形状如下的张量：
 
-```
+```py
  [BATCH_SIZE, 1, 1, NUM_CHANNELS] 
 ```
 
 这可以重塑为：
 
-```
+```py
 [BATCH_SIZE, NUM_CHANNELS].
 ```
 
@@ -729,7 +729,7 @@ leaky_output_features = tf.reduce_mean(leaky_output_10, (1, 2))
 
 这将表示每个类别的得分。为了获得这些类别的概率得分，我们将使用`softmax`激活函数：
 
-```
+```py
 ...
 # Get the probability that the input is real rather than fake
 softmax_output = tf.nn.softmax(classes_logits)s
@@ -738,7 +738,7 @@ softmax_output = tf.nn.softmax(classes_logits)s
 
 最终，判别器函数将如下所示：
 
-```
+```py
 # Defining the discriminator part of the network
 def discriminator(input_x, reuse_vars=False, leaky_alpha=0.2, drop_out_rate=0., num_classes=10, size_mult=64):
     with tf.variable_scope('discriminator', reuse=reuse_vars):
@@ -822,7 +822,7 @@ def discriminator(input_x, reuse_vars=False, leaky_alpha=0.2, drop_out_rate=0., 
 
 最终，模型的损失函数将如下所示：
 
-```
+```py
 def model_losses(input_actual, input_latent_z, output_dim, target, num_classes, label_mask, leaky_alpha=0.2,
                      drop_out_rate=0.):
 
@@ -875,7 +875,7 @@ def model_losses(input_actual, input_latent_z, output_dim, target, num_classes, 
 
 现在，让我们定义模型优化器，它与我们之前定义的非常相似：
 
-```
+```py
 def model_optimizer(disc_loss, gen_loss, learning_rate, beta1):
 
         # Get weights and biases to update. Get them separately for the discriminator and the generator
@@ -898,7 +898,7 @@ def model_optimizer(disc_loss, gen_loss, learning_rate, beta1):
 
 最后，在将所有内容组合在一起后，让我们开始训练过程：
 
-```
+```py
 class GAN:
         def __init__(self, real_size, z_size, learning_rate, num_classes=10, alpha=0.2, beta1=0.5):
             tf.reset_default_graph()
@@ -919,7 +919,7 @@ class GAN:
                                                                                      self.learning_rate, beta1)
 ```
 
-```
+```py
 def view_generated_samples(epoch, samples, nrows, ncols, figsize=(5, 5)):
         fig, axes = plt.subplots(figsize=figsize, nrows=nrows, ncols=ncols,
                                  sharey=True, sharex=True)
@@ -933,7 +933,7 @@ def view_generated_samples(epoch, samples, nrows, ncols, figsize=(5, 5)):
         return fig, axes
 ```
 
-```
+```py
 def train(net, dataset, epochs, batch_size, figsize=(5, 5)):
 
         saver = tf.train.Saver()
@@ -1004,7 +1004,7 @@ def train(net, dataset, epochs, batch_size, figsize=(5, 5)):
 
 别忘了创建一个名为 checkpoints 的目录：
 
-```
+```py
 real_size = (32,32,3)
 latent_space_z_size = 100
 learning_rate = 0.0003
@@ -1012,7 +1012,7 @@ learning_rate = 0.0003
 net = GAN(real_size, latent_space_z_size, learning_rate)
 ```
 
-```
+```py
 dataset = Dataset(train_data, test_data)
 
 train_batch_size = 128
@@ -1026,7 +1026,7 @@ train_accuracies, test_accuracies, samples = train(net,
 
 最后，在`Epoch 24`时，你应该得到如下结果：
 
-```
+```py
 Epoch 24
                 Classifier train accuracy:  0.937
                 Classifier test accuracy 0.67401659496
@@ -1038,7 +1038,7 @@ Epoch 24
 
 图 8：使用特征匹配损失由生成器网络创建的示例图像
 
-```
+```py
 fig, ax = plt.subplots()
 plt.plot(train_accuracies, label='Train', alpha=0.5)
 plt.plot(test_accuracies, label='Test', alpha=0.5)

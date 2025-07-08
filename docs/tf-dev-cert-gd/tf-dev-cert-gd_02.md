@@ -54,7 +54,7 @@ TensorFlow 生态系统的另一个核心特性是其能够访问各种各样的
 
 在我们研究 TensorFlow 中的数据表示之前，先让我们设置工作环境。我们将从导入 TensorFlow 并检查其版本开始：
 
-```
+```py
 import tensorflow as tf
 #To check the version of TensorFlow
 print(tf.__version__)
@@ -62,13 +62,13 @@ print(tf.__version__)
 
 当我们运行这段代码时，得到如下输出：
 
-```
+```py
 2.8.0
 ```
 
 好极了！我们已经成功导入了 TensorFlow。接下来，让我们导入 NumPy 和几个数据类型，因为我们将在本章中很快用到它们：
 
-```
+```py
 import numpy as np
 from numpy import *
 ```
@@ -93,7 +93,7 @@ from numpy import *
 
 在 TensorFlow 中，我们可以通过几种方式生成张量。然而，我们将重点介绍使用 `tf.constant`、`tf.Variable` 和 `tf.range` 创建张量对象。回想一下，我们已经在设置工作环境的部分导入了 TensorFlow、NumPy 和数据类型。接下来，让我们运行以下代码，使用 `tf.constant` 生成我们的第一个张量：
 
-```
+```py
 #Creating a tensor object using tf.constant
 a_constant = tf.constant([1, 2, 3, 4 ,5, 6])
 a_constant
@@ -101,14 +101,14 @@ a_constant
 
 当我们运行这段代码时，我们生成了第一个张量。如果一切顺利，输出应该如下所示：
 
-```
+```py
 <tf.Tensor: shape=(6,), dtype=int32,
     numpy=array([1, 2, 3, 4, 5, 6], dtype=int32)>
 ```
 
 很棒！别担心，随着我们继续深入，我们会讨论输出并形成更清晰的认识。但现在，让我们使用 `tf.Variable` 函数生成一个类似的张量对象：
 
-```
+```py
 #Creating a tensor object using tf.Variable
 a_variable = tf.Variable([1, 2, 3, 4 ,5, 6])
 a_variable
@@ -116,14 +116,14 @@ a_variable
 
 `a_variable` 变量返回以下输出：
 
-```
+```py
 <tf.Variable 'Variable:0' shape=(6,) dtype=int32,
     numpy=array([1, 2, 3, 4, 5, 6], dtype=int32)>
 ```
 
 虽然两种情况的输入是相同的，但 `tf.constant` 和 `tf.Variable` 是不同的。使用 `tf.constant` 生成的张量是不可变的，而 `tf.Variable` 生成的张量可以在未来重新赋值。随着我们进一步探索张量，我们会更详细地讨论这一点。与此同时，让我们看看另一种使用 `tf.range` 生成张量的方法：
 
-```
+```py
 # Creating tensors using the range function
 a_range = tf.range(start=1, limit=7)
 a_range
@@ -131,7 +131,7 @@ a_range
 
 `a_range` 返回以下输出：
 
-```
+```py
 <tf.Tensor: shape=(6,), dtype=int32,
     numpy=array([1, 2, 3, 4, 5, 6], dtype=int32)>
 ```
@@ -148,7 +148,7 @@ a_range
 
 我们已经练习了如何使用三种不同的函数来生成张量。为了说明，我们可以安全地定义标量为只有大小没有方向的量。标量量的例子有时间、质量、能量和速度；这些量有一个单一的数值，例如`1`、`23.4`或`50`。让我们回到笔记本，使用`tf.constant`函数生成一个标量：
 
-```
+```py
 #scalar
 a = tf.constant(1)
 a
@@ -156,7 +156,7 @@ a
 
 我们首先创建一个标量，它是一个单一的值，返回如下输出：
 
-```
+```py
 <tf.Tensor: shape=(), dtype=int32, numpy=1>
 ```
 
@@ -164,7 +164,7 @@ a
 
 现在我们已经了解了标量（秩为`0`的张量），让我们更进一步，来看一下向量。为了更好理解，向量是既有大小又有方向的量。向量的例子有加速度、速度和力。让我们回到笔记本，尝试生成一个包含四个数字的向量。为了改变一下，这次我们将使用浮点数，因为我们可以使用浮点数生成张量。另外，如果你注意到的话，返回的默认数据类型是`int32`，这是我们之前用来生成整数张量的数据类型：
 
-```
+```py
 #vector
 b= tf.constant([1.2,2.3,3.4,4.5])
 b
@@ -172,14 +172,14 @@ b
 
 从我们的结果中可以看出，返回的数据类型是`float32`，形状为`4`：
 
-```
+```py
 <tf.Tensor: shape=(4,), dtype=float32,
     numpy=array([1.2, 2.3, 3.4, 4.5], dtype=float32)>
 ```
 
 接下来，让我们生成一个矩阵。矩阵是一个按行和列排列的数字数组。让我们在笔记本中尝试一个矩阵：
 
-```
+```py
 #matrix
 c =tf.constant([[1,2],[3,4]])
 c
@@ -189,7 +189,7 @@ c
 
 上面的矩阵是一个 2 x 2 矩阵，我们可以通过检查`shape`输出推断出这一点。我们还看到数据类型是`int32`。让我们生成一个更高维度的张量：
 
-```
+```py
 #3-dimensional tensor
 d=tf.constant([[[1,2],[3,4],[5,6]],[[7,8],[9,10],[11,12]]])
 d
@@ -197,7 +197,7 @@ d
 
 输出是一个 2 x 3 x 2 的张量，数据类型为`int32`：
 
-```
+```py
 <tf.Tensor: shape=(2, 3, 2), dtype=int32,
     numpy= array([[[ 1,  2],[ 3,  4],[ 5,  6]],
        [[ 7,  8], [ 9, 10], [11, 12]]], dtype=int32)>
@@ -211,7 +211,7 @@ d
 
 我们将使用`tf.``V``ariable`来生成一个标量张量，选择`float16`作为数据类型，并将其命名为`TDC`。（如果你想知道**TDC**是什么意思，那是**TensorFlow 开发者证书**的缩写。）接下来，我们将运行代码：
 
-```
+```py
 #scalar
 a = tf.Variable(1.1, name="TDC", dtype=float16)
 a
@@ -222,7 +222,7 @@ a
 
 接下来，让我们看看一个向量，看看我们能从它的属性中学到什么信息：
 
-```
+```py
 #vector
 b= tf.Variable([1.2,2.3,3.4,4.5], name="Vector", dtype=float16)
 b
@@ -230,14 +230,14 @@ b
 
 这里，我们再次包含了参数和张量的名称，并且改变了默认的数据类型。从输出中我们可以看到，结果与我们得到的标量量类似：
 
-```
+```py
 <tf.Variable ''Vector:0' shape=(4,) dtype=float16,
     numpy=array([1.2, 2.3, 3.4, 4.5])>
 ```
 
 这里，张量的名称是`'Vector:0`，形状的值为`4`（这对应于条目数量），并且张量的数据类型为`float16`。为了有点乐趣，你可以尝试不同的配置，看看你所做的更改对返回输出的影响；这是一个非常好的学习和理解事物是如何运作的方式。当我们打印张量输出的结果时，我们可以看到张量的不同属性，就像我们检查标量和向量量时那样。然而，通过利用 TensorFlow 函数，我们可以获得更多关于张量的信息。让我们从使用`tf.rank()`函数来检查标量、向量和矩阵的秩开始：
 
-```
+```py
 #scalar
 a = tf.constant(1.1)
 #vector
@@ -254,7 +254,7 @@ print("The rank of the matrix is: ",tf.rank(c))
 
 我们运行前面的代码来生成标量、向量和矩阵。之后，我们使用`tf.rank`函数打印出它们的秩。以下是输出结果：
 
-```
+```py
 The rank of the scalar is: tf.Tensor(0, shape=(), dtype=int32)
 The rank of the vector is: tf.Tensor(1, shape=(), dtype=int32)
 The rank of the matrix is: tf.Tensor(2, shape=(), dtype=int32)
@@ -262,14 +262,14 @@ The rank of the matrix is: tf.Tensor(2, shape=(), dtype=int32)
 
 返回的输出是一个张量对象，它显示了张量的秩以及张量的形状和数据类型。要获取张量的秩作为数值，我们必须在返回的张量上使用`.numpy()`来检索张量的实际秩：
 
-```
+```py
 print("The rank of the scalar is: ",tf.rank(a).numpy())
 The rank of the scalar is:  0
 ```
 
 然而，直接获得张量秩的一个更简单方法是使用`ndim`，无需重新评估。让我们接下来看看这个方法：
 
-```
+```py
 #Generating details of the dimension
 print("The dimension of the scalar is: ",a.ndim)
 print(" ")
@@ -280,7 +280,7 @@ print("The dimension of the matrix is: ",c.ndim)
 
 当我们运行代码时，得到以下输出：
 
-```
+```py
 The dimension of the scalar is: 0
 The dimension of the vector is: 1
 The dimension of the matrix is: 2
@@ -288,7 +288,7 @@ The dimension of the matrix is: 2
 
 接下来，让我们通过使用`dtype`参数打印出所有三个量的数据类型，以生成每个张量的数据类型：
 
-```
+```py
 #printing the data type
 print("The data type of the scalar is: ",a.dtype)
 print(" ")
@@ -299,7 +299,7 @@ print("The data type of the matrix is: ",c.dtype)
 
 当我们运行代码时，得到以下输出。
 
-```
+```py
 The data type of the scalar is:  <dtype: 'float32'>
 The data type of the vector is:  <dtype: 'float32'>
 The data type of the matrix is:  <dtype: 'int32'>
@@ -307,7 +307,7 @@ The data type of the matrix is:  <dtype: 'int32'>
 
 从之前的输出中，我们可以看到数据类型。接下来，我们来看看张量的形状：
 
-```
+```py
 #Generating details of the tensor shape
 print("The Shape of the scalar is: ",a.shape)
 print(" ")
@@ -318,7 +318,7 @@ print("The Shape of the matrix is: ",c.shape)
 
 当我们运行代码时，得到以下输出：
 
-```
+```py
 The Shape of the scalar is:  ()
 The Shape of the vector is:  (4,)
 The Shape of the matrix is:  (2, 2)
@@ -326,7 +326,7 @@ The Shape of the matrix is:  (2, 2)
 
 从结果中可以看出，标量没有形状值，而向量的形状值为 1 单位，矩阵的形状值为 2 单位。接下来，我们来计算每个张量中的元素数量：
 
-```
+```py
 #Generating number of elements in a tensor
 print("The Size of the scalar is: ",tf.size(a))
 print(" ")
@@ -337,7 +337,7 @@ print("The Size of the matrix is: ",tf.size(c))
 
 当我们运行代码时，得到以下输出：
 
-```
+```py
 The Size of the scalar is:  tf.Tensor(1, shape=(), dtype=int32)
 The Size of the vector is:  tf.Tensor(4, shape=(), dtype=int32)
 The Size of the matrix is:  tf.Tensor(4, shape=(), dtype=int32)
@@ -353,27 +353,27 @@ The Size of the matrix is:  tf.Tensor(4, shape=(), dtype=int32)
 
 假设我们有一个张量，我们想将其数据类型从 `int32` 更改为 `float32`，可能是为了支持某些需要小数的操作。幸运的是，在 TensorFlow 中，有办法解决这个问题。记住，我们已经确定整数的默认数据类型是 `int32`，而小数的默认数据类型是 `float32`。让我们返回 Google Colab，看看如何在 TensorFlow 中实现这一点：
 
-```
+```py
 a=tf.constant([1,2,3,4,5])
 a
 ```
 
 我们生成了一个整数向量，输出如下：
 
-```
+```py
 <tf.Tensor: shape=(5,), dtype=int32, numpy=array([1, 2, 3, 4, 5], dtype=int32)>
 ```
 
 我们可以看到数据类型是 `int32`。让我们继续进行数据类型操作，将数据类型更改为 `float32`。我们使用 `tf.cast()` 函数，并将数据类型参数设置为 `float32`。让我们在笔记本中实现这一点：
 
-```
+```py
 a =tf.cast(a,dtype=tf.float32)
 a
 ```
 
 操作返回的数据类型为 `float32`。我们还可以看到 `numpy` 数组现在是一个小数数组，不再是整数数组：
 
-```
+```py
 <tf.Tensor: shape=(5,), dtype=float32,
     numpy=array([1., 2., 3., 4., 5.], dtype=float32)>
 ```
@@ -384,7 +384,7 @@ a
 
 让我们从创建一个 2 x 2 的矩阵开始，接下来我们将用它来演示索引操作：
 
-```
+```py
 # Create a 2 x 2 matrix
 a = tf.constant([[1, 2],[3, 4]], dtype=float32)
 a
@@ -392,35 +392,35 @@ a
 
 这是返回的输出：
 
-```
+```py
 <tf.Tensor: shape=(2, 2), dtype=float32, 
     numpy=array([[1., 2.], [3., 4.]], dtype=float32)>
 ```
 
 如果我们想从矩阵中提取一些信息呢？假设我们想提取`[1,2]`。我们该如何做呢？别担心：我们可以应用索引来获取所需的信息。让我们在我们的笔记本中实现它：
 
-```
+```py
 # Indexing
 a[0]
 ```
 
 这里是返回的输出：
 
-```
+```py
 <tf.Tensor: shape=(2,), dtype=float32,
     numpy=array([1., 2.], dtype=float32)>
 ```
 
 如果我们想从矩阵中提取值`2`怎么办？让我们看看我们该如何做到：
 
-```
+```py
 # Indexing
 a[0][1]
 ```
 
 这里是返回的输出：
 
-```
+```py
 <tf.Tensor: shape=(), dtype=float32, numpy=2.0>
 ```
 
@@ -432,14 +432,14 @@ a[0][1]
 
 接下来，让我们看另一个索引的例子——这次，使用`tf.slice()`函数从张量中提取信息：
 
-```
+```py
 c = tf.constant([0, 1, 2, 3, 4, 5])
 print(tf.slice(c,begin=[2],size=[4]))
 ```
 
 我们生成一个张量`c`。然后，使用`tf.slice`函数从索引`2`开始切割向量，切割的大小或数量是`4`。当我们运行代码时，得到以下结果：
 
-```
+```py
 tf.Tensor([2 3 4 5], shape=(4,), dtype=int32)
 ```
 
@@ -459,20 +459,20 @@ tf.Tensor([2 3 4 5], shape=(4,), dtype=int32)
 
 我们可以使用以下代码来扩展维度：
 
-```
+```py
 tf.expand_dims(a,axis=0)
 ```
 
 我们使用`expand_dims()`函数，代码将`a`张量的维度沿着`0`轴进行扩展。当你想为张量添加一个新维度时，这非常有用——例如，当你想将一个二维张量转换为三维张量时（这种技术将在*第七章*，*卷积神经网络的图像分类*中应用，我们将处理一个有趣的经典图像数据集）：
 
-```
+```py
 <tf.Tensor: shape=(1, 2, 2), dtype=float32,
     numpy= array([[[1., 2.], [3., 4.]]], dtype=float32)>
 ```
 
 如果你查看我们的输出张量的形状，现在可以看到它在`0`轴上有一个额外的维度`1`。接下来，让我们通过检查在不同轴上扩展张量的形状来更好地理解这一过程：
 
-```
+```py
 (tf.expand_dims(a,axis=0)).shape,
 (tf.expand_dims(a,axis=1)).shape,
 (tf.expand_dims(a,axis=-1)).shape
@@ -480,7 +480,7 @@ tf.expand_dims(a,axis=0)
 
 当我们运行代码查看维度如何在`0`、`1`和`-1`轴上扩展时，我们得到以下结果：
 
-```
+```py
 (TensorShape([1, 2, 2]), TensorShape([2, 1, 2]),
     TensorShape([2, 2, 1]))
 ```
@@ -491,7 +491,7 @@ tf.expand_dims(a,axis=0)
 
 让我们继续前行，了解如何聚合张量。我们首先通过导入`random`库生成一些随机数。然后，我们生成一个从 1 到 100 的范围，并在该范围内生成 50 个随机数。接下来，我们将使用这些随机数来生成一个张量：
 
-```
+```py
 import random
 random.seed(22)
 a = random.sample(range(1, 100), 50)
@@ -500,7 +500,7 @@ a = tf.constant(a)
 
 当我们打印`a`时，得到以下数字：
 
-```
+```py
 <tf.Tensor: shape=(50,), dtype=int32, numpy=array(
     [16, 83,  6, 74, 19, 80, 95, 68, 66, 86, 54, 12, 91,
     13, 23,  9, 82, 84, 30, 62, 89, 33, 78,  2, 97, 21,
@@ -511,7 +511,7 @@ a = tf.constant(a)
 
 假设我们想找出张量中的最小值。手动浏览所有数字，5 秒钟内告诉我最小值是什么，可能会有些困难。如果我们的值的范围达到千或百万，手动检查将占用我们所有的时间。幸运的是，在 TensorFlow 中，我们不仅可以一次找到最小值，还可以找到最大值、所有值的和、均值等更多信息。让我们一起在 Colab 笔记本中做这个：
 
-```
+```py
 print("The smallest number in our vector is : ",
     tf.reduce_min(a).numpy())
 print(" ")
@@ -527,7 +527,7 @@ print("The mean of our vector is: ",
 
 我们使用这些函数可以一键提取所需的细节，生成如下结果：
 
-```
+```py
 The smallest number in our vector is :  1
 The largest number in our vector is:  99
 The sum of our vector is :  2273
@@ -536,7 +536,7 @@ The mean of our vector is:  45
 
 现在我们已经使用 TensorFlow 提取了一些重要的细节，知道了我们向量中的最小值是 1，最大值是 99，向量的和是 2273，均值是 45。不错吧？如果我们想找出向量中最小值和最大值所在的位置，该怎么办呢？
 
-```
+```py
 print("The position that holds the lowest value is : ",
     tf.argmin(a).numpy())
 print(" ")
@@ -546,20 +546,20 @@ print("The position that holds the highest value is: ",
 
 我们使用`tf.argmin`和`tf.argmax`函数分别生成最小值的索引和最大值的索引。输出结果如下：
 
-```
+```py
 The position that holds the lowest value is :  14
 The position that holds the highest value is:  44
 ```
 
 从`print`语句的结果中，我们可以看出最小值位于索引`14`，最大值位于索引`44`。如果我们手动检查数组，就会发现这是正确的。此外，我们还可以将索引位置传入数组，获取最小值和最大值：
 
-```
+```py
 a[14].numpy(), a[44].numpy()
 ```
 
 如果我们运行代码，得到如下结果：
 
-```
+```py
 (1,99)
 ```
 
@@ -569,7 +569,7 @@ a[14].numpy(), a[44].numpy()
 
 让我们看看如何转置和重塑一个矩阵。首先，我们生成一个 3 x 4 的矩阵：
 
-```
+```py
 # Create a 3 x 4 matrix
 a = tf.constant([[1,2,3,4], [5,6,7,8], [9,10,11,12]])
 a
@@ -577,7 +577,7 @@ a
 
 当我们运行代码时，得到如下结果：
 
-```
+```py
 <tf.Tensor: shape=(3, 4), dtype=int32, 
     numpy=array([[ 1,  2,  3,  4],
         [ 5,  6,  7,  8],
@@ -586,13 +586,13 @@ a
 
 我们可以使用`tf.reshape`函数重新调整矩阵的形状。由于矩阵中有 12 个值，我们可以将其调整为 2 x 2 x 3 的形状。如果我们相乘这些值，我们将得到 12：
 
-```
+```py
 tf.reshape(a, shape=(2, 2, 3))
 ```
 
 当我们运行代码时，我们得到以下输出：
 
-```
+```py
 <tf.Tensor: shape=(2, 2, 3), dtype=int32, 
     numpy=array([[[ 1,  2,  3], [ 4,  5,  6]],
         [[ 7,  8,  9], [10, 11, 12]]], dtype=int32)>
@@ -600,13 +600,13 @@ tf.reshape(a, shape=(2, 2, 3))
 
 我们还可以通过改变`tf.reshape`函数中的`shape`参数来重新调整矩阵的形状为 4 x 3 矩阵或 1 x 2 x 6 矩阵。你也可以尝试一些其他的形状调整可能性。接下来，让我们看一下如何使用`tf.transpose()`转置这个矩阵：
 
-```
+```py
 tf.transpose(a)
 ```
 
 当我们运行代码时，我们得到以下输出：
 
-```
+```py
 <tf.Tensor: shape=(4, 3), dtype=int32, 
     numpy=array([[ 1,  5,  9],
         [ 2,  6, 10],
@@ -620,21 +620,21 @@ tf.transpose(a)
 
 让我们从在 Colab 中创建一个简单的向量开始：
 
-```
+```py
 a= tf.constant([1,2,3])
 a
 ```
 
 让我们显示我们的输出，以便看到当我们对向量执行逐元素操作时会发生什么：
 
-```
+```py
 <tf.Tensor: shape=(3,), dtype=int32, numpy=array([1, 2, 3],
     dtype=int32)>
 ```
 
 这是我们的初始输出。现在，让我们尝试一些逐元素操作，看看接下来会发生什么：
 
-```
+```py
 #Addition operation
 print((a+4).numpy())
 print(" ")
@@ -651,7 +651,7 @@ print(" ")
 
 我们可以看到加法、减法、乘法和除法操作的结果。这些操作是在我们向量中的每个元素上执行的：
 
-```
+```py
 [5 6 7]
 [-3 -2 -1]
 [ 4  8 12]
@@ -664,7 +664,7 @@ print(" ")
 
 让我们来看一下矩阵乘法，并了解它在 TensorFlow 中的工作原理。我们返回到 Colab 中的笔记本，生成矩阵`a`，它是一个 3 x 2 的矩阵，以及矩阵`b`，它是一个 2 x 3 的矩阵。我们将使用这些矩阵进行矩阵操作：
 
-```
+```py
 # 3 X 2 MATRIX
 a = tf.constant([[1, 2], [3, 4], [5, 6]])
 #2 X 3 MATRIX
@@ -673,13 +673,13 @@ b = tf.constant([[7,8,9], [10,11,12]])
 
 现在，让我们使用`tf.matmul`在我们的笔记本中乘以矩阵`a`和矩阵`b`，看看 TensorFlow 中的结果会是什么样子：
 
-```
+```py
 tf.matmul(a,b)
 ```
 
 我们在 TensorFlow 中使用`tf.matmul`函数进行矩阵乘法。在这里，我们可以看到这个操作的输出：
 
-```
+```py
 <tf.Tensor: shape=(3, 3), dtype=int32,
 numpy= array([[ 27,  30,  33],[ 61,  68,  75],
     [ 95, 106, 117]], dtype=int32)>
@@ -693,13 +693,13 @@ numpy= array([[ 27,  30,  33],[ 61,  68,  75],
 
 现在我们可以看到为什么不能将矩阵`a`与自身相乘，因为第一个矩阵的行数必须等于第二个矩阵的列数。然而，如果我们希望将`a`与自身相乘，我们可以通过转置或重新调整矩阵`a`的形状来满足矩阵乘法的要求。让我们来试一下：
 
-```
+```py
 tf.matmul(a,tf.transpose(a, perm=[1,0]))
 ```
 
 当我们转置矩阵`a`时，我们根据`perm`参数交换矩阵的行和列，这里我们将其设置为`[1,0]`。当我们使用`a`和`a`的转置执行`matmul`函数时，我们得到一个符合矩阵乘法规则的新矩阵：
 
-```
+```py
 <tf.Tensor: shape=(3, 3), dtype=int32,
     numpy= array([[ 5, 11, 17], [11, 25, 39],
     [17, 39, 61]], dtype=int32)>
@@ -721,23 +721,23 @@ tf.matmul(a,tf.transpose(a, perm=[1,0]))
 
 1.  让我们通过打开名为`hello world`的配套笔记本一起构建这个。首先，我们导入 TensorFlow。在*第一章*《机器学习简介》中，我们讨论了特征和标签。在这里，我们只有一个特征——学习小时数——而我们的标签或目标变量是测试成绩。通过强大的 Keras API，只需几行代码，我们就能构建并训练一个模型来进行预测。让我们开始吧：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
-    ```
+    ```py
     from tensorflow import keras
     ```
 
-    ```
+    ```py
     from tensorflow.keras import Sequential
     ```
 
-    ```
+    ```py
     from tensorflow.keras.layers import Dense
     ```
 
-    ```
+    ```py
     print(tf.__version__)
     ```
 
@@ -745,15 +745,15 @@ tf.matmul(a,tf.transpose(a, perm=[1,0]))
 
 1.  接下来，我们导入`numpy`用于执行数学运算，导入`matplotlib`用于数据可视化：
 
-    ```
+    ```py
     #import additional libraries
     ```
 
-    ```
+    ```py
     import numpy as np
     ```
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     ```
 
@@ -761,41 +761,41 @@ tf.matmul(a,tf.transpose(a, perm=[1,0]))
 
 1.  我们设置了`X`和`y`的值列表，分别代表学习小时数和测试成绩：
 
-    ```
+    ```py
     # Hours of study
     ```
 
-    ```
+    ```py
     X = [20,23,25,28,30,37,40,43,46]
     ```
 
-    ```
+    ```py
     # Test Scores
     ```
 
-    ```
+    ```py
     y = [45, 51, 55, 61, 65, 79, 85, 91, 97]
     ```
 
 1.  为了更好地了解数据分布，我们使用`matplotlib`来可视化数据：
 
-    ```
+    ```py
     plt.plot(X, y)
     ```
 
-    ```
+    ```py
     plt.title("Exam Performance graph")
     ```
 
-    ```
+    ```py
     plt.xlabel('Hours of Study')
     ```
 
-    ```
+    ```py
     plt.ylabel('Test Score')
     ```
 
-    ```
+    ```py
     plt.show()
     ```
 
@@ -809,27 +809,27 @@ tf.matmul(a,tf.transpose(a, perm=[1,0]))
 
 1.  在不对这个理论进行辩论的前提下，让我们使用 Keras API 来构建一个简单的模型：
 
-    ```
+    ```py
     study_model = Sequential([Dense(units=1,
     ```
 
-    ```
+    ```py
         input_shape=[1])])
     ```
 
-    ```
+    ```py
     study_model.compile(optimizer='adam',
     ```
 
-    ```
+    ```py
         loss='mean_squared_error')
     ```
 
-    ```
+    ```py
     X= np.array(X, dtype=int)
     ```
 
-    ```
+    ```py
     y= np.array(y, dtype=int)
     ```
 
@@ -837,11 +837,11 @@ tf.matmul(a,tf.transpose(a, perm=[1,0]))
 
 1.  接下来，我们拟合模型并运行 2,500 个迭代周期：
 
-    ```
+    ```py
     #fitting the model
     ```
 
-    ```
+    ```py
     history= study_model.fit(X, y, epochs=2500)
     ```
 
@@ -853,7 +853,7 @@ tf.matmul(a,tf.transpose(a, perm=[1,0]))
 
 就这样，我们训练了一个可以用来预测学生在学期结束时表现的模型。这是一个非常基础的任务，感觉就像用锤子打苍蝇。不过，让我们来试试看我们的模型：
 
-```
+```py
 #Let us predict how well a student will perform based on their study time
 n=38 #Hours of study
 result =study_model.predict([n])[0][0] #Result
@@ -862,7 +862,7 @@ rounded_number = round(81.0729751586914, 2)
 
 如果我们运行这段代码，我们将生成一个学习了 38 小时的学生的结果。记住，我们的模型并没有在这个值上进行训练。那么，让我们看看我们的模型预测这个学生的分数：
 
-```
+```py
 print(f"If I study for {n} hours,
      I will get { rounded_number} marks as my grade.")
 If I study for 38 hours, I will get 81.07 marks as my grade.
@@ -876,7 +876,7 @@ If I study for 38 hours, I will get 81.07 marks as my grade.
 
 当你在本书中完成练习或走过代码，或者在任何其他资源中，甚至是你自己的个人项目中，你会迅速意识到代码出错的频率，掌握如何解决这些错误将帮助你快速通过学习过程或构建项目时的难关。首先，当你遇到错误时，重要的是要检查错误信息是什么。接下来是理解错误信息的含义。让我们来看一些学生在实现 TensorFlow 基本操作时遇到的错误。让我们运行以下代码来生成一个新的向量：
 
-```
+```py
 tf.variable([1,2,3,4])
 ```
 

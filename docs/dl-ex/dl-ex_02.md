@@ -56,17 +56,17 @@
 
 那么，让我们看一下如何使用 pandas 来读取广告数据样本。首先，我们需要导入`pandas`：
 
-```
+```py
 import pandas as pd
 ```
 
 接下来，我们可以使用`pandas.read_csv`方法将数据加载到一个易于使用的 pandas 数据结构——**DataFrame**中。关于`pandas.read_csv`及其参数的更多信息，可以参考 pandas 的文档：[`pandas.pydata.org/pandas-docs/stable/generated/pandas.read_csv.html`](https://pandas.pydata.org/pandas-docs/stable/generated/pandas.read_csv.html)。
 
-```
+```py
 # read advertising data samples into a DataFrame
 ```
 
-```
+```py
 advertising_data = pd.read_csv('http://www-bcf.usc.edu/~gareth/ISL/Advertising.csv', index_col=0)
 ```
 
@@ -76,7 +76,7 @@ advertising_data = pd.read_csv('http://www-bcf.usc.edu/~gareth/ISL/Advertising.c
 
 现在，让我们来看看广告数据的前五行：
 
-```
+```py
 # DataFrame.head method shows the first n rows of the data where the   
 # default value of n is 5, DataFrame.head(n=5)
 advertising_data.head()
@@ -110,7 +110,7 @@ advertising_data.head()
 
 我们还可以使用`DataFrame`方法 shape 来了解数据中的样本/观测值数量：
 
-```
+```py
 # print the shape of the DataFrame
 advertising_data.shape
 Output:
@@ -127,7 +127,7 @@ Output:
 
 让我们导入可视化库 Matplotlib：
 
-```
+```py
 import matplotlib.pyplot as plt
 
 # The next line will allow us to make inline plots that could appear directly in the notebook
@@ -137,7 +137,7 @@ import matplotlib.pyplot as plt
 
 现在，让我们使用散点图来可视化广告数据特征与响应变量之间的关系：
 
-```
+```py
 fig, axs = plt.subplots(1, 3, sharey=True)
 
 # Adding the scatterplots to the grid 
@@ -204,7 +204,7 @@ advertising_data.plot(kind='scatter', x='newspaper', y='sales', ax=axs[2])
 
 现在，让我们继续使用**Statsmodels**来学习这些系数：
 
-```
+```py
 # To use the formula notation below, we need to import the module like the following
 import statsmodels.formula.api as smf
 # create a fitted model in one line of code(which will represent the least squares line)
@@ -215,7 +215,7 @@ lm.params
 
 输出：
 
-```
+```py
 Intercept    7.032594
 TV           0.047537
 dtype: float64
@@ -239,20 +239,20 @@ dtype: float64
 
 *y = 7.032594 + 0.047537 x 50*
 
-```
+```py
 # manually calculating the increase in the sales based on $50k
 7.032594 + 0.047537*50000
 ```
 
 输出：
 
-```
+```py
 9,409.444
 ```
 
 我们还可以使用 Statsmodels 来为我们做预测。首先，我们需要将电视广告值以 pandas DataFrame 的形式提供，因为 Statsmodels 接口期望如此：
 
-```
+```py
 # creating a Pandas DataFrame to match Statsmodels interface expectations
 new_TVAdSpending = pd.DataFrame({'TV': [50000]})
 new_TVAdSpending.head()
@@ -266,14 +266,14 @@ new_TVAdSpending.head()
 
 现在，我们可以使用预测函数来预测销售值：
 
-```
+```py
 # use the model to make predictions on a new value
 preds = lm.predict(new_TVAdSpending)
 ```
 
 输出：
 
-```
+```py
 array([ 9.40942557])
 ```
 
@@ -281,7 +281,7 @@ array([ 9.40942557])
 
 那么，让我们取电视广告特征的最小值和最大值：
 
-```
+```py
 # create a DataFrame with the minimum and maximum values of TV
 X_min_max = pd.DataFrame({'TV': [advertising_data.TV.min(), advertising_data.TV.max()]})
 X_min_max.head()
@@ -296,7 +296,7 @@ X_min_max.head()
 
 让我们为这两个值获取相应的预测：
 
-```
+```py
 # predictions for X min and max values
 predictions = lm.predict(X_min_max)
 predictions
@@ -304,13 +304,13 @@ predictions
 
 输出：
 
-```
+```py
 array([  7.0658692,  21.12245377])
 ```
 
 现在，让我们绘制实际数据，并用最小二乘法拟合一条直线：
 
-```
+```py
 # plotting the acutal observed data
 advertising_data.plot(kind='scatter', x='TV', y='sales')
 #plotting the least squares line
@@ -409,7 +409,7 @@ plt.plot(new_TVAdSpending, preds, c='red', linewidth=2)
 
 首先，我们导入实现所需的必要包：
 
-```
+```py
 import matplotlib.pyplot as plt
  %matplotlib inline
 
@@ -429,13 +429,13 @@ stats.chisqprob = lambda chisq, df: stats.chi2.sf(chisq, df)
 
 让我们使用 Pandas 读取泰坦尼克号乘客和船员数据：
 
-```
+```py
 titanic_data = pd.read_csv("data/titanic_train.csv")
 ```
 
 接下来，让我们检查数据集的维度，看看我们有多少个样本，以及描述数据集的解释性特征有多少：
 
-```
+```py
 titanic_data.shape
 
  Output:
@@ -444,7 +444,7 @@ titanic_data.shape
 
 所以，我们一共有 891 个观察样本、数据样本或乘客/船员记录，以及 12 个解释性特征来描述这些记录：
 
-```
+```py
 list(titanic_data)
 
  Output:
@@ -464,7 +464,7 @@ list(titanic_data)
 
 让我们看看一些样本/观察数据：
 
-```
+```py
 titanic_data[500:510]
 
 ```
@@ -483,7 +483,7 @@ titanic_data[500:510]
 
 使用以下代码删除数据框中`ticket`和`cabin`特征：
 
-```
+```py
 titanic_data = titanic_data.drop(['Ticket','Cabin'], axis=1)
 ```
 
@@ -491,7 +491,7 @@ titanic_data = titanic_data.drop(['Ticket','Cabin'], axis=1)
 
 使用以下代码删除所有剩余特征中的`NaN`值：
 
-```
+```py
 titanic_data = titanic_data.dropna()
 ```
 
@@ -499,7 +499,7 @@ titanic_data = titanic_data.dropna()
 
 让我们做一些数据可视化，看看某些特征的分布，并理解解释性特征之间的关系：
 
-```
+```py
 # declaring graph parameters
 fig = plt.figure(figsize=(18,6))
 alpha=alpha_scatterplot = 0.3
@@ -547,7 +547,7 @@ plt.title("Passengers per boarding location")
 
 首先，让我们绘制一个条形图，看看每个舱位（生还/死亡）中观察的数量：
 
-```
+```py
 plt.figure(figsize=(6,4))
 fig, ax = plt.subplots()
 titanic_data.Survived.value_counts().plot(kind='barh', color="blue", alpha=.65)
@@ -561,7 +561,7 @@ plt.title("Breakdown of survivals(0 = Died, 1 = Survived)")
 
 让我们通过性别划分前面的图表，进一步了解数据：
 
-```
+```py
 fig = plt.figure(figsize=(18,6))
 #Plotting gender based analysis for the survivals.
 male = titanic_data.Survived[titanic_data.Sex == 'male'].value_counts().sort_index()
@@ -594,7 +594,7 @@ ax2.set_ylim(-1, 2)
 
 为了使用逻辑回归，我们需要创建一个公式，告诉模型我们所提供的特征/输入类型：
 
-```
+```py
 # model formula
 # here the ~ sign is an = sign, and the features of our dataset
 # are written as a formula to predict survived. The C() lets our
@@ -624,7 +624,7 @@ Optimization terminated successfully.
 
 现在，让我们绘制模型的预测值与实际值，以及残差图，残差是目标变量的实际值与预测值之间的差异：
 
-```
+```py
 # Plot Predictions Vs Actual
 plt.figure(figsize=(18,4));
 plt.subplot(121, axisbg="#DBDBDB")

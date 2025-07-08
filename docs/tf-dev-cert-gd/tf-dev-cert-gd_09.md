@@ -72,65 +72,65 @@
 
 1.  和往常一样，我们首先加载我们项目所需的必要库：
 
-    ```
+    ```py
     #Import necessary libraries
     ```
 
-    ```
+    ```py
     import os
     ```
 
-    ```
+    ```py
     import pathlib
     ```
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     ```
 
-    ```
+    ```py
     import matplotlib.image as mpimg
     ```
 
-    ```
+    ```py
     import random
     ```
 
-    ```
+    ```py
     import numpy as np
     ```
 
-    ```
+    ```py
     from PIL import Image
     ```
 
-    ```
+    ```py
     import pandas as pd
     ```
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
-    ```
+    ```py
     from tensorflow import keras
     ```
 
-    ```
+    ```py
     from tensorflow.keras.preprocessing.image import ImageDataGenerator
     ```
 
-    ```
+    ```py
     from tensorflow.keras.callbacks import EarlyStopping
     ```
 
-    ```
+    ```py
     from tensorflow.keras import regularizer
     ```
 
 1.  接下来，让我们加载 X 射线数据集。为此，我们将使用 `wget` 命令从指定的 URL 下载文件：
 
-    ```
+    ```py
     !wget https://storage.googleapis.com/x_ray_dataset/dataset.zip
     ```
 
@@ -138,7 +138,7 @@
 
 1.  接下来，我们将通过运行以下代码来提取 `zip` 文件夹的内容：
 
-    ```
+    ```py
     !unzip dataset.zip
     ```
 
@@ -150,23 +150,23 @@
 
 1.  我们将使用以下代码块来提取子目录及其中文件的数量。我们在 *第八章**,* *处理过拟合* 中也看到了这段代码块：
 
-    ```
+    ```py
     root_dir = "/content/dataset"
     ```
 
-    ```
+    ```py
     for dirpath, dirnames, filenames in os.walk(root_dir):
     ```
 
-    ```
+    ```py
         print(f"Directory: {dirpath}")
     ```
 
-    ```
+    ```py
         print(f"Number of images: {len(filenames)}")
     ```
 
-    ```
+    ```py
         print()
     ```
 
@@ -174,11 +174,11 @@
 
 1.  接下来，我们将使用 `view_random_images` 函数从 `train` 目录显示一些随机图像及其形状：
 
-    ```
+    ```py
     view_random_images(
     ```
 
-    ```
+    ```py
         target_dir="/content/dataset/train",num_images=4)
     ```
 
@@ -190,79 +190,79 @@
 
 1.  我们将为训练数据和验证数据创建一个 `ImageDataGenerator` 类的实例。我们将添加 `rescale` 参数来重新调整图像的大小，确保所有像素值都在 0 到 1 之间。这样做是为了提高稳定性，并增强训练过程中的收敛性。生成的 `train_datagen` 和 `valid_datagen` 对象分别用于生成训练数据和验证数据的批次：
 
-    ```
+    ```py
     train_datagen = ImageDataGenerator(rescale=1./255)
     ```
 
-    ```
+    ```py
     valid_datagen = ImageDataGenerator(rescale=1./255)
     ```
 
 1.  接下来，我们设置 `train`、`validation` 和 `test` 目录。
 
-    ```
+    ```py
     # Set up the train and test directories
     ```
 
-    ```
+    ```py
     train_dir = "/content/dataset/train/"
     ```
 
-    ```
+    ```py
     val_dir = "/content/dataset/val"
     ```
 
-    ```
+    ```py
     test_dir = "/content/dataset/test"
     ```
 
 1.  我们使用`flow_from_directory()`方法从训练目录加载图像。`target_size`参数用于将所有图像调整为 224 x 224 像素。与我们在*第八章**，过拟合处理*中使用的代码相比，一个关键的不同是`class_mode`参数设置为`binary`，因为我们处理的是二分类问题（即正常和肺炎）：
 
-    ```
+    ```py
     train_data=train_datagen.flow_from_directory(
     ```
 
-    ```
+    ```py
         train_dir,target_size=(224,224),
     ```
 
-    ```
+    ```py
     # convert all images to be 224 x 224
     ```
 
-    ```
+    ```py
         class_mode="binary")
     ```
 
-    ```
+    ```py
     valid_data=valid_datagen.flow_from_directory(val_dir,
     ```
 
-    ```
+    ```py
         target_size=(224,224),
     ```
 
-    ```
+    ```py
         class_mode="binary",
     ```
 
-    ```
+    ```py
         shuffle=False)
     ```
 
-    ```
+    ```py
     test_data=valid_datagen.flow_from_directory(test_dir,
     ```
 
-    ```
+    ```py
         target_size=(224,224),
     ```
 
-    ```
+    ```py
         class_mode="binary",
     ```
 
-    ```
+    ```py
         shuffle=False)
     ```
 
@@ -272,7 +272,7 @@
 
 我们将从使用在*第八章**，过拟合处理*中应用的相同模型开始。为了避免重复，我们将专注于全连接层，在该层中，输出层有一个神经元，因为这是一个二分类任务。我们将与使用迁移学习的结果进行比较：
 
-```
+```py
     tf.keras.layers.Flatten(),
     tf.keras.layers.Dense(1050, activation="relu"),
     tf.keras.layers.Dense(1, activation="sigmoid")
@@ -295,7 +295,7 @@ history_1 = model_1.fit(train_data,epochs=20,
 
 训练在第 7 个周期结束，因为验证损失未能进一步下降：
 
-```
+```py
 Epoch 4/20
 163/163 [==============================] – 53s 324ms/step – loss: 0.0632 – accuracy: 0.9774 – val_loss: 0.0803 – val_accuracy: 1.0000
 Epoch 5/20
@@ -308,7 +308,7 @@ Epoch 7/20
 
 在第五个周期，模型达到了 100%的验证准确率，看起来很有希望。让我们评估一下模型：
 
-```
+```py
 model_1.evaluate(test_data)
 ```
 
@@ -318,7 +318,7 @@ model_1.evaluate(test_data)
 
 在本节中，我们将使用三种广泛应用的预训练 CNN 进行图像分类——VGG16、InceptionV3 和 MobileNet。我们将展示如何通过这些模型作为特征提取器应用迁移学习，接着添加一个全连接层进行标签分类。我们还将学习如何通过解冻部分层来微调预训练模型。在使用这些模型之前，我们需要导入它们。我们可以通过一行代码来实现：
 
-```
+```py
 from tensorflow.keras.applications import InceptionV3,
     MobileNet, VGG16, ResNet50
 ```
@@ -335,7 +335,7 @@ VGG16 是由牛津大学视觉几何组开发的 CNN 架构。它是在 ImageNet
 
 让我们开始从 Keras 加载 VGG16。我们想加载该模型并使用从 ImageNet 数据集获得的预训练权重。为此，我们将`weights`参数设置为`imagenet`；我们还将`include_top`参数设置为`false`。这样做是因为我们想将该模型用作特征提取器。通过这种方式，我们可以添加自定义的全连接层用于分类。我们将输入大小设置为(224,224,3)，因为这是 VGG16 期望的输入图像大小：
 
-```
+```py
 # Instantiate the VGG16 model
 vgg16 = VGG16(weights='imagenet', include_top=False,
     input_shape=(224, 224, 3))
@@ -343,7 +343,7 @@ vgg16 = VGG16(weights='imagenet', include_top=False,
 
 下一步使我们能够冻结模型的权重，因为我们想要使用 VGG16 作为特征提取器。当我们冻结所有层时，这使它们变为不可训练，这意味着它们的权重在训练过程中不会更新：
 
-```
+```py
 # Freeze all layers in the VGG16 model
 for layer in vgg16.layers:
     layer.trainable = False
@@ -351,7 +351,7 @@ for layer in vgg16.layers:
 
 下一个代码块创建了一个新的顺序模型，使用 VGG 作为其顶层，然后我们添加一个由 1,024 个神经元的密集层、一个 Dropout 层和一个输出层（包含一个神经元）组成的全连接层，并将激活函数设置为 sigmoid，以进行二分类：
 
-```
+```py
 # Create a new model on top of VGG16
 model_4 = tf.keras.models.Sequential()
 model_4.add(vgg16)
@@ -363,7 +363,7 @@ model_4.add(tf.keras.layers.Dense(1, activation='sigmoid'))
 
 我们编译并将模型拟合到数据上：
 
-```
+```py
 # Compile the model
 model_4.compile(optimizer='adam',
     loss='binary_crossentropy', metrics=['accuracy'])
@@ -380,7 +380,7 @@ history_4 = model_4.fit(train_data,
 
 在四个时期后，我们的模型停止了训练。它达到了 0.9810 的训练准确率，但在验证集上，我们得到了 0.875 的准确率：
 
-```
+```py
 Epoch 1/20
 163/163 [==============================] - 63s 360ms/step - loss: 0.2737 - accuracy: 0.9375 - val_loss: 0.2021 - val_accuracy: 0.8750
 Epoch 2/20
@@ -399,7 +399,7 @@ MobileNet 是由谷歌的工程师开发的轻量级 CNN 模型。该模型轻�
 
 为了将 MobileNet 作为特征提取器，步骤与我们刚才使用 VGG16 时类似；因此，让我们来看一下代码块。我们将加载模型，冻结层，并像之前一样添加一个全连接层：
 
-```
+```py
 # Instantiate the MobileNet model
 mobilenet = MobileNet(weights='imagenet',
     include_top=False, input_shape=(224, 224, 3))
@@ -417,7 +417,7 @@ model_10.add(tf.keras.layers.Dense(1,activation='sigmoid'))
 
 接下来，我们编译并拟合模型：
 
-```
+```py
 # Compile the model
 model_10.compile(optimizer='adam',
     loss='binary_crossentropy', metrics=['accuracy'])
@@ -433,7 +433,7 @@ history_10 = model_10.fit(train_data,
 
 仅经过四个周期，模型达到了 87.50%的验证准确率：
 
-```
+```py
 Epoch 1/20
 163/163 [==============================] - 55s 321ms/step - loss: 3.1179 - accuracy: 0.9402 - val_loss: 1.8479 - val_accuracy: 0.8750
 Epoch 2/20
@@ -452,7 +452,7 @@ InceptionV3 是 Google 开发的另一种 CNN 架构。它结合了 1x1 和 3x3 
 
 首先，我们将加载 InceptionV3 模型。我们设置`include_top=False`以去除 InceptionV3 的分类层，并使用来自 ImageNet 的权重。我们通过将这些层的`trainable`设置为`true`来解冻最后 50 层。这使得我们能够在 X 光数据集上训练这些层：
 
-```
+```py
 # Load the InceptionV3 model
 inception = InceptionV3(weights='imagenet',
     include_top=False, input_shape=(224, 224, 3))
@@ -467,7 +467,7 @@ for layer in inception.layers[-50:]:
 
 我们将像之前那样创建、拟合和编译模型，并且新模型在第五个周期达到了 100%的验证准确率：
 
-```
+```py
 Epoch 5/10
 163/163 [==============================] - 120s 736ms/step - loss: 0.1168 - accuracy: 0.9584 - val_loss: 0.1150 - val_accuracy: 1.0000
 Epoch 6/10

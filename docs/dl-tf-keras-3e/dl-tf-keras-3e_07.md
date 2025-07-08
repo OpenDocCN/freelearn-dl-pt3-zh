@@ -40,7 +40,7 @@ PCA 将* n *维输入数据减少到* r *维输入数据，其中* r <n *。简�
 
 现在让我们在 TensorFlow 2.0 中实现 PCA。我们一定会使用 TensorFlow；此外，我们还需要 NumPy 来进行一些基础的矩阵计算，并使用 Matplotlib、Matplotlib 工具包以及 Seaborn 来进行绘图：
 
-```
+```py
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
@@ -50,13 +50,13 @@ import seaborn as sns
 
 接下来，我们加载 MNIST 数据集。由于我们使用 PCA 进行降维，因此不需要测试数据集或标签；然而，我们加载标签是为了在降维后验证 PCA 的效果。PCA 应该将相似的数据点聚集在一个簇中；因此，如果我们看到使用 PCA 形成的簇与我们的标签相似，那么这就表明我们的 PCA 有效：
 
-```
+```py
 ((x_train, y_train), (_, _)) = tf.keras.datasets.mnist.load_data() 
 ```
 
 在进行 PCA 之前，我们需要预处理数据。我们首先对数据进行归一化，使其值介于 0 和 1 之间，然后将图像从 28 × 28 矩阵重塑为一个 784 维的向量，最后通过减去均值来居中数据：
 
-```
+```py
 x_train = x_train / 255.
 x_train = x_train.astype(np.float32)
 x_train = np.reshape(x_train, (x_train.shape[0], 784))
@@ -66,7 +66,7 @@ x_train = x_train - mean[:,None]
 
 现在我们的数据已经是正确的格式，我们利用 TensorFlow 强大的线性代数模块 (`linalg`) 来计算训练数据集的 SVD。TensorFlow 提供了 `svd()` 函数，定义在 `tf.linalg` 中，用来执行这个任务。然后，使用 `diag` 函数将 sigma 数组（`s`，即奇异值的列表）转换为对角矩阵：
 
-```
+```py
 s, u, v = tf.linalg.svd(x_train)
 s = tf.linalg.diag(s) 
 ```
@@ -75,26 +75,26 @@ s = tf.linalg.diag(s)
 
 现在可以通过乘以 *u* 和 *s* 的相应切片来生成降维后的数据。我们将数据从 784 维降至 3 维；我们可以选择降至任何小于 784 的维度，但这里我们选择了 3 维，以便稍后更容易可视化。我们使用 `tf.Tensor.getitem` 以 Pythonic 方式对矩阵进行切片：
 
-```
+```py
 k = 3
 pca = tf.matmul(u[:,0:k], s[0:k,0:k]) 
 ```
 
 以下代码进行原始数据和降维数据形状的比较：
 
-```
+```py
 print('original data shape',x_train.shape)
 print('reduced data shape', pca.shape) 
 ```
 
-```
+```py
 original data shape (60000, 784)
 reduced data shape (60000, 3) 
 ```
 
 最后，让我们在三维空间中绘制数据点：
 
-```
+```py
 Set = sns.color_palette("Set2", 10)
 color_mapping = {key:value for (key,value) in enumerate(Set)}
 colors = list(map(lambda x: color_mapping[x], y_train))
@@ -149,7 +149,7 @@ K-means 算法按以下方式工作：
 
 为了演示 TensorFlow 中的 K-means，我们将在以下代码中使用随机生成的数据。我们生成的数据将包含 200 个样本，我们将其分成三个簇。首先导入所需的所有模块，定义变量，确定样本点的数量（`points_n`）、要形成的簇的数量（`clusters_n`）以及我们将进行的迭代次数（`iteration_n`）。我们还设置随机数种子以确保工作可复现：
 
-```
+```py
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
@@ -163,14 +163,14 @@ tf.random.set_seed(seed)
 
 现在我们随机生成数据，并从中随机选择三个质心：
 
-```
+```py
 points = np.random.uniform(0, 10, (points_n, 2))
 centroids = tf.slice(tf.random.shuffle(points), [0, 0], [clusters_n, -1]) 
 ```
 
 现在让我们绘制这些点：
 
-```
+```py
 plt.scatter(points[:, 0], points[:, 1], s=50, alpha=0.5)
 plt.plot(centroids[:, 0], centroids[:, 1], 'kx', markersize=15)
 plt.show() 
@@ -184,7 +184,7 @@ plt.show()
 
 我们定义了函数 `closest_centroids()`，将每个点分配给离其最近的质心：
 
-```
+```py
 def closest_centroids(points, centroids):
     distances = tf.reduce_sum(tf.square(tf.subtract(points, centroids[:,None])), 2)
     assignments = tf.argmin(distances, 0)
@@ -193,14 +193,14 @@ def closest_centroids(points, centroids):
 
 我们创建了另一个函数 `move_centroids()`。它重新计算质心，使得平方距离的总和减少：
 
-```
+```py
 def move_centroids(points, closest, centroids):
     return np.array([points[closest==k].mean(axis=0) for k in range(centroids.shape[0])]) 
 ```
 
 现在我们迭代调用这两个函数 100 次。我们选择的迭代次数是任意的；你可以增加或减少迭代次数来观察效果：
 
-```
+```py
 for step in range(iteration_n):
     closest = closest_centroids(points, centroids)
     centroids = move_centroids(points, closest, centroids) 
@@ -208,7 +208,7 @@ for step in range(iteration_n):
 
 现在让我们可视化质心在 100 次迭代后的变化：
 
-```
+```py
 plt.scatter(points[:, 0], points[:, 1], c=closest, s=50, alpha=0.5)
 plt.plot(centroids[:, 0], centroids[:, 1], 'kx', markersize=15)
 plt.show() 
@@ -224,7 +224,7 @@ plt.show()
 
 在上述代码中，我们决定将簇的数量限制为三个，但在大多数未标记数据的情况下，通常无法确定存在多少个簇。我们可以通过肘部法则来确定最优的簇数。该方法的原理是，我们应该选择一个能减少**平方误差和**（**SSE**）距离的簇数。如果 *k* 是簇的数量，那么随着 *k* 的增加，SSE 会减少，当 *k* 等于数据点的数量时，SSE 为 0；此时，每个点都是自己的簇。显然，我们不希望将簇的数量设为这个值，因此当我们绘制 SSE 与簇数之间的图表时，我们应该看到图表中出现一个拐点，就像手肘的形状，这也就是该方法得名——肘部法则。以下代码计算了数据的平方误差和：
 
-```
+```py
 def sse(points, centroids):
     sse1 = tf.reduce_sum(tf.square(tf.subtract(points, centroids[:,None])), 2).numpy()
     s = np.argmin(sse1, 0)
@@ -236,7 +236,7 @@ def sse(points, centroids):
 
 现在让我们使用肘部法则来寻找数据集的最优簇数。为此，我们将从一个簇开始，也就是所有点都属于同一个簇，然后按顺序增加簇的数量。在代码中，我们每次增加一个簇，最多为十一簇。对于每个簇的数量，我们使用上述代码来找到质心（因此找到簇），并计算 SSE：
 
-```
+```py
 w_sse = []
 for n in range(1, 11):
   centroids = tf.slice(tf.random.shuffle(points), [0, 0], [n, -1])
@@ -321,7 +321,7 @@ SOM 生成的输入空间特征图的一些有趣属性包括：
 
 SOM 的这些特性使其成为许多有趣应用的自然选择。这里，我们使用 SOM 将一系列给定的 R、G、B 像素值聚类到相应的颜色映射中。我们从导入模块开始：
 
-```
+```py
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt 
@@ -329,7 +329,7 @@ import matplotlib.pyplot as plt
 
 代码的主要部分是我们的类`WTU`。`__init__`函数初始化了 SOM 的各种超参数，包括我们 2D 格点的维度（`m, n`）、输入中的特征数量（`dim`）、邻域半径（`sigma`）、初始权重以及拓扑信息：
 
-```
+```py
 # Define the Winner Take All units
 class WTU(object):
   #_learned = False
@@ -365,7 +365,7 @@ class WTU(object):
 
 该类的最重要功能是`training()`函数，我们在其中使用之前讨论过的 Kohonen 算法来找到胜出单元，然后基于邻域函数更新权重：
 
-```
+```py
 def training(self,x, i):
     m = self._m
     n= self._n
@@ -403,7 +403,7 @@ distance_square, "float32"), tf.pow(_sigma_new, 2))))
 
 `fit()` 函数是一个辅助函数，它调用 `training()` 函数并存储质心网格，以便于后续检索：
 
-```
+```py
 def fit(self, X):
     """
     Function to carry out training
@@ -423,7 +423,7 @@ def fit(self, X):
 
 然后有一些更多的辅助函数来找到胜者并生成一个二维神经元格，还有一个将输入向量映射到二维格中相应神经元的函数：
 
-```
+```py
 def winner(self, x):
     idx = self.WTU_idx,self.WTU_loc
     return idx
@@ -459,7 +459,7 @@ def map_vects(self, X):
 
 我们还需要对输入数据进行归一化处理，因此我们创建了一个函数来实现这一操作：
 
-```
+```py
 def normalize(df):
     result = df.copy()
     for feature_name in df.columns:
@@ -471,7 +471,7 @@ def normalize(df):
 
 让我们读取数据。数据包含不同颜色的红色、绿色和蓝色通道值。让我们对它们进行归一化处理：
 
-```
+```py
 ## Reading input data from file
 import pandas as pd
 df = pd.read_csv('colors.csv')  # The last column of data file is a label
@@ -485,14 +485,14 @@ color_names = name
 
 让我们创建我们的自组织映射（SOM）并进行拟合：
 
-```
+```py
 som = WTU(30, 30, n_dim, 400, sigma=10.0)
 som.fit(colors) 
 ```
 
 拟合函数运行稍微长一些，因为我们的代码并没有针对性能优化，而是为了说明概念。现在，让我们看看训练模型的结果。让我们运行以下代码：
 
-```
+```py
 # Get output grid
 image_grid = som.get_centroids()
 # Map colours to their closest neurons
@@ -549,7 +549,7 @@ RBM 可以用于降维、特征提取和协同过滤。RBM 的训练可以分为
 
 让我们在 TensorFlow 中构建一个 RBM。这个 RBM 将被设计用来重建手写数字。这是你学习的第一个生成模型；在接下来的章节中，我们还会学习一些其他的生成模型。我们导入 TensorFlow、NumPy 和 Matplotlib 库：
 
-```
+```py
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt 
@@ -557,7 +557,7 @@ import matplotlib.pyplot as plt
 
 我们定义了一个类 `RBM`。该类的 `__init_()` 函数初始化了可见层（`input_size`）和隐藏层（`output_size`）中的神经元数量。该函数初始化了隐藏层和可见层的权重和偏置。在下面的代码中，我们将它们初始化为零。你也可以尝试使用随机初始化：
 
-```
+```py
 #Class that defines the behavior of the RBM
 class RBM(object):
 
@@ -580,7 +580,7 @@ class RBM(object):
 
 我们定义了前向和后向传播的函数：
 
-```
+```py
  # Forward Pass
     def prob_h_given_v(self, visible, w, hb):
         # Sigmoid 
@@ -592,7 +592,7 @@ class RBM(object):
 
 我们创建一个函数来生成随机二进制值。这是因为隐藏单元和可见单元的更新是通过随机概率进行的，具体取决于每个单元的输入（对于隐藏层是每个单元的输入，而对于可见层是自上而下的输入）：
 
-```
+```py
  # Generate the sample probability
     def sample_prob(self, probs):
         return tf.nn.relu(tf.sign(probs - tf.random.uniform(tf.shape(probs)))) 
@@ -600,7 +600,7 @@ class RBM(object):
 
 我们需要一些函数来重建输入：
 
-```
+```py
 def rbm_reconstruct(self,X):
     h = tf.nn.sigmoid(tf.matmul(X, self.w) + self.hb)
     reconstruct = tf.nn.sigmoid(tf.matmul(h, tf.transpose(self.w)) + self.vb)
@@ -609,7 +609,7 @@ def rbm_reconstruct(self,X):
 
 为了训练创建的 RBM，我们定义了 `train()` 函数。该函数计算对比散度的正负梯度项，并使用权重更新公式来更新权重和偏置：
 
-```
+```py
 # Training method for the model
 def train(self, X, epochs=10):
 
@@ -644,7 +644,7 @@ def train(self, X, epochs=10):
 
 现在我们的类已经准备好，我们实例化一个 `RBM` 对象，并在 MNIST 数据集上对其进行训练：
 
-```
+```py
 (train_data, _), (test_data, _) =  tf.keras.datasets.mnist.load_data()
 train_data = train_data/np.float32(255)
 train_data = np.reshape(train_data, (train_data.shape[0], 784))
@@ -658,7 +658,7 @@ err = rbm.train(train_data,50)
 
 让我们绘制学习曲线：
 
-```
+```py
 plt.plot(err)
 plt.xlabel('epochs')
 plt.ylabel('cost') 
@@ -672,7 +672,7 @@ plt.ylabel('cost')
 
 现在，我们展示了用于可视化重建图像的代码：
 
-```
+```py
 out = rbm.rbm_reconstruct(test_data)
 # Plotting original and reconstructed images
 row, col = 2, 8
@@ -701,7 +701,7 @@ for fig, row in zip([test_data,out], axarr):
 
 让我们尝试堆叠我们的`RBM`类。为了构建 DBN，我们需要在`RBM`类中定义一个函数；一个 RBM 的隐藏单元的输出需要传递给下一个 RBM：
 
-```
+```py
  #Create expected output for our DBN
     def rbm_output(self, X):
         out = tf.nn.sigmoid(tf.matmul(X, self.w) + self.hb)
@@ -710,7 +710,7 @@ for fig, row in zip([test_data,out], axarr):
 
 现在我们可以直接使用`RBM`类来创建堆叠的 RBM 结构。在以下代码中，我们创建一个 RBM 堆叠：第一个 RBM 将有 500 个隐藏单元，第二个 RBM 有 200 个隐藏单元，第三个 RBM 有 50 个隐藏单元：
 
-```
+```py
 RBM_hidden_sizes = [500, 200 , 50 ] #create 2 layers of RBM with size 400 and 100
 #Since we are training, set input as training data
 inpX = train_data
@@ -725,7 +725,7 @@ for i, size in enumerate(RBM_hidden_sizes):
     input_size = size 
 ```
 
-```
+```py
 ---------------------------------------------------------------------
 RBM:  0   784 -> 500
 RBM:  1   500 -> 200
@@ -734,7 +734,7 @@ RBM:  2   200 -> 50
 
 对于第一个 RBM，MNIST 数据是输入。第一个 RBM 的输出被作为输入传递给第二个 RBM，依此类推，直到通过连续的 RBM 层：
 
-```
+```py
 #For each RBM in our list
 for rbm in rbm_list:
     print ('Next RBM:')

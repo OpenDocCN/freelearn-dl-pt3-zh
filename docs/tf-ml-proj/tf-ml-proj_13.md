@@ -146,7 +146,7 @@ RNN 的典型结构如下：
 
 1.  使用`load_data`函数加载保存的文本数据以进行预处理：
 
-```
+```py
  def load_data():
  """
  Loading Data
@@ -160,7 +160,7 @@ return data
 
 1.  实现`define_tokens`，如本章*数据预处理*部分所定义。这将帮助我们创建一个关键字及其相应 tokens 的字典：
 
-```
+```py
  def define_tokens():
  """
  Generate a dict to turn punctuation into a token. Note that Sym before each text denotes Symbol
@@ -186,7 +186,7 @@ return data
 
 1.  使用`Vocab_to_int`和`int_to_vocab`字典帮助将单词映射到索引/ID。我们这样做是因为神经网络不接受文本作为输入：
 
-```
+```py
  def create_map(input_text):
  """
  Map words in vocab to int and vice versa for easy lookup
@@ -201,7 +201,7 @@ return data
 
 1.  将前面所有步骤结合起来，创建一个函数来预处理我们可用的数据：
 
-```
+```py
 def preprocess_and_save_data():
  """
  Preprocessing the TV Scripts Dataset
@@ -225,7 +225,7 @@ vocab_to_int, int_to_vocab = create_map(text)
 
 1.  为了定义我们的模型，我们将在`model.py`文件中创建一个模型类。我们将首先定义输入：
 
-```
+```py
  with tf.variable_scope('Input'):
  self.X = tf.placeholder(tf.int32, [None, None], name='input')
  self.Y = tf.placeholder(tf.int32, [None, None], name='target')
@@ -236,7 +236,7 @@ vocab_to_int, int_to_vocab = create_map(text)
 
 1.  通过定义 LSTM 单元、词嵌入、构建 LSTM 和概率生成来定义我们的模型网络。为了定义 LSTM 单元，堆叠两个 LSTM 层，并将 LSTM 的大小设置为`RNN_SIZE`参数。将 RNN 的值设置为 0：
 
-```
+```py
  lstm = tf.contrib.rnn.BasicLSTMCell(RNN_SIZE)
  cell = tf.contrib.rnn.MultiRNNCell([lstm] * 2) # Defining two LSTM layers for this case
  self.initial_state = cell.zero_state(self.input_shape[0], tf.float32)
@@ -245,21 +245,21 @@ vocab_to_int, int_to_vocab = create_map(text)
 
 为了减少训练集的维度并提高神经网络的速度，使用以下代码生成并查找嵌入：
 
-```
+```py
 embedding = tf.Variable(tf.random_uniform((self.vocab_size, RNN_SIZE), -1, 1))
 embed = tf.nn.embedding_lookup(embedding, self.X)
 ```
 
 运行`tf.nn.dynamic_rnn`函数以找到 LSTM 的最终状态：
 
-```
+```py
 outputs, self.final_state = tf.nn.dynamic_rnn(cell, embed, initial_state=None, dtype=tf.float32)
 self.final_state = tf.identity(self.final_state, name='final_state')
 ```
 
 使用`softmax`函数将 LSTM 最终状态获得的 logits 转换为概率估计：
 
-```
+```py
 self.final_state = tf.identity(self.final_state, name='final_state')
 self.predictions = tf.contrib.layers.fully_connected(outputs, self.vocab_size, activation_fn=None)
 # Probabilities for generating words
@@ -268,7 +268,7 @@ probs = tf.nn.softmax(self.predictions, name='probs')
 
 1.  为 logits 序列定义加权交叉熵或序列损失，这有助于进一步微调我们的网络：
 
-```
+```py
  def define_loss(self):
  # Defining the sequence loss
  with tf.variable_scope('Sequence_Loss'):
@@ -278,7 +278,7 @@ probs = tf.nn.softmax(self.predictions, name='probs')
 
 1.  使用默认参数实现 Adam 优化器，并将梯度裁剪到`-1`到`1`的范围内，以避免在反向传播过程中梯度消失：
 
-```
+```py
  def define_optimizer(self):
  with tf.variable_scope("Optimizer"):
  optimizer = tf.train.AdamOptimizer(LEARNING_RATE)
@@ -298,7 +298,7 @@ probs = tf.nn.softmax(self.predictions, name='probs')
 
         +   Y 的形状为[批次大小，序列长度]：
 
-```
+```py
  def generate_batch_data(int_text):
  """
  Generate batch data of x (inputs) and y (targets)
@@ -327,7 +327,7 @@ x_batches = np.split(x.reshape(BATCH_SIZE, -1), num_batches, 1) y_batches = np.s
 
     +   序列长度 = 32：
 
-```
+```py
 def train(model,int_text):
 # Creating the checkpoint directory
  if not os.path.exists(CHECKPOINT_PATH_DIR):
@@ -399,7 +399,7 @@ if (epoch * len(batches) + batch) % 200 == 0:
 
 使用以下代码提取四个张量：
 
-```
+```py
  def extract_tensors(tf_graph):
  """
  Get input, initial state, final state, and probabilities tensor from the graph
@@ -415,7 +415,7 @@ if (epoch * len(batches) + batch) % 200 == 0:
 
 1.  定义起始词并从图中获得初始状态，稍后会使用这个初始状态：
 
-```
+```py
 # Sentences generation setup
 sentences = [first_word]
 previous_state = sess.run(initial_state, {input_text: np.array([[1]])})
@@ -423,7 +423,7 @@ previous_state = sess.run(initial_state, {input_text: np.array([[1]])})
 
 1.  给定一个起始词和初始状态，继续通过 for 循环迭代生成脚本中的下一个单词。在 for 循环的每次迭代中，使用之前生成的序列作为输入，从模型中生成概率，并使用`select_next_word`函数选择概率最大的单词：
 
-```
+```py
  def select_next_word(probs, int_to_vocab):
  """
  Select the next work for the generated text
@@ -438,7 +438,7 @@ previous_state = sess.run(initial_state, {input_text: np.array([[1]])})
 
 1.  创建一个循环来生成序列中的下一个单词：
 
-```
+```py
  for i in range(script_length):
 
  # Dynamic Input
@@ -455,7 +455,7 @@ pred_word = select_next_word(probabilities[dynamic_seq_length - 1], int_to_vocab
 
 1.  使用空格分隔符将句子中的所有单词连接起来，并将标点符号替换为实际符号。然后将获得的脚本保存在文本文件中，供以后参考：
 
-```
+```py
 # Scraping out tokens from the words
 book_script = ' '.join(sentences)
 for key, token in token_dict.items():
@@ -466,7 +466,7 @@ book_script = book_script.replace('( ', '(')
 
 1.  以下是执行过程中生成的文本示例：
 
-```
+```py
  postgresql comparatively).
 one transaction is important, you can be used
 

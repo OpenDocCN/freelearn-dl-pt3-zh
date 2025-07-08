@@ -452,7 +452,7 @@ CNN 末尾的全连接层充当网络语言（在训练过程中学习到的抽�
 
 1.  进行以下导入：
 
-```
+```py
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -462,7 +462,7 @@ from torchvision import models, transforms
 
 1.  为了方便起见，定义`batch_size`：
 
-```
+```py
 batch_size = 50
 ```
 
@@ -474,7 +474,7 @@ batch_size = 50
 
     +   我们还将添加一些数据增强，形式是随机的水平或垂直翻转：
 
-```
+```py
 # training data
 train_data_transform = transforms.Compose([
     transforms.Resize(224),
@@ -496,7 +496,7 @@ train_loader = torch.utils.data.DataLoader(train_set,
 
 1.  对验证/测试数据执行相同的步骤，但这次不进行数据增强：
 
-```
+```py
 val_data_transform = transforms.Compose([
     transforms.Resize(224),
     transforms.ToTensor(),
@@ -515,13 +515,13 @@ val_order = torch.utils.data.DataLoader(val_set,
 
 1.  选择`device`，最好选择 GPU，如果没有则使用 CPU：
 
-```
+```py
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 ```
 
 1.  定义模型的训练过程。与 TensorFlow 不同，在 PyTorch 中，我们需要手动遍历训练数据。这个方法会遍历整个训练集一次（一个 epoch），并在每次前向传播后应用优化器：
 
-```
+```py
 def train_model(model, loss_function, optimizer, data_loader):
     # set model to training mode
     model.train()
@@ -561,7 +561,7 @@ def train_model(model, loss_function, optimizer, data_loader):
 
 1.  定义模型的测试/验证过程。这与训练阶段非常相似，但我们将跳过反向传播部分：
 
-```
+```py
 def test_model(model, loss_function, data_loader):
     # set model in evaluation mode
     model.eval()
@@ -608,7 +608,7 @@ def test_model(model, loss_function, data_loader):
 
 以下是`tl_feature_extractor`函数，它实现了所有这些功能：
 
-```
+```py
 def tl_feature_extractor(epochs=5):
     # load the pretrained model
     model = torchvision.models.resnet18(pretrained=True)
@@ -644,7 +644,7 @@ def tl_feature_extractor(epochs=5):
 
 1.  实现微调方法。这个函数类似于`tl_feature_extractor`，但在这里，我们训练整个网络：
 
-```
+```py
 def tl_fine_tuning(epochs=5):
     # load the pretrained model
     model = models.resnet18(pretrained=True)
@@ -698,7 +698,7 @@ def tl_fine_tuning(epochs=5):
 
 1.  和往常一样，首先，我们需要进行导入：
 
-```
+```py
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import tensorflow_datasets as tfds 
@@ -706,7 +706,7 @@ import tensorflow_datasets as tfds
 
 1.  然后，我们将定义小批量和输入图像的大小（图像大小由网络架构决定）：
 
-```
+```py
 IMG_SIZE = 224
 BATCH_SIZE = 50
 
@@ -714,7 +714,7 @@ BATCH_SIZE = 50
 
 1.  接下来，我们将借助 TF 数据集加载 CIFAR-10 数据集。`repeat()`方法允许我们在多个周期中重用数据集：
 
-```
+```py
 data, metadata = tfds.load('cifar10', with_info=True, as_supervised=True)
 raw_train, raw_test = data['train'].repeat(), data['test'].repeat()
 ```
@@ -731,7 +731,7 @@ raw_train, raw_test = data['train'].repeat(), data['test'].repeat()
 
 让我们看看实际的实现：
 
-```
+```py
 def train_format_sample(image, label):
     """Transform data for training"""
     image = tf.cast(image, tf.float32)
@@ -758,7 +758,7 @@ def test_format_sample(image, label):
 
 1.  接下来是一些模板代码，它将这些转换器分配给训练/测试数据集，并将它们分割成小批量：
 
-```
+```py
 # assign transformers to raw data
 train_data = raw_train.map(train_format_sample)
 test_data = raw_test.map(test_format_sample)
@@ -780,7 +780,7 @@ test_batches = test_data.batch(BATCH_SIZE)
 
 以下代码实现了这一点：
 
-```
+```py
 def build_fe_model():
     # create the pretrained part of the network, excluding FC 
     layers
@@ -803,7 +803,7 @@ def build_fe_model():
 
 1.  接下来，我们将定义微调模型。它与特征提取模型的唯一区别是，我们仅冻结一些底层的预训练网络层（而不是全部冻结）。以下是实现：
 
-```
+```py
 def build_ft_model():
     # create the pretrained part of the network, excluding FC 
     layers
@@ -830,7 +830,7 @@ def build_ft_model():
 
 1.  最后，我们将实现`train_model`函数，该函数训练和评估由`build_fe_model`或`build_ft_model`函数创建的模型：
 
-```
+```py
 def train_model(model, epochs=5):
     # configure the model for training
     model.compile(optimizer=tf.keras.optimizers.Adam(lr=0.0001),

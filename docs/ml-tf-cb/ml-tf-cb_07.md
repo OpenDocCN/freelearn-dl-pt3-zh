@@ -84,7 +84,7 @@
 
 为了解决所有潜在问题，我们将主要使用来自 scikit-learn 的专门函数。在开始我们的配方之前，我们将把它们导入到环境中：
 
-```
+```py
 import numpy as np
 import pandas as pd
 try:
@@ -101,7 +101,7 @@ from sklearn.pipeline import Pipeline
 
 为了测试我们的配方，我们将使用一个简单的 3x4 表格，其中一些列包含 NaN 值，还有一些常数列不包含 NaN 值：
 
-```
+```py
 example = pd.DataFrame([[1, 2, 3, np.nan], [1, 3, np.nan, 4], [1, 2, 2, 2]], columns = ['a', 'b', 'c', 'd']) 
 ```
 
@@ -123,7 +123,7 @@ example = pd.DataFrame([[1, 2, 3, np.nan], [1, 3, np.nan, 4], [1, 2, 2, 2]], col
 
 现在，考虑到这些，让我们按照以下方式构建我们的管道：
 
-```
+```py
 def assemble_numeric_pipeline(variance_threshold=0.0, 
                               imputer='mean', 
                               multivariate_imputer=False, 
@@ -167,7 +167,7 @@ def assemble_numeric_pipeline(variance_threshold=0.0,
 
 我们现在可以通过指定我们的转换偏好来创建我们的数值管道：
 
-```
+```py
 numeric_pipeline = assemble_numeric_pipeline(variance_threshold=0.0, 
                               imputer='mean', 
                               multivariate_imputer=False, 
@@ -178,14 +178,14 @@ numeric_pipeline = assemble_numeric_pipeline(variance_threshold=0.0,
 
 我们可以立即在示例上尝试我们新的函数，首先应用`fit`方法，然后应用`transform`方法：
 
-```
+```py
 numeric_pipeline.fit(example)
 np.round(numeric_pipeline.transform(example), 3) 
 ```
 
 这是生成的输出 NumPy 数组：
 
-```
+```py
 array([[-0.707,  1.225, -0\.   , -0.707,  1.414],
        [ 1.414, -0\.   ,  1.225,  1.414, -0.707],
        [-0.707, -1.225, -1.225, -0.707, -0.707]]) 
@@ -227,7 +227,7 @@ scikit-learn 函数通常返回一个 NumPy 数组。如果没有进行进一步
 
 我们实际上可以通过检查拟合的管道，找出哪些列已经被移除，哪些内容已经从原始数据中添加。可以创建一个函数来自动执行这一操作：
 
-```
+```py
 def derive_numeric_columns(df, pipeline):
     columns = df.columns
     if 'var_filter' in pipeline.named_steps:
@@ -242,13 +242,13 @@ def derive_numeric_columns(df, pipeline):
 
 当我们在示例中尝试时：
 
-```
+```py
 derive_numeric_columns(example, numeric_pipeline) 
 ```
 
 我们获得一个包含剩余列和二进制指示符的 pandas 索引（由原始特征的名称和 `_missing` 后缀表示）：
 
-```
+```py
 Index(['b', 'c', 'd', 'c_missing', 'd_missing'], dtype='object') 
 ```
 
@@ -264,13 +264,13 @@ Index(['b', 'c', 'd', 'c_missing', 'd_missing'], dtype='object')
 
 由于我们需要编写一个使用 fit/transform 操作的类，这是 scikit-learn 中典型的操作方式，我们从 scikit-learn 导入 `BaseEstimator` 和 `TransformerMixin` 类进行继承。这个继承将帮助我们使我们的代码与 scikit-learn 的所有其他函数完美兼容：
 
-```
+```py
 from sklearn.base import BaseEstimator, TransformerMixin 
 ```
 
 为了测试，我们还准备了一个包含日期的字符串形式的示例数据集，采用日/月/年格式：
 
-```
+```py
 example = pd.DataFrame({'date_1': ['04/12/2018', '05/12/2019',  
                                    '07/12/2020'],
                         'date_2': ['12/5/2018', '15/5/2015', 
@@ -287,7 +287,7 @@ example = pd.DataFrame({'date_1': ['04/12/2018', '05/12/2019',
 
 这个过程一次处理一个日期，提取日期、星期几、月份和年份（另外，还包括小时和分钟），并使用正弦和余弦变换对所有周期性时间进行转换：
 
-```
+```py
 class DateProcessor(BaseEstimator, TransformerMixin):
     def __init__(self, date_format='%d/%m/%Y', hours_secs=False):
         self.format = date_format
@@ -348,7 +348,7 @@ class DateProcessor(BaseEstimator, TransformerMixin):
 
 当你需要拟合和转换数据时，类会自动将所有日期处理成正确的格式，并进一步使用正弦和余弦函数进行变换：
 
-```
+```py
 DateProcessor().fit_transform(example) 
 ```
 
@@ -358,7 +358,7 @@ DateProcessor().fit_transform(example)
 
 这个类不会返回时间元素的原始提取结果，如小时、分钟或天数，而是首先通过正弦变换，然后是余弦变换来转换它们。让我们绘制出它如何转换 24 小时，以便更好地理解这个方法：
 
-```
+```py
 import matplotlib.pyplot as plt
 sin_time = np.array([[t, np.sin(2*np.pi*t/23)] for t in range(0, 24)])
 cos_time = np.array([[t, np.cos(2*np.pi*t/23)] for t in range(0, 24)])
@@ -377,7 +377,7 @@ plt.show()
 
 从图中，我们可以看出一天的开始和结束是如何重合的，从而完成时间周期的闭环。每个变换也会返回相同的值，对于几个不同的小时来说都是如此。这就是为什么我们应该同时使用正弦和余弦的原因；如果你同时使用这两者，每个时间点都会有一对不同的正弦和余弦值，因此你可以精确地检测你在连续时间中的位置。通过将正弦和余弦值绘制成散点图，这一点也可以通过可视化方式进行解释：
 
-```
+```py
 ax = plt.subplot()
 ax.set_aspect('equal')
 ax.set_xlabel('sin hour')
@@ -412,7 +412,7 @@ plt.show()
 
 我们导入 scikit-learn 的独热编码函数，并准备一个简单的示例数据集，其中包含字符串和数值形式的分类数据：
 
-```
+```py
 from sklearn.preprocessing import OneHotEncoder
 example = pd.DataFrame([['car', 1234], ['house', 6543], 
                   ['tree', 3456]], columns=['object', 'code']) 
@@ -424,7 +424,7 @@ example = pd.DataFrame([['car', 1234], ['house', 6543],
 
 我们准备一个可以将数字转换为字符串的类，使用它后，每个数值型分类特征将与字符串一样进行处理。然后，我们准备好我们的方案，这个方案是一个 scikit-learn 管道，结合了我们的字符串转换器和独热编码（我们不会忘记通过将缺失值转换为唯一值来自动处理缺失数据）。
 
-```
+```py
 class ToString(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None, **fit_params):
         return self
@@ -447,7 +447,7 @@ categorical_pipeline = Pipeline(steps=[
 
 像我们之前看到的其他方法一样，我们只需要拟合并转换我们的示例：
 
-```
+```py
 categorical_pipeline.fit_transform(example).todense() 
 ```
 
@@ -457,7 +457,7 @@ categorical_pipeline.fit_transform(example).todense()
 
 独热编码通过将每个类别的唯一值转换为自己的变量，生成许多新特征。为了给它们打标签，我们必须检查我们使用的 scikit-learn 独热编码实例，并从中提取标签：
 
-```
+```py
 def derive_ohe_columns(df, pipeline):
     return [str(col) + '_' + str(lvl) 
          for col, lvls in zip(df.columns,      
@@ -466,13 +466,13 @@ def derive_ohe_columns(df, pipeline):
 
 例如，在我们的示例中，现在我们可以通过调用以下函数来弄清楚每个新特征所代表的含义：
 
-```
+```py
 derive_ohe_columns(example, categorical_pipeline) 
 ```
 
 结果为我们提供了有关原始特征和由二元变量表示的独特值的指示：
 
-```
+```py
 ['object_car',
  'object_house',
  'object_tree',
@@ -491,13 +491,13 @@ derive_ohe_columns(example, categorical_pipeline)
 
 首先，我们需要从 scikit-learn 导入`OrdinalEncoder`函数，它将帮助我们对序数值进行数字化编码，即使它们是文本形式（例如，序数等级“差、中等、好”）：
 
-```
+```py
 from sklearn.preprocessing import OrdinalEncoder 
 ```
 
 然后，我们可以使用包含按序信息并记录为字符串的两个特征来准备我们的示例：
 
-```
+```py
 example = pd.DataFrame([['first', 'very much'], 
                         ['second', 'very little'], 
                         ['third', 'average']],
@@ -510,7 +510,7 @@ example = pd.DataFrame([['first', 'very much'],
 
 到这个阶段，我们可以准备两个流水线。第一个流水线将处理序数数据，将其转换为有序的数字（该转换将保留原始特征的顺序）。第二个转换将对序数数据进行独热编码（这种转换将保留序数等级之间的步长信息，但不保留它们的顺序）。正如在本章前面“处理日期”配方中所述，对于你要在 DNN 中处理序数数据来说，来自原始数据的仅有两部分信息就足够了：
 
-```
+```py
 oe = OrdinalEncoder(categories=[['first', 'second', 'third'],  
                      ['very much', 'average', 'very little']])
 categorical_pipeline = Pipeline(steps=[
@@ -526,13 +526,13 @@ categorical_pipeline = Pipeline(steps=[
 
 你所需要做的就是单独操作这些转换，然后将生成的向量堆叠在一起：
 
-```
+```py
 np.hstack((oe.fit_transform(example), categorical_pipeline.fit_transform(example).todense())) 
 ```
 
 这是我们示例的结果：
 
-```
+```py
 matrix([[0., 0., 1., 0., 0., 0., 0., 1.],
         [1., 2., 0., 1., 0., 0., 1., 0.],
         [2., 1., 0., 0., 1., 1., 0., 0.]]) 
@@ -540,13 +540,13 @@ matrix([[0., 0., 1., 0., 0., 0., 0., 1.],
 
 列可以通过之前看到的`derive_ohe_columns`函数轻松推导出来：
 
-```
+```py
 example.columns.tolist() + derive_ohe_columns(example, categorical_pipeline) 
 ```
 
 这是包含转换后的列名的列表：
 
-```
+```py
 ['rank',
  'importance',
  'rank_first',
@@ -573,13 +573,13 @@ scikit-learn 包提供了 `LabelEncoder` 函数作为一种可能的解决方案
 
 在这个方案中，我们需要重新定义 scikit-learn 中的 `LabelEncoder` 函数，并使其适用于拟合/转换过程：
 
-```
+```py
 from sklearn.preprocessing import LabelEncoder 
 ```
 
 由于我们需要模拟一个高基数类别变量，我们将使用一个简单脚本创建的随机唯一值（由字母和数字组成）。这将使我们能够测试更多的示例：
 
-```
+```py
 import string
 import random
 def random_id(length=8):
@@ -603,7 +603,7 @@ example = pd.DataFrame({'high_cat_1': [random_id(length=2)
 
 在这个方案中，我们将准备另一个 scikit-learn 类。它扩展了现有的 `LabelEncoder` 函数，因为它能够自动处理缺失值。它记录了原始类别值与其对应的数值之间的映射关系，并且在转换时，它能够处理之前未见过的类别，将它们标记为未知：
 
-```
+```py
 class LEncoder(BaseEstimator, TransformerMixin):
 
     def __init__(self):
@@ -653,7 +653,7 @@ class LEncoder(BaseEstimator, TransformerMixin):
 
 在实例化标签编码器后，我们只需拟合并转换我们的示例，将每个类别特征转化为一系列数字标签：
 
-```
+```py
 le = LEncoder()
 le.fit_transform(example) 
 ```
@@ -664,13 +664,13 @@ le.fit_transform(example)
 
 为了让 Keras 嵌入层正常工作，我们需要指定高基数类别变量的输入大小。通过访问我们示例中的`le.dictionary_size`，我们在示例变量中有`412`、`497`和`502`个不同的值：
 
-```
+```py
 le.dictionary_size 
 ```
 
 在我们的示例中，示例变量分别有`412`、`497`和`502`个不同的值：
 
-```
+```py
 [412, 497, 502] 
 ```
 
@@ -684,13 +684,13 @@ le.dictionary_size
 
 由于我们将结合多个转换，我们将利用 scikit-learn 的`FeatureUnion`函数，这是一个可以轻松地将它们拼接在一起的函数：
 
-```
+```py
 from sklearn.pipeline import FeatureUnion 
 ```
 
 作为测试数据集，我们将简单地合并之前使用过的所有测试数据：
 
-```
+```py
 example = pd.concat([
 pd.DataFrame([[1, 2, 3, np.nan], [1, 3, np.nan, 4],[1, 2, 2, 2]], 
              columns = ['a', 'b', 'c', 'd']),
@@ -717,7 +717,7 @@ pd.DataFrame({'high_cat_1': [random_id(length=2)
 
 本配方的包装类已拆分为多个部分，以帮助您更好地检查和学习代码。第一部分包含初始化，它有效地整合了本章迄今为止所有看到的配方：
 
-```
+```py
 class TabularTransformer(BaseEstimator, TransformerMixin):
 
     def instantiate(self, param):
@@ -750,7 +750,7 @@ class TabularTransformer(BaseEstimator, TransformerMixin):
 
 这里我们记录了数字管道：
 
-```
+```py
  self.numeric_process = assemble_numeric_pipeline(
                     variance_threshold=variance_threshold, 
                     imputer=missing_imputer, 
@@ -762,14 +762,14 @@ class TabularTransformer(BaseEstimator, TransformerMixin):
 
 之后，我们记录与管道处理时间相关的特征：
 
-```
+```py
  self.dates_process = DateProcessor(
                    date_format=date_format, hours_secs=hours_secs) 
 ```
 
 现在轮到有序变量了：
 
-```
+```py
  self.ordinal_process = FeatureUnion(
                 [('ordinal', 
                  OrdinalEncoder(categories=ordinal_categories)),
@@ -784,7 +784,7 @@ class TabularTransformer(BaseEstimator, TransformerMixin):
 
 我们以分类管道作为结尾，包括低类别和高类别的管道：
 
-```
+```py
  self.cat_process = Pipeline(steps=[
               ('string_converter', ToString()),
               ('imputer', SimpleImputer(strategy='constant', 
@@ -795,7 +795,7 @@ class TabularTransformer(BaseEstimator, TransformerMixin):
 
 下一部分涉及拟合。根据不同的变量类型，将应用相应的拟合过程，新的处理或生成的列将记录在`.columns`索引列表中：
 
-```
+```py
  def fit(self, X, y=None, **fit_params):
         self.columns = list()
         if self.numeric:
@@ -825,7 +825,7 @@ class TabularTransformer(BaseEstimator, TransformerMixin):
 
 `transform`方法提供了所有的转换和矩阵连接，以返回一个包含处理后数据的数组列表，第一个元素是数值部分，后面是代表高基数类别变量的数值标签向量：
 
-```
+```py
  def transform(self, X, y=None, **fit_params):
         flat_matrix = list()
         if self.numeric:
@@ -860,7 +860,7 @@ class TabularTransformer(BaseEstimator, TransformerMixin):
 
 最后，我们设置了`fit_transform`方法，它依次执行 fit 和 transform 操作：
 
-```
+```py
  def fit_transform(self, X, y=None, **fit_params):
         self.fit(X, y, **fit_params)
         return self.transform(X) 
@@ -872,7 +872,7 @@ class TabularTransformer(BaseEstimator, TransformerMixin):
 
 在我们的测试中，我们根据列的类型将列名的列表赋值给变量：
 
-```
+```py
 numeric_vars = ['a', 'b', 'c', 'd']
 date_vars = ['date_1', 'date_2', 'date_3']
 ordinal_vars = ['rank', 'importance']
@@ -885,19 +885,19 @@ tt = TabularTransformer(numeric=numeric_vars, dates=date_vars,
 
 在实例化了`TabularTransformer`并将需要处理的变量映射到它们的类型后，我们开始拟合并转换我们的示例数据集：
 
-```
+```py
 input_list = tt.fit_transform(example) 
 ```
 
 结果是一个 NumPy 数组的列表。我们可以通过遍历它们并打印它们的形状，来检查输出的组成：
 
-```
+```py
 print([(item.shape, item.dtype) for item in input_list]) 
 ```
 
 打印的结果显示第一个元素是一个较大的数组（所有过程的结合结果，除了高基数类别变量的部分）：
 
-```
+```py
 [((3, 40), dtype('float32')), ((3,), dtype('int32')), ((3,), dtype('int32')), ((3,), dtype('int32'))] 
 ```
 
@@ -907,7 +907,7 @@ print([(item.shape, item.dtype) for item in input_list])
 
 为了能够追溯每个列和向量的名称，`TabularTransformer`有一个`columns`方法，`tt.columns`，可以调用。`TabularTransformer`还可以调用`tt.vocabulary`来获取关于类别变量维度的信息，这对于正确设置网络中嵌入层的输入形状是必需的。返回的结果是一个字典，其中列名是键，字典的大小是值：
 
-```
+```py
 {'high_cat_1': 5, 'high_cat_2': 5, 'high_cat_3': 5} 
 ```
 
@@ -921,7 +921,7 @@ print([(item.shape, item.dtype) for item in input_list])
 
 我们的生成器将继承自`Sequence`类：
 
-```
+```py
 from tensorflow.keras.utils import Sequence 
 ```
 
@@ -931,7 +931,7 @@ from tensorflow.keras.utils import Sequence
 
 我们现在编写一个名为 `DataGenerator` 的新类，继承自 Keras 的 `Sequence` 类：
 
-```
+```py
 class DataGenerator(Sequence):
     def __init__(self, X, y,
                  tabular_transformer=None,
@@ -1026,7 +1026,7 @@ class DataGenerator(Sequence):
 
 你需要导入常见的模块：
 
-```
+```py
 from tensorflow import keras as keras
 import numpy as np
 import matplotlib.pyplot as plt 
@@ -1044,7 +1044,7 @@ GeLU 和 Mish 的数学公式已在它们的原始论文中定义，您可以在
 
 下面是翻译成代码的公式：
 
-```
+```py
 def gelu(x):
     return 0.5 * x * (1 + tf.tanh(tf.sqrt(2 / np.pi) * 
                         (x + 0.044715 * tf.pow(x, 3))))
@@ -1062,7 +1062,7 @@ keras.utils.get_custom_objects().update(
 
 我们可以通过绘制正负输入与其输出的关系来了解这两个激活函数是如何工作的。使用 matplotlib 的几个命令将帮助我们进行可视化：
 
-```
+```py
 gelu_vals = list()
 mish_vals = list()
 abscissa = np.arange(-4, 1, 0.1)
@@ -1098,20 +1098,20 @@ Kaggle 竞赛 *Amazon.com – Employee Access Challenge* ([`www.kaggle.com/c/ama
 
 和往常一样，我们先导入 TensorFlow 和 Keras：
 
-```
+```py
 import tensorflow as tf
 import tensorflow.keras as keras 
 ```
 
 使用基于顺序的数据生成器可能会触发 TensorFlow 2.2 中的一些错误。这是由于启用执行（eager execution），因此作为预防措施，我们必须为此配方禁用它：
 
-```
+```py
 tf.compat.v1.disable_eager_execution() 
 ```
 
 为了获取亚马逊数据集，最佳且最快的方法是安装**CatBoost**，一种使用数据集作为基准的梯度提升算法。如果它还没有安装在你的环境中，你可以通过运行`pip install catboost`命令轻松安装：
 
-```
+```py
 from catboost.datasets import amazon
 X, Xt = amazon()
 y = X["ACTION"].apply(lambda x: 1 if x == 1 else 0).values
@@ -1126,7 +1126,7 @@ X.drop(["ACTION"], axis=1, inplace=True)
 
 我们首先为每个特征定义一个输入，其中数据流入网络，然后每个输入被导入到其各自的嵌入层。输入的大小根据特征的唯一值数量来确定，输出的大小则基于输入大小的对数。每个嵌入层的输出随后传递到空间丢弃层（由于嵌入层会返回一个矩阵，空间丢弃层会将整个矩阵的列置空），然后进行展平。最后，所有展平后的结果被连接成一个单一的层。从此，数据必须通过两个带丢弃层的全连接层，最终到达输出响应节点，该节点是一个经过 sigmoid 激活的节点，返回一个概率作为答案：
 
-```
+```py
 def dnn(categorical_variables, categorical_counts,
         feature_selection_dropout=0.2, categorical_dropout=0.1,
         first_dense = 256, second_dense = 256, 
@@ -1175,7 +1175,7 @@ def dnn(categorical_variables, categorical_counts,
 
 我们还实例化了一个简单的绘图函数，可以绘制在训练过程中记录的选定误差和得分度量，既适用于训练集也适用于验证集：
 
-```
+```py
 from sklearn.metrics import average_precision_score, roc_auc_score
 def mAP(y_true, y_pred):
     return tf.py_function(average_precision_score, 
@@ -1225,7 +1225,7 @@ def plot_keras_history(history, measures):
 
 让我们在这里实践一下：
 
-```
+```py
 from sklearn.model_selection import StratifiedKFold
 SEED = 0
 FOLDS = 3

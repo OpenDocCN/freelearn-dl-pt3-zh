@@ -6,13 +6,13 @@
 
 安装 TensorFlow 2 后，可以通过命令行使用迁移工具。要转换项目目录，请运行以下命令：
 
-```
+```py
 $ tf_upgrade_v2 --intree ./project_directory --outtree ./project_directory_updated
 ```
 
 以下是示例项目中命令日志的样本：
 
-```
+```py
 INFO line 1111:10: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
  INFO line 1112:10: Renamed 'tf.layers.dense' to 'tf.compat.v1.layers.dense'
  TensorFlow 2.0 Upgrade Script
@@ -31,7 +31,7 @@ INFO line 1111:10: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
 
 大多数过时的调用都已移至 `tf.compat.v1`。事实上，尽管许多概念已经废弃，TensorFlow 2 仍然通过此模块提供对旧 API 的访问。然而，请注意，调用 `tf.contrib` 会导致转换工具失败并生成错误：
 
-```
+```py
 ERROR: Using member tf.contrib.copy_graph.copy_op_to_graph in deprecated module tf.contrib. tf.contrib.copy_graph.copy_op_to_graph cannot be converted automatically. tf.contrib will not be distributed with TensorFlow 2.0, please consider an alternative in non-contrib TensorFlow, a community-maintained repository, or fork the required code.
 ```
 
@@ -43,7 +43,7 @@ ERROR: Using member tf.contrib.copy_graph.copy_op_to_graph in deprecated module 
 
 由于 TensorFlow 1 默认不使用即时执行（eager execution），因此操作的结果不会直接显示。例如，当对两个常量求和时，输出对象是一个操作：
 
-```
+```py
 import tensorflow as tf1 # TensorFlow 1.13
 
 a = tf1.constant([1,2,3])
@@ -62,7 +62,7 @@ print(c) # Prints <tf.Tensor 'add:0' shape=(3,) dtype=int32
 
 使用会话最常见的方法是通过 Python 中的 `with` 语句。与其他不受管理的资源一样，`with` 语句确保我们使用完会话后会正确关闭。如果会话没有关闭，可能会继续占用内存。因此，TensorFlow 1 中的会话通常是这样实例化和使用的：
 
-```
+```py
 with tf1.Session() as sess:
  result = sess.run(c)
 print(result) # Prints array([2, 4, 6], dtype=int32)
@@ -70,7 +70,7 @@ print(result) # Prints array([2, 4, 6], dtype=int32)
 
 你也可以显式关闭会话，但不推荐这么做：
 
-```
+```py
 sess = tf1.Session()
 result = sess.run(c)
 sess.close()
@@ -82,7 +82,7 @@ sess.close()
 
 在之前的示例中，我们计算了两个向量的和。然而，我们在创建图时定义了这些向量的值。如果我们想使用变量代替，我们本可以使用 `tf1.placeholder`：
 
-```
+```py
 a = tf1.placeholder(dtype=tf.int32, shape=(None,)) 
 b = tf1.placeholder(dtype=tf.int32, shape=(None,))
 c = a + b
@@ -102,19 +102,19 @@ with tf1.Session() as sess:
 
 在 TensorFlow 1 中，变量是全局创建的。每个变量都有一个唯一的名称，创建变量的最佳实践是使用 `tf1.get_variable()`：
 
-```
+```py
 weights = tf1.get_variable(name='W', initializer=[3])
 ```
 
 在这里，我们创建了一个名为 `W` 的全局变量。删除 Python 中的 `weights` 变量（例如使用 Python 的 `del weights` 命令）不会影响 TensorFlow 内存。事实上，如果我们尝试再次创建相同的变量，我们将会遇到错误：
 
-```
+```py
 Variable W already exists, disallowed. Did you mean to set reuse=True or reuse=tf.AUTO_REUSE in VarScope?
 ```
 
 虽然 `tf1.get_variable()` 允许你重用变量，但它的默认行为是在选择的变量名已经存在时抛出错误，以防止你不小心覆盖变量。为了避免这个错误，我们可以更新调用 `tf1.variable_scope(...)` 并使用 `reuse` 参数：
 
-```
+```py
 with tf1.variable_scope("conv1", reuse=True):
     weights = tf1.get_variable(name='W', initializer=[3])
 ```
@@ -123,7 +123,7 @@ with tf1.variable_scope("conv1", reuse=True):
 
 在这种情况下，将 `reuse` 设置为 `True` 意味着，如果 TensorFlow 遇到名为 `conv1/W` 的变量，它不会像之前那样抛出错误。相反，它会重用现有的变量及其内容。然而，如果你尝试调用之前的代码，而名为 `conv1/W` 的变量不存在，你将遇到以下错误：
 
-```
+```py
 Variable conv1/W does not exist
 ```
 
@@ -131,7 +131,7 @@ Variable conv1/W does not exist
 
 在 TensorFlow 2 中，行为有所不同。虽然变量作用域依然存在以便于命名和调试，但变量不再是全局的。它们在 Python 层级上进行管理。只要你能够访问 Python 引用（在我们的例子中是 `weights` 变量），就可以修改该变量。要删除变量，你需要删除其引用，例如通过运行以下命令：
 
-```
+```py
 del weights
 ```
 
@@ -141,7 +141,7 @@ del weights
 
 TensorFlow 模型最初是通过 `tf1.layers` 定义的。由于该模块在 TensorFlow 2 中已被弃用，推荐使用 `tf.keras.layers` 作为替代。要使用 TensorFlow 1 训练模型，需要使用优化器和损失函数定义一个*训练操作*。例如，如果 `y` 是全连接层的输出，我们可以使用以下命令定义训练操作：
 
-```
+```py
 cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=output, logits=y))
 train_step = tf.train.AdamOptimizer(1e-3).minimize(cross_entropy)
 
@@ -149,7 +149,7 @@ train_step = tf.train.AdamOptimizer(1e-3).minimize(cross_entropy)
 
 每次调用此操作时，一批图像将被送入网络并执行一次反向传播步骤。然后我们运行一个循环来计算多个训练步骤：
 
-```
+```py
 num_steps = 10**7
 
 with tf1.Session() as sess:

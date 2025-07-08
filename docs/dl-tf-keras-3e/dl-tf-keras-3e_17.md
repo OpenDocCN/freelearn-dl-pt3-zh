@@ -156,7 +156,7 @@ GNN 还有其他应用，如图聚类或生成图模型，但它们较为少见�
 
 我们首先设置导入。如果你还没有这样做，你需要通过`pip install dgl`将 DGL 库安装到你的环境中。你还需要将环境变量`DGLBACKEND`设置为 TensorFlow。在命令行中，可以通过命令`export DGLBACKEND=tensorflow`来实现，在笔记本环境中，你可以尝试使用魔法命令`%env DGLBACKEND=tensorflow`：
 
-```
+```py
 import dgl
 import dgl.data
 import matplotlib.pyplot as plt
@@ -169,13 +169,13 @@ from dgl.nn.tensorflow import GraphConv
 
 CORA 数据集被预先包装为 DGL 数据集，因此我们使用以下调用将数据集加载到内存中：
 
-```
+```py
 dataset = dgl.data.CoraGraphDataset() 
 ```
 
 第一次调用时，它将记录正在下载并提取到本地文件。一旦完成，它将打印出一些关于 CORA 数据集的有用统计信息。正如你所看到的，图中有 2,708 个节点和 10,566 条边。每个节点有一个大小为 1,433 的特征向量，每个节点被分类为七个类别之一。此外，我们还看到它有 140 个训练样本、500 个验证样本和 1,000 个测试样本：
 
-```
+```py
  NumNodes: 2708
   NumEdges: 10556
   NumFeats: 1433
@@ -192,7 +192,7 @@ Done saving data into cached files.
 
 请注意，`GraphConv`只是我们可以放入`NodeClassifier`模型中的众多图层之一。DGL 提供了多种图卷积层，如果需要，可以用它们替换`GraphConv`：
 
-```
+```py
 class NodeClassifier(tf.keras.Model):
   def __init__(self, g, in_feats, h_feats, num_classes):
     super(NodeClassifier, self).__init__()
@@ -212,7 +212,7 @@ model = NodeClassifier(
 
 如果检测到 GPU，TensorFlow 会自动将模型移动到 GPU 上：
 
-```
+```py
 def set_gpu_if_available():
   device = "/cpu:0"
   gpus = tf.config.list_physical_devices("GPU")
@@ -225,7 +225,7 @@ g = g.to(device)
 
 我们还定义了一个`do_eval()`方法，它通过给定特征和用于评估拆分的布尔掩码来计算准确度：
 
-```
+```py
 def do_eval(model, features, labels, mask):
   logits = model(features, training=False)
   logits = logits[mask]
@@ -237,7 +237,7 @@ def do_eval(model, features, labels, mask):
 
 最后，我们准备好按照如下方式设置并运行我们的训练循环：
 
-```
+```py
 NUM_HIDDEN = 16
 LEARNING_RATE = 1e-2
 WEIGHT_DECAY = 5e-4
@@ -273,7 +273,7 @@ with tf.device(device):
 
 训练运行的输出显示训练损失从`1.9`下降到`0.02`，验证准确率从`0.13`上升到`0.78`：
 
-```
+```py
 Epoch   0 | train loss: 1.946 | val acc: 0.134
 Epoch  10 | train loss: 1.836 | val acc: 0.544
 Epoch  20 | train loss: 1.631 | val acc: 0.610
@@ -298,14 +298,14 @@ Epoch 190 | train loss: 0.026 | val acc: 0.784
 
 现在我们可以评估我们训练的节点分类器在保留测试集上的表现：
 
-```
+```py
 test_acc = do_eval(model, feats, labels, test_mask)
 print("Test acc: {:.3f}".format(test_acc)) 
 ```
 
 这将输出模型在保留测试集上的总体准确度：
 
-```
+```py
 Test acc: 0.779 
 ```
 
@@ -315,7 +315,7 @@ Test acc: 0.779
 
 为了运行该示例，请确保已经安装 DGL 并设置为使用 TensorFlow 后端；有关如何操作的信息，请参阅上一节中的节点分类部分。要开始示例，请导入必要的库：
 
-```
+```py
 import dgl.data
 import tensorflow as tf
 import tensorflow_addons as tfa
@@ -325,7 +325,7 @@ from sklearn.model_selection import train_test_split
 
 我们将使用 DGL 提供的蛋白质数据集。该数据集是一组图，每个图都有节点特征和一个标签。每个图表示一个蛋白质分子，图中的每个节点表示分子中的一个原子。节点特征列出了原子的化学性质。标签表示该蛋白质分子是否是酶：
 
-```
+```py
 dataset = dgl.data.GINDataset("PROTEINS", self_loop=True)
 print("node feature dimensionality:", dataset.dim_nfeats)
 print("number of graph categories:", dataset.gclasses)
@@ -334,7 +334,7 @@ print("number of graphs in dataset:", len(dataset))
 
 上面的调用会将蛋白质数据集下载到本地，并打印出一些数据集的信息。如您所见，每个节点的特征向量大小为`3`，图的类别数量为`2`（酶或非酶），数据集中的图数量为`1113`：
 
-```
+```py
 node feature dimensionality: 3
 number of graph categories: 2
 number of graphs in dataset: 1113 
@@ -342,7 +342,7 @@ number of graphs in dataset: 1113
 
 我们将首先把数据集分为训练集、验证集和测试集。我们将使用训练集来训练我们的 GNN，使用验证集进行验证，并在测试集上发布最终模型的结果：
 
-```
+```py
 tv_dataset, test_dataset = train_test_split(
   dataset, shuffle=True, test_size=0.2)
 train_dataset, val_dataset = train_test_split(
@@ -354,7 +354,7 @@ print(len(train_dataset), len(val_dataset), len(test_dataset))
 
 接下来，我们定义用于图分类的 GNN。它由两个`GraphConv`层堆叠而成，这些层将节点编码为它们的隐藏表示。由于目标是为每个图预测一个单一类别，我们需要将所有节点表示聚合为图级表示，我们通过使用`dgl.mean_nodes()`平均节点表示来实现：
 
-```
+```py
 class GraphClassifier(tf.keras.Model):
   def __init__(self, in_feats, h_feats, num_classes):
     super(GraphClassifier, self).__init__()
@@ -369,7 +369,7 @@ class GraphClassifier(tf.keras.Model):
 
 对于训练，我们设置了训练参数和`do_eval()`函数：
 
-```
+```py
 HIDDEN_SIZE = 16
 BATCH_SIZE = 16
 LEARNING_RATE = 1e-2
@@ -395,7 +395,7 @@ def do_eval(model, dataset):
 
 最后，我们定义并运行我们的训练循环来训练`GraphClassifier`模型。我们使用`Adam`优化器，学习率为`1e-2`，损失函数为`SparseCategoricalCrossentropy`，进行`20`轮训练：
 
-```
+```py
 with tf.device(device):
   model = GraphClassifier(
     dataset.dim_nfeats, HIDDEN_SIZE, dataset.gclasses)
@@ -426,7 +426,7 @@ with tf.device(device):
 
 输出显示，随着`GraphClassifier`模型训练了 20 轮，损失逐渐下降，验证准确度逐渐提高：
 
-```
+```py
 Epoch   0 | train_loss: 34.401 | val_acc: 0.629
 Epoch   1 | train_loss: 33.868 | val_acc: 0.629
 Epoch   2 | train_loss: 33.554 | val_acc: 0.618
@@ -451,14 +451,14 @@ Epoch  19 | train_loss: 31.398 | val_acc: 0.719
 
 最后，我们在保留的测试数据集上评估训练好的模型：
 
-```
+```py
 test_acc = do_eval(model, test_dataset)
 print("test accuracy: {:.3f}".format(test_acc)) 
 ```
 
 这会打印出训练好的`GraphClassifier`模型在保留的测试集上的准确度：
 
-```
+```py
 test accuracy: 0.677 
 ```
 
@@ -474,7 +474,7 @@ test accuracy: 0.677
 
 在运行示例之前，请确保安装了 DGL 并设置为使用 TensorFlow 后端；请参考*节点分类*部分获取如何执行此操作的信息。让我们从导入必要的库开始：
 
-```
+```py
 import dgl
 import dgl.data
 import dgl.function as fn
@@ -488,14 +488,14 @@ from sklearn.metrics import roc_auc_score
 
 对于我们的数据，我们将重复使用我们之前用于节点分类示例的 DGL 数据集中的 CORA 引用图。我们已经知道数据集的样子，所以这里不会再详细解剖它。如果你想要刷新记忆，请参考节点分类示例获取相关细节：
 
-```
+```py
 dataset = dgl.data.CoraGraphDataset()
 g = dataset[0] 
 ```
 
 现在，让我们准备我们的数据。为了训练我们的链接预测模型，我们需要一组正边和一组负边。正边是 CORA 引用图中已经存在的 10,556 条边之一，负边将从图的其余部分中采样的 10,556 对节点对。此外，我们需要将正边和负边分割为训练、验证和测试集：
 
-```
+```py
 u, v = g.edges()
 # positive edges
 eids = np.arange(g.number_of_edges())
@@ -531,7 +531,7 @@ train_g = dgl.remove_edges(g, np.concatenate([test_edges, val_edges]))
 
 现在，我们构建一个 GNN，它将使用两个`GraphSAGE`层计算节点表示，每个层通过平均其邻居信息来计算节点表示：
 
-```
+```py
 class LinkPredictor(tf.keras.Model):
   def __init__(self, g, in_feats, h_feats):
     super(LinkPredictor, self).__init__()
@@ -548,7 +548,7 @@ class LinkPredictor(tf.keras.Model):
 
 然而，链接预测要求我们计算节点对的表示，DGL 建议您将节点对视为另一个图，因为您可以将节点对定义为一条边。对于链接预测，我们将有一个包含所有正例作为边的正图，以及一个包含所有负例作为边的负图。正图和负图都包含与原始图相同的节点集：
 
-```
+```py
 train_pos_g = dgl.graph((train_pos_u, train_pos_v), 
   num_nodes=g.number_of_nodes())
 train_neg_g = dgl.graph((train_neg_u, train_neg_v), 
@@ -565,7 +565,7 @@ test_neg_g = dgl.graph((test_neg_u, test_neg_v),
 
 接下来，我们将定义一个预测器类，它将从`LinkPredictor`类中获取节点表示集，并使用`DGLGraph.apply_edges`方法计算边特征分数，这些分数是源节点特征和目标节点特征的点积（在这种情况下一起从`LinkPredictor`输出）：
 
-```
+```py
 class DotProductPredictor(tf.keras.Model):
   def call(self, g, h):
     with g.local_scope():
@@ -581,7 +581,7 @@ class DotProductPredictor(tf.keras.Model):
 
 您还可以构建一个自定义预测器，例如具有两个密集层的多层感知器，如下面的代码所示。请注意，`apply_edges`方法描述了如何计算边缘分数：
 
-```
+```py
 class MLPPredictor(tf.keras.Model):
   def __init__(self, h_feats):
     super().__init__()
@@ -601,7 +601,7 @@ class MLPPredictor(tf.keras.Model):
 
 我们实例化了之前定义的`LinkPredictor`模型，选择了`Adam`优化器，并声明我们的损失函数为`BinaryCrossEntropy`（因为我们的任务是二分类）。在我们的示例中，将使用的预测头是`DotProductPredictor`。但是，`MLPPredictor`也可以作为替代品使用；只需将下面的`pred`变量替换为指向`MLPPredictor`，而不是`DotProductPredictor`：
 
-```
+```py
 HIDDEN_SIZE = 16
 LEARNING_RATE = 1e-2
 NUM_EPOCHS = 100
@@ -614,7 +614,7 @@ pred = DotProductPredictor()
 
 我们还为训练循环定义了一些便利函数。第一个函数计算从正图和负图返回的得分之间的损失，第二个函数根据这两个得分计算**曲线下面积**（**AUC**）。AUC 是评估二分类模型的常用指标：
 
-```
+```py
 def compute_loss(pos_score, neg_score):
     scores = tf.concat([pos_score, neg_score], axis=0)
     labels = tf.concat([
@@ -634,7 +634,7 @@ def compute_auc(pos_score, neg_score):
 
 我们现在训练我们的`LinkPredictor` GNN，进行 100 个周期的训练，使用以下训练循环：
 
-```
+```py
 for epoch in range(NUM_EPOCHS):
   in_feat = train_g.ndata["feat"]
   with tf.GradientTape() as tape:
@@ -654,7 +654,7 @@ for epoch in range(NUM_EPOCHS):
 
 这将返回以下训练日志：
 
-```
+```py
 Epoch   0 | train_loss: 0.693, val_auc: 0.566
 Epoch   5 | train_loss: 0.681, val_auc: 0.633
 Epoch  10 | train_loss: 0.626, val_auc: 0.746
@@ -679,7 +679,7 @@ Epoch  95 | train_loss: 0.228, val_auc: 0.848
 
 现在，我们可以将训练好的模型与保留的测试集进行评估：
 
-```
+```py
 pos_score = tf.stop_gradient(pred(test_pos_g, h))
 neg_score = tf.stop_gradient(pred(test_neg_g, h))
 print('Test AUC', compute_auc(pos_score, neg_score)) 
@@ -687,7 +687,7 @@ print('Test AUC', compute_auc(pos_score, neg_score))
 
 这将返回我们`LinkPredictor` GNN 的以下测试 AUC：
 
-```
+```py
 Test AUC 0.8266960571287392 
 ```
 
@@ -723,7 +723,7 @@ Test AUC 0.8266960571287392
 
 使用 MPNN 实现我们自定义 GraphSAGE 层的代码如下所示。DGL 函数`update_all`的调用允许你指定`message_fn`和`reduce_fn`，这也是 DGL 内置的函数，而`tf.concat`和`Dense`层则表示最终的更新函数：
 
-```
+```py
 import dgl
 import dgl.data
 import dgl.function as fn
@@ -751,7 +751,7 @@ class CustomGraphSAGE(tf.keras.layers.Layer):
 
 下一步是将其放入 GNN 中以查看它的效果。以下代码展示了一个使用我们自定义`SAGEConv`实现的两层`CustomGNN`模型：
 
-```
+```py
 class CustomGNN(tf.keras.Model):
   def __init__(self, g, in_feats, h_feats, num_classes):
     super(CustomGNN, self).__init__()
@@ -774,7 +774,7 @@ class CustomGNN(tf.keras.Model):
 
 我们需要对代码进行的唯一修改是让权重在我们的消息函数中发挥作用。也就是说，如果节点`u`和邻居节点`v`之间的边发生了`k`次，我们应该将这条边考虑`k`次。以下代码展示了我们自定义的 GraphSAGE 层，它能够处理带权边：
 
-```
+```py
 class CustomWeightedGraphSAGE(tf.keras.layers.Layer):
   def __init__(self, in_feat, out_feat):
     super(CustomWeightedGraphSAGE, self).__init__()
@@ -794,7 +794,7 @@ class CustomWeightedGraphSAGE(tf.keras.layers.Layer):
 
 这段代码期望一个额外的边属性*w*，它包含边的权重。你可以通过以下方式在 CORA 数据集中模拟：
 
-```
+```py
 g.edata["w"] = tf.cast(
    tf.random.uniform((g.num_edges(), 1), minval=3, maxval=10, 
                      dtype=tf.int32),
@@ -827,7 +827,7 @@ g.edata["w"] = tf.cast(
 
 该图包含 34 个节点，每个节点被标记为“Officer”或“Mr. Hi”，取决于它们在拆分后的分组。图中包含 78 条无向、无权重的边。两名成员之间的边表示他们在俱乐部外相互互动。为了使这个数据集在 GNN 使用中更具现实性，我们将为每个节点附加一个 10 维的随机特征向量，并将边权作为边特征。以下是将空手道俱乐部图转换为 DGL 数据集的代码，您可以将其用于后续的节点或边分类任务：
 
-```
+```py
 class KarateClubDataset(DGLDataset):
   def __init__(self):
     super().__init__(name="karate_club")
@@ -878,7 +878,7 @@ class KarateClubDataset(DGLDataset):
 
 为了从我们的代码中实例化这个数据集，我们可以这样写：
 
-```
+```py
 dataset = KarateClubDataset()
 g = dataset[0]
 print(g) 
@@ -886,7 +886,7 @@ print(g)
 
 这将给我们以下输出（略作重新格式化以提高可读性）。主要的两个结构是`ndata_schemas`和`edata_schemas`，分别可以通过`g.ndata`和`g.edata`访问。在`ndata_schemas`中，我们有指向节点特征（`feats`）、节点标签（`label`）以及表示训练、验证和测试拆分的掩码（`train_mask`、`val_mask`和`test_mask`）的键。在`edata_schemas`下，有表示边权的`weight`属性：
 
-```
+```py
 Graph(num_nodes=34, 
       num_edges=78,
       ndata_schemes={
@@ -918,7 +918,7 @@ Graph(num_nodes=34,
 
 这是将一组随机 NetworkX 图转换为 DGL 图数据集以进行图分类的代码。我们将生成 100 个这样的图，并将它们以 DGL 数据集的形式存储在一个列表中：
 
-```
+```py
 from networkx.exception import NetworkXError
 class SyntheticDataset(DGLDataset):
   def __init__(self):
@@ -960,7 +960,7 @@ class SyntheticDataset(DGLDataset):
 
 一旦创建完成，我们可以像这样在代码中调用它：
 
-```
+```py
 dataset = SyntheticDataset()
 graph, label = dataset[0]   
 print(graph)
@@ -969,7 +969,7 @@ print("label:", label)
 
 这为 DGL 数据集中的第一个图生成以下输出（稍作格式调整以便阅读）。如你所见，数据集中的第一个图有 `6` 个节点和 `15` 条边，并且包含一个大小为 `10` 的特征向量（通过 `feats` 键访问）。标签是一个 `0` 维张量（即标量），类型为 long（`int64`）：
 
-```
+```py
 Graph(num_nodes=6, num_edges=15,
       ndata_schemes={
         'feats': Scheme(shape=(10,), dtype=tf.float32)}

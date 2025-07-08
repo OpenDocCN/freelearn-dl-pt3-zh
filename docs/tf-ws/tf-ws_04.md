@@ -30,7 +30,7 @@
 
 可以按如下方式初始化一个顺序模型：
 
-```
+```py
 model = tf.keras.Sequential()
 ```
 
@@ -54,7 +54,7 @@ Keras 层包含在 TensorFlow 包中。Keras 层是常用层的集合，可以�
 
 可以按如下方式向模型添加输入层。以下代码片段用于添加一个层，假设输入具有八个特征：
 
-```
+```py
 model.add(tf.keras.layers.InputLayer(input_shape=(8,), \
                                      name='Input_layer'))
 ```
@@ -81,7 +81,7 @@ model.add(tf.keras.layers.InputLayer(input_shape=(8,), \
 
 以下是将一个 `12` 单元的密集层（dense layer）添加到模型的示例，并在该层输出处添加 `sigmoid` 激活函数，同时将该层命名为 `Dense_layer_1`：
 
-```
+```py
 model.add(tf.keras.layers.Dense(units=12, name='Dense_layer_1', \
                                 activation='sigmoid'))
 ```
@@ -96,26 +96,26 @@ model.add(tf.keras.layers.Dense(units=12, name='Dense_layer_1', \
 
 1.  打开 Jupyter Notebook 并导入 TensorFlow 库：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
 1.  初始化一个 Keras 序列模型：
 
-    ```
+    ```py
     model = tf.keras.Sequential()
     ```
 
 1.  使用模型的 `add` 方法向模型添加一个输入层，并添加 `input_shape` 参数，大小为 `(8,)`，表示具有八个特征的输入数据：
 
-    ```
+    ```py
     model.add(tf.keras.layers.InputLayer(input_shape=(8,), \
                                          name='Input_layer'))
     ```
 
 1.  向模型添加两个 `Dense` 类的层，第一个表示具有四个单元和 ReLU 激活函数的隐藏层，第二个表示具有一个单元的输出层：
 
-    ```
+    ```py
     model.add(tf.keras.layers.Dense(4, activation='relu', \
                                     name='First_hidden_layer'))
     model.add(tf.keras.layers.Dense(1, name='Output_layer'))
@@ -123,7 +123,7 @@ model.add(tf.keras.layers.Dense(units=12, name='Dense_layer_1', \
 
 1.  通过调用模型的 `variables` 属性查看权重：
 
-    ```
+    ```py
     model.variables
     ```
 
@@ -137,13 +137,13 @@ model.add(tf.keras.layers.Dense(units=12, name='Dense_layer_1', \
 
 1.  创建一个大小为`32x8`的张量，这表示一个包含 32 条记录和 8 个特征的张量：
 
-    ```
+    ```py
     data = tf.random.normal((32,8))
     ```
 
 1.  调用模型的`predict`方法并传入样本数据：
 
-    ```
+    ```py
     model.predict(data)
     prediction
     ```
@@ -164,7 +164,7 @@ model.add(tf.keras.layers.Dense(units=12, name='Dense_layer_1', \
 
 一旦模型被初始化并且层已经添加到人工神经网络（ANN）中，就必须通过编译过程使用优化器、损失函数和任何评估指标来配置模型。模型可以使用模型的`compile`方法进行编译，如下所示：
 
-```
+```py
 model.compile(optimizer='adam', loss='binary_crossentropy', \
               metrics=['accuracy'])
 ```
@@ -235,7 +235,7 @@ model.compile(optimizer='adam', loss='binary_crossentropy', \
 
 要将模型拟合到训练数据，可以通过以下方式将 `fit` 方法应用于模型：
 
-```
+```py
 model.fit(x=features, y=target, epochs=10, batch_size=32, \
          validation_split=0.2, shuffle=False)
 ```
@@ -246,7 +246,7 @@ model.fit(x=features, y=target, epochs=10, batch_size=32, \
 
 一旦模型训练完成，可以通过使用模型的 `evaluate` 方法来评估模型。`evaluate` 方法根据用于训练模型的损失函数以及传递给模型的任何指标来评估模型的性能。该方法最适合用来确定模型在新数据上的表现，可以通过传入未在训练过程中使用的特征和目标数据集，或者是超出样本的数据集来实现。该方法可以按如下方式调用：
 
-```
+```py
 eval_metrics = model.evaluate(features, target)
 ```
 
@@ -268,14 +268,14 @@ eval_metrics = model.evaluate(features, target)
 
 1.  在新的 Jupyter Notebook 单元格中，导入 TensorFlow 和 pandas 库：
 
-    ```
+    ```py
     import tensorflow as tf
     import pandas as pd
     ```
 
 1.  使用 pandas 的 `read_csv` 函数加载数据集：
 
-    ```
+    ```py
     df = pd.read_csv('Bias_correction_ucl.csv')
     ```
 
@@ -285,21 +285,21 @@ eval_metrics = model.evaluate(features, target)
 
 1.  删除 `date` 列，并删除所有包含空值的行，因为您的模型只需要数值数据：
 
-    ```
+    ```py
     df.drop('Date', inplace=True, axis=1)
     df.dropna(inplace=True)
     ```
 
 1.  创建目标和特征数据集。目标数据集将包含名为 `Next_Tmax` 和 `Next_Tmin` 的列，而特征数据集将包含除 `Next_Tmax` 和 `Next_Tmin` 外的所有列：
 
-    ```
+    ```py
     target = df[['Next_Tmax', 'Next_Tmin']]
     features = df.drop(['Next_Tmax', 'Next_Tmin'], axis=1)
     ```
 
 1.  对特征数据集进行重缩放：
 
-    ```
+    ```py
     from sklearn.preprocessing import MinMaxScaler
     scaler = MinMaxScaler()
     feature_array = scaler.fit_transform(features)
@@ -308,13 +308,13 @@ eval_metrics = model.evaluate(features, target)
 
 1.  初始化一个 Keras 的 `Sequential` 类模型：
 
-    ```
+    ```py
     model = tf.keras.Sequential()
     ```
 
 1.  使用模型的 `add` 方法为模型添加输入层，并将 `input_shape` 设置为特征数据集中的列数：
 
-    ```
+    ```py
     model.add(tf.keras.layers.InputLayer\
              (input_shape=(features.shape[1],), \
                            name='Input_layer'))
@@ -322,26 +322,26 @@ eval_metrics = model.evaluate(features, target)
 
 1.  将 `Dense` 类的输出层添加到模型中，大小为 `2`，表示两个目标变量：
 
-    ```
+    ```py
     model.add(tf.keras.layers.Dense(2, name='Output_layer'))
     ```
 
 1.  使用 RMSprop 优化器和均方误差损失函数编译模型：
 
-    ```
+    ```py
     model.compile(tf.optimizers.RMSprop(0.001), loss='mse')
     ```
 
 1.  为 TensorBoard 添加回调：
 
-    ```
+    ```py
     tensorboard_callback = tf.keras.callbacks\
                              .TensorBoard(log_dir="./logs")
     ```
 
 1.  将模型拟合到训练数据：
 
-    ```
+    ```py
     model.fit(x=features.to_numpy(), y=target.to_numpy(),\
               epochs=50, callbacks=[tensorboard_callback])
     ```
@@ -354,20 +354,20 @@ eval_metrics = model.evaluate(features, target)
 
 1.  在训练数据上评估模型：
 
-    ```
+    ```py
     loss = model.evaluate(features.to_numpy(), target.to_numpy())
     print('loss:', loss)
     ```
 
     这将产生以下输出：
 
-    ```
+    ```py
     loss: 3.5468221449764012
     ```
 
 1.  通过在命令行中调用以下命令，在 TensorBoard 上查看模型架构和拟合过程：
 
-    ```
+    ```py
     tensorboard –-logdir=logs/
     ```
 
@@ -401,14 +401,14 @@ eval_metrics = model.evaluate(features, target)
 
 1.  在新的 Jupyter Notebook 单元格中，导入 TensorFlow 和 pandas 库：
 
-    ```
+    ```py
     import tensorflow as tf
     import pandas as pd
     ```
 
 1.  使用 pandas 的`read_csv`函数加载数据集：
 
-    ```
+    ```py
     df = pd.read_csv('Bias_correction_ucl.csv')
     ```
 
@@ -418,21 +418,21 @@ eval_metrics = model.evaluate(features, target)
 
 1.  删除`Date`列并删除任何包含空值的行：
 
-    ```
+    ```py
     df.drop('Date', inplace=True, axis=1)
     df.dropna(inplace=True)
     ```
 
 1.  创建目标和特征数据集：
 
-    ```
+    ```py
     target = df[['Next_Tmax', 'Next_Tmin']]
     features = df.drop(['Next_Tmax', 'Next_Tmin'], axis=1)
     ```
 
 1.  重新缩放特征数据集：
 
-    ```
+    ```py
     from sklearn.preprocessing import MinMaxScaler
     scaler = MinMaxScaler()
     feature_array = scaler.fit_transform(features)
@@ -441,13 +441,13 @@ eval_metrics = model.evaluate(features, target)
 
 1.  初始化一个`Sequential`类的 Keras 模型：
 
-    ```
+    ```py
     model = tf.keras.Sequential()
     ```
 
 1.  使用模型的`add`方法为模型添加一个输入层，并将`input_shape`设置为特征数据集中的列数：
 
-    ```
+    ```py
     model.add(tf.keras.layers.InputLayer\
                              (input_shape=(features.shape[1],), \
                               name='Input_layer'))
@@ -455,7 +455,7 @@ eval_metrics = model.evaluate(features, target)
 
 1.  向模型中添加三个隐藏层和一个`Dense`类的输出层。第一个隐藏层将有`16`个单元，第二个隐藏层将有`8`个单元，第三个隐藏层将有`4`个单元。为各个层适当命名。输出层将有两个单元，以匹配具有两列的目标变量：
 
-    ```
+    ```py
     model.add(tf.keras.layers.Dense(16, name='Dense_layer_1'))
     model.add(tf.keras.layers.Dense(8, name='Dense_layer_2'))
     model.add(tf.keras.layers.Dense(4, name='Dense_layer_3'))
@@ -464,20 +464,20 @@ eval_metrics = model.evaluate(features, target)
 
 1.  使用 RMSprop 优化器和均方误差损失编译模型：
 
-    ```
+    ```py
     model.compile(tf.optimizers.RMSprop(0.001), loss='mse')
     ```
 
 1.  为 TensorBoard 添加一个回调：
 
-    ```
+    ```py
     tensorboard_callback = tf.keras.callbacks\
                              .TensorBoard(log_dir="./logs")
     ```
 
 1.  将模型拟合到训练数据，训练`50`个周期，并添加一个验证拆分，比例为 20%：
 
-    ```
+    ```py
     model.fit(x=features.to_numpy(), y=target.to_numpy(),\
               epochs=50, callbacks=[tensorboard_callback] , \
               validation_split=0.2)
@@ -491,20 +491,20 @@ eval_metrics = model.evaluate(features, target)
 
 1.  在训练数据上评估模型：
 
-    ```
+    ```py
     loss = model.evaluate(features.to_numpy(), target.to_numpy())
     print('loss:', loss)
     ```
 
     这将显示以下结果：
 
-    ```
+    ```py
     loss: 1.664448248190068
     ```
 
 1.  在 TensorBoard 中查看模型架构和模型拟合过程：
 
-    ```
+    ```py
     tensorboard --logdir=logs/
     ```
 
@@ -608,14 +608,14 @@ Sigmoid 转换的输出可以被解释为一个值属于正类的概率；接近
 
 1.  导入 TensorFlow 和 pandas 库：
 
-    ```
+    ```py
     import tensorflow as tf
     import pandas as pd
     ```
 
 1.  使用 pandas 的 `read_csv` 函数加载数据集：
 
-    ```
+    ```py
     df = pd.read_csv('qsar_androgen_receptor.csv', \
                      sep=';')
     ```
@@ -626,26 +626,26 @@ Sigmoid 转换的输出可以被解释为一个值属于正类的概率；接近
 
 1.  丢弃任何包含空值的行：
 
-    ```
+    ```py
     df.dropna(inplace=True)
     ```
 
 1.  创建目标和特征数据集：
 
-    ```
+    ```py
     target = df['positive'].apply(lambda x: 1 if x=='positive' else 0)
     features = df.drop('positive', axis=1)
     ```
 
 1.  初始化一个 Keras `Sequential` 类的模型：
 
-    ```
+    ```py
     model = tf.keras.Sequential()
     ```
 
 1.  使用模型的 `add` 方法为模型添加输入层，并将 `input_shape` 设置为特征数据集中的列数：
 
-    ```
+    ```py
     model.add(tf.keras.layers.InputLayer\
              (input_shape=(features.shape[1],), \
                            name='Input_layer'))
@@ -653,28 +653,28 @@ Sigmoid 转换的输出可以被解释为一个值属于正类的概率；接近
 
 1.  将 `Dense` 类的输出层添加到模型中，大小为 `1`，表示目标变量：
 
-    ```
+    ```py
     model.add(tf.keras.layers.Dense(1, name='Output_layer', \
                                     activation='sigmoid'))
     ```
 
 1.  使用 RMSprop 优化器和二元交叉熵损失函数编译模型，并计算准确率：
 
-    ```
+    ```py
     model.compile(tf.optimizers.RMSprop(0.0001), \
                   loss='binary_crossentropy', metrics=['accuracy'])
     ```
 
 1.  创建一个 TensorBoard 回调：
 
-    ```
+    ```py
     tensorboard_callback = tf.keras.callbacks.TensorBoard\
                            (log_dir="./logs")
     ```
 
 1.  通过训练数据训练模型 `50` 个 epoch，并添加 TensorBoard 回调，验证集比例为 20%：
 
-    ```
+    ```py
     model.fit(x=features.to_numpy(), y=target.to_numpy(), \
              epochs=50, callbacks=[tensorboard_callback] , \
              validation_split=0.2)
@@ -688,7 +688,7 @@ Sigmoid 转换的输出可以被解释为一个值属于正类的概率；接近
 
 1.  在训练数据上评估模型：
 
-    ```
+    ```py
     loss, accuracy = model.evaluate(features.to_numpy(), \
                                     target.to_numpy())
     print(f'loss: {loss}, accuracy: {accuracy}')
@@ -696,13 +696,13 @@ Sigmoid 转换的输出可以被解释为一个值属于正类的概率；接近
 
     你应该得到类似如下的输出：
 
-    ```
+    ```py
     loss: 0.2781583094794838, accuracy: 0.9110320210456848
     ```
 
 1.  通过在命令行中调用以下命令，在 TensorBoard 中可视化模型拟合过程：
 
-    ```
+    ```py
     tensorboard --logdir=logs/
     ```
 

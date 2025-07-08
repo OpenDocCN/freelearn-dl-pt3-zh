@@ -46,7 +46,7 @@
 
 1.  导入所有必要的包：
 
-    ```
+    ```py
     import numpy as np
     import tensorflow as tf
     from tensorflow.keras import Model
@@ -55,7 +55,7 @@
 
 1.  定义`DeepDreamer`类及其构造函数：
 
-    ```
+    ```py
     class DeepDreamer(object):
         def __init__(self,
                      octave_scale=1.30,
@@ -65,7 +65,7 @@
 
 1.  构造函数参数指定了我们将如何按比例增大图像的尺寸（`octave_scale`），以及将应用于尺度的因子（`octave_power_factors`）。`layers`包含将用于生成梦境的目标层。接下来，我们将这些参数存储为对象成员：
 
-    ```
+    ```py
             self.octave_scale = octave_scale
             if octave_power_factors is None:
                 self.octave_power_factors = [*range(-2, 3)]
@@ -80,7 +80,7 @@
 
 1.  如果某些输入是`None`，我们使用默认值。如果不是，我们使用输入值。最后，通过从预训练的`InceptionV3`网络中提取`layers`来创建梦境生成模型：
 
-    ```
+    ```py
             self.base_model = InceptionV3(weights='imagenet',
                                          include_top=False)
             outputs = [self.base_model.get_layer(name).output
@@ -91,7 +91,7 @@
 
 1.  定义一个私有方法来计算损失：
 
-    ```
+    ```py
         def _calculate_loss(self, image):
             image_batch = tf.expand_dims(image, axis=0)
             activations = self.dreamer_model(image_batch)
@@ -107,7 +107,7 @@
 
 1.  定义一个私有方法来执行梯度上升（记住，我们希望放大图像中的图案）。为了提高性能，我们可以将此函数封装在`tf.function`中：
 
-    ```
+    ```py
         @tf.function
         def _gradient_ascent(self, image, steps, step_size):
             loss = tf.constant(0.0)
@@ -125,7 +125,7 @@
 
 1.  定义一个私有方法，将梦境生成器产生的图像张量转换回`NumPy`数组：
 
-    ```
+    ```py
         def _deprocess(self, image):
             image = 255 * (image + 1.0) / 2.0
             image = tf.cast(image, tf.uint8)
@@ -135,7 +135,7 @@
 
 1.  定义一个私有方法，通过执行`_gradient_ascent()`一定步数来生成梦幻图像：
 
-    ```
+    ```py
         def _dream(self, image, steps, step_size):
             image = preprocess_input(image)
             image = tf.convert_to_tensor(image)
@@ -160,7 +160,7 @@
 
 1.  定义一个公共方法来生成梦幻图像。这与`_dream()`（在*第 6 步*中定义，并在此内部使用）之间的主要区别是，我们将使用不同的图像尺寸（称为`self.octave_scale`，每个`self.octave_power_factors`中的幂次）：
 
-    ```
+    ```py
         def dream(self, image, steps=100, step_size=0.01):
             image = tf.constant(np.array(image))
             base_shape = tf.shape(image)[:-1]
@@ -223,7 +223,7 @@
 
 1.  让我们从导入所需的包开始。请注意，我们正在从之前的配方中导入`DeepDreamer()`，*实现 DeepDream*：
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     from tensorflow.keras.preprocessing.image import *
     from ch4.recipe1.deepdream import DeepDreamer
@@ -231,7 +231,7 @@
 
 1.  定义`load_image()`函数，从磁盘加载图像到内存中，作为`NumPy`数组：
 
-    ```
+    ```py
     def load_image(image_path):
         image = load_img(image_path)
         image = img_to_array(image)
@@ -240,7 +240,7 @@
 
 1.  定义一个函数，使用`matplotlib`显示图像（以`NumPy`数组表示）：
 
-    ```
+    ```py
     def show_image(image):
         plt.imshow(image)
         plt.show()
@@ -248,7 +248,7 @@
 
 1.  加载原始图像并显示：
 
-    ```
+    ```py
     original_image = load_image('road.jpg')
     show_image(original_image / 255.0)
     ```
@@ -263,7 +263,7 @@
 
 1.  使用默认参数生成图像的梦幻版，并显示结果：
 
-    ```
+    ```py
     dreamy_image = DeepDreamer().dream(original_image)
     show_image(dreamy_image)
     ```
@@ -278,7 +278,7 @@
 
 1.  使用三层。靠近顶部的层（例如，`'mixed7'`）编码更高层次的模式：
 
-    ```
+    ```py
     dreamy_image = (DeepDreamer(layers=['mixed2',
                                         'mixed5',
                                         'mixed7'])
@@ -296,7 +296,7 @@
 
 1.  最后，让我们使用更多的**八度音阶**。我们期望的结果是图像中噪声较少，且具有更多异质模式：
 
-    ```
+    ```py
     dreamy_image = (DeepDreamer(octave_power_factors=[-3, -1,
                                                       0, 3])
                     .dream(original_image))
@@ -341,7 +341,7 @@
 
 1.  导入必要的包（注意，在我们的实现中，我们使用了一个预训练的**VGG19**网络）：
 
-    ```
+    ```py
     import numpy as np
     import tensorflow as tf
     from tensorflow.keras import Model
@@ -350,7 +350,7 @@
 
 1.  定义`StyleTransferrer()`类及其构造函数：
 
-    ```
+    ```py
     class StyleTransferrer(object):
         def __init__(self,
                      content_layers=None,
@@ -359,7 +359,7 @@
 
 1.  唯一相关的参数是内容和风格生成的两个可选层列表。如果它们是`None`，我们将在内部使用默认值（稍后我们会看到）。接下来，加载预训练的`VGG19`并将其冻结：
 
-    ```
+    ```py
             self.model = VGG19(weights='imagenet',
                                include_top=False)
             self.model.trainable = False
@@ -367,7 +367,7 @@
 
 1.  设置风格和内容损失的权重（重要性）（稍后我们会使用这些参数）。另外，存储内容和风格层（如果需要的话，可以使用默认设置）：
 
-    ```
+    ```py
             self.style_weight = 1e-2
             self.content_weight = 1e4
             if content_layers is None:
@@ -386,7 +386,7 @@
 
 1.  定义并存储样式迁移模型，该模型以**VGG19**输入层为输入，输出所有内容层和样式层（请注意，我们可以使用任何模型，但通常使用 VGG19 或 InceptionV3 能获得最佳效果）：
 
-    ```
+    ```py
             outputs = [self.model.get_layer(name).output
                        for name in
                        (self.style_layers + 
@@ -397,7 +397,7 @@
 
 1.  定义一个私有方法，用于计算**Gram 矩阵**，它用于计算图像的样式。它由一个矩阵表示，其中包含输入张量中不同特征图之间的均值和相关性（例如，特定层中的权重），被称为**Gram 矩阵**。有关**Gram 矩阵**的更多信息，请参阅本配方中的*另请参阅*部分：
 
-    ```
+    ```py
         def _gram_matrix(self, input_tensor):
             result = tf.linalg.einsum('bijc,bijd->bcd',
                                       input_tensor,
@@ -411,7 +411,7 @@
 
 1.  接下来，定义一个私有方法，用于计算输出（内容和样式）。该私有方法的作用是将输入传递给模型，然后计算所有样式层的**Gram 矩阵**以及内容层的身份，返回映射每个层名称到处理后值的字典：
 
-    ```
+    ```py
         def _calc_outputs(self, inputs):
             inputs = inputs * 255
             preprocessed_input = preprocess_input(inputs)
@@ -437,7 +437,7 @@
 
 1.  定义一个静态辅助私有方法，用于将值限制在`0`和`1`之间：
 
-    ```
+    ```py
         @staticmethod
         def _clip_0_1(image):
             return tf.clip_by_value(image,
@@ -447,7 +447,7 @@
 
 1.  定义一个静态辅助私有方法，用于计算一对输出和目标之间的损失：
 
-    ```
+    ```py
         @staticmethod
         def _compute_loss(outputs, targets):
             return tf.add_n([
@@ -459,7 +459,7 @@
 
 1.  定义一个私有方法，用于计算总损失，该损失是通过分别计算样式损失和内容损失，乘以各自权重并分配到相应层，再加总得到的：
 
-    ```
+    ```py
         def _calc_total_loss(self,
                              outputs,
                              style_targets,
@@ -479,7 +479,7 @@
 
 1.  接下来，定义一个私有方法，用于训练模型。在一定数量的 epochs 和每个 epoch 的指定步数下，我们将计算输出（样式和内容），计算总损失，并获取并应用梯度到生成的图像，同时使用`Adam`作为优化器：
 
-    ```
+    ```py
         @tf.function()
         def _train(self,
                    image,
@@ -509,7 +509,7 @@
 
 1.  定义一个静态辅助私有方法，用于将张量转换为`NumPy`图像：
 
-    ```
+    ```py
         @staticmethod
         def _tensor_to_image(tensor):
             tensor = tensor * 255
@@ -521,7 +521,7 @@
 
 1.  最后，定义一个公共的`transfer()`方法，该方法接受一张样式图像和一张内容图像，生成一张新图像。它应该尽可能保留内容，同时应用样式图像的样式：
 
-    ```
+    ```py
         def transfer(self, s_image, c_image, epochs=10,
                      steps_per_epoch=100):
             s_targets = self._calc_outputs(s_image)['style']
@@ -578,7 +578,7 @@
 
 1.  导入必要的包：
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     import tensorflow as tf
     from chapter4.recipe3.styletransfer import StyleTransferrer
@@ -588,13 +588,13 @@
 
 1.  告诉 TensorFlow 我们希望以急切模式运行，因为否则，它会尝试在图模式下运行`StyleTransferrer()`中的`tf.function`装饰器函数，这将导致其无法正常工作：
 
-    ```
+    ```py
     tf.config.experimental_run_functions_eagerly(True)
     ```
 
 1.  定义一个函数，将图像加载为 TensorFlow 张量。请注意，我们正在将其重新缩放到一个合理的大小。我们这样做是因为神经风格迁移是一个资源密集型的过程，因此处理大图像可能需要很长时间：
 
-    ```
+    ```py
     def load_image(image_path):
         dimension = 512
         image = tf.io.read_file(image_path)
@@ -611,7 +611,7 @@
 
 1.  定义一个函数，用于通过`matplotlib`显示图像：
 
-    ```
+    ```py
     def show_image(image):
         if len(image.shape) > 3:
             image = tf.squeeze(image, axis=0)
@@ -621,7 +621,7 @@
 
 1.  加载内容图像并显示它：
 
-    ```
+    ```py
     content = load_image('bmw.jpg')
     show_image(content)
     ```
@@ -636,7 +636,7 @@
 
 1.  加载并显示风格图像：
 
-    ```
+    ```py
     style = load_image(art.jpg')
     show_image(style)
     ```
@@ -653,7 +653,7 @@
 
 1.  使用 `StyleTransferrer()` 将画作的风格应用到我们的 BMW 图像上。然后，展示结果：
 
-    ```
+    ```py
     stylized_image = StyleTransferrer().transfer(style, 
                                                  content)
     show_image(stylized_image)
@@ -671,7 +671,7 @@
 
 1.  重复这个过程，这次进行 100 个训练周期：
 
-    ```
+    ```py
     stylized_image = StyleTransferrer().transfer(style, 
                                                  content,
                                                epochs=100)
@@ -710,7 +710,7 @@
 
 我们必须安装 `tensorflow-hub`。我们只需一个简单的 `pip` 命令即可完成：
 
-```
+```py
 $> pip install tensorflow-hub
 ```
 
@@ -732,7 +732,7 @@ $> pip install tensorflow-hub
 
 1.  导入必要的依赖项：
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     import numpy as np
     import tensorflow as tf
@@ -741,7 +741,7 @@ $> pip install tensorflow-hub
 
 1.  定义一个将图像加载为 TensorFlow 张量的函数。由于神经风格迁移是一个计算密集型的过程，因此我们需要对图像进行重缩放，以节省时间和资源，因为处理大图像可能会花费很长时间：
 
-    ```
+    ```py
     def load_image(image_path):
         dimension = 512
         image = tf.io.read_file(image_path)
@@ -758,7 +758,7 @@ $> pip install tensorflow-hub
 
 1.  定义一个将张量转换为图像的函数：
 
-    ```
+    ```py
     def tensor_to_image(tensor):
         tensor = tensor * 255
         tensor = np.array(tensor, dtype=np.uint8)
@@ -769,7 +769,7 @@ $> pip install tensorflow-hub
 
 1.  定义一个使用`matplotlib`显示图像的函数：
 
-    ```
+    ```py
     def show_image(image):
         if len(image.shape) > 3:
             image = tf.squeeze(image, axis=0)
@@ -779,7 +779,7 @@ $> pip install tensorflow-hub
 
 1.  定义风格迁移实现的路径，并加载模型：
 
-    ```
+    ```py
     module_url = ('https://tfhub.dev/google/magenta/'
                   'arbitrary-image-stylization-v1-256/2')
     hub_module = load(module_url)
@@ -787,7 +787,7 @@ $> pip install tensorflow-hub
 
 1.  加载内容图像，然后显示它：
 
-    ```
+    ```py
     image = load_image('bmw.jpg')
     show_image(image)
     ```
@@ -802,7 +802,7 @@ $> pip install tensorflow-hub
 
 1.  加载并显示风格图像：
 
-    ```
+    ```py
     style_image = load_image('art4.jpg')
     show_image(style_image)
     ```
@@ -817,7 +817,7 @@ $> pip install tensorflow-hub
 
 1.  使用我们从 TFHub 下载的模型应用神经风格迁移，并显示结果：
 
-    ```
+    ```py
     results = hub_module(tf.constant(image),
                          tf.constant(style_image))
     stylized_image = tensor_to_image(results[0])
@@ -862,7 +862,7 @@ $> pip install tensorflow-hub
 
 在这个步骤中，我们需要使用`Pillow`，你可以通过以下命令安装：
 
-```
+```py
 $> pip install Pillow
 ```
 
@@ -882,7 +882,7 @@ $> pip install Pillow
 
 1.  导入所有必要的模块：
 
-    ```
+    ```py
     import pathlib
     from glob import glob
     import matplotlib.pyplot as plt
@@ -896,7 +896,7 @@ $> pip install Pillow
 
 1.  定义一个函数，构建网络架构。请注意，这是一个全卷积网络，这意味着它仅由卷积层（除了激活层）组成，包括输出层：
 
-    ```
+    ```py
     def build_srcnn(height, width, depth):
         input = Input(shape=(height, width, depth))
         x = Conv2D(filters=64, kernel_size=(9, 9),
@@ -912,7 +912,7 @@ $> pip install Pillow
 
 1.  定义一个函数，根据缩放因子调整图像的大小。需要考虑的是，它接收的是一个表示图像的`NumPy`数组：
 
-    ```
+    ```py
     def resize_image(image_array, factor):
         original_image = Image.fromarray(image_array)
         new_size = np.array(original_image.size) * factor
@@ -926,7 +926,7 @@ $> pip install Pillow
 
 1.  定义一个函数，紧密裁剪图像。我们这样做是因为当我们稍后应用滑动窗口提取补丁时，希望图像能恰当地适应。`SCALE`是我们希望网络学习如何放大图像的因子：
 
-    ```
+    ```py
     def tight_crop_image(image):
         height, width = image.shape[:2]
         width -= int(width % SCALE)
@@ -936,7 +936,7 @@ $> pip install Pillow
 
 1.  定义一个函数，故意通过缩小图像然后再放大它来降低图像分辨率：
 
-    ```
+    ```py
     def downsize_upsize_image(image):
         scaled = resize_image(image, 1.0 / SCALE)
         scaled = resize_image(scaled, SCALE / 1.0)
@@ -945,7 +945,7 @@ $> pip install Pillow
 
 1.  定义一个函数，用于从输入图像中裁剪补丁。`INPUT_DIM`是我们输入到网络中的图像的高度和宽度：
 
-    ```
+    ```py
     def crop_input(image, x, y):
         y_slice = slice(y, y + INPUT_DIM)
         x_slice = slice(x, x + INPUT_DIM)
@@ -954,7 +954,7 @@ $> pip install Pillow
 
 1.  定义一个函数，用于裁剪输出图像的区域。`LABEL_SIZE`是网络输出图像的高度和宽度。另一方面，`PAD`是用于填充的像素数，确保我们正确裁剪感兴趣的区域：
 
-    ```
+    ```py
     def crop_output(image, x, y):
         y_slice = slice(y + PAD, y + PAD + LABEL_SIZE)
         x_slice = slice(x + PAD, x + PAD + LABEL_SIZE)
@@ -963,14 +963,14 @@ $> pip install Pillow
 
 1.  设置随机种子：
 
-    ```
+    ```py
     SEED = 999
     np.random.seed(SEED)
     ```
 
 1.  加载数据集中所有图像的路径：
 
-    ```
+    ```py
     file_patten = (pathlib.Path.home() / '.keras' / 
                    'datasets' /
                    'dogscats' / 'images' / '*.png')
@@ -980,7 +980,7 @@ $> pip install Pillow
 
 1.  因为数据集非常庞大，而我们并不需要其中所有的图像来实现我们的目标，所以让我们随机挑选其中 1,500 张：
 
-    ```
+    ```py
     SUBSET_SIZE = 1500
     dataset_paths = np.random.choice(dataset_paths, 
                                      SUBSET_SIZE)
@@ -988,7 +988,7 @@ $> pip install Pillow
 
 1.  定义将用于创建低分辨率补丁数据集（作为输入）和高分辨率补丁（作为标签）数据集的参数。除了`STRIDE`参数外，所有这些参数都在前面的步骤中定义过。`STRIDE`是我们在水平和垂直轴上滑动提取补丁时使用的像素数：
 
-    ```
+    ```py
     SCALE = 2.0
     INPUT_DIM = 33
     LABEL_SIZE = 21
@@ -998,7 +998,7 @@ $> pip install Pillow
 
 1.  构建数据集。输入将是从图像中提取的低分辨率补丁，这些补丁是通过缩小和放大处理过的。标签将是来自未改变图像的补丁：
 
-    ```
+    ```py
     data = []
     labels = []
     for image_path in dataset_paths:
@@ -1020,7 +1020,7 @@ $> pip install Pillow
 
 1.  实例化网络，我们将在 12 个周期内进行训练，并使用`Adam()`作为优化器，同时进行学习率衰减。损失函数是`'mse'`。为什么？因为我们的目标不是实现高准确率，而是学习一组过滤器，正确地将低分辨率图像块映射到高分辨率：
 
-    ```
+    ```py
     EPOCHS = 12
     optimizer = Adam(lr=1e-3, decay=1e-3 / EPOCHS)
     model = build_srcnn(INPUT_DIM, INPUT_DIM, 3)
@@ -1029,7 +1029,7 @@ $> pip install Pillow
 
 1.  训练网络：
 
-    ```
+    ```py
     BATCH_SIZE = 64
     model.fit(data, labels, batch_size=BATCH_SIZE, 
               epochs=EPOCHS)
@@ -1037,7 +1037,7 @@ $> pip install Pillow
 
 1.  现在，为了评估我们的解决方案，我们将加载一张测试图像，将其转换为`NumPy`数组，并降低其分辨率：
 
-    ```
+    ```py
     image = load_img('dogs.jpg')
     image = img_to_array(image)
     image = image.astype(np.uint8)
@@ -1047,7 +1047,7 @@ $> pip install Pillow
 
 1.  显示低分辨率图像：
 
-    ```
+    ```py
     plt.title('Low resolution image (Downsize + Upsize)')
     plt.imshow(scaled)
     plt.show()
@@ -1063,14 +1063,14 @@ $> pip install Pillow
 
 1.  创建一个与输入图像相同尺寸的画布。这是我们存储网络生成的高分辨率图像块的地方：
 
-    ```
+    ```py
     output = np.zeros(scaled.shape)
     height, width = output.shape[:2]
     ```
 
 1.  提取低分辨率图像块，将它们传入网络以获得高分辨率的对应图像块，并将它们放置在输出画布的正确位置：
 
-    ```
+    ```py
     for y in range(0, height - INPUT_DIM + 1, LABEL_SIZE):
         for x in range(0, width - INPUT_DIM + 1, LABEL_SIZE):
             crop = crop_input(scaled, x, y)
@@ -1088,7 +1088,7 @@ $> pip install Pillow
 
 1.  最后，显示高分辨率结果：
 
-    ```
+    ```py
     plt.title('Super resolution result (SRCNN output)')
     plt.imshow(output / 255)
     plt.show()

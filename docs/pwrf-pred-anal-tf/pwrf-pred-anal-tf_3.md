@@ -94,7 +94,7 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     我们需要一些内置的 Python 库，例如 os、random、NumPy 和 Pandas，用于数据处理；PCA 用于降维；Matplotlib 用于绘图；当然，还有 TensorFlow：
 
-    ```
+    ```py
     import os
     import random
     from random import choice, shuffle
@@ -110,7 +110,7 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     这里的第一行用于确保结果的可重现性。第二行基本上是从你的位置读取数据集并将其转换为 Pandas 数据框：
 
-    ```
+    ```py
     random.seed(12345)
     train = pd.read_csv(os.path.join('input', 'saratoga.csv'))
     x_train = np.array(train.iloc[:, 1:], dtype='float32')
@@ -128,7 +128,7 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     以下是 K-means 的源代码，这在 TensorFlow 中非常简单：
 
-    ```
+    ```py
     def kmeans(x, n_features, n_clusters, n_max_steps=1000, early_stop=0.0):
         input_vec = tf.constant(x, dtype=tf.float32)
         centroids = tf.Variable(tf.slice(tf.random_shuffle(input_vec), [0, 0], [n_clusters, -1]), dtype=tf.float32)
@@ -165,7 +165,7 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     现在可以用实际值调用前面的函数，例如，我们的房屋数据集。由于有许多房屋及其相应的特征，绘制所有房屋的聚类图会很困难。这就是我们在之前的课程中讨论的**主成分分析**（**PCA**）：
 
-    ```
+    ```py
     centers, cluster_assignments = kmeans(x_train, len(x_train[0]), 10)
     pca_model = PCA(n_components=3)
     reduced_data = pca_model.fit_transform(x_train)
@@ -174,7 +174,7 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     好的，现在我们一切就绪。为了更好地可视化聚类，您可以参见图 6 所示。为此，我们将使用 mpl_toolkits.mplot3d 进行 3D 投影，如下所示：
 
-    ```
+    ```py
     plt.subplot(212, projection='3d')
     plt.scatter(reduced_data[:, 0], reduced_data[:, 1], reduced_data[:, 2], c=cluster_assignments)
     plt.title("Clusters")
@@ -202,7 +202,7 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     然而，在进行实验之前决定簇的数量可能并不会成功，有时可能导致过拟合问题或欠拟合问题。此外，非正式地说，确定簇的数量是一个独立的优化问题需要解决。因此，基于此，我们可以重新设计我们的 K 均值算法，考虑到 WCSS 值的计算，如下所示：
 
-    ```
+    ```py
     def kmeans(x, n_features, n_clusters, n_max_steps=1000, early_stop=0.0):
         input_vec = tf.constant(x, dtype=tf.float32)
         centroids = tf.Variable(tf.slice(tf.random_shuffle(input_vec), [0, 0], [n_clusters, -1]), dtype=tf.float32)
@@ -249,7 +249,7 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     请注意，一个健壮且准确的聚类模型将具有较低的内聚度值和较高的中介度值。然而，这些值依赖于选择的簇的数量`K`，这个值是在建立模型之前确定的。现在，基于此，我们将为不同的`K`值训练 K-means 模型，这些`K`值是预定义的簇的数量。我们将从**K = 2**到`10`开始，具体如下：
 
-    ```
+    ```py
     wcss_list = []
     for i in range(2, 10):
         centers, cluster_assignments, wcss = kmeans(x_train, len(x_train[0]), i)
@@ -258,7 +258,7 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     现在，让我们讨论如何利用肘部法则来确定簇的数量。我们计算了 K-means 算法应用于房屋数据时，WCSS 随簇数量变化的成本函数，如下所示：
 
-    ```
+    ```py
     plt.figure(figsize=(12, 24))
     plt.subplot(211)
     plt.plot(range(2, 10), wcss_list)
@@ -296,7 +296,7 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     由于这是一本关于 TensorFlow 的书，我会尝试使用 TensorFlow 内置操作符中的 `tf.train.match_filenames_once()` 来列出目录中的文件。然后，我们可以将此信息传递给 `tf.train.string_input_producer()` 队列操作符。通过这种方式，我们可以一次访问一个文件，而不是一次性加载所有文件。下面是该方法的结构：
 
-    ```
+    ```py
     match_filenames_once(pattern,name=None)
     ```
 
@@ -304,7 +304,7 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     最后，返回一个初始化为与模式匹配的文件列表的变量。完成读取元数据和音频文件后，我们可以解码文件，以从给定的文件名中检索可用的数据。现在，让我们开始。首先，我们需要导入必要的包和 Python 模块，如下所示：
 
-    ```
+    ```py
     import 
     tensorflow as tf
     import numpy as np
@@ -316,7 +316,7 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     现在我们可以开始从指定的目录读取音频文件。首先，我们需要存储与包含特定文件扩展名的模式匹配的文件名，例如 `.mp3`、`.wav` 等。然后，我们需要设置一个管道，用于随机获取文件名。现在，代码本地读取 TensorFlow 中的文件。然后，我们运行读取器来提取文件数据。你可以使用以下代码来完成这项任务：
 
-    ```
+    ```py
     filenames = tf.train.match_filenames_once('./audio_dataset/*.wav')
     count_num_files = tf.size(filenames)
     filename_queue = tf.train.string_input_producer(filenames)
@@ -342,14 +342,14 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     这个矩阵也叫做音频的色谱图。但首先，我们需要为 TensorFlow 提供一个占位符，用来保存音频的色谱图和最大频率：
 
-    ```
+    ```py
     chromo = tf.placeholder(tf.float32) 
     max_freqs = tf.argmax(chromo, 0)
     ```
 
     接下来的任务是我们可以编写一个方法，提取音频文件的这些色谱图。它可能如下所示：
 
-    ```
+    ```py
     def get_next_chromogram(sess):
         audio_file = sess.run(filename)
         F = Chromagram(audio_file, nfft=16384, wfft=8192, nhop=2205)
@@ -382,7 +382,7 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     既然我们已经有了色谱图，我们需要利用它提取音频特征来构建特征向量。你可以使用以下方法来完成这个任务：
 
-    ```
+    ```py
     def extract_feature_vector(sess, chromo_data):
         num_features, num_samples = np.shape(chromo_data)
         freq_vals = sess.run(max_freqs, feed_dict={chromo: chromo_data})
@@ -404,7 +404,7 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     因此，我们不能仅依赖于此，而应该进行视觉检查。所以，我们将调用先前的方法，从每个音频文件中提取特征向量并绘制特征图。整个操作应如下所示：
 
-    ```
+    ```py
     def get_dataset(sess):
         num_files = sess.run(count_num_files)
         coord = tf.train.Coordinator()
@@ -465,14 +465,14 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     根据我们选择提取的音频特征，质心可以捕捉到一些概念，如大声的声音、高音调的声音或萨克斯管类似的声音。因此，需要注意的是，K-means 算法分配的是没有描述性标签的聚类，例如聚类 1、聚类 2 或聚类 3。首先，我们可以编写一个方法，计算初始的聚类质心，如下所示：
 
-    ```
+    ```py
     def initial_cluster_centroids(X, k):
         return X[0:k, :]
     ```
 
     现在，接下来的任务是根据初始聚类分配随机地将聚类编号分配给每个数据点。这次我们可以使用另一种方法：
 
-    ```
+    ```py
     def assign_cluster(X, centroids):
         expanded_vectors = tf.expand_dims(X, 0)
         expanded_centroids = tf.expand_dims(centroids, 1)
@@ -484,7 +484,7 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     之前的方法计算了聚类评估中最小距离和 WCSS。然后，我们需要更新质心来检查并确保聚类分配中是否发生了任何变化：
 
-    ```
+    ```py
     def recompute_centroids(X, Y):
         sums = tf.unsorted_segment_sum(X, Y, k)
         counts = tf.unsorted_segment_sum(tf.ones_like(X), Y, k)
@@ -493,13 +493,13 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     既然我们已经定义了许多变量，现在是时候使用 `local_variable_initializer()` 来初始化它们，如下所示：
 
-    ```
+    ```py
     init_op = tf.local_variables_initializer()
     ```
 
     最后，我们可以执行训练。为此，`audioClusterin()` 方法接受初步聚类数 `k` 并将训练迭代直到最大迭代次数，如下所示：
 
-    ```
+    ```py
     def audioClustering(k, max_iterations ): 
         with tf.Session() as sess:
             sess.run(init_op)
@@ -521,14 +521,14 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     在这里，我们将从两个角度评估聚类质量。首先，我们将观察预测的聚类数量。其次，我们还将尝试找出 `k` 的最优值，它是 WCSS 的一个函数。因此，我们将对 **K = 2** 到 **10** 进行迭代训练，并观察聚类结果。然而，首先，让我们创建两个空列表来保存每一步中 `K` 和 WCSS 的值：
 
-    ```
+    ```py
     wcss_list = []
     k_list = []
     ```
 
     现在，让我们使用 `for` 循环来迭代训练，如下所示：
 
-    ```
+    ```py
     for k in range(2, 9):
         random.seed(12345)
         wcss = audioClustering(k, 100)
@@ -538,7 +538,7 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     这将打印出以下输出：
 
-    ```
+    ```py
      ([(0,), (1,), (1,), (0,), (1,), (0,), (0,), (0,), (0,), (0,), (0,)],
     ['./audio_dataset/scream_1.wav', './audio_dataset/Crash-Cymbal-3.
     wav', './audio_dataset/Ride_Cymbal_1.wav', './audio_dataset/Ride_
@@ -608,7 +608,7 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     这些值表示每个音频文件已被聚类，并且聚类编号已分配（第一个括号是聚类编号，第二个括号内是文件名）。然而，从这个输出中很难判断准确性。一种天真的方法是将每个文件与图 12 至图 15 进行比较。或者，让我们采用一种更好的方法，那就是我们在第一个示例中使用的肘部法则。为此，我已经创建了一个字典，使用了两个列表 `k_list` 和 `wcss_list`，它们是先前计算得出的，具体如下：
 
-    ```
+    ```py
     dict_list = zip(k_list, wcss_list)
     my_dict = dict(dict_list)
     print(my_dict)
@@ -616,7 +616,7 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     之前的代码产生了以下输出：
 
-    ```
+    ```py
     {2: 2.8408628007260428, 3: 2.3755930780867365, 4: 0.9031724736903582,
     5: 0.7849431270192495, 6: 0.872767581979385, 7: 0.62019339653673422,
     8: 0.70075249251166494, 9: 0.86645706880532057}
@@ -624,7 +624,7 @@ K-means 是一种聚类算法，旨在将相关的数据点聚集在一起。然
 
     从之前的输出可以看到，在 **k = 4** 时 WCSS 出现了急剧下降，这是在第三次迭代中生成的。因此，基于这个最小评估，我们可以做出关于以下聚类分配的决策：
 
-    ```
+    ```py
     Ride_Cymbal_1.wav => 2
     Ride_Cymbal_2.wav => 0 
     cough_1.wav => 2 
@@ -671,7 +671,7 @@ kNN 的思想是，从一组特征**x**中，我们尝试预测标签**y**。因
 
     作为入口，我们导入必要的库和包，这些将用于使用 TensorFlow 进行 kNN 预测分析：
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     import numpy as np 
     import random
@@ -686,7 +686,7 @@ kNN 的思想是，从一组特征**x**中，我们尝试预测标签**y**。因
 
     我们需要使用 TensorFlow 的 `reset_default_graph()` 函数重置默认的 TensorFlow 图。你还必须禁用所有警告，因为你的设备没有 GPU：
 
-    ```
+    ```py
     warnings.filterwarnings("ignore")
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     ops.reset_default_graph()
@@ -696,7 +696,7 @@ kNN 的思想是，从一组特征**x**中，我们尝试预测标签**y**。因
 
     首先，我们将使用 requests 包中的 `get()` 函数加载并解析数据集，如下所示：
 
-    ```
+    ```py
     housing_url = 'https://archive.ics.uci.edu/ml/machine-learning-databases/housing/housing.data'
     housing_header = ['CRIM', 'ZN', 'INDUS', 'CHAS', 'NOX', 'RM', 'AGE', 'DIS', 'RAD', 'TAX', 'PTRATIO', 'B', 'LSTAT', 'MEDV']
     num_features = len(housing_header)
@@ -710,14 +710,14 @@ kNN 的思想是，从一组特征**x**中，我们尝试预测标签**y**。因
 
     接下来，我们将把特征（预测变量）和标签分开：
 
-    ```
+    ```py
     y_vals = np.transpose([np.array([y[len(housing_header)-1] for y in housing_data])])
     x_vals = np.array([[x for i,x in enumerate(y) if housing_header[i] in housing_header] for y in housing_data])
     ```
 
     现在，为了了解特征和标签的大概情况，让我们按如下方式打印它们：
 
-    ```
+    ```py
     print(y_vals)
     >>>
     [[ 24\. ]
@@ -736,7 +736,7 @@ kNN 的思想是，从一组特征**x**中，我们尝试预测标签**y**。因
 
     所以，标签可以正常使用，而且它们也是连续值。现在，让我们看看特征：
 
-    ```
+    ```py
     print(x_vals)
     >>>
     [[  6.32000000e-03   1.80000000e+01   2.31000000e+00 ...,   3.96900000e+02
@@ -751,7 +751,7 @@ kNN 的思想是，从一组特征**x**中，我们尝试预测标签**y**。因
      [  1.09590000e-01   0.00000000e+00   1.19300000e+01 ...,   3.93450000e+02
     ```
 
-    ```
+    ```py
         6.48000000e+00   2.20000000e+01]
      [  4.74100000e-02   0.00000000e+00   1.19300000e+01 ...,   3.96900000e+02
         7.88000000e+00   1.19000000e+01]]
@@ -759,13 +759,13 @@ kNN 的思想是，从一组特征**x**中，我们尝试预测标签**y**。因
 
     好吧，如果你看到这些值，它们并没有经过缩放，不能直接输入到预测模型中。因此，我们需要应用最小-最大缩放来使特征结构更加合理，以便估算器能单独对每个特征进行缩放和转换，并确保其在训练集中的给定范围内，即在零到一之间。由于特征在预测分析中非常重要，我们应该特别关注它们。以下代码行完成了最小-最大缩放：
 
-    ```
+    ```py
     x_vals = (x_vals - x_vals.min(0)) / x_vals.ptp(0)
     ```
 
     现在让我们再次打印它们，以检查确保发生了什么变化：
 
-    ```
+    ```py
     print(x_vals)
     >>>
     [[  0.00000000e+00   1.80000000e-01   6.78152493e-02 ...,   1.00000000e+008.96799117e-02   4.22222222e-01]
@@ -782,7 +782,7 @@ kNN 的思想是，从一组特征**x**中，我们尝试预测标签**y**。因
 
     由于我们的特征已经进行了缩放，现在是时候将数据分成训练集和测试集了。现在，我们将 x 和 y 值分别拆分成训练集和测试集。我们将通过随机选择约 75% 的行来创建训练集，剩余的 25% 用于测试集：
 
-    ```
+    ```py
     train_indices = np.random.choice(len(x_vals), int(len(x_vals)*0.75), replace=False)
     test_indices = np.array(list(set(range(len(x_vals))) - set(train_indices)))
     x_vals_train = x_vals[train_indices]
@@ -795,13 +795,13 @@ kNN 的思想是，从一组特征**x**中，我们尝试预测标签**y**。因
 
     首先，我们将声明批量大小。理想情况下，批量大小应该等于测试集中特征的大小：
 
-    ```
+    ```py
     batch_size=len(x_vals_test)
     ```
 
     接下来，我们需要声明 TensorFlow 张量的占位符，如下所示：
 
-    ```
+    ```py
     x_data_train = tf.placeholder(shape=[None, num_features], dtype=tf.float32)
     x_data_test = tf.placeholder(shape=[None, num_features], dtype=tf.float32)
     y_target_train = tf.placeholder(shape=[None, 1], dtype=tf.float32)
@@ -812,7 +812,7 @@ kNN 的思想是，从一组特征**x**中，我们尝试预测标签**y**。因
 
     对于这个例子，我们将使用 L1 距离。原因是使用 L2 距离在我的案例中没有得到更好的结果：
 
-    ```
+    ```py
     distance = tf.reduce_sum(tf.abs(tf.subtract(x_data_train, tf.expand_dims(x_data_test,1))), axis=2)
     ```
 
@@ -832,7 +832,7 @@ kNN 的思想是，从一组特征**x**中，我们尝试预测标签**y**。因
 
     现在，这是 kNN 的函数。它接受初始邻居的数量并开始计算。请注意，尽管这是一个广泛使用的约定，但在这里我将其做成一个变量以便进行一些调优，如下所示：
 
-    ```
+    ```py
     def kNN(k): 
         topK_X, topK_indices = tf.nn.top_k(tf.negative(distance), k=k)
         x_sums = tf.expand_dims(tf.reduce_sum(topK_X, 1), 1)
@@ -860,7 +860,7 @@ kNN 的思想是，从一组特征**x**中，我们尝试预测标签**y**。因
 
     注意，这个函数并没有返回最优的`mse`值，也就是最低的`mse`值，而是在不同的`k`值下变化，因此它是一个需要调优的超参数。一个可能的技术是将方法迭代从*k = 2* 到 `11`，并跟踪哪个最优的`k`值使得`kNN()`产生最低的`mse`值。首先，我们定义一个方法，迭代多次从`2`到`11`，并分别返回两个单独的列表，包含`mse`和`k`值：
 
-    ```
+    ```py
     mse_list = []
     k_list = []
     def getOptimalMSE_K():
@@ -874,7 +874,7 @@ kNN 的思想是，从一组特征**x**中，我们尝试预测标签**y**。因
 
     现在，是时候调用前面的那个方法，找到使得 kNN 产生最低`mse`值的最优`k`值了。在收到这两个列表后，我们创建一个字典，并使用`min()`方法来返回最优的`k`值，代码如下：
 
-    ```
+    ```py
     k_list, mse_list  = getOptimalMSE_K()
     dict_list = zip(k_list, mse_list)
     my_dict = dict(dict_list)
@@ -886,7 +886,7 @@ kNN 的思想是，从一组特征**x**中，我们尝试预测标签**y**。因
 
     现在，让我们打印出`最优的 k 值`，即能够获得最低`mse`值的`k`值：
 
-    ```
+    ```py
     print("Optimal K value: ", optimal_k)
     mse = min(mse_list)
     print("Minimum mean square error: ", mse)
@@ -898,7 +898,7 @@ kNN 的思想是，从一组特征**x**中，我们尝试预测标签**y**。因
 
     现在我们有了最优的`k`值，我们将进行最近邻计算。这次，我们会尝试返回预测标签和实际标签的矩阵：
 
-    ```
+    ```py
     def bestKNN(k): 
         topK_X, topK_indices = tf.nn.top_k(tf.negative(distance), k=k)
         x_sums = tf.expand_dims(tf.reduce_sum(topK_X, 1), 1)
@@ -919,7 +919,7 @@ kNN 的思想是，从一组特征**x**中，我们尝试预测标签**y**。因
 
     predictions = sess.run(prediction, feed_dict={x_data_train: x_vals_train, x_data_test: x_batch, y_target_train: y_vals_train, y_target_test: y_batch})
 
-    ```
+    ```py
         return predictions, y_batch
     ```
 
@@ -927,13 +927,13 @@ kNN 的思想是，从一组特征**x**中，我们尝试预测标签**y**。因
 
     现在，我们将调用`bestKNN()`方法，使用在前一步中计算出的最优`k`值，代码如下：
 
-    ```
+    ```py
     predicted_labels, actual_labels = bestKNN(optimal_k)
     ```
 
     现在，我想要测量预测的准确性。你是不是在想为什么？我知道原因。你没错。实际上，计算准确率或精度并没有特别重要的理由，因为我们预测的是连续值，也就是标签。尽管如此，我还是想展示给你看是否有效：
 
-    ```
+    ```py
     def getAccuracy(testSet, predictions):
      correct = 0
      for x in range(len(testSet)):
@@ -950,7 +950,7 @@ kNN 的思想是，从一组特征**x**中，我们尝试预测标签**y**。因
 
     但不要失望；我们还有另一种方式来观察我们的预测模型表现。我们仍然可以绘制一个直方图，展示预测标签与实际标签之间的分布：
 
-    ```
+    ```py
     bins = np.linspace(5, 50, 45)
     plt.hist(predicted_labels, bins, alpha=1.0, facecolor='red', label='Prediction')
     plt.hist(actual_labels, bins, alpha=1.0, facecolor='green', label='Actual')

@@ -182,7 +182,7 @@
 
 然后，使用`pandas`库加载`sms_spam_perceptron.csv`文件中的数据，从`pandas`的`DataFrame`中提取相应的值，通过`iloc()`方法引用：
 
-```
+```py
 import pandas as pd
 import numpy as np
 
@@ -198,7 +198,7 @@ X = df.iloc[:, [1, 2]].values
 
 在创建感知机之前，我们将输入数据分为训练数据和测试数据：
 
-```
+```py
 from sklearn.model_selection import train_test_split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0)
 ```
@@ -207,7 +207,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_
 
 此时，我们可以通过实例化`sklearn.linear_model`包中的`Perceptron`类来定义我们的感知机：
 
-```
+```py
 from sklearn.linear_model import Perceptron
 p = Perceptron(max_iter=40, eta0=0.1, random_state=0)
 p.fit(X_train, y_train)
@@ -217,7 +217,7 @@ p.fit(X_train, y_train)
 
 我们现在可以继续在测试数据上估计值，调用感知机的`predict()`方法：
 
-```
+```py
 y_pred = p.predict(X_test)
 ```
 
@@ -225,7 +225,7 @@ y_pred = p.predict(X_test)
 
 我们可以使用`scikit-learn`的`sklearn.metrics`包来验证感知机返回的估计值的准确性，方法如下：
 
-```
+```py
 from sklearn.metrics import accuracy_score
 print('Misclassified samples: %d' % (y_test != y_pred).sum())
 print('Accuracy: %.2f' % accuracy_score(y_test, y_pred))
@@ -285,7 +285,7 @@ SVM 的一个优势是，所识别的超平面**不限于**线性模型（与感
 
 与感知机案例中相同，我们将使用`pandas`加载数据，将类标签与相应的`-1`值（表示垃圾邮件）和`1`值（表示正常邮件）关联起来：
 
-```
+```py
 import pandas as pd
 import numpy as np
 df = pd.read_csv('../datasets/sms_spam_svm.csv')
@@ -295,7 +295,7 @@ y = np.where(y == 'spam', -1, 1)
 
 一旦数据加载完毕，我们接着将原始数据集拆分为 30%的测试数据和 70%的训练数据：
 
-```
+```py
 from sklearn.model_selection import train_test_split
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0)
@@ -303,7 +303,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_
 
 在这一点上，我们可以继续实例化我们的 SVM，导入`SVC`类（代表**支持向量分类器**）来自`sklearn.svm`包，选择线性分类器（`kernel = 'linear'`），然后通过调用`fit()`方法进行模型训练，最后通过调用`predict()`方法估计测试数据：
 
-```
+```py
 from sklearn.svm import SVC
 
 svm = SVC(kernel='linear', C=1.0, random_state=0)
@@ -313,7 +313,7 @@ y_pred = svm.predict(X_test)
 
 我们现在可以通过使用`sklearn.metrics`包来评估 SVM 算法返回的预测准确性，就像我们在使用感知机时所做的那样：
 
-```
+```py
 from sklearn.metrics import accuracy_score
 
 print('Misclassified samples: %d' % (y_test != y_pred).sum())
@@ -396,7 +396,7 @@ SVM 算法的多功能性使我们能够处理更复杂的现实世界分类案�
 
 在下面的代码片段中，我们将看到如何基于线性回归实现一个简单的预测模型，使用 `scikit-learn` 的 `linear_model` 模块，并以之前使用的垃圾邮件数据集之一作为输入：
 
-```
+```py
 import pandas as pd
 import numpy as np
 
@@ -452,7 +452,7 @@ print (linear_regression.score(X,y))
 
 在以下代码块中找到我们检测器的源代码：
 
-```
+```py
 import pandas as pd
 import numpy as np
 from sklearn import *
@@ -533,7 +533,7 @@ Logistic Regression accuracy: 91.72320217096338
 
 现在我们来看决策树在钓鱼攻击检测任务中的应用。如前所述，钓鱼攻击检测（以及垃圾邮件过滤）基本上涉及输入数据的分类：
 
-```
+```py
 import pandas as pd
 import numpy as np
 from sklearn import *
@@ -636,7 +636,7 @@ NLP 的主要阶段如下：
 
 让我们进入源代码：
 
-```
+```py
 import matplotlib.pyplot as plt
 import csv
 from textblob import TextBlob
@@ -672,7 +672,7 @@ spam_detector = MultinomialNB().fit(sms_tfidf, type_train)
 
 我们可以通过尝试对一个随机消息进行预测来检查 `spam_detector` 是否正常工作（在我们的示例中，我们选择了数据集中的第 26 条消息），并通过将预测值与消息的对应 `type` 标签进行比较，检查检测器是否正确分类了消息类型（垃圾邮件或正常邮件）：
 
-```
+```py
 msg = sms['text'][25]
 msg_bow = bow.transform([msg])
 msg_tfidf = tfidf.transform(msg_bow)
@@ -686,7 +686,7 @@ expected: ham
 
 到此为止，一旦验证了正确功能，我们就可以对整个数据集进行预测：
 
-```
+```py
 predictions = spam_detector.predict(sms_tfidf)
 print ('accuracy', accuracy_score(sms['type'][:len(predictions)], predictions))
 accuracy 0.7995385798513202

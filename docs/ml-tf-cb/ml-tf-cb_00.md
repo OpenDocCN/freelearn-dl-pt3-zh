@@ -60,14 +60,14 @@
 
 代码块按如下方式设置：
 
-```
+```py
 import TensorFlow as tf
 import NumPy as np 
 ```
 
 任何命令行输入或输出都按如下方式书写：
 
-```
+```py
 pip install tensorflow-datasets 
 ```
 

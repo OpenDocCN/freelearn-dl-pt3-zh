@@ -34,13 +34,13 @@ Bijectors 封装了概率密度的变量变换。也就是说，当一个变量�
 
 TensorFlow 概率还提供了`JointDistribution`，它允许用户抽取联合样本并计算联合对数密度（对数概率密度函数）。标准的 TFP 分布作用于张量，但`JointDistribution`作用于张量的结构。`tfp.layers`提供了神经网络层，可用于扩展标准 TensorFlow 层并为其添加不确定性。最后，它还提供了广泛的概率推理工具。在本章中，我们将通过一些这些函数和类；我们首先从安装开始。要在你的工作环境中安装 TFP，只需运行：
 
-```
+```py
 pip install tensorflow-probability 
 ```
 
 让我们玩一下 TFP。要使用 TFP，我们需要导入它。此外，我们将进行一些绘图。因此，我们导入一些额外的模块：
 
-```
+```py
 import matplotlib.pyplot as plt
 import tensorflow_probability as tfp
 import functools, inspect, sys 
@@ -48,7 +48,7 @@ import functools, inspect, sys
 
 接下来，我们探索`tfp.distributions`中可用的不同分布类别：
 
-```
+```py
 tfd = tfp.distributions
 distribution_class =  tfp.distributions.Distribution
 distributions = [name for name, obj in inspect.getmembers(tfd)
@@ -58,18 +58,18 @@ print(distributions)
 
 这是输出结果：
 
-```
+```py
 ['Autoregressive', 'BatchBroadcast', 'BatchConcat', 'BatchReshape', 'Bates', 'Bernoulli', 'Beta', 'BetaBinomial', 'BetaQuotient', 'Binomial', 'Blockwise', 'Categorical', 'Cauchy', 'Chi', 'Chi2', 'CholeskyLKJ', 'ContinuousBernoulli', 'DeterminantalPointProcess', 'Deterministic', 'Dirichlet', 'DirichletMultinomial', 'Distribution', 'DoublesidedMaxwell', 'Empirical', 'ExpGamma', 'ExpInverseGamma', 'ExpRelaxedOneHotCategorical', 'Exponential', 'ExponentiallyModifiedGaussian', 'FiniteDiscrete', 'Gamma', 'GammaGamma', 'GaussianProcess', 'GaussianProcessRegressionModel', 'GeneralizedExtremeValue', 'GeneralizedNormal', 'GeneralizedPareto', 'Geometric', 'Gumbel', 'HalfCauchy', 'HalfNormal', 'HalfStudentT', 'HiddenMarkovModel', 'Horseshoe', 'Independent', 'InverseGamma', 'InverseGaussian', 'JohnsonSU', 'JointDistribution', 'JointDistributionCoroutine', 'JointDistributionCoroutineAutoBatched', 'JointDistributionNamed', 'JointDistributionNamedAutoBatched', 'JointDistributionSequential', 'JointDistributionSequentialAutoBatched', 'Kumaraswamy', 'LKJ', 'LambertWDistribution', 'LambertWNormal', 'Laplace', 'LinearGaussianStateSpaceModel', 'LogLogistic', 'LogNormal', 'Logistic', 'LogitNormal', 'MarkovChain', 'Masked', 'MatrixNormalLinearOperator', 'MatrixTLinearOperator', 'Mixture', 'MixtureSameFamily', 'Moyal', 'Multinomial', 'MultivariateNormalDiag', 'MultivariateNormalDiagPlusLowRank', 'MultivariateNormalDiagPlusLowRankCovariance', 'MultivariateNormalFullCovariance', 'MultivariateNormalLinearOperator', 'MultivariateNormalTriL', 'MultivariateStudentTLinearOperator', 'NegativeBinomial', 'Normal', 'NormalInverseGaussian', 'OneHotCategorical', 'OrderedLogistic', 'PERT', 'Pareto', 'PixelCNN', 'PlackettLuce', 'Poisson', 'PoissonLogNormalQuadratureCompound', 'PowerSpherical', 'ProbitBernoulli', 'QuantizedDistribution', 'RelaxedBernoulli', 'RelaxedOneHotCategorical', 'Sample', 'SigmoidBeta', 'SinhArcsinh', 'Skellam', 'SphericalUniform', 'StoppingRatioLogistic', 'StudentT', 'StudentTProcess', 'StudentTProcessRegressionModel', 'TransformedDistribution', 'Triangular', 'TruncatedCauchy', 'TruncatedNormal', 'Uniform', 'VariationalGaussianProcess', 'VectorDeterministic', 'VonMises', 'VonMisesFisher', 'Weibull', 'WishartLinearOperator', 'WishartTriL', 'Zipf'] 
 ```
 
 你可以看到，TFP 中有丰富的分布可供选择。现在让我们尝试其中一种分布：
 
-```
+```py
 normal = tfd.Normal(loc=0., scale=1.) 
 N samples and plots them:
 ```
 
-```
+```py
 def plot_normal(N):
   samples = normal.sample(N)
   sns.distplot(samples)
@@ -92,7 +92,7 @@ def plot_normal(N):
 
 TFP 中的每个分布都有一个与之相关的形状、批次和事件大小。形状是样本大小；它代表独立同分布的抽样或观测。考虑我们在前一节中定义的正态分布：
 
-```
+```py
 normal = tfd.Normal(loc=0., scale=1.) 
 ```
 
@@ -100,22 +100,22 @@ normal = tfd.Normal(loc=0., scale=1.)
 
 如果打印对象`normal`，请注意`batch_shape`和`event_shape`的细节：
 
-```
+```py
 print(normal) 
 ```
 
-```
+```py
 >>> tfp.distributions.Normal("Normal", batch_shape=[], event_shape=[], dtype=float32) 
 ```
 
 让我们尝试定义第二个`normal`对象，不过这次，`loc`和`scale`是列表：
 
-```
+```py
 normal_2 = tfd.Normal(loc=[0., 0.], scale=[1., 3.])
 print(normal_2) 
 ```
 
-```
+```py
 >>> tfp.distributions.Normal("Normal", batch_shape=[2], event_shape=[], dtype=float32) 
 ```
 
@@ -125,12 +125,12 @@ print(normal_2)
 
 如果我们需要一个依赖于两个变量且每个变量具有不同均值的单一正态分布，该如何操作？这可以通过 `MultivariateNormalDiag` 来实现，并且这会影响事件形状——它是从该分布中抽取单个样本或观测值的原子形状：
 
-```
+```py
 normal_3 = tfd.MultivariateNormalDiag(loc = [[1.0, 0.3]])
 print(normal_3) 
 ```
 
-```
+```py
 >>> tfp.distributions.MultivariateNormalDiag("MultivariateNormalDiag", batch_shape=[1], event_shape=[2], dtype=float32) 
 ```
 
@@ -160,19 +160,19 @@ print(normal_3)
 
 让我们创建分布：
 
-```
+```py
 coin_flip = tfd.Bernoulli(probs=0.5, dtype=tf.int32) 
 ```
 
 现在获取一些样本：
 
-```
+```py
 coin_flip_data = coin_flip.sample(2000) 
 ```
 
 让我们可视化这些样本：
 
-```
+```py
 plt.hist(coin_flip_data) 
 ```
 
@@ -182,11 +182,11 @@ plt.hist(coin_flip_data)
 
 你可以看到我们正反面出现的次数是相等的；毕竟，它是一个公平的硬币。正面和反面的概率都是 `0.5`：
 
-```
+```py
 coin_flip.prob(0) ## Probability of tail 
 ```
 
-```
+```py
 >>> <tf.Tensor: shape=(), dtype=float32, numpy=0.5> 
 ```
 
@@ -196,19 +196,19 @@ coin_flip.prob(0) ## Probability of tail
 
 现在，由于硬币是有偏的，正面概率为 `0.8`，我们将使用以下方法创建分布：
 
-```
+```py
 bias_coin_flip = tfd.Bernoulli(probs=0.8, dtype=tf.int32) 
 ```
 
 现在获取一些样本：
 
-```
+```py
 bias_coin_flip_data = bias_coin_flip.sample(2000) 
 ```
 
 让我们可视化这些样本：
 
-```
+```py
 plt.hist(bias_coin_flip_data) 
 ```
 
@@ -218,11 +218,11 @@ plt.hist(bias_coin_flip_data)
 
 我们可以看到，现在正面的次数远大于反面。因此，反面的概率不再是 `0.5`：
 
-```
+```py
 bias_coin_flip.prob(0) ## Probability of tail 
 ```
 
-```
+```py
 >>> <tf.Tensor: shape=(), dtype=float32, numpy=0.19999999> 
 ```
 
@@ -234,19 +234,19 @@ bias_coin_flip.prob(0) ## Probability of tail
 
 现在，我们有两个独立的硬币。由于硬币有偏差，正面概率分别为 `0.8` 和 `0.6`，我们使用以下方法创建分布：
 
-```
+```py
 two_bias_coins_flip = tfd.Bernoulli(probs=[0.8, 0.6], dtype=tf.int32) 
 ```
 
 现在获取一些样本：
 
-```
+```py
 two_bias_coins_flip_data = two_bias_coins_flip.sample(2000) 
 ```
 
 让我们可视化这些样本：
 
-```
+```py
 plt.hist(two_bias_coins_flip_data[:,0], alpha=0.8, label='Coin 1')
 plt.hist(two_bias_coins_flip_data[:,1], alpha=0.5, label='Coin 2')
 plt.legend(loc='center') 
@@ -276,19 +276,19 @@ plt.legend(loc='center')
 
 现在，基于天气数据，德里 6 月的平均最高温度为 35 摄氏度，标准差为 4 摄氏度。所以，我们可以通过以下方式创建正态分布：
 
-```
+```py
 temperature = tfd.Normal(loc=35, scale = 4) 
 ```
 
 从中获取一些观测样本：
 
-```
+```py
 temperature_data = temperature.sample(1000) 
 ```
 
 现在，让我们来可视化它：
 
-```
+```py
 sns.displot(temperature_data, kde= True) 
 ```
 
@@ -300,40 +300,40 @@ sns.displot(temperature_data, kde= True)
 
 使用该分布，我们可以通过以下方式找到均值和标准差：
 
-```
+```py
 temperature.mean() 
 ```
 
-```
+```py
 # output
 >>> <tf.Tensor: shape=(), dtype=float32, numpy=35.0> 
 ```
 
-```
+```py
 temperature.stddev() 
 ```
 
-```
+```py
 # output
 >>> <tf.Tensor: shape=(), dtype=float32, numpy=4.0> 
 ```
 
 从采样数据中，我们可以通过以下方式进行验证：
 
-```
+```py
 tf.math.reduce_mean(temperature_data) 
 ```
 
-```
+```py
 # output
 >>> <tf.Tensor: shape=(), dtype=float32, numpy=35.00873> 
 ```
 
-```
+```py
 tf.math.reduce_std(temperature_data) 
 ```
 
-```
+```py
 # output
 >>> <tf.Tensor: shape=(), dtype=float32, numpy=3.9290223> 
 ```
@@ -344,7 +344,7 @@ tf.math.reduce_std(temperature_data)
 
 到目前为止一切正常。我把我的分布展示给一位从事气象学的朋友看，他说仅使用温度是不够的，湿度也很重要。因此，现在每个天气点依赖于两个参数——当天的温度和湿度。这种数据分布可以通过 TFP 中定义的 `MultivariateNormalDiag` 分布类来获得：
 
-```
+```py
 weather = tfd.MultivariateNormalDiag(loc = [35, 56], scale_diag=[4, 15])
 weather_data = weather.sample(1000)
 plt.scatter(weather_data[:, 0], weather_data[:, 1], color='blue', alpha=0.4)
@@ -401,7 +401,7 @@ plt.ylabel("Humidity %")
 
 这个信息可以通过以下模型表示：
 
-```
+```py
 Root = tfd.JointDistributionCoroutine.Root
 def model():
   # generate the distribution for cloudy weather
@@ -423,7 +423,7 @@ def model():
 
 上述模型将像一个数据生成器一样工作。`Root`函数用来告诉图中的节点没有父节点。我们定义了几个实用函数，`broadcast`和`stack`：
 
-```
+```py
 def _conform(ts):
   """Broadcast all arguments to a common shape."""
   shape = functools.reduce(
@@ -435,7 +435,7 @@ def _stack(*ts):
 
 为了进行推理，我们使用了`MarginalizableJointDistributionCoroutine`类，因为它可以帮助我们计算边际化的概率：
 
-```
+```py
 d = marginalize.MarginalizableJointDistributionCoroutine(model) 
 ```
 
@@ -445,7 +445,7 @@ d = marginalize.MarginalizableJointDistributionCoroutine(model)
 
 我们观察到草地是湿的（对应的观察值为 1——如果草地是干的，我们会将其设为 0），我们对于云层或喷洒器的状态一无所知（对应未知状态的观察值设置为“边际化”），并且我们想知道降雨的概率（对应我们想找到的概率的观察值设置为“列举”）。将其转化为观察值：
 
-```
+```py
 observations = ['marginalize', # We don't know the cloudy state
                 'tabulate', # We want to know the probability of rain
                 'marginalize', # We don't know the sprinkler state.
@@ -454,7 +454,7 @@ observations = ['marginalize', # We don't know the cloudy state
 
 现在我们通过以下方式得到降雨的概率：
 
-```
+```py
 p = tf.exp(d.marginalized_log_prob(observations))
 p = p / tf.reduce_sum(p) 
 ```
@@ -465,7 +465,7 @@ p = p / tf.reduce_sum(p)
 
 我们观察到草地是湿的，对于云层或降雨的状态我们一无所知，我们想要知道喷洒器是否开启的概率。将其转化为观察值：
 
-```
+```py
 observations = ['marginalize',  
                 'marginalize', 
                 'tabulate',  
@@ -478,7 +478,7 @@ observations = ['marginalize',
 
 如果我们观察到没有下雨，且喷洒器关闭，你认为草地的状态会是什么？逻辑上，草地不应该是湿的。让我们通过将观察值传递给模型来确认这一点：
 
-```
+```py
 observations = ['marginalize',  
                  0,
                  0, 
@@ -515,7 +515,7 @@ observations = ['marginalize',
 
 这里，![](img/B18331_12_006.png) 服从均值为零，标准差为 1 的正态分布，围绕 x 变化。下面的函数将为我们生成这些合成数据。请注意，为了生成这些数据，我们使用了作为 TFP 分布一部分的 `Uniform` 分布和 `Normal` 分布：
 
-```
+```py
 def create_dataset(n, x_range):
     x_uniform_dist = tfd.Uniform(low=x_range[0], high=x_range[1])
     x = x_uniform_dist.sample(n).numpy() [:, np.newaxis] 
@@ -530,7 +530,7 @@ def create_dataset(n, x_range):
 
 现在我们用它来创建训练数据集和验证数据集：
 
-```
+```py
 x_train, y_train, y_true = create_dataset(2000, [-10, 10])
 x_val, y_val, _ = create_dataset(500, [-10, 10]) 
 ```
@@ -545,7 +545,7 @@ x_val, y_val, _ = create_dataset(500, [-10, 10])
 
 我们可以构建一个简单的 Keras 模型，执行对前一部分创建的合成数据集的回归任务：
 
-```
+```py
 # Model Architecture
 model = Sequential([Dense(1, input_shape=(1,))])
 # Compile 
@@ -566,7 +566,7 @@ model.fit(x_train, y_train, epochs=100, verbose=1)
 
 如果我们不使用线性回归，而是构建一个能够拟合分布的模型，会怎样呢？在我们的合成数据集中，随机不确定性的来源是噪声，我们知道我们的噪声遵循正态分布，这种分布由两个参数来描述：均值和标准差。因此，我们可以修改我们的模型，预测均值和标准差的分布，而不是实际的*y*值。我们可以通过使用`IndependentNormal` TFP 层或`DistributionLambda` TFP 层来实现这一点。以下代码定义了修改后的模型架构：
 
-```
+```py
 model = Sequential([Dense(2, input_shape = (1,)),
     tfp.layers.DistributionLambda(lambda t: tfd.Normal(loc=t[..., :1], scale=0.3+tf.math.abs(t[...,1:])))
 ]) 
@@ -574,7 +574,7 @@ model = Sequential([Dense(2, input_shape = (1,)),
 
 我们需要再做一次修改。之前，我们预测的是*y*值；因此，均方误差损失是一个不错的选择。现在，我们预测的是分布；因此，更好的选择是负对数似然作为损失函数：
 
-```
+```py
 # Define negative loglikelihood loss function
 def neg_loglik(y_true, y_pred):
     return -y_pred.log_prob(y_true) 
@@ -582,7 +582,7 @@ def neg_loglik(y_true, y_pred):
 
 现在让我们训练这个新模型：
 
-```
+```py
 model.compile(loss=neg_loglik, optimizer='adam')
 # Fit
 model.fit(x_train, y_train, epochs=500, verbose=1) 
@@ -590,7 +590,7 @@ model.fit(x_train, y_train, epochs=500, verbose=1)
 
 由于现在我们的模型返回的是一个分布，我们需要测试数据集的统计信息，包括均值和标准差：
 
-```
+```py
 # Summary Statistics
 y_mean = model(x_test).mean()
 y_std = model(x_test).stddev() 
@@ -598,7 +598,7 @@ y_std = model(x_test).stddev()
 
 请注意，现在预测的均值对应于第一种情况中的拟合线。现在让我们来看一下图表：
 
-```
+```py
 fig = plt.figure(figsize = (20, 10))
 plt.scatter(x_train, y_train, marker='+', label='Training Data', alpha=0.5)
 plt.plot(x_train, y_true, color='k', label='Ground Truth')
@@ -626,7 +626,7 @@ plt.show()
 
 现在我们的模型有两层，一个是 `DenseVariational` 层，后面跟着一个 `DistributionLambda` 层：
 
-```
+```py
 model = Sequential([
   tfp.layers.DenseVariational(1, posterior_mean_field, prior_trainable, kl_weight=1/x_train.shape[0]),
   tfp.layers.DistributionLambda(lambda t: tfd.Normal(loc=t, scale=1)),
@@ -635,13 +635,13 @@ model = Sequential([
 
 同样，由于我们要处理的是分布，我们使用的损失函数是负对数似然函数：
 
-```
+```py
 model.compile(optimizer=tf.optimizers.Adam(learning_rate=0.01), loss=negloglik) 
 ```
 
 我们继续使用之前创建的相同的合成数据并训练模型：
 
-```
+```py
 model.fit(x_train, y_train, epochs=100, verbose=1) 
 ```
 

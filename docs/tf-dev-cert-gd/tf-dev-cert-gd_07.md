@@ -198,33 +198,33 @@
 
 1.  我们将导入所需的库以进行预处理、建模和使用 TensorFlow 可视化我们的机器学习模型：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
-    ```
+    ```py
     import numpy as np
     ```
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     ```
 
 1.  接下来，我们将使用`load_data()`函数从 TensorFlow 数据集中加载 Fashion MNIST 数据集。此函数返回我们的训练和测试数据，这些数据由 NumPy 数组组成。训练数据包括`x_train`和`y_train`，测试数据由`x_test`和`y_test`组成：
 
-    ```
+    ```py
     (x_train,y_train),(x_test,y_test) = tf.keras.datasets.fashion_mnist.load_data()
     ```
 
 1.  我们可以通过对训练数据和测试数据使用`len`函数来确认数据的大小：
 
-    ```
+    ```py
     len(x_train), len(x_test)
     ```
 
 当我们运行代码时，我们得到以下输出：
 
-```
+```py
 (60000, 10000)
 ```
 
@@ -232,23 +232,23 @@
 
 1.  在 CNN 中， 与我们之前使用的 DNN 不同，我们需要考虑输入图像的颜色通道。目前，我们的训练和测试数据是灰度图像，其形状为`(batch_size, height, width)`，并且只有一个通道。然而，CNN 模型需要一个 4D 输入张量，由`batch_size`、`height`、`width`和`channels`组成。我们可以通过简单地重塑数据并将元素转换为`float32`值来修复这个数据不匹配问题：
 
-    ```
+    ```py
     # Reshape the images(batch_size, height, width, channels)
     ```
 
-    ```
+    ```py
     x_train = x_train.reshape(x_train.shape[0],
     ```
 
-    ```
+    ```py
         28, 28, 1).astype('float32')
     ```
 
-    ```
+    ```py
     x_test = x_test.reshape(x_test.shape[0],
     ```
 
-    ```
+    ```py
         28, 28, 1).astype('float32')
     ```
 
@@ -256,15 +256,15 @@
 
 1.  我们数据的像素值（训练数据和测试数据）范围从 `0` 到 `255`，其中 `0` 代表黑色，`255` 代表白色。我们通过将像素值除以 255 来规范化数据，从而将像素值缩放到 `0` 到 `1` 的区间。这样做的目的是让模型更快收敛，并提高其性能：
 
-    ```
+    ```py
     # Normalize the pixel values
     ```
 
-    ```
+    ```py
     x_train /= 255
     ```
 
-    ```
+    ```py
     x_test /= 255
     ```
 
@@ -276,7 +276,7 @@
 
 一维独热编码向量的长度为 `10`，其中在对应标签的索引位置上为 `1`，其他位置则为 `0`：
 
-```
+```py
 # Convert the labels to one hot encoding format
 y_train = tf.keras.utils.to_categorical(y_train, 10)
 y_test = tf.keras.utils.to_categorical(y_test, 10)
@@ -284,67 +284,67 @@ y_test = tf.keras.utils.to_categorical(y_test, 10)
 
 1.  使用 `tf.keras.model` 中的顺序模型 API，我们将创建一个卷积神经网络（CNN）架构：
 
-    ```
+    ```py
     # Build the Sequential model
     ```
 
-    ```
+    ```py
     model = tf.keras.models.Sequential()
     ```
 
-    ```
+    ```py
     # Add convolutional layer
     ```
 
-    ```
+    ```py
     model.add(tf.keras.layers.Conv2D(64,kernel_size=(3,3),
     ```
 
-    ```
+    ```py
         activation='relu',
     ```
 
-    ```
+    ```py
         input_shape=(28, 28, 1)))
     ```
 
-    ```
+    ```py
     # Add max pooling layer
     ```
 
-    ```
+    ```py
     model.add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2)))
     ```
 
-    ```
+    ```py
     # Flatten the data
     ```
 
-    ```
+    ```py
     model.add(tf.keras.layers.Flatten())
     ```
 
-    ```
+    ```py
     # Add fully connected layer
     ```
 
-    ```
+    ```py
     model.add(tf.keras.layers.Dense(128,
     ```
 
-    ```
+    ```py
                                     activation='relu'))
     ```
 
-    ```
+    ```py
     # Apply softmax
     ```
 
-    ```
+    ```py
     model.add(tf.keras.layers.Dense(10,
     ```
 
-    ```
+    ```py
                                     activation='softmax'))
     ```
 
@@ -352,23 +352,23 @@ y_test = tf.keras.utils.to_categorical(y_test, 10)
 
 1.  接下来，我们将在训练数据上编译并训练模型：
 
-    ```
+    ```py
     # Compile and fit the model
     ```
 
-    ```
+    ```py
     model.compile(loss='categorical_crossentropy',
     ```
 
-    ```
+    ```py
                   optimizer='adam', metrics=['accuracy'])
     ```
 
-    ```
+    ```py
     model.fit(x_train, y_train, epochs=10,
     ```
 
-    ```
+    ```py
               validation_split=0.2)
     ```
 
@@ -376,7 +376,7 @@ y_test = tf.keras.utils.to_categorical(y_test, 10)
 
 在 10 次迭代后，我们得到了训练准确率为 `0.9785`，验证准确率为 `0.9133`：
 
-```
+```py
 Epoch 6/10
 1500/1500 [==============================] - 5s 3ms/step - loss: 0.1267 - accuracy: 0.9532 - val_loss: 0.2548 - val_accuracy: 0.9158
 Epoch 7/10
@@ -391,13 +391,13 @@ Epoch 10/10
 
 1.  `summary` 函数是一个非常有用的方式，用来快速概览模型架构，并理解每层的参数数量以及输出张量的形状：
 
-    ```
+    ```py
     model.summary()
     ```
 
 输出返回了组成我们当前模型架构的五个层。它还显示了每个层的输出形状和参数数量。总的参数数量是 1,386,506。通过输出，我们可以看到卷积层的输出形状是 26x26，这是由于边缘效应造成的，因为我们没有使用填充。接下来，最大池化层将像素大小减半，然后我们将数据展平并生成预测：
 
-```
+```py
 Model: "sequential"
 ______________________________________________________
  Layer (type)             Output Shape         Param #
@@ -416,11 +416,11 @@ _________________________________________________________________
 
 1.  最后，我们将使用 `evaluate` 函数在测试数据上评估我们的模型。`evaluate` 函数返回模型在测试数据上的损失和准确度：
 
-    ```
+    ```py
     # Evaluate the model
     ```
 
-    ```
+    ```py
     score = model.evaluate(x_test, y_test)
     ```
 
@@ -446,43 +446,43 @@ _________________________________________________________________
 
 1.  我们首先导入几个库来构建我们的图像分类器：
 
-    ```
+    ```py
     import os
     ```
 
-    ```
+    ```py
     import pathlib
     ```
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     ```
 
-    ```
+    ```py
     import matplotlib.image as mpimg
     ```
 
-    ```
+    ```py
     import random
     ```
 
-    ```
+    ```py
     import numpy as np
     ```
 
-    ```
+    ```py
     from PIL import Image
     ```
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
-    ```
+    ```py
     from tensorflow import keras
     ```
 
-    ```
+    ```py
     from tensorflow.keras.preprocessing.image import ImageDataGenerator
     ```
 
@@ -492,19 +492,19 @@ _________________________________________________________________
 
 1.  接下来，我们应用`os.walk`函数来访问根目录，并生成关于所有目录和子目录内容的信息：
 
-    ```
+    ```py
     for dirpath, dirnames, filenames in os.walk(root_dir):
     ```
 
-    ```
+    ```py
         print(f"Directory: {dirpath}")
     ```
 
-    ```
+    ```py
         print(f"Number of images: {len(filenames)}")
     ```
 
-    ```
+    ```py
         print()
     ```
 
@@ -518,91 +518,91 @@ _________________________________________________________________
 
 1.  我们使用`retrieve_labels`函数从训练、测试和验证目录中提取并显示标签及其对应的计数。为了实现这个函数，我们使用`os`模块中的`listdir`方法，并传入相应的目录路径（`train_dir`、`test_dir`和`val_dir`）：
 
-    ```
+    ```py
     def retrieve_labels(train_dir, test_dir, val_dir):
     ```
 
-    ```
+    ```py
         # Retrieve labels from training directory
     ```
 
-    ```
+    ```py
         train_labels = os.listdir(train_dir)
     ```
 
-    ```
+    ```py
         print(f"Training labels: {train_labels}")
     ```
 
-    ```
+    ```py
         print(f"Number of training labels: {len(train_labels)}")
     ```
 
-    ```
+    ```py
         print()
     ```
 
-    ```
+    ```py
         # Retrieve labels from test directory
     ```
 
-    ```
+    ```py
         test_labels = os.listdir(test_dir)
     ```
 
-    ```
+    ```py
         print(f"Test labels: {test_labels}")
     ```
 
-    ```
+    ```py
         print(f"Number of test labels: {len(test_labels)}")
     ```
 
-    ```
+    ```py
         print()
     ```
 
-    ```
+    ```py
         # Retrieve labels from validation directory
     ```
 
-    ```
+    ```py
         val_labels = os.listdir(val_dir)
     ```
 
-    ```
+    ```py
         print(f"Validation labels: {val_labels}")
     ```
 
-    ```
+    ```py
         print(f"Number of validation labels: {len(val_labels)}")
     ```
 
-    ```
+    ```py
         print()
     ```
 
 1.  我们分别在`train_dir`、`test_dir`和`val_dir`参数中指定训练、测试和验证目录的路径：
 
-    ```
+    ```py
     train_dir = "/content/drive/MyDrive/weather dataset/train"
     ```
 
-    ```
+    ```py
     test_dir = "/content/drive/MyDrive/weather dataset/test"
     ```
 
-    ```
+    ```py
     val_dir = "/content/drive/MyDrive/weather dataset/validation"
     ```
 
-    ```
+    ```py
     retrieve_labels(train_dir, test_dir, val_dir)
     ```
 
 当我们运行代码时，它将返回训练数据、测试数据、验证数据标签以及标签的数量：
 
-```
+```py
 Training labels: ['cloud', 'shine', 'rain', 'sunrise']
 Number of training labels: 4
 Test labels: ['sunrise', 'shine', 'cloud', 'rain']
@@ -613,125 +613,125 @@ Number of validation labels: 4
 
 1.  在我们的探索中，创建一个名为`view_random_images`的函数，从数据集中的子目录中随机访问并显示图片。该函数接受包含子目录的主目录以及我们希望显示的图片数量。我们使用`listdir`来访问子目录，并引入随机性来选择图片。我们使用`random`库中的`shuffle`函数进行打乱并随机选择图片。我们利用 Matplotlib 来显示指定数量的随机图片：
 
-    ```
+    ```py
     def view_random_images(target_dir, num_images):
     ```
 
-    ```
+    ```py
       """
     ```
 
-    ```
+    ```py
       View num_images random images from the subdirectories of target_dir as a subplot.
     ```
 
-    ```
+    ```py
       """
     ```
 
-    ```
+    ```py
       # Get list of subdirectories
     ```
 
-    ```
+    ```py
         subdirs = [d for d in os.listdir(
     ```
 
-    ```
+    ```py
             target_dir) if os.path.isdir(os.path.join(
     ```
 
-    ```
+    ```py
                 target_dir, d))]
     ```
 
-    ```
+    ```py
       # Select num_images random subdirectories
     ```
 
-    ```
+    ```py
         random.shuffle(subdirs)
     ```
 
-    ```
+    ```py
         selected_subdirs = subdirs[:num_images]
     ```
 
-    ```
+    ```py
       # Create a subplot
     ```
 
-    ```
+    ```py
         fig, axes = plt.subplots(1, num_images, figsize=(15,9))
     ```
 
-    ```
+    ```py
         for i, subdir in enumerate(selected_subdirs):
     ```
 
-    ```
+    ```py
           # Get list of images in subdirectory
     ```
 
-    ```
+    ```py
             image_paths = [f for f in os.listdir(
     ```
 
-    ```
+    ```py
                 os.path.join(target_dir, subdir))]
     ```
 
-    ```
+    ```py
           # Select a random image
     ```
 
-    ```
+    ```py
             image_path = random.choice(image_paths)
     ```
 
-    ```
+    ```py
           # Load image
     ```
 
-    ```
+    ```py
             image = plt.imread(os.path.join(target_dir,
     ```
 
-    ```
+    ```py
                 subdir, image_path))
     ```
 
-    ```
+    ```py
           # Display image in subplot
     ```
 
-    ```
+    ```py
             axes[i].imshow(image)
     ```
 
-    ```
+    ```py
             axes[i].axis("off")
     ```
 
-    ```
+    ```py
             axes[i].set_title(subdir)
     ```
 
-    ```
+    ```py
         print(f"Shape of image: {image.shape}")    
     ```
 
-    ```
+    ```py
         #width,height, colour chDNNels
     ```
 
-    ```
+    ```py
         plt.show()
     ```
 
 1.  让我们通过将`num_images`设置为`4`来尝试这个函数，并查看`train`目录中的一些数据：
 
-    ```
+    ```py
     view_random_images(target_dir="/content/drive/MyDrive/weather dataset/train/", num_images=4)
     ```
 
@@ -755,7 +755,7 @@ Number of validation labels: 4
 
 在应用`flow_from_directory`方法时，重要的是我们需要将图像组织在一个结构良好的目录中，每个唯一的类别标签都有一个子目录，如*图 7.19*所示。在这里，我们有四个子目录，每个子目录对应我们的天气数据集中的一个类别标签。一旦所有图像都放入了适当的子目录，我们就可以应用`flow_from_directory`来设置一个迭代器。这个迭代器是可调的，我们可以定义图像大小、批量大小等参数，并决定是否打乱数据。接下来，我们将这些新想法应用到我们当前的案例研究中：
 
-```
+```py
 # Preprocess data (get all of the pixel values between 1 and 0, also called scaling/normalization)
 train_datagen = ImageDataGenerator(rescale=1./255)
 valid_datagen = ImageDataGenerator(rescale=1./255)
@@ -764,7 +764,7 @@ test_datagen = ImageDataGenerator(rescale=1./255)
 
 在这里，我们定义了三个`ImageDataGenerator`类的实例：一个用于训练，一个用于验证，一个用于测试。我们对每个实例中的图像像素值应用了 1/255 的缩放因子，以便对数据进行归一化：
 
-```
+```py
 # Import data from directories and turn it into batches
 train_data = train_datagen.flow_from_directory(train_dir,
     batch_size=64, # number of images to process at a time
@@ -782,7 +782,7 @@ test_data = test_datagen.flow_from_directory(test_dir,
 
 我们使用`flow_from_directory`从各自的训练、验证和测试目录中导入图像，结果数据存储在`train_data`、`valid_data`和`test_data`变量中。除了在`flow_from_directory`方法中指定目录外，您会注意到我们不仅指定了目标大小（224 x 244）和批量大小（64），还指定了我们正在处理的问题类型为`categorical`，因为我们处理的是一个多分类问题。我们现在已经成功完成了数据预处理步骤。接下来，我们将开始对数据建模：
 
-```
+```py
 model_1 = tf.keras.models.Sequential([
     tf.keras.layers.Conv2D(filters=16,
         kernel_size=3, # can also be (3, 3)
@@ -814,7 +814,7 @@ history_1 = model_1.fit(train_data,
 
 接下来，我们进入全连接层。在这里，我们首先将之前层的 3D 输出展平为 1D 数组。然后，我们将数据传递到密集层进行最终分类。接下来，我们编译并拟合我们的模型到数据上。需要注意的是，在我们的`compile`步骤中，我们使用`CategoricalCrossentropy`作为`loss`函数，因为我们正在处理一个多类任务，并将`metrics`设置为`accuracy`。最终输出是一个概率分布，表示我们数据集中的四个类别，具有最高概率的类别即为预测标签：
 
-```
+```py
 Epoch 6/10
 13/13 [==============================] - 8s 622ms/step - loss: 0.1961 - accuracy: 0.9368 - val_loss: 0.2428 - val_accuracy: 0.8994
 Epoch 7/10
@@ -829,7 +829,7 @@ Epoch 10/10
 
 我们训练了我们的模型 10 个周期，达到了在训练数据上的 94%训练准确率和在验证数据上的 91%准确率。我们使用`summary`方法来获取模型中不同层的信息。这些信息包括每层的概述、输出形状以及使用的参数数量（可训练和不可训练）：
 
-```
+```py
 Model: "sequential"
 ___________________________________________________________
  Layer (type)                 Output Shape         Param #
@@ -870,7 +870,7 @@ ___________________________________________________________
 
 接下来，我们使用`evaluate`方法评估我们的模型：
 
-```
+```py
 model_1.evaluate(test_data)
 ```
 
@@ -878,7 +878,7 @@ model_1.evaluate(test_data)
 
 让我们将我们的 CNN 架构与两个 DNN 进行比较：
 
-```
+```py
 model_2 = tf.keras.Sequential([
     tf.keras.layers.Flatten(input_shape=(224, 224, 3)),
     tf.keras.layers.Dense(1200, activation='relu'),
@@ -898,7 +898,7 @@ history_2 = model_2.fit(train_data,
 
 我们构建了一个名为`model_2`的 DNN，由 4 个`Dense`层组成，分别有`1200`、`600`、`300`和`4`个神经元。除了输出层使用`softmax`函数进行分类外，其他所有层都使用 ReLU 作为激活函数。我们与`model_1`的方式相同，编译并拟合`model_2`：
 
-```
+```py
 Epoch 6/10
 13/13 [==============================] - 8s 625ms/step - loss: 2.2083 - accuracy: 0.6953 - val_loss: 0.9884 - val_accuracy: 0.7933
 Epoch 7/10
@@ -915,7 +915,7 @@ Epoch 10/10
 
 接下来，我们来看另一个 DNN 架构：
 
-```
+```py
 model_3 = tf.keras.Sequential([
     tf.keras.layers.Flatten(input_shape=(224, 224, 3)),
     tf.keras.layers.Dense(1000, activation='relu'),
@@ -935,7 +935,7 @@ history_3 = model_3.fit(train_data,
 
 我们使用另外一组 4 个`Dense`层，分别有`1000`、`500`、`500`和`4`个神经元。我们同样为`model_3`进行了 10 个 epoch 的拟合和编译：
 
-```
+```py
 Epoch 6/10
 13/13 [==============================] - 9s 665ms/step - loss: 1.6911 - accuracy: 0.6814 - val_loss: 0.5861 - val_accuracy: 0.7877
 Epoch 7/10
@@ -950,7 +950,7 @@ Epoch 10/10
 
 在经过 10 个 epoch 后，我们达到了 77.65%的验证准确率，该模型大约有 151,282,004 个参数；结果与我们的 CNN 架构相差较大。接下来，让我们在测试数据上比较三种模型，这是我们评估模型的标准。为此，我们将编写一个函数来生成一个 DataFrame，显示模型的名称、损失和准确率：
 
-```
+```py
 def evaluate_models(models, model_names,test_data):
     # Initialize lists for the results
     losses = []
@@ -973,7 +973,7 @@ def evaluate_models(models, model_names,test_data):
 
 `evaluate_models()`函数接受一个模型列表、模型名称和测试数据作为输入，并返回一个包含每个模型评估结果（以百分比形式）的 DataFrame：
 
-```
+```py
 # Define the models and model names
 models = [model_1, model_2, model_3]
 model_names = ["Model 1", "Model 2", "Model 3"]
@@ -991,7 +991,7 @@ results
 
 从结果中，我们可以清楚地看到模型 1 表现最好。你可能希望尝试更大的 DNN，但很快会遇到内存不足的问题。对于更大的数据集，DNN 的结果可能会大幅下降。接下来，让我们看看模型 1 在训练和验证数据上的表现：
 
-```
+```py
 def plot_loss_accuracy(history_1):
   # Extract the loss and accuracy history for both training and validation data
     loss = history_1.history['loss']
@@ -1019,7 +1019,7 @@ def plot_loss_accuracy(history_1):
 
 我们创建了一个函数，使用 matplotlib 绘制训练和验证的损失与准确率图。我们将`history_1`传递给这个函数：
 
-```
+```py
 # Lets plot the training and validation loss and accuracy
 plot_loss_accuracy(history_1)
 ```

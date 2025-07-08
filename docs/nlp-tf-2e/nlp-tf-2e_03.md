@@ -383,7 +383,7 @@ skip-gram 模型采用以下方法设计数据集：
 
 我们在下面编写了`download_data()`函数，用于将数据下载到指定的文件夹并从压缩格式中提取数据：
 
-```
+```py
 def download_data(url, data_dir):
     """Download a file if not present, and make sure it's the right
     size."""
@@ -414,14 +414,14 @@ def download_data(url, data_dir):
 
 我们可以如下调用这个函数：
 
-```
+```py
 url = 'http://mlg.ucd.ie/files/datasets/bbc-fulltext.zip'
 download_data(url, 'data') 
 ```
 
 接下来，我们将专注于将新闻文章中的数据（以`.txt`格式）读取到内存中。为此，我们将定义`read_data()`函数，该函数接受一个数据目录路径（`data_dir`），并读取数据目录中的`.txt`文件（不包括 README 文件）：
 
-```
+```py
 def read_data(data_dir):
     news_stories = []
     print("Reading files")
@@ -442,7 +442,7 @@ def read_data(data_dir):
 
 定义好`read_data()`函数后，我们来使用它读取数据并打印一些样本以及一些统计信息：
 
-```
+```py
 news_stories = read_data(os.path.join('data', 'bbc'))
 print(f"{sum([len(story.split(' ')) for story in news_stories])} words found in the total news set")
 print('Example words (start): ',news_stories[0][:50])
@@ -451,7 +451,7 @@ print('Example words (end): ',news_stories[-1][-50:])
 
 这将打印出以下内容：
 
-```
+```py
 Reading files
 ............. 361.txt
 Detected 2225 stories
@@ -468,7 +468,7 @@ Example words (end):  is years at Stradey as "the best time of my life."
 
 所有这些都可以通过`tensorflow.keras.preprocessing.text.Tokenizer`对象来实现。我们可以如下定义一个 Tokenizer：
 
-```
+```py
 from tensorflow.keras.preprocessing.text import Tokenizer
 tokenizer = Tokenizer(
     num_words=None,
@@ -490,13 +490,13 @@ split=' '
 
 一旦定义了 Tokenizer，您可以调用其`fit_on_texts()`方法并传入一个字符串列表（每个字符串都是一篇新闻文章），这样 Tokenizer 就会学习词汇表并将单词映射到唯一的 ID：
 
-```
+```py
 tokenizer.fit_on_texts(news_stories) 
 ```
 
 让我们花点时间分析一下 Tokenizer 在文本拟合后产生的结果。一旦 Tokenizer 被拟合，它将填充两个重要的属性：`word_index`和`index_word`。其中，`word_index`是一个字典，将每个单词映射到一个唯一的 ID。`index_word`属性是`word_index`的反向映射，即一个字典，将每个唯一的单词 ID 映射到相应的单词：
 
-```
+```py
 n_vocab = len(tokenizer.word_index.items())+1
 print(f"Vocabulary size: {n_vocab}")
 print("\nWords at the top")
@@ -507,7 +507,7 @@ print('\t', dict(list(tokenizer.word_index.items())[-10:]))
 
 请注意，我们是如何通过`word_index`字典的长度来推导词汇表大小的。我们需要额外加 1，因为 ID 0 是保留的 ID，不会用于任何单词。这样将输出以下内容：
 
-```
+```py
 Vocabulary size: 32361
 Words at the top
     {'the': 1, 'to': 2, 'of': 3, 'and': 4, 'a': 5, 'in': 6, 'for': 7, 'is': 8, 'that': 9, 'on': 10}
@@ -517,7 +517,7 @@ Words at the bottom
 
 一个词在语料库中出现得越频繁，它的 ID 就越低。像“the”、“to”和“of”这样的常见词（被称为停用词）实际上是最常见的单词。接下来的步骤，我们将精细调整我们的分词器对象，以便它具有一个有限大小的词汇表。因为我们处理的是一个相对较小的语料库，所以我们必须确保词汇表不要太大，因为过大的词汇表可能由于数据不足而导致单词向量学习不佳：
 
-```
+```py
 from tensorflow.keras.preprocessing.text import Tokenizer
 tokenizer = Tokenizer(
     num_words=15000,
@@ -531,32 +531,32 @@ tokenizer.fit_on_texts(news_stories)
 
 我们可以查看分词器对文本进行的转换。接下来，让我们转换我们语料库中第一篇故事的前 100 个字符（存储在 `news_stories` 变量中）：
 
-```
+```py
 print(f"Original: {news_stories[0][:100]}") 
 ```
 
 然后，我们可以调用 `tokenizer` 的 `texts_to_sequences()` 方法，将一组文档（每个文档是一个字符串）转换为一个包含单词 ID 列表的列表（即每个文档都转换为一个单词 ID 列表）。
 
-```
+```py
 print(f"Sequence IDs: {tokenizer.texts_to_sequences([news_stories[0][:100]])[0]}") 
 ```
 
 这将打印输出：
 
-```
+```py
 Original: Ad sales boost Time Warner profit  Quarterly profits at US media giant TimeWarner jumped 76% to $1.1
 Sequence IDs: [4223, 187, 716, 66, 3596, 1050, 3938, 626, 21, 49, 303, 717, 8263, 2972, 5321, 3, 108, 108] 
 ```
 
 现在我们的分词器已经配置好了。接下来，我们只需要用一行代码将所有新闻文章转换为单词 ID 的序列：
 
-```
+```py
 news_sequences = tokenizer.texts_to_sequences(news_stories) 
 ```
 
 接下来，我们使用 TensorFlow 提供的 `tf.keras.preprocessing.sequence.skipgrams()` 函数生成跳字模型。我们在一个示例短语上调用该函数，示例短语代表从数据集中提取的前 5 个单词：
 
-```
+```py
 sample_word_ids = news_sequences[0][:5]
 sample_phrase = ' '.join([tokenizer.index_word[wid] for wid in sample_word_ids])
 print(f"Sample phrase: {sample_phrase}")
@@ -565,20 +565,20 @@ print(f"Sample word IDs: {sample_word_ids }\n")
 
 这将输出：
 
-```
+```py
 Sample phrase: ad sales boost time warner
 Sample word IDs: [4223, 187, 716, 66, 3596] 
 ```
 
 让我们考虑一个窗口大小为 1。意味着对于给定的目标单词，我们定义上下文为目标单词两侧各一个单词。
 
-```
+```py
 window_size = 1 # How many words to consider left and right. 
 ```
 
 我们已经具备了从我们选择的示例短语中提取跳字模型的所有要素。运行时，此函数将输出我们需要的数据格式，即（目标-上下文）元组作为输入，相应的标签（0 或 1）作为输出：
 
-```
+```py
 inputs, labels = tf.keras.preprocessing.sequence.skipgrams(
     sequence=sample_word_ids, 
     vocabulary_size=n_vocab, 
@@ -611,7 +611,7 @@ inputs, labels = tf.keras.preprocessing.sequence.skipgrams(
 
 在生成输入和标签后，我们来打印一些数据：
 
-```
+```py
 print("Sample skip-grams")
 for inp, lbl in zip(inputs, labels):
     print(f"\tInput: {inp} ({[tokenizer.index_word[wi] for wi in inp]}) /
@@ -620,7 +620,7 @@ for inp, lbl in zip(inputs, labels):
 
 这将产生：
 
-```
+```py
 Sample skip-grams
     Input: [4223, 187] (['ad', 'sales']) / Label: 1
     Input: [187, 4223] (['sales', 'ad']) / Label: 1
@@ -652,7 +652,7 @@ Sample skip-grams
 
 为此，我们可以使用 `tf.random.log_uniform_candidate_sampler()` 函数。该函数接受一个大小为 `[b, num_true]` 的正上下文候选词批次，其中 `b` 是批次大小，`num_true` 是每个示例的真实候选词数量（对于 skip-gram 模型来说为 1），并输出一个大小为 [`num_sampled`] 的数组，其中 `num_sampled` 是我们需要的负样本数量。我们稍后将详细讨论这个函数的工作原理，并通过实际操作进行说明。但在此之前，让我们先使用 `tf.keras.preprocessing.sequence.skipgrams()` 函数生成一些正向候选词：
 
-```
+```py
 inputs, labels = tf.keras.preprocessing.sequence.skipgrams(
     sample_phrase_word_ids, 
     vocabulary_size=len(tokenizer.word_index.items())+1, 
@@ -665,7 +665,7 @@ inputs, labels = np.array(inputs), np.array(labels)
 
 请注意，我们指定了 `negative_samples=0`，因为我们将使用候选样本生成器来生成负样本。接下来我们讨论如何使用 `tf.random.log_uniform_candidate_sampler()` 函数来生成负候选词。这里我们将首先使用该函数为单个词生成负候选词：
 
-```
+```py
 negative_sampling_candidates, true_expected_count, sampled_expected_count = tf.random.log_uniform_candidate_sampler(
     true_classes=inputs[:1, 1:], # [b, 1] sized tensor
     num_true=1, # number of true words per example
@@ -698,7 +698,7 @@ negative_sampling_candidates, true_expected_count, sampled_expected_count = tf.r
 
 我们不必过于担心后面两个实体。对我们来说，最重要的是 `sampled_candidates`。调用该函数时，我们必须确保 `true_classes` 的形状是 `[b, num_true]`。在我们的情况下，我们将在单个输入词 ID 上运行该函数，形状为 [1, 1]。它将返回以下内容：
 
-```
+```py
 Positive sample: [[187]]
 Negative samples: [   1   10 9744 3062  139    5   14   78 1402  115]
 true_expected_count: [[0.00660027]]
@@ -730,20 +730,20 @@ sampled_expected_count: [4.0367463e-01 1.0333969e-01 1.2804421e-04 4.0727769e-04
 
 函数签名如下：
 
-```
+```py
 def skip_gram_data_generator(sequences, window_size, batch_size, negative_samples, vocab_size, seed=None): 
 ```
 
 首先，我们将打乱新闻文章的顺序，这样每次生成数据时，它们都会以不同的顺序被获取。这有助于模型更好地进行泛化：
 
-```
+```py
  rand_sequence_ids = np.arange(len(sequences))
     np.random.shuffle(rand_sequence_ids) 
 ```
 
 接下来，对于语料库中的每个文本序列，我们生成正向 skip-gram。`positive_skip_grams`包含按顺序排列的(target, context)词对元组：
 
-```
+```py
  for si in rand_sequence_ids:
 
         positive_skip_grams, _ = 
@@ -766,7 +766,7 @@ def skip_gram_data_generator(sequences, window_size, batch_size, negative_sample
 
 计算采样表时不需要确切的频率，因为我们可以利用齐普夫定律来近似这些频率：
 
-```
+```py
 sampling_table = tf.keras.preprocessing.sequence.make_sampling_table(
     n_vocab, sampling_factor=1e-05
 ) 
@@ -774,7 +774,7 @@ sampling_table = tf.keras.preprocessing.sequence.make_sampling_table(
 
 对于`positive_skip_grams`中包含的每个元组，我们生成`negative_samples`数量的负样本。然后，我们用正负样本填充目标、上下文和标签列表：
 
-```
+```py
  targets, contexts, labels = [], [], []
 
         for target_word, context_word in positive_skip_grams:
@@ -806,7 +806,7 @@ sampling_table = tf.keras.preprocessing.sequence.make_sampling_table(
 
 然后，我们将按如下方式将这些转换为数组，并随机打乱数据。在打乱时，您必须确保所有数组都一致地被打乱。否则，您将会破坏与输入相关联的标签：
 
-```
+```py
  contexts, targets, labels = np.concatenate(contexts), 
         np.array(targets), np.concatenate(labels)
 
@@ -823,7 +823,7 @@ sampling_table = tf.keras.preprocessing.sequence.make_sampling_table(
 
 最后，数据批次生成如下：
 
-```
+```py
  for eg_id_start in range(0, contexts.shape[0], batch_size): 
             yield (
                 targets[eg_id_start: min(eg_id_start+batch_size, 
@@ -842,7 +842,7 @@ sampling_table = tf.keras.preprocessing.sequence.make_sampling_table(
 
 首先，让我们定义模型的超参数。您可以自由更改这些超参数，查看它们如何影响最终的性能（例如，`batch_size = 1024` 或 `batch_size = 2048`）。然而，由于这是一个比复杂的现实世界问题更简单的问题，您可能不会看到任何显著差异（除非您将它们更改为极端值，例如，`batch_size = 1` 或 `num_sampled = 1`）：
 
-```
+```py
 batch_size = 4096 # Data points in a single batch
 embedding_size = 128 # Dimension of the embedding vector.
 window_size=1 # We use a window size of 1 on either side of target word
@@ -868,14 +868,14 @@ valid_term_ids = np.append(
 
 我们将首先进行导入。然后清除任何当前正在运行的会话，以确保没有其他模型占用硬件：
 
-```
+```py
 import tensorflow.keras.backend as K
 K.clear_session() 
 ```
 
 我们将定义两个输入层：
 
-```
+```py
 # Inputs - skipgrams() function outputs target, context in that order
 input_1 = tf.keras.layers.Input(shape=(), name='target')
 input_2 = tf.keras.layers.Input(shape=(), name='context') 
@@ -885,7 +885,7 @@ input_2 = tf.keras.layers.Input(shape=(), name='context')
 
 接下来，我们定义两个嵌入层：目标嵌入层和上下文嵌入层。这些层将用于查找目标和上下文词 ID 的嵌入，这些词 ID 将由输入生成函数生成。
 
-```
+```py
 # Two embeddings layers are used one for the context and one for the
 # target
 target_embedding_layer = tf.keras.layers.Embedding(
@@ -900,7 +900,7 @@ context_embedding_layer = tf.keras.layers.Embedding(
 
 定义好嵌入层后，接下来我们来看一下将传入输入层的词 ID 的嵌入：
 
-```
+```py
 # Lookup outputs of the embedding layers
 target_out = target_embedding_layer(input_1)
 context_out = context_embedding_layer(input_2) 
@@ -910,34 +910,34 @@ context_out = context_embedding_layer(input_2)
 
 为此，我们将使用`tf.keras.layers.Dot`层：
 
-```
+```py
 # Computing the dot product between the two 
 out = tf.keras.layers.Dot(axes=-1)([context_out, target_out]) 
 ```
 
 最后，我们将模型定义为一个`tf.keras.models.Model`对象，其中我们指定了`inputs`和`outputs`参数。`inputs`需要是一个或多个输入层，而`outputs`可以是一个或多个由一系列`tf.keras.layers`对象生成的输出：
 
-```
+```py
 # Defining the model
 skip_gram_model = tf.keras.models.Model(inputs=[input_1, input_2], outputs=out, name='skip_gram_model') 
 ```
 
 我们使用损失函数和优化器来编译模型：
 
-```
+```py
 # Compiling the model
 skip_gram_model.compile(loss=tf.keras.losses.BinaryCrossentropy(from_logits=True), optimizer='adam', metrics=['accuracy']) 
 ```
 
 让我们通过调用以下内容来查看模型的摘要：
 
-```
+```py
 skip_gram_model.summary() 
 ```
 
 这将输出：
 
-```
+```py
 Model: "skip_gram_model"
 ________________________________________________________________________
 Layer (type)                    Output Shape     Param   # Connected to
@@ -967,7 +967,7 @@ ________________________________________________________________________
 
 为此，我们使用 Keras 回调函数。Keras 回调函数为你提供了一种在每次训练迭代、每个周期、每个预测步骤等结束时执行重要操作的方式。你可以在[`www.tensorflow.org/api_docs/python/tf/keras/callbacks`](https://www.tensorflow.org/api_docs/python/tf/keras/callbacks)查看所有可用回调函数的完整列表。由于我们需要一个专门为词向量设计的评估机制，我们将需要实现自己的回调函数。我们的回调函数将接受一个包含验证词的词 ID 列表、一个包含嵌入矩阵的模型以及一个用于解码词 ID 的 Tokenizer：
 
-```
+```py
 class ValidationCallback(tf.keras.callbacks.Callback):
 
     def __init__(self, valid_term_ids, model_with_embeddings, tokenizer):
@@ -1021,7 +1021,7 @@ class ValidationCallback(tf.keras.callbacks.Callback):
 
 最终，模型可以按如下方式进行训练：
 
-```
+```py
 skipgram_validation_callback = ValidationCallback(valid_term_ids, skip_gram_model, tokenizer)
 for ei in range(epochs):
 
@@ -1040,7 +1040,7 @@ for ei in range(epochs):
 
 我们首先简单地定义了一个回调实例。接下来，我们训练模型若干个周期。在每个周期中，我们生成跳字模型数据（同时打乱文章的顺序），并对数据调用`skip_gram_model.fit()`。以下是五个周期训练后的结果：
 
-```
+```py
 Epoch: 5/5 ended
 2233/2233 [==============================] - 146s 65ms/step - loss: 0.4842 - accuracy: 0.8056
 months: days, weeks, years, detained, meaning
@@ -1116,7 +1116,7 @@ CBOW 模型与跳字模型算法的工作原理类似，但在问题的表述上
 
 我们将使用与之前相同的超参数：
 
-```
+```py
 batch_size = 4096 # Data points in a single batch
 embedding_size = 128 # Dimension of the embedding vector.
 window_size=1 # We use a window size of 1 on either side of target word
@@ -1141,14 +1141,14 @@ valid_term_ids = np.append(
 
 和之前一样，让我们先清除掉任何剩余的会话（如果有的话）：
 
-```
+```py
 import tensorflow.keras.backend as K
 K.clear_session() 
 ```
 
 我们定义了两个输入层。注意第二个输入层被定义为具有`2 x window_size`的维度。这意味着该层的最终形状将是`[None, 2 x window_size]`：
 
-```
+```py
 # Inputs
 input_1 = tf.keras.layers.Input(shape=())
 input_2 = tf.keras.layers.Input(shape=(window_size*2,)) 
@@ -1156,7 +1156,7 @@ input_2 = tf.keras.layers.Input(shape=(window_size*2,))
 
 现在我们来定义两个嵌入层：一个用于上下文词，另一个用于目标词。我们将从输入层输入数据，并生成`context_out`和`target_out`：
 
-```
+```py
 context_embedding_layer = tf.keras.layers.Embedding(
     input_dim=n_vocab+1, output_dim=embedding_size, 
     name='context_embedding'
@@ -1171,25 +1171,25 @@ target_out = target_embedding_layer(input_1)
 
 如果你查看`context_out`的形状，你会看到它的形状是`[None, 2, 128]`，其中`2`是`2 x window_size`，这是因为它考虑了一个词周围的整个上下文。这需要通过对所有上下文词的平均值进行降维，变为`[None, 128]`。这一操作是通过使用 Lambda 层完成的：
 
-```
+```py
 mean_context_out = tf.keras.layers.Lambda(lambda x: tf.reduce_mean(x, axis=1))(context_out) 
 ```
 
 我们将一个`Lambda`函数传递给`tf.keras.layers.Lambda`层，以在第二维度上减少`context_out`张量，从而生成一个大小为`[None, 128]`的张量。由于`target_out`和`mean_context_out`张量的形状都是`[None, 128]`，我们可以计算这两者的点积，生成一个输出张量`[None, 1]`：
 
-```
+```py
 out = tf.keras.layers.Dot(axes=-1)([context_out, target_out]) 
 ```
 
 有了这些，我们可以将最终模型定义如下：
 
-```
+```py
 cbow_model = tf.keras.models.Model(inputs=[input_1, input_2], outputs=out, name='cbow_model') 
 ```
 
 类似于`skip_gram_model`，我们将按如下方式编译`cbow_model`：
 
-```
+```py
 cbow_model.compile(
     loss=tf.keras.losses.BinaryCrossentropy(from_logits=True), 
     optimizer='adam', 
@@ -1203,13 +1203,13 @@ cbow_model.compile(
 
 模型训练与我们训练 skip-gram 模型的方式相同。首先，让我们定义一个回调函数，用于找到与`valid_term_ids`集合中定义的词最相似的前 k 个词：
 
-```
+```py
 cbow_validation_callback = ValidationCallback(valid_term_ids, cbow_model, tokenizer) 
 ```
 
 接下来，我们训练`cbow_model`若干轮：
 
-```
+```py
 for ei in range(epochs):
     print(f"Epoch: {ei+1}/{epochs} started")
     news_cbow_gen = cbow_data_generator(
@@ -1227,7 +1227,7 @@ for ei in range(epochs):
 
 输出应该如下所示。我们挑选了一些最合理的词向量进行展示：
 
-```
+```py
 months: years, days, weeks, minutes, seasons
 you: we, they, i, don't, we'll
 were: are, aren't, have, because, need

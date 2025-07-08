@@ -114,7 +114,7 @@ SQS 的主要优势之一是按用户付费系统，非常简单。定价为每 
 
 在`serverless.yml`文件中，我们可以看到我们在之前章节中讨论的所有部分，特别是定义访问查询的角色部分，我们将在其中读取消息，并且 Lambda 将写入此查询。以下代码展示了解释：
 
-```
+```py
 Effect: "Allow"
 Action:
     "sqs:ReceiveMessage"
@@ -126,7 +126,7 @@ Resource:
 
 我们还需要定义其中一个查询将作为事件源，正如下图所示：
 
-```
+```py
 events:
     sqs:
       arn:
@@ -137,7 +137,7 @@ events:
 
 最后，我们定义查询，这些查询可以在资源部分执行，如代码所示：
 
-```
+```py
 resources:
   Resources: 
     WriteSQS: 
@@ -152,14 +152,14 @@ resources:
 
 此外，我们还需要使用插件`serverless-pseudo-parameters`，我们将安装它：
 
-```
+```py
 plugins:
   - serverless-pseudo-parameters
 ```
 
 我们需要从`deployment`包中删除带有前述插件的包，如下所示：
 
-```
+```py
 package:
   exclude:
     - node_modules/**
@@ -167,7 +167,7 @@ package:
 
 下一步是使用此插件访问我们使用的区域 ID 和账户 ID，如下所示：
 
-```
+```py
 Resource:
   - arn:aws:sqs:#{AWS::Region}:#{AWS::AccountId}:ReadSQS
 Effect: "Allow"
@@ -184,7 +184,7 @@ Resource:
 
 `index.py`文件非常简单。我们只是读取传入的消息，然后将其写入 SQS。以下是`index.py`的代码：
 
-```
+```py
 import boto3
 
 def handler(event,context):
@@ -200,7 +200,7 @@ def handler(event,context):
 
 首先，我们需要安装插件`serverless-pseudo-parameters`：
 
-```
+```py
 npm install serverless-pseudo-parameters
 ```
 
@@ -210,7 +210,7 @@ npm install serverless-pseudo-parameters
 
 接下来，我们将使用以下命令部署 Lambda：
 
-```
+```py
 serverless deploy
 ```
 
@@ -220,7 +220,7 @@ serverless deploy
 
 要通过队列发送消息，首先我们需要使用以下命令查找队列的 URL：
 
-```
+```py
 aws sqs get-queue-url --queue-name ReadSQS
 ```
 
@@ -248,7 +248,7 @@ aws sqs get-queue-url --queue-name ReadSQS
 
 我们有一个存储模型的存储桶，如下所示的代码片段：
 
-```
+```py
 Effect: "Allow"
 Action:
   - "s3:ListBucket"
@@ -263,7 +263,7 @@ Resource:
 
 有一个 Lambda 的事件源和资源，如下所示的代码片段：
 
-```
+```py
 - sqs:
     arn:
       Fn::GetAtt:
@@ -275,7 +275,7 @@ Resource:
 
 在`index.py`文件中，脚本与前一节中的一样。添加了一个额外的部分，即从消息中读取 URL 并将结果写入另一个队列。以下是`index.py`的代码片段：
 
-```
+```py
 import boto3
 import numpy as np
 import tensorflow as tf
@@ -295,7 +295,7 @@ def handler(event, context):
 
 以下截图展示了我们如何检索图像并在其上运行模型，因此，我们将模型的结果写入另一个队列，如下所示：
 
-```
+```py
 if ('Records' in event):
     for message in event['Records']:
         urlretrieve(message['body'].strip('\''), strFile)

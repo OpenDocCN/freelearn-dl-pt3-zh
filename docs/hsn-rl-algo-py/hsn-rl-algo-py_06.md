@@ -136,7 +136,7 @@ SARSA 是一种在策略算法。所谓“在策略”，意味着通过与环�
 
 在策略算法通常比离策略算法更简单，但它们的表现力较弱，通常需要更多的数据来学习。尽管如此，就像 TD 学习一样，如果 SARSA 每次都访问每个状态-动作无限次，并且随着时间推移，策略变得确定性，那么它是可以保证收敛到最优策略的。实际算法通常使用 ![](img/9abb1d02-9ae0-492d-9681-7a41fb1bba29.png)-贪心策略，并伴有逐渐趋近于零的衰减。SARSA 的伪代码总结如下。在伪代码中，我们使用了 ![](img/9abb1d02-9ae0-492d-9681-7a41fb1bba29.png)-贪心策略，但可以使用任何鼓励探索的策略：
 
-```
+```py
 Initialize  for every state-action pair
 
 for  episodes:
@@ -176,7 +176,7 @@ Taxi-v2 是一个用于研究层次化强化学习（这是一种创建策略层
 
 代码的前几行如下：
 
-```
+```py
 def SARSA(env, lr=0.01, num_episodes=10000, eps=0.3, gamma=0.95, eps_decay=0.00005):
     nA = env.action_space.n
     nS = env.observation_space.n
@@ -189,7 +189,7 @@ def SARSA(env, lr=0.01, num_episodes=10000, eps=0.3, gamma=0.95, eps_decay=0.000
 
 接下来，我们可以实现学习 Q 值的主循环：
 
-```
+```py
     for ep in range(num_episodes):
         state = env.reset()
         done = False
@@ -205,7 +205,7 @@ def SARSA(env, lr=0.01, num_episodes=10000, eps=0.3, gamma=0.95, eps_decay=0.000
 
 现在，我们已经处理了每个回合开始时需要的初始化，并选择了第一个动作，我们可以开始循环，直到回合（游戏）结束。以下这段代码从环境中获取样本并根据公式（5）更新 Q 函数：
 
-```
+```py
         while not done:
             next_state, rew, done, _ = env.step(action) # Take one step in the environment
 
@@ -224,7 +224,7 @@ def SARSA(env, lr=0.01, num_episodes=10000, eps=0.3, gamma=0.95, eps_decay=0.000
 
 在`SARSA`函数的最后几行中，每 300 个回合，我们运行 1,000 次测试游戏并打印信息，如回合数、`eps`值和测试奖励的平均值。此外，我们返回`Q`数组：
 
-```
+```py
         if (ep % 300) == 0:
             test_rew = run_episodes(env, Q, 1000)
             print("Episode:{:5d} Eps:{:2.4f} Rew:{:2.4f}".format(ep, eps, test_rew))
@@ -234,7 +234,7 @@ def SARSA(env, lr=0.01, num_episodes=10000, eps=0.3, gamma=0.95, eps_decay=0.000
 
 我们现在可以实现`eps_greedy`函数，它以`eps`的概率从允许的动作中选择一个随机动作。为此，它只需在 0 和 1 之间采样一个均匀分布的数字，如果这个值小于`eps`，则选择一个随机动作。否则，它选择一个贪婪动作：
 
-```
+```py
 def eps_greedy(Q, s, eps=0.1):
     if np.random.uniform(0,1) < eps:
         # Choose a random action
@@ -246,7 +246,7 @@ def eps_greedy(Q, s, eps=0.1):
 
 贪婪策略通过返回对应于状态`s`中最大 Q 值的索引来实现：
 
-```
+```py
 def greedy(Q, s):    
     return np.argmax(Q[s])
 
@@ -254,7 +254,7 @@ def greedy(Q, s):
 
 最后一个要实现的函数是`run_episodes`，它运行若干回合来测试策略。用于选择动作的策略是贪婪策略。这是因为在测试时我们不希望进行探索。总体而言，该函数与前一章中为动态规划算法实现的函数几乎相同：
 
-```
+```py
 def run_episodes(env, Q, num_episodes=100, to_print=False):
     tot_rew = []
     state = env.reset()
@@ -278,7 +278,7 @@ def run_episodes(env, Q, num_episodes=100, to_print=False):
 
 现在我们快完成了。最后的部分仅涉及创建和重置环境，以及调用 `SARSA` 函数，传入环境和所有超参数：
 
-```
+```py
 if __name__ == '__main__':
     env = gym.make('Taxi-v2')
     env.reset()
@@ -337,7 +337,7 @@ Q-learning 的核心思想是通过使用当前的最优动作值来近似 Q 函
 
 在这些总结性的观察之后，我们最终可以得出以下 Q-learning 算法的伪代码：
 
-```
+```py
 Initialize  for every state-action pair
 
 for  episodes:
@@ -368,7 +368,7 @@ for  episodes:
 
 执行 Q 学习算法的主函数接受一个环境 `env`；学习率 `lr`（公式（6）中使用的 ![](img/938bd970-d732-4e79-9f7a-004484d24ea3.png) 变量）；训练算法的回合数 `num_episodes`；初始 ![](img/af85e4b0-f91e-433d-b793-84d243e166ac.png) 值 `eps`，用于 ![](img/d506f91c-1270-406d-90ae-df116f43c808.png)-贪心策略；衰减率 `eps_decay`；和折扣因子 `gamma`，作为参数：
 
-```
+```py
 def Q_learning(env, lr=0.01, num_episodes=10000, eps=0.3, gamma=0.95, eps_decay=0.00005):
     nA = env.action_space.n
     nS = env.observation_space.n
@@ -384,7 +384,7 @@ def Q_learning(env, lr=0.01, num_episodes=10000, eps=0.3, gamma=0.95, eps_decay=
 
 然后，我们可以实现一个循环，该循环迭代 `num_episodes` 次：
 
-```
+```py
     for ep in range(num_episodes):
         state = env.reset()
         done = False
@@ -397,7 +397,7 @@ def Q_learning(env, lr=0.01, num_episodes=10000, eps=0.3, gamma=0.95, eps_decay=
 
 然后，我们需要遍历一个回合的所有时间步（对应一个回合），因为 Q 学习的更新发生在这里：
 
-```
+```py
         while not done:
             action = eps_greedy(Q, state, eps)
             next_state, rew, done, _ = env.step(action) # Take one step in the environment
@@ -427,7 +427,7 @@ def Q_learning(env, lr=0.01, num_episodes=10000, eps=0.3, gamma=0.95, eps_decay=
 
 最后，每经过外循环的 300 次迭代，我们可以运行 1,000 场游戏来测试代理，打印一些有用的信息，并返回 `Q` 数组。
 
-```
+```py
         if (ep % 300) == 0:
             test_rew = run_episodes(env, Q, 1000)
             print("Episode:{:5d} Eps:{:2.4f} Rew:{:2.4f}".format(ep, eps, test_rew))
@@ -437,7 +437,7 @@ def Q_learning(env, lr=0.01, num_episodes=10000, eps=0.3, gamma=0.95, eps_decay=
 
 这就是全部内容。最后，在 `main` 函数中，我们可以创建环境并运行算法：
 
-```
+```py
 if __name__ == '__main__':
     env = gym.make('Taxi-v2')
     Q = Q_learning(env, lr=.1, num_episodes=5000, eps=0.4, gamma=0.95, eps_decay=0.001)

@@ -50,7 +50,7 @@ TensorFlow 还支持分布式计算，允许我们将图拆分并在不同进程
 
 当你需要在多台机器（或处理器）上工作时，首先要做的事情是定义它们的名称和工作类型，也就是构建一个机器（或处理器）集群。集群中的每台机器都会被分配一个唯一地址（例如，`worker0.example.com:2222`），并且它们会有一个特定的工作类型，比如`type: master`（参数服务器），或者是工作节点。稍后，TensorFlow 服务器会将特定的任务分配给每个工作节点。为了创建集群，我们首先需要定义集群规格。这是一个字典，用于映射工作进程和任务类型。以下代码创建了一个名为`work`的集群，并有两个工作进程：
 
-```
+```py
 import tensorflow as tf
 cluster = tf.train.ClusterSpec({
    "worker":["worker0.example.com:2222",
@@ -60,13 +60,13 @@ cluster = tf.train.ClusterSpec({
 
 接下来，我们可以使用`Server`类并指定任务和任务索引来启动进程。以下代码将在`worker1`上启动`worker`任务：
 
-```
+```py
 server = tf.train.Server(cluster, job_name = "worker", task_index = 1)
 ```
 
 我们需要为集群中的每个工作节点定义一个`Server`类。这将启动所有工作节点，使我们准备好进行分发。为了将 TensorFlow 操作分配到特定的任务上，我们将使用`tf.device`来指定哪些任务在哪个工作节点上运行。考虑以下代码，它将在两个工作节点之间分配任务：
 
-```
+```py
 import tensorflow as tf
 
 # define Clusters with two workers
@@ -121,7 +121,7 @@ with tf.Session("grpc://localhost:2222") as sess:
 
 1.  导入必要的模块。在这里，我们仅导入了必要的模块，以演示将现有深度学习代码转换为分布式 TensorFlow 代码所需的更改：
 
-```
+```py
 import sys
 import tensorflow as tf
 # Add other module libraries you may need
@@ -129,7 +129,7 @@ import tensorflow as tf
 
 1.  定义集群。我们将其创建为一个主节点，地址为 `192.168.1.3`，并且两个工作节点。我们希望将主节点分配到的机器有一个分配给它的 IP 地址，即 `192.168.1.3`，并且我们指定端口为 `2222`。你可以根据你机器的地址修改这些设置：
 
-```
+```py
 cluster = tf.train.ClusterSpec(
           {'ps':['192.168.1.3:2222'],
            'worker': ['192.168.1.4:2222',
@@ -141,20 +141,20 @@ cluster = tf.train.ClusterSpec(
 
 1.  相同的代码会在每台机器上执行，因此我们需要解析命令行参数：
 
-```
+```py
 job = sys.argv[1]
 task_idx = sys.argv[2]
 ```
 
 1.  为每个工作节点和主节点创建 TensorFlow 服务器，以便集群中的节点能够进行通信：
 
-```
+```py
 server = tf.train.Server(cluster, job_name=job, task_index= int(task_idx))
 ```
 
 1.  确保变量分配在相同的工作设备上。TensorFlow 的 `tf.train.replica_device_setter()` 函数帮助我们在构造 `Operation` 对象时自动分配设备。同时，我们希望参数服务器在服务器关闭之前等待。这是通过在参数服务器上使用 `server.join()` 方法实现的：
 
-```
+```py
 if job == 'ps':  
     # Makes the parameter server wait 
     # until the Server shuts down
@@ -174,31 +174,31 @@ else:
 
 使用以下代码在参数服务器（`192.168.1.3:2222`）上执行脚本：
 
-```
+```py
 python tensorflow_distributed_dl.py ps 0
 ```
 
 1.  使用以下代码在 `worker 0`（`192.168.1.4:2222`）上执行脚本：
 
-```
+```py
 python tensorflow_distributed_dl.py worker 0
 ```
 
 1.  使用以下代码在 `worker 1`（`192.168.1.5:2222`）上执行脚本：
 
-```
+```py
 python tensorflow_distributed_dl.py worker 1
 ```
 
 1.  使用以下代码在 `worker 2`（`192.168.1.6:2222`）上执行脚本：
 
-```
+```py
 python tensorflow_distributed_dl.py worker 2
 ```
 
 1.  使用以下代码在 `worker 3`（`192.168.1.6:2222`）上执行脚本：
 
-```
+```py
 python tensorflow_distributed_dl.py worker 3
 ```
 
@@ -232,13 +232,13 @@ TFoS 提供了两种输入模式，用于训练和推理时获取数据：
 
 1.  启动 TensorFlow 集群。我们可以使用`TFCluster.run`来启动集群：
 
-```
+```py
 cluster = TFCluster.run(sc, map_fn, args, num_executors, num_ps, tensorboard, input_mode)
 ```
 
 1.  将数据输入 TensorFlow 应用程序。数据用于训练和推理。为了训练，我们使用`train`方法：
 
-```
+```py
 cluster.train(dataRDD, num_epochs)
 ```
 
@@ -270,7 +270,7 @@ cluster.train(dataRDD, num_epochs)
 
 1.  在`main(argv, ctx)`函数中定义模型架构和训练，其中`argv`参数包含命令行传递的参数，而`ctx`包含节点元数据，如`job`和`task_idx`。`cnn_model_fn`模型函数是定义的 CNN 模型：
 
-```
+```py
 def main(args, ctx):
     # Load training and eval data
     mnist = tf.contrib.learn.datasets.mnist.read_data_sets(args.data_dir)
@@ -314,7 +314,7 @@ def main(args, ctx):
 
 1.  在`if __name__=="__main__"`块中，添加以下导入：
 
-```
+```py
 from pyspark.context import SparkContext
 from pyspark.conf import SparkConf
 from tensorflowonspark import TFCluster
@@ -323,7 +323,7 @@ import argparse
 
 1.  启动 Spark Driver 并初始化 TensorFlowOnSpark 集群：
 
-```
+```py
 sc = SparkContext(conf=SparkConf()
         .setAppName("mnist_spark"))
 executors = sc._conf.get("spark.executor.instances")
@@ -332,7 +332,7 @@ num_executors = int(executors) if executors is not None else 1
 
 1.  解析参数：
 
-```
+```py
 parser = argparse.ArgumentParser()
 parser.add_argument("--batch_size", 
             help="number of records per batch", 
@@ -361,7 +361,7 @@ args = parser.parse_args()
 
 1.  使用`TFCluster.run`来管理集群：
 
-```
+```py
 cluster = TFCluster.run(sc, main, args, 
         args.cluster_size, args.num_ps, 
         tensorboard=args.tensorboard, 
@@ -371,7 +371,7 @@ cluster = TFCluster.run(sc, main, args,
 
 1.  训练完成后，关闭集群：
 
-```
+```py
 cluster.shutdown()
 ```
 
@@ -379,7 +379,7 @@ cluster.shutdown()
 
 要在 EC2 集群上执行代码，您需要使用`spark-submit`将其提交到 Spark 集群：
 
-```
+```py
 ${SPARK_HOME}/bin/spark-submit \
 --master ${MASTER} \
 --conf spark.cores.max=${TOTAL_CORES} \
@@ -421,7 +421,7 @@ Apache Spark 提供了一个高级 API Sparkdl，用于在 Python 中进行可�
 
 要访问深度学习管道中的 Spark 功能，我们需要使用 Spark 驱动程序。自 Spark 2.0.0 起，我们有一个单一的入口点，使用 `SparkSession`。最简单的方法是使用 `builder`：
 
-```
+```py
 SparkSession.builder().getOrCreate()
 ```
 
@@ -471,7 +471,7 @@ Sparkdl API 提供了方法来实现快速的迁移学习。它提供了 `DeepIm
 
 1.  这次，我们不使用 `spark-submit`。相反，我们像运行任何标准的 Python 代码一样运行代码。因此，我们将在代码中定义 Spark 驱动程序的位置和 Spark 深度学习包，并使用 PySpark 的 `SparkSession` 构建器创建一个 Spark 会话。这里需要记住的一点是分配给堆的内存：Spark 执行器和 Spark 驱动程序。这个值应该基于您机器的规格：
 
-```
+```py
 import findspark
 findspark.init('/home/ubuntu/spark-2.4.0-bin-hadoop2.7')
 
@@ -491,7 +491,7 @@ spark = SparkSession.builder \
 
 1.  图片通过 PySpark 的 `ImageSchema` 类加载到 Spark DataFrame 中。公交车和汽车的图片分别加载到不同的 Spark DataFrame 中：
 
-```
+```py
 import pyspark.sql.functions as f
 import sparkdl as dl
 from pyspark.ml.image import ImageSchema
@@ -502,7 +502,7 @@ dfcars = ImageSchema.readImages('cars/').withColumn('label', f.lit(1))
 
 1.  你可以在这里看到 Spark DataFrame 的前五行：
 
-```
+```py
 dfbuses.show(5)
 dfcars.show(5)
 ```
@@ -513,21 +513,21 @@ dfcars.show(5)
 
 1.  我们将数据集划分为训练集和测试集，比例为 60%的训练集和 40%的测试集。请记住，这些值是随机的，你可以根据需要进行调整：
 
-```
+```py
 trainDFbuses, testDFbuses = dfbuses.randomSplit([0.60,0.40], seed = 123)
 trainDFcars, testDFcars = dfcars.randomSplit([0.60,0.40], seed = 122)
 ```
 
 1.  公交车和汽车的训练数据集已合并。测试数据集也进行了相同的处理：
 
-```
+```py
 trainDF = trainDFbuses.unionAll(trainDFcars)
 testDF = testDFbuses.unionAll(testDFcars)
 ```
 
 1.  我们使用 Sparkdl API 获取预训练的 Inception v3 模型，并在 Inception 的 CNN 层上添加了一个逻辑回归器。现在，我们将在我们的数据集上训练这个模型：
 
-```
+```py
 from pyspark.ml.classification import LogisticRegression
 from pyspark.ml import Pipeline
 vectorizer = dl.DeepImageFeaturizer(inputCol="image",
@@ -541,7 +541,7 @@ pipeline_model = pipeline.fit(trainDF)
 
 1.  让我们看看训练好的模型在测试数据集上的表现。我们使用完美的混淆矩阵来进行评估：
 
-```
+```py
 predictDF = pipeline_model.transform(testDF)
 predictDF.select('prediction', 'label').show(n = testDF.toPandas().shape[0], truncate=False)
 predictDF.crosstab('prediction', 'label').show()
@@ -553,7 +553,7 @@ predictDF.crosstab('prediction', 'label').show()
 
 1.  对于测试数据集，模型的准确率达到了 100%：
 
-```
+```py
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 scoring = predictDF.select("prediction", "label")
 accuracy_score = MulticlassClassificationEvaluator(metricName="accuracy")

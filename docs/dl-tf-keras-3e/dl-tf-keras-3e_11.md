@@ -104,7 +104,7 @@
 
 有多种策略，其中最常用的一种是**epsilon-贪心** (![](img/B18331_11_012.png)) 策略。在这里，代理持续探索，并且根据![](img/B18331_11_013.png)的值，在每一步，代理以概率![](img/B18331_11_014.png)选择一个随机动作，并以概率![](img/B18331_11_015.png)选择一个最大化价值函数的动作。通常，![](img/B18331_11_014.png)的值会渐进下降。在 Python 中，![](img/B18331_11_012.png)策略可以实现为：
 
-```
+```py
  if np.random.rand() <= epsilon:
         a = random.randrange(action_size)
   else:
@@ -173,19 +173,19 @@
 
 首先需要做的是安装 OpenAI Gym。以下命令将安装最小的 `gym` 包：
 
-```
+```py
 pip install gym 
 ```
 
 如果您想安装所有（免费）`gym` 模块，可以在后面加上 `[all]`：
 
-```
+```py
 pip install gym[all] 
 ```
 
 MuJoCo 环境需要购买许可证。对于基于 Atari 的游戏，您需要安装 Atari 依赖项（Box2D 和 ROM）：
 
-```
+```py
 pip install box2d-py 
 ```
 
@@ -207,7 +207,7 @@ OpenAI Gym 提供了多种环境，从简单的基于文本的到三维游戏。
 
 你可以从 Gym 网站获取完整的环境列表：[`gym.openai.com`](https://gym.openai.com)。要查看安装中所有可用环境的列表，你可以使用以下代码：
 
-```
+```py
 from gym import envs
 
 envall = envs.registry.all()
@@ -216,7 +216,7 @@ len(envall)
 
 在编写本书时，结果是 859，即 `gym` 模块中存在 859 个不同的环境。让我们看看这些环境的更多细节。每个环境都是通过使用 `make` 函数创建的。每个环境都有一个唯一的 ID、其观察空间、动作空间和默认奖励范围。Gym 允许你通过点符号访问它们，如下代码所示。我们遍历 `envall` 列表中的所有环境，并记录下其唯一 ID，ID 用于通过 `make` 方法创建环境，观察空间、奖励范围和动作空间：
 
-```
+```py
 from tqdm import tqdm
 List = []
 for e in tqdm(envall):
@@ -236,7 +236,7 @@ for e in tqdm(envall):
 
 你可以使用这些命令来查看 Gym 中任何环境的详细信息。例如，以下代码打印出 MountainCar 环境的详细信息：
 
-```
+```py
 env = gym.make('MountainCar-v0')
 print(f"The Observation space is        {env.observation_space}" )
 print(f"Upper Bound for Env Observation {env.observation_space.high}")
@@ -258,7 +258,7 @@ OpenAI Gym 提供的核心接口是统一的环境接口。代理可以使用三
 
 |
 
-```
+```py
 e = 'LunarLander-v2'
 env = gym.make(e)
 obs = env.reset() 
@@ -269,7 +269,7 @@ plt.imshow(img)
 
 |
 
-```
+```py
 e = 'CartPole-v0'
 env = gym.make(e)
 env.reset()
@@ -280,7 +280,7 @@ plt.imshow(img)
 
 |
 
-```
+```py
 e = 'SpaceInvaders-v0'
 env = gym.make(e)
 env.reset()
@@ -298,7 +298,7 @@ plt.imshow(img)
 
 上述代码使用 Matplotlib 显示环境；你也可以直接使用 `render` 方法：
 
-```
+```py
 import gym
 env_name = 'Breakout-v0'
 env = gym.make(env_name)
@@ -314,7 +314,7 @@ env.render()
 
 我们可以使用 `env.observation_space` 和 `env.action_space` 来了解 Breakout 游戏的状态空间和动作空间。结果显示，状态由一个 210 × 160 大小的三通道图像组成，动作空间是离散的，有四个可能的动作。完成后，别忘了使用以下命令关闭 OpenAI：
 
-```
+```py
 env.close() 
 ```
 
@@ -324,7 +324,7 @@ env.close()
 
 我们将首先导入必要的模块；目前我们只需要`gym`和`matplotlib`，因为智能体将进行随机操作：
 
-```
+```py
 import gym
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation 
@@ -332,14 +332,14 @@ import matplotlib.animation as animation
 
 我们创建 Gym 环境：
 
-```
+```py
 env_name = 'Breakout-v0'
 env = gym.make(env_name) 
 ```
 
 接下来，我们将一步一步运行游戏，选择一个随机动作，无论是 300 步还是直到游戏结束（以较早的为准）。环境状态（观察）空间将在每一步保存到列表`frames`中：
 
-```
+```py
 frames = [] # array to store state space at each step
 env.reset()
 done = False
@@ -353,7 +353,7 @@ for _ in range(300):
 
 现在，我们进入将所有帧合成 GIF 图像的部分，使用 Matplotlib Animation。我们创建一个图像对象、补丁，然后定义一个函数，将图像数据设置为特定的帧索引。该函数由 Matplotlib 的`Animation`类使用，用来创建动画，最后我们将其保存在文件`random_agent.gif`中：
 
-```
+```py
 patch = plt.imshow(frames[0])
 plt.axis('off')
 def animate(i):
@@ -375,7 +375,7 @@ def animate(i):
 
 Gym 为我们提供了多种包装器来修改现有环境。例如，如果你有图像输入，RGB 强度值在 0 到 255 之间，而你使用的 RL 智能体是神经网络，最佳输入范围是 0 到 1，那么你可以使用 Gym 包装器类来预处理状态空间。下面我们定义了一个包装器，用于连接观察：
 
-```
+```py
 from collections import deque
 from gym import spaces
 import numpy as np
@@ -405,37 +405,37 @@ class ConcatObservations(gym.Wrapper):
 
 让我们看看它是如何工作的。如果你选择`"BreakoutNoFrameskip-v4"`环境，那么初始的观察空间是 210 x 160 x 3：
 
-```
+```py
 env = gym.make("BreakoutNoFrameskip-v4")
 print(f"The original observation space is  {env.observation_space}") 
 ```
 
-```
+```py
 ### OUTPUT: 
 ```
 
-```
+```py
 >>>The original observation space is  Box(0, 255, (210, 160, 3), uint8) 
 ```
 
 现在，如果你使用我们刚刚创建的包装器：
 
-```
+```py
 env = ConcatObservations(env, 4)
 print(f"The new observation space is  {env.observation_space}") 
 ```
 
-```
+```py
 ### OUTPUT: 
 ```
 
-```
+```py
 The new observation space is  Box(0, 255, (4, 210, 160, 3), uint8) 
 ```
 
 你可以看到现在添加了一个维度——它有四个帧，每个帧的大小是 210 x 160 x 3。你也可以使用包装器来修改奖励。在这种情况下，你使用父类`RewardWrapper`。下面是一个示例代码，可以将奖励裁剪到[-10, 10]的范围内：
 
-```
+```py
 class ClippedRewards(gym.RewardWrapper):
     def __init__(self, env):
         gym.RewardWrapper.__init__(self, env)
@@ -447,17 +447,17 @@ class ClippedRewards(gym.RewardWrapper):
 
 让我们尝试在 CartPole 环境中使用它，该环境的奖励范围是 ![](img/B18331_11_019.png)：
 
-```
+```py
 env = ClippedRewards(gym.make("CartPole-v0"))
 print(f'Clipped reward range: {env.reward_range}')
 env.close() 
 ```
 
-```
+```py
 ### OUTPUT: 
 ```
 
-```
+```py
 Clipped reward range: (-10, 10) 
 ```
 
@@ -465,7 +465,7 @@ Clipped reward range: (-10, 10)
 
 默认情况下，它将存储 1、8、27、64（完美立方数的剧集编号）等视频，然后每 1,000 个剧集；每次训练，默认保存在一个文件夹中。执行此操作的代码如下：
 
-```
+```py
 import gym
 env = gym.make("Breakout-v0")
 env = gym.wrappers.Monitor(env, 'recording', force=True)
@@ -486,7 +486,7 @@ env.close()
 
 如果你想在 Google Colab 上训练你的智能体，你需要添加以下驱动程序，以便能够可视化 Gym 的输出：
 
-```
+```py
 !pip install pyglet
 !apt-get install -y xvfb python-opengl > /dev/null 2>&1
 !pip install gym pyvirtualdisplay > /dev/null 2>&1 
@@ -494,7 +494,7 @@ env.close()
 
 安装 Python 虚拟显示后，你需要启动它——Gym 使用虚拟显示来设置观察。以下代码可以帮助你启动一个大小为 600 x 400 的显示：
 
-```
+```py
 from pyvirtualdisplay import Display
 display = Display(visible=0, size=(600, 400))
 display.start() 
@@ -502,7 +502,7 @@ display.start()
 
 并且要能够玩 Atari 游戏，使用：
 
-```
+```py
 !wget http://www.atarimania.com/roms/Roms.rar
 !mkdir /content/ROM/
 !unrar e /content/Roms.rar /content/ROM/
@@ -547,7 +547,7 @@ CartPole 是一个经典的 OpenAI 问题，具有连续的状态空间和离散
 
 我们首先导入必要的模块。我们显然需要`gym`来为我们提供 CartPole 环境，`tensorflow`来构建我们的 DQN 网络。除此之外，我们还需要`random`和`numpy`模块：
 
-```
+```py
 import random
 import gym
 import math
@@ -561,7 +561,7 @@ from tensorflow.keras.optimizers import Adam
 
 我们设置了训练代理的最大训练回合数（`EPOCHS`）、我们认为环境已解决的阈值（`THRESHOLD`），以及一个布尔值来表示是否希望记录训练过程（`MONITOR`）。请注意，根据官方 OpenAI 文档，CartPole 环境在代理能够在 195 个时间步（ticks）内保持杆处于竖直位置时被认为已解决。在以下代码中，为了节省时间，我们将`THRESHOLD`降低到 45：
 
-```
+```py
 EPOCHS = 1000
 THRESHOLD = 45
 MONITOR = True 
@@ -569,7 +569,7 @@ MONITOR = True
 
 现在让我们构建我们的 DQN。我们声明一个`DQN`类，并在其`__init__()`函数中声明所有超参数和模型。我们还在`DQN`类内部创建了环境。如你所见，这个类非常通用，你可以用它来训练任何 Gym 环境，只要其状态空间信息可以被包含在一个一维数组中：
 
-```
+```py
 class DQN():
     def __init__(self, env_string, batch_size=64):
         self.memory = deque(maxlen=100000)
@@ -599,7 +599,7 @@ class DQN():
 
 我们构建的 DQN 是一个三层感知机；在以下输出中，你可以看到模型摘要。我们使用带有学习率衰减的 Adam 优化器：
 
-```
+```py
 Model: "sequential"
 _________________________________________________________________
  Layer (type)                Output Shape              Param #   
@@ -619,7 +619,7 @@ _________________________________________________________________
 
 变量列表`self.memory`将包含我们的经验回放缓冲区。我们需要添加一个方法，将*S,A,R,S’*元组保存到内存中，并添加一个方法，从中批量获取随机样本以训练代理。我们通过定义类方法`remember`和`replay`来实现这两个功能：
 
-```
+```py
 def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 def replay(self, batch_size):
@@ -638,7 +638,7 @@ def replay(self, batch_size):
 
 我们的代理将在选择动作时使用**epsilon-贪婪策略**。该策略在以下方法中实现：
 
-```
+```py
 def choose_action(self, state, epsilon):
         if np.random.random() <= epsilon:
             return self.env.action_space.sample()
@@ -648,7 +648,7 @@ def choose_action(self, state, epsilon):
 
 接下来，我们编写一个方法来训练代理。我们定义了两个列表来跟踪分数。首先，我们填充经验回放缓冲区，然后从中选择一些样本来训练代理，并希望代理能够逐渐学会做得更好：
 
-```
+```py
 def train(self):
     scores = deque(maxlen=100)
     avg_scores = []
@@ -681,20 +681,20 @@ def train(self):
 
 现在所有必要的函数已经完成，我们只需要一个辅助函数来重新塑造 CartPole 环境的状态，以便模型的输入是正确的形状。环境的状态由四个连续变量描述：小车位置（[-2.4-2.4]），小车速度，杆角度（[-41.8o-41.8o]），和杆速度：
 
-```
+```py
 def preprocess_state(self, state):
     return np.reshape(state, [1, self.input_size]) 
 ```
 
 现在让我们实例化我们的代理，应用于 CartPole 环境并进行训练：
 
-```
+```py
 env_string = 'CartPole-v0'
 agent = DQN(env_string)
 scores = agent.train() 
 ```
 
-```
+```py
 [Episode 0] - Mean survival time over last 100 episodes was 28.0 ticks.
 [Episode 100] - Mean survival time over last 100 episodes was 15.71 ticks.
 [Episode 200] - Mean survival time over last 100 episodes was 27.81 ticks.
@@ -703,7 +703,7 @@ Ran 259 episodes. Solved after 159 trials ✔
 
 让我们绘制代理学习过程中获得的平均奖励：
 
-```
+```py
 import matplotlib.pyplot as plt
 plt.plot(scores)
 plt.show() 
@@ -717,7 +717,7 @@ plt.show()
 
 训练完成后，你可以关闭环境：
 
-```
+```py
 agent.env.close() 
 ```
 
@@ -737,7 +737,7 @@ agent.env.close()
 
 现在，如果你看看这张图像，并非所有部分都包含相关信息：顶部有关于分数的冗余信息，底部有不必要的空白区域，图像还带有颜色。为了减轻模型的负担，最好移除不必要的信息，因此我们将裁剪图像，转换为灰度图，并将其调整为 84 × 84 的正方形（如论文中所示）。以下是预处理输入原始像素的代码：
 
-```
+```py
 def preprocess_state(self, img):
     img_temp = img[31:195]  # Choose the important area of the image
     img_temp = tf.image.rgb_to_grayscale(img_temp)
@@ -749,7 +749,7 @@ def preprocess_state(self, img):
 
 另一个重要问题是，仅通过一次观察图像，代理如何知道小球是上升还是下降？一种方法是使用 LSTM 和 CNN 结合，记录过去的状态，从而追踪小球的运动。然而，论文中采用了一种简单的技术：它将过去四个时间步的状态空间连接在一起作为 CNN 的输入，而不是单一的状态帧；也就是说，网络将过去四帧环境画面作为输入。以下是将当前状态和过去状态组合的代码：
 
-```
+```py
 def combine_images(self, img1, img2):
     if len(img1.shape) == 3 and img1.shape[0] == self.m:
         im = np.append(img1[1:,:, :],np.expand_dims(img2,0), axis=2)
@@ -761,7 +761,7 @@ def combine_images(self, img1, img2):
 
 模型是在 `__init__` 函数中定义的。我们修改该函数，使其现在具有一个输入为（84 × 84 × 4）的 CNN，表示四个大小为 84 × 84 的状态帧：
 
-```
+```py
 def __init__(self, env_string,batch_size=64, IM_SIZE = 84, m = 4):
     self.memory = deque(maxlen=5000)
     self.env = gym.make(env_string)
@@ -792,7 +792,7 @@ def __init__(self, env_string,batch_size=64, IM_SIZE = 84, m = 4):
 
 最后，我们需要在 `train` 函数中做一个小改动。我们需要调用新的 `preprocess` 函数，并使用 `combine_images` 函数来确保四帧图像被连接在一起：
 
-```
+```py
 def train(self):
     scores = deque(maxlen=100)
     avg_scores = []

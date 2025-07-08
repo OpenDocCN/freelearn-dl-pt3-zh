@@ -102,7 +102,7 @@ Keras 已经在 TensorFlow 1.x 中出现过，但当时默认未启用急切执�
 
 `(tf2)`
 
-```
+```py
 import tensorflow as tf
 from tensorflow.keras.datasets import fashion_mnist
 
@@ -143,7 +143,7 @@ model.evaluate(test_x, test_y)
 
 +   `model.summary()` 打印出模型的完整描述，如果你想检查模型是否已正确定义，从而检查模型定义中是否存在拼写错误，哪个层的权重最大（按参数数量），以及整个模型的参数量是多少，这非常有用。CNN 的总结在以下代码中展示。正如我们所看到的，绝大多数参数都在全连接层中：
 
-```
+```py
 Model: "sequential"
 __________________________________________________
 Layer   (type)     Output Shape         Param #
@@ -181,7 +181,7 @@ Non-trainable params: 0
 
 Keras 在训练模型时会为用户提供反馈，记录每个 epoch 的进度条，并在标准输出中实时显示损失和度量的值：
 
-```
+```py
 Epoch 1/10
 60000/60000 [================] - 126s 2ms/sample - loss: 1.9142 - accuracy: 0.4545
 Epoch 2/10
@@ -209,7 +209,7 @@ Functional API 允许你定义多输入、多输出模型，轻松共享层，�
 
 `(tf2)`
 
-```
+```py
 import tensorflow as tf
 
 input_shape = (100,)
@@ -228,7 +228,7 @@ model = tf.keras.Model(inputs=inputs, outputs=net)
 
 `(tf2)`
 
-```
+```py
 import tensorflow as tf
 
 class Generator(tf.keras.Model):
@@ -282,7 +282,7 @@ Keras 可用于训练和评估模型，但 TensorFlow 2.0 通过其急切执行�
 
 `(tf1)`
 
-```
+```py
 import tensorflow as tf
 
 A = tf.constant([[1, 2], [3, 4]], dtype=tf.float32)
@@ -296,7 +296,7 @@ with tf.Session() as sess:
 
 会话的执行生成 NumPy 数组：
 
-```
+```py
 [[ 1\. 10.]
  [ 1\. 31.]]
 ```
@@ -311,7 +311,7 @@ with tf.Session() as sess:
 
 `(tf2)`
 
-```
+```py
 import tensorflow as tf
 
 A = tf.constant([[1, 2], [3, 4]], dtype=tf.float32)
@@ -323,7 +323,7 @@ print(y)
 
 前面的代码与 1.x 版本相比会产生不同的输出：
 
-```
+```py
 tf.Tensor(
 [[ 1\. 10.]
  [ 1\. 31.]], shape=(2, 2), dtype=float32)
@@ -341,7 +341,7 @@ tf.Tensor(
 
 `y` Python 变量，作为 `tf.Tensor` 对象，可以作为任何其他 TensorFlow 操作的输入。如果我们希望提取 `tf.Tensor` 所包含的值，以便获得与 1.x 版本中 `sess.run` 调用相同的结果，我们只需调用 `tf.Tensor.numpy` 方法：
 
-```
+```py
 print(y.numpy())
 ```
 
@@ -363,7 +363,7 @@ TensorFlow 2.0 改变了这些方面，提高了可以用它编写的代码的�
 
 `(tf2)`
 
-```
+```py
 import tensorflow as tf
 
 def multiply(x, y):
@@ -433,7 +433,7 @@ if __name__ == "__main__":
 
 `(tf1)`
 
-```
+```py
 import tensorflow as tf
 
 def count_op():
@@ -461,7 +461,7 @@ assert count_op() == 0 # FAIL!
 
 删除 Python 变量完全没有用，因为图中定义的所有操作仍然存在，我们可以访问它们的输出张量，从而在需要时恢复 Python 变量或创建指向图节点的新 Python 变量。我们可以使用以下代码来实现这一点：
 
-```
+```py
 A = tf.get_default_graph().get_tensor_by_name("A:0")
 x = tf.get_default_graph().get_tensor_by_name("x:0")
 b = tf.get_default_graph().get_tensor_by_name("b:0")
@@ -479,7 +479,7 @@ b = tf.get_default_graph().get_tensor_by_name("b:0")
 
 `(tf1)`
 
-```
+```py
 import tensorflow as tf
 
 def get_y():
@@ -530,7 +530,7 @@ with tf.Session() as sess:
 
 `(tf1)`
 
-```
+```py
 import tensorflow as tf
 
 x = tf.Variable(1, dtype=tf.int32)
@@ -550,7 +550,7 @@ with tf.Session() as sess:
 
 输出节点`out`对`assign_op`节点没有显式依赖关系，因此它在执行`out`时从不计算，从而使输出仅为 2 的序列。在 TensorFlow 1.x 中，我们必须显式地使用`tf.control_dependencies`来强制执行顺序，条件化赋值操作，以便它在执行`out`之前执行：
 
-```
+```py
 with tf.control_dependencies([assign_op]):
     out = x * y
 ```
@@ -563,7 +563,7 @@ TensorFlow 2.x 凭借其即时执行，使得可以使用 Python 解释器来控
 
 `(tf2)`
 
-```
+```py
 import tensorflow as tf
 
 x = tf.Variable(1, dtype=tf.int32)
@@ -595,7 +595,7 @@ TensorFlow 2.0 引入了 GradientTape 的概念，以高效解决这个问题。
 
 tape 记录了在该上下文中执行的每个操作，以便构建已执行的前向传递图；然后，tape 可以展开以使用反向模式自动微分计算梯度。它通过调用`gradient`方法来实现：
 
-```
+```py
 x = tf.constant(4.0)
 with tf.GradientTape() as tape:
     tape.watch(x)
@@ -608,7 +608,7 @@ dy_dx = tape.gradient(y, x)
 
 一个`tf.GradientTape`对象，例如`tape`，在调用`tf.GradientTape.gradient()`方法后会释放它所持有的资源。这在大多数常见场景中是可取的，但在某些情况下，我们需要多次调用`tf.GradientTape.gradient()`。为了做到这一点，我们需要创建一个持久的梯度 tape，允许多次调用梯度方法而不释放资源。在这种情况下，由开发者在不再需要资源时负责释放这些资源。他们通过使用 Python 的`del`指令删除对 tape 的引用来做到这一点：
 
-```
+```py
 x = tf.Variable(4.0)
 y = tf.Variable(2.0)
 with tf.GradientTape(persistent=True) as tape:
@@ -638,7 +638,7 @@ TensorFlow 2.0 提供了一种新的、简便的方式，通过 Keras 构建模�
 
 在这个策略中，梯度向量被归一化，使得 L2 范数小于或等于一个阈值。实际上，我们希望以这种方式更新梯度更新规则：
 
-```
+```py
 gradients = gradients * threshold / l2(gradients)
 ```
 
@@ -664,7 +664,7 @@ TensorFlow 有一个 API 用于此任务：`tf.clip_by_norm`。我们只需访�
 
 首先，我们导入`tensorflow`库，然后定义`make_model`函数：
 
-```
+```py
 import tensorflow as tf
 from tensorflow.keras.datasets import fashion_mnist
 
@@ -684,7 +684,7 @@ def make_model(n_classes):
 
 然后，我们定义`load_data`函数：
 
-```
+```py
 def load_data():
     (train_x, train_y), (test_x, test_y) = fashion_mnist.load_data()
     # Scale input in [-1, 1] range
@@ -701,7 +701,7 @@ def load_data():
 
 然后，我们定义`train()`函数，实例化模型、输入数据和训练参数：
 
-```
+```py
 def train():
     # Define the model
     n_classes = 10
@@ -719,7 +719,7 @@ def train():
 
 最后，我们需要在`train`函数内定义`train_step`函数，并在训练循环中使用它：
 
-```
+```py
     # Train step function
     def train_step(inputs, labels):
         with tf.GradientTape() as tape:
@@ -806,7 +806,7 @@ SavedModel 是一种与语言无关的表示（Protobuf 序列化图），适合
 
 `(tf2)`
 
-```
+```py
 ckpt = tf.train.Checkpoint(step=step, optimizer=optimizer, model=model)
 manager = tf.train.CheckpointManager(ckpt, './checkpoints', max_to_keep=3)
 ckpt.restore(manager.latest_checkpoint)
@@ -822,7 +822,7 @@ else:
 
 `(tf2)`
 
-```
+```py
 save_path = manager.save()
 print(f"Checkpoint saved: {save_path}")
 ```
@@ -841,7 +841,7 @@ TensorBoard 仍然是 TensorFlow 默认且推荐的数据记录和可视化工�
 
 `(tf2)`
 
-```
+```py
 summary_writer = tf.summary.create_file_writer(path)
 ```
 
@@ -855,7 +855,7 @@ summary_writer = tf.summary.create_file_writer(path)
 
 `.result()`方法负责正确计算聚合值上的度量。一旦计算完成，我们可以通过调用`reset_states()`来重置度量的内部状态。当然，所有在训练阶段计算的值都遵循相同的逻辑，因为损失是非常常见的：
 
-```
+```py
 mean_loss = tf.metrics.Mean(name='loss')
 ```
 
@@ -863,7 +863,7 @@ mean_loss = tf.metrics.Mean(name='loss')
 
 `tf.summary`包还包含一些方法，用于记录图像（`tf.summary.image`），因此可以扩展之前的示例，在 TensorBoard 上非常简单地记录标量指标和图像批次。以下代码展示了如何扩展之前的示例，记录训练损失、准确率以及三张训练图像——请花时间分析结构，看看如何进行指标和日志记录，并尝试理解如何通过定义更多函数使代码结构更加模块化和易于维护：
 
-```
+```py
 def train():
     # Define the model
     n_classes = 10
@@ -891,7 +891,7 @@ def train():
 
 这里，我们定义了`train_step`函数：
 
-```
+```py
      # Train step function
      def train_step(inputs, labels):
          with tf.GradientTape() as tape:
@@ -999,7 +999,7 @@ def train():
 
 由于这个原因，`tf.function`会多次解析函数体，寻找`tf.Variable`定义。如果在第二次调用时，它发现一个变量对象正在被重新创建，就会抛出异常：
 
-```
+```py
 ValueError: tf.function-decorated function tried to create variables on non-first call.
 ```
 
@@ -1009,7 +1009,7 @@ ValueError: tf.function-decorated function tried to create variables on non-firs
 
 `(tf2)`
 
-```
+```py
 def f():
     a = tf.constant([[10,10],[11.,1.]])
     x = tf.constant([[1.,0.],[0.,1.]])
@@ -1028,7 +1028,7 @@ def f():
 
 `(tf2)`
 
-```
+```py
 @tf.function
 def f(b):
     a = tf.constant([[10,10],[11.,1.]])
@@ -1054,7 +1054,7 @@ f(tf.constant(1))
 
 `(tf2)`
 
-```
+```py
 b = None
 
 @tf.function
@@ -1074,7 +1074,7 @@ f()
 
 `(tf2)`
 
-```
+```py
 class F():
     def __init__(self):
         self._b = None
@@ -1098,7 +1098,7 @@ AutoGraph 和图加速过程在优化训练过程时表现最佳。
 
 `(tf2)`
 
-```
+```py
 @tf.function
 def train_step(inputs, labels):
 # function body
@@ -1120,7 +1120,7 @@ AutoGraph 会自动将 Python 构造转换为其`tf.*`等效构造，但由于�
 
 `(tf2)`
 
-```
+```py
 import tensorflow as tf
 
 @tf.function
@@ -1139,7 +1139,7 @@ print(tf.autograph.to_code(f.python_function))
 
 你被邀请仔细阅读以下由 AutoGraph 生成的函数（这是机器生成的，因此难以阅读），以了解为什么`f`会以这种方式表现：
 
-```
+```py
 def tf__f():
   try:
     with ag__.function_scope('f'):
@@ -1186,13 +1186,13 @@ TensorFlow 工程师开发了一个转换工具，可以帮助进行转换过程
 
 要迁移单个 Python 文件（或笔记本），请使用以下代码：
 
-```
+```py
 tf_upgrade_v2 --infile file.py --outfile file-migrated.py
 ```
 
 要在目录树上运行，请使用以下代码：
 
-```
+```py
 tf_upgrade_v2 --intree project --outtree project-migrated
 ```
 
@@ -1200,7 +1200,7 @@ tf_upgrade_v2 --intree project --outtree project-migrated
 
 此外，它始终会在`report.txt`文件中报告详细的变更列表，这有助于我们理解工具为何应用某些更改；例如：
 
-```
+```py
 Added keyword 'input' to reordered function 'tf.argmax'
 Renamed keyword argument from 'dimension' to 'axis'
 
@@ -1245,7 +1245,7 @@ Renamed keyword argument from 'dimension' to 'axis'
 
     API 应该按照以下方式工作：
 
-```
+```py
 # Define your model
 trainer = Trainer(model)
 # Get features and labels as numpy arrays (explore the dataset available in the keras module)
@@ -1282,7 +1282,7 @@ trainer.evaluate(test_features, test_labels)
 
 1.  如果以下函数被`@tf.function`装饰，它会输出任何结果吗？描述其内部发生的情况：
 
-```
+```py
 def output():
     for i in range(10):
         tf.print(i)
@@ -1290,7 +1290,7 @@ def output():
 
 1.  如果以下函数被`@tf.function`装饰，它会输出任何结果吗？描述其内部发生的情况：
 
-```
+```py
 def output():
     for i in tf.range(10):
         print(i)
@@ -1298,7 +1298,7 @@ def output():
 
 1.  如果以下函数被`@tf.function`装饰，它会输出任何结果吗？描述其内部发生的情况：
 
-```
+```py
 def output():
     for i in tf.range(10):
         tf.print(f"{i}", i)
@@ -1315,7 +1315,7 @@ def output():
 
 1.  在以下训练函数中，`step`变量是否已转换为`tf.Variable`对象？如果没有，这会有什么不利之处？
 
-```
+```py
 @tf.function
 def train(model, optimizer):
   train_ds = mnist_dataset()

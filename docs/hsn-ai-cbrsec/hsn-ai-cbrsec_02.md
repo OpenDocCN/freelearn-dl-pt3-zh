@@ -210,7 +210,7 @@
 
 训练数据集以及模型插值的值最终通过`matplotlib`库中的`scatter()`和`plot()`方法在屏幕上打印出来：
 
-```
+```py
 %matplotlib inline
 import matplotlib.pyplot as plt
 import numpy as np
@@ -249,7 +249,7 @@ plt.plot(X_regr, y_regr);
 
 一旦数据维度从四维降低到二维，我们将尝试使用`GaussianMixture`模型对数据进行分类，方法如下：
 
-```
+```py
 import pandas as pd
 import seaborn as sns
 
@@ -291,7 +291,7 @@ sns.lmplot("PCA1", "PCA2", data=data_df, col='cluster', fit_reg=False)
 
 在以下示例中，我们将使用`scikit-learn`实现的感知机算法：
 
-```
+```py
 from matplotlib.colors import ListedColormap 
 # Thanks to Sebastian Raschka for 'plot_decision_regions' function 
 def plot_decision_regions(X, y, classifier, resolution=0.02): 

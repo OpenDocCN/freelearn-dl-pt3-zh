@@ -364,14 +364,14 @@ NGL 框架：绿色实线表示非结构化输入数据流；黄色虚线表示�
 
 1.  我们将首先进行包的导入：
 
-```
+```py
 import neural_structured_learning as nsl
 import tensorflow as tf
 ```
 
 1.  我们将继续定义程序中的一些常量参数（希望常量名称和注释能够自解释）：
 
-```
+```py
 # Cora dataset path
 TRAIN_DATA_PATH = 'data/train_merged_examples.tfr'
 TEST_DATA_PATH = 'data/test_examples.tfr'
@@ -392,7 +392,7 @@ BATCH_SIZE = 128
 
 1.  接下来，让我们加载数据集。这个过程通过两个函数实现：`make_dataset`，它构建整个数据集，以及 `parse_example`，它解析单个复合样本（`make_dataset` 内部使用 `parse_example`）。我们将从 `make_dataset` 开始：
 
-```
+```py
 def make_dataset(file_path: str, training=False) -> tf.data.TFRecordDataset:
     dataset = tf.data.TFRecordDataset([file_path])
     if training:
@@ -404,13 +404,13 @@ def make_dataset(file_path: str, training=False) -> tf.data.TFRecordDataset:
 
 请注意，`dataset.map(parse_example)` 内部会对数据集中的所有样本应用 `parse_example`。我们将继续定义 `parse_example`，从声明开始：
 
-```
+```py
 def parse_example(example_proto: tf.train.Example) -> tuple:
 ```
 
 该函数创建了 `feature_spec` 字典，表示单个复合样本的模板，稍后将用来自数据集的实际数据填充。首先，我们用 `tf.io.FixedLenFeature` 的占位符实例填充 `feature_spec`，`'words'` 代表一个多热编码的出版物，`'label'` 代表出版物的类别（请注意缩进，因为这段代码仍然是 `parse_example` 的一部分）：
 
-```
+```py
     feature_spec = {
         'words':
             tf.io.FixedLenFeature(shape=[MAX_SEQ_LENGTH],
@@ -426,7 +426,7 @@ def parse_example(example_proto: tf.train.Example) -> tuple:
 
 然后，我们迭代前 `NUM_NEIGHBORS` 个邻居，并将它们的多热向量和边权重分别添加到 `feature_spec` 中的 `nbr_feature_key` 和 `nbr_weight_key` 键下：
 
-```
+```py
     for i in range(NUM_NEIGHBORS):
         nbr_feature_key = '{}{}_{}'.format(NBR_FEATURE_PREFIX, i, 'words')
         nbr_weight_key = '{}{}{}'.format(NBR_FEATURE_PREFIX, i, NBR_WEIGHT_SUFFIX)
@@ -447,20 +447,20 @@ def parse_example(example_proto: tf.train.Example) -> tuple:
 
 请注意，我们使用以下代码片段将模板填充为来自数据集的真实样本：
 
-```
+```py
     features = tf.io.parse_single_example(example_proto, feature_spec)
 ```
 
 1.  现在，我们可以实例化训练和测试数据集：
 
-```
+```py
 train_dataset = make_dataset(TRAIN_DATA_PATH, training=True)
 test_dataset = make_dataset(TEST_DATA_PATH)
 ```
 
 1.  接下来，让我们实现模型，它是一个简单的 FFN，具有两个隐藏层和 softmax 输出。该模型将多热编码的出版物向量作为输入，并输出出版物的类别。它独立于 NSL，可以以简单的监督方式作为分类进行训练：
 
-```
+```py
 def build_model(dropout_rate):
     """Creates a sequential multi-layer perceptron model."""
     return tf.keras.Sequential([
@@ -481,13 +481,13 @@ def build_model(dropout_rate):
 
 1.  接下来，让我们实例化模型：
 
-```
+```py
 model = build_model(dropout_rate=0.5)
 ```
 
 1.  我们已经准备好了进行图正则化所需的所有要素。我们将首先使用 NSL 包装器包装 `model`：
 
-```
+```py
 graph_reg_config = nsl.configs.make_graph_reg_config(
     max_neighbors=NUM_NEIGHBORS,
     multiplier=0.1,
@@ -501,7 +501,7 @@ graph_reg_model = nsl.keras.GraphRegularization(model,
 
 1.  接下来，我们可以构建一个训练框架，并开始进行 100 个 epoch 的训练：
 
-```
+```py
 graph_reg_model.compile(
     optimizer='adam',
     loss='sparse_categorical_crossentropy',
@@ -515,7 +515,7 @@ graph_reg_model.fit(train_dataset, epochs=100, verbose=1)
 
 1.  一旦训练完成，我们可以在测试数据集上运行已训练的模型：
 
-```
+```py
 eval_results = dict(
     zip(graph_reg_model.metrics_names,
         graph_reg_model.evaluate(test_dataset)))
@@ -525,7 +525,7 @@ print('Evaluation loss: {}'.format(eval_results['loss']))
 
 如果一切顺利，程序的输出应为：
 
-```
+```py
 Evaluation accuracy: 0.8137432336807251
 Evaluation loss: 1.1235489577054978
 ```

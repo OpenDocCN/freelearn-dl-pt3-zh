@@ -54,7 +54,7 @@ TensorFlow 2.0 大大简化了创建 SavedModel 的过程。由于 Keras 是唯�
 
 具体结构如下：
 
-```
+```py
 # model is a tf.keras.Model model
 path = "/tmp/model/1"
 tf.saved_model.save(model, path)
@@ -64,7 +64,7 @@ tf.saved_model.save(model, path)
 
 `tf.saved_model.save` 调用会在指定的 `path` 变量中创建以下目录结构。
 
-```
+```py
 assets/
 variables/
     variables.data-?????-of-?????
@@ -100,7 +100,7 @@ Keras 模型已经指定了模型的输入和输出；因此，无需担心哪�
 
 `(tf2)`
 
-```
+```py
 def pow(x, y):
     return tf.math.pow(x, y)
 ```
@@ -109,7 +109,7 @@ TensorFlow API 中最通用的类是`tf.Module`类，一旦实例化，它会创
 
 `(tf2)`
 
-```
+```py
 class Wrapper(tf.Module):
 
     def pow(self, x, y):
@@ -126,7 +126,7 @@ class Wrapper(tf.Module):
 
 `(tf2)`
 
-```
+```py
 class Wrapper(tf.Module):
 
     @tf.function(
@@ -168,7 +168,7 @@ tf.saved_model.save(obj, "/tmp/pow/1")
 
 `(tf2)`
 
-```
+```py
 path = "/tmp/pow/1"
 imported = tf.saved_model.load(path)
 ```
@@ -177,7 +177,7 @@ imported = tf.saved_model.load(path)
 
 `(tf2)`
 
-```
+```py
 assert "serving_default" == list(imported.signatures)[0]
 assert len(imported.signatures) == 1
 ```
@@ -190,7 +190,7 @@ assert len(imported.signatures) == 1
 
 `(tf2)`
 
-```
+```py
 pow = imported.signatures["serving_default"]
 result = pow(x=tf.constant(2.0), y=tf.constant(5.0))
 ```
@@ -201,7 +201,7 @@ result = pow(x=tf.constant(2.0), y=tf.constant(5.0))
 
 `(tf2)`
 
-```
+```py
 assert result["output_0"].numpy() == 32
 ```
 
@@ -209,7 +209,7 @@ assert result["output_0"].numpy() == 32
 
 `(tf2)`
 
-```
+```py
     def pow(self, x, y):
         return tf.math.pow(x, y), tf.math.pow(y, x)
 ```
@@ -218,7 +218,7 @@ assert result["output_0"].numpy() == 32
 
 `(tf2)`
 
-```
+```py
 class Wrapper(tf.Module):
 
 class Wrapper(tf.Module):
@@ -239,7 +239,7 @@ tf.saved_model.save(obj, "/tmp/pow/1")
 
 `(tf2)`
 
-```
+```py
 path = "/tmp/pow/1"
 
 imported = tf.saved_model.load(path)
@@ -248,7 +248,7 @@ print(imported.signatures"serving_default",y=tf.constant(5.0)))
 
 结果输出是以下字典：
 
-```
+```py
 {
   'pow_x_y': <tf.Tensor: id=468, shape=(), dtype=float32, numpy=32.0>,
   'pow_y_x': <tf.Tensor: id=469, shape=(), dtype=float32, numpy=25.0>
@@ -271,7 +271,7 @@ TensorFlow Python API 简化了不仅仅是通用计算图的加载，也简化�
 
 `(tf2)`
 
-```
+```py
 imported = tf.saved_model.load(path)
 # inputs is a input compatible with the serialized model
 outputs = imported(inputs)
@@ -281,7 +281,7 @@ outputs = imported(inputs)
 
 `(tf2)`
 
-```
+```py
 model = tf.keras.models.load_model(path)
 # models is now a tf.keras.Model object!
 ```
@@ -304,7 +304,7 @@ Python API 还向后兼容 TensorFlow 1.x 的 SavedModel 格式，因此你可�
 
 `(tf2)`
 
-```
+```py
 imported = tf.saved_model.load(v1savedmodel_path)
 pruned = imported.prune("input_:0", "cnn/out/identity:0")
 # inputs is an input compatible with the flat graph
@@ -349,7 +349,7 @@ TensorFlow.js ([`www.tensorflow.org/js/`](https://www.tensorflow.org/js/)) 是�
 
 `(tfjs)`
 
-```
+```py
 pip install tensorflowjs
 ```
 
@@ -363,7 +363,7 @@ TensorFlow.js 与 TensorFlow 2.0 紧密集成。实际上，使用 Python 直接
 
 `(tfjs)`
 
-```
+```py
 tensorflowjs_converter \
     --input_format "tf_saved_model" \
     --output_format "tfjs_graph_model" \
@@ -375,7 +375,7 @@ tensorflowjs_converter \
 
 我们现在可以开始了——我们可以定义一个简单的网页或一个简单的 Node.js 应用程序，导入 TensorFlow.js 运行时，然后成功导入并使用已转换的 SavedModel。以下代码创建了一个包含表单的一页应用程序；通过使用 **pow** 按钮的点击事件，可以加载已导出的图并执行计算：
 
-```
+```py
  <html>
     <head>
         <title>Power</title>
@@ -420,7 +420,7 @@ TensorFlow.js 在如何使用加载的 SavedModel 方面遵循了不同的约定
 
 `(tfjs)`
 
-```
+```py
 python -m http.server
 ```
 
@@ -438,7 +438,7 @@ python -m http.server
 
 `(tfjs)`
 
-```
+```py
 import tensorflowjs as tfjs
 from tensorflow import keras
 
@@ -471,7 +471,7 @@ TensorFlow 对 Go 编程语言的绑定几乎完全是从 C++ API 自动生成�
 
 以下 `bash` 脚本展示了如何下载、配置并安装没有 GPU 的 TensorFlow Go API，版本为 1.13：
 
-```
+```py
 #!/usr/bin/env bash
 
 # variables
@@ -501,7 +501,7 @@ go build
 
 安装 `tfgo` 非常简单；只需在安装 TensorFlow Go 包之后使用以下代码：
 
-```
+```py
 go get -u github.com/galeone/tfgo
 ```
 
@@ -511,13 +511,13 @@ TensorFlow 2.0 配备了 `saved_model_cli` 工具，可以用来检查 SavedMode
 
 通过使用`saved_model_cli show`，可以获得关于已检查 SavedModel 的所有信息，从而能够在 Go 中使用它们：
 
-```
+```py
 saved_model_cli show --all --dir /tmp/pow/1
 ```
 
 这将生成以下信息列表：
 
-```
+```py
 MetaGraphDef with tag-set: 'serve' contains the following SignatureDefs:
 
 signature_def['__saved_model_init_op']:
@@ -565,7 +565,7 @@ signature_def['serving_default']:
 
 `(go)`
 
-```
+```py
 package main
 
  import (
@@ -577,7 +577,7 @@ package main
 
 在以下代码片段中，你将从 SavedModel 标签 `"serve"` 中恢复模型。定义输入张量，即 *x=2*，*y=5*。然后，计算结果。输出是第一个节点，`"PartitionedCall:0"`，它对应于 *x_to_y*。输入名称是 `"serving_default_{x,y}"`，对应于 `x` 和 `y`。预测结果需要转换回正确的类型，这里是 `float32`：
 
-```
+```py
 func main() {
  model := tg.LoadModel("/tmp/pow/1", []string{"serve"}, nil)
  x, _ := tf.NewTensor(float32(2.0))

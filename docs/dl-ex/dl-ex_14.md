@@ -56,7 +56,7 @@ GANs 的潜力巨大，因为它们可以学习模仿任何数据分布。也就
 
 让我们从导入实现所需的库开始：
 
-```
+```py
 %matplotlib inline
 
 import matplotlib.pyplot as plt
@@ -68,12 +68,12 @@ import tensorflow as tf
 
 我们将使用 MNIST 数据集，因此我们将使用 TensorFlow 辅助工具获取数据集并将其存储在某个地方：
 
-```
+```py
 from tensorflow.examples.tutorials.mnist import input_data
 mnist_dataset = input_data.read_data_sets('MNIST_data')
 ```
 
-```
+```py
 Output:
 Extracting MNIST_data/train-images-idx3-ubyte.gz
 Extracting MNIST_data/train-labels-idx1-ubyte.gz
@@ -85,7 +85,7 @@ Extracting MNIST_data/t10k-labels-idx1-ubyte.gz
 
 在深入构建 GAN 的核心部分（由生成器和鉴别器表示）之前，我们将定义计算图的输入。如 *图 2* 所示，我们需要两个输入。第一个是实际图像，将传递给鉴别器。另一个输入称为 **潜在空间**，它将传递给生成器并用于生成假图像：
 
-```
+```py
 # Defining the model input for the generator and discrimator
 def inputs_placeholders(discrimator_real_dim, gen_z_dim):
     real_discrminator_input = tf.placeholder(tf.float32, (None, discrimator_real_dim), name="real_discrminator_input")
@@ -110,7 +110,7 @@ def inputs_placeholders(discrimator_real_dim, gen_z_dim):
 
 以下语句将展示如何使用 TensorFlow 的变量作用域功能：
 
-```
+```py
 with tf.variable_scope('scopeName', reuse=False):
     # Write your code here
 ```
@@ -147,7 +147,7 @@ Leaky ReLU 激活函数在 TensorFlow 中没有实现，因此我们需要自己
 
 MNIST 图像的值已归一化在 0 和 1 之间，在这个范围内，`sigmoid` 激活函数表现最佳。但是，实际上，发现 `tanh` 激活函数的性能优于其他任何函数。因此，为了使用 `tanh` 激活函数，我们需要将这些图像的像素值范围重新缩放到 -1 和 1 之间：
 
-```
+```py
 def generator(gen_z, gen_out_dim, num_hiddern_units=128, reuse_vars=False, leaky_relu_alpha=0.01):
 
     ''' Building the generator part of the network
@@ -185,7 +185,7 @@ def generator(gen_z, gen_out_dim, num_hiddern_units=128, reuse_vars=False, leaky
 
 接下来，我们将构建生成对抗网络中的第二个主要组件，即判别器。判别器与生成器非常相似，但我们将使用 `sigmoid` 激活函数，而不是 `tanh` 激活函数；它将输出一个二进制结果，表示判别器对输入图像的判断：
 
-```
+```py
 def discriminator(disc_input, num_hiddern_units=128, reuse_vars=False, leaky_relu_alpha=0.01):
     ''' Building the discriminator part of the network
 
@@ -222,7 +222,7 @@ def discriminator(disc_input, num_hiddern_units=128, reuse_vars=False, leaky_rel
 
 我们可以通过更改以下超参数集来微调 GAN：
 
-```
+```py
 # size of discriminator input image
 #28 by 28 will flattened to be 784
 input_img_size = 784 
@@ -253,7 +253,7 @@ label_smooth = 0.1
 
 1.  通过重用变量保持真实图像和假图像的权重相同：
 
-```
+```py
 tf.reset_default_graph()
 
 # creating the input placeholders for the discrminator and generator
@@ -280,7 +280,7 @@ disc_model_fake, disc_logits_fake = discriminator(gen_model, disc_hidden_size, r
 
 ![](img/85448d3e-1c11-4804-a615-f1b6463e6b26.png)
 
-```
+```py
 tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits_layer, labels=labels))
 ```
 
@@ -288,7 +288,7 @@ tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits_layer, labe
 
 第一个损失，`disc_loss_real`，将根据我们从判别器得到的`logits`值和`labels`计算，这里标签将全部为 1，因为我们知道这个小批次中的所有图像都来自 MNIST 数据集的真实输入图像。为了增强模型在测试集上的泛化能力并提供更好的结果，实践中发现将 1 的值改为 0.9 更好。对标签值进行这样的修改引入了**标签平滑**：
 
-```
+```py
  labels = tf.ones_like(tensor) * (1 - smooth)
 ```
 
@@ -296,7 +296,7 @@ tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits_layer, labe
 
 现在我们已经讨论了判别器损失，我们还需要计算生成器的损失。生成器损失将被称为`gen_loss`，它是`disc_logits_fake`（判别器对于假图像的输出）和标签之间的损失（由于生成器试图通过其设计的假图像来说服判别器，因此标签将全部为 1）：
 
-```
+```py
 
 # calculating the losses of the discrimnator and generator
 disc_labels_real = tf.ones_like(disc_logits_real) * (1 - label_smooth)
@@ -325,7 +325,7 @@ gen_loss = tf.reduce_mean(
 
 所以，TensorFlow 的变量范围功能使我们能够获取以特定字符串开头的变量，然后我们可以得到两份不同的变量列表，一份是生成器的，一份是鉴别器的：
 
-```
+```py
 
 # building the model optimizer
 
@@ -344,7 +344,7 @@ gen_train_optimizer = tf.train.AdamOptimizer().minimize(gen_loss, var_list=gen_v
 
 现在，让我们开始训练过程，看看 GAN 是如何生成与 MNIST 图像相似的图像的：
 
-```
+```py
 train_batch_size = 100
 num_epochs = 100
 generated_samples = []
@@ -395,7 +395,7 @@ with open('train_generator_samples.pkl', 'wb') as f:
     pkl.dump(generated_samples, f)
 ```
 
-```
+```py
 Output:
 .
 .
@@ -434,7 +434,7 @@ Epoch 100/100... Disc Loss: 1.103... Gen Loss: 1.736
 
 在运行模型 100 个周期后，我们得到了一个训练好的模型，它能够生成与我们输入给鉴别器的原始图像相似的图像：
 
-```
+```py
 fig, ax = plt.subplots()
 model_losses = np.array(model_losses)
 plt.plot(model_losses.T[0], label='Disc loss')
@@ -455,7 +455,7 @@ plt.legend()
 
 让我们测试一下模型的表现，甚至看看生成器在接近训练结束时，生成技能（为活动设计票据）是如何增强的：
 
-```
+```py
 def view_generated_samples(epoch_num, g_samples):
     fig, axes = plt.subplots(figsize=(7,7), nrows=4, ncols=4, sharey=True, sharex=True)
 
@@ -472,7 +472,7 @@ def view_generated_samples(epoch_num, g_samples):
 
 在绘制训练过程中最后一个周期生成的一些图像之前，我们需要加载包含每个周期生成样本的持久化文件：
 
-```
+```py
 # Load samples from generator taken while training
 with open('train_generator_samples.pkl', 'rb') as f:
     gen_samples = pkl.load(f)
@@ -480,7 +480,7 @@ with open('train_generator_samples.pkl', 'rb') as f:
 
 现在，让我们绘制出训练过程中最后一个周期生成的 16 张图像，看看生成器是如何生成有意义的数字（如 3、7 和 2）的：
 
-```
+```py
 _ = view_generated_samples(-1, gen_samples)
 ```
 
@@ -490,7 +490,7 @@ _ = view_generated_samples(-1, gen_samples)
 
 我们甚至可以看到生成器在不同周期中的设计能力。所以，让我们可视化它在每 10 个周期生成的图像：
 
-```
+```py
 rows, cols = 10, 6
 fig, axes = plt.subplots(figsize=(7,12), nrows=rows, ncols=cols, sharex=True, sharey=True)
 
@@ -511,7 +511,7 @@ for gen_sample, ax_row in zip(gen_samples[::int(len(gen_samples)/rows)], axes):
 
 在上一节中，我们展示了一些在这个 GAN 架构训练过程中生成的示例图像。我们还可以通过加载我们保存的检查点，并给生成器提供一个新的潜在空间，让它用来生成全新的图像：
 
-```
+```py
 # Sampling from the generator
 saver = tf.train.Saver(var_list=g_vars)
 

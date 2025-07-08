@@ -268,7 +268,7 @@ EvadeRL 基于 OpenAI Gym 框架（[`gym.openai.com/`](https://gym.openai.com/)�
 
 在以下示例中，我们看到将空值（以`np.nan`表示）替换为基于同一列中其他值计算的平均值：
 
-```
+```py
 """
 Univariate missing value imputation with SimpleImputer class 
 """
@@ -292,7 +292,7 @@ simple_imputer.transform(X_test)
 
 在以下示例中，我们使用`scikit-learn`包中的`IterativeImputer`类（位于`sklearn.impute`模块）来执行缺失值的多变量插补：
 
-```
+```py
 """
 Multivariate missing value imputation with IterativeImputer class
 """
@@ -350,7 +350,7 @@ np.round(iterative_imputer.transform(X_test))
 
 通过对不同超参数组合（在`tuned_parameters`变量中定义）微调精度和召回率指标，使用`GridSearchCV`类实施的交叉验证策略，比较**支持向量分类器**（**SVC**）的不同性能：
 
-```
+```py
 """
 Cross Validation Model Optimization
 """
@@ -415,7 +415,7 @@ print(classification_report(y_true, y_pred))
 
 前面的脚本生成了以下输出：
 
-```
+```py
 
  Best parameters set found for 'precision' tuning:
 

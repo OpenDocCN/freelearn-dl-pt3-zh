@@ -74,7 +74,7 @@
 
 可以通过使用 pandas 的`read_csv`函数并传入数据集路径，将表格数据加载到内存中。这个函数非常适合且易于使用来加载表格数据，使用方法如下：
 
-```
+```py
 df = pd.read_csv('path/to/dataset')
 ```
 
@@ -82,7 +82,7 @@ df = pd.read_csv('path/to/dataset')
 
 要使用缩放器，必须先初始化并将其拟合到数据集。通过这样做，数据集就可以通过缩放器进行转换。实际上，拟合和转换过程可以通过使用`fit_transform`方法一步完成，如下所示：
 
-```
+```py
 scaler = StandardScaler()
 transformed_df = scaler.fit_transform(df)
 ```
@@ -103,7 +103,7 @@ transformed_df = scaler.fit_transform(df)
 
 1.  在新的 Jupyter Notebook 单元格中，导入 pandas 库，如下所示：
 
-    ```
+    ```py
     import pandas as pd
     ```
 
@@ -113,7 +113,7 @@ transformed_df = scaler.fit_transform(df)
 
 1.  创建一个新的 pandas DataFrame，命名为 `df`，并将 `Bias_correction_ucl.csv` 文件读取到其中。通过打印结果 DataFrame 来检查数据是否正确加载：
 
-    ```
+    ```py
     df = pd.read_csv('Bias_correction_ucl.csv')
     df
     ```
@@ -132,13 +132,13 @@ transformed_df = scaler.fit_transform(df)
 
 1.  使用 DataFrame 的 `drop` 方法删除 `date` 列，并传入列名。删除 `date` 列是因为它是非数值型字段，存在非数值型字段时无法进行缩放。由于要删除列，因此需要同时传入 `axis=1` 和 `inplace=True` 参数：
 
-    ```
+    ```py
     df.drop('Date', inplace=True, axis=1)
     ```
 
 1.  绘制表示数据集中各日期和天气站的最大温度的 `Present_Tmax` 列的直方图：
 
-    ```
+    ```py
     ax = df['Present_Tmax'].hist(color='gray')
     ax.set_xlabel("Temperature")
     ax.set_ylabel("Frequency")
@@ -156,7 +156,7 @@ transformed_df = scaler.fit_transform(df)
 
 1.  从 scikit-learn 的预处理包中导入 `StandardScaler` 类。初始化缩放器，拟合缩放器并使用缩放器的 `fit_transform` 方法对 DataFrame 进行变换。由于 `fit_transform` 方法的结果是一个 NumPy 数组，因此使用变换后的 DataFrame 创建一个新的 DataFrame `df2`。标准缩放器将对数值字段进行变换，使字段的均值为 `0`，标准差为 `1`：
 
-    ```
+    ```py
     from sklearn.preprocessing import StandardScaler
     scaler = StandardScaler()
     df2 = scaler.fit_transform(df)
@@ -169,7 +169,7 @@ transformed_df = scaler.fit_transform(df)
 
 1.  绘制变换后的 `Present_Tmax` 列的直方图：
 
-    ```
+    ```py
     ax = df2['Present_Tmax'].hist(color='gray')
     ax.set_xlabel("Normalized Temperature")
     ax.set_ylabel("Frequency")
@@ -219,7 +219,7 @@ transformed_df = scaler.fit_transform(df)
 
 转换非数值字段（如分类字段或日期字段）的一种方法是进行独热编码。`0` 表示除了与正确列对应的那一列外的所有列。新创建的虚拟列的列头对应于唯一值。独热编码可以通过使用 pandas 库的 `get_dummies` 函数来实现，并传入需要编码的列。一个可选的参数是提供前缀功能，为列头添加前缀，这对于引用列很有用：
 
-```
+```py
 dummies = pd.get_dummies(df['feature1'], prefix='feature1')
 ```
 
@@ -239,13 +239,13 @@ dummies = pd.get_dummies(df['feature1'], prefix='feature1')
 
 1.  在一个新的 Jupyter Notebook 单元格中，导入 pandas 库，如下所示：
 
-    ```
+    ```py
     import pandas as pd
     ```
 
 1.  创建一个新的 pandas DataFrame，命名为 `df`，并将 `Bias_correction_ucl.csv` 文件读取到其中。通过打印结果 DataFrame 检查数据是否正确加载：
 
-    ```
+    ```py
     df = pd.read_csv('Bias_correction_ucl.csv')
     ```
 
@@ -255,13 +255,13 @@ dummies = pd.get_dummies(df['feature1'], prefix='feature1')
 
 1.  使用 pandas 的 `to_datetime` 函数将 `date` 列的数据类型更改为 `Date`：
 
-    ```
+    ```py
     df['Date'] = pd.to_datetime(df['Date'])
     ```
 
 1.  使用 pandas 的 `get_dummies` 函数为 `year` 创建虚拟列。将 `date` 列的年份作为第一个参数传入，并为结果 DataFrame 的列添加前缀。打印出结果 DataFrame：
 
-    ```
+    ```py
     year_dummies = pd.get_dummies(df['Date'].dt.year, \
                                   prefix='year')
     year_dummies
@@ -277,7 +277,7 @@ dummies = pd.get_dummies(df['feature1'], prefix='feature1')
 
 1.  通过从 `date` 列的月份创建虚拟列来重复此操作。打印出生成的 DataFrame：
 
-    ```
+    ```py
     month_dummies = pd.get_dummies(df['Date'].dt.month, \
                                    prefix='month')
     month_dummies
@@ -293,20 +293,20 @@ dummies = pd.get_dummies(df['feature1'], prefix='feature1')
 
 1.  将原始 DataFrame 与您在*步骤 5*和*6*中创建的虚拟 DataFrame 连接起来：
 
-    ```
+    ```py
     df = pd.concat([df, month_dummies, year_dummies], \
                    axis=1)
     ```
 
 1.  删除原始`date`列，因为它现在是多余的：
 
-    ```
+    ```py
     df.drop('Date', axis=1, inplace=True)
     ```
 
 1.  验证所有列现在都是数值数据类型：
 
-    ```
+    ```py
     df.dtypes
     ```
 
@@ -344,13 +344,13 @@ dummies = pd.get_dummies(df['feature1'], prefix='feature1')
 
 `ImageDataGenerator` 可以通过以下方式初始化并进行重新缩放：
 
-```
+```py
 datagenerator = ImageDataGenerator(rescale = 1./255)
 ```
 
 一旦初始化了 `ImageDataGenerator` 类，你可以使用 `flow_from_directory` 方法并传入图像所在的目录。该目录应包括按类标签标记的子目录，并且这些子目录应包含相应类别的图像。另一个需要传入的参数是所需的图像大小、批量大小以及类模式。类模式决定了生成的标签数组的类型。以下是使用 `flow_from_directory` 方法进行二分类的示例，批量大小为 25，图像大小为 64x64：
 
-```
+```py
 dataset = datagenerator.flow_from_directory\
           ('path/to/data',\
            target_size = (64, 64),\
@@ -380,20 +380,20 @@ dataset = datagenerator.flow_from_directory\
 
 1.  在新的 Jupyter Notebook 单元格中，从`tensorflow.keras.preprocessing.image`导入`ImageDataGenerator`类：
 
-    ```
+    ```py
     from tensorflow.keras.preprocessing.image \
          import ImageDataGenerator
     ```
 
 1.  实例化`ImageDataGenerator`类，并传递`rescale`参数，值为`1./255`，以将图像值转换为介于`0`和`1`之间：
 
-    ```
+    ```py
     train_datagen = ImageDataGenerator(rescale =  1./255)
     ```
 
 1.  使用数据生成器的`flow_from_directory`方法，指示数据生成器加载图像数据。传入目标尺寸、批次大小和类别模式的参数：
 
-    ```
+    ```py
     training_set = train_datagen.flow_from_directory\
                    ('image_data',\
                     target_size = (64, 64),\
@@ -403,7 +403,7 @@ dataset = datagenerator.flow_from_directory\
 
 1.  创建一个函数来显示批量图像。该函数将以 5x5 数组的形式绘制前 25 张图像及其对应的标签：
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     def show_batch(image_batch, label_batch):\
         lookup = {v: k for k, v in \
@@ -420,7 +420,7 @@ dataset = datagenerator.flow_from_directory\
 
 1.  从数据生成器中获取一个批次并将其传递给函数以显示图像及其标签：
 
-    ```
+    ```py
     image_batch, label_batch = next(training_set)
     show_batch(image_batch, label_batch)
     ```
@@ -469,7 +469,7 @@ dataset = datagenerator.flow_from_directory\
 
 图像增强可以在实例化 `ImageDataGenerator` 类时应用，示例如下：
 
-```
+```py
 datagenerator = ImageDataGenerator(rescale = 1./255,\
                                    shear_range = 0.2,\
                                    rotation_range= 180,\
@@ -531,7 +531,7 @@ datagenerator = ImageDataGenerator(rescale = 1./255,\
 
 虽然 TensorFlow Hub 将在下一章中更深入地讲解，但下面是如何将预训练模型用作预处理步骤的示例。要加载预训练模型，您需要导入`tensorflow_hub`库。通过这样做，可以加载模型的 URL。然后，可以通过调用`KerasLayer`类将模型加载到环境中，`KerasLayer`类会将模型封装，使其可以像其他 TensorFlow 模型一样使用。可以如下创建：
 
-```
+```py
 import tensorflow_hub as hub
 model_url = "url_of_model"
 hub_layer = hub.KerasLayer(model_url, \
@@ -541,7 +541,7 @@ hub_layer = hub.KerasLayer(model_url, \
 
 输入数据的数据类型，由`dtype`参数指示，应作为输入传递给`KerasLayer`类，同时还需要一个布尔参数，指示权重是否可训练。一旦使用`tensorflow_hub`库加载了模型，就可以在文本数据上调用它，如下所示：
 
-```
+```py
 hub_layer(data)
 ```
 
@@ -565,13 +565,13 @@ hub_layer(data)
 
 1.  在新的 Jupyter Notebook 单元格中，导入 TensorFlow 库：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
 1.  使用库的`make_csv_dataset`函数创建一个 TensorFlow 数据集对象。将`batch_size`参数设置为`1`，并将`field_delim`参数设置为`\t`，因为数据集是制表符分隔的：
 
-    ```
+    ```py
     df = tf.data.experimental.make_csv_dataset\
          ('../Datasets/drugsComTest_raw.tsv', \
           batch_size=1, field_delim='\t')
@@ -579,7 +579,7 @@ hub_layer(data)
 
 1.  创建一个函数，将数据集对象作为输入，并对数据集进行洗牌、重复和批处理：
 
-    ```
+    ```py
     def prep_ds(ds, shuffle_buffer_size=1024, \
                 batch_size=32):
         # Shuffle the dataset
@@ -593,13 +593,13 @@ hub_layer(data)
 
 1.  对您在*步骤 3*中创建的数据集对象应用该函数，设置`batch_size`等于`5`：
 
-    ```
+    ```py
     ds = prep_ds(df, batch_size=5)
     ```
 
 1.  获取第一批数据并打印出来：
 
-    ```
+    ```py
     for x in ds.take(1):\
         print(x)
     ```
@@ -614,7 +614,7 @@ hub_layer(data)
 
 1.  从 TensorFlow Hub 导入预训练的词嵌入模型，并创建一个 Keras 层：
 
-    ```
+    ```py
     import tensorflow_hub as hub
     embedding = "https://tfhub.dev/google/tf2-preview"\
                 "/gnews-swivel-20dim/1"
@@ -625,7 +625,7 @@ hub_layer(data)
 
 1.  从数据集中取出一批数据，展平对应`review`字段的张量，应用预训练层并打印输出：
 
-    ```
+    ```py
     for x in ds.take(1):\
         print(hub_layer(tf.reshape(x['review'],[-1])))
     ```
@@ -650,14 +650,14 @@ hub_layer(data)
 
 本节将演示如何批量加载音频数据，以及如何处理它以便用于训练机器学习模型。音频文件的预处理涉及一些高级信号处理步骤。这些步骤有些是可选的，但为了提供全面的音频数据处理方法，我们将呈现这些步骤。由于每个音频文件可能有数百 KB，因此你将利用批处理，就像处理图像数据时一样。批处理可以通过创建数据集对象来实现。创建数据集对象的一种通用方法是使用 TensorFlow 的 `from_tensor_slice` 函数。此函数通过沿张量的第一维切片来生成数据集对象，使用方式如下：
 
-```
+```py
 dataset = tf.data.Dataset\
             .from_tensor_slices([1, 2, 3, 4, 5])
 ```
 
 可以通过 TensorFlow 将音频数据加载到 Python 环境中，方法是使用 `read_file` 函数将文件读取到内存中，然后使用 `decode_wav` 函数解码文件。在使用 `decode_wav` 函数时，必须传入样本率（即表示 1 秒钟数据点的数量）以及所需的通道。例如，如果传入 `-1` 作为所需通道的值，则将解码所有音频通道。导入音频文件的方式如下：
 
-```
+```py
 sample_rate = 44100
 audio_data = tf.io.read_file('path/to/file')
 audio, sample_rate = tf.audio.decode_wav\
@@ -672,7 +672,7 @@ audio, sample_rate = tf.audio.decode_wav\
 
 该函数对输入数据进行短时傅里叶变换。函数的参数包括帧长度，这是一个整数值，表示窗口的长度（单位为样本）；帧步长，这是一个整数值，描述了每次步进的样本数；以及 **快速傅里叶变换** (**FFT**) 长度，这是一个整数值，表示要应用的 FFT 长度。频谱图是短时傅里叶变换的绝对值，因为它对视觉解释非常有用。可以按以下方式创建短时傅里叶变换和频谱图：
 
-```
+```py
 stfts = tf.signal.stft(audio, frame_length=1024,\
                        frame_step=256,\
                        fft_length=1024)
@@ -685,7 +685,7 @@ MFCC 是通过创建一个矩阵，将线性尺度映射到梅尔尺度来生成
 
 接下来，应用对值的对数转换以生成对数梅尔频谱图。最后，可以应用 `mfccs_from_log_mel_spectrograms` 函数，传入对数梅尔频谱图来生成 MFCC。以下是这些步骤的应用方法：
 
-```
+```py
 lower_edge_hertz, upper_edge_hertz, num_mel_bins \
     = 80.0, 7600.0, 80
 linear_to_mel_weight_matrix \
@@ -719,14 +719,14 @@ mfccs = tf.signal.mfccs_from_log_mel_spectrograms\
 
 1.  在一个新的 Jupyter Notebook 单元中，导入 `tensorflow` 和 `os` 库：
 
-    ```
+    ```py
     import tensorflow as tf
     import os
     ```
 
 1.  创建一个函数，分别使用 TensorFlow 的 `read_file` 和 `decode_wav` 函数加载音频文件，并返回结果张量的转置：
 
-    ```
+    ```py
     def load_audio(file_path, sample_rate=44100):
         # Load audio at 44.1kHz sample-rate
         audio = tf.io.read_file(file_path)
@@ -739,7 +739,7 @@ mfccs = tf.signal.mfccs_from_log_mel_spectrograms\
 
 1.  使用 `os.list_dir` 将音频数据的路径作为列表加载：
 
-    ```
+    ```py
     prefix = " ../Datasets/data_speech_commands_v0.02"\
             "/zero/"
     paths = [os.path.join(prefix, path) for path in \
@@ -748,7 +748,7 @@ mfccs = tf.signal.mfccs_from_log_mel_spectrograms\
 
 1.  测试函数，通过加载列表中的第一个音频文件并绘制它来验证：
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     audio = load_audio(paths[0])
     plt.plot(audio.numpy().T)
@@ -766,7 +766,7 @@ mfccs = tf.signal.mfccs_from_log_mel_spectrograms\
 
 1.  创建一个函数，从音频数据中生成 MFCC。首先，应用短时傅里叶变换，将音频信号作为第一个参数，帧长设置为`1024`作为第二个参数，帧步长设置为`256`作为第三个参数，FFT 长度作为第四个参数。然后，取结果的绝对值来计算频谱图。频谱图的 bin 数由短时傅里叶变换的最后一个维度长度给出。接下来，定义 mel 权重矩阵的上下限分别为`80`和`7600`，mel 的 bin 数为`80`。然后，使用 TensorFlow 的信号包中的`linear_to_mel_weight_matrix`计算 mel 权重矩阵。接着，通过张量收缩使用 TensorFlow 的`tensordot`函数，沿频谱图的第 1 轴与 mel 权重矩阵进行计算，得到 mel 频谱图。然后，对 mel 频谱图取对数，最后使用 TensorFlow 的`mfccs_from_log_mel_spectrograms`函数计算 MFCC。最后，从函数中返回 MFCC。
 
-    ```
+    ```py
     def apply_mfccs(audio, sample_rate=44100, num_mfccs=13):
         stfts = tf.signal.stft(audio, frame_length=1024, \
                                frame_step=256, \
@@ -795,7 +795,7 @@ mfccs = tf.signal.mfccs_from_log_mel_spectrograms\
 
 1.  应用该函数为你在*步骤 5*中加载的音频数据生成 MFCC：
 
-    ```
+    ```py
     mfcc = apply_mfccs(audio)
     plt.pcolor(mfcc.numpy()[0])
     plt.xlabel('MFCC log coefficient')
@@ -812,7 +812,7 @@ mfccs = tf.signal.mfccs_from_log_mel_spectrograms\
 
 1.  加载`AUTOTUNE`，以便可以使用 CPU 的所有可用线程。创建一个函数，接受数据集对象，打乱数据集，使用你在*步骤 3*中创建的函数加载音频数据，使用你在*步骤 6*中创建的函数生成 MFCC，重复数据集对象，进行批处理，并进行预取操作。使用`AUTOTUNE`来根据可用的 CPU 预取数据，并设置缓冲区大小：
 
-    ```
+    ```py
     AUTOTUNE = tf.data.experimental.AUTOTUNE
     def prep_ds(ds, shuffle_buffer_size=1024, \
                 batch_size=64):
@@ -833,14 +833,14 @@ mfccs = tf.signal.mfccs_from_log_mel_spectrograms\
 
 1.  使用你在*步骤 8*中创建的函数生成训练数据集。为此，使用 TensorFlow 的`from_tensor_slices`函数创建数据集对象，并传入音频文件的路径。之后，你可以使用你在*步骤 8*中创建的函数：
 
-    ```
+    ```py
     ds = tf.data.Dataset.from_tensor_slices(paths)
     train_ds = prep_ds(ds)
     ```
 
 1.  获取数据集的第一批并打印出来：
 
-    ```
+    ```py
     for x in train_ds.take(1):\
         print(x)
     ```

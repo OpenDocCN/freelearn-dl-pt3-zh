@@ -62,13 +62,13 @@
 
 让我们看看如何使用函数式 API 来实现这一点。首先，你需要通过以下命令导入 TensorFlow 库：
 
-```
+```py
 import tensorflow as tf
 ```
 
 然后，你需要创建一个名为`custom_loss`的函数，该函数接收`y_true`和`y_pred`作为输入参数。接下来，你将使用`pow`函数将计算得到的误差的四次方。最后，你将返回计算得到的误差：
 
-```
+```py
 def custom_loss(y_true, y_pred):
     custom_loss=tf.math.pow(y_true - y_pred, 4)
     return custom_loss
@@ -76,7 +76,7 @@ def custom_loss(y_true, y_pred):
 
 你已经使用函数式 API 创建了自己的自定义损失函数。现在，你可以在训练模型之前，将它传递给`compile`方法，而不是使用预定义的损失函数：
 
-```
+```py
 model.compile(loss=custom_loss,optimizer=optimizer)
 ```
 
@@ -88,7 +88,7 @@ model.compile(loss=custom_loss,optimizer=optimizer)
 
 以下是如何使用子类化 API 实现自定义损失函数的简要示例，其中误差应提升到`4`的幂：
 
-```
+```py
 class MyCustomLoss(keras.losses.Loss):
     def __init__(self, threshold=1.0, **kwargs):
         super().__init__(**kwargs)
@@ -120,45 +120,45 @@ class MyCustomLoss(keras.losses.Loss):
 
 1.  如果你使用的是 Google Colab，请使用以下代码将数据集本地上传。否则，请跳到*步骤 4*。点击`Choose Files`选择 CSV 文件并点击`Open`。保存文件为`uploaded`。然后，进入你保存数据集的文件夹：
 
-    ```
+    ```py
     from google.colab import files
     uploaded = files.upload()
     ```
 
 1.  在当前文件夹中解压数据集：
 
-    ```
+    ```py
     !unzip \*.zip
     ```
 
 1.  创建一个变量`directory`，它包含数据集的路径：
 
-    ```
+    ```py
     directory = "/content/gdrive/My Drive/Datasets/apple-or-tomato/"
     ```
 
 1.  导入`pathlib`库：
 
-    ```
+    ```py
     import pathlib
     ```
 
 1.  创建一个变量`path`，该变量使用`pathlib.Path`包含数据集的完整路径：
 
-    ```
+    ```py
     path = pathlib.Path(directory)
     ```
 
 1.  创建两个变量，`train_dir`和`validation_dir`，并分别赋予训练和验证文件夹的完整路径：
 
-    ```
+    ```py
     train_dir = path / 'training_set'
     validation_dir = path / 'test_set'
     ```
 
 1.  创建四个变量，分别为`train_apple_dir`、`train_tomato_dir`、`validation_apple_dir`和`validation_tomato_dir`，它们将分别获取训练和验证集中的`apple`和`tomato`文件夹的完整路径：
 
-    ```
+    ```py
     train_apple_dir = train_dir / 'apple'
     train_tomato_dir = train_dir /'tomato'
     validation_apple_dir = validation_dir / 'apple'
@@ -167,13 +167,13 @@ class MyCustomLoss(keras.losses.Loss):
 
 1.  导入`os`包：
 
-    ```
+    ```py
     import os
     ```
 
 1.  创建两个变量，分别为`total_train`和`total_val`，它们将获取训练集和验证集中的图像数量：
 
-    ```
+    ```py
     total_train = len(os.listdir(train_apple_dir)) + \
                   len(os.listdir(train_tomato_dir))
     total_val = len(os.listdir(validation_apple_dir)) + \
@@ -182,20 +182,20 @@ class MyCustomLoss(keras.losses.Loss):
 
 1.  从`tensorflow.keras.preprocessing`模块导入`ImageDataGenerator`：
 
-    ```
+    ```py
     from tensorflow.keras.preprocessing.image import ImageDataGenerator
     ```
 
 1.  实例化两个`ImageDataGenerator`类，分别为`train_image_generator`和`validation_image_generator`，它们将通过除以 255 来重新缩放图像：
 
-    ```
+    ```py
     train_image_generator = ImageDataGenerator(rescale=1./255)
     validation_image_generator = ImageDataGenerator(rescale=1./255)
     ```
 
 1.  创建三个变量，分别为`batch_size`、`img_height`和`img_width`，并将它们的值设置为`32`、`224`和`224`：
 
-    ```
+    ```py
     batch_size = 32
     img_height = 224
     img_width = 224
@@ -203,7 +203,7 @@ class MyCustomLoss(keras.losses.Loss):
 
 1.  使用`flow_from_directory()`创建一个名为`train_data_gen`的数据生成器，并指定批量大小、训练文件夹的路径、`shuffle`参数的值、目标的大小和类模式：
 
-    ```
+    ```py
     train_data_gen = train_image_generator.flow_from_directory\
                      (batch_size=batch_size, directory=train_dir, \
                       shuffle=True, \
@@ -213,7 +213,7 @@ class MyCustomLoss(keras.losses.Loss):
 
 1.  使用`flow_from_directory()`创建一个名为`val_data_gen`的数据生成器，并指定批量大小、验证文件夹的路径、目标大小和类模式：
 
-    ```
+    ```py
     val_data_gen = validation_image_generator.flow_from_directory\
                    (batch_size=batch_size, directory=validation_dir, \
                     target_size=(img_height, img_width), \
@@ -222,7 +222,7 @@ class MyCustomLoss(keras.losses.Loss):
 
 1.  导入`matplotlib`并创建一个`for`循环，该循环将遍历`train_data_gen`中的五张图像并绘制它们：
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     for _ in range(5):
         img, label = train_data_gen.next()
@@ -240,13 +240,13 @@ class MyCustomLoss(keras.losses.Loss):
 
 1.  导入 TensorFlow 库：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
 1.  创建自定义损失函数，该函数将计算误差的平方：
 
-    ```
+    ```py
     def custom_loss_function(y_true, y_pred):
         print("y_pred ",y_pred)
         print("y_true ", y_true)
@@ -256,13 +256,13 @@ class MyCustomLoss(keras.losses.Loss):
 
 1.  从`tensorflow.keras.applications`模块导入`NASNetMobile`模型：
 
-    ```
+    ```py
     from tensorflow.keras.applications import NASNetMobile
     ```
 
 1.  使用 ImageNet 权重实例化此模型，移除顶部层，并指定正确的输入维度：
 
-    ```
+    ```py
     base_model = NASNetMobile(include_top=False,\
                               input_shape=(100, 100, 3), \
                               weights='imagenet')
@@ -270,19 +270,19 @@ class MyCustomLoss(keras.losses.Loss):
 
 1.  冻结此模型的所有层，以确保不会更新`NASNetMobile`的模型权重：
 
-    ```
+    ```py
     base_model.trainable = False
     ```
 
 1.  从`tensorflow.keras.layers`模块导入`Flatten`和`Dense`层：
 
-    ```
+    ```py
     from tensorflow.keras.layers import Flatten, Dense
     ```
 
 1.  创建一个新模型，将`NASNetMobile`模型与两个新的顶部层（分别有 500 个和 1 个单元）以及 ReLu 和 sigmoid 作为激活函数进行组合：
 
-    ```
+    ```py
     model = tf.keras.Sequential([
         base_model,
         layers.Flatten(),
@@ -293,7 +293,7 @@ class MyCustomLoss(keras.losses.Loss):
 
 1.  打印你的模型摘要：
 
-    ```
+    ```py
     model.summary()
     ```
 
@@ -307,7 +307,7 @@ class MyCustomLoss(keras.losses.Loss):
 
 1.  通过提供自定义损失函数、Adam 优化器和精度度量，来编译此模型并显示结果：
 
-    ```
+    ```py
     model.compile(
             optimizer='adam',
             loss=custom_loss_function,
@@ -316,7 +316,7 @@ class MyCustomLoss(keras.losses.Loss):
 
 1.  拟合模型并提供训练和验证数据生成器、每个 epoch 的步数以及验证步骤的数量：
 
-    ```
+    ```py
     history = model.fit(
         Train_data_gen,
         steps_per_epoch=total_train // batch_size,
@@ -357,14 +357,14 @@ class MyCustomLoss(keras.losses.Loss):
 
 首先，你将构建一个函数，该函数将输入作为张量并对其添加 ReLU 激活和批量归一化。例如，在下面的代码片段中，`relu_batchnorm_layer` 函数接收输入并返回一个张量。这将创建一个包含 ReLU 激活和批量归一化的复合层：
 
-```
+```py
 def relu_batchnorm_layer(input):
     return BatchNormalization()(ReLU()(input))
 ```
 
 现在，创建一个函数来实现你的残差块。你需要接收一个张量作为输入，并将其传递给两个 Conv2D 层。然后，你将第二个 Conv2D 层的输出与原始输入相加，这代表了跳跃连接。该加法的输出将传递给你在前面代码片段中定义的 `relu_batchnorm_layer()` 函数。最后，输出将传递给另一个 Conv2D 层：
 
-```
+```py
 def simple_residual_block(input, filters: int, kernel_size: int = 3):
     int_output = Conv2D(filters=filters, kernel_size=kernel_size, 
                         padding="same")(input)
@@ -377,7 +377,7 @@ def simple_residual_block(input, filters: int, kernel_size: int = 3):
 
 现在，你可以在模型中使用这个自定义层。在以下代码片段中，你将定义一个简单的模型，其中包含一个 Conv2D 层，后跟一个残差块：
 
-```
+```py
 inputs = Input(shape=(100, 100, 3))
 num_filters = 32
 
@@ -404,7 +404,7 @@ model = Model(inputs, outputs)
 
 首先，你需要导入 `Model` 类和一些层：
 
-```
+```py
 from tensorflow.keras.models import Model 
 from tensorflow.keras.layers import Dense, Dropout, Softmax, concatenate
 ```
@@ -413,7 +413,7 @@ from tensorflow.keras.layers import Dense, Dropout, Softmax, concatenate
 
 在 `init` 方法中定义两个全连接层。例如，第一个可以有 `64` 个单元并使用 ReLU 激活函数，而第二个可以有 `10` 个单元并且没有激活函数（在这种情况下，默认的激活函数是线性函数）。之后，在 `call` 方法中，通过调用之前定义的全连接层来设置前向传播。首先，你可以放置 `dense_1` 层来接收输入，接着是 `dense_2` 层，它返回层的输出：
 
-```
+```py
 class MyModel(Model): 
   def __init__(self): 
     super(MyModel, self).__init__()
@@ -429,7 +429,7 @@ class MyModel(Model):
 
 考虑以下模型摘要：
 
-```
+```py
 model = MyModel()
 model(tf.random.uniform([1,10]))
 model.summary()
@@ -443,7 +443,7 @@ model.summary()
 
 现在，你可以通过添加一个名为 `training` 的关键字参数来修改 `call` 方法。如果你希望在训练和推理时有不同的行为，这将非常有用。例如，你可以创建一个只有在 `training` 为 `true` 时才会激活的 dropout 层。首先，你需要在 `init` 方法中定义一个 dropout 层，并设置学习率为 `0.4`。然后，在 `call` 方法中，写一个 `if` 语句，默认情况下 `training` 为 `true`。在其中，调用 dropout 层：
 
-```
+```py
 class MyModel(Model):
   def __init__(self):
     super(MyModel, self).__init__()
@@ -459,7 +459,7 @@ class MyModel(Model):
 
 现在，考虑模型总结：
 
-```
+```py
 model = MyModel()
 model(tf.random.uniform([1,10]))
 model.summary()
@@ -489,45 +489,45 @@ model.summary()
 
 1.  如果你使用的是 Google Colab，可以使用以下代码在本地上传数据集。否则，请转到 *第 4 步*。点击 `Choose Files`，找到 CSV 文件并点击 `Open`。将文件保存为 `uploaded`，然后进入你保存数据集的文件夹：
 
-    ```
+    ```py
     from google.colab import files
     uploaded = files.upload()
     ```
 
 1.  在当前文件夹中解压数据集：
 
-    ```
+    ```py
     !unzip \*.zip
     ```
 
 1.  创建一个变量 `directory`，它包含数据集的路径：
 
-    ```
+    ```py
     directory = "/content/gdrive/My Drive/Datasets/pneumonia-or-healthy/"
     ```
 
 1.  导入 `pathlib` 库：
 
-    ```
+    ```py
     import pathlib     
     ```
 
 1.  创建一个变量 `path`，它使用 `pathlib.Path` 包含数据的完整路径：
 
-    ```
+    ```py
     path = pathlib.Path(directory)
     ```
 
 1.  创建两个变量，分别为 `train_dir` 和 `validation_dir`，它们分别存储训练集和验证集文件夹的完整路径：
 
-    ```
+    ```py
     train_dir = path / 'training_set'
     validation_dir = path / 'test_set'
     ```
 
 1.  创建四个变量，分别为 `train_healthy_dir`、`train_pneumonia_dir`、`validation_healthy_dir` 和 `validation_pneumonia_dir`，它们分别存储训练集和验证集的健康和肺炎文件夹的完整路径：
 
-    ```
+    ```py
     train_healthy_dir = train_dir / 'healthy'
     train_pneumonia_dir = train_dir /'pneumonia'
     validation_healthy_dir = validation_dir / 'healthy'
@@ -536,13 +536,13 @@ model.summary()
 
 1.  导入 `os` 包：
 
-    ```
+    ```py
     import os     
     ```
 
 1.  创建两个变量，分别为 `total_train` 和 `total_val`，用来获取训练集和验证集中的图像数量：
 
-    ```
+    ```py
     total_train = len(os.listdir(train_healthy_dir)) + \
                   len(os.listdir(train_pneumonia_dir))
     total_val = len(os.listdir(validation_healthy_dir)) + \
@@ -551,20 +551,20 @@ model.summary()
 
 1.  从 `tensorflow.keras.preprocessing` 导入 `ImageDataGenerator`：
 
-    ```
+    ```py
     from tensorflow.keras.preprocessing.image import ImageDataGenerator
     ```
 
 1.  实例化两个 `ImageDataGenerator` 类，并分别命名为 `train_image_generator` 和 `validation_image_generator`，它们将通过除以 255 来重新缩放图像：
 
-    ```
+    ```py
     train_image_generator = ImageDataGenerator(rescale=1./255)
     validation_image_generator = ImageDataGenerator(rescale=1./255)
     ```
 
 1.  创建三个变量，分别命名为`batch_size`、`img_height`和`img_width`，其值分别为`32`、`100`和`100`：
 
-    ```
+    ```py
     batch_size = 32
     img_height = 100
     img_width = 100     
@@ -572,7 +572,7 @@ model.summary()
 
 1.  使用`flow_from_directory()`创建一个名为`train_data_gen`的数据生成器，并指定批量大小、训练文件夹的路径、`shuffle`参数的值、目标大小和类别模式：
 
-    ```
+    ```py
     train_data_gen = train_image_generator.flow_from_directory\
                      (batch_size=batch_size, directory=train_dir, \
                       shuffle=True, \
@@ -582,7 +582,7 @@ model.summary()
 
 1.  使用`flow_from_directory()`创建一个名为`val_data_gen`的数据生成器，并指定批量大小、验证文件夹的路径、目标大小和类别模式：
 
-    ```
+    ```py
     val_data_gen = validation_image_generator.flow_from_directory\
                    (batch_size=batch_size, directory=validation_dir, \
                     target_size=(img_height, img_width), \
@@ -591,7 +591,7 @@ model.summary()
 
 1.  导入`matplotlib`并创建一个`for`循环，该循环将遍历`train_data_gen`中的五张图像并绘制它们：
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     for _ in range(5):
         img, label = train_data_gen.next()
@@ -609,13 +609,13 @@ model.summary()
 
 1.  导入 TensorFlow 库：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
 1.  导入`Input`、`Conv2D`、`ReLU`、`BatchNormalization`、`Add`、`AveragePooling2D`、`Flatten`和`Dense`：
 
-    ```
+    ```py
     from tensorflow.keras.layers import Input, Conv2D, ReLU, \
                                         BatchNormalization, Add, \
                                         AveragePooling2D, Flatten, Dense
@@ -623,14 +623,14 @@ model.summary()
 
 1.  构建一个函数，该函数将输入作为张量并向其添加 ReLU 和批量归一化：
 
-    ```
+    ```py
     def relu_batchnorm_layer(input):
         return BatchNormalization()(ReLU()(input))
     ```
 
 1.  创建一个函数来构建残差块。你需要将一个张量（`input`）作为输入，并将其传递给两个步幅为`2`的 Conv2D 层。接下来，将输入添加到输出中，然后进行 ReLU 和批量归一化，返回一个张量。再添加一个`kernel_size=1`的 Conv2D 层。将其结果添加到前一个 Conv2D 层的输出中。最后，应用`relu_batchnorm_layer()`并返回其值。你将对所有 Conv2D 层应用完全相同的滤波器（数量和维度由构造函数的两个输入参数定义）：
 
-    ```
+    ```py
     def residual_block(input, filters: int, kernel_size: int = 3):
         int_output = Conv2D(filters=filters, kernel_size=kernel_size, 
                             strides=(2), 
@@ -647,19 +647,19 @@ model.summary()
 
 1.  导入`Model`模块：
 
-    ```
+    ```py
     from tensorflow.keras.models import Model
     ```
 
 1.  使用`keras.layers.Input()`定义模型的输入层。这里，输入的形状为 100 像素×100 像素，并且有三种颜色（RGB）：
 
-    ```
+    ```py
     inputs = Input(shape=(100, 100, 3))
     ```
 
 1.  对输入应用批量归一化，接着应用一个`32`个滤波器、大小为`3*3`、步幅为`1`、填充为`same`的 Conv2D 层。最后，对其输出应用`relu_batchnorm_layer()`函数：
 
-    ```
+    ```py
     t = BatchNormalization()(inputs)
     t = Conv2D(kernel_size=3,
                strides=1,
@@ -670,7 +670,7 @@ model.summary()
 
 1.  将前一层的输出传递给`residual_block()`函数，使用`32`个滤波器。然后，传递其输出到一个具有四个单元的平均池化层，接着将其结果展平，并将其传递给一个包含`1`个单元的全连接层，激活函数为 sigmoid：
 
-    ```
+    ```py
     t = residual_block(t, filters=32)
 
     t = AveragePooling2D(4)(t)
@@ -680,13 +680,13 @@ model.summary()
 
 1.  实例化一个`Model()`类，使用原始输入和全连接层的输出：
 
-    ```
+    ```py
     model = Model(inputs, outputs)
     ```
 
 1.  获取模型的摘要：
 
-    ```
+    ```py
     model.summary()
     ```
 
@@ -698,7 +698,7 @@ model.summary()
 
 1.  编译模型，提供二元交叉熵作为损失函数，Adam 作为优化器，并将准确度作为显示的度量：
 
-    ```
+    ```py
     model.compile(
             optimizer='adam',
             loss=binary_crossentropy,
@@ -707,7 +707,7 @@ model.summary()
 
 1.  训练模型并提供训练和验证数据生成器、训练周期数、每周期的步骤数和验证步骤：
 
-    ```
+    ```py
     history = model.fit(
         Train_data_gen,
         steps_per_epoch=total_train // batch_size,

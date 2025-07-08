@@ -124,13 +124,13 @@
 
 够多的理论了！让我们先安装`creme`。可以使用以下命令完成：
 
-```
+```py
 pip install creme
 ```
 
 要获取最新版本的`creme`，可以使用以下命令：
 
-```
+```py
 pip install git+https://github.com/creme-ml/creme
 # Or through SSH:
 pip install git+ssh://git@github.com/creme-ml/creme.git
@@ -140,7 +140,7 @@ pip install git+ssh://git@github.com/creme-ml/creme.git
 
 1.  我们首先从`creme`模块进行一些必要的导入：
 
-```
+```py
 from creme import compose
 from creme import datasets
 from creme import feature_extraction
@@ -157,7 +157,7 @@ import datetime as dt
 
 1.  然后，我们从`creme`模块本身获取一个数据集，并将其赋值给变量 data：
 
-```
+```py
 data = datasets.Bikes()
 ```
 
@@ -167,7 +167,7 @@ data = datasets.Bikes()
 
 1.  接下来，我们使用`creme`构建一个管道，如下所示：
 
-```
+```py
 model = compose.Select("humidity", "pressure", "temperature")
 model += feature_extraction.TargetAgg(by="station", how=stats.Mean())
 model |= preprocessing.StandardScaler()
@@ -176,13 +176,13 @@ model |= neighbors.KNeighborsRegressor()
 
 请注意`|=`和`+=`运算符的使用。`creme`使得这些运算符得以使用，这使得理解数据管道变得非常直观。我们可以通过使用以下命令，获取前一个代码块中构建的管道的详细表示：
 
-```
+```py
 model
 ```
 
 上一个命令的输出如下所示：
 
-```
+```py
 Pipeline([('TransformerUnion', TransformerUnion (
  Select (
  humidity
@@ -202,7 +202,7 @@ Pipeline([('TransformerUnion', TransformerUnion (
 
 我们还可以通过使用以下命令，获取该管道的可视化表示：
 
-```
+```py
 model.draw()
 ```
 
@@ -212,7 +212,7 @@ model.draw()
 
 1.  最后，我们运行训练并每隔 30,000 行数据集计算一次评分指标。在生产服务器上，这段代码将在每分钟进行一次批量预测：
 
-```
+```py
 model_selection.progressive_val_score(
  X_y=data,
  model=model,
@@ -249,7 +249,7 @@ model_selection.progressive_val_score(
 
 现在，我们通过执行以下命令来安装 Airflow：
 
-```
+```py
 pip install apache-airflow
 ```
 
@@ -259,13 +259,13 @@ pip install apache-airflow
 
 1.  为此，你必须首先初始化数据库：
 
-```
+```py
 airflow initdb
 ```
 
 1.  你应该能看到在`SQLite3`数据库上创建了多个表。如果成功，你将能够通过以下命令启动 Web 服务器：
 
-```
+```py
 airflow webserver
 ```
 
@@ -283,7 +283,7 @@ airflow webserver
 
 一个著名的 AutoML 库由`H2O.ai`提供，名为`H2O.AutoML`。要使用它，我们可以通过以下命令安装：
 
-```
+```py
 # Using Conda installer
 conda install -c h2oai h2o
 
@@ -369,7 +369,7 @@ UCI 心脏病数据集包含 303 个样本，每个样本有 76 个属性。然�
 
 我们首先导入所需的库：
 
-```
+```py
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -382,13 +382,13 @@ np.random.seed(5)
 
 假设数据集存储在一个名为`data`的文件夹中，并且该文件夹与包含我们的 Jupyter notebook 的文件夹位于同一目录级别，我们将加载数据集：
 
-```
+```py
 df = pd.read_csv("data/heart.csv")
 ```
 
 我们将快速观察 DataFrame，查看所有列是否已正确导入：
 
-```
+```py
 df.head(5)
 ```
 
@@ -402,7 +402,7 @@ df.head(5)
 
 我们现在将从数据集中剔除目标变量，如下所示：
 
-```
+```py
 X = df.drop("target",axis=1)
 y = df["target"]
 
@@ -414,7 +414,7 @@ y = df["target"]
 
 如你在前一步中数据集的示例中所观察到的，训练列中的数值并不在统一的或可比较的范围内。我们将对这些列进行缩放，使它们达到一个统一的范围分布，如下所示：
 
-```
+```py
 from sklearn.preprocessing import StandardScaler
 
 X = StandardScaler().fit_transform(X)
@@ -426,7 +426,7 @@ X = StandardScaler().fit_transform(X)
 
 然后，我们将数据集拆分为训练部分和测试部分，使用以下代码行：
 
-```
+```py
 X_train,X_test,y_train,y_test = train_test_split(X,y,test_size=0.20,random_state=0)
 ```
 
@@ -436,7 +436,7 @@ X_train,X_test,y_train,y_test = train_test_split(X,y,test_size=0.20,random_state
 
 接下来，我们通过实例化一个新的`MLPClassifier`对象来创建分类器模型的实例：
 
-```
+```py
 from sklearn.neural_network import MLPClassifier
 
 clf = MLPClassifier(max_iter=200)
@@ -448,7 +448,7 @@ clf = MLPClassifier(max_iter=200)
 
 最后，我们进行训练，并记录方法的观察准确率：
 
-```
+```py
 for i in range(len(X_train)):
     xt = X_train[i].reshape(1, -1)
     yt = y_train.values[[i]]
@@ -466,7 +466,7 @@ for i in range(len(X_train)):
 
 为了快速查看模型输出的格式，我们运行以下代码块：
 
-```
+```py
 # Positive Sample
 clf.predict(X_test[30].reshape(-1, 1).T)
 
@@ -502,7 +502,7 @@ clf.predict(X_test[0].reshape(-1, 1).T)
 
 查看`index.html`中的第`109`行到第`116`行：
 
-```
+```py
 .... 
 $("#train-btn").click(function() {
      $.ajax({
@@ -518,7 +518,7 @@ $("#train-btn").click(function() {
 
 这个文件中另一个有趣的代码块是第`138`行到第`145`行：
 
-```
+```py
 ....
 $("#reset-btn").click(function() {
      $.ajax({
@@ -540,7 +540,7 @@ $("#reset-btn").click(function() {
 
 1.  首先，我们将对脚本进行一些必要的导入：
 
-```
+```py
 from flask import Flask, request, jsonify, render_template
 
 import pandas as pd
@@ -556,13 +556,13 @@ np.random.seed(5)
 
 1.  然后，我们将数据集加载到一个`pandas` DataFrame 中：
 
-```
+```py
 df = pd.read_csv("data/heart.csv")
 ```
 
 1.  我们将快速浏览剩余的代码，其中我们将拆分数据集、缩放列，并在一定数量的样本上训练模型：
 
-```
+```py
 X = df.drop("target",axis=1)
 y = df["target"]
 
@@ -584,7 +584,7 @@ for i in range(100):
 
 1.  让我们设置一些变量以供脚本使用，并实例化`Flask`服务器对象：
 
-```
+```py
 score = clf.score(X_test, y_test)
 
 app = Flask(__name__)
@@ -594,7 +594,7 @@ start_at = 100
 
 1.  我们现在将创建`/train_batch` API，如下所示：
 
-```
+```py
 @app.route('/train_batch', methods=['GET', 'POST'])
 def train_batch():
     global start_at, clf, X_train, y_train, X_test, y_test, score
@@ -616,7 +616,7 @@ def train_batch():
 
 1.  接下来，我们将创建`/reset` API，它将重置模型为未训练状态：
 
-```
+```py
 @app.route('/reset', methods=['GET', 'POST'])
 def reset():
     global start_at, clf, X_train, y_train, X_test, y_test, score
@@ -641,7 +641,7 @@ def reset():
 
 1.  现在，让我们编写代码以启动这个应用程序的 Flask 服务器：
 
-```
+```py
 @app.route('/')
 def index():
     global score, X_train
@@ -655,7 +655,7 @@ if __name__ == '__main__':
 
 1.  完成此操作后，我们准备通过从控制台运行应用程序来测试它是否正常工作。为此，请打开一个新的终端窗口，并在`app`目录中输入以下命令：
 
-```
+```py
 python app.py
 ```
 
@@ -673,7 +673,7 @@ python app.py
 
 1.  我们现在将创建一个 `Procfile` 文件。在此步骤中，我们在 `app` 目录中创建一个名为 `Procfile` 的空文件。创建后，我们在其中添加以下一行：
 
-```
+```py
 web: gunicorn app:app
 ```
 
@@ -681,7 +681,7 @@ web: gunicorn app:app
 
 1.  然后，我们将冻结项目的依赖关系。Heroku 会查找 `requirements.txt` 文件，以自动下载并安装项目所需的包。要创建依赖列表，请在终端中使用以下命令：
 
-```
+```py
 pip freeze > requirements.txt
 ```
 
@@ -691,7 +691,7 @@ pip freeze > requirements.txt
 
 项目的目录结构当前应如下所示：
 
-```
+```py
 app/
 ---- templates/
 -------- index.html
@@ -704,25 +704,25 @@ app/
 
 1.  接下来，我们将在目录上初始化 `git`。为此，请在项目根目录中使用以下命令：
 
-```
+```py
 git init
 ```
 
 1.  然后，我们初始化项目的 Heroku 版本管理。打开终端窗口并导航到项目目录。使用以下命令初始化 Heroku 提供的版本管理器，并将其与当前登录的用户注册：
 
-```
+```py
 heroku create
 ```
 
 该命令将以显示项目将托管的网址结束。同时，还会显示一个 `.git` URL，用于跟踪项目的版本。你可以从这个 `.git` URL 推送/拉取以更改项目并触发重新部署。输出将类似于以下内容：
 
-```
+```py
 https://yyyyyy-xxxxxx-ddddd.herokuapp.com/ | https://git.heroku.com/yyyyyy-xxxxxx-ddddd.git
 ```
 
 1.  接下来，我们将文件添加到 `git` 并推送到 Heroku。现在，你可以将文件推送到 Heroku 的 `git` 项目进行部署。我们使用以下命令：
 
-```
+```py
 git add .
 git commit -m "some commit message"
 git push heroku master
@@ -730,7 +730,7 @@ git push heroku master
 
 这将创建部署并显示一个长时间的输出流。该流是部署过程中发生事件的日志——安装包、确定运行时、启动监听脚本。一旦你看到成功部署的消息，你就可以通过 Heroku 在上一阶段提供的 URL 查看你的应用。如果你记不住该 URL，你可以使用以下命令从终端触发它在浏览器中打开：
 
-```
+```py
 heroku open
 ```
 
@@ -756,7 +756,7 @@ heroku open
 
 为了展示生产中使用 pickle 可能带来的危险，请考虑以下 Python 代码：
 
-```
+```py
 data = """cos
     system
     (S'rm -ri ~'

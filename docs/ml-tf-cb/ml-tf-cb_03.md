@@ -32,13 +32,13 @@ Keras 作为独立库与 Keras 作为 TensorFlow 集成的实现之间的区别�
 
 这是导入 Keras API 规范的命令：
 
-```
+```py
 import keras 
 ```
 
 这是 TensorFlow 对 Keras API 规范的实现：
 
-```
+```py
 import tensorflow as tf
 from tensorflow import keras 
 ```
@@ -83,53 +83,53 @@ Keras 包括广泛的内置层：
 
 1.  让我们从层的权重开始。权重可能是层中最重要的概念；它决定了输入对输出的影响程度，表示了层的状态。`get_weights()` 函数返回层的权重，以 NumPy 数组的列表形式：
 
-    ```
+    ```py
     layer.get_weights() 
     ```
 
     `set_weights()` 方法可以通过一组 Numpy 数组来设置层的权重：
 
-    ```
+    ```py
     layer.set_weights(weights) 
     ```
 
 1.  正如我们将在 Keras 函数式 API 配方中解释的那样，有时神经网络的拓扑结构不是线性的。在这种情况下，层可以在网络中多次使用（共享层）。如果层是单一节点（无共享层），我们可以通过这个命令轻松获得层的输入和输出：
 
-    ```
+    ```py
     layer.input
     layer.output 
     ```
 
     或者如果层包含多个节点，可以使用这个：
 
-    ```
+    ```py
     layer.get_input_at(node_index)
     layer.get_output_at(node_index) 
     ```
 
 1.  如果层是单一节点（无共享层），我们还可以通过这个命令轻松获得层的输入和输出形状：
 
-    ```
+    ```py
     layer.input_shape
     layer.output_shape 
     ```
 
     或者如果层包含多个节点，可以使用这个：
 
-    ```
+    ```py
     layer.get_input_shape_at(node_index)
     layer.get_output_shape_at(node_index) 
     ```
 
 1.  现在，我们将讨论层的配置。由于相同的层可能会实例化多次，配置中不包括权重或连接信息。`get_config()` 函数返回一个字典，包含层的配置：
 
-    ```
+    ```py
     layer.get_config() 
     ```
 
     `from_config()` 方法用于实例化层的配置：
 
-    ```
+    ```py
     layer.from_config(config) 
     ```
 
@@ -161,7 +161,7 @@ Keras 的主要目标是简化深度学习模型的创建。Sequential API 允�
 
 首先，我们加载 TensorFlow 和 NumPy，如下所示：
 
-```
+```py
 import tensorflow as tf
 from tensorflow import keras
 from keras.layers import Dense
@@ -174,7 +174,7 @@ import numpy as np
 
 1.  首先，我们将创建一个顺序模型。Keras 提供了两种等效的方式来创建顺序模型。我们首先通过将层实例的列表作为数组传递给构造函数来开始。我们将通过输入以下代码构建一个多类分类器（10 个类别）完全连接的模型，也称为多层感知机。
 
-    ```
+    ```py
     model = tf.keras.Sequential([
         # Add a fully connected layer with 1024 units to the model
         tf.keras.layers.Dense(1024, input_dim=64),
@@ -193,7 +193,7 @@ import numpy as np
 
     创建顺序模型的另一种方式是实例化一个 Sequential 类，然后通过`.add()`方法添加层。
 
-    ```
+    ```py
     model = tf.keras.Sequential()
     # Add a fully connected layer with 1024 units to the model
     model.add(tf.keras.layers.Dense(1024, input_dim=64))
@@ -213,7 +213,7 @@ import numpy as np
 
     +   我们可以通过指定内置函数的名称或可调用对象来添加激活函数。该函数决定一个神经元是否应该被激活。默认情况下，层没有激活函数。以下是创建带有激活函数的层的两种方式。请注意，您不需要运行以下代码，这些层未分配给变量。
 
-        ```
+        ```py
         # Creation of a dense layer with a sigmoid activation function:
         Dense(256, activation='sigmoid')
         # Or:
@@ -222,7 +222,7 @@ import numpy as np
 
     +   我们还可以通过传递内置初始化器的字符串标识符或可调用对象来指定初始权重（内核和偏置）的初始化策略。内核默认设置为“Glorot uniform”初始化器，偏置设置为零。
 
-        ```
+        ```py
         # A dense layer with a kernel initialized to a truncated normal distribution:
         Dense(256, kernel_initializer='random_normal')
         # A dense layer with a bias vector initialized with a constant value of 5.0:
@@ -231,7 +231,7 @@ import numpy as np
 
     +   我们还可以为内核和偏置指定正则化器，如 L1（也称为 Lasso）或 L2（也称为 Ridge）正则化。默认情况下，不应用正则化。正则化器旨在通过惩罚具有大权重的模型来防止过拟合。这些惩罚被纳入网络优化的损失函数中。
 
-        ```
+        ```py
         # A dense layer with L1 regularization of factor 0.01 applied to the kernel matrix:
         Dense(256, kernel_regularizer=tf.keras.regularizers.l1(0.01))
         # A dense layer with L2 regularization of factor 0.01 applied to the bias vector:
@@ -244,13 +244,13 @@ import numpy as np
 
     在这个示例中，我们将创建包含 64 个特征的数据集，并处理每批 10 个样本。我们的输入数据的形状是（10,64），即（`batch_size`，`number_of_features`）。默认情况下，Keras 模型定义为支持任何批次大小，因此批次大小不是强制性的。我们只需要通过`input_dim`参数为第一层指定特征数量。
 
-    ```
+    ```py
     Dense(256, input_dim=(64)) 
     ```
 
     然而，为了效率的考虑，我们可以通过`batch_size`参数强制设置批次大小。
 
-    ```
+    ```py
      Dense(256, input_dim=(64), batch_size=10) 
     ```
 
@@ -268,7 +268,7 @@ import numpy as np
 
     现在，我们将使用 Adam 优化器来编译模型，采用类别交叉熵损失并显示准确率度量。
 
-    ```
+    ```py
     model.compile(
         optimizer="adam", 
         loss="categorical_crossentropy",
@@ -278,7 +278,7 @@ import numpy as np
 
 1.  现在，我们将生成三个包含 64 个特征的玩具数据集，数据值为随机生成。其中一个用于训练模型（2,000 个样本），另一个用于验证（500 个样本），最后一个用于测试（500 个样本）。
 
-    ```
+    ```py
     data = np.random.random((2000, 64))
     labels = np.random.random((2000, 10))
     val_data = np.random.random((500, 64))
@@ -297,20 +297,20 @@ import numpy as np
 
     现在，我们将通过调用`fit`方法在我们的玩具数据集上训练模型：
 
-    ```
+    ```py
     model.fit(data, labels, epochs=10, batch_size=50,
               validation_data=(val_data, val_labels)) 
     ```
 
 1.  接下来，我们将在测试数据集上评估我们的模型。我们将调用`model.evaluate`函数，它预测模型在测试模式下的损失值和度量值。计算是按批次进行的。它有三个重要参数：输入数据、目标数据和批次大小。此函数为给定输入预测输出，然后计算`metrics`函数（在`model.compile`中根据目标数据指定），并返回计算后的度量值作为输出。
 
-    ```
+    ```py
     model.evaluate(data, labels, batch_size=50) 
     ```
 
 1.  我们也可以仅使用模型进行预测。`tf.keras.Model.predict`方法仅接受数据作为输入并返回预测结果。以下是如何预测提供数据的最后一层推理输出，结果以 NumPy 数组形式呈现：
 
-    ```
+    ```py
     result = model.predict(data, batch_size=50) 
     ```
 
@@ -348,7 +348,7 @@ Keras Sequential API 在大多数情况下非常适合开发深度学习模型�
 
 一如既往，我们只需要按如下方式导入 TensorFlow：
 
-```
+```py
 import tensorflow as tf
 from tensorflow import keras
 from keras.layers import Input, Dense, TimeDistributed
@@ -365,26 +365,26 @@ import keras.models
 
 1.  首先，我们将加载 MNIST 数据集。
 
-    ```
+    ```py
     mnist = tf.keras.datasets.mnist
     (X_mnist_train, y_mnist_train), (X_mnist_test, y_mnist_test) = mnist.load_data() 
     ```
 
 1.  然后，我们将创建一个 28x28 维度的输入节点。记住，在 Keras 中，输入层并不是一个层，而是一个张量，我们必须为第一个层指定输入形状。这个张量的形状必须与我们的训练数据形状一致。默认情况下，Keras 模型被定义为支持任何批次大小，因此批次大小不是必需的。`Input()`用于实例化 Keras 张量。
 
-    ```
+    ```py
     inputs = tf.keras.Input(shape=(28,28)) 
     ```
 
 1.  然后，我们将使用以下命令对大小为(28,28)的图像进行展平操作。这将生成一个包含 784 个像素的数组。
 
-    ```
+    ```py
     flatten_layer = keras.layers.Flatten() 
     ```
 
 1.  我们将通过在`inputs`对象上调用`flatten_layer`来在层图中添加一个新的节点：
 
-    ```
+    ```py
     flatten_output = flatten_layer(inputs) 
     ```
 
@@ -392,31 +392,31 @@ import keras.models
 
 1.  然后，我们将创建一个新的层实例：
 
-    ```
+    ```py
     dense_layer = tf.keras.layers.Dense(50, activation='relu') 
     ```
 
 1.  我们将添加一个新节点：
 
-    ```
+    ```py
     dense_output = dense_layer(flatten_output) 
     ```
 
 1.  为了构建一个模型，多个层将被堆叠。在这个示例中，我们将添加另一个`dense`层来进行 10 个类别之间的分类任务：
 
-    ```
+    ```py
     predictions = tf.keras.layers.Dense(10, activation='softmax')(dense_output) 
     ```
 
 1.  输入张量和输出张量用于定义模型。模型是一个由一个或多个输入层和一个或多个输出层构成的函数。模型实例形式化了计算图，描述数据如何从输入流向输出。
 
-    ```
+    ```py
     model = keras.Model(inputs=inputs, outputs=predictions) 
     ```
 
 1.  现在，我们将打印模型的摘要。
 
-    ```
+    ```py
     model.summary() 
     ```
 
@@ -426,7 +426,7 @@ import keras.models
 
 1.  这样的模型可以通过与 Keras 顺序模型中相同的`compile, fit`、`evaluate`和`predict`方法进行训练和评估。
 
-    ```
+    ```py
     model.compile(optimizer='sgd',
                  loss='sparse_categorical_crossentropy',
                  metrics=['accuracy'])
@@ -443,7 +443,7 @@ import keras.models
 
 1.  使用功能 API，重复使用训练好的模型变得非常容易：任何模型都可以通过在张量上调用它作为一层来处理。我们将重用前面定义的模型作为一层，以便查看其实现效果。它是一个用于 10 个类别的分类器。该模型返回 10 个概率值：每个类别一个概率值。这被称为 10 分类 softmax。因此，通过调用上述模型，模型将为每个输入预测 10 个类别中的一个。
 
-    ```
+    ```py
     x = Input(shape=(784,))
     # y will contain the prediction for x
     y = model(x) 
@@ -453,7 +453,7 @@ import keras.models
 
 1.  如果我们面临一个序列问题，使用功能性 API 创建模型将变得非常简单。例如，假设我们不是处理一张图片，而是处理由多张图片组成的视频。我们可以通过使用 `TimeDistributed` 层包装器，将图像分类模型转变为视频分类模型，仅需一行代码。这个包装器将我们的前一个模型应用于输入序列的每一个时间切片，换句话说，就是应用于视频的每一帧图像。
 
-    ```
+    ```py
     from keras.layers import TimeDistributed
     # Input tensor for sequences of 50 timesteps,
     # Each containing a 28x28 dimensional matrix.
@@ -486,7 +486,7 @@ import keras.models
 
 1.  为了构建这个系统，我们将从构建第一个模块开始，用于处理关于房子的表格数据。
 
-    ```
+    ```py
     house_data_inputs = tf.keras.Input(shape=(128,), name='house_data')
     x = tf.keras.layers.Dense(64, activation='relu')(house_data_inputs)
     block_1_output = tf.keras.layers.Dense(32, activation='relu')(x) 
@@ -494,7 +494,7 @@ import keras.models
 
 1.  然后，我们将构建第二个模块来处理房子的图像数据。
 
-    ```
+    ```py
     house_picture_inputs = tf.keras.Input(shape=(128,128,3), name='house_picture')
     x = tf.keras.layers.Conv2D(64, 3, activation='relu', padding='same')(house_picture_inputs)
     x = tf.keras.layers.Conv2D(64, 3, activation='relu', padding='same')(x)
@@ -503,25 +503,25 @@ import keras.models
 
 1.  现在，我们将通过拼接将所有可用特征合并为一个大的向量。
 
-    ```
+    ```py
     x = tf.keras.layers.concatenate([block_1_output, block_2_output]) 
     ```
 
 1.  然后，我们将在特征上加一个用于价格预测的逻辑回归。
 
-    ```
+    ```py
     price_pred = tf.keras.layers.Dense(1, name='price', activation='relu')(x) 
     ```
 
 1.  接着，我们将在特征上加一个时间分类器。
 
-    ```
+    ```py
     time_elapsed_pred = tf.keras.layers.Dense(2, name='elapsed_time', activation='softmax')(x) 
     ```
 
 1.  现在，我们将构建模型。
 
-    ```
+    ```py
     model = keras.Model([house_data_inputs, house_picture_inputs],
                        [price_pred, time_elapsed_pred],
                        name='toy_house_pred') 
@@ -529,7 +529,7 @@ import keras.models
 
 1.  现在，我们将绘制模型图。
 
-    ```
+    ```py
     keras.utils.plot_model(model, 'multi_input_and_output_model.png', show_shapes=True) 
     ```
 
@@ -547,7 +547,7 @@ import keras.models
 
 让我们考虑两种不同的文本序列。我们将对这两个具有相似词汇的序列应用相同的嵌入层。
 
-```
+```py
 # Variable-length sequence of integers
 text_input_a = tf.keras.Input(shape=(None,), dtype='int32')
 # Variable-length sequence of integers
@@ -571,25 +571,25 @@ encoded_input_b = shared_embedding(text_input_b)
 
 1.  让我们去下载 ResNet 50 预训练模型。
 
-    ```
+    ```py
     resnet = tf.keras.applications.resnet.ResNet50() 
     ```
 
 1.  然后，我们将通过查询图数据结构来显示模型的中间层：
 
-    ```
+    ```py
     intermediate_layers = [layer.output for layer in resnet.layers] 
     ```
 
 1.  然后，我们将通过查询图数据结构来显示模型的前 10 个中间层：
 
-    ```
+    ```py
     intermediate_layers[:10] 
     ```
 
 1.  这将产生以下输出：
 
-    ```
+    ```py
      [<tf.Tensor 'input_7:0' shape=(None, 224, 224, 3) dtype=float32>,
      <tf.Tensor 'conv1_pad/Pad:0' shape=(None, 230, 230, 3) dtype=float32>,
      <tf.Tensor 'conv1_conv/BiasAdd:0' shape=(None, 112, 112, 64) dtype=float32>,
@@ -604,13 +604,13 @@ encoded_input_b = shared_embedding(text_input_b)
 
 1.  现在，我们将选择所有特征层。我们将在卷积神经网络章节中详细讲解。
 
-    ```
+    ```py
     feature_layers = intermediate_layers[:-2] 
     ```
 
 1.  然后，我们将重用这些节点来创建我们的特征提取模型。
 
-    ```
+    ```py
     feat_extraction_model = keras.Model(inputs=resnet.input, outputs=feature_layers) 
     ```
 
@@ -674,7 +674,7 @@ Keras 子类化 API 是 Keras 提出的第三种构建深度神经网络模型�
 
 首先，我们加载 TensorFlow，如下所示：
 
-```
+```py
 import tensorflow as tf
 from tensorflow import keras 
 ```
@@ -701,7 +701,7 @@ from tensorflow import keras
 
 1.  让我们将理论付诸实践。首先，我们将为自定义全连接层创建一个子类层：
 
-    ```
+    ```py
     class MyCustomDense(tf.keras.layers.Layer):
         # Initialize this class with the number of units
         def __init__(self, units):
@@ -728,7 +728,7 @@ from tensorflow import keras
 
 1.  然后，我们将使用前一步创建的 `MyCustomDense` 层来创建模型：
 
-    ```
+    ```py
     # Create an input layer
     inputs = keras.Input((12,4))
     # Add an instance of MyCustomeDense layer
@@ -741,7 +741,7 @@ from tensorflow import keras
 
 1.  接下来，我们将从配置文件重新加载模型：
 
-    ```
+    ```py
     new_model = keras.Model.from_config(config, 
                                   custom_objects={'MyCustomDense': MyCustomDense}) 
     ```
@@ -756,7 +756,7 @@ from tensorflow import keras
 
 1.  首先，我们将加载 MNIST 数据集并对灰度进行归一化：
 
-    ```
+    ```py
     mnist = tf.keras.datasets.mnist
     (X_mnist_train, y_mnist_train), (X_mnist_test, y_mnist_test) = mnist.load_data()
     train_mnist_features = X_mnist_train/255
@@ -765,7 +765,7 @@ from tensorflow import keras
 
 1.  让我们创建一个 `Model` 的子类，用于识别 MNIST 数据：
 
-    ```
+    ```py
     class MyMNISTModel(tf.keras.Model):
         def __init__(self, num_classes):
             super(MyMNISTModel, self).__init__(name='my_mnist_model')
@@ -785,7 +785,7 @@ from tensorflow import keras
 
 1.  现在，我们将实例化模型并处理训练：
 
-    ```
+    ```py
     my_mnist_model = MyMNISTModel(10)
     # Compile
     my_mnist_model.compile(optimizer='sgd',
@@ -819,7 +819,7 @@ Keras 预处理 API 汇集了数据处理和数据增强的模块。该 API 提�
 
 如往常一样，我们只需导入 TensorFlow 如下：
 
-```
+```py
 import tensorflow as tf
 from tensorflow import keras
 import numpy as np
@@ -845,20 +845,20 @@ Keras 提供了处理序列数据（如时间序列数据）的实用工具。�
 
 1.  让我们使用一个玩具时间序列数据集，包含 10 个整数值：
 
-    ```
+    ```py
     series = np.array([i for i in range(10)])
     print(series) 
     ```
 
 1.  这导致以下输出：
 
-    ```
+    ```py
     array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) 
     ```
 
 1.  我们希望根据最后五个滞后观测值预测下一个值。因此，我们将定义一个生成器，并将 `length` 参数设置为 5。此参数指定输出序列的长度（以时间步为单位）：
 
-    ```
+    ```py
     generator = TimeseriesGenerator(data = series,
                                    targets = series,
                                    length=5,
@@ -869,14 +869,14 @@ Keras 提供了处理序列数据（如时间序列数据）的实用工具。�
 
 1.  我们希望生成由 5 个滞后观测组成的样本，用于预测，而玩具时间序列数据集包含 10 个值。因此，生成的样本数为 5：
 
-    ```
+    ```py
     # number of samples
     print('Samples: %d' % len(generator)) 
     ```
 
 1.  接下来，我们将显示每个样本的输入和输出，并检查数据是否准备就绪：
 
-    ```
+    ```py
     for i in range(len(generator)):
         x, y = generator[i]
         print('%s => %s' % (x, y)) 
@@ -884,7 +884,7 @@ Keras 提供了处理序列数据（如时间序列数据）的实用工具。�
 
 1.  这导致以下输出：
 
-    ```
+    ```py
     [[0 1 2 3 4]] => [5]
     [[1 2 3 4 5]] => [6]
     [[2 3 4 5 6]] => [7]
@@ -894,7 +894,7 @@ Keras 提供了处理序列数据（如时间序列数据）的实用工具。�
 
 1.  现在，我们将创建并编译一个模型：
 
-    ```
+    ```py
     model = Sequential()
     model.add(Dense(10, activation='relu', input_dim=5))
     model.add(Dense(1))
@@ -903,7 +903,7 @@ Keras 提供了处理序列数据（如时间序列数据）的实用工具。�
 
 1.  然后，我们将通过将生成器作为输入数据来训练模型：
 
-    ```
+    ```py
     model.fit(generator, epochs=10) 
     ```
 
@@ -917,7 +917,7 @@ Keras 提供了处理序列数据（如时间序列数据）的实用工具。�
 
 1.  让我们从四个句子开始：
 
-    ```
+    ```py
     sentences = [["What", "do", "you", "like", "?"],
                  ["I", "like", "basket-ball", "!"],
                  ["And", "you", "?"],
@@ -926,7 +926,7 @@ Keras 提供了处理序列数据（如时间序列数据）的实用工具。�
 
 1.  首先，我们将构建词汇查找表。我们将创建两个字典，一个用于从单词到整数标识符的转换，另一个反之。
 
-    ```
+    ```py
     text_set = set(np.concatenate(sentences))
     vocab_to_int = dict(zip(text_set, range(len(text_set))))
     int_to_vocab = {vocab_to_int[word]:word for word in vocab_to_int.keys()} 
@@ -934,7 +934,7 @@ Keras 提供了处理序列数据（如时间序列数据）的实用工具。�
 
 1.  然后，在构建词汇查找表之后，我们将句子编码为整数数组。
 
-    ```
+    ```py
     encoded_sentences = []
     for sentence in sentences:
         encoded_sentence = [vocab_to_int[word] for word in sentence]
@@ -944,19 +944,19 @@ Keras 提供了处理序列数据（如时间序列数据）的实用工具。�
 
 1.  这导致以下输出：
 
-    ```
+    ```py
     [[8, 4, 7, 6, 0], [5, 6, 2, 3], [10, 7, 0], [5, 6, 1, 9, 11]] 
     ```
 
 1.  现在，我们将使用 `pad_sequences` 函数轻松地截断和填充序列到一个公共长度。默认情况下，启用了序列前填充。
 
-    ```
+    ```py
     pad_sequences(encoded_sentences) 
     ```
 
 1.  这导致以下输出：
 
-    ```
+    ```py
     array([[ 8,  4,  7,  6,  0],
            [ 0,  5,  6,  2,  3],
            [ 0,  0, 10,  7,  0],
@@ -965,13 +965,13 @@ Keras 提供了处理序列数据（如时间序列数据）的实用工具。�
 
 1.  然后，我们将激活序列后填充，并将 `maxlen` 参数设置为所需的长度 – 这里是 7。
 
-    ```
+    ```py
     pad_sequences(encoded_sentences, maxlen = 7) 
     ```
 
 1.  这导致以下输出：
 
-    ```
+    ```py
     array([[ 0,  0,  8,  4,  7,  6,  0],
            [ 0,  0,  0,  5,  6,  2,  3],
            [ 0,  0,  0,  0, 10,  7,  0],
@@ -980,13 +980,13 @@ Keras 提供了处理序列数据（如时间序列数据）的实用工具。�
 
 1.  序列的长度也可以裁剪为所需的长度——此处为 3。默认情况下，该函数会从每个序列的开头移除时间步长。
 
-    ```
+    ```py
     pad_sequences(encoded_sentences, maxlen = 3) 
     ```
 
 1.  这将产生以下输出：
 
-    ```
+    ```py
     array([[ 7,  6,  0],
            [ 6,  2,  3],
            [10,  7,  0],
@@ -995,13 +995,13 @@ Keras 提供了处理序列数据（如时间序列数据）的实用工具。�
 
 1.  将截断参数设置为`post`，以便从每个序列的末尾移除时间步长。
 
-    ```
+    ```py
     pad_sequences(encoded_sentences, maxlen = 3, truncating='post') 
     ```
 
 1.  这将产生以下输出：
 
-    ```
+    ```py
     array([[ 8,  4,  7],
            [ 5,  6,  2],
            [10,  7,  0],
@@ -1024,7 +1024,7 @@ Keras 提供了`skipgrams`预处理函数，它接收一个整数编码的单词
 
 1.  首先，我们将把一个句子编码为单词索引的列表：
 
-    ```
+    ```py
     sentence = "I like coconut and apple"
     encoded_sentence = [vocab_to_int[word] for word in sentence.split()]
     vocabulary_size = len(encoded_sentence) 
@@ -1032,7 +1032,7 @@ Keras 提供了`skipgrams`预处理函数，它接收一个整数编码的单词
 
 1.  然后，我们将调用`skipgrams`函数，窗口大小为 1：
 
-    ```
+    ```py
     pairs, labels = skipgrams(encoded_sentence, 
                               vocabulary_size, 
                               window_size=1,
@@ -1041,7 +1041,7 @@ Keras 提供了`skipgrams`预处理函数，它接收一个整数编码的单词
 
 1.  现在，我们将打印结果：
 
-    ```
+    ```py
     for i in range(len(pairs)):
         print("({:s} , {:s} ) -> {:d}".format(
               int_to_vocab[pairs[i][0]], 
@@ -1051,7 +1051,7 @@ Keras 提供了`skipgrams`预处理函数，它接收一个整数编码的单词
 
 1.  这将产生以下输出：
 
-    ```
+    ```py
     (coconut , and ) -> 1
     (apple , ! ) -> 0
     (and , coconut ) -> 1
@@ -1084,31 +1084,31 @@ Keras 提供了`text_to_word_sequence`方法，将序列转换为单词或标记
 
 1.  让我们使用这个句子：
 
-    ```
+    ```py
     sentence = "I like coconut , I like apple" 
     ```
 
 1.  然后，我们将调用将句子转换为单词列表的方法。默认情况下，该方法会根据空格拆分文本。
 
-    ```
+    ```py
     text_to_word_sequence(sentence, lower=False) 
     ```
 
 1.  这将产生以下输出：
 
-    ```
+    ```py
     ['I', 'like', 'coconut', 'I', 'like', 'apple'] 
     ```
 
 1.  现在，我们将`lower`参数设置为`True`，文本将被转换为小写：
 
-    ```
+    ```py
     text_to_word_sequence(sentence, lower=True, filters=[]) 
     ```
 
 1.  这将产生以下输出：
 
-    ```
+    ```py
     ['i', 'like', 'coconut', ',', 'i', 'like', 'apple'] 
     ```
 
@@ -1132,7 +1132,7 @@ Keras 提供了`text_to_word_sequence`方法，将序列转换为单词或标记
 
 1.  让我们从这句话开始：
 
-    ```
+    ```py
     sentences = [["What", "do", "you", "like", "?"],
                  ["I", "like", "basket-ball", "!"],
                  ["And", "you", "?"],
@@ -1141,7 +1141,7 @@ Keras 提供了`text_to_word_sequence`方法，将序列转换为单词或标记
 
 1.  现在，我们将创建一个`Tokenizer`实例，并对前述句子进行拟合：
 
-    ```
+    ```py
     # create the tokenizer
     t = Tokenizer()
     # fit the tokenizer on the documents
@@ -1150,49 +1150,49 @@ Keras 提供了`text_to_word_sequence`方法，将序列转换为单词或标记
 
 1.  分词器创建了文档的几部分信息。我们可以获得一个字典，包含每个词的计数。
 
-    ```
+    ```py
     print(t.word_counts) 
     ```
 
 1.  这会产生以下输出：
 
-    ```
+    ```py
     OrderedDict([('what', 1), ('do', 1), ('you', 2), ('like', 3), ('?', 2), ('i', 2), ('basket-ball', 1), ('!', 1), ('and', 2), ('coconut', 1), ('apple', 1)]) 
     ```
 
 1.  我们还可以获得一个字典，包含每个词出现在多少个文档中：
 
-    ```
+    ```py
     print(t.document_count) 
     ```
 
 1.  这会产生以下输出：
 
-    ```
+    ```py
     4 
     ```
 
 1.  一个字典包含每个词的唯一整数标识符：
 
-    ```
+    ```py
     print(t.word_index) 
     ```
 
 1.  这会产生以下输出：
 
-    ```
+    ```py
     {'like': 1, 'you': 2, '?': 3, 'i': 4, 'and': 5, 'what': 6, 'do': 7, 'basket-ball': 8, '!': 9, 'coconut': 10, 'apple': 11} 
     ```
 
 1.  用于拟合`Tokenizer`的独特文档数量。
 
-    ```
+    ```py
     print(t.word_docs) 
     ```
 
 1.  这会产生以下输出：
 
-    ```
+    ```py
     defaultdict(<class 'int'>, {'do': 1, 'like': 3, 'what': 1, 'you': 2, '?': 2, '!': 1, 'basket-ball': 1, 'i': 2, 'and': 2, 'coconut': 1, 'apple': 1}) 
     ```
 
@@ -1200,13 +1200,13 @@ Keras 提供了`text_to_word_sequence`方法，将序列转换为单词或标记
 
     让我们从二进制模式开始，它返回文档中每个标记是否存在。
 
-    ```
+    ```py
     t.texts_to_matrix(sentences, mode='binary') 
     ```
 
 1.  这会产生以下输出：
 
-    ```
+    ```py
      [[0\. 1\. 1\. 1\. 0\. 0\. 1\. 1\. 0\. 0\. 0\. 0.]
      [0\. 1\. 0\. 0\. 1\. 0\. 0\. 0\. 1\. 1\. 0\. 0.]
      [0\. 0\. 1\. 1\. 0\. 1\. 0\. 0\. 0\. 0\. 0\. 0.]
@@ -1215,13 +1215,13 @@ Keras 提供了`text_to_word_sequence`方法，将序列转换为单词或标记
 
 1.  `Tokenizer` API 提供了另一种基于词频的模式——它返回文档中每个词的计数：
 
-    ```
+    ```py
     t.texts_to_matrix(sentences, mode='count') 
     ```
 
 1.  这会产生以下输出：
 
-    ```
+    ```py
     [[0\. 1\. 1\. 1\. 0\. 0\. 1\. 1\. 0\. 0\. 0\. 0.]
      [0\. 1\. 0\. 0\. 1\. 0\. 0\. 0\. 1\. 1\. 0\. 0.]
      [0\. 0\. 1\. 1\. 0\. 1\. 0\. 0\. 0\. 0\. 0\. 0.]
@@ -1250,14 +1250,14 @@ Keras 预处理 API 中的`ImageDataGenerator`类允许从训练数据集中创�
 
 1.  让我们将理论付诸实践，对`CIFAR10`数据集进行数据增强。我们将首先下载`CIFAR`数据集。
 
-    ```
+    ```py
     # Load CIFAR10 Dataset
     (x_cifar10_train, y_cifar10_train), (x_cifar10_test, y_cifar10_test) = tf.keras.datasets.cifar10.load_data() 
     ```
 
 1.  现在，我们将创建一个图像数据生成器，应用水平翻转、0 到 15 度之间的随机旋转，以及在宽度和高度方向上平移 3 个像素。
 
-    ```
+    ```py
     datagen = tf.keras.preprocessing.image.ImageDataGenerator(
         rotation_range=15,
         width_shift_range=3,
@@ -1267,13 +1267,13 @@ Keras 预处理 API 中的`ImageDataGenerator`类允许从训练数据集中创�
 
 1.  创建训练数据集的迭代器。
 
-    ```
+    ```py
     it= datagen.flow(x_cifar10_train, y_cifar10_train, batch_size = 32) 
     ```
 
 1.  创建一个模型并编译它。
 
-    ```
+    ```py
     model = tf.keras.models.Sequential([
        tf.keras.layers.Conv2D(filters=32, kernel_size=3, padding="same", activation="relu", input_shape=[32, 32, 3]),
        tf.keras.layers.Conv2D(filters=32, kernel_size=3, padding="same", activation="relu"),
@@ -1292,7 +1292,7 @@ Keras 预处理 API 中的`ImageDataGenerator`类允许从训练数据集中创�
 
 1.  通过调用`fit`方法来处理训练。请注意设置`step_per_epoch`参数，该参数指定一个 epoch 包含的样本批次数。
 
-    ```
+    ```py
     history = model.fit(it, epochs=10,
                         steps_per_epoch=len(x_cifar10_train) / 32,
                         validation_data=(x_cifar10_test,                                           y_cifar10_test)) 

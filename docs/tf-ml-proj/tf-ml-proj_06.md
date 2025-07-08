@@ -219,7 +219,7 @@
 
 1.  创建一个数据框，其中包含每只股票的年度时间序列。每年的股票价格在数据框中由单独的列表示。将数据框中的行数限制为 252 行，这大约是每年的交易日数。还要为每行数据添加与之相关的财务季度，作为一个单独的列。
 
-```
+```py
 def get_prices_by_year(self):
    df = self.modify_first_year_data()
    for i in range(1, len(self.num_years)):
@@ -241,7 +241,7 @@ def get_prices_by_year(self):
 
 1.  即使某一年的交易日数更多（例如闰年），也将数据限制为 252 天，以确保各年份之间的一致性。如果某一年份的交易日数少于 252 天，则通过对缺失的天数进行填补（使用该年的均值价格）来外推数据以达到 252 天。请使用以下代码来实现此功能：
 
-```
+```py
 def fill_nans_with_mean(self, df):
    years = self.num_years[:-1]
    df_wo_last_year = df.loc[:,years]
@@ -254,7 +254,7 @@ def fill_nans_with_mean(self, df):
 
 1.  对每一年进行价格归一化，将年度数据转化为零均值和单位标准差。同时，从该年所有数据点中减去第一天的价格。这基本上强制每年的时间序列从零开始，从而避免了前一年价格对其的影响。
 
-```
+```py
 def normalized_data_col(self, df):
    price_normalized = pd.DataFrame()
    date_list = list(df.Date)
@@ -271,7 +271,7 @@ def normalized_data_col(self, df):
 
 1.  如前节所述，生成协方差矩阵作为两个核函数的和：
 
-```
+```py
 kernel = gpflow.kernels.RBF(2, lengthscales=1, variance=63) + gpflow.kernels.White(2, variance=1e-10)
 ```
 
@@ -291,7 +291,7 @@ kernel = gpflow.kernels.RBF(2, lengthscales=1, variance=63) + gpflow.kernels.Whi
 
     1.  对预测期内的股票价格进行预测。
 
-```
+```py
 def make_gp_predictions(self, start_year, end_year, pred_year, pred_quarters = []):
    start_year, end_year, pred_year= int(start_year),int(end_year), int(pred_year)
    years_quarters = list(range(start_year, end_year + 1)) + ['Quarter']

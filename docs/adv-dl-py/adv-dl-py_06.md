@@ -152,7 +152,7 @@ Darknet-53 模型（来源：[`arxiv.org/abs/1804.02767`](https://arxiv.org/abs/
 
 1.  从导入开始：
 
-```
+```py
 import os.path
 
 import cv2  # opencv import
@@ -162,7 +162,7 @@ import requests
 
 1.  添加一些模板代码，用于下载和存储多个配置和数据文件。我们从 YOLOv3 网络配置`yolo_config`和`weights`开始，并用它们初始化`net`网络。我们将使用 YOLO 作者的 GitHub 和个人网站来完成这一步：
 
-```
+```py
 # Download YOLO net config file
 # We'll it from the YOLO author's github repo
 yolo_config = 'yolov3.cfg'
@@ -187,7 +187,7 @@ net = cv2.dnn.readNet(yolo_weights, yolo_config)
 
 1.  接下来，我们将下载网络可以检测的 COCO 数据集类别的名称。我们还将从文件中加载它们。COCO 论文中展示的数据集包含 91 个类别。然而，网站上的数据集仅包含 80 个类别。YOLO 使用的是 80 类别版本：
 
-```
+```py
 # Download class names file
 # Contains the names of the classes the network can detect
 classes_file = 'coco.names'
@@ -204,7 +204,7 @@ with open(classes_file, 'r') as f:
 
 1.  然后，从 Wikipedia 下载一张测试图像。我们还将从文件中加载图像到`blob`变量中：
 
-```
+```py
 # Download object detection image
 image_file = 'source_1.png'
 if not os.path.isfile(image_file):
@@ -220,7 +220,7 @@ blob = cv2.dnn.blobFromImage(image, 1 / 255, (416, 416), (0, 0, 0), True, crop=F
 
 1.  将图像输入网络并进行推理：
 
-```
+```py
 # set as input to the net
 net.setInput(blob)
 
@@ -236,7 +236,7 @@ outs = net.forward(output_layers)
 
 1.  遍历类别和锚框，并为下一步做好准备：
 
-```
+```py
 # extract bounding boxes
 class_ids = list()
 confidences = list()
@@ -262,14 +262,14 @@ for out in outs:
 
 1.  使用非最大抑制去除噪声。你可以尝试不同的`score_threshold`和`nms_threshold`值，看看检测到的物体是如何变化的：
 
-```
+```py
 # non-max suppression
 ids = cv2.dnn.NMSBoxes(boxes, confidences, score_threshold=0.75, nms_threshold=0.5)
 ```
 
 1.  在图像上绘制边界框及其标签：
 
-```
+```py
 for i in ids:
     i = i[0]
     x, y, w, h = boxes[i]
@@ -294,7 +294,7 @@ for i in ids:
 
 1.  最后，我们可以使用以下代码显示检测到的物体：
 
-```
+```py
 cv2.imshow("Object detection", image)
 cv2.waitKey()
 ```
@@ -385,7 +385,7 @@ RPN 通过反向传播和随机梯度下降进行训练（多么令人惊讶！�
 
 1.  我们将从导入开始：
 
-```
+```py
 import os.path
 
 import cv2
@@ -399,7 +399,7 @@ import torchvision.transforms as transforms
 
 1.  我们将加载预训练的 Faster R-CNN 模型，并将其设置为评估模式：
 
-```
+```py
 # load the pytorch model
 model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
 
@@ -409,13 +409,13 @@ model.eval()
 
 1.  然后，我们将使用 OpenCV 读取图像文件：
 
-```
+```py
 img = cv2.imread(image_file)
 ```
 
 1.  我们将定义 PyTorch `transform` 序列，将图像转换为 PyTorch 兼容的张量，并将其传递给网络。网络的输出存储在 `output` 变量中。正如我们在 *区域提议网络* 部分讨论的，`output` 包含三个部分：`boxes` 是边界框参数，`classes` 是物体类别，`scores` 是置信度分数。模型内部应用了 NMS，因此代码中无需再执行此操作：
 
-```
+```py
 transform = transforms.Compose([transforms.ToPILImage(), transforms.ToTensor()])
 nn_input = transform(img)
 output = model([nn_input])
@@ -423,13 +423,13 @@ output = model([nn_input])
 
 1.  在我们继续展示检测到的物体之前，我们将为 COCO 数据集的每个类别定义一组随机颜色：
 
-```
+```py
 colors = np.random.uniform(0, 255, size=(len(classes), 3))
 ```
 
 1.  我们遍历每个边界框，并将其绘制在图像上：
 
-```
+```py
 # iterate over the network output for all boxes
 for box, box_class, score in zip(output[0]['boxes'].detach().numpy(),
                                  output[0]['labels'].detach().numpy(),
@@ -466,7 +466,7 @@ for box, box_class, score in zip(output[0]['boxes'].detach().numpy(),
 
 1.  最后，我们可以使用以下代码显示检测结果：
 
-```
+```py
 cv2.imshow("Object detection", image)
 cv2.waitKey()
 ```
@@ -579,14 +579,14 @@ RoI 对齐示例；来源：[`arxiv.org/abs/1703.06870`](https://arxiv.org/abs/1
 
 1.  这两个示例之间的第一个区别是我们将加载 Mask R-CNN 预训练模型：
 
-```
+```py
 model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True)
 model.eval()
 ```
 
 1.  我们将输入图像传递给网络并获得 `output` 变量：
 
-```
+```py
 # read the image file
 img = cv2.imread(image_file)
 
@@ -600,7 +600,7 @@ output = model([nn_input])
 
 1.  我们遍历掩码并将其叠加到图像上。图像和掩码是 `numpy` 数组，我们可以将叠加操作实现为向量化操作。我们将显示边界框和分割掩码：
 
-```
+```py
 # iterate over the network output for all boxes
 for mask, box, score in zip(output[0]['masks'].detach().numpy(),
                             output[0]['boxes'].detach().numpy(),
@@ -624,7 +624,7 @@ for mask, box, score in zip(output[0]['masks'].detach().numpy(),
 
 1.  最后，我们可以如下显示分割结果：
 
-```
+```py
 cv2.imshow("Object detection", img)
 cv2.waitKey()
 ```
@@ -637,7 +637,7 @@ Mask R-CNN 实例分割
 
 我们可以看到每个分割掩码只在其边界框内定义，所有掩码的值都大于零。为了获得属于物体的实际像素，我们只对分割置信度得分大于 0.5 的像素应用掩码（这段代码是 Mask R-CNN 代码示例中的第 4 步的一部分）：
 
-```
+```py
 img[(mask > 0.5).squeeze(), :] = np.random.uniform(0, 255, size=3)
 ```
 

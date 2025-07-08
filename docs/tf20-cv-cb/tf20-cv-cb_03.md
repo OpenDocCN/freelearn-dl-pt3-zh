@@ -44,7 +44,7 @@
 
 你需要安装`Pillow`和`tqdm`（我们将用它来显示一个漂亮的进度条）。幸运的是，使用`pip`安装非常容易：
 
-```
+```py
 $> pip install Pillow tqdm
 ```
 
@@ -64,7 +64,7 @@ $> pip install Pillow tqdm
 
 1.  导入所有必要的包：
 
-    ```
+    ```py
     import glob
     import os
     import pathlib
@@ -80,7 +80,7 @@ $> pip install Pillow tqdm
 
 1.  定义`FeatureExtractor`类及其构造函数：
 
-    ```
+    ```py
     class FeatureExtractor(object):
         def __init__(self,
                      model,
@@ -95,7 +95,7 @@ $> pip install Pillow tqdm
 
 1.  我们需要确保输出路径是可写的：
 
-    ```
+    ```py
             if os.path.exists(output_path):
                 error_msg = (f'{output_path} already 
                                exists. '
@@ -106,7 +106,7 @@ $> pip install Pillow tqdm
 
 1.  现在，让我们将输入参数存储为对象成员：
 
-    ```
+    ```py
             self.model = model
             self.input_size = input_size
             self.le = label_encoder
@@ -118,7 +118,7 @@ $> pip install Pillow tqdm
 
 1.  `self.buffer`将包含实例和标签的缓冲区，而`self.current_index`将指向 HDF5 数据库内数据集中的下一个空闲位置。我们现在将创建它：
 
-    ```
+    ```py
             self.db = h5py.File(output_path, 'w')
             self.features = self.db.create_dataset(features_      key,
                                            (num_instances,
@@ -132,7 +132,7 @@ $> pip install Pillow tqdm
 
 1.  定义一个方法，从图像路径列表中提取特征和标签，并将它们存储到`HDF5`数据库中：
 
-    ```
+    ```py
         def extract_features(self,
                            image_paths,
                            labels,
@@ -148,7 +148,7 @@ $> pip install Pillow tqdm
 
 1.  在对图像路径及其标签进行洗牌，并对标签进行编码和存储后，我们将遍历图像的批次，将它们传递通过预训练的网络。一旦完成，我们将把结果特征保存到 HDF5 数据库中（我们在这里使用的辅助方法稍后会定义）：
 
-    ```
+    ```py
             for i in tqdm(range(0, len(image_paths), 
                                 batch_size)):
                 batch_paths = image_paths[i: i + 
@@ -177,7 +177,7 @@ $> pip install Pillow tqdm
 
 1.  定义一个私有方法，将特征和标签添加到相应的数据集：
 
-    ```
+    ```py
         def _add(self, rows, labels):
             self.buffer['features'].extend(rows)
             self.buffer['labels'].extend(labels)
@@ -188,7 +188,7 @@ $> pip install Pillow tqdm
 
 1.  定义一个私有方法，将缓冲区刷新到磁盘：
 
-    ```
+    ```py
         def _flush(self):
             next_index = (self.current_index +
                           len(self.buffer['features']))
@@ -203,7 +203,7 @@ $> pip install Pillow tqdm
 
 1.  定义一个私有方法，将类别标签存储到 HDF5 数据库中：
 
-    ```
+    ```py
         def _store_class_labels(self, class_labels):
             data_type = h5py.special_dtype(vlen=str)
             shape = (len(class_labels),)
@@ -215,7 +215,7 @@ $> pip install Pillow tqdm
 
 1.  定义一个私有方法，将关闭 HDF5 数据集：
 
-    ```
+    ```py
         def _close(self):
             if len(self.buffer['features']) > 0:
                 self._flush()
@@ -224,7 +224,7 @@ $> pip install Pillow tqdm
 
 1.  加载数据集中图像的路径：
 
-    ```
+    ```py
     files_pattern = (pathlib.Path.home() / '.keras' / 
                     'datasets' /'car_ims' / '*.jpg')
     files_pattern = str(files_pattern)
@@ -233,7 +233,7 @@ $> pip install Pillow tqdm
 
 1.  创建输出目录。我们将创建一个旋转车图像的数据集，以便潜在的分类器可以学习如何正确地将照片恢复到原始方向，通过正确预测旋转角度：
 
-    ```
+    ```py
     output_path = (pathlib.Path.home() / '.keras' / 
                   'datasets' /
                    'car_ims_rotated')
@@ -243,7 +243,7 @@ $> pip install Pillow tqdm
 
 1.  创建数据集的副本，对图像进行随机旋转：
 
-    ```
+    ```py
     labels = []
     output_paths = []
     for index in tqdm(range(len(input_paths))):
@@ -262,7 +262,7 @@ $> pip install Pillow tqdm
 
 1.  实例化`FeatureExtractor`，并使用预训练的`VGG16`网络从数据集中的图像提取特征：
 
-    ```
+    ```py
     features_path = str(output_path / 'features.hdf5')
     model = VGG16(weights='imagenet', include_top=False)
     fe = FeatureExtractor(model=model,
@@ -275,7 +275,7 @@ $> pip install Pillow tqdm
 
 1.  提取特征和标签：
 
-    ```
+    ```py
     fe.extract_features(image_paths=output_paths, 
                         labels=labels)
     ```
@@ -324,7 +324,7 @@ $> pip install Pillow tqdm
 
 1.  导入所需的包：
 
-    ```
+    ```py
     import pathlib
     import h5py
     from sklearn.linear_model import LogisticRegressionCV
@@ -333,14 +333,14 @@ $> pip install Pillow tqdm
 
 1.  加载 HDF5 格式的数据集：
 
-    ```
+    ```py
     dataset_path = str(pathlib.Path.home()/'.keras'/'datasets'/'car_ims_rotated'/'features.hdf5')
     db = h5py.File(dataset_path, 'r')
     ```
 
 1.  由于数据集太大，我们只处理 50%的数据。以下代码将特征和标签分成两半：
 
-    ```
+    ```py
     SUBSET_INDEX = int(db['labels'].shape[0] * 0.5)
     features = db['features'][:SUBSET_INDEX]
     labels = db['labels'][:SUBSET_INDEX]
@@ -348,7 +348,7 @@ $> pip install Pillow tqdm
 
 1.  取数据的前 80%来训练模型，其余 20%用于之后的评估：
 
-    ```
+    ```py
     TRAIN_PROPORTION = 0.8
     SPLIT_INDEX = int(len(labels) * TRAIN_PROPORTION)
     X_train, y_train = (features[:SPLIT_INDEX],
@@ -359,7 +359,7 @@ $> pip install Pillow tqdm
 
 1.  训练一个交叉验证的`LogisticRegressionCV`，通过交叉验证找到最佳的`C`参数：
 
-    ```
+    ```py
     model = LogisticRegressionCV(n_jobs=-1)
     model.fit(X_train, y_train)
     ```
@@ -368,7 +368,7 @@ $> pip install Pillow tqdm
 
 1.  在测试集上评估模型。我们将计算分类报告，以获得模型性能的细节：
 
-    ```
+    ```py
     predictions = model.predict(X_test)
     report = classification_report(y_test, predictions,
                            target_names=db['label_names'])
@@ -377,7 +377,7 @@ $> pip install Pillow tqdm
 
     这将打印以下报告：
 
-    ```
+    ```py
                   precision    recall  f1-score   support
                0       1.00      1.00      1.00       404
               90       0.98      0.99      0.99       373
@@ -392,7 +392,7 @@ $> pip install Pillow tqdm
 
 1.  最后，关闭 HDF5 文件以释放任何资源：
 
-    ```
+    ```py
     db.close()                    
     ```
 
@@ -420,7 +420,7 @@ $> pip install Pillow tqdm
 
 首先，我们需要安装`Pillow`和`tqdm`：
 
-```
+```py
 $> pip install Pillow tqdm
 ```
 
@@ -442,7 +442,7 @@ $> pip install Pillow tqdm
 
 1.  导入必要的包：
 
-    ```
+    ```py
     import json
     import os
     import pathlib
@@ -462,13 +462,13 @@ $> pip install Pillow tqdm
 
 1.  定义所有特征提取器的输入大小：
 
-    ```
+    ```py
     INPUT_SIZE = (224, 224, 3)
     ```
 
 1.  定义一个函数，用于获取预训练网络的元组列表，以及它们输出的向量的维度：
 
-    ```
+    ```py
     def get_pretrained_networks():
         return [
             (VGG16(input_shape=INPUT_SIZE,
@@ -496,7 +496,7 @@ $> pip install Pillow tqdm
 
 1.  定义一个返回机器学习模型`dict`以进行抽查的函数：
 
-    ```
+    ```py
     def get_classifiers():
         models = {}
         models['LogisticRegression'] = 
@@ -532,7 +532,7 @@ $> pip install Pillow tqdm
 
 1.  定义数据集的路径，以及所有图像路径的列表：
 
-    ```
+    ```py
     dataset_path = (pathlib.Path.home() / '.keras' / 
                    'datasets' 'flowers17')
     files_pattern = (dataset_path / 'images' / '*' / '*.jpg')
@@ -541,7 +541,7 @@ $> pip install Pillow tqdm
 
 1.  将标签加载到内存中：
 
-    ```
+    ```py
     labels = []
     for index in tqdm(range(len(images_path))):
         image_path = images_path[index]
@@ -551,7 +551,7 @@ $> pip install Pillow tqdm
 
 1.  定义一些变量以便跟踪抽查过程。`final_report`将包含每个分类器的准确率，分类器是在不同预训练网络提取的特征上训练的。`best_model`、`best_accuracy`和`best_features`将分别包含最佳模型的名称、准确率和生成特征的预训练网络的名称：
 
-    ```
+    ```py
     final_report = {}
     best_model = None
     best_accuracy = -1
@@ -560,7 +560,7 @@ $> pip install Pillow tqdm
 
 1.  遍历每个预训练网络，使用它从数据集中的图像提取特征：
 
-    ```
+    ```py
     for model, feature_size in get_pretrained_networks():
         output_path = dataset_path / f'{model.name}_features.hdf5'
         output_path = str(output_path)
@@ -576,7 +576,7 @@ $> pip install Pillow tqdm
 
 1.  使用 80%的数据进行训练，20%的数据进行测试：
 
-    ```
+    ```py
         db = h5py.File(output_path, 'r')
         TRAIN_PROPORTION = 0.8
         SPLIT_INDEX = int(len(labels) * TRAIN_PROPORTION)
@@ -593,7 +593,7 @@ $> pip install Pillow tqdm
 
 1.  使用当前迭代中提取的特征，遍历所有机器学习模型，使用训练集进行训练，并在测试集上进行评估：
 
-    ```
+    ```py
         for clf_name, clf in get_classifiers().items():
             try:
                 clf.fit(X_train, y_train)
@@ -608,7 +608,7 @@ $> pip install Pillow tqdm
 
 1.  检查是否有新的最佳模型。如果是，请更新相应的变量：
 
-    ```
+    ```py
             if accuracy > best_accuracy:
                 best_accuracy = accuracy
                 best_model = clf_name
@@ -617,14 +617,14 @@ $> pip install Pillow tqdm
 
 1.  将本次迭代的结果存储在`final_report`中，并释放 HDF5 文件的资源：
 
-    ```
+    ```py
         final_report[output_path] = classifiers_report
         db.close()
     ```
 
 1.  更新`final_report`，并写入最佳模型的信息。最后，将其写入磁盘：
 
-    ```
+    ```py
     final_report['best_model'] = best_model
     final_report['best_accuracy'] = best_accuracy
     final_report['best_features'] = best_features
@@ -652,7 +652,7 @@ $> pip install Pillow tqdm
 
 在本配方中，我们将利用`creme`，这是一个专门设计用于在无法加载到内存的大数据集上训练机器学习模型的实验性库。要安装`creme`，请执行以下命令：
 
-```
+```py
 $> pip install creme==0.5.1
 ```
 
@@ -672,7 +672,7 @@ $> pip install creme==0.5.1
 
 1.  导入所有必要的软件包：
 
-    ```
+    ```py
     import pathlib
     import h5py
     from creme import stream
@@ -684,7 +684,7 @@ $> pip install creme==0.5.1
 
 1.  定义一个函数，将数据集保存为 CSV 文件：
 
-    ```
+    ```py
     def write_dataset(output_path, feats, labels, 
                       batch_size):
         feature_size = feats.shape[1]
@@ -694,7 +694,7 @@ $> pip install creme==0.5.1
 
 1.  我们将为每个特征的类别设置一列，每个特征向量中的元素将设置多列。接下来，我们将批量写入 CSV 文件的内容，从头部开始：
 
-    ```
+    ```py
         dataset_size = labels.shape[0]
         with open(output_path, 'w') as f:
             f.write(f'{“,”.join(csv_columns)}\n')
@@ -702,7 +702,7 @@ $> pip install creme==0.5.1
 
 1.  提取本次迭代中的批次：
 
-    ```
+    ```py
             for batch_number, index in \
                     enumerate(range(0, dataset_size, 
                               batch_size)):
@@ -718,7 +718,7 @@ $> pip install creme==0.5.1
 
 1.  现在，写入批次中的所有行：
 
-    ```
+    ```py
                 for label, vector in \
                         zip(batch_labels, batch_feats):
                     vector = ','.join([str(v) for v in 
@@ -728,14 +728,14 @@ $> pip install creme==0.5.1
 
 1.  加载 HDF5 格式的数据集：
 
-    ```
+    ```py
     dataset_path = str(pathlib.Path.home()/'.keras'/'datasets'/'car_ims_rotated'/'features.hdf5')
     db = h5py.File(dataset_path, 'r')
     ```
 
 1.  定义分割索引，将数据分为训练集（80%）和测试集（20%）：
 
-    ```
+    ```py
     TRAIN_PROPORTION = 0.8
     SPLIT_INDEX = int(db['labels'].shape[0] * 
                       TRAIN_PROPORTION) 
@@ -743,7 +743,7 @@ $> pip install creme==0.5.1
 
 1.  将训练集和测试集子集写入磁盘，保存为 CSV 文件：
 
-    ```
+    ```py
     BATCH_SIZE = 256
     write_dataset('train.csv',
                   db['features'][:SPLIT_INDEX],
@@ -757,7 +757,7 @@ $> pip install creme==0.5.1
 
 1.  `creme`要求我们将 CSV 文件中每一列的类型指定为`dict`实例。以下代码块指定了`class`应该编码为`int`类型，而其余列（对应特征）应该为`float`类型：
 
-    ```
+    ```py
     FEATURE_SIZE = db['features'].shape[1]
     types = {f'feature_{i}': float for i in range(FEATURE_SIZE)}
     types['class'] = int
@@ -765,14 +765,14 @@ $> pip install creme==0.5.1
 
 1.  在以下代码中，我们定义了一个`creme`管道，每个输入在传递给分类器之前都会进行标准化。由于这是一个多类别问题，我们需要将`LogisticRegression`与`OneVsRestClassifier`包装在一起：
 
-    ```
+    ```py
     model = StandardScaler()
     model |= OneVsRestClassifier(LogisticRegression())
     ```
 
 1.  将`Accuracy`定义为目标指标，并创建一个针对`train.csv`数据集的迭代器：
 
-    ```
+    ```py
     metric = Accuracy()
     dataset = stream.iter_csv('train.csv',
                               target_name='class',
@@ -781,7 +781,7 @@ $> pip install creme==0.5.1
 
 1.  一次训练一个样本的分类器。每训练 100 个样本时，打印当前准确率：
 
-    ```
+    ```py
     print('Training started...')
     for i, (X, y) in enumerate(dataset):
         predictions = model.predict_one(X)
@@ -794,7 +794,7 @@ $> pip install creme==0.5.1
 
 1.  创建一个针对`test.csv`文件的迭代器：
 
-    ```
+    ```py
     metric = Accuracy()
     test_dataset = stream.iter_csv('test.csv',
                                    target_name='class',
@@ -803,7 +803,7 @@ $> pip install creme==0.5.1
 
 1.  再次在测试集上评估模型，一次处理一个样本：
 
-    ```
+    ```py
     print('Testing model...')
     for i, (X, y) in enumerate(test_dataset):
         predictions = model.predict_one(X)
@@ -831,7 +831,7 @@ $> pip install creme==0.5.1
 
 我们需要`Pillow`来实现此食谱。可以按如下方式安装：
 
-```
+```py
 $> pip install Pillow
 ```
 
@@ -851,7 +851,7 @@ $> pip install Pillow
 
 1.  导入必要的依赖项：
 
-    ```
+    ```py
     import os
     import pathlib
     from glob import glob
@@ -867,13 +867,13 @@ $> pip install Pillow
 
 1.  设置随机种子：
 
-    ```
+    ```py
     SEED = 999
     ```
 
 1.  定义一个函数，从预训练模型构建一个新的网络，其中顶部的全连接层将是全新的，并且针对当前问题进行了调整：
 
-    ```
+    ```py
     def build_network(base_model, classes):
         x = Flatten()(base_model.output)
         x = Dense(units=256)(x)
@@ -887,7 +887,7 @@ $> pip install Pillow
 
 1.  定义一个函数，将数据集中的图像和标签加载为`NumPy`数组：
 
-    ```
+    ```py
     def load_images_and_labels(image_paths,
                                target_size=(256, 256)):
         images = []
@@ -904,7 +904,7 @@ $> pip install Pillow
 
 1.  加载图像路径并从中提取类集合：
 
-    ```
+    ```py
     dataset_path = (pathlib.Path.home() / '.keras' / 
                    'datasets' /'flowers17')
     files_pattern = (dataset_path / 'images' / '*' / '*.jpg')
@@ -915,7 +915,7 @@ $> pip install Pillow
 
 1.  加载图像并对其进行归一化，使用`LabelBinarizer()`进行一热编码，并将数据拆分为训练集（80%）和测试集（20%）：
 
-    ```
+    ```py
     X, y = load_images_and_labels(image_paths)
     X = X.astype('float') / 255.0
     y = LabelBinarizer().fit_transform(y)
@@ -928,7 +928,7 @@ $> pip install Pillow
 
 1.  实例化一个预训练的`VGG16`模型，去除顶部的全连接层。指定输入形状为 256x256x3：
 
-    ```
+    ```py
     base_model = VGG16(weights='imagenet',
                        include_top=False,
                        input_tensor=Input(shape=(256, 256, 
@@ -937,21 +937,21 @@ $> pip install Pillow
 
     冻结基础模型中的所有层。我们这样做是因为我们不希望重新训练它们，而是使用它们已有的知识：
 
-    ```
+    ```py
     for layer in base_model.layers:
         layer.trainable = False
     ```
 
 1.  使用`build_network()`（在*步骤 3*中定义）构建一个完整的网络，并在其上添加一组新层：
 
-    ```
+    ```py
     model = build_network(base_model, len(CLASSES))
     model = Model(base_model.input, model)
     ```
 
 1.  定义批处理大小和一组要通过`ImageDataGenerator()`应用的增强方法：
 
-    ```
+    ```py
     BATCH_SIZE = 64
     augmenter = ImageDataGenerator(rotation_range=30,
                                    horizontal_flip=True,
@@ -966,7 +966,7 @@ $> pip install Pillow
 
 1.  预热网络。这意味着我们将只训练新添加的层（其余部分被冻结），训练 20 个周期，使用**RMSProp**优化器，学习率为 0.001。最后，我们将在测试集上评估网络：
 
-    ```
+    ```py
     WARMING_EPOCHS = 20
     model.compile(loss='categorical_crossentropy',
                   optimizer=RMSprop(lr=1e-3),
@@ -981,7 +981,7 @@ $> pip install Pillow
 
 1.  现在，网络已经预热完毕，我们将微调基础模型的最终层，特别是从第 16 层开始（记住，索引从零开始），以及全连接层，训练 50 个周期，使用**SGD**优化器，学习率为 0.001：
 
-    ```
+    ```py
     for layer in base_model.layers[15:]:
         layer.trainable = True
     EPOCHS = 50
@@ -1020,7 +1020,7 @@ $> pip install Pillow
 
 我们需要`tensorflow-hub`和`Pillow`来完成这个任务。两者都可以很容易地安装，方法如下：
 
-```
+```py
 $> pip install tensorflow-hub Pillow
 ```
 
@@ -1040,7 +1040,7 @@ $> pip install tensorflow-hub Pillow
 
 1.  导入所需的包：
 
-    ```
+    ```py
     import os
     import pathlib
     from glob import glob
@@ -1056,13 +1056,13 @@ $> pip install tensorflow-hub Pillow
 
 1.  设置随机种子：
 
-    ```
+    ```py
     SEED = 999
     ```
 
 1.  定义一个函数，从预训练模型构建一个新的网络，其中顶部的全连接层将是全新的，并且会根据我们数据中的类别数量进行调整：
 
-    ```
+    ```py
     def build_network(base_model, classes):
         return Sequential([
             base_model,
@@ -1073,7 +1073,7 @@ $> pip install tensorflow-hub Pillow
 
 1.  定义一个函数，将数据集中的图片和标签加载为`NumPy`数组：
 
-    ```
+    ```py
     def load_images_and_labels(image_paths,
                                target_size=(256, 256)):
         images = []
@@ -1090,7 +1090,7 @@ $> pip install tensorflow-hub Pillow
 
 1.  加载图片路径并从中提取类别集合：
 
-    ```
+    ```py
     dataset_path = (pathlib.Path.home() / '.keras' / 
                      'datasets' /'flowers17')
     files_pattern = (dataset_path / 'images' / '*' / '*.jpg')
@@ -1100,7 +1100,7 @@ $> pip install tensorflow-hub Pillow
 
 1.  加载图片并进行归一化，使用`LabelBinarizer()`进行独热编码标签，然后将数据拆分为训练集（80%）和测试集（20%）：
 
-    ```
+    ```py
     X, y = load_images_and_labels(image_paths)
     X = X.astype('float') / 255.0
     y = LabelBinarizer().fit_transform(y)
@@ -1112,7 +1112,7 @@ $> pip install tensorflow-hub Pillow
 
 1.  实例化一个预训练的`KerasLayer()`类，指定输入形状为 256x256x3：
 
-    ```
+    ```py
     model_url = ('https://tfhub.dev/google/imagenet/'
                  'resnet_v1_152/feature_vector/4')
     base_model = KerasLayer(model_url, input_shape=(256, 
@@ -1121,19 +1121,19 @@ $> pip install tensorflow-hub Pillow
 
     使基础模型不可训练：
 
-    ```
+    ```py
     base_model.trainable = False
     ```
 
 1.  在使用基础模型作为起点的基础上，构建完整的网络：
 
-    ```
+    ```py
     model = build_network(base_model, len(CLASSES))
     ```
 
 1.  定义批量大小以及通过`ImageDataGenerator()`应用的一组数据增强操作：
 
-    ```
+    ```py
     BATCH_SIZE = 32
     augmenter = ImageDataGenerator(rotation_range=30,
                                    horizontal_flip=True,
@@ -1148,7 +1148,7 @@ $> pip install tensorflow-hub Pillow
 
 1.  训练整个模型 20 个 epoch，并评估其在测试集上的性能：
 
-    ```
+    ```py
     EPOCHS = 20
     model.compile(loss='categorical_crossentropy',
                   optimizer=RMSprop(lr=1e-3),

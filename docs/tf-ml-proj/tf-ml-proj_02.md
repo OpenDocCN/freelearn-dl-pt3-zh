@@ -108,7 +108,7 @@ Google 在以下论文中发布了 TensorForest 实现的详细信息：*TensorF
 
 TensorForest 估算器用于实现以下算法：
 
-```
+```py
 Initialize the variables and sets
     Tree = [root]
     Fertile = {root}
@@ -162,7 +162,7 @@ TFBT 模型可以通过在 TensorFlow 中编写自定义损失函数进行扩展
 
 1.  使用 Kaggle API 下载数据集。以下代码将用于实现这一目的：
 
-```
+```py
 armando@librenix:~/datasets/kaggle-kepler$ kaggle datasets download -d keplersmachines/kepler-labelled-time-series-data
 
 Downloading kepler-labelled-time-series-data.zip to /mnt/disk1tb/datasets/kaggle-kepler
@@ -171,21 +171,21 @@ Downloading kepler-labelled-time-series-data.zip to /mnt/disk1tb/datasets/kaggle
 
 文件夹中包含以下两个文件：
 
-```
+```py
 exoTest.csv
 exoTrain.csv
 ```
 
 1.  将文件夹`datasets`链接到我们的主文件夹，这样我们就可以通过`~/datasets/kaggle-kepler`路径访问它，然后在 Notebook 中定义文件夹路径并列出文件夹内容，以确认是否可以通过 Notebook 访问数据文件：
 
-```
+```py
 dsroot = os.path.join(os.path.expanduser('~'),'datasets','kaggle-kepler')
 os.listdir(dsroot)
 ```
 
 我们获得了如下输出：
 
-```
+```py
 ['exoTest.csv', 'kepler-labelled-time-series-data.zip', 'exoTrain.csv']
 ```
 
@@ -193,7 +193,7 @@ ZIP 文件只是下载过程中的残留文件，因为 Kaggle API 首先下载 
 
 1.  然后我们将读取两个`.csv`数据文件，分别存储在名为`train`和`test`的`pandas`数据框中：
 
-```
+```py
 import pandas as pd
 train = pd.read_csv(os.path.join(dsroot,'exoTrain.csv'))
 test = pd.read_csv(os.path.join(dsroot,'exoTest.csv'))
@@ -203,7 +203,7 @@ print('Test data\n',test.head())
 
 `training`和`test data`的前五行大致如下：
 
-```
+```py
 Training data
     LABEL   FLUX.1   FLUX.2   FLUX.3  \
 0      2    93.85    83.81    20.10     
@@ -296,7 +296,7 @@ Test data
 
 训练和测试数据集的标签位于第一列，接下来的列中有 3197 个特征。现在，我们使用以下代码将训练和测试数据拆分为标签和特征：
 
-```
+```py
 x_train = train.drop('LABEL', axis=1)
 y_train = train.LABEL-1 #subtract one because of TGBT
 x_test = test.drop('LABEL', axis=1)
@@ -313,13 +313,13 @@ y_test = test.LABEL-1
 
 1.  我们将使用以下代码将所有特征的名称保存到一个向量中：
 
-```
+```py
 numeric_column_headers = x_train.columns.values.tolist()
 ```
 
 1.  然后，我们将特征列根据均值分成两个桶，因为 TFBT 估算器只接受桶化后的特征，代码如下：
 
-```
+```py
 bc_fn = tf.feature_column.bucketized_column
 nc_fn = tf.feature_column.numeric_column
 bucketized_features = [bc_fn(source_column=nc_fn(key=column),
@@ -329,13 +329,13 @@ bucketized_features = [bc_fn(source_column=nc_fn(key=column),
 
 1.  由于我们只有数值型桶化特征，没有其他类型的特征，我们将它们存储在`all_features`变量中，代码如下：
 
-```
+```py
 all_features = bucketized_features
 ```
 
 1.  然后我们将定义批次大小，并创建一个函数，用于提供从训练数据中创建的标签和特征向量的输入。为创建这个函数，我们使用 TensorFlow 提供的便利函数`tf.estimator.inputs.pandas_input_fn()`，代码如下：
 
-```
+```py
 batch_size = 32
 pi_fn = tf.estimator.inputs.pandas_input_fn
 train_input_fn = pi_fn(x = x_train,
@@ -347,7 +347,7 @@ train_input_fn = pi_fn(x = x_train,
 
 1.  类似地，我们将创建另一个数据输入函数，用于从测试特征和标签向量评估模型，并命名为`eval_input_fn`，使用以下代码：
 
-```
+```py
 eval_input_fn = pi_fn(x = x_test,
                       y = y_test,
                       batch_size = batch_size,
@@ -357,7 +357,7 @@ eval_input_fn = pi_fn(x = x_test,
 
 1.  我们将定义要创建的树的数量为`100`，并将用于训练的步骤数定义为`100`。我们还将`BoostedTreeClassifier`定义为`estimator`，使用以下代码：
 
-```
+```py
 n_trees = 100
 n_steps = 100
 
@@ -376,20 +376,20 @@ model = m_fn(feature_columns=all_features,
 
 Jupyter Notebook 中的以下输出描述了分类器估计器及其各种设置：
 
-```
+```py
 INFO:tensorflow:Using default config.
 INFO:tensorflow:Using config: {'_model_dir': './tfbtmodel', '_tf_random_seed': None, '_save_summary_steps': 100, '_save_checkpoints_steps': None, '_save_checkpoints_secs': 600, '_session_config': None, '_keep_checkpoint_max': 5, '_keep_checkpoint_every_n_hours': 10000, '_log_step_count_steps': 100, '_train_distribute': None, '_device_fn': None, '_service': None, '_cluster_spec': <tensorflow.python.training.server_lib.ClusterSpec object at 0x7fdd48c93b38>, '_task_type': 'worker', '_task_id': 0, '_global_id_in_cluster': 0, '_master': '', '_evaluation_master': '', '_is_chief': True, '_num_ps_replicas': 0, '_num_worker_replicas': 1}
 ```
 
 1.  接下来，我们将使用`train_input_fn`函数训练模型，使用 100 步的输入数据进行外行星数据的训练，代码如下：
 
-```
+```py
 model.train(input_fn=train_input_fn, steps=n_steps)
 ```
 
 Jupyter Notebook 显示以下输出，表示训练正在进行：
 
-```
+```py
 INFO:tensorflow:Calling model_fn.
 INFO:tensorflow:Done calling model_fn.
 INFO:tensorflow:Create CheckpointSaverHook.
@@ -417,13 +417,13 @@ INFO:tensorflow:Loss for final step: 1.0475121e-05.
 
 1.  使用`eval_input_fn`，它提供来自`test`数据集的批次数据，以通过以下代码评估模型：
 
-```
+```py
 results = model.evaluate(input_fn=eval_input_fn)
 ```
 
 Jupyter Notebook 显示以下输出，表示评估的进展：
 
-```
+```py
 INFO:tensorflow:Calling model_fn.
 WARNING:tensorflow:Trapezoidal rule is known to produce incorrect PR-AUCs; please switch to "careful_interpolation" instead.
 WARNING:tensorflow:Trapezoidal rule is known to produce incorrect PR-AUCs; please switch to "careful_interpolation" instead.
@@ -443,20 +443,20 @@ INFO:tensorflow:Saving 'checkpoint_path' summary for global step 19203: ./tfbtmo
 
 注意，在评估过程中，估计器会加载保存在检查点文件中的参数：
 
-```
+```py
 INFO:tensorflow:Restoring parameters from ./tfbtmodel/model.ckpt-19203
 ```
 
 1.  评估结果存储在`results`集合中。我们可以使用以下代码中的`for`循环打印`results`集合中的每一项：
 
-```
+```py
 for key,value in sorted(results.items()):
     print('{}: {}'.format(key, value))
 ```
 
 Notebook 显示以下结果：
 
-```
+```py
 accuracy: 0.9912280440330505
 accuracy_baseline: 0.9912280440330505
 auc: 0.4991151690483093

@@ -248,7 +248,7 @@ A3C 涉及的步骤如下：
 
 首先，让我们导入必要的库：
 
-```
+```py
 import warnings
 warnings.filterwarnings('ignore')
 import gym
@@ -266,25 +266,25 @@ tf.disable_v2_behavior()
 
 让我们使用 Gym 创建一个山地车环境。请注意，我们的山地车环境是连续环境，意味着我们的动作空间是连续的：
 
-```
+```py
 env = gym.make('MountainCarContinuous-v0') 
 ```
 
 获取环境的状态形状：
 
-```
+```py
 state_shape = env.observation_space.shape[0] 
 ```
 
 获取环境的动作形状：
 
-```
+```py
 action_shape = env.action_space.shape[0] 
 ```
 
 请注意，我们创建了连续的山地车环境，因此我们的动作空间由连续值组成。所以，我们获取动作空间的边界：
 
-```
+```py
 action_bound = [env.action_space.low, env.action_space.high] 
 ```
 
@@ -294,49 +294,49 @@ action_bound = [env.action_space.low, env.action_space.high]
 
 定义工作者的数量为 CPU 的数量：
 
-```
+```py
 num_workers = multiprocessing.cpu_count() 
 ```
 
 定义回合数：
 
-```
+```py
 num_episodes = 2000 
 ```
 
 定义时间步长的数量：
 
-```
+```py
 num_timesteps = 200 
 ```
 
 定义全球网络（全球代理）作用域：
 
-```
+```py
 global_net_scope = 'Global_Net' 
 ```
 
 定义我们希望更新全球网络的时间步长：
 
-```
+```py
 update_global = 10 
 ```
 
 定义折扣因子， ![](img/B15558_03_190.png)：
 
-```
+```py
 gamma = 0.90 
 ```
 
 定义 beta 值：
 
-```
+```py
 beta = 0.01 
 ```
 
 定义我们希望存储日志的目录：
 
-```
+```py
 log_dir = 'logs' 
 ```
 
@@ -344,7 +344,7 @@ log_dir = 'logs'
 
 我们了解到，在 A3C 中，全球网络和工作代理都遵循演员-评论家架构。所以，让我们定义一个名为`ActorCritic`的类，在其中实现演员-评论家算法。为了清晰理解，让我们逐行查看代码。你也可以从本书的 GitHub 仓库中获取完整的代码。
 
-```
+```py
 class ActorCritic(object): 
 ```
 
@@ -352,57 +352,57 @@ class ActorCritic(object):
 
 首先，让我们定义初始化方法：
 
-```
+```py
  def __init__(self, scope, sess, globalAC=None): 
 ```
 
 初始化 TensorFlow 会话：
 
-```
+```py
  self.sess=sess 
 ```
 
 将演员网络优化器定义为 RMS prop：
 
-```
+```py
  self.actor_optimizer = tf.train.RMSPropOptimizer(0.0001, name='RMSPropA') 
 ```
 
 将评论家网络优化器定义为 RMS prop：
 
-```
+```py
  self.critic_optimizer = tf.train.RMSPropOptimizer(0.001, name='RMSPropC') 
 ```
 
 如果作用域是全球网络（全球代理）：
 
-```
+```py
  if scope == global_net_scope:
             with tf.variable_scope(scope): 
 ```
 
 定义状态的占位符：
 
-```
+```py
  self.state = tf.placeholder(tf.float32, [None, state_shape], 'state') 
 ```
 
 构建全球网络（全球代理），并获取演员和评论家参数：
 
-```
+```py
  self.actor_params, self.critic_params = self.build_network(scope)[-2:] 
 ```
 
 如果网络不是全球网络，则：
 
-```
+```py
  else:
             with tf.variable_scope(scope): 
 ```
 
 定义状态的占位符：
 
-```
+```py
  self.state = tf.placeholder(tf.float32, [None, state_shape], 'state') 
 ```
 
@@ -410,38 +410,38 @@ class ActorCritic(object):
 
 定义占位符以获取动作分布：
 
-```
+```py
  self.action_dist = tf.placeholder(tf.float32, [None, action_shape], 'action') 
 ```
 
 定义目标值的占位符：
 
-```
+```py
  self.target_value = tf.placeholder(tf.float32, [None, 1], 'Vtarget') 
 ```
 
 构建工作网络（工作代理），并获取动作的均值和方差、状态的值以及演员和评论家网络的参数：
 
-```
+```py
  mean, variance, self.value, self.actor_params, self.critic_params = self.build_network(scope) 
 ```
 
 计算时间差误差（TD 误差），它是状态的目标值与预测值之间的差：
 
-```
+```py
  td_error = tf.subtract(self.target_value, self.value, name='TD_error') 
 ```
 
 现在，让我们定义评论家网络的损失：
 
-```
+```py
  with tf.name_scope('critic_loss'):
                     self.critic_loss = tf.reduce_mean(tf.square(td_error)) 
 ```
 
 基于动作的均值和方差创建正态分布：
 
-```
+```py
  normal_dist = tf.distributions.Normal(mean, variance) 
 ```
 
@@ -449,39 +449,39 @@ class ActorCritic(object):
 
 ![](img/B15558_11_041.png)
 
-```
+```py
  with tf.name_scope('actor_loss'): 
 ```
 
 计算动作的对数概率：
 
-```
+```py
  log_prob = normal_dist.log_prob(self.action_dist) 
 ```
 
 定义策略的熵：
 
-```
+```py
  entropy_pi = normal_dist.entropy() 
 ```
 
 计算演员网络损失：
 
-```
+```py
  self.loss = log_prob * td_error + (beta * entropy_pi)
                     self.actor_loss = tf.reduce_mean(-self.loss) 
 ```
 
 基于正态分布选择动作：
 
-```
+```py
  with tf.name_scope('select_action'):
                     self.action = tf.clip_by_value(tf.squeeze(normal_dist.sample(1), axis=0), action_bound[0], action_bound[1]) 
 ```
 
 计算工作代理（本地代理）演员和评论家网络损失的梯度：
 
-```
+```py
  with tf.name_scope('local_grad'):
                     self.actor_grads = tf.gradients(self.actor_loss, self.actor_params)
                     self.critic_grads = tf.gradients(self.critic_loss, self.critic_params) 
@@ -489,13 +489,13 @@ class ActorCritic(object):
 
 现在，让我们执行同步操作：
 
-```
+```py
  with tf.name_scope('sync'): 
 ```
 
 在计算完演员网络和评论家网络的损失的梯度后，工作代理将这些梯度发送（推送）到全局代理：
 
-```
+```py
  with tf.name_scope('push'):
                     self.update_actor_params = self.actor_optimizer.apply_gradients(zip(self.actor_grads, globalAC.actor_params))
                     self.update_critic_params = self.critic_optimizer.apply_gradients(zip(self.critic_grads, globalAC.critic_params)) 
@@ -503,7 +503,7 @@ class ActorCritic(object):
 
 全局代理使用从工作代理（本地代理）接收到的梯度更新他们的参数。然后，工作代理从全局代理拉取更新后的参数：
 
-```
+```py
  with tf.name_scope('pull'):
                     self.pull_actor_params = [l_p.assign(g_p) for l_p, g_p in zip(self.actor_params, globalAC.actor_params)]
                     self.pull_critic_params = [l_p.assign(g_p) for l_p, g_p in zip(self.critic_params, globalAC.critic_params)] 
@@ -513,19 +513,19 @@ class ActorCritic(object):
 
 现在，让我们定义构建演员-评论家网络的函数：
 
-```
+```py
  def build_network(self, scope): 
 ```
 
 初始化权重：
 
-```
+```py
  w_init = tf.random_normal_initializer(0., .1) 
 ```
 
 定义演员网络，它返回动作的均值和方差：
 
-```
+```py
  with tf.variable_scope('actor'):
             l_a = tf.layers.dense(self.state, 200, tf.nn.relu, kernel_initializer=w_init, name='la')
             mean = tf.layers.dense(l_a, action_shape, tf.nn.tanh,kernel_initializer=w_init, name='mean')
@@ -534,7 +534,7 @@ class ActorCritic(object):
 
 定义评论家网络，它返回状态的值：
 
-```
+```py
  with tf.variable_scope('critic'):
             l_c = tf.layers.dense(self.state, 100, tf.nn.relu, kernel_initializer=w_init, name='lc')
             value = tf.layers.dense(l_c, 1, kernel_initializer=w_init, name='value') 
@@ -542,14 +542,14 @@ class ActorCritic(object):
 
 获取演员和评论家网络的参数：
 
-```
+```py
  actor_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/actor')
         critic_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + '/critic') 
 ```
 
 返回由演员网络生成的动作的均值和方差，评论家网络计算的状态值，以及演员和评论家网络的参数：
 
-```
+```py
  return mean, variance, value, actor_params, critic_params 
 ```
 
@@ -557,7 +557,7 @@ class ActorCritic(object):
 
 让我们定义一个名为`update_global`的函数，用于通过工作网络计算的损失梯度更新全局网络的参数，即推送操作：
 
-```
+```py
  def update_global(self, feed_dict):
         self.sess.run([self.update_actor_params, self.update_critic_params], feed_dict) 
 ```
@@ -566,7 +566,7 @@ class ActorCritic(object):
 
 我们还定义了一个名为`pull_from_global`的函数，用于通过从全局网络拉取来更新工作网络的参数，即拉取操作：
 
-```
+```py
  def pull_from_global(self):
         self.sess.run([self.pull_actor_params, self.pull_critic_params]) 
 ```
@@ -575,7 +575,7 @@ class ActorCritic(object):
 
 定义一个名为`select_action`的函数来选择动作：
 
-```
+```py
  def select_action(self, state):
 
         state = state[np.newaxis, :]
@@ -587,7 +587,7 @@ class ActorCritic(object):
 
 让我们定义一个名为`Worker`的类，在这里我们将实现工作代理：
 
-```
+```py
 class Worker(object): 
 ```
 
@@ -595,111 +595,111 @@ class Worker(object):
 
 首先，让我们定义`init`方法：
 
-```
+```py
  def __init__(self, name, globalAC, sess): 
 ```
 
 我们了解到，每个工作代理与他们自己的环境副本一起工作。所以，让我们创建一个山地车环境：
 
-```
+```py
  self.env = gym.make('MountainCarContinuous-v0').unwrapped 
 ```
 
 定义工作代理的名称：
 
-```
+```py
  self.name = name 
 ```
 
 创建我们的`ActorCritic`类的对象：
 
-```
+```py
  self.AC = ActorCritic(name, sess, globalAC) 
 ```
 
 初始化 TensorFlow 会话：
 
-```
+```py
  self.sess=sess 
 ```
 
 定义一个名为`work`的函数供工作代理学习：
 
-```
+```py
  def work(self):
         global global_rewards, global_episodes 
 ```
 
 初始化时间步长：
 
-```
+```py
  total_step = 1 
 ```
 
 初始化一个列表来存储状态、动作和奖励：
 
-```
+```py
  batch_states, batch_actions, batch_rewards = [], [], [] 
 ```
 
 当全局回合数小于回合总数且协调器处于激活状态时：
 
-```
+```py
  while not coord.should_stop() and global_episodes < num_episodes: 
 ```
 
 通过重置环境来初始化状态：
 
-```
+```py
  state = self.env.reset() 
 ```
 
 初始化返回值：
 
-```
+```py
  Return = 0 
 ```
 
 对于环境中的每一步：
 
-```
+```py
  for t in range(num_timesteps): 
 ```
 
 仅渲染工作代理 0 的环境：
 
-```
+```py
  if self.name == 'W_0':
                     self.env.render() 
 ```
 
 选择动作：
 
-```
+```py
  action = self.AC.select_action(state) 
 ```
 
 执行所选动作：
 
-```
+```py
  next_state, reward, done, _ = self.env.step(action) 
 ```
 
 如果已经到达回合的最后一步，则将 `done` 设置为 `True`，否则设置为 `False`：
 
-```
+```py
  done = True if t == num_timesteps - 1 else False 
 ```
 
 更新回报：
 
-```
+```py
  Return += reward 
 ```
 
 将状态、动作和奖励存储到列表中：
 
-```
+```py
  batch_states.append(state)
                 batch_actions.append(action)
                 batch_rewards.append((reward+8)/8) 
@@ -707,7 +707,7 @@ class Worker(object):
 
 现在，让我们更新全局网络。如果 `done` 为 `True`，则将下一个状态的值设置为 `0`，否则计算下一个状态的值：
 
-```
+```py
  if total_step % update_global == 0 or done:
                     if done:
                         v_s_ = 0
@@ -717,7 +717,7 @@ class Worker(object):
 
 计算目标值，公式为 ![](img/B15558_11_042.png)：
 
-```
+```py
  batch_target_value = []
                     for reward in batch_rewards[::-1]:
                         v_s_ = reward + gamma * v_s_
@@ -726,19 +726,19 @@ class Worker(object):
 
 反转目标值：
 
-```
+```py
  batch_target_value.reverse() 
 ```
 
 堆叠状态、动作和目标值：
 
-```
+```py
  batch_states, batch_actions, batch_target_value = np.vstack(batch_states), np.vstack(batch_actions), np.vstack(batch_target_value) 
 ```
 
 定义馈送字典：
 
-```
+```py
  feed_dict = {
                                  self.AC.state: batch_states,
                                  self.AC. action_dist: batch_actions,
@@ -748,32 +748,32 @@ class Worker(object):
 
 更新全局网络：
 
-```
+```py
  self.AC.update_global(feed_dict) 
 ```
 
 清空列表：
 
-```
+```py
  batch_states, batch_actions, batch_rewards = [], [], [] 
 ```
 
 通过从全局网络拉取参数来更新工作网络：
 
-```
+```py
  self.AC.pull_from_global() 
 ```
 
 将状态更新到下一个状态，并增加总步数：
 
-```
+```py
  state = next_state
                 total_step += 1 
 ```
 
 更新全局奖励：
 
-```
+```py
  if done:
                     if len(global_rewards) < 5:
                         global_rewards.append(Return)
@@ -789,20 +789,20 @@ class Worker(object):
 
 现在，让我们开始训练网络。初始化全局奖励列表，并初始化全局回合计数器：
 
-```
+```py
 global_rewards = []
 global_episodes = 0 
 ```
 
 启动 TensorFlow 会话：
 
-```
+```py
 sess = tf.Session() 
 ```
 
 创建全局代理：
 
-```
+```py
 with tf.device("/cpu:0"):
 
     global_agent = ActorCritic(global_net_scope,sess) 
@@ -810,7 +810,7 @@ with tf.device("/cpu:0"):
 
 创建 *n* 个工作代理：
 
-```
+```py
  worker_agents = []
     for i in range(num_workers):
         i_name = 'W_%i' % i
@@ -819,19 +819,19 @@ with tf.device("/cpu:0"):
 
 创建 TensorFlow 协调器：
 
-```
+```py
 coord = tf.train.Coordinator() 
 ```
 
 初始化所有 TensorFlow 变量：
 
-```
+```py
 sess.run(tf.global_variables_initializer()) 
 ```
 
 将 TensorFlow 计算图存储在日志目录中：
 
-```
+```py
 if os.path.exists(log_dir):
     shutil.rmtree(log_dir)
 tf.summary.FileWriter(log_dir, sess.graph) 
@@ -839,7 +839,7 @@ tf.summary.FileWriter(log_dir, sess.graph)
 
 现在，运行工作线程：
 
-```
+```py
 worker_threads = []
 for worker in worker_agents:
     job = lambda: worker.work()

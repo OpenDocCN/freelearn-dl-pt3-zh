@@ -110,7 +110,7 @@ Word2Vec 建模使用窗口扫描句子，然后根据上下文信息预测窗�
 
 让我们通过一个实际例子，看看在这种情况下 skip-gram 模型是如何工作的：
 
-```
+```py
 the quick brown fox jumped over the lazy dog
 ```
 
@@ -118,13 +118,13 @@ the quick brown fox jumped over the lazy dog
 
 通过采用这种上下文技术，我们最终会得到以下一组词语及其对应的上下文：
 
-```
+```py
 ([the, brown], quick), ([quick, fox], brown), ([brown, jumped], fox), ...
 ```
 
 生成的词语及其对应的上下文将以 `(context, target)` 的形式表示。skip-gram 模型的思想与 CBOW 模型正好相反。在 skip-gram 模型中，我们会尝试根据目标词来预测该词的上下文。例如，考虑第一个词对，skip-gram 模型会尝试从目标词 `quick` 预测出 `the` 和 `brown` 等词，依此类推。所以，我们可以将数据集重写如下：
 
-```
+```py
 (quick, the), (quick, brown), (brown, quick), (brown, fox), ...
 ```
 
@@ -196,7 +196,7 @@ the quick brown fox jumped over the lazy dog
 
 那么，我们从导入实现所需的包开始：
 
-```
+```py
 #importing the required packages for this implementation
 import numpy as np
 import tensorflow as tf
@@ -215,7 +215,7 @@ import random
 
 接下来，我们将定义一个类，用于在数据集未下载时进行下载：
 
-```
+```py
 # In this implementation we will use a cleaned up version of Wikipedia from Matt Mahoney.
 # So we will define a helper class that will helps to download the dataset
 wiki_dataset_folder_path = 'wikipedia_data'
@@ -254,7 +254,7 @@ Text8 Dataset: 31.4MB [00:39, 794kB/s]
 
 我们可以查看该数据集的前 100 个字符：
 
-```
+```py
 cleaned_wikipedia_text[0:100]
 
 ' anarchism originated as a term of abuse first used against early working class radicals including t'
@@ -262,7 +262,7 @@ cleaned_wikipedia_text[0:100]
 
 接下来，我们将对文本进行预处理，因此我们将定义一个辅助函数，帮助我们将标点等特殊字符替换为已知的标记。此外，为了减少输入文本中的噪音，您可能还想去除那些在文本中出现频率较低的单词：
 
-```
+```py
 def preprocess_text(input_text):
 
     # Replace punctuation with some special tokens so we can use them in our model
@@ -290,19 +290,19 @@ def preprocess_text(input_text):
 
 现在，让我们在输入文本上调用这个函数，并查看输出：
 
-```
+```py
 preprocessed_words = preprocess_text(cleaned_wikipedia_text)
 print(preprocessed_words[:30])
 ```
 
-```
+```py
 Output:
 ['anarchism', 'originated', 'as', 'a', 'term', 'of', 'abuse', 'first', 'used', 'against', 'early', 'working', 'class', 'radicals', 'including', 'the', 'diggers', 'of', 'the', 'english', 'revolution', 'and', 'the', 'sans', 'culottes', 'of', 'the', 'french', 'revolution', 'whilst']
 ```
 
 让我们看看在处理过的文本中有多少个单词和不同的单词：
 
-```
+```py
 print("Total number of words in the text: {}".format(len(preprocessed_words)))
 print("Total number of unique words in the text: {}".format(len(set(preprocessed_words))))
 
@@ -318,7 +318,7 @@ Total number of unique words in the text: 63641
 
 那么，让我们定义一个函数来创建这个查找表：
 
-```
+```py
 def create_lookuptables(input_words):
  """
  Creating lookup tables for vocan
@@ -337,7 +337,7 @@ def create_lookuptables(input_words):
 
 现在，让我们调用已定义的函数来创建查找表：
 
-```
+```py
 vocab_to_integer, integer_to_vocab = create_lookuptables(preprocessed_words)
 integer_words = [vocab_to_integer[word] for word in preprocessed_words]
 ```
@@ -354,7 +354,7 @@ integer_words = [vocab_to_integer[word] for word in preprocessed_words]
 
 我们将实现一个辅助函数，用于计算数据集中每个单词的丢弃概率：
 
-```
+```py
 # removing context-irrelevant words threshold
 word_threshold = 1e-5
 
@@ -377,7 +377,7 @@ training_words = [word for word in integer_words if random.random() < (1 - prob_
 
 所以，让我们继续定义这个函数：
 
-```
+```py
 # Defining a function that returns the words around specific index in a specific window
 def get_target(input_words, ind, context_window_size=5):
 
@@ -393,7 +393,7 @@ def get_target(input_words, ind, context_window_size=5):
 
 此外，让我们定义一个生成器函数，从训练样本中生成一个随机批次，并为该批次中的每个单词获取上下文词：
 
-```
+```py
 #Defining a function for generating word batches as a tuple (inputs, targets)
 def generate_random_batches(input_words, train_batch_size, context_window_size=5):
 
@@ -428,7 +428,7 @@ def generate_random_batches(input_words, train_batch_size, context_window_size=5
 
 那么，让我们从创建模型输入开始：
 
-```
+```py
 train_graph = tf.Graph()
 
 #defining the inputs placeholders of the model
@@ -439,7 +439,7 @@ with train_graph.as_default():
 
 我们要构建的权重或嵌入矩阵将具有以下形状：
 
-```
+```py
 num_words X num_hidden_neurons
 ```
 
@@ -447,7 +447,7 @@ num_words X num_hidden_neurons
 
 权重矩阵将从均匀分布中随机初始化：
 
-```
+```py
 num_vocab = len(integer_to_vocab)
 
 num_embedding =  300
@@ -462,7 +462,7 @@ with train_graph.as_default():
 
 此外，我们不必自己实现这个函数，因为在 TensorFlow 中已经有了 **`tf.nn.sampled_softmax_loss`**：
 
-```
+```py
 # Number of negative labels to sample
 num_sampled = 100
 
@@ -486,7 +486,7 @@ with train_graph.as_default():
 
 为了验证我们训练的模型，我们将采样一些常见的词和一些不常见的词，并尝试基于跳字模型的学习表示打印它们的最近词集：
 
-```
+```py
 with train_graph.as_default():
 
     # set of random words for evaluating similarity on
@@ -513,7 +513,7 @@ with train_graph.as_default():
 
 让我们继续启动训练过程：
 
-```
+```py
 num_epochs = 10
 train_batch_size = 1000
 contextual_window_size = 10
@@ -576,7 +576,7 @@ with tf.Session(graph=train_graph) as sess:
 
 在运行前面的代码片段 10 个周期后，您将得到以下输出：
 
-```
+```py
 Epoch Number 10/10 Iteration Number: 43100 Avg. Training loss: 5.0380
 Epoch Number 10/10 Iteration Number: 43200 Avg. Training loss: 4.9619
 Epoch Number 10/10 Iteration Number: 43300 Avg. Training loss: 4.9463
@@ -636,7 +636,7 @@ Epoch Number 10/10 Iteration Number: 46200 Avg. Training loss: 4.8887
 
 如您所见，网络在某种程度上学习到了输入单词的一些语义有用的表示。为了帮助我们更清楚地看到嵌入矩阵，我们将使用降维技术，如 t-SNE，将实数值向量降至二维，然后我们将对它们进行可视化，并用相应的单词标记每个点：
 
-```
+```py
 num_visualize_words = 500
 tsne_obj = TSNE()
 embedding_tsne = tsne_obj.fit_transform(embedding_matrix[:num_visualize_words, :])
@@ -647,7 +647,7 @@ for ind in range(num_visualize_words):
     plt.annotate(integer_to_vocab[ind], (embedding_tsne[ind, 0], embedding_tsne[ind, 1]), alpha=0.7)
 ```
 
-```
+```py
 
 Output:
 ```

@@ -24,7 +24,7 @@
 
 这可以通过命令行环境来完成：
 
-```
+```py
 git clone https://github.com/PacktPublishing/learn-tensorflow-enterprise.git
 ```
 
@@ -42,7 +42,7 @@ git clone https://github.com/PacktPublishing/learn-tensorflow-enterprise.git
 
 在本章中，我们将看到 TensorFlow 生态系统中最新的超参数调优框架——Keras Tuner。顾名思义，它是为使用 TensorFlow 2.x Keras API 开发的模型而设计的。此框架的最低要求是 TensorFlow 2.0+ 和 Python 3.6。它作为 TensorFlow 2.3 发行版的一部分发布。如果你还没有使用 TensorFlow 2.3，那么只要你使用的是 TensorFlow 2.x，Keras Tuner 就可以通过以下命令安装：
 
-```
+```py
 pip install keras-tuner
 ```
 
@@ -72,17 +72,17 @@ Keras Tuner 框架使我们可以轻松修改训练脚本。虽然涉及到一�
 
 Keras Tuner 以非常简单直观的方式定义了一个搜索空间。要定义给定层中可能的节点数量，通常你会像这样定义一个层：
 
-```
+```py
 tf.keras.layers.Dense(units = hp_units, activation = 'relu')
 ```
 
 在前面的代码行中，`hp_units` 是该层的节点数量。如果您希望将 `hp_units` 作为超参数进行搜索，那么您只需定义该超参数搜索空间的定义。下面是一个示例：
 
-```
+```py
 hp = kt.HyperParameters()
 ```
 
-```
+```py
 hp_units = hp.Int('units', min_value = 64, max_value = 256, step = 16)
 ```
 
@@ -94,31 +94,31 @@ hp_units = hp.Int('units', min_value = 64, max_value = 256, step = 16)
 
 如果您有一组预定值，并且这些值不是增量的，您可以像下面的代码行一样指定一个值列表：
 
-```
+```py
 hp_units = hp.Choice('units', values = [64, 80, 90])
 ```
 
 `hp_Choice` 是一种灵活的超参数类型。它也可以用来定义算法的超参数，如激活函数。所需的只是可能激活函数的名称。不同激活函数的搜索空间可能如下所示：
 
-```
+```py
 hp_activation = hp.Choice('dense_activation', values=['relu', 'tanh', 'sigmoid'])
 ```
 
 然后，使用该超参数的层的定义将是：
 
-```
+```py
 tf.keras.layers.Dense(units = hp_units, activation = hp_activation)
 ```
 
 `hp.Choice` 可能应用的另一个地方是当您想尝试不同的优化器时：
 
-```
+```py
 hp_optimizer = hp.Choice('selected_optimizer', ['sgd', 'adam'])
 ```
 
 然后，在模型编译步骤中，指定优化器时，您只需将 `optimizer` 定义为 `hp_optimizer`：
 
-```
+```py
 model.compile(optimizer = hp_optimizer, loss = …, metrics = …)
 ```
 
@@ -128,11 +128,11 @@ model.compile(optimizer = hp_optimizer, loss = …, metrics = …)
 
 浮动点数通常出现在训练工作流中的参数，例如优化器的学习率。这里是一个示例，展示了如何在优化器的学习率作为超参数的情况下进行定义：
 
-```
+```py
 hp_learning_rate = hp.Float('learning_rate', min_value = 1e-4, max_value = 1e-2, step = 1e-3)
 ```
 
-```
+```py
 optimizer=tf.keras.optimizers.SGD(lr=hp_learning_rate, momentum=0.5)
 ```
 
@@ -140,99 +140,99 @@ optimizer=tf.keras.optimizers.SGD(lr=hp_learning_rate, momentum=0.5)
 
 作为示例，我创建了一个 `model_builder` 函数。此函数接受定义超参数搜索空间的 `hp 对象`，然后将 `hp 对象` 传递到模型架构中。该函数返回完成的模型。下面是 `model_builder` 函数：
 
-```
+```py
 def model_builder(hp):
 ```
 
-```
+```py
     hp_units = hp.Int('units', min_value = 64, max_value = 256, 
 ```
 
-```
+```py
                                                      step = 64) 
 ```
 
-```
+```py
     hp_activation = hp.Choice('dense_activation', 
 ```
 
-```
+```py
         values=['relu', 'tanh', 'sigmoid'])
 ```
 
-```
+```py
     IMAGE_SIZE = (224, 224)
 ```
 
-```
+```py
     model = tf.keras.Sequential([
 ```
 
-```
+```py
     tf.keras.layers.InputLayer(input_shape=IMAGE_SIZE + (3,)), 
 ```
 
-```
+```py
     hub.KerasLayer('https://tfhub.dev/google/imagenet/resnet_v2_50/feature_vector/4', trainable=False),
 ```
 
-```
+```py
     tf.keras.layers.Flatten(),
 ```
 
-```
+```py
     tf.keras.layers.Dense(units = hp_units, 
 ```
 
-```
+```py
                           activation = hp_activation, 
 ```
 
-```
+```py
                           kernel_initializer='glorot_uniform'),
 ```
 
-```
+```py
     tf.keras.layers.Dense(5, activation='softmax', 
 ```
 
-```
+```py
                                          name = 'custom_class')
 ```
 
-```
+```py
     ])
 ```
 
-```
+```py
     model.build([None, 224, 224, 3])
 ```
 
-```
+```py
     model.compile(
 ```
 
-```
+```py
         optimizer=tf.keras.optimizers.SGD(lr=1e-2, 
 ```
 
-```
+```py
                                                 momentum=0.5), 
 ```
 
-```
+```py
         loss=tf.keras.losses.CategoricalCrossentropy(
 ```
 
-```
+```py
                         from_logits=True, label_smoothing=0.1),
 ```
 
-```
+```py
         metrics=['accuracy'])
 ```
 
-```
+```py
 return model
 ```
 
@@ -268,63 +268,63 @@ Hyperband 算法中有两个 `for` 循环：
 
 现在让我们来看一下如何定义一个使用 Hyperband 算法的调优器实例（有关 API 及其参数的详细说明，请参见 [`keras-team.github.io/keras-tuner/documentation/tuners/`](https://keras-team.github.io/keras-tuner/documentation/tuners/)）。下面是一个示例：
 
-```
+```py
 import kerastuner as kt
 ```
 
-```
+```py
 import tensorflow_hub as hub
 ```
 
-```
+```py
 import tensorflow as tf
 ```
 
-```
+```py
 from absl import flags
 ```
 
-```
+```py
 flags_obj = flags.FLAGS
 ```
 
-```
+```py
 strategy = tf.distribute.MirroredStrategy()
 ```
 
-```
+```py
 tuner = kt.Hyperband(
 ```
 
-```
+```py
             hypermodel = model_builder,
 ```
 
-```
+```py
             objective = 'val_accuracy', 
 ```
 
-```
+```py
             max_epochs = 3,
 ```
 
-```
+```py
             factor = 2,
 ```
 
-```
+```py
             distribution_strategy=strategy,
 ```
 
-```
+```py
             directory = flags_obj.model_dir,
 ```
 
-```
+```py
             project_name = 'hp_tune_hb',
 ```
 
-```
+```py
             overwrite = True)
 ```
 
@@ -350,17 +350,17 @@ tuner = kt.Hyperband(
 
 注意函数签名中的 `hp`。它表示这是模型结构定义的入口函数，其中指定了超参数。在此示例中，有两个超参数：
 
-```
+```py
 hp_units = hp.Int('units', min_value = 64, max_value = 256, step = 64)
 ```
 
-```
+```py
 hp_activation = hp.Choice('dense_activation', values=['relu', 'tanh', 'sigmoid'])
 ```
 
 在模型的顺序 API 定义中，您将会在某个 `Dense` 层中找到这些超参数：
 
-```
+```py
 tf.keras.layers.Dense(units = hp_units, activation = hp_activation, kernel_initializer='glorot_uniform'),
 ```
 
@@ -368,7 +368,7 @@ tf.keras.layers.Dense(units = hp_units, activation = hp_activation, kernel_initi
 
 1.  现在已经定义了调优器和其搜索算法，以下是您如何设置搜索的方法：
 
-    ```
+    ```py
     tuner.search(train_ds,
             steps_per_epoch=STEPS_PER_EPOCHS,
             validation_data=val_ds,
@@ -382,7 +382,7 @@ tf.keras.layers.Dense(units = hp_units, activation = hp_activation, kernel_initi
 
 1.  搜索完成后，您可以通过一个对象检索最佳的超参数配置：
 
-    ```
+    ```py
     best_hps = tuner.get_best_hyperparameters(num_trials = 1)[0]
     print(f'''
             The hyperparameter search is done. 
@@ -395,13 +395,13 @@ tf.keras.layers.Dense(units = hp_units, activation = hp_activation, kernel_initi
 
 1.  建议在获得 `best_hps` 后，您应使用这些参数重新训练您的模型。我们将从使用 `best_hps` 初始化的 `tuner` 对象开始：
 
-    ```
+    ```py
     model = tuner.hypermodel.build(best_hps)
     ```
 
 1.  然后我们可以为正式训练定义检查点和回调函数：
 
-    ```
+    ```py
     checkpoint_prefix = os.path.join(flags_obj.model_dir, 'best_hp_train_ckpt_{epoch}')
         callbacks = [
         tf.keras.callbacks.ModelCheckpoint(
@@ -411,7 +411,7 @@ tf.keras.layers.Dense(units = hp_units, activation = hp_activation, kernel_initi
 
 1.  现在让我们调用 `fit` 函数，开始使用最佳超参数配置进行训练：
 
-    ```
+    ```py
     model.fit(
             train_ds,
             epochs=30, steps_per_epoch=STEPS_PER_EPOCHS,
@@ -422,7 +422,7 @@ tf.keras.layers.Dense(units = hp_units, activation = hp_activation, kernel_initi
 
 1.  一旦训练完成，保存训练好的模型：
 
-    ```
+    ```py
     model_save_dir = os.path.join(flags_obj.model_dir, 
                                            'best_save_model')
     model.save(model_save_dir)
@@ -436,35 +436,35 @@ tf.keras.layers.Dense(units = hp_units, activation = hp_activation, kernel_initi
 
 `tuner`实例以直接的方式调用该算法。以下是一个示例：
 
-```
+```py
 tuner = kt.BayesianOptimization(
 ```
 
-```
+```py
             hypermodel = model_builder,
 ```
 
-```
+```py
             objective ='val_accuracy',
 ```
 
-```
+```py
             max_trials = 50,
 ```
 
-```
+```py
             directory = flags_obj.model_dir,
 ```
 
-```
+```py
             project_name = 'hp_tune_bo',
 ```
 
-```
+```py
             overwrite = True
 ```
 
-```
+```py
             )
 ```
 
@@ -474,31 +474,31 @@ tuner = kt.BayesianOptimization(
 
 下一步与在*Hyperband*部分中看到的启动搜索过程相同：
 
-```
+```py
 tuner.search(train_ds,
 ```
 
-```
+```py
         steps_per_epoch=STEPS_PER_EPOCHS,
 ```
 
-```
+```py
         validation_data=val_ds,
 ```
 
-```
+```py
         validation_steps=VALIDATION_STEPS,
 ```
 
-```
+```py
         epochs=30,
 ```
 
-```
+```py
         callbacks=[tf.keras.callbacks.EarlyStopping(
 ```
 
-```
+```py
                                               'val_accuracy')])
 ```
 
@@ -508,31 +508,31 @@ tuner.search(train_ds,
 
 随机搜索简单来说就是在超参数配置搜索空间中随机选择。以下是一个示例定义：
 
-```
+```py
 tuner = kt.RandomSearch(
 ```
 
-```
+```py
             hypermodel = model_builder, 
 ```
 
-```
+```py
             objective='val_accuracy',
 ```
 
-```
+```py
             max_trials = 5,
 ```
 
-```
+```py
             directory = flags_obj.model_dir,
 ```
 
-```
+```py
             project_name = 'hp_tune_rs',
 ```
 
-```
+```py
             overwrite = True)
 ```
 
@@ -552,7 +552,7 @@ tuner = kt.RandomSearch(
 
 1.  导入`absl`库和相关的 API：
 
-    ```
+    ```py
     from absl import flags
     from absl import logging
     from absl import app
@@ -560,7 +560,7 @@ tuner = kt.RandomSearch(
 
 1.  接下来，我们将使用以下代码行来指示用户输入或标志：
 
-    ```
+    ```py
     tf.compat.v1.flags.DEFINE_string('model_dir', 'default_model_dir', 'Directory or bucket for storing checkpoint model.')
     tf.compat.v1.flags.DEFINE_bool('fine_tuning_choice', False, 'Retrain base parameters')
     tf.compat.v1.flags.DEFINE_integer('train_batch_size', 32, 'Number of samples in a training batch')
@@ -573,13 +573,13 @@ tuner = kt.RandomSearch(
 
 1.  在代码中，我们如何引用并使用这些标志呢？原来我们需要在使用输入标志的函数中使用一个`flags.FLAGS`对象。这个函数可以是`main()`或任何其他函数。为了方便和提高可读性，通常我们会将这个对象赋值给一个变量：
 
-    ```
+    ```py
      flags_obj = flags.FLAGS
     ```
 
 1.  现在，为了引用`model_dir`，我们只需要执行以下操作：
 
-    ```
+    ```py
     flags_obj.model_dir
     ```
 
@@ -587,7 +587,7 @@ tuner = kt.RandomSearch(
 
 1.  现在让我们看看一个示例脚本。我们将从`import`语句开始，将所有需要的库引入到作用域中：
 
-    ```
+    ```py
     import kerastuner as kt
     import tensorflow as tf
     import tensorflow_hub as hub
@@ -602,7 +602,7 @@ tuner = kt.RandomSearch(
 
 1.  定义用户输入参数的名称、默认值和简短说明：
 
-    ```
+    ```py
     tf.compat.v1.flags.DEFINE_string('model_dir', 'default_model_dir', 'Directory or bucket for storing checkpoint model.')
     tf.compat.v1.flags.DEFINE_bool('fine_tuning_choice', False, 'Retrain base parameters')
     tf.compat.v1.flags.DEFINE_integer('train_batch_size', 32, 'Number of samples in a training batch')
@@ -611,7 +611,7 @@ tuner = kt.RandomSearch(
 
 1.  定义一个加载工作数据的函数。在这个例子中，为了方便，我们将直接从 TensorFlow 加载数据：
 
-    ```
+    ```py
     def get_builtin_data():
         data_dir = tf.keras.utils.get_file(
     'flower_photos', 'https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz',
@@ -623,7 +623,7 @@ tuner = kt.RandomSearch(
 
 1.  我们还创建了一个名为`make_generators`的函数。这是一个我们将用来制作数据生成器并将图像数据流入模型训练过程的函数：
 
-    ```
+    ```py
     def make_generators(data_dir, flags_obj):
         BATCH_SIZE = flags_obj.train_batch_size
         IMAGE_SIZE = (224, 224)
@@ -642,7 +642,7 @@ tuner = kt.RandomSearch(
 
 1.  继续进行`make_generators`函数。在这个例子中，默认情况下我们不会对训练数据进行数据增强。在该函数的最后，`train_generator`与`valid_generator`一起返回：
 
-    ```
+    ```py
         do_data_augmentation = False 
         if do_data_augmentation:
             train_datagen = tf.keras.preprocessing.image.ImageDataGenerator(
@@ -663,7 +663,7 @@ tuner = kt.RandomSearch(
 
 1.  接下来，我们定义一个函数来检索索引到标签的映射。由于模型输出的是预测，预测的形式是`0`到`4`之间的整数。每个整数对应花卉类别的名称：
 
-    ```
+    ```py
     def map_labels(train_generator):
         labels_idx = (train_generator.class_indices)
         idx_labels = dict((v,k) for k,v in labels_idx.items())
@@ -674,7 +674,7 @@ tuner = kt.RandomSearch(
 
 1.  以下函数构建了模型架构，如*Hyperband*部分所述：
 
-    ```
+    ```py
     def model_builder(hp):
     os.environ['TFHUB_CACHE_DIR'] =      
              '/Users/XXXXX/Downloads/imagenet_resnet_v2_50_feature_vector_4'
@@ -705,7 +705,7 @@ tuner = kt.RandomSearch(
 
 1.  定义一个对象来清除屏幕，以便在超参数搜索在搜索空间中移动时：
 
-    ```
+    ```py
     class ClearTrainingOutput(tf.keras.callbacks.Callback):
             def on_train_end(*args, **kwargs):
                 IPython.display.clear_output(wait = True)
@@ -715,7 +715,7 @@ tuner = kt.RandomSearch(
 
 1.  这是训练脚本的主要驱动程序：
 
-    ```
+    ```py
     def main(_):
         flags_obj = flags.FLAGS
         strategy = tf.distribute.MirroredStrategy()
@@ -728,163 +728,163 @@ tuner = kt.RandomSearch(
 
 在下面的条件代码逻辑块中，我们处理超参数搜索算法的选择。所有三种选择都已列出：贝叶斯优化、随机搜索和 Hyperband。默认选择是 Hyperband。在每个选择中，都有一个`hypermodel`属性。该属性指定将采用最佳超参数来构建模型的函数名称：
 
-```
+```py
     '''Runs the hyperparameter search.'''
 ```
 
-```
+```py
     if(flags_obj.tuner_type.lower() == 'BayesianOptimization'.lower()):
 ```
 
-```
+```py
         tuner = kt.BayesianOptimization(
 ```
 
-```
+```py
             hypermodel = model_builder,
 ```
 
-```
+```py
             objective ='val_accuracy',
 ```
 
-```
+```py
             tune_new_entries = True,
 ```
 
-```
+```py
             allow_new_entries = True,
 ```
 
-```
+```py
             max_trials = 5,
 ```
 
-```
+```py
             directory = flags_obj.model_dir,
 ```
 
-```
+```py
             project_name = 'hp_tune_bo',
 ```
 
-```
+```py
             overwrite = True
 ```
 
-```
+```py
             )
 ```
 
-```
+```py
     elif (flags_obj.tuner_type.lower() == 'RandomSearch'.lower()):
 ```
 
-```
+```py
         tuner = kt.RandomSearch(
 ```
 
-```
+```py
             hypermodel = model_builder, 
 ```
 
-```
+```py
             objective='val_accuracy',
 ```
 
-```
+```py
             tune_new_entries = True, 
 ```
 
-```
+```py
             allow_new_entries = True,
 ```
 
-```
+```py
             max_trials = 5,
 ```
 
-```
+```py
             directory = flags_obj.model_dir,
 ```
 
-```
+```py
             project_name = 'hp_tune_rs',
 ```
 
-```
+```py
             overwrite = True)
 ```
 
 除非通过输入指定使用贝叶斯优化或随机搜索，否则默认选择是 Hyperband。这在下面代码的`else`块中有所指示：
 
-```
+```py
 else: 
 ```
 
-```
+```py
     # Default choice for tuning algorithm is hyperband.
 ```
 
-```
+```py
         tuner = kt.Hyperband(
 ```
 
-```
+```py
             hypermodel = model_builder,
 ```
 
-```
+```py
             objective = 'val_accuracy', 
 ```
 
-```
+```py
             max_epochs = 3,
 ```
 
-```
+```py
             factor = 2,
 ```
 
-```
+```py
             distribution_strategy=strategy,
 ```
 
-```
+```py
             directory = flags_obj.model_dir,
 ```
 
-```
+```py
             project_name = 'hp_tune_hb',
 ```
 
-```
+```py
             overwrite = True)
 ```
 
 现在根据前面的代码逻辑执行搜索算法；我们需要传递最佳超参数。为了自己的方便，我们可以使用`get_gest_hyperparameters` API 来打印出最佳超参数。我们将通过以下代码获得最优超参数：
 
-```
+```py
     best_hps = tuner.get_best_hyperparameters(num_trials = 1)[0]
 ```
 
-```
+```py
     print(f'''
 ```
 
-```
+```py
         The hyperparameter search is done. 
 ```
 
-```
+```py
         The best number of nodes in the dense layer is {best_hps.get('units')}.
 ```
 
-```
+```py
         The optimal learning rate for the optimizer is       {best_hps.get('learning_rate')}.
 ```
 
-```
+```py
         ''')
 ```
 
@@ -892,107 +892,107 @@ else:
 
 在以下代码中，我们将设置训练和验证数据批次，创建回调对象，并使用`fit` API 开始训练：
 
-```
+```py
     # Build the model with the optimal hyperparameters and train it on the data
 ```
 
-```
+```py
     model = tuner.hypermodel.build(best_hps)
 ```
 
-```
+```py
     checkpoint_prefix = os.path.join(flags_obj.model_dir, 'best_hp_train_ckpt_{epoch}')
 ```
 
-```
+```py
     callbacks = [
 ```
 
-```
+```py
     tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_prefix,
 ```
 
-```
+```py
                                        save_weights_only=True)]
 ```
 
-```
+```py
     steps_per_epoch = train_gtr.samples // train_gtr.batch_size
 ```
 
-```
+```py
     validation_steps = validation_gtr.samples // validation_gtr.batch_size
 ```
 
-```
+```py
     model.fit(
 ```
 
-```
+```py
         train_gtr,
 ```
 
-```
+```py
         epochs=3, steps_per_epoch=steps_per_epoch,
 ```
 
-```
+```py
         validation_data=validation_gtr,
 ```
 
-```
+```py
         validation_steps=validation_steps,
 ```
 
-```
+```py
         callbacks=callbacks)
 ```
 
 在这里，我们将目标目录中保存的模型的输出日志显示在屏幕上：
 
-```
+```py
 logging.info('INSIDE MAIN FUNCTION user input model_dir %s', 	                                           flags_obj.model_dir)
 ```
 
-```
+```py
     # Save model trained with chosen HP in user specified bucket location
 ```
 
-```
+```py
     model_save_dir = os.path.join(flags_obj.model_dir, 
 ```
 
-```
+```py
                                              'best_save_model')
 ```
 
-```
+```py
     model.save(model_save_dir)
 ```
 
-```
+```py
 if __name__ == '__main__':
 ```
 
-```
+```py
     app.run(main)
 ```
 
 要将其作为脚本运行（`hp_kt_resnet_local.py`），你可以通过以下命令简单地调用它：
 
-```
+```py
 python3 hp_kt_resnet_local_pub.py \
 ```
 
-```
+```py
 --model_dir=resnet_local_hb_output  \
 ```
 
-```
+```py
 --train_epoch_best=2 \
 ```
 
-```
+```py
 --tuner_type=hyperband
 ```
 
@@ -1008,7 +1008,7 @@ python3 hp_kt_resnet_local_pub.py \
 
 1.  在将要调用调优任务的目录中，需要更新`setup.py`以包含`keras-tuner`。同时，我们也将添加 IPython。所以，请按以下方式编辑`setup.py`文件：
 
-    ```
+    ```py
     from setuptools import find_packages
     from setuptools import setup
     setup(
@@ -1022,7 +1022,7 @@ python3 hp_kt_resnet_local_pub.py \
 
 1.  现在你已经准备好提交调优任务。在以下命令中，任务被提交到 Cloud TPU 并在分布式训练策略下运行：
 
-    ```
+    ```py
     gcloud ai-platform jobs submit training hp_kt_resnet_tpu_hb_test \
     --staging-bucket=gs://ai-tpu-experiment \
     --package-path=tfk \

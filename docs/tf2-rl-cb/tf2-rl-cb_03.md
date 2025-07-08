@@ -38,7 +38,7 @@ Double-DQN 代理使用两个相同的深度神经网络，它们的更新方式
 
 要完成这个食谱，你首先需要激活 `tf2rl-cookbook` Conda Python 虚拟环境，并运行 `pip install -r requirements.txt`。如果以下导入语句没有问题，那么你就可以开始了！
 
-```
+```py
 import argparse
 from datetime import datetime
 import os
@@ -58,7 +58,7 @@ DQN 智能体包含几个组件，分别是`DQN`类、`Agent`类和`train`方法
 
 1.  首先，让我们创建一个参数解析器来处理脚本的配置输入：
 
-    ```
+    ```py
             parser = argparse.ArgumentParser(prog="TFRL-Cookbook-Ch3-DQN")
     parser.add_argument("--env , default="CartPole-v0")
     parser.add_argument("--lr", type=float, default=0.005)
@@ -73,7 +73,7 @@ DQN 智能体包含几个组件，分别是`DQN`类、`Agent`类和`train`方法
 
 1.  现在，让我们创建一个 Tensorboard 日志记录器，用于在智能体训练过程中记录有用的统计数据：
 
-    ```
+    ```py
     logdir = os.path.join(
         args.logdir, parser.prog, args.env, 
         datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -84,7 +84,7 @@ DQN 智能体包含几个组件，分别是`DQN`类、`Agent`类和`train`方法
 
 1.  接下来，让我们实现一个`ReplayBuffer`类：
 
-    ```
+    ```py
     class ReplayBuffer:
         def __init__(self, capacity=10000):
             self.buffer = deque(maxlen=capacity)
@@ -109,7 +109,7 @@ DQN 智能体包含几个组件，分别是`DQN`类、`Agent`类和`train`方法
 
 1.  现在是时候实现 DQN 类了，该类定义了 TensorFlow 2.x 中的深度神经网络：  
 
-    ```
+    ```py
     class DQN:
         def __init__(self, state_dim, aciton_dim):
             self.state_dim = state_dim
@@ -132,7 +132,7 @@ DQN 智能体包含几个组件，分别是`DQN`类、`Agent`类和`train`方法
 
 1.  为了从 DQN 获取预测和动作，让我们实现`predict`和`get_action`方法：  
 
-    ```
+    ```py
         def predict(self, state):
             return self.model.predict(state)
         def get_action(self, state):
@@ -149,7 +149,7 @@ DQN 智能体包含几个组件，分别是`DQN`类、`Agent`类和`train`方法
 
 1.  实现了其他组件后，我们可以开始实现我们的`Agent`类：  
 
-    ```
+    ```py
     class Agent:
         def __init__(self, env):
             self.env = env
@@ -168,7 +168,7 @@ DQN 智能体包含几个组件，分别是`DQN`类、`Agent`类和`train`方法
 
 1.  深度 Q 学习算法的核心是 q 学习更新和经验回放。让我们接下来实现它：  
 
-    ```
+    ```py
         def replay_experience(self):
             for _ in range(10):
                 states, actions, rewards, next_states, done=\
@@ -185,7 +185,7 @@ DQN 智能体包含几个组件，分别是`DQN`类、`Agent`类和`train`方法
 
 1.  下一步至关重要的是实现`train`函数来训练智能体：  
 
-    ```
+    ```py
     def train(self, max_episodes=1000):
             with writer.as_default():  # Tensorboard logging
                 for ep in range(max_episodes):
@@ -214,7 +214,7 @@ DQN 智能体包含几个组件，分别是`DQN`类、`Agent`类和`train`方法
 
 1.  最后，让我们创建主函数以开始训练智能体：  
 
-    ```
+    ```py
     if __name__ == "__main__":
         env = gym.make("CartPole-v0")
         agent = Agent(env)
@@ -223,19 +223,19 @@ DQN 智能体包含几个组件，分别是`DQN`类、`Agent`类和`train`方法
 
 1.  要在默认环境（`CartPole-v0`）中训练 DQN 智能体，请执行以下命令：  
 
-    ```
+    ```py
     python ch3-deep-rl-agents/1_dqn.py
     ```
 
 1.  你还可以使用命令行参数在任何 OpenAI Gym 兼容的离散动作空间环境中训练 DQN 智能体：  
 
-    ```
+    ```py
     python ch3-deep-rl-agents/1_dqn.py –env "MountainCar-v0"
     ```
 
 1.  现在，为了实现 Double DQN 智能体，我们必须修改`replay_experience`方法，以使用 Double Q 学习的更新步骤，如下所示：  
 
-    ```
+    ```py
         def replay_experience(self):
             for _ in range(10):
                 states, actions, rewards, next_states, done=\
@@ -256,7 +256,7 @@ DQN 智能体包含几个组件，分别是`DQN`类、`Agent`类和`train`方法
 
 1.  最后，为了训练 Double DQN 智能体，保存并运行脚本，更新后的`replay_experience`方法，或者使用作为本书源代码一部分提供的脚本：  
 
-    ```
+    ```py
     python ch3-deep-rl-agents/1_double_dqn.py
     ```
 
@@ -286,7 +286,7 @@ DQN 中的权重更新按以下 Q 学习方程进行：
 
 要完成这个配方，首先需要激活 `tf2rl-cookbook` Conda Python 虚拟环境，并运行 `pip install -r requirements.txt`。如果以下导入语句没有问题，则说明可以开始了！
 
-```
+```py
 import argparse
 import os
 import random
@@ -307,7 +307,7 @@ Dueling DQN 智能体由几个组件组成，即 `DuelingDQN` 类、`Agent` 类�
 
 1.  作为第一步，让我们创建一个参数解析器，用于处理脚本的命令行配置输入：
 
-    ```
+    ```py
     parser = argparse.ArgumentParser(prog="TFRL-Cookbook-Ch3-DuelingDQN")
     parser.add_argument("--env", default="CartPole-v0")
     parser.add_argument("--lr", type=float, default=0.005)
@@ -322,7 +322,7 @@ Dueling DQN 智能体由几个组件组成，即 `DuelingDQN` 类、`Agent` 类�
 
 1.  为了在智能体训练过程中记录有用的统计信息，让我们创建一个 TensorBoard 日志记录器：
 
-    ```
+    ```py
     logdir = os.path.join(
         args.logdir, parser.prog, args.env, 
         datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -333,7 +333,7 @@ Dueling DQN 智能体由几个组件组成，即 `DuelingDQN` 类、`Agent` 类�
 
 1.  接下来，让我们实现一个 `ReplayBuffer` 类：
 
-    ```
+    ```py
     class ReplayBuffer:
         def __init__(self, capacity=10000):
             self.buffer = deque(maxlen=capacity)
@@ -358,7 +358,7 @@ Dueling DQN 智能体由几个组件组成，即 `DuelingDQN` 类、`Agent` 类�
 
 1.  现在是时候实现 DuelingDQN 类，该类在 TensorFlow 2.x 中定义深度神经网络了：
 
-    ```
+    ```py
     class DuelingDQN:
         def __init__(self, state_dim, aciton_dim):
             self.state_dim = state_dim
@@ -390,7 +390,7 @@ Dueling DQN 智能体由几个组件组成，即 `DuelingDQN` 类、`Agent` 类�
 
 1.  为了从 Dueling DQN 获取预测和动作，让我们实现 `predict`、`get_action` 和 `train` 方法：
 
-    ```
+    ```py
             def predict(self, state):
             return self.model.predict(state)
         def get_action(self, state):
@@ -407,7 +407,7 @@ Dueling DQN 智能体由几个组件组成，即 `DuelingDQN` 类、`Agent` 类�
 
 1.  现在我们可以开始实现 `Agent` 类：
 
-    ```
+    ```py
     class Agent:
         def __init__(self, env):
             self.env = env
@@ -427,7 +427,7 @@ Dueling DQN 智能体由几个组件组成，即 `DuelingDQN` 类、`Agent` 类�
 
 1.  Dueling Deep Q-learning 算法的关键在于 q-learning 更新和经验回放。接下来，让我们实现这些：
 
-    ```
+    ```py
         def replay_experience(self):
             for _ in range(10):
                 states, actions, rewards, next_states, done=\
@@ -444,7 +444,7 @@ Dueling DQN 智能体由几个组件组成，即 `DuelingDQN` 类、`Agent` 类�
 
 1.  下一个关键步骤是实现 `train` 函数来训练智能体：
 
-    ```
+    ```py
     def train(self, max_episodes=1000):
             with writer.as_default():
                 for ep in range(max_episodes):
@@ -470,7 +470,7 @@ Dueling DQN 智能体由几个组件组成，即 `DuelingDQN` 类、`Agent` 类�
 
 1.  最后，让我们创建主函数来启动智能体的训练：
 
-    ```
+    ```py
     if __name__ == "__main__":
         env = gym.make("CartPole-v0")
         agent = Agent(env)
@@ -479,13 +479,13 @@ Dueling DQN 智能体由几个组件组成，即 `DuelingDQN` 类、`Agent` 类�
 
 1.  要在默认环境（`CartPole-v0`）中训练 Dueling DQN 智能体，请执行以下命令：
 
-    ```
+    ```py
     python ch3-deep-rl-agents/2_dueling_dqn.py
     ```
 
 1.  你也可以在任何与 OpenAI Gym 兼容的离散动作空间环境中训练 DQN 智能体，使用命令行参数：
 
-    ```
+    ```py
     python ch3-deep-rl-agents/2_dueling_dqn.py –env "MountainCar-v0"
     ```
 
@@ -511,7 +511,7 @@ DQN（图的上半部分）具有线性架构，预测一个单一的数量（Q(
 
 要完成这个食谱，你首先需要激活 `tf2rl-cookbook` Conda Python 虚拟环境并运行 `pip install -r requirements.txt`。如果以下导入语句没有问题，那么你就可以开始了！
 
-```
+```py
 import argparse
 from datetime import datetime
 import os
@@ -532,7 +532,7 @@ DDDQN 智能体结合了 DQN、Double DQN 和 Dueling DQN 中的思想。执行�
 
 1.  首先，让我们创建一个参数解析器来处理脚本的配置输入：
 
-    ```
+    ```py
     parser = argparse.ArgumentParser(prog="TFRL-Cookbook-Ch3-DuelingDoubleDQN")
     parser.add_argument("--env", default="CartPole-v0")
     parser.add_argument("--lr", type=float, default=0.005)
@@ -547,7 +547,7 @@ DDDQN 智能体结合了 DQN、Double DQN 和 Dueling DQN 中的思想。执行�
 
 1.  接下来，让我们创建一个 Tensorboard 日志记录器，用于记录智能体训练过程中的有用统计数据：
 
-    ```
+    ```py
     logdir = os.path.join(
         args.logdir, parser.prog, args.env, \
         datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -558,7 +558,7 @@ DDDQN 智能体结合了 DQN、Double DQN 和 Dueling DQN 中的思想。执行�
 
 1.  现在，让我们实现一个 `ReplayBuffer`：
 
-    ```
+    ```py
     class ReplayBuffer:
         def __init__(self, capacity=10000):
             self.buffer = deque(maxlen=capacity)
@@ -582,7 +582,7 @@ DDDQN 智能体结合了 DQN、Double DQN 和 Dueling DQN 中的思想。执行�
 
 1.  现在是时候实现 Dueling DQN 类了，它将按照 Dueling 架构定义神经网络，后续我们会在此基础上添加 Double DQN 更新：
 
-    ```
+    ```py
     class DuelingDQN:
         def __init__(self, state_dim, aciton_dim):
             self.state_dim = state_dim
@@ -604,7 +604,7 @@ DDDQN 智能体结合了 DQN、Double DQN 和 Dueling DQN 中的思想。执行�
 
 1.  为了从 Dueling DQN 获取预测和动作，让我们实现 `predict` 和 `get_action` 方法：
 
-    ```
+    ```py
         def predict(self, state):
             return self.model.predict(state)
         def get_action(self, state):
@@ -621,7 +621,7 @@ DDDQN 智能体结合了 DQN、Double DQN 和 Dueling DQN 中的思想。执行�
 
 1.  其他组件实现完成后，我们可以开始实现 `Agent` 类：
 
-    ```
+    ```py
     class Agent:
         def __init__(self, env):
             self.env = env
@@ -641,7 +641,7 @@ DDDQN 智能体结合了 DQN、Double DQN 和 Dueling DQN 中的思想。执行�
 
 1.  Dueling Double Deep Q-learning 算法的主要元素是 Q-learning 更新和经验回放。接下来我们将实现这些：
 
-    ```
+    ```py
         def replay_experience(self):
             for _ in range(10):
                 states, actions, rewards, next_states, done=\
@@ -662,7 +662,7 @@ DDDQN 智能体结合了 DQN、Double DQN 和 Dueling DQN 中的思想。执行�
 
 1.  下一个关键步骤是实现 `train` 函数来训练智能体：
 
-    ```
+    ```py
     def train(self, max_episodes=1000):
             with writer.as_default():
                 for ep in range(max_episodes):
@@ -691,7 +691,7 @@ DDDQN 智能体结合了 DQN、Double DQN 和 Dueling DQN 中的思想。执行�
 
 1.  最后，让我们创建主函数来开始训练智能体：
 
-    ```
+    ```py
     if __name__ == "__main__":
         env = gym.make("CartPole-v0")
         agent = Agent(env)
@@ -700,13 +700,13 @@ DDDQN 智能体结合了 DQN、Double DQN 和 Dueling DQN 中的思想。执行�
 
 1.  要在默认环境（`CartPole-v0`）中训练 DQN 智能体，请执行以下命令：
 
-    ```
+    ```py
     python ch3-deep-rl-agents/3_dueling_double_dqn.py
     ```
 
 1.  你还可以在任何兼容 OpenAI Gym 的离散动作空间环境中使用命令行参数训练 Dueling Double DQN 智能体：
 
-    ```
+    ```py
     python ch3-deep-rl-agents/3_dueling_double_dqn.py –env "MountainCar-v0"
     ```
 
@@ -722,7 +722,7 @@ DRQN 使用递归神经网络来学习 Q 值函数。DRQN 更适合在部分可�
 
 要完成这个配方，您首先需要激活`tf2rl-cookbook` Conda Python 虚拟环境，并运行`pip install -r requirements.txt`。如果以下导入语句没有问题，那么您就准备好开始了！
 
-```
+```py
 import tensorflow as tf
 from datetime import datetime
 import os
@@ -743,7 +743,7 @@ import random
 
 1.  首先，创建一个参数解析器来处理脚本的配置输入：
 
-    ```
+    ```py
     parser = argparse.ArgumentParser(prog="TFRL-Cookbook-Ch3-DRQN")
     parser.add_argument("--env", default="CartPole-v0")
     parser.add_argument("--lr", type=float, default=0.005)
@@ -759,7 +759,7 @@ import random
 
 1.  让我们在智能体的训练过程中使用 Tensorboard 记录有用的统计信息：
 
-    ```
+    ```py
     logdir = os.path.join(
         args.logdir, parser.prog, args.env, \
         datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -770,7 +770,7 @@ import random
 
 1.  接下来，让我们实现一个`ReplayBuffer`：
 
-    ```
+    ```py
     class ReplayBuffer:
         def __init__(self, capacity=10000):
             self.buffer = deque(maxlen=capacity)
@@ -795,7 +795,7 @@ import random
 
 1.  现在是时候实现定义深度神经网络的 DRQN 类了，使用的是 TensorFlow 2.x：
 
-    ```
+    ```py
     class DRQN:
         def __init__(self, state_dim, action_dim):
             self.state_dim = state_dim
@@ -818,7 +818,7 @@ import random
 
 1.  为了从 DRQN 获取预测和动作，让我们实现`predict`和`get_action`方法：
 
-    ```
+    ```py
         def predict(self, state):
             return self.model.predict(state)
         def get_action(self, state):
@@ -844,7 +844,7 @@ import random
 
 1.  实现了其他组件后，我们可以开始实现我们的`Agent`类：
 
-    ```
+    ```py
     class Agent:
         def __init__(self, env):
             self.env = env
@@ -866,7 +866,7 @@ import random
 
 1.  除了我们在第 6 步中实现的 DRQN 类中的`train`方法外，深度递归 Q 学习算法的核心是 Q 学习更新和经验回放。接下来，让我们实现这一部分：
 
-    ```
+    ```py
         def replay_experience(self):
             for _ in range(10):
                 states, actions, rewards, next_states, done=\
@@ -883,7 +883,7 @@ import random
 
 1.  由于 DRQN 智能体使用递归状态，让我们实现`update_states`方法来更新智能体的递归状态：
 
-    ```
+    ```py
         def update_states(self, next_state):
             self.states = np.roll(self.states, -1, axis=0)
             self.states[-1] = next_state
@@ -891,7 +891,7 @@ import random
 
 1.  下一个关键步骤是实现`train`函数来训练智能体：
 
-    ```
+    ```py
     def train(self, max_episodes=1000):
             with writer.as_default():
                 for ep in range(max_episodes):
@@ -921,7 +921,7 @@ import random
 
 1.  最后，让我们为智能体创建主要的训练循环：
 
-    ```
+    ```py
     if __name__ == "__main__":
         env = gym.make("Pong-v0")
         agent = Agent(env)
@@ -930,13 +930,13 @@ import random
 
 1.  要在默认环境（`CartPole-v0`）中训练 DRQN 智能体，请执行以下命令：
 
-    ```
+    ```py
     python ch3-deep-rl-agents/4_drqn.py
     ```
 
 1.  您还可以使用命令行参数在任何 OpenAI Gym 兼容的离散动作空间环境中训练 DQN 智能体：
 
-    ```
+    ```py
     python ch3-deep-rl-agents/4_drqn.py –env "MountainCar-v0"
     ```
 
@@ -952,7 +952,7 @@ A3C 算法在 Actor-Critic 类算法的基础上构建，通过使用神经网�
 
 要完成这个配方，你首先需要激活 `tf2rl-cookbook` Conda Python 虚拟环境并运行 `pip install -r requirements.txt`。如果以下的导入语句没有问题，那就说明你已经准备好开始了！
 
-```
+```py
 import argparse
 import os
 from datetime import datetime
@@ -972,7 +972,7 @@ from tensorflow.keras.layers import Input, Dense, Lambda
 
 1.  首先，让我们创建一个参数解析器，用来处理脚本的配置输入：
 
-    ```
+    ```py
     parser = argparse.ArgumentParser(prog="TFRL-Cookbook-Ch3-A3C")
     parser.add_argument("--env", default="MountainCarContinuous-v0")
     parser.add_argument("--actor-lr", type=float, default=0.001)
@@ -985,7 +985,7 @@ from tensorflow.keras.layers import Input, Dense, Lambda
 
 1.  现在让我们创建一个 Tensorboard 日志记录器，以便在智能体训练过程中记录有用的统计信息：
 
-    ```
+    ```py
     logdir = os.path.join(
         args.logdir, parser.prog, args.env, \
            datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -996,13 +996,13 @@ from tensorflow.keras.layers import Input, Dense, Lambda
 
 1.  为了统计全局回合数，让我们定义一个全局变量：
 
-    ```
+    ```py
     GLOBAL_EPISODE_NUM = 0
     ```
 
 1.  现在我们可以集中精力实现 `Actor` 类，它将包含一个基于神经网络的策略来在环境中执行动作：
 
-    ```
+    ```py
     class Actor:
         def __init__(self, state_dim, action_dim, 
         action_bound, std_bound):
@@ -1031,7 +1031,7 @@ from tensorflow.keras.layers import Input, Dense, Lambda
 
 1.  为了在给定状态下从演员获取动作，让我们定义 `get_action` 方法：
 
-    ```
+    ```py
         def get_action(self, state):
             state = np.reshape(state, [1, self.state_dim])
             mu, std = self.model.predict(state)
@@ -1042,7 +1042,7 @@ from tensorflow.keras.layers import Input, Dense, Lambda
 
 1.  接下来，为了计算损失，我们需要计算策略（概率）密度函数的对数：
 
-    ```
+    ```py
         def log_pdf(self, mu, std, action):
             std = tf.clip_by_value(std, self.std_bound[0],
                                    self.std_bound[1])
@@ -1057,7 +1057,7 @@ from tensorflow.keras.layers import Input, Dense, Lambda
 
 1.  现在让我们使用 `log_pdf` 方法来计算演员损失：
 
-    ```
+    ```py
         def compute_loss(self, mu, std, actions, advantages):
             log_policy_pdf = self.log_pdf(mu, std, actions)
             loss_policy = log_policy_pdf * advantages
@@ -1066,7 +1066,7 @@ from tensorflow.keras.layers import Input, Dense, Lambda
 
 1.  作为 `Actor` 类实现的最后一步，让我们定义 `train` 方法：
 
-    ```
+    ```py
         def train(self, states, actions, advantages):
             with tf.GradientTape() as tape:
                 mu, std = self.model(states, training=True)
@@ -1081,7 +1081,7 @@ from tensorflow.keras.layers import Input, Dense, Lambda
 
 1.  定义好 `Actor` 类后，我们可以继续定义 `Critic` 类：
 
-    ```
+    ```py
     class Critic:
         def __init__(self, state_dim):
             self.state_dim = state_dim
@@ -1102,7 +1102,7 @@ from tensorflow.keras.layers import Input, Dense, Lambda
 
 1.  接下来，让我们定义 `train` 方法和一个 `compute_loss` 方法来训练评论家：
 
-    ```
+    ```py
         def compute_loss(self, v_pred, td_targets):
             mse = tf.keras.losses.MeanSquaredError()
             return mse(td_targets, v_pred)
@@ -1121,7 +1121,7 @@ from tensorflow.keras.layers import Input, Dense, Lambda
 
 1.  是时候基于 Python 的线程接口实现 `A3CWorker` 类了：
 
-    ```
+    ```py
     class A3CWorker(Thread):
         def __init__(self, env, global_actor, global_critic,
         max_episodes):
@@ -1148,7 +1148,7 @@ from tensorflow.keras.layers import Input, Dense, Lambda
 
 1.  我们将使用 **n 步时间差分 (TD)** 学习更新。因此，让我们定义一个方法来计算 n 步 TD 目标：
 
-    ```
+    ```py
         def n_step_td_target(self, rewards, next_v_value,
         done):
             td_targets = np.zeros_like(rewards)
@@ -1164,14 +1164,14 @@ from tensorflow.keras.layers import Input, Dense, Lambda
 
 1.  我们还需要计算优势值。优势值的最简单形式很容易实现：
 
-    ```
+    ```py
         def advantage(self, td_targets, baselines):
             return td_targets - baselines
     ```
 
 1.  我们将把 `train` 方法的实现分为以下两个步骤。首先，让我们实现外部循环：
 
-    ```
+    ```py
         def train(self):
             global GLOBAL_EPISODE_NUM
             while self.max_episodes >= GLOBAL_EPISODE_NUM:
@@ -1201,7 +1201,7 @@ from tensorflow.keras.layers import Input, Dense, Lambda
 
 1.  在这一步，我们将完成 `train` 方法的实现：
 
-    ```
+    ```py
                     if len(state_batch) >= args.update_\
                     interval or done:
                         states = np.array([state.squeeze() \
@@ -1243,14 +1243,14 @@ from tensorflow.keras.layers import Input, Dense, Lambda
 
 1.  `A3CWorker` 线程的 run 方法将是以下内容：
 
-    ```
+    ```py
         def run(self):
             self.train()
     ```
 
 1.  接下来，让我们实现 `Agent` 类：
 
-    ```
+    ```py
     class Agent:
         def __init__(self, env_name, 
                      num_workers=cpu_count()):
@@ -1270,7 +1270,7 @@ from tensorflow.keras.layers import Input, Dense, Lambda
 
 1.  A3C 智能体利用多个并发工作线程。为了更新每个工作线程以更新 A3C 智能体，以下代码是必要的：
 
-    ```
+    ```py
     def train(self, max_episodes=20000):
             workers = []
             for i in range(self.num_workers):
@@ -1287,7 +1287,7 @@ from tensorflow.keras.layers import Input, Dense, Lambda
 
 1.  这样，我们的 A3C 智能体实现就完成了，接下来我们准备定义我们的主函数：
 
-    ```
+    ```py
     if __name__ == "__main__":
         env_name = "MountainCarContinuous-v0"
         agent = Agent(env_name, args.num_workers)
@@ -1312,7 +1312,7 @@ from tensorflow.keras.layers import Input, Dense, Lambda
 
 为了完成本教程，你需要先激活`tf2rl-cookbook` Conda Python 虚拟环境并运行`pip install -r requirements.txt`。如果以下导入语句没有问题，你就准备好开始了！
 
-```
+```py
 import argparse
 import os
 from datetime import datetime
@@ -1330,7 +1330,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda
 
 1.  首先，创建一个参数解析器来处理脚本的配置输入：
 
-    ```
+    ```py
     parser = argparse.ArgumentParser(prog="TFRL-Cookbook-Ch3-PPO")
     parser.add_argument("--env", default="Pendulum-v0")
     parser.add_argument("--update-freq", type=int, default=5)
@@ -1346,7 +1346,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda
 
 1.  接下来，我们创建一个 Tensorboard 日志记录器，以便在智能体训练过程中记录有用的统计信息：
 
-    ```
+    ```py
     logdir = os.path.join(
         args.logdir, parser.prog, args.env, 
         datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -1357,7 +1357,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda
 
 1.  我们现在可以集中精力实现`Actor`类，它将包含一个基于神经网络的策略来执行动作：
 
-    ```
+    ```py
     class Actor:
         def __init__(self, state_dim, action_dim, 
         action_bound, std_bound):
@@ -1387,7 +1387,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda
 
 1.  为了从演员那里获得一个动作给定一个状态，先定义`get_action`方法：
 
-    ```
+    ```py
         def get_action(self, state):
             state = np.reshape(state, [1, self.state_dim])
             mu, std = self.model.predict(state)
@@ -1401,7 +1401,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda
 
 1.  接下来，为了计算损失，我们需要计算策略（概率）密度函数的对数：
 
-    ```
+    ```py
         def log_pdf(self, mu, std, action):
             std = tf.clip_by_value(std, self.std_bound[0], 
                                    self.std_bound[1])
@@ -1416,7 +1416,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda
 
 1.  现在我们使用`log_pdf`方法来计算演员损失：
 
-    ```
+    ```py
         def compute_loss(self, log_old_policy, 
                          log_new_policy, actions, gaes):
             ratio = tf.exp(log_new_policy - \
@@ -1433,7 +1433,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda
 
 1.  作为`Actor`类实现的最后一步，让我们定义`train`方法：
 
-    ```
+    ```py
         def train(self, log_old_policy, states, actions,
         gaes):
             with tf.GradientTape() as tape:
@@ -1451,7 +1451,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda
 
 1.  定义好`Actor`类后，我们可以继续定义`Critic`类：
 
-    ```
+    ```py
     class Critic:
         def __init__(self, state_dim):
             self.state_dim = state_dim
@@ -1472,7 +1472,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda
 
 1.  接下来，定义`train`方法和`compute_loss`方法来训练评论员：
 
-    ```
+    ```py
         def compute_loss(self, v_pred, td_targets):
             mse = tf.keras.losses.MeanSquaredError()
             return mse(td_targets, v_pred)
@@ -1491,7 +1491,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda
 
 1.  现在是时候实现 PPO `Agent`类了：
 
-    ```
+    ```py
     class Agent:
         def __init__(self, env):
             self.env = env
@@ -1513,7 +1513,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda
 
 1.  我们将使用**广义优势估计**（**GAE**）。让我们实现一个方法来计算 GAE 目标值：
 
-    ```
+    ```py
         def gae_target(self, rewards, v_values, next_v_value,
         done):
             n_step_targets = np.zeros_like(rewards)
@@ -1535,7 +1535,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda
 
 1.  现在我们将拆分`train`方法的实现。首先，让我们实现外部循环：
 
-    ```
+    ```py
         def train(self, max_episodes=1000):
             with writer.as_default():
                 for ep in range(max_episodes):
@@ -1549,7 +1549,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda
 
 1.  在这一步，我们将开始内循环（每个回合）实现，并在接下来的几个步骤中完成它：
 
-    ```
+    ```py
                     while not done:
                         # self.env.render()
                         log_old_policy, action = \
@@ -1572,7 +1572,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda
 
 1.  在这一步，我们将使用 PPO 算法所做的价值预测来为策略更新过程做准备：
 
-    ```
+    ```py
         if len(state_batch) >= args.update_freq or done:
                             states = np.array([state.\
                                        squeeze() for state \
@@ -1602,7 +1602,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda
 
 1.  在这一步，我们将实现 PPO 算法的策略更新步骤。这些步骤发生在内循环中，每当足够的智能体轨迹信息以采样经验批次的形式可用时：
 
-    ```
+    ```py
                             actor_losses, critic_losses=[],[]
                             for epoch in range(args.epochs):
                                 actor_loss =self.actor.train(
@@ -1628,7 +1628,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda
 
 1.  作为 `train` 方法的最后一步，我们将重置中间变量，并打印出智能体获得的每个回合奖励的总结：
 
-    ```
+    ```py
                             state_batch = []
                             action_batch = []
                             reward_batch = []
@@ -1644,7 +1644,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda
 
 1.  有了这些，我们的 PPO 智能体实现就完成了，接下来我们可以定义主函数来开始训练！
 
-    ```
+    ```py
     if __name__ == "__main__":
         env_name = "Pendulum-v0"
         env = gym.make(env_name)
@@ -1666,7 +1666,7 @@ PPO 智能体使用演员（Actor）根据最新的策略参数从环境中收�
 
 要完成这个食谱，首先需要激活 `tf2rl-cookbook` Conda Python 虚拟环境，并运行 `pip install -r requirements.txt`。如果以下导入语句没有问题，那么你已经准备好开始了！
 
-```
+```py
 import argparse
 import os
 import random
@@ -1686,7 +1686,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda, concatenate
 
 1.  首先创建一个参数解析器来处理脚本的命令行配置输入：
 
-    ```
+    ```py
     parser = argparse.ArgumentParser(prog="TFRL-Cookbook-Ch3-DDPG")
     parser.add_argument("--env", default="Pendulum-v0")
     parser.add_argument("--actor_lr", type=float, default=0.0005)
@@ -1701,7 +1701,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda, concatenate
 
 1.  让我们创建一个 Tensorboard 日志记录器，用来记录在智能体训练过程中的有用统计信息：
 
-    ```
+    ```py
     logdir = os.path.join(
         args.logdir, parser.prog, args.env, \
         datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -1712,7 +1712,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda, concatenate
 
 1.  现在让我们实现一个经验回放内存：
 
-    ```
+    ```py
     class ReplayBuffer:
         def __init__(self, capacity=10000):
             self.buffer = deque(maxlen=capacity)
@@ -1737,7 +1737,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda, concatenate
 
 1.  我们现在可以集中精力实现 `Actor` 类，它将包含一个基于神经网络的策略进行操作：
 
-    ```
+    ```py
     class Actor:
         def __init__(self, state_dim, action_dim, 
         action_bound):
@@ -1761,7 +1761,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda, concatenate
 
 1.  为了根据状态从演员获取动作，让我们定义 `get_action` 方法：
 
-    ```
+    ```py
         def get_action(self, state):
             state = np.reshape(state, [1, self.state_dim])
             return self.model.predict(state)[0]
@@ -1769,14 +1769,14 @@ from tensorflow.keras.layers import Dense, Input, Lambda, concatenate
 
 1.  接下来，我们将实现一个预测函数来返回演员网络的预测结果：
 
-    ```
+    ```py
         def predict(self, state):
             return self.model.predict(state)
     ```
 
 1.  作为 `Actor` 类实现的最后一步，让我们定义 `train` 方法：
 
-    ```
+    ```py
         def train(self, states, q_grads):
             with tf.GradientTape() as tape:
                 grads = tape.gradient(
@@ -1789,7 +1789,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda, concatenate
 
 1.  定义了 `Actor` 类后，我们可以继续定义 `Critic` 类：
 
-    ```
+    ```py
     class Critic:
         def __init__(self, state_dim, action_dim):
             self.state_dim = state_dim
@@ -1812,7 +1812,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda, concatenate
 
 1.  在此步骤中，我们将实现一个方法来计算 Q 函数的梯度：
 
-    ```
+    ```py
         def q_gradients(self, states, actions):
             actions = tf.convert_to_tensor(actions)
             with tf.GradientTape() as tape:
@@ -1824,14 +1824,14 @@ from tensorflow.keras.layers import Dense, Input, Lambda, concatenate
 
 1.  作为一个便捷方法，我们还可以定义一个 `predict` 函数来返回评论家网络的预测结果：
 
-    ```
+    ```py
         def predict(self, inputs):
             return self.model.predict(inputs)
     ```
 
 1.  接下来，让我们定义 `train` 方法和 `compute_loss` 方法来训练评论家：
 
-    ```
+    ```py
         def train(self, states, actions, td_targets):
             with tf.GradientTape() as tape:
                 v_pred = self.model([states, actions],
@@ -1848,7 +1848,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda, concatenate
 
 1.  现在是时候实现 DDPG 的`Agent`类了：
 
-    ```
+    ```py
     class Agent:
         def __init__(self, env):
             self.env = env
@@ -1877,7 +1877,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda, concatenate
 
 1.  现在让我们实现`update_target`方法，用目标网络的权重来更新演员和评论员网络的权重：
 
-    ```
+    ```py
         def update_target(self):
             actor_weights = self.actor.model.get_weights()
             t_actor_weights = \
@@ -1903,7 +1903,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda, concatenate
 
 1.  接下来，让我们实现一个辅助方法来计算 TD 目标：
 
-    ```
+    ```py
         def get_td_target(self, rewards, q_values, dones):
             targets = np.asarray(q_values)
             for i in range(q_values.shape[0]):
@@ -1916,7 +1916,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda, concatenate
 
 1.  确定性策略梯度算法的目的是向从确定性策略中采样的动作添加噪声。我们将使用**奥恩斯坦-乌伦贝克**（**OU**）过程来生成噪声：
 
-    ```
+    ```py
         def add_ou_noise(self, x, rho=0.15, mu=0, dt=1e-1,
          sigma=0.2, dim=1):
             return (
@@ -1927,7 +1927,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda, concatenate
 
 1.  在这一步中，我们将使用经验回放来更新演员网络和评论员网络：
 
-    ```
+    ```py
         def replay_experience(self):
             for _ in range(10):
                 states, actions, rewards, next_states, \
@@ -1951,7 +1951,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda, concatenate
 
 1.  利用我们实现的所有组件，我们现在准备将它们组合在一起，放入`train`方法中：
 
-    ```
+    ```py
         def train(self, max_episodes=1000):
             with writer.as_default():
                 for ep in range(max_episodes):
@@ -1988,7 +1988,7 @@ from tensorflow.keras.layers import Dense, Input, Lambda, concatenate
 
 1.  至此，我们的 DDPG 代理实现已经完成，我们准备定义主函数以开始训练！
 
-    ```
+    ```py
     if __name__ == "__main__":
         env_name = "Pendulum-v0"
         env = gym.make(env_name)

@@ -202,7 +202,7 @@
 
 前面的前向传播步骤可以通过以下 Python 代码实现：
 
-```
+```py
 def forward_prop(X):
     z1 = np.dot(X,Wxh) + bh
     a1 = sigmoid(z1)
@@ -320,33 +320,33 @@ def forward_prop(X):
 
 在公式*(2)*和*(4)*中，我们都有项![](img/B15558_07_050.png)，因此为了避免重复计算，我们将其命名为`delta2`：
 
-```
+```py
 delta2 = np.multiply(-(y-yHat),sigmoidPrime(z2)) 
 ```
 
 现在，我们计算关于*W*[hy]的梯度。参见公式*(2)*：
 
-```
+```py
 dJ_dWhy = np.dot(a1.T,delta2) 
 ```
 
 我们计算关于*W*[xh]的梯度。参见公式*(4)*：
 
-```
+```py
 delta1 = np.dot(delta2,Why.T)*sigmoidPrime(z1)
 dJ_dWxh = np.dot(X.T,delta1) 
 ```
 
 我们将根据权重更新规则公式*(5)*和*(6)*更新权重，具体如下：
 
-```
+```py
 Wxh = Wxh - alpha * dJ_dWhy
 Why = Why - alpha * dJ_dWxh 
 ```
 
 反向传播的完整代码如下所示：
 
-```
+```py
 def backword_prop(y_hat, z1, a1, z2):
     delta2 = np.multiply(-(y-y_hat),sigmoid_derivative(z2))
     dJ_dWhy = np.dot(a1.T, delta2)
@@ -393,7 +393,7 @@ def backword_prop(y_hat, z1, a1, z2):
 
 1.  首先，导入所需的库：
 
-    ```
+    ```py
     import numpy as np
     import matplotlib.pyplot as plt
     %matplotlib inline 
@@ -401,14 +401,14 @@ def backword_prop(y_hat, z1, a1, z2):
 
 1.  准备数据，如前面所示的 XOR 表：
 
-    ```
+    ```py
     X = np.array([ [0, 1], [1, 0], [1, 1],[0, 0] ])
     y = np.array([ [1], [1], [0], [0]]) 
     ```
 
 1.  定义每一层的节点数：
 
-    ```
+    ```py
     num_input = 2
     num_hidden = 5
     num_output = 1 
@@ -416,35 +416,35 @@ def backword_prop(y_hat, z1, a1, z2):
 
 1.  随机初始化权重和偏置。首先，我们初始化输入到隐藏层的权重：
 
-    ```
+    ```py
     Wxh = np.random.randn(num_input,num_hidden)
     bh = np.zeros((1,num_hidden)) 
     ```
 
 1.  现在，我们初始化隐藏层到输出层的权重：
 
-    ```
+    ```py
     Why = np.random.randn (num_hidden,num_output)
     by = np.zeros((1,num_output)) 
     ```
 
 1.  定义 Sigmoid 激活函数：
 
-    ```
+    ```py
     def sigmoid(z):
         return 1 / (1+np.exp(-z)) 
     ```
 
 1.  定义 sigmoid 函数的导数：
 
-    ```
+    ```py
     def sigmoid_derivative(z):
          return np.exp(-z)/((1+np.exp(-z))**2) 
     ```
 
 1.  定义前向传播：
 
-    ```
+    ```py
     def forward_prop(x,Wxh,Why):
         z1 = np.dot(x,Wxh) + bh
         a1 = sigmoid(z1)
@@ -456,7 +456,7 @@ def backword_prop(y_hat, z1, a1, z2):
 
 1.  定义反向传播：
 
-    ```
+    ```py
     def backword_prop(y_hat, z1, a1, z2):
         delta2 = np.multiply(-(y-y_hat),sigmoid_derivative(z2))
         dJ_dWhy = np.dot(a1.T, delta2)
@@ -467,7 +467,7 @@ def backword_prop(y_hat, z1, a1, z2):
 
 1.  定义成本函数：
 
-    ```
+    ```py
     def cost_function(y, y_hat):
         J = 0.5*sum((y-y_hat)**2)
 
@@ -476,14 +476,14 @@ def backword_prop(y_hat, z1, a1, z2):
 
 1.  设置学习率和训练迭代次数：
 
-    ```
+    ```py
     alpha = 0.01
     num_iterations = 5000 
     ```
 
 1.  现在，让我们通过以下代码开始训练网络：
 
-    ```
+    ```py
     cost =[]
     for i in range(num_iterations):
         z1,a1,z2,y_hat = forward_prop(X,Wxh,Why)    
@@ -501,7 +501,7 @@ def backword_prop(y_hat, z1, a1, z2):
 
 1.  绘制成本函数：
 
-    ```
+    ```py
     plt.grid()
     plt.plot(range(num_iterations),cost)
     plt.title('Cost Function')

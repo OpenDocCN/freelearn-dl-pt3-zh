@@ -128,7 +128,7 @@
 
 换句话说，策略是通过在学习到的模型中进行模拟游戏来训练的。这可以通过多种方式实现，但主要的步骤如下所示：
 
-```
+```py
 while not done:
     > collect transitions  from the real environment using a policy 
     > add the transitions to the buffer 
@@ -187,7 +187,7 @@ ME-TRPO 提出了使用一个模型集来保持模型不确定性并正则化学
 
 最后，由这两个部分构成的循环会一直重复，直到收敛。然而，在每次新迭代时，都会通过运行新学习到的策略，![](img/5fcbff6e-968d-4c05-b106-3241552c4c7c.png)，来收集来自实际环境的数据，并将收集到的数据与前几次迭代的数据集进行汇总。ME-TRPO 算法的简要伪代码总结如下：
 
-```
+```py
 Initialize randomly policy  and models 
 Initialize empty buffer 
 
@@ -219,7 +219,7 @@ ME-TRPO 的代码非常长，在这一部分我们不会给出完整的代码。
 
 1.  **改变策略**：与真实环境的交互过程中唯一的变化是策略。具体来说，策略在第一轮中会随机执行，但在接下来的轮次中，它会从一个标准差随机设定的高斯分布中采样动作，这个标准差在算法开始时就已固定。这个变化是通过用以下代码行替换 TRPO 实现中的`act, val = sess.run([a_sampl, s_values], feed_dict=``{obs_ph:[env.n_obs]})`来完成的：
 
-```
+```py
 ...
 if ep == 0:
     act = env.action_space.sample()
@@ -230,7 +230,7 @@ else:
 
 1.  **拟合深度神经网络，** ![](img/70ab6f5a-ae81-47f0-8607-637f56ff429a.png)：神经网络通过前一步获得的数据集学习环境模型。数据集被分为训练集和验证集，其中验证集通过早停技术来判断是否值得继续训练：
 
-```
+```py
 ...
 model_buffer.generate_random_dataset()
 train_obs, train_act, _, train_nxt_obs, _ = model_buffer.get_training_batch()
@@ -247,7 +247,7 @@ train_model(train_obs, train_act, train_nxt_obs, valid_obs, valid_act, valid_nxt
 
 1.  **在模拟环境中生成虚拟轨迹并拟合策略**：
 
-```
+```py
         best_sim_test = np.zeros(num_ensemble_models)
         for it in range(80):
             obs_batch, act_batch, adv_batch, rtg_batch = simulate_environment(sim_env, action_op_noise, simulated_steps)
@@ -261,7 +261,7 @@ train_model(train_obs, train_act, train_nxt_obs, valid_obs, valid_act, valid_nxt
 
 1.  实现早停机制并评估策略：早停机制防止策略在环境模型上过拟合。它通过监控策略在每个独立模型上的表现来工作。如果策略改善的模型所占比例超过某个阈值，则终止该周期。这应该能很好地指示策略是否已经开始过拟合。需要注意的是，与训练不同，在测试过程中，策略是一次在一个模型上进行测试的。在训练过程中，每条轨迹都是由所有学习过的环境模型生成的：
 
-```
+```py
             if (it+1) % 5 == 0:
                 sim_rewards = []
 
@@ -282,7 +282,7 @@ train_model(train_obs, train_act, train_nxt_obs, valid_obs, valid_act, valid_nxt
 
 1.  **训练动态模型**：`train_model`函数优化一个模型以预测未来的状态。这个过程非常简单易懂。我们在步骤 2 中使用了这个函数，当时我们正在训练多个模型的集成。`train_model`是一个内部函数，接受我们之前看到的参数。在外部循环的每次 ME-TRPO 迭代中，我们会重新训练所有模型，也就是说，我们从它们的随机初始权重开始训练模型；我们不会从之前的优化继续。因此，每次调用`train_model`并在训练开始之前，我们都会恢复模型的初始随机权重。以下代码片段在执行此操作之前恢复权重并计算训练前后的损失：
 
-```
+```py
     def train_model(tr_obs, tr_act, tr_nxt_obs, v_obs, v_act, v_nxt_obs, step_count, model_idx):
         mb_valid_loss1 = run_model_loss(model_idx, v_obs, v_act, v_nxt_obs)
 
@@ -295,7 +295,7 @@ train_model(train_obs, train_act, train_nxt_obs, valid_obs, valid_act, valid_nxt
 
 然后我们训练模型，只要在最后`model_iter`次迭代中验证集上的损失有所改善。但由于最佳模型可能不是最后一个模型，我们会追踪最佳模型，并在训练结束时恢复其参数。我们还会随机打乱数据集并将其分成小批次。代码如下：
 
-```
+```py
         acc_m_losses = []
         last_m_losses = []
         md_params = sess.run(models_variables[model_idx])
@@ -347,14 +347,14 @@ train_model(train_obs, train_act, train_nxt_obs, valid_obs, valid_act, valid_nxt
 
 考虑到 ME-TRPO 需要奖励函数，因此也需要`done`函数，我们必须为此任务定义两者。为此，我们定义了`pendulum_reward`，无论观察和动作是什么，它都返回 1：
 
-```
+```py
 def pendulum_reward(ob, ac):
     return 1
 ```
 
 `pendulum_done`当杆的角度绝对值大于固定阈值时返回`True`。我们可以直接从状态中获取角度。实际上，状态的第三和第四个元素分别是角度的余弦和正弦。然后，我们可以任意选择其中一个来计算角度。因此，`pendulum_done`如下所示：
 
-```
+```py
 def pendulum_done(ob):
     return np.abs(np.arcsin(np.squeeze(ob[3]))) > .2
 ```

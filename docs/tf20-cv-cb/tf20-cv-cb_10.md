@@ -36,7 +36,7 @@
 
 首先，我们需要安装一些外部库，如`OpenCV`和`imutils`。执行以下命令安装它们：
 
-```
+```py
 $> pip install opencv-contrib-python imutils
 ```
 
@@ -56,7 +56,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  导入所有依赖项：
 
-    ```
+    ```py
     import csv
     import glob
     import pathlib
@@ -73,7 +73,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  定义数据集中所有可能情感的列表，并为每个情感指定一个颜色：
 
-    ```
+    ```py
     EMOTIONS = ['angry', 'scared', 'happy', 'sad', 
               'surprised','neutral']
     COLORS = {'angry': (0, 0, 255),
@@ -87,7 +87,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  定义一个方法来构建情感分类器的架构。它接收输入形状和数据集中的类别数量：
 
-    ```
+    ```py
     def build_network(input_shape, classes):
         input = Input(shape=input_shape)
         x = Conv2D(filters=32,
@@ -108,7 +108,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  网络中的每个块由两个 ELU 激活、批量归一化的卷积层组成，接着是一个最大池化层，最后是一个丢弃层。前面定义的块每个卷积层有 32 个滤波器，而后面的块每个卷积层有 64 个滤波器：
 
-    ```
+    ```py
         x = Conv2D(filters=64,
                    kernel_size=(3, 3),
                    kernel_initializer='he_normal',
@@ -127,7 +127,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  第三个块每个卷积层有 128 个滤波器：
 
-    ```
+    ```py
         x = Conv2D(filters=128,
                    kernel_size=(3, 3),
                    kernel_initializer='he_normal',
@@ -146,7 +146,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  接下来，我们有两个密集层，ELU 激活、批量归一化，后面也跟着一个丢弃层，每个层有 64 个单元：
 
-    ```
+    ```py
         x = Flatten()(x)
         x = Dense(units=64,
                   kernel_initializer='he_normal')(x)
@@ -162,7 +162,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  最后，我们遇到输出层，神经元数量与数据集中的类别数量相同，当然，采用 softmax 激活函数：
 
-    ```
+    ```py
         x = Dense(units=classes,
                   kernel_initializer='he_normal')(x)
         output = Softmax()(x)
@@ -171,7 +171,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  `load_dataset()`加载训练集、验证集和测试集的图像和标签：
 
-    ```
+    ```py
     def load_dataset(dataset_path, classes):
         train_images = []
         train_labels = []
@@ -183,7 +183,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  这个数据集中的数据存储在一个 CSV 文件中，分为`emotion`、`pixels`和`Usage`三列。我们首先解析`emotion`列。尽管数据集包含七类面部表情，我们将*厌恶*和*愤怒*（分别编码为`0`和`1`）合并，因为它们共享大多数面部特征，合并后会得到更好的结果：
 
-    ```
+    ```py
         with open(dataset_path, 'r') as f:
             reader = csv.DictReader(f)
             for line in reader:
@@ -196,7 +196,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  接下来，我们解析`pixels`列，它包含 2,034 个空格分隔的整数，代表图像的灰度像素（48x48=2034）：
 
-    ```
+    ```py
                 image = np.array(line['pixels'].split
                                         (' '),
                                  dtype='uint8')
@@ -206,7 +206,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  现在，为了弄清楚这张图像和标签属于哪个子集，我们需要查看`Usage`列：
 
-    ```
+    ```py
                 if line['Usage'] == 'Training':
                     train_images.append(image)
                     train_labels.append(label)
@@ -220,7 +220,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  将所有的图像转换为 NumPy 数组：
 
-    ```
+    ```py
         train_images = np.array(train_images)
         val_images = np.array(val_images)
         test_images = np.array(test_images)
@@ -228,7 +228,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  然后，对所有标签进行独热编码：
 
-    ```
+    ```py
         train_labels = 
         to_categorical(np.array(train_labels),
                                       classes)
@@ -240,7 +240,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  返回所有的图像和标签：
 
-    ```
+    ```py
         return (train_images, train_labels), \
                (val_images, val_labels), \
                (test_images, test_labels)
@@ -248,14 +248,14 @@ $> pip install opencv-contrib-python imutils
 
 1.  定义一个计算矩形区域面积的函数。稍后我们将用它来获取最大的面部检测结果：
 
-    ```
+    ```py
     def rectangle_area(r):
         return (r[2] - r[0]) * (r[3] - r[1])
     ```
 
 1.  现在，我们将创建一个条形图来显示每一帧中检测到的情感的概率分布。以下函数用于绘制每个条形图，代表某一特定情感：
 
-    ```
+    ```py
     def plot_emotion(emotions_plot, emotion, probability, 
                      index):
         w = int(probability * emotions_plot.shape[1])
@@ -278,7 +278,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  我们还会在检测到的面部周围画一个边界框，并标注上识别出的情感：
 
-    ```
+    ```py
     def plot_face(image, emotion, detection):
         frame_x, frame_y, frame_width, frame_height = detection
         cv2.rectangle(image,
@@ -299,7 +299,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  定义`predict_emotion()`函数，该函数接收情感分类器和输入图像，并返回模型输出的预测结果：
 
-    ```
+    ```py
     def predict_emotion(model, roi):
         roi = cv2.resize(roi, (48, 48))
         roi = roi.astype('float') / 255.0
@@ -311,7 +311,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  如果有保存的模型，则加载它：
 
-    ```
+    ```py
     checkpoints = sorted(list(glob.glob('./*.h5')), reverse=True)
     if len(checkpoints) > 0:
         model = load_model(checkpoints[0])
@@ -319,7 +319,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  否则，从头开始训练模型。首先，构建 CSV 文件的路径，然后计算数据集中的类别数量：
 
-    ```
+    ```py
     else:
         base_path = (pathlib.Path.home() / '.keras' / 
                      'datasets' /
@@ -330,7 +330,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  然后，加载每个数据子集：
 
-    ```
+    ```py
         (train_images, train_labels), \
         (val_images, val_labels), \
         (test_images, test_labels) = load_dataset(input_path,
@@ -339,7 +339,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  构建网络并编译它。同时，定义一个`ModelCheckpoint`回调函数来保存最佳表现的模型（基于验证损失）：
 
-    ```
+    ```py
         model = build_network((48, 48, 1), classes)
         model.compile(loss='categorical_crossentropy',
                       optimizer=Adam(lr=0.003),
@@ -356,7 +356,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  定义训练集和验证集的增强器和生成器。注意，我们仅增强训练集，而验证集中的图像只是进行重缩放：
 
-    ```
+    ```py
         BATCH_SIZE = 128
         train_augmenter = ImageDataGenerator(rotation_
                                 range=10,zoom_range=0.1,
@@ -374,7 +374,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  训练模型 300 个周期，然后在测试集上评估模型（我们只对该子集中的图像进行重缩放）：
 
-    ```
+    ```py
         EPOCHS = 300
         model.fit(train_gen,
                   steps_per_epoch=train_steps,
@@ -394,21 +394,21 @@ $> pip install opencv-contrib-python imutils
 
 1.  实例化一个`cv2.VideoCapture()`对象来获取测试视频中的帧。如果你想使用你的网络摄像头，将`video_path`替换为`0`：
 
-    ```
+    ```py
     video_path = 'emotions.mp4'
     camera = cv2.VideoCapture(video_path)  # Pass 0 to use webcam
     ```
 
 1.  创建一个**Haar 级联**人脸检测器（这是本书范围之外的内容。如果你想了解更多关于 Haar 级联的内容，请参考本配方中的*另见*部分）：
 
-    ```
+    ```py
     cascade_file = 'resources/haarcascade_frontalface_default.xml'
     det = cv2.CascadeClassifier(cascade_file)
     ```
 
 1.  遍历视频中的每一帧（或网络摄像头流），只有在没有更多帧可以读取，或用户按下 Q 键时才退出：
 
-    ```
+    ```py
     while True:
         frame_exists, frame = camera.read()
         if not frame_exists:
@@ -417,7 +417,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  将帧调整为宽度为 380 像素（高度会自动计算以保持宽高比）。同时，创建一个画布，用于绘制情感条形图，并创建一个输入帧的副本，用于绘制检测到的人脸：
 
-    ```
+    ```py
         frame = imutils.resize(frame, width=380)
         emotions_plot = np.zeros_like(frame, 
                                       dtype='uint8')
@@ -426,7 +426,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  由于 Haar 级联方法是在灰度图像上工作的，我们必须将输入帧转换为黑白图像。然后，我们在其上运行人脸检测器：
 
-    ```
+    ```py
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         detections = \
             det.detectMultiScale(gray,scaleFactor=1.1,
@@ -438,7 +438,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  验证是否有任何检测，并获取面积最大的那个：
 
-    ```
+    ```py
         if len(detections) > 0:
             detections = sorted(detections,
                                 key=rectangle_area)
@@ -447,7 +447,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  提取与检测到的面部表情对应的感兴趣区域（`roi`），并从中提取情感：
 
-    ```
+    ```py
             (frame_x, frame_y,
              frame_width, frame_height) = best_detection
             roi = gray[frame_y:frame_y + frame_height,
@@ -458,7 +458,7 @@ $> pip install opencv-contrib-python imutils
 
 1.  创建情感分布图：
 
-    ```
+    ```py
             for i, (emotion, probability) in \
                     enumerate(zip(EMOTIONS, predictions)):
                 emotions_plot = plot_emotion(emotions_plot,
@@ -469,27 +469,27 @@ $> pip install opencv-contrib-python imutils
 
 1.  绘制检测到的面部表情及其所展示的情感：
 
-    ```
+    ```py
             clone = plot_face(copy, label, best_detection)
     ```
 
 1.  显示结果：
 
-    ```
+    ```py
         cv2.imshow('Face & emotions',
                    np.hstack([copy, emotions_plot]))
     ```
 
 1.  检查用户是否按下了 Q 键，如果按下了，则退出循环：
 
-    ```
+    ```py
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
     ```
 
 1.  最后，释放资源：
 
-    ```
+    ```py
     camera.release()
     cv2.destroyAllWindows()
     ```
@@ -536,7 +536,7 @@ $> pip install opencv-contrib-python imutils
 
 我们需要安装几个补充库，如`OpenCV`、`TFHub`和`imageio`。执行以下命令：
 
-```
+```py
 $> pip install opencv-contrib-python tensorflow-hub imageio
 ```
 
@@ -548,7 +548,7 @@ $> pip install opencv-contrib-python tensorflow-hub imageio
 
 1.  导入所有所需的依赖项：
 
-    ```
+    ```py
     import os
     import random
     import re
@@ -565,32 +565,32 @@ $> pip install opencv-contrib-python tensorflow-hub imageio
 
 1.  定义`UCF101 – 动作识别`数据集的路径，从中获取我们稍后将传递给模型的测试视频：
 
-    ```
+    ```py
     UCF_ROOT = 'https://www.crcv.ucf.edu/THUMOS14/UCF101/UCF101/'
     ```
 
 1.  定义`Kinetics`数据集的标签文件路径，后者用于训练我们将很快使用的 3D 卷积网络：
 
-    ```
+    ```py
     KINETICS_URL = ('https://raw.githubusercontent.com/deepmind/'
                     'kinetics-i3d/master/data/label_map.txt')
     ```
 
 1.  创建一个临时目录，用于缓存下载的资源：
 
-    ```
+    ```py
     CACHE_DIR = tempfile.mkdtemp()
     ```
 
 1.  创建一个未经验证的 SSL 上下文。我们需要这个以便能够从 UCF 的网站下载数据（在编写本书时，似乎他们的证书已过期）：
 
-    ```
+    ```py
     UNVERIFIED_CONTEXT = ssl._create_unverified_context()
     ```
 
 1.  定义`fetch_ucf_videos()`函数，该函数下载我们将从中选择的测试视频列表，以测试我们的动作识别器：
 
-    ```
+    ```py
     def fetch_ucf_videos():
         index = \
             (request
@@ -604,7 +604,7 @@ $> pip install opencv-contrib-python tensorflow-hub imageio
 
 1.  定义`fetch_kinetics_labels()`函数，用于下载并解析`Kinetics`数据集的标签：
 
-    ```
+    ```py
     def fetch_kinetics_labels():
         with request.urlopen(KINETICS_URL) as f:
             labels = [line.decode('utf-8').strip()
@@ -614,7 +614,7 @@ $> pip install opencv-contrib-python tensorflow-hub imageio
 
 1.  定义`fetch_random_video()`函数，该函数从我们的`UCF101`视频列表中选择一个随机视频，并将其下载到*第 4 步*中创建的临时目录中：
 
-    ```
+    ```py
     def fetch_random_video(videos_list):
         video_name = random.choice(videos_list)
         cache_path = os.path.join(CACHE_DIR, video_name)
@@ -632,7 +632,7 @@ $> pip install opencv-contrib-python tensorflow-hub imageio
 
 1.  定义`crop_center()`函数，该函数接受一张图片并裁剪出对应于接收帧中心的正方形区域：
 
-    ```
+    ```py
     def crop_center(frame):
         height, width = frame.shape[:2]
         smallest_dimension = min(width, height)
@@ -646,7 +646,7 @@ $> pip install opencv-contrib-python tensorflow-hub imageio
 
 1.  定义 `read_video()` 函数，它从我们的缓存中读取最多 `max_frames` 帧，并返回所有读取的帧列表。它还会裁剪每帧的中心，将其调整为 224x224x3 的大小（网络期望的输入形状），并进行归一化处理：
 
-    ```
+    ```py
     def read_video(path, max_frames=32, resize=(224, 224)):
         capture = cv2.VideoCapture(path)
         frames = []
@@ -665,7 +665,7 @@ $> pip install opencv-contrib-python tensorflow-hub imageio
 
 1.  定义 `predict()` 函数，用于获取模型在输入视频中识别的前五个最可能的动作：
 
-    ```
+    ```py
     def predict(model, labels, sample_video):
         model_input = tf.constant(sample_video,
                                   dtype=tf.float32)
@@ -679,7 +679,7 @@ $> pip install opencv-contrib-python tensorflow-hub imageio
 
 1.  定义 `save_as_gif()` 函数，它接收一个包含视频帧的列表，并用它们创建 GIF 格式的表示：
 
-    ```
+    ```py
     def save_as_gif(images, video_name):
         converted_images = np.clip(images * 255, 0, 255)
         converted_images = converted_images.astype(np.uint8)
@@ -690,21 +690,21 @@ $> pip install opencv-contrib-python tensorflow-hub imageio
 
 1.  获取视频和标签：
 
-    ```
+    ```py
     VIDEO_LIST = fetch_ucf_videos()
     LABELS = fetch_kinetics_labels()
     ```
 
 1.  获取一个随机视频并读取其帧：
 
-    ```
+    ```py
     video_path = fetch_random_video(VIDEO_LIST)
     sample_video = read_video(video_path)
     ```
 
 1.  从 TFHub 加载 I3D：
 
-    ```
+    ```py
     model_path = 'https://tfhub.dev/deepmind/i3d-kinetics-400/1'
     model = tfhub.load(model_path)
     model = model.signatures['default']
@@ -712,7 +712,7 @@ $> pip install opencv-contrib-python tensorflow-hub imageio
 
 1.  最后，将视频传递给网络以获得预测结果，然后将视频保存为 GIF 格式：
 
-    ```
+    ```py
     predict(model, LABELS, sample_video)
     video_name = video_path.rsplit('/', maxsplit=1)[1][:-4]
     save_as_gif(sample_video, video_name)
@@ -726,7 +726,7 @@ $> pip install opencv-contrib-python tensorflow-hub imageio
 
 这是模型生成的前五个预测：
 
-```
+```py
 Top 5 actions:
 mopping floor:  75.29%
 cleaning floor:  21.11%
@@ -767,13 +767,13 @@ I3D 是一种用于视频处理的突破性架构，因此我强烈建议你阅�
 
 我们必须安装 TFHub 和 `TensorFlow Datasets`：
 
-```
+```py
 $> pip install tensorflow-hub tensorflow-datasets
 ```
 
 我们将使用的模型是在 `BAIR Robot Pushing Videos` 数据集上训练的，该数据集可在 `TensorFlow Datasets` 中获得。然而，如果我们通过库访问它，我们将下载远超过我们这个食谱所需的数据。因此，我们将使用测试集的一个较小子集。执行以下命令来下载它并将其放入 `~/.keras/datasets/bair_robot_pushing` 文件夹中：
 
-```
+```py
 $> wget -nv https://storage.googleapis.com/download.tensorflow.org/data/bair_test_traj_0_to_255.tfrecords -O ~/.keras/datasets/bair_robot_pushing/traj_0_to_255.tfrecords
 ```
 
@@ -785,7 +785,7 @@ $> wget -nv https://storage.googleapis.com/download.tensorflow.org/data/bair_tes
 
 1.  导入依赖库：
 
-    ```
+    ```py
     import pathlib
     import matplotlib.pyplot as plt
     import numpy as np
@@ -798,7 +798,7 @@ $> wget -nv https://storage.googleapis.com/download.tensorflow.org/data/bair_tes
 
 1.  定义 `plot_first_and_last_for_sample()` 函数，该函数绘制四个视频样本的第一帧和最后一帧的图像：
 
-    ```
+    ```py
     def plot_first_and_last_for_sample(frames, batch_size):
         for i in range(4):
             plt.subplot(batch_size, 2, 1 + 2 * i)
@@ -813,7 +813,7 @@ $> wget -nv https://storage.googleapis.com/download.tensorflow.org/data/bair_tes
 
 1.  定义 `plot_generated_frames_for_sample()` 函数，该函数绘制为四个视频样本生成的中间帧：
 
-    ```
+    ```py
     def plot_generated_frames_for_sample(gen_videos):
         for video_id in range(4):
             fig = plt.figure(figsize=(10 * 2, 2))
@@ -828,7 +828,7 @@ $> wget -nv https://storage.googleapis.com/download.tensorflow.org/data/bair_tes
 
 1.  我们需要修补 `BarRobotPushingSmall()`（参见*步骤 6*）数据集构建器，只期望测试集可用，而不是同时包含训练集和测试集。因此，我们必须创建一个自定义的 `SplitGenerator()`：
 
-    ```
+    ```py
     def split_gen_func(data_path):
         return [SplitGenerator(name='test',
                                gen_kwargs={'filedir': 
@@ -837,7 +837,7 @@ $> wget -nv https://storage.googleapis.com/download.tensorflow.org/data/bair_tes
 
 1.  定义数据路径：
 
-    ```
+    ```py
     DATA_PATH = str(pathlib.Path.home() / '.keras' / 
                        'datasets' /
                     'bair_robot_pushing')
@@ -845,7 +845,7 @@ $> wget -nv https://storage.googleapis.com/download.tensorflow.org/data/bair_tes
 
 1.  创建一个 `BarRobotPushingSmall()` 构建器，将其传递给*步骤 4*中创建的自定义拆分生成器，然后准备数据集：
 
-    ```
+    ```py
     builder = BairRobotPushingSmall()
     builder._split_generators = lambda _:split_gen_func(DATA_PATH)
     builder.download_and_prepare()
@@ -853,7 +853,7 @@ $> wget -nv https://storage.googleapis.com/download.tensorflow.org/data/bair_tes
 
 1.  获取第一批视频：
 
-    ```
+    ```py
     BATCH_SIZE = 16
     dataset = builder.as_dataset(split='test')
     test_videos = dataset.batch(BATCH_SIZE)
@@ -864,14 +864,14 @@ $> wget -nv https://storage.googleapis.com/download.tensorflow.org/data/bair_tes
 
 1.  保留每个视频批次中的第一帧和最后一帧：
 
-    ```
+    ```py
     input_frames = first_batch['image_aux1'][:, ::15]
     input_frames = tf.cast(input_frames, tf.float32)
     ```
 
 1.  从 TFHub 加载生成器模型：
 
-    ```
+    ```py
     model_path = 'https://tfhub.dev/google/tweening_conv3d_bair/1'
     model = tfhub.load(model_path)
     model = model.signatures['default']
@@ -879,14 +879,14 @@ $> wget -nv https://storage.googleapis.com/download.tensorflow.org/data/bair_tes
 
 1.  将视频批次传递到模型中，生成中间帧：
 
-    ```
+    ```py
     middle_frames = model(input_frames)['default']
     middle_frames = middle_frames / 255.0
     ```
 
 1.  将每个视频批次的首尾帧与网络在*步骤 10*中生成的相应中间帧进行连接：
 
-    ```
+    ```py
     generated_videos = np.concatenate(
         [input_frames[:, :1] / 255.0,  # All first frames
          middle_frames,  # All inbetween frames
@@ -896,7 +896,7 @@ $> wget -nv https://storage.googleapis.com/download.tensorflow.org/data/bair_tes
 
 1.  最后，绘制首尾帧，以及中间帧：
 
-    ```
+    ```py
     plt.figure(figsize=(4, 2 * BATCH_SIZE))
     plot_first_and_last_for_sample(input_frames, 
                                     BATCH_SIZE)
@@ -944,7 +944,7 @@ $> wget -nv https://storage.googleapis.com/download.tensorflow.org/data/bair_tes
 
 首先，我们必须安装`OpenCV`和 TFHub，方法如下：
 
-```
+```py
 $> pip install opencv-contrib-python tensorflow-hub
 ```
 
@@ -956,7 +956,7 @@ $> pip install opencv-contrib-python tensorflow-hub
 
 1.  第一步是导入我们将使用的所有依赖项：
 
-    ```
+    ```py
     import math
     import os
     import uuid
@@ -969,7 +969,7 @@ $> pip install opencv-contrib-python tensorflow-hub
 
 1.  定义一个函数，使用 S3D 实例生成文本和视频嵌入：
 
-    ```
+    ```py
     def produce_embeddings(model, input_frames, input_words):
         frames = tf.cast(input_frames, dtype=tf.float32)
         frames = tf.constant(frames)
@@ -985,7 +985,7 @@ $> pip install opencv-contrib-python tensorflow-hub
 
 1.  定义`crop_center()`函数，该函数接收一张图像并裁剪出与接收到的帧中心相对应的正方形区域：
 
-    ```
+    ```py
     def crop_center(frame):
         height, width = frame.shape[:2]
         smallest_dimension = min(width, height)
@@ -1000,7 +1000,7 @@ $> pip install opencv-contrib-python tensorflow-hub
 
 1.  定义`fetch_and_read_video()`函数，顾名思义，该函数下载视频并读取它。在最后一步，我们使用 OpenCV。首先，从给定的 URL 获取视频：
 
-    ```
+    ```py
     def fetch_and_read_video(video_url,
                              max_frames=32,
                              resize=(224, 224)):
@@ -1016,7 +1016,7 @@ $> pip install opencv-contrib-python tensorflow-hub
 
 1.  接下来，我们将加载这个获取的视频的`max_frames`：
 
-    ```
+    ```py
         capture = cv2.VideoCapture(path)
         frames = []
         while len(frames) <= max_frames:
@@ -1033,7 +1033,7 @@ $> pip install opencv-contrib-python tensorflow-hub
 
 1.  如果视频的帧数不足，我们将重复此过程，直到达到所需的容量：
 
-    ```
+    ```py
         if len(frames) < max_frames:
             repetitions = math.ceil(float(max_frames) /        
                                     len(frames))
@@ -1043,14 +1043,14 @@ $> pip install opencv-contrib-python tensorflow-hub
 
 1.  返回归一化后的帧：
 
-    ```
+    ```py
         frames = frames[:max_frames]
         return frames / 255.0
     ```
 
 1.  定义视频的 URL：
 
-    ```
+    ```py
     URLS = [
         ('https://media.giphy.com/media/'
          'WWYSFIZo4fsLC/source.gif'),
@@ -1066,13 +1066,13 @@ $> pip install opencv-contrib-python tensorflow-hub
 
 1.  获取并读取每个视频：
 
-    ```
+    ```py
     VIDEOS = [fetch_and_read_video(url) for url in URLS]
     ```
 
 1.  定义与每个视频相关联的查询（标题）。请注意，它们必须按正确的顺序排列：
 
-    ```
+    ```py
     QUERIES = ['beach', 'playing drums', 'airplane taking 
                   off',
                'biking', 'dog catching frisbee']
@@ -1080,14 +1080,14 @@ $> pip install opencv-contrib-python tensorflow-hub
 
 1.  从 TFHub 加载 S3D：
 
-    ```
+    ```py
     model = tfhub.load
     ('https://tfhub.dev/deepmind/mil-nce/s3d/1')
     ```
 
 1.  获取文本和视频嵌入：
 
-    ```
+    ```py
     video_emb, text_emb = produce_embeddings(model,
                                   np.stack(VIDEOS, axis=0),
                                              np.array(QUERIES))
@@ -1095,13 +1095,13 @@ $> pip install opencv-contrib-python tensorflow-hub
 
 1.  计算文本和视频嵌入之间的相似度得分：
 
-    ```
+    ```py
     scores = np.dot(text_emb, tf.transpose(video_emb))
     ```
 
 1.  获取每个视频的第一帧，将其重新缩放回[0, 255]，然后转换为 BGR 空间，以便我们可以使用 OpenCV 显示它。我们这样做是为了展示实验结果：
 
-    ```
+    ```py
     first_frames = [v[0] for v in VIDEOS]
     first_frames = [cv2.cvtColor((f * 255.0).astype('uint8'),
                                  cv2.COLOR_RGB2BGR) for f 
@@ -1110,7 +1110,7 @@ $> pip install opencv-contrib-python tensorflow-hub
 
 1.  遍历每个（查询，视频，得分）三元组，并显示每个查询的最相似视频：
 
-    ```
+    ```py
     for query, video, query_scores in zip(QUERIES,VIDEOS,scores):
         sorted_results = sorted(list(zip(QUERIES,
                                          first_frames,

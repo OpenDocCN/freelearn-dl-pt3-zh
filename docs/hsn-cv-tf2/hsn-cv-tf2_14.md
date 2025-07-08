@@ -38,7 +38,7 @@ TensorFlow 依赖于图来确保模型的性能和可移植性。在 TensorFlow 
 
 要在 TensorBoard 中记录信息，您可以使用 `tf.keras.callbacks.TensorBoard` 回调函数，并将其传递给 `.fit` 方法以训练模型。要手动记录信息，您可以使用 `tf.summary` 模块。要显示信息，请启动以下命令：
 
-```
+```py
 $ tensorboard --logdir ./model_logs
 ```
 
@@ -64,7 +64,7 @@ TensorFlow 2 通过将图管理从用户手中移除，专注于简化操作。�
 
 代码如下：
 
-```
+```py
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Inputs, Conv2D, MaxPooling2D, Flatten, Dense
 
@@ -101,7 +101,7 @@ lenet5_model = Model(inputs=inputs, outputs=dense3)
 
 代码如下：
 
-```
+```py
 freeze_num = 3
 # Looking at `resnet50.summary()`, we could observe that the 1st layer of the 4th macro-block is named "res5[...]":
 break_layer_name = 'res{}'.format(freeze_num + 2)
@@ -156,7 +156,7 @@ for layer in resnet50_finetune.layers:
 
 代码如下：
 
-```
+```py
 dataset_a = tf.data.Dataset.from_tensor_slices(a)
 dataset_b = tf.data.Dataset.from_tensor_slices(b)
 dataset_ab = dataset_a.concatenate(dataset_b)

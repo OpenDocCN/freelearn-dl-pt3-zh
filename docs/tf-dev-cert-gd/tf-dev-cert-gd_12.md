@@ -126,15 +126,15 @@
 
 1.  我们首先导入项目所需的库：
 
-    ```
+    ```py
     import pandas as pd
     ```
 
-    ```
+    ```py
     import numpy as np
     ```
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     ```
 
@@ -142,11 +142,11 @@
 
 1.  接下来，我们加载时间序列数据：
 
-    ```
+    ```py
     df = pd.read_csv('/content/sales_data.csv')
     ```
 
-    ```
+    ```py
     df.head()
     ```
 
@@ -154,19 +154,19 @@
 
 1.  使用以下代码检查数据类型和汇总统计信息：
 
-    ```
+    ```py
     # Check data types
     ```
 
-    ```
+    ```py
     print(df.dtypes)
     ```
 
-    ```
+    ```py
     # Summary statistics
     ```
 
-    ```
+    ```py
     print(df.describe())
     ```
 
@@ -174,27 +174,27 @@
 
 1.  让我们可视化数据：
 
-    ```
+    ```py
     #Sales data plot
     ```
 
-    ```
+    ```py
     df.set_index('Date').plot()
     ```
 
-    ```
+    ```py
     plt.ylabel('Sales')
     ```
 
-    ```
+    ```py
     plt.title('Sales Over Time')
     ```
 
-    ```
+    ```py
     plt.xticks(rotation=90)
     ```
 
-    ```
+    ```py
     plt.show()
     ```
 
@@ -214,7 +214,7 @@
 
 通常，确保训练集足够大以捕捉数据中所有相关模式是一个好主意，包括数据的季节性行为。在设置验证集的大小时，必须找到平衡点。虽然更大的验证集能够提供更可靠的模型性能估计，但它也会减少训练集的大小。你还应该记得在做出最终预测之前，使用整个数据集（将训练集和验证集合并）重新训练最终模型。这种策略最大化了模型从数据中学习的量，可能提高其对未来未见数据的预测性能。同样，避免在分割数据之前打乱数据，因为这会破坏时间顺序，导致误导性结果。在固定划分中，我们通常使用按时间顺序划分的方法，训练数据应该来自最早的时间戳，接着是验证集，最后是包含最新时间戳的测试集。让我们将销售数据分为训练集和验证集：
 
-```
+```py
 # Split data into training and validation sets
 split_time = int(len(df) * 0.8)
 train_df = df.iloc[:split_time]
@@ -225,7 +225,7 @@ valid_df = df.iloc[split_time:]
 
 接下来，让我们绘制训练集和验证集的数据：
 
-```
+```py
 plt.figure(figsize=(12, 9))
 # Plotting the training data in green
 plt.plot(train_df['Date'], train_df['Sales'], 'green',
@@ -259,15 +259,15 @@ plt.show()
 
 1.  让我们实现朴素预测：
 
-    ```
+    ```py
     # Apply naive forecast
     ```
 
-    ```
+    ```py
     df['Naive_Forecast'] = df['Sales'].shift(1)
     ```
 
-    ```
+    ```py
     df.head()
     ```
 
@@ -281,131 +281,131 @@ plt.show()
 
 1.  我们创建一个用于绘图的函数：
 
-    ```
+    ```py
     def plot_forecast(validation_df, forecast_df,
     ```
 
-    ```
+    ```py
         start_date=None, end_date=None,
     ```
 
-    ```
+    ```py
         plot_title='Naive Forecasting',
     ```
 
-    ```
+    ```py
         forecast_label='Naive Forecast'):
     ```
 
-    ```
+    ```py
             if start_date:
     ```
 
-    ```
+    ```py
                 validation_df = validation_df[
     ```
 
-    ```
+    ```py
                     validation_df['Date'] >= start_date]
     ```
 
-    ```
+    ```py
                 forecast_df = forecast_df[forecast_df[
     ```
 
-    ```
+    ```py
                     'Date'] >= start_date]
     ```
 
-    ```
+    ```py
             if end_date:
     ```
 
-    ```
+    ```py
                 validation_df = validation_df[
     ```
 
-    ```
+    ```py
                     validation_df['Date'] <= end_date]
     ```
 
-    ```
+    ```py
                 forecast_df = forecast_df[forecast_df[
     ```
 
-    ```
+    ```py
                     'Date'] <= end_date]
     ```
 
-    ```
+    ```py
         # Extract the dates in the selected range
     ```
 
-    ```
+    ```py
         all_dates = validation_df['Date']
     ```
 
-    ```
+    ```py
         plt.figure(figsize=(12, 9))
     ```
 
-    ```
+    ```py
         plt.plot(validation_df['Date'],
     ```
 
-    ```
+    ```py
             validation_df['Sales'],
     ```
 
-    ```
+    ```py
             label='Validation Data')
     ```
 
-    ```
+    ```py
         plt.plot(forecast_df['Date'],
     ```
 
-    ```
+    ```py
             forecast_df['Naive_Forecast'],
     ```
 
-    ```
+    ```py
             label=forecast_label)
     ```
 
-    ```
+    ```py
         plt.legend(loc='best')
     ```
 
-    ```
+    ```py
         plt.title(plot_title)
     ```
 
-    ```
+    ```py
         plt.xlabel('Date')
     ```
 
-    ```
+    ```py
         plt.ylabel('Sales')
     ```
 
-    ```
+    ```py
         # Set x-ticks to every 90th date in the selected range
     ```
 
-    ```
+    ```py
         plt.xticks(all_dates[::90], rotation=90)
     ```
 
-    ```
+    ```py
         plt.legend()
     ```
 
-    ```
+    ```py
         plt.tight_layout()
     ```
 
-    ```
+    ```py
         plt.show()
     ```
 
@@ -413,15 +413,15 @@ plt.show()
 
 1.  接下来，让我们绘制朴素预测：
 
-    ```
+    ```py
     plot_forecast(valid_df, valid_df,
     ```
 
-    ```
+    ```py
         plot_title='Naive Forecasting',
     ```
 
-    ```
+    ```py
         forecast_label='Naive Forecast')
     ```
 
@@ -435,11 +435,11 @@ plt.show()
 
 1.  让我们看一下特定的时间范围：
 
-    ```
+    ```py
     plot_forecast(valid_df, valid_df,
     ```
 
-    ```
+    ```py
         start_date='2022-01-01', end_date='2022-06-30')
     ```
 
@@ -453,43 +453,43 @@ plt.show()
 
 1.  接下来，让我们评估朴素方法的表现：
 
-    ```
+    ```py
     # Compute and print mean squared error
     ```
 
-    ```
+    ```py
     mse = tf.keras.metrics.mean_squared_error(
     ```
 
-    ```
+    ```py
         valid_df['Sales'], valid_df
     ```
 
-    ```
+    ```py
             ['Naive_Forecast']).numpy()
     ```
 
-    ```
+    ```py
     print('Mean Squared Error:', mse)
     ```
 
-    ```
+    ```py
     # Compute and print mean absolute error
     ```
 
-    ```
+    ```py
     mae = tf.keras.metrics.mean_absolute_error(
     ```
 
-    ```
+    ```py
         valid_df['Sales'],
     ```
 
-    ```
+    ```py
         valid_df['Naive_Forecast']).numpy()
     ```
 
-    ```
+    ```py
     print('Mean Absolute Error:', mae)
     ```
 
@@ -525,7 +525,7 @@ plt.show()
 
 让我们看看如何实现移动平均：
 
-```
+```py
 # Calculate moving average over a 30-day window
 window =30
 df['Moving_Average_Forecast'] = df['Sales'].rolling(
@@ -544,7 +544,7 @@ df['Moving_Average_Forecast'] = df['Sales'].rolling(
 
 下一步逻辑就是再次使用`metric`函数评估我们的模型。这次，我们将移动平均预测与真实的验证值进行对比：
 
-```
+```py
 # Compute and print mean squared error
 mse = tf.keras.metrics.mean_squared_error(
     valid_df['Sales'],
@@ -569,7 +569,7 @@ print('Mean Squared Error for moving average forecast:',
 
 差分是用于实现时间序列平稳性的一种方法。它通过计算连续观测值之间的差异来工作。其逻辑是，尽管原始序列可能存在趋势并且非平稳，但序列值之间的差异可能是平稳的。通过对数据进行差分，我们可以去除趋势和季节性，从而使序列平稳，并使其适合用于移动平均预测模型。这可以显著提高模型的准确性，从而提高预测的可靠性。让我们在以下代码中查看这一点：
 
-```
+```py
 # Perform seasonal differencing
 df['Differenced_Sales'] = df['Sales'].diff(365)
 # Plotting the differenced sales data
@@ -598,7 +598,7 @@ plt.show()
 
 现在让我们恢复趋势和季节性：
 
-```
+```py
 window=7
 # Restore trend and seasonality
 df['Restored_Sales'] = df['Sales'].shift(
@@ -631,11 +631,11 @@ true_values = valid_df['Sales']
 
 1.  我们从导入所需的库开始：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
-    ```
+    ```py
     import numpy as np
     ```
 
@@ -643,21 +643,21 @@ true_values = valid_df['Sales']
 
 1.  让我们创建一个简单的数据集。这里我们假设数据由两周的温度值组成：
 
-    ```
+    ```py
     # Create an array of temperatures for 2 weeks
     ```
 
-    ```
+    ```py
     temperature = np.arange(1, 15)
     ```
 
-    ```
+    ```py
     print(temperature)
     ```
 
     当我们打印温度数据时，得到以下内容：
 
-    ```
+    ```py
     [ 1  2  3  4  5  6  7  8  9 10 11 12 13 14]
     ```
 
@@ -665,15 +665,15 @@ true_values = valid_df['Sales']
 
 1.  让我们创建窗口化数据。现在我们有了数据，接下来需要创建一个数据点的“窗口”：
 
-    ```
+    ```py
     window_size = 3
     ```
 
-    ```
+    ```py
     batch_size = 2
     ```
 
-    ```
+    ```py
     shuffle_buffer = 10
     ```
 
@@ -681,15 +681,15 @@ true_values = valid_df['Sales']
 
 1.  创建数据集的过程如下：
 
-    ```
+    ```py
     dataset = tf.data.Dataset.from_tensor_slices(temperature)
     ```
 
-    ```
+    ```py
     for element in dataset:
     ```
 
-    ```
+    ```py
         print(element.numpy())
     ```
 
@@ -697,27 +697,27 @@ true_values = valid_df['Sales']
 
 1.  接下来，让我们将温度数据转换成一个“窗口化”的数据集：
 
-    ```
+    ```py
     dataset = dataset.window(window_size + 1, shift=1, 
     ```
 
-    ```
+    ```py
         drop_remainder=True)
     ```
 
-    ```
+    ```py
     for window in dataset:
     ```
 
-    ```
+    ```py
         window_data = ' '.join([str(
     ```
 
-    ```
+    ```py
             element.numpy()) for element in window])
     ```
 
-    ```
+    ```py
         print(window_data)
     ```
 
@@ -725,51 +725,51 @@ true_values = valid_df['Sales']
 
     当我们打印出我们的`window_data`时，得到如下输出：
 
-    ```
+    ```py
     After window:
     ```
 
-    ```
+    ```py
     1 2 3 4
     ```
 
-    ```
+    ```py
     2 3 4 5
     ```
 
-    ```
+    ```py
     3 4 5 6
     ```
 
-    ```
+    ```py
     4 5 6 7
     ```
 
-    ```
+    ```py
     5 6 7 8
     ```
 
-    ```
+    ```py
     6 7 8 9
     ```
 
-    ```
+    ```py
     7 8 9 10
     ```
 
-    ```
+    ```py
     8 9 10 11
     ```
 
-    ```
+    ```py
     9 10 11 12
     ```
 
-    ```
+    ```py
     10 11 12 13
     ```
 
-    ```
+    ```py
     11 12 13 14
     ```
 
@@ -777,69 +777,69 @@ true_values = valid_df['Sales']
 
 1.  展平数据的过程如下：
 
-    ```
+    ```py
     dataset = dataset.flat_map(
     ```
 
-    ```
+    ```py
         lambda window: window.batch(window_size + 1))
     ```
 
-    ```
+    ```py
     for element in dataset:
     ```
 
-    ```
+    ```py
         print(element.numpy())
     ```
 
     很容易将上一阶段创建的每个窗口视为一个单独的数据集。通过这段代码，我们将数据展平，使得每个窗口的数据作为主数据集中的一个单独批次打包。我们使用`flat_map`将其展平回张量数据集，并使用`window.batch(window_size + 1)`将每个窗口数据集转换为批次张量。当我们运行代码时，得到如下结果：
 
-    ```
+    ```py
     After flat_map:
     ```
 
-    ```
+    ```py
     [1 2 3 4]
     ```
 
-    ```
+    ```py
     [2 3 4 5]
     ```
 
-    ```
+    ```py
     [3 4 5 6]
     ```
 
-    ```
+    ```py
     [4 5 6 7]
     ```
 
-    ```
+    ```py
     [5 6 7 8]
     ```
 
-    ```
+    ```py
     [6 7 8 9]
     ```
 
-    ```
+    ```py
     [ 7  8  9 10]
     ```
 
-    ```
+    ```py
     [ 8  9 10 11]
     ```
 
-    ```
+    ```py
     [ 9 10 11 12]
     ```
 
-    ```
+    ```py
     [10 11 12 13]
     ```
 
-    ```
+    ```py
     [11 12 13 14]
     ```
 
@@ -847,69 +847,69 @@ true_values = valid_df['Sales']
 
 1.  打乱数据的过程如下：
 
-    ```
+    ```py
     dataset = dataset.shuffle(shuffle_buffer)
     ```
 
-    ```
+    ```py
     print("\nAfter shuffle:")
     ```
 
-    ```
+    ```py
     for element in dataset:
     ```
 
-    ```
+    ```py
         print(element.numpy())
     ```
 
     在这段代码中，我们对数据进行了打乱。这是一个重要步骤，因为打乱用于确保模型在训练过程中不会错误地学习到数据呈现顺序中的模式。当我们运行代码时，得到如下结果：
 
-    ```
+    ```py
     After shuffle:
     ```
 
-    ```
+    ```py
     [5 6 7 8]
     ```
 
-    ```
+    ```py
     [4 5 6 7]
     ```
 
-    ```
+    ```py
     [1 2 3 4]
     ```
 
-    ```
+    ```py
     [11 12 13 14]
     ```
 
-    ```
+    ```py
     [ 7  8  9 10]
     ```
 
-    ```
+    ```py
     [ 8  9 10 11]
     ```
 
-    ```
+    ```py
     [10 11 12 13]
     ```
 
-    ```
+    ```py
     [ 9 10 11 12]
     ```
 
-    ```
+    ```py
     [6 7 8 9]
     ```
 
-    ```
+    ```py
     [2 3 4 5]
     ```
 
-    ```
+    ```py
     [3 4 5 6]
     ```
 
@@ -917,73 +917,73 @@ true_values = valid_df['Sales']
 
 1.  特征和标签映射的过程如下：
 
-    ```
+    ```py
     dataset = dataset.map(lambda window: (window[:-1],
     ```
 
-    ```
+    ```py
         window[-1]))
     ```
 
-    ```
+    ```py
     print("\nAfter map:")
     ```
 
-    ```
+    ```py
     for x,y in dataset:
     ```
 
-    ```
+    ```py
         print("x =", x.numpy(), "y =", y.numpy())
     ```
 
     `map`方法对数据集的每个元素应用一个函数。在这里，我们将每个窗口分割成特征和标签。特征是窗口中的所有元素（除了最后一个元素，`window[:-1]`），标签是窗口中的最后一个元素，`window[-1]`。当我们运行代码时，看到如下结果：
 
-    ```
+    ```py
     After map:
     ```
 
-    ```
+    ```py
     features = [3 4 5] label = 6
     ```
 
-    ```
+    ```py
     features = [1 2 3] label = 4
     ```
 
-    ```
+    ```py
     features = [10 11 12] label = 13
     ```
 
-    ```
+    ```py
     features = [ 8  9 10] label = 11
     ```
 
-    ```
+    ```py
     features = [4 5 6] label = 7
     ```
 
-    ```
+    ```py
     features = [7 8 9] label = 10
     ```
 
-    ```
+    ```py
     features = [11 12 13] label = 14
     ```
 
-    ```
+    ```py
     features = [5 6 7] label = 8
     ```
 
-    ```
+    ```py
     features = [2 3 4] label = 5
     ```
 
-    ```
+    ```py
     features = [6 7 8] label = 9
     ```
 
-    ```
+    ```py
     features = [ 9 10 11] label = 12
     ```
 
@@ -991,117 +991,117 @@ true_values = valid_df['Sales']
 
 1.  批次处理和预取数据的过程如下：
 
-    ```
+    ```py
     dataset = dataset.batch(batch_size).prefetch(1)
     ```
 
-    ```
+    ```py
     print("\nAfter batch and prefetch:")
     ```
 
-    ```
+    ```py
     for batch in dataset:
     ```
 
-    ```
+    ```py
         print(batch)
     ```
 
     `batch()`函数将数据集分成大小为`batch_size`的批次。在这里，我们创建了大小为`2`的批次。`prefetch(1)`性能优化函数确保 TensorFlow 在处理当前批次时，总是有一个批次已准备好。在进行这些转换后，数据集准备好用于训练机器学习模型。让我们打印出批次数据：
 
-    ```
+    ```py
     After batch and prefetch:
     ```
 
-    ```
+    ```py
     (<tf.Tensor: shape=(2, 3), dtype=int64,
     ```
 
-    ```
+    ```py
         numpy=array([[10, 11, 12],
     ```
 
-    ```
+    ```py
             [ 3,  4,  5]])>, <tf.Tensor: shape=(2,),
     ```
 
-    ```
+    ```py
             dtype=int64, numpy=array([13,  6])>)
     ```
 
-    ```
+    ```py
     (<tf.Tensor: shape=(2, 3), dtype=int64,
     ```
 
-    ```
+    ```py
         numpy=array([[ 9, 10, 11],
     ```
 
-    ```
+    ```py
             [11, 12, 13]])>, <tf.Tensor: shape=(2,),
     ```
 
-    ```
+    ```py
             dtype=int64, numpy=array([12, 14])>)
     ```
 
-    ```
+    ```py
     (<tf.Tensor: shape=(2, 3), dtype=int64,
     ```
 
-    ```
+    ```py
         numpy=array([[6, 7, 8],
     ```
 
-    ```
+    ```py
             [7, 8, 9]])>, <tf.Tensor: shape=(2,),
     ```
 
-    ```
+    ```py
             dtype=int64, numpy=array([ 9, 10])>)
     ```
 
-    ```
+    ```py
     (<tf.Tensor: shape=(2, 3), dtype=int64,
     ```
 
-    ```
+    ```py
         numpy=array([[1, 2, 3],
     ```
 
-    ```
+    ```py
             [4, 5, 6]])>, <tf.Tensor: shape=(2,),
     ```
 
-    ```
+    ```py
             dtype=int64, numpy=array([4, 7])>)
     ```
 
-    ```
+    ```py
     (<tf.Tensor: shape=(2, 3), dtype=int64,
     ```
 
-    ```
+    ```py
         numpy=array([[2, 3, 4],
     ```
 
-    ```
+    ```py
             [5, 6, 7]])>, <tf.Tensor: shape=(2,),
     ```
 
-    ```
+    ```py
             dtype=int64, numpy=array([5, 8])>)
     ```
 
-    ```
+    ```py
     (<tf.Tensor: shape=(1, 3), dtype=int64, numpy=array(
     ```
 
-    ```
+    ```py
         [[ 8,  9, 10]])>, <tf.Tensor: shape=(1,),
     ```
 
-    ```
+    ```py
         dtype=int64, numpy=array([11])>)
     ```
 
@@ -1115,11 +1115,11 @@ true_values = valid_df['Sales']
 
 1.  提取数据的过程如下：
 
-    ```
+    ```py
     time = pd.to_datetime(df['Date'])
     ```
 
-    ```
+    ```py
     sales = df['Sales'].values
     ```
 
@@ -1127,23 +1127,23 @@ true_values = valid_df['Sales']
 
 1.  数据拆分的过程如下：
 
-    ```
+    ```py
     split_time = int(len(df) * 0.8)
     ```
 
-    ```
+    ```py
     time_train = time[:split_time]
     ```
 
-    ```
+    ```py
     x_train = sales[:split_time]
     ```
 
-    ```
+    ```py
     time_valid = time[split_time:]
     ```
 
-    ```
+    ```py
     x_valid = sales[split_time:]
     ```
 
@@ -1151,63 +1151,63 @@ true_values = valid_df['Sales']
 
 1.  创建窗口化数据集的过程如下：
 
-    ```
+    ```py
     def windowed_dataset(
     ```
 
-    ```
+    ```py
         series, window_size, batch_size, shuffle_buffer):
     ```
 
-    ```
+    ```py
             dataset = tf.data.Dataset.from_tensor_slices(
     ```
 
-    ```
+    ```py
                 series)
     ```
 
-    ```
+    ```py
             dataset = dataset.window(window_size + 1,
     ```
 
-    ```
+    ```py
                 shift=1, drop_remainder=True)
     ```
 
-    ```
+    ```py
             dataset = dataset.flat_map(lambda window:
     ```
 
-    ```
+    ```py
                 window.batch(window_size + 1))
     ```
 
-    ```
+    ```py
             dataset = dataset.shuffle(shuffle_buffer).map(
     ```
 
-    ```
+    ```py
                 lambda window: (window[:-1], window[-1]))
     ```
 
-    ```
+    ```py
             dataset = dataset.batch(
     ```
 
-    ```
+    ```py
                 batch_size).prefetch(1)
     ```
 
-    ```
+    ```py
         return dataset
     ```
 
-    ```
+    ```py
     dataset = windowed_dataset(x_train, window_size,
     ```
 
-    ```
+    ```py
         batch_size, shuffle_buffer_size)
     ```
 
@@ -1215,39 +1215,39 @@ true_values = valid_df['Sales']
 
 1.  构建模型的过程如下：
 
-    ```
+    ```py
     model = tf.keras.models.Sequential([
     ```
 
-    ```
+    ```py
         tf.keras.layers.Dense(10,
     ```
 
-    ```
+    ```py
             input_shape=[window_size], activation="relu"),
     ```
 
-    ```
+    ```py
         tf.keras.layers.Dense(10, activation="relu"),
     ```
 
-    ```
+    ```py
         tf.keras.layers.Dense(1)
     ```
 
-    ```
+    ```py
         ])
     ```
 
-    ```
+    ```py
     model.compile(loss="mse",
     ```
 
-    ```
+    ```py
         optimizer=tf.keras.optimizers.SGD(
     ```
 
-    ```
+    ```py
             learning_rate=1e-6, momentum=0.9))
     ```
 
@@ -1255,7 +1255,7 @@ true_values = valid_df['Sales']
 
 1.  训练模型的过程如下：
 
-    ```
+    ```py
     model.fit(dataset, epochs=100, verbose=0)
     ```
 
@@ -1263,27 +1263,27 @@ true_values = valid_df['Sales']
 
 1.  生成预测的过程如下：
 
-    ```
+    ```py
     input_batches = [sales[time:time + window_size][
     ```
 
-    ```
+    ```py
         np.newaxis] for time in range(len(
     ```
 
-    ```
+    ```py
             sales) - window_size)]
     ```
 
-    ```
+    ```py
     inputs = np.concatenate(input_batches, axis=0)
     ```
 
-    ```
+    ```py
     forecast = model.predict(inputs)
     ```
 
-    ```
+    ```py
     results = forecast[split_time-window_size:, 0]
     ```
 
@@ -1291,19 +1291,19 @@ true_values = valid_df['Sales']
 
 1.  评估模型的过程如下：
 
-    ```
+    ```py
     print(tf.keras.metrics.mean_squared_error(x_valid,
     ```
 
-    ```
+    ```py
         results).numpy())
     ```
 
-    ```
+    ```py
     print(tf.keras.metrics.mean_absolute_error(x_valid,
     ```
 
-    ```
+    ```py
         results).numpy())
     ```
 

@@ -30,7 +30,7 @@ TensorFlow 的 GPU 模式安装需要最新版本的 NVIDIA 驱动程序，因�
 
 首先，你需要根据你的 GPU 安装正确的 NVIDIA 驱动程序。我使用的是 GeForce GTX 960M GPU，所以我将安装 `nvidia-375`（如果你使用的是其他 GPU，可以使用 NVIDIA 搜索工具 [`www.nvidia.com/Download/index.aspx`](http://www.nvidia.com/Download/index.aspx) 来帮助你找到正确的驱动程序版本）。如果你想知道你的机器的 GPU 型号，可以在终端中执行以下命令：
 
-```
+```py
 lspci | grep -i nvidia
 ```
 
@@ -40,7 +40,7 @@ lspci | grep -i nvidia
 
 接下来，我们需要添加一个专有的 NVIDIA 驱动程序仓库，以便能够使用 `apt-get` 安装驱动程序：
 
-```
+```py
 sudo add-apt-repository ppa:graphics-drivers/ppa
 sudo apt-get update
 sudo apt-get install nvidia-375
@@ -48,7 +48,7 @@ sudo apt-get install nvidia-375
 
 在成功安装 NVIDIA 驱动程序后，重新启动机器。要验证驱动程序是否正确安装，可以在终端中执行以下命令：
 
-```
+```py
 cat /proc/driver/nvidia/version
 ```
 
@@ -62,7 +62,7 @@ cat /proc/driver/nvidia/version
 
 安装文件大约 2 GB。你需要执行以下安装指令：
 
-```
+```py
 sudo dpkg -i cuda-repo-ubuntu1604-8-0-local-ga2_8.0.61-1_amd64.deb
 sudo apt-get update
 sudo apt-get install cuda
@@ -70,21 +70,21 @@ sudo apt-get install cuda
 
 接下来，我们需要通过执行以下命令将库添加到 `.bashrc` 文件中：
 
-```
+```py
 echo 'export PATH=/usr/local/cuda/bin:$PATH' >> ~/.bashrc
 ```
 
-```
+```py
 echo 'export LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH' >> ~/.bashrc
 ```
 
-```
+```py
 source ~/.bashrc
 ```
 
 接下来，你需要通过执行以下命令来验证 CUDA 8 的安装：
 
-```
+```py
 nvcc -V
 ```
 
@@ -94,27 +94,27 @@ nvcc -V
 
 最后，在本节中，我们需要安装 cuDNN 6.0。**NVIDIA CUDA 深度神经网络库**（**cuDNN**）是一个为深度神经网络加速的 GPU 库。你可以从 NVIDIA 的网页下载。执行以下命令以解压并安装 cuDNN：
 
-```
+```py
 cd ~/Downloads/
 ```
 
-```
+```py
 tar xvf cudnn*.tgz
 ```
 
-```
+```py
 cd cuda
 ```
 
-```
+```py
 sudo cp */*.h /usr/local/cuda/include/
 ```
 
-```
+```py
 sudo cp */libcudnn* /usr/local/cuda/lib64/
 ```
 
-```
+```py
 sudo chmod a+r /usr/local/cuda/lib64/libcudnn*
 ```
 
@@ -126,45 +126,45 @@ sudo chmod a+r /usr/local/cuda/lib64/libcudnn*
 
 我们可以通过执行以下命令来安装一些数据处理、分析和可视化库：
 
-```
+```py
 sudo apt-get update && apt-get install -y python-numpy python-scipy python-nose python-h5py python-skimage python-matplotlib python-pandas python-sklearn python-sympy
 ```
 
-```
+```py
 sudo apt-get clean && sudo apt-get autoremove
 ```
 
-```
+```py
 sudo rm -rf /var/lib/apt/lists/*
 ```
 
 接下来，你可以安装更多有用的库，如虚拟环境、Jupyter Notebook 等：
 
-```
+```py
 sudo apt-get update
 ```
 
-```
+```py
 sudo apt-get install git python-dev python3-dev python-numpy python3-numpy build-essential  python-pip python3-pip python-virtualenv swig python-wheel libcurl3-dev
 ```
 
-```
+```py
 sudo apt-get install -y libfreetype6-dev libpng12-dev
 ```
 
-```
+```py
 pip3 install -U matplotlib ipython[all] jupyter pandas scikit-image
 ```
 
 最后，我们可以通过执行以下命令开始安装 GPU 版本的 TensorFlow：
 
-```
+```py
 pip3 install --upgrade tensorflow-gpu
 ```
 
 你可以通过使用 Python 来验证 TensorFlow 是否成功安装：
 
-```
+```py
 python3
 >>> import tensorflow as tf
 >>> a = tf.constant(5)
@@ -183,45 +183,45 @@ python3
 
 在本节中，我们将安装 CPU 版本，这个版本在安装之前不需要任何驱动程序。所以，首先让我们安装一些有用的数据处理和可视化的包：
 
-```
+```py
 sudo apt-get update && apt-get install -y python-numpy python-scipy python-nose python-h5py python-skimage python-matplotlib python-pandas python-sklearn python-sympy
 ```
 
-```
+```py
 sudo apt-get clean && sudo apt-get autoremove
 ```
 
-```
+```py
 sudo rm -rf /var/lib/apt/lists/*
 ```
 
 接下来，你可以安装一些有用的库，比如虚拟环境、Jupyter Notebook 等：
 
-```
+```py
 sudo apt-get update
 ```
 
-```
+```py
 sudo apt-get install git python-dev python3-dev python-numpy python3-numpy build-essential  python-pip python3-pip python-virtualenv swig python-wheel libcurl3-dev
 ```
 
-```
+```py
 sudo apt-get install -y libfreetype6-dev libpng12-dev
 ```
 
-```
+```py
 pip3 install -U matplotlib ipython[all] jupyter pandas scikit-image
 ```
 
 最后，你可以通过执行以下命令来安装最新的 TensorFlow CPU 版本：
 
-```
+```py
 pip3 install --upgrade tensorflow
 ```
 
 你可以通过运行以下 TensorFlow 语句来检查 TensorFlow 是否成功安装：
 
-```
+```py
 python3
 >>> import tensorflow as tf
 >>> a = tf.constant(5)
@@ -239,23 +239,23 @@ python3
 
 在本节中，我们将使用 `virtualenv` 为 macOS X 安装 TensorFlow。所以，首先让我们通过执行以下命令安装 `pip` 工具：
 
-```
+```py
 sudo easy_install pip
 ```
 
 接下来，我们需要安装虚拟环境库：
 
-```
+```py
 sudo pip install --upgrade virtualenv
 ```
 
 安装虚拟环境库后，我们需要创建一个容器或虚拟环境，它将托管 TensorFlow 的安装以及你可能想要安装的任何包，而不会影响底层的主机系统：
 
-```
+```py
 virtualenv --system-site-packages targetDirectory # for Python 2.7
 ```
 
-```
+```py
 virtualenv --system-site-packages -p python3 targetDirectory # for Python 3.n
 ```
 
@@ -263,7 +263,7 @@ virtualenv --system-site-packages -p python3 targetDirectory # for Python 3.n
 
 现在你已经创建了虚拟环境，你可以通过输入以下命令来访问它：
 
-```
+```py
 source ~/tensorflow/bin/activate 
 ```
 
@@ -271,23 +271,23 @@ source ~/tensorflow/bin/activate
 
 要退出环境，你可以输入以下命令：
 
-```
+```py
 deactivate
 ```
 
 请注意，当前我们确实需要待在虚拟环境内，所以暂时保持它激活。一旦你完成了 TensorFlow 的使用，应该退出虚拟环境：
 
-```
+```py
 source bin/activate
 ```
 
 为了安装 TensorFlow 的 CPU 版本，你可以输入以下命令，这将同时安装 TensorFlow 所需的所有依赖库：
 
-```
+```py
 (tensorflow)$ pip install --upgrade tensorflow      # for Python 2.7
 ```
 
-```
+```py
 (tensorflow)$ pip3 install --upgrade tensorflow     # for Python 3.n
 ```
 
@@ -301,13 +301,13 @@ source bin/activate
 
 你需要在输入下一个命令之前安装`pip`或`pip3`（取决于你的 Python 版本）。
 
-```
+```py
 C:\> pip3 install --upgrade tensorflow-gpu
 ```
 
 输入以下命令以在 CPU 模式下安装 TensorFlow：
 
-```
+```py
 C:\> pip3 install --upgrade tensorflow
 ```
 
@@ -381,7 +381,7 @@ TensorFlow 是如何工作的，其潜在范式是什么？
 
 我们可以使用 TensorFlow 的 `Variable()` 函数来定义一个变量并给它一个初始值：
 
-```
+```py
 var = tf.Variable(tf.random_normal((0,1)),name='random_values')
 ```
 
@@ -397,7 +397,7 @@ var = tf.Variable(tf.random_normal((0,1)),name='random_values')
 
 我们可以使用 TensorFlow 的占位符函数来创建一个占位符：
 
-```
+```py
 ph_var1 = tf.placeholder(tf.float32,shape=(2,3))
 ph_var2 = tf.placeholder(tf.float32,shape=(3,2))
 result = tf.matmul(ph_var1,ph_var2)
@@ -423,7 +423,7 @@ result = tf.matmul(ph_var1,ph_var2)
 
 接下来，让我们按照以下步骤来构建流图：
 
-```
+```py
 # import TensorFlow package
 import tensorflow as tf
 # build a TensorFlow variable b taking in initial zeros of size 100
@@ -454,7 +454,7 @@ h and see its value until we run this graph. So, this code snippet is just for b
 
 为了运行图，我们需要定义一个叫做 `sess` 的会话对象，然后调用 `run` 函数，该函数接受两个参数：
 
-```
+```py
 sess.run(fetches, feeds)
 ```
 
@@ -466,7 +466,7 @@ sess.run(fetches, feeds)
 
 所以，让我们继续运行我们的图：
 
-```
+```py
 # importing the numpy package for generating random variables for
 # our placeholder x
 import numpy as np
@@ -486,13 +486,13 @@ sess.run(h, {x: np.random.random((100,784))})
 
 ![](img/7faee772-f55c-41db-b38f-9768eb147d71.png)
 
-```
+```py
 lazy evaluation. It means that the evaluation of your graph only ever happens at runtime, and runtime in TensorFlow means the session. So, calling this function, global_variables_initializer(), will actually initialize anything called variable in your graph, such as *W* and *b* in our case.
 ```
 
 我们还可以在一个 with 块中使用会话变量，以确保在执行图后会话会被关闭：
 
-```
+```py
 ph_var1 = tf.placeholder(tf.float32,shape=(2,3))
 ph_var2 = tf.placeholder(tf.float32,shape=(3,2))
 result = tf.matmul(ph_var1,ph_var2)
@@ -517,7 +517,7 @@ Output:
 
 所以，让我们从导入 TensorFlow 并使用 TensorFlow 的辅助函数加载所需的数据集开始；这些辅助函数会检查你是否已经下载了数据集，否则它会为你下载：
 
-```
+```py
 import tensorflow as tf
 
 # Using TensorFlow helper function to get the MNIST dataset
@@ -533,7 +533,7 @@ Extracting /tmp/data/t10k-labels-idx1-ubyte.gz
 
 接下来，我们需要定义超参数（用于微调模型性能的参数）和模型的输入：
 
-```
+```py
 # hyperparameters of the the model (you don't have to understand the functionality of each parameter)
 learning_rate = 0.01
 num_training_epochs = 25
@@ -555,7 +555,7 @@ biases = tf.Variable(tf.zeros([10]), name='biases')
 
 现在我们需要构建模型并定义我们将要优化的代价函数：
 
-```
+```py
 # Create the computational graph and encapsulating different operations to different scopes
 # which will make it easier for us to understand the visualizations of TensorBoard
 with tf.name_scope('Model'):
@@ -582,7 +582,7 @@ init = tf.global_variables_initializer()
 
 我们将定义一个摘要变量，用于监控特定变量（如损失函数）在训练过程中如何变化，以及其改进情况：
 
-```
+```py
 # Create a summary to monitor the model cost tensor
 tf.summary.scalar("model loss", model_cost)
 
@@ -595,7 +595,7 @@ merged_summary_operation = tf.summary.merge_all()
 
 最后，我们通过定义一个会话变量来运行模型，该变量将用于执行我们构建的计算图：
 
-```
+```py
 # kick off the training process
 with tf.Session() as sess:
 
@@ -642,7 +642,7 @@ with tf.Session() as sess:
 
 训练过程的输出应类似于以下内容：
 
-```
+```py
 Epoch: 001 cost= 1.183109128
 Epoch: 002 cost= 0.665210275
 Epoch: 003 cost= 0.552693334
@@ -677,7 +677,7 @@ Then open http://0.0.0.0:6006/ into your web browser
 
 为了在 TensorBoard 中查看汇总统计信息，我们将在终端中输入以下命令，执行输出末尾的提示信息：
 
-```
+```py
 tensorboard --logdir=/tmp/tensorflow_tensorboard
 ```
 

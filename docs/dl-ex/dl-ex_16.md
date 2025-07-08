@@ -6,7 +6,7 @@
 
 在解释了鱼类识别示例的主要构建模块之后，我们准备好将所有代码片段连接在一起，看看我们是如何用仅仅几行代码构建出这样一个复杂的系统的：
 
-```
+```py
 #Loading the required libraries along with the deep learning platform Keras with TensorFlow as backend
 import numpy as np
 np.random.seed(2017)

@@ -50,7 +50,7 @@ Python 的成功归因于以下几个原因：
 
 下面是一些定义 NumPy 对象的示例：
 
-```
+```py
 import numpy as np
 np_array = np.array( [0, 1, 2, 3] )
 
@@ -84,7 +84,7 @@ np_zero_array = np.zeros(10)
 
 实际上，在两个数相乘的情况下，因子顺序不影响乘积结果（也就是说，*2 x 3 = 3 x 2*），但在两个矩阵相乘的情况下，**顺序非常重要**：
 
-```
+```py
 aX != Xa
 ```
 
@@ -92,7 +92,7 @@ aX != Xa
 
 因此，`numpy`库提供了`dot()`函数来计算两个矩阵之间的乘积（只要这个操作是可能的）：
 
-```
+```py
 import numpy as np
 a = np.array([-8, 15])
 X = np.array([[1, 5], 
@@ -107,7 +107,7 @@ y = np.dot(X, a)
 
 该产品是模型的表达：
 
-```
+```py
 y = Xa
 ```
 
@@ -117,7 +117,7 @@ y = Xa
 
 为了充分理解 NumPy 中`dot()`方法在矩阵乘法操作中的应用，我们可以尝试从零开始实现一个**简单的预测器**，根据一组多个输入和相对权重，通过矩阵与向量之间的乘积来预测未来的值：
 
-```
+```py
 import numpy as np
 def predict(data, w):  
      return data.dot(w)
@@ -163,7 +163,7 @@ print('Predicted value: $%.2f' %  predict(data_in, w) )
 
 我们的目标是使用在`LinearRegression`类中实现的`fit()`和`predict()`方法：
 
-```
+```py
 import numpy as np
 from sklearn.linear_model import LinearRegression
 
@@ -185,7 +185,7 @@ print('Model Prediction for new data: $%.2f'
 
 执行后，脚本会输出以下内容：
 
-```
+```py
 Model Prediction for new data: $13.73
 ```
 
@@ -201,7 +201,7 @@ AI 和数据科学分析师最常用的分析工具之一就是**数据的图形
 
 在下面的代码中，我们展示了一个使用`matplotlib`库的简单示例，使用`plot()`方法绘制由`numpy`库的`arange()`方法（数组范围）获取的输入数据：
 
-```
+```py
 import numpy as np 
 import matplotlib.pyplot as plt  
 plt.plot(np.arange(15), np.arange(15))
@@ -222,7 +222,7 @@ Seaborn 是 Matplotlib 的扩展，它为数据科学提供了各种可视化工
 
 在实例化 `DataFrame` 类型的 `iris_df` 对象之后，调用 `pandas` 库的 `head()` 和 `describe()` 方法，分别显示数据集的前五条记录和数据集中的一些主要统计量：
 
-```
+```py
 import pandas as pd  
 from sklearn import datasets
 
@@ -246,13 +246,13 @@ Pefile 库对于分析 Windows 可执行文件非常有用，特别是在 **静�
 
 因此，不仅是经典的 `.exe` 文件，还有 `.dll` 库和 `.sys` 设备驱动程序，都遵循 PE 文件格式规范。安装 Pefile 库非常简单，只需使用如下示例中的 `pip` 命令即可：
 
-```
+```py
 pip install pefile
 ```
 
 安装完成后，我们可以用一个简单的脚本测试该库，例如以下脚本，它将可执行文件 `notepad.exe` 加载到运行时内存中，然后从其可执行映像中提取一些在相关 PE 文件格式字段中保存的最重要信息：
 
-```
+```py
 import os
 import pefile
 notepad = pefile.PE("notepad.exe", fast_load=True)
@@ -319,7 +319,7 @@ Anaconda 提供了一个非常强大的工具，conda。通过 conda，您可以
 
 要访问 conda 帮助菜单，请从命令提示符运行以下命令：
 
-```
+```py
 conda -h
 ```
 
@@ -327,7 +327,7 @@ conda -h
 
 使用 conda 工具，可以安装预安装包集合中未包含的新包。要安装新包，只需执行以下命令：
 
-```
+```py
 conda install
 ```
 
@@ -341,13 +341,13 @@ conda install
 
 假设我们想要创建一个自定义环境，在其中安装 Python 3.5（或其他版本）。只需像以下示例一样调用 conda 工具：
 
-```
+```py
 conda create -n py35 python=3.5
 ```
 
 此时，`conda` 将创建并配置名为`py35`的新自定义环境，其中安装了 Python 3.5 版本。要激活新创建的环境，只需从命令提示符运行以下命令：
 
-```
+```py
 activate py35
 ```
 
@@ -359,26 +359,26 @@ activate py35
 
 +   要激活新创建的`py35`自定义环境，请运行以下命令：
 
-```
+```py
 activate py35
 ```
 
 +   通过执行以下命令在特定环境中安装包：
 
-```
+```py
 conda install -n py35 PACKAGE-NAME
 conda install -n py35 seaborn
 ```
 
 +   通过运行以下命令列出特定环境中已安装的包：
 
-```
+```py
 conda list -n py35
 ```
 
 +   使用以下命令更新 Anaconda：
 
-```
+```py
 conda update conda
 conda update –all
 ```
@@ -407,13 +407,13 @@ conda update –all
 
 在 Jupyter Notebook 中，可以调用在自定义环境中安装的各种特定库。Jupyter 是一个基于网页的工具，因此要运行笔记本，需执行以下命令：
 
-```
+```py
 jupyter notebook
 ```
 
 也可以使用`port`参数指定服务的监听端口：
 
-```
+```py
 jupyter notebook --port 9000
 ```
 
@@ -493,7 +493,7 @@ Jupyter 是 Anaconda 中预安装的包之一；无需安装软件，因为它�
 
 1.  继续插入一个新单元格，在其中编写以下命令：
 
-```
+```py
 # Execute plot() inline without calling show()
 %matplotlib inline
 import numpy as np 
@@ -507,7 +507,7 @@ plt.plot(np.arange(15), np.arange(15))
 
 1.  现在，添加一个新单元格，在其中编写以下代码：
 
-```
+```py
 import numpy as np 
 from sklearn.linear_model import LinearRegression
 
@@ -527,13 +527,13 @@ print('Model Prediction for new data: $%.2f'
 
 运行上述代码后，我们应该会得到以下输出：
 
-```
+```py
 Model Prediction for new data: $13.73
 ```
 
 1.  最后，我们插入一个新单元格，在其中编写以下代码：
 
-```
+```py
 import pandas as pd  
 from sklearn import datasets
 iris = datasets.load_iris()
@@ -600,19 +600,19 @@ iris_df.describe()
 
 1.  使用 conda 安装 TensorFlow：
 
-```
+```py
 conda install -n py35 -c conda-forge tensorflow
 ```
 
 1.  使用以下命令安装特定版本的 TensorFlow：
 
-```
+```py
 conda install -n py35 -c conda-forge tensorflow=1.0.0
 ```
 
 1.  我们可以通过在交互式 conda 会话中运行一个示例 TensorFlow 程序来测试我们的安装，方法如下：
 
-```
+```py
 activate py35
 python
 >>> import tensorflow as tf
@@ -629,7 +629,7 @@ python
 
 Keras 的特点是可以安装在 TensorFlow 之上，从而构成一个高层次接口（相对于 TensorFlow）用于神经网络（NN）开发。与 TensorFlow 一样，对于 Keras，我们将继续在之前创建的自定义环境 `py35` 内进行安装，执行以下命令：
 
-```
+```py
 conda install -n py35 -c conda-forge keras
 ```
 
@@ -641,7 +641,7 @@ conda install -n py35 -c conda-forge keras
 
 PyTorch 是 Facebook 开发的一个项目，专门设计用于执行大规模的图像分析。即使是 PyTorch，通过 conda 在 `py35` 环境中的安装也非常简单：
 
-```
+```py
 conda install -n py35 -c peterjc123 pytorch
 ```
 

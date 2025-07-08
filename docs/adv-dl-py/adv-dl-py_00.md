@@ -76,7 +76,7 @@
 
 一段代码的设置方式如下：
 
-```
+```py
 import matplotlib.pyplot as plt
 from matplotlib.markers import MarkerStyle
 import numpy as np

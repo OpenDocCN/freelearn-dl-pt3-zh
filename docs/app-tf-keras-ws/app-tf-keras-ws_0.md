@@ -34,7 +34,7 @@
 
 一块代码的设置如下：
 
-```
+```py
 $ python -m venv venv
 $ venv/bin/activate
 ```
@@ -49,14 +49,14 @@ $ venv/bin/activate
 
 例如：
 
-```
+```py
 history = model.fit(X, y, epochs=100, batch_size=5, verbose=1, \
                    validation_split=0.2, shuffle=False)
 ```
 
 注释是添加到代码中的，以帮助解释特定的逻辑。单行注释使用 `#` 符号，如下所示：
 
-```
+```py
 # Print the sizes of the dataset
 print("Number of Examples in the Dataset = ", X.shape[0])
 print("Number of Features for each example = ", X.shape[1])
@@ -64,7 +64,7 @@ print("Number of Features for each example = ", X.shape[1])
 
 多行注释使用三引号括起来，如下所示：
 
-```
+```py
 """
 Define a seed for the random number generator to ensure the 
 result will be reproducible
@@ -102,7 +102,7 @@ Python 在 Windows 上的安装方法如下：
 
 1.  要安装 Python 3，请运行以下命令：
 
-    ```
+    ```py
     sudo apt-get update
     sudo apt-get install python3.7
     ```
@@ -137,7 +137,7 @@ Python 在 Windows 上的安装方法如下：
 
 1.  在命令行中执行以下命令：
 
-    ```
+    ```py
     python get-pip.py
     ```
 

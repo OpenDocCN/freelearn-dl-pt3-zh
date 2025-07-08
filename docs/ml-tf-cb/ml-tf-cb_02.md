@@ -32,7 +32,7 @@
 
 首先，我们加载 TensorFlow 和 NumPy，如下所示：
 
-```
+```py
 import TensorFlow as tf
 import NumPy as np 
 ```
@@ -45,7 +45,7 @@ import NumPy as np
 
 首先，我们声明我们的张量和变量。在所有可能的将数据传递给变量的方式中，我们将创建一个 NumPy 数组来传递给变量，然后将其用于操作：
 
-```
+```py
 x_vals = np.array([1., 3., 5., 7., 9.])
 x_data = tf.Variable(x_vals, dtype=tf.float32)
 m_const = tf.constant(3.)
@@ -56,7 +56,7 @@ for result in operation:
 
 上述代码的输出结果如下：
 
-```
+```py
 3.0 
 9.0 
 15.0 
@@ -80,7 +80,7 @@ for result in operation:
 
 和往常一样，我们只需要导入 TensorFlow 和 NumPy，代码如下：
 
-```
+```py
 import TensorFlow as tf
 import NumPy as np 
 ```
@@ -93,7 +93,7 @@ import NumPy as np
 
 1.  首先，我们创建要输入的数据和相应的占位符：
 
-    ```
+    ```py
     my_array = np.array([[1., 3., 5., 7., 9.], 
                          [-2., 0., 2., 4., 6.], 
                          [-6., -3., 0., 3., 6.]]) 
@@ -103,7 +103,7 @@ import NumPy as np
 
 1.  然后，我们创建用于矩阵乘法和加法的常量：
 
-    ```
+    ```py
     m1 = tf.constant([[1.], [0.], [-1.], [2.], [4.]]) 
     m2 = tf.constant([[2.]]) 
     a1 = tf.constant([[10.]]) 
@@ -111,7 +111,7 @@ import NumPy as np
 
 1.  接下来，我们声明要立即执行的操作。作为好的编程实践，我们创建执行所需操作的函数：
 
-    ```
+    ```py
     def prod1(a, b):
         return tf.matmul(a, b)
     def prod2(a, b):
@@ -122,7 +122,7 @@ import NumPy as np
 
 1.  最后，我们嵌套我们的函数并显示结果：
 
-    ```
+    ```py
     result = add1(prod2(prod1(x_data, m1), m2), a1)
     print(result.NumPy()) 
     [[ 102.] 
@@ -139,7 +139,7 @@ import NumPy as np
 
 借助即时执行，我们不再需要使用那种"万事俱备"的编程风格（指的是将几乎所有内容都放在程序的全局作用域中；详情请见[`stackoverflow.com/questions/33779296/what-is-exact-meaning-of-kitchen-sink-in-programming`](https://stackoverflow.com/questions/33779296/what-is-exact-meaning-of-kitchen-sink-in-programming)）这种风格在使用 TensorFlow 1.x 时非常常见。目前，你可以选择采用函数式编程风格或面向对象编程风格，就像我们在这个简短示例中展示的那样，你可以将所有操作和计算按逻辑合理的方式排列，使其更易理解：
 
-```
+```py
 class Operations():  
     def __init__(self, a):
         self.result = a
@@ -162,7 +162,7 @@ print(operation.result.NumPy())
 
 例如，要初始化一个具有未知行数的变量，我们将写下以下行，然后我们可以分配任意行数的值：
 
-```
+```py
 v = tf.Variable(initial_value=tf.random.normal(shape=(1, 5)),
                 shape=tf.TensorShape((None, 5)))
 v.assign(tf.random.normal(shape=(10, 5))) 
@@ -184,7 +184,7 @@ v.assign(tf.random.normal(shape=(10, 5)))
 
 首先，您必须加载常用的包 - NumPy 和 TensorFlow - 使用以下内容：
 
-```
+```py
 import TensorFlow as tf
 import NumPy as np 
 ```
@@ -197,7 +197,7 @@ import NumPy as np
 
 首先，我们用 NumPy 创建我们的示例二维图像。这个图像将是一个 4x4 像素的图像。我们将在四个维度上创建它；第一个和最后一个维度将具有大小为`1`（我们保持批维度不同，以便您可以尝试更改其大小）。请注意，某些 TensorFlow 图像函数将操作四维图像。这四个维度是图像编号、高度、宽度和通道，为了使它与一个通道的图像兼容，我们将最后一个维度明确设置为`1`，如下所示：
 
-```
+```py
 batch_size = [1]
 x_shape = [4, 4, 1]
 x_data = tf.random.uniform(shape=batch_size + x_shape) 
@@ -207,7 +207,7 @@ x_data = tf.random.uniform(shape=batch_size + x_shape)
 
 此函数对我们指定的窗口和滤波器进行分段乘积。我们还必须在两个方向上指定移动窗口的步幅。在这里，我们将计算四个移动窗口的平均值：左上角、右上角、左下角和右下角的四个像素。我们通过创建一个 *2* x *2* 窗口，并且在每个方向上使用长度为 `2` 的步幅来实现这一点。为了取平均值，我们将 *2* x *2* 窗口与常数 `0.25` 做卷积，如下所示：
 
-```
+```py
 def mov_avg_layer(x):
     my_filter = tf.constant(0.25, shape=[2, 2, 1, 1]) 
     my_strides = [1, 2, 2, 1] 
@@ -222,7 +222,7 @@ def mov_avg_layer(x):
 
 现在，我们定义一个自定义层，该层将操作移动窗口平均值的 *2* x *2* 输出。自定义函数将首先将输入乘以另一个 *2* x *2* 矩阵张量，然后将每个条目加 `1`。之后，我们对每个元素取 sigmoid，并返回 *2* x *2* 矩阵。由于矩阵乘法仅适用于二维矩阵，我们需要去除大小为 `1` 的图像的额外维度。TensorFlow 可以使用内置的 `squeeze()` 函数来完成这一点。在这里，我们定义了新的层：
 
-```
+```py
  def custom_layer(input_matrix): 
         input_matrix_sqeezed = tf.squeeze(input_matrix) 
         A = tf.constant([[1., 2.], [-1., 3.]]) 
@@ -234,14 +234,14 @@ def mov_avg_layer(x):
 
 现在，我们必须安排网络中的两个层。我们将通过依次调用一个层函数来完成这一点，如下所示：
 
-```
+```py
 first_layer = mov_avg_layer(x_data) 
 second_layer = custom_layer(first_layer) 
 ```
 
 现在，我们只需将 *4* x *4* 图像输入函数中。最后，我们可以检查结果，如下所示：
 
-```
+```py
 print(second_layer)
 
 tf.Tensor(
@@ -265,7 +265,7 @@ tf.Tensor(
 
 我们首先启动一个计算图，并加载 `matplotlib`，一个 Python 绘图包，如下所示：
 
-```
+```py
 import matplotlib.pyplot as plt 
 import TensorFlow as tf 
 ```
@@ -276,14 +276,14 @@ import TensorFlow as tf
 
 首先，我们将讨论回归的损失函数，这意味着预测一个连续的因变量。首先，我们将创建一个预测序列和目标作为张量。我们将在`-1`和`1`之间的 500 个 x 值上输出结果。有关输出的图表，请参见*如何工作...*部分。使用以下代码：
 
-```
+```py
 x_vals = tf.linspace(-1., 1., 500) 
 target = tf.constant(0.) 
 ```
 
 L2 范数损失也称为欧几里得损失函数。它只是与目标的距离的平方。在这里，我们将假设目标为零来计算损失函数。L2 范数是一个很好的损失函数，因为它在接近目标时非常曲线，算法可以利用这一事实在接近零时更慢地收敛。我们可以按如下方式实现：
 
-```
+```py
 def l2(y_true, y_pred):
     return tf.square(y_true - y_pred) 
 ```
@@ -292,14 +292,14 @@ TensorFlow 有一个内置的 L2 范数形式，叫做`tf.nn.l2_loss()`。这个
 
 L1 范数损失也称为**绝对损失函数**。它不对差异进行平方处理，而是取绝对值。L1 范数比 L2 范数更适合处理离群值，因为它对较大值的陡峭度较低。需要注意的问题是，L1 范数在目标处不平滑，这可能导致算法无法很好地收敛。它的形式如下所示：
 
-```
+```py
 def l1(y_true, y_pred):
     return tf.abs(y_true - y_pred) 
 ```
 
 伪-Huber 损失是**Huber 损失函数**的连续且平滑的近似。这个损失函数试图通过在接近目标时采用 L1 和 L2 范数的优点，并且对于极端值更加平缓，来结合这两者。它的形式取决于一个额外的参数`delta`，它决定了它的陡峭度。我们将绘制两个形式，*delta1 = 0.25*和*delta2 = 5*，以显示差异，如下所示：
 
-```
+```py
 def phuber1(y_true, y_pred):
     delta1 = tf.constant(0.25) 
     return tf.multiply(tf.square(delta1), tf.sqrt(1\. +  
@@ -314,21 +314,21 @@ def phuber2(y_true, y_pred):
 
 首先，我们需要重新定义我们的预测值`(x_vals)`和`target`。我们将保存输出并在下一部分进行绘制。使用以下代码：
 
-```
+```py
 x_vals = tf.linspace(-3., 5., 500) 
 target = tf.fill([500,], 1.) 
 ```
 
 Hinge 损失主要用于支持向量机，但也可以用于神经网络。它用于计算两个目标类别之间的损失，`1` 和 -`1`。在以下代码中，我们使用目标值`1`，因此我们的预测值越接近`1`，损失值就越低：
 
-```
+```py
 def hinge(y_true, y_pred):
     return tf.maximum(0., 1\. - tf.multiply(y_true, y_pred)) 
 ```
 
 二分类情况下的交叉熵损失有时也被称为**逻辑损失函数**。当我们预测 `0` 或 `1` 两个类别时，便会使用该函数。我们希望衡量实际类别（`0` 或 `1`）与预测值之间的距离，预测值通常是介于 `0` 和 `1` 之间的实数。为了衡量这个距离，我们可以使用信息理论中的交叉熵公式，如下所示：
 
-```
+```py
 def xentropy(y_true, y_pred):
     return (- tf.multiply(y_true, tf.math.log(y_pred)) -   
           tf.multiply((1\. - y_true), tf.math.log(1\. - y_pred))) 
@@ -336,7 +336,7 @@ def xentropy(y_true, y_pred):
 
 Sigmoid 交叉熵损失与之前的损失函数非常相似，不同之处在于我们在将 `x` 值代入交叉熵损失之前，使用 sigmoid 函数对其进行转换，如下所示：
 
-```
+```py
 def xentropy_sigmoid(y_true, y_pred):
     return tf.nn.sigmoid_cross_entropy_with_logits(labels=y_true,  
                                                    logits=y_pred) 
@@ -344,7 +344,7 @@ def xentropy_sigmoid(y_true, y_pred):
 
 加权交叉熵损失是 sigmoid 交叉熵损失的加权版本。我们对正类目标进行加权。作为示例，我们将正类目标的权重设为 `0.5`，如下所示：
 
-```
+```py
 def xentropy_weighted(y_true, y_pred):
     weight = tf.constant(0.5) 
     return tf.nn.weighted_cross_entropy_with_logits(labels=y_true,
@@ -354,7 +354,7 @@ def xentropy_weighted(y_true, y_pred):
 
 Softmax 交叉熵损失适用于非归一化的输出。该函数用于在目标类别只有一个而不是多个时，计算损失。因此，该函数通过 softmax 函数将输出转换为概率分布，然后根据真实的概率分布计算损失函数，如下所示：
 
-```
+```py
 def softmax_xentropy(y_true, y_pred):
     return tf.nn.softmax_cross_entropy_with_logits(labels=y_true,                                                    logits=y_pred)
 
@@ -366,7 +366,7 @@ print(softmax_xentropy(y_true=target_dist,                        y_pred=unscale
 
 稀疏 softmax 交叉熵损失与 softmax 交叉熵损失几乎相同，区别在于目标不是概率分布，而是表示哪个类别是`true`的索引。我们传入的是该类别的索引，而不是一个稀疏的全零目标向量，其中有一个值是`1`，如下所示：
 
-```
+```py
 def sparse_xentropy(y_true, y_pred):
     return tf.nn.sparse_softmax_cross_entropy_with_logits(
                                                     labels=y_true,
@@ -384,7 +384,7 @@ print(sparse_xentropy(y_true=sparse_target_dist,
 
 以下是如何使用`matplotlib`绘制回归损失函数：
 
-```
+```py
 x_vals = tf.linspace(-1., 1., 500) 
 target = tf.constant(0.) 
 funcs = [(l2, 'b-', 'L2 Loss'),
@@ -407,7 +407,7 @@ plt.show()
 
 以下是如何使用`matplotlib`绘制不同的分类损失函数：
 
-```
+```py
 x_vals = tf.linspace(-3., 5., 500)  
 target = tf.fill([500,], 1.)
 funcs = [(hinge, 'b-', 'Hinge Loss'),
@@ -477,7 +477,7 @@ plt.show()
 
 我们将从回归示例开始。首先，我们加载通常伴随我们食谱的数值 Python 库，`NumPy` 和 `TensorFlow`：
 
-```
+```py
 import NumPy as np 
 import TensorFlow as tf 
 ```
@@ -486,7 +486,7 @@ import TensorFlow as tf
 
 此外，为了确保目标和输入有很好的相关性，可以绘制这两个变量的散点图：
 
-```
+```py
 np.random.seed(0)
 x_vals = np.random.normal(1, 0.1, 100).astype(np.float32) 
 y_vals = (x_vals * (np.random.normal(1, 0.05, 100) - 0.5)).astype(np.float32)
@@ -500,14 +500,14 @@ plt.show()
 
 我们将网络的结构（类型为 *bX + a* 的线性模型）添加为一个函数：
 
-```
+```py
 def my_output(X, weights, biases):
     return tf.add(tf.multiply(X, weights), biases) 
 ```
 
 接下来，我们将我们的 L2 损失函数添加到网络的结果中进行应用：
 
-```
+```py
 def loss_func(y_true, y_pred):
     return tf.reduce_mean(tf.square(y_pred - y_true)) 
 ```
@@ -516,7 +516,7 @@ def loss_func(y_true, y_pred):
 
 学习率对收敛有很大影响，我们将在本节末尾再次讨论它。虽然我们使用的是标准的梯度下降算法，但还有许多其他替代选择。例如，有些优化算法的操作方式不同，取决于问题的不同，它们可以达到更好的或更差的最优解。关于不同优化算法的全面概述，请参见 Sebastian Ruder 在 *另见* 部分列出的文章：
 
-```
+```py
 my_opt = tf.optimizers.SGD(learning_rate=0.02) 
 ```
 
@@ -524,7 +524,7 @@ my_opt = tf.optimizers.SGD(learning_rate=0.02)
 
 现在，我们可以初始化网络变量（`weights` 和 `biases`），并设置一个记录列表（命名为 `history`），以帮助我们可视化优化步骤：
 
-```
+```py
 tf.random.set_seed(1)
 np.random.seed(0)
 weights = tf.Variable(tf.random.normal(shape=[1])) 
@@ -534,7 +534,7 @@ history = list()
 
 最后一步是循环我们的训练算法，并告诉 TensorFlow 进行多次训练。我们将训练 100 次，并在每 25 次迭代后打印结果。为了训练，我们将选择一个随机的 *x* 和 *y* 输入，并将其输入到图中。TensorFlow 会自动计算损失，并略微调整权重和偏置，以最小化损失：
 
-```
+```py
 for i in range(100): 
     rand_index = np.random.choice(100) 
     rand_x = [x_vals[rand_index]] 
@@ -562,7 +562,7 @@ Loss = 0.05371852591633797
 
 当训练完成后，我们可以可视化优化过程在连续梯度应用下的变化：
 
-```
+```py
 plt.plot(history)
 plt.xlabel('iterations')
 plt.ylabel('loss')
@@ -577,7 +577,7 @@ plt.show()
 
 首先，我们从两个不同的正态分布 `N(-3, 1)` 和 `N(3, 1)` 拉取数据。我们还将生成目标标签，并可视化这两类如何在我们的预测变量上分布：
 
-```
+```py
 np.random.seed(0)
 x_vals = np.concatenate((np.random.normal(-3, 1, 50), 
                          np.random.normal(3, 1, 50))
@@ -594,7 +594,7 @@ plt.show()
 
 由于这个问题的特定损失函数是 Sigmoid 交叉熵，我们更新我们的损失函数：
 
-```
+```py
 def loss_func(y_true, y_pred):
     return tf.reduce_mean(
         tf.nn.sigmoid_cross_entropy_with_logits(labels=y_true, 
@@ -603,7 +603,7 @@ def loss_func(y_true, y_pred):
 
 接下来，我们初始化变量：
 
-```
+```py
 tf.random.set_seed(1)
 np.random.seed(0)
 weights = tf.Variable(tf.random.normal(shape=[1])) 
@@ -613,7 +613,7 @@ history = list()
 
 最后，我们对一个随机选择的数据点进行了数百次循环，并相应地更新了`weights`和`biases`变量。像之前一样，每进行 25 次迭代，我们会打印出变量的值和损失值：
 
-```
+```py
 for i in range(100):    
     rand_index = np.random.choice(100) 
     rand_x = [x_vals[rand_index]] 
@@ -639,7 +639,7 @@ Loss = 0.028119442984461784
 
 一个图表，也可以在这种情况下，揭示优化过程的进展：
 
-```
+```py
 plt.plot(history)
 plt.xlabel('iterations')
 plt.ylabel('loss')
@@ -709,7 +709,7 @@ plt.show()
 
 我们将首先加载 `NumPy`、`matplotlib` 和 `TensorFlow`，如下所示：
 
-```
+```py
 import matplotlib as plt 
 import NumPy as np 
 import TensorFlow as tf 
@@ -721,13 +721,13 @@ import TensorFlow as tf
 
 我们从声明批次大小开始。这将是我们一次性通过计算图输入的观察数据量：
 
-```
+```py
 batch_size = 20 
 ```
 
 接下来，我们只需对之前用于回归问题的代码进行一些小的修改：
 
-```
+```py
 np.random.seed(0)
 x_vals = np.random.normal(1, 0.1, 100).astype(np.float32) 
 y_vals = (x_vals * (np.random.normal(1, 0.05, 100) - 0.5)).astype(np.float32)
@@ -756,7 +756,7 @@ for i in range(50):
 
 自从上一个示例以来，我们已经学会了在网络和成本函数中使用矩阵乘法。此时，我们只需要处理由更多行组成的输入，即批量而非单个样本。我们甚至可以将其与之前的方法进行比较，后者我们现在可以称之为随机优化：
 
-```
+```py
 tf.random.set_seed(1)
 np.random.seed(0)
 weights = tf.Variable(tf.random.normal(shape=[1])) 
@@ -786,7 +786,7 @@ for i in range(50):
 
 两种方法的视觉对比能更好地解释，使用批量训练如何在这个问题上得到与随机训练相同的优化结果，尽管在过程中波动较少。以下是生成同一回归问题的随机训练和批量损失图的代码。请注意，批量损失曲线更加平滑，而随机损失曲线则更加不稳定：
 
-```
+```py
 plt.plot(history_stochastic, 'b-', label='Stochastic Loss') 
 plt.plot(history_batch, 'r--', label='Batch Loss') 
 plt.legend(loc='upper right', prop={'size': 11}) 
@@ -814,7 +814,7 @@ plt.show()
 
 我们将首先加载所需的库和数据，然后相应地转换目标数据。首先，我们加载所需的库。对于鸢尾花数据集，我们需要 TensorFlow Datasets 模块，这是我们在之前的例子中没有用到的。请注意，我们还在这里加载了`matplotlib`，因为我们接下来想要绘制结果图：
 
-```
+```py
 import matplotlib.pyplot as plt 
 import NumPy as np 
 import TensorFlow as tf 
@@ -825,13 +825,13 @@ import TensorFlow_datasets as tfds
 
 作为起点，我们首先使用全局变量声明我们的批次大小：
 
-```
+```py
 batch_size = 20 
 ```
 
 接下来，我们加载鸢尾花数据集。我们还需要将目标数据转换为`1`或`0`，表示该目标是否为 setosa。由于鸢尾花数据集中 setosa 的标记为`0`，我们将把所有目标值为`0`的标签改为`1`，其他值则改为`0`。我们还将只使用两个特征，花瓣长度和花瓣宽度。这两个特征分别是数据集每行中的第三和第四个条目：
 
-```
+```py
 iris = tfds.load('iris', split='train[:90%]', W)
 iris_test = tfds.load('iris', split='train[90%:]', as_supervised=True)
 def iris2d(features, label):
@@ -852,7 +852,7 @@ test_generator = iris_test.map(iris2d).batch(1)
 
 然后，我们定义线性模型。该模型将采用通常的形式 *bX+a*。请记住，TensorFlow 内置了带有 sigmoid 函数的损失函数，因此我们只需要在 sigmoid 函数之前定义模型的输出：
 
-```
+```py
 def linear_model(X, A, b):
     my_output = tf.add(tf.matmul(X, A), b) 
     return tf.squeeze(my_output) 
@@ -860,7 +860,7 @@ def linear_model(X, A, b):
 
 现在，我们使用 TensorFlow 内置的`sigmoid_cross_entropy_with_logits()`函数添加 sigmoid 交叉熵损失函数：
 
-```
+```py
 def xentropy(y_true, y_pred):
     return tf.reduce_mean(
         tf.nn.sigmoid_cross_entropy_with_logits(labels=y_true, 
@@ -869,13 +869,13 @@ def xentropy(y_true, y_pred):
 
 我们还必须告诉 TensorFlow 如何通过声明优化方法来优化我们的计算图。我们将希望最小化交叉熵损失。我们还选择了`0.02`作为我们的学习率：
 
-```
+```py
 my_opt = tf.optimizers.SGD(learning_rate=0.02) 
 ```
 
 现在，我们将使用 300 次迭代来训练我们的线性模型。我们将输入所需的三个数据点：花瓣长度、花瓣宽度和目标变量。每 30 次迭代，我们会打印变量的值：
 
-```
+```py
 tf.random.set_seed(1)
 np.random.seed(0)
 A = tf.Variable(tf.random.normal(shape=[2, 1])) 
@@ -904,7 +904,7 @@ Loss = 0.10326375812292099
 
 如果我们绘制损失与迭代次数的关系图，我们可以从损失随时间平滑减少的趋势中看出，线性模型的学习过程相对简单：
 
-```
+```py
 plt.plot(history)
 plt.xlabel('iterations')
 plt.ylabel('loss')
@@ -917,7 +917,7 @@ plt.show()
 
 我们将通过检查在保留的测试数据上的表现来结束。本次我们仅取测试数据集中的示例。如预期的那样，得到的交叉熵值与训练时的值相似：
 
-```
+```py
 predictions = list()
 labels = list()
 for features, label in test_generator:
@@ -931,7 +931,7 @@ test cross-entropy is 0.10227929800748825
 
 下一组命令提取模型变量并在图表上绘制这条线：
 
-```
+```py
 coefficients = np.ravel(A.NumPy())
 intercept = b.NumPy()
 # Plotting batches of examples

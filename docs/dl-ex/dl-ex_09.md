@@ -74,7 +74,7 @@
 
 让我们首先导入本次实现所需的包：
 
-```
+```py
 %matplotlib inline
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -89,7 +89,7 @@ import inception
 
 接下来，我们需要加载另一个辅助脚本，以便下载处理 CIFAR-10 数据集：
 
-```
+```py
 import cifar10
 #importing number of classes of CIFAR-10
 from cifar10 import num_classes
@@ -97,7 +97,7 @@ from cifar10 import num_classes
 
 如果你还没有做过这一点，你需要设置 CIFAR-10 的路径。这个路径将被 `cifar-10.py` 脚本用来持久化数据集：
 
-```
+```py
 cifar10.data_path = "data/CIFAR-10/"
 
 The CIFAR-10 dataset is about 170 MB, the next line checks if the dataset is already downloaded if not it downloads the dataset and store in the previous data_path:
@@ -113,7 +113,7 @@ Done.
 
 让我们来看一下 CIFAR-10 数据集中的类别：
 
-```
+```py
 #Loading the class names of CIFAR-10 dataset
 class_names = cifar10.load_class_names()
 class_names
@@ -121,7 +121,7 @@ class_names
 
 输出：
 
-```
+```py
 Loading data: data/CIFAR-10/cifar-10-batches-py/batches.meta
 ['airplane',
  'automobile',
@@ -138,13 +138,13 @@ Load the training-set.
 
 这将返回 `images`，类别编号作为 `integers`，以及类别编号作为一种名为 `labels` 的 one-hot 编码数组：
 
-```
+```py
 training_images, training_cls_integers, trainig_one_hot_labels = cifar10.load_training_data()
 ```
 
 输出：
 
-```
+```py
 Loading data: data/CIFAR-10/cifar-10-batches-py/data_batch_1
 Loading data: data/CIFAR-10/cifar-10-batches-py/data_batch_2
 Loading data: data/CIFAR-10/cifar-10-batches-py/data_batch_3
@@ -155,7 +155,7 @@ Load the test-set.
 
 现在，让我们对测试集做相同的操作，加载图像及其相应的目标类别的整数表示和 one-hot 编码：
 
-```
+```py
 #Loading the test images, their class integer, and their corresponding one-hot encoding
 testing_images, testing_cls_integers, testing_one_hot_labels = cifar10.load_test_data()
 
@@ -166,21 +166,21 @@ Loading data: data/CIFAR-10/cifar-10-batches-py/test_batch
 
 让我们看看 CIFAR-10 中训练集和测试集的分布：
 
-```
+```py
 print("-Number of images in the training set:\t\t{}".format(len(training_images)))
 print("-Number of images in the testing set:\t\t{}".format(len(testing_images)))
 ```
 
 输出：
 
-```
+```py
 -Number of images in the training set:          50000
 -Number of images in the testing set:           10000
 ```
 
 让我们定义一些辅助函数，以便我们可以探索数据集。以下辅助函数将把九张图片绘制成网格：
 
-```
+```py
 def plot_imgs(imgs, true_class, predicted_class=None):
 
     assert len(imgs) == len(true_class)
@@ -225,7 +225,7 @@ def plot_imgs(imgs, true_class, predicted_class=None):
 
 让我们可视化测试集中的一些图像，并查看它们相应的实际类别：
 
-```
+```py
 # get the first 9 images in the test set
 imgs = testing_images[0:9]
 
@@ -248,13 +248,13 @@ plot_imgs(imgs=imgs, true_class=true_class)
 
 让我们首先定义 `data_dir` 来为 Inception 模型设置路径：
 
-```
+```py
 inception.data_dir = 'inception/'
 ```
 
 预训练 Inception 模型的权重大约为 85 MB。如果它不在之前定义的 `data_dir` 中，以下代码行将下载该模型：
 
-```
+```py
 inception.maybe_download()
 
 Downloading Inception v3 Model ...
@@ -263,20 +263,20 @@ Downloading Inception v3 Model ...
 
 我们将加载 Inception 模型，以便可以将其作为特征提取器来处理我们的 CIFAR-10 图像：
 
-```
+```py
 # Loading the inception model so that we can inialized it with the pre-trained weights and customize for our model
 inception_model = inception.Inception()
 ```
 
 如前所述，计算 CIFAR-10 数据集的传递值需要一些时间，因此我们需要将它们缓存以便将来使用。幸运的是，`inception` 模块中有一个辅助函数可以帮助我们做到这一点：
 
-```
+```py
 from inception import transfer_values_cache
 ```
 
 接下来，我们需要设置缓存的训练和测试文件的文件路径：
 
-```
+```py
 file_path_train = os.path.join(cifar10.data_path, 'inception_cifar10_train.pkl')
 file_path_test = os.path.join(cifar10.data_path, 'inception_cifar10_test.pkl')
 print("Processing Inception transfer-values for the training images of Cifar-10 ...")
@@ -301,31 +301,31 @@ transfer_values_testing = transfer_values_cache(cache_path=file_path_test,
 
 如前所述，CIFAR-10 数据集的训练集中有 50,000 张图像。让我们检查这些图像的传递值的形状。每张图像的传递值应该是 2,048：
 
-```
+```py
 transfer_values_training.shape
 ```
 
 输出：
 
-```
+```py
 (50000, 2048)
 ```
 
 我们需要对测试集做相同的操作：
 
-```
+```py
 transfer_values_testing.shape
 ```
 
 输出：
 
-```
+```py
 (10000, 2048)
 ```
 
 为了直观地理解传递值的样子，我们将定义一个辅助函数，帮助我们绘制训练集或测试集中某张图像的传递值：
 
-```
+```py
 def plot_transferValues(ind):
     print("Original input image:")
 
@@ -357,7 +357,7 @@ Input image:
 
 图 10.6：图 10.3 中输入图像的传递值
 
-```
+```py
 plot_transferValues(i=17)
 ```
 
@@ -377,61 +377,61 @@ plot_transferValues(i=17)
 
 每张输入图像都有 2,048 个传输值。为了绘制这些传输值并对其进行进一步分析，我们可以使用像 scikit-learn 中的**主成分分析**（**PCA**）这样的降维技术。我们将传输值从 2,048 减少到 2，以便能够可视化它，并查看它们是否能成为区分 CIFAR-10 不同类别的好特征：
 
-```
+```py
 from sklearn.decomposition import PCA
 ```
 
 接下来，我们需要创建一个 PCA 对象，其中组件数量为`2`：
 
-```
+```py
 pca_obj = PCA(n_components=2)
 ```
 
 将传输值从 2,048 减少到 2 需要花费很多时间，因此我们将只选取 5,000 张图像中的 3,000 张作为子集：
 
-```
+```py
 subset_transferValues = transfer_values_training[0:3000]
 ```
 
 我们还需要获取这些图像的类别编号：
 
-```
+```py
 cls_integers = testing_cls_integers[0:3000]
 ```
 
 我们可以通过打印传输值的形状来再次检查我们的子集：
 
-```
+```py
 subset_transferValues.shape
 ```
 
 输出：
 
-```
+```py
 (3000, 2048)
 ```
 
 接下来，我们使用我们的 PCA 对象将传输值从 2,048 减少到仅 2：
 
-```
+```py
 reduced_transferValues = pca_obj.fit_transform(subset_transferValues)
 ```
 
 现在，让我们看看 PCA 降维过程的输出：
 
-```
+```py
 reduced_transferValues.shape
 ```
 
 输出：
 
-```
+```py
 (3000, 2)
 ```
 
 在将传输值的维度减少到仅为 2 之后，让我们绘制这些值：
 
-```
+```py
 #Importing the color map for plotting each class with different color.
 import matplotlib.cm as color_map
 
@@ -455,7 +455,7 @@ def plot_reduced_transferValues(transferValues, cls_integers):
 
 在这里，我们绘制的是训练集子集的减少后的传输值。CIFAR-10 中有 10 个类别，所以我们将使用不同的颜色绘制它们对应的传输值。从下图可以看出，传输值根据对应的类别被分组。组与组之间的重叠是因为 PCA 的降维过程无法正确分离传输值：
 
-```
+```py
 plot_reduced_transferValues(reduced_transferValues, cls_integers)
 ```
 
@@ -465,39 +465,39 @@ plot_reduced_transferValues(reduced_transferValues, cls_integers)
 
 我们可以使用另一种降维方法**t-SNE**进一步分析我们的传输值：
 
-```
+```py
 from sklearn.manifold import TSNE
 
 ```
 
 再次，我们将减少传输值的维度，从 2,048 减少到 50 个值，而不是 2：
 
-```
+```py
 pca_obj = PCA(n_components=50)
 transferValues_50d = pca_obj.fit_transform(subset_transferValues)
 ```
 
 接下来，我们堆叠第二种降维技术，并将 PCA 过程的输出传递给它：
 
-```
+```py
 tsne_obj = TSNE(n_components=2)
 ```
 
 最后，我们使用 PCA 方法减少后的值并将 t-SNE 方法应用于其上：
 
-```
+```py
 reduced_transferValues = tsne_obj.fit_transform(transferValues_50d) 
 ```
 
 并再次检查它是否具有正确的形状：
 
-```
+```py
 reduced_transferValues.shape
 ```
 
 输出：
 
-```
+```py
 (3000, 2)
 ```
 
@@ -505,7 +505,7 @@ reduced_transferValues.shape
 
 通过这次分析，我们得出的结论是，通过将输入图像输入预训练的 Inception 模型获得的提取传输值，可以用于将训练图像分为 10 个类别。由于下图中存在轻微的重叠，这种分离不会 100%准确，但我们可以通过对预训练模型进行微调来消除这种重叠：
 
-```
+```py
 plot_reduced_transferValues(reduced_transferValues, cls_integers)
 ```
 
@@ -519,7 +519,7 @@ plot_reduced_transferValues(reduced_transferValues, cls_integers)
 
 所以，让我们首先指定将要输入到神经网络模型中的输入占位符变量。第一个输入变量（将包含提取的转移值）的形状将是`[None, transfer_len]`。第二个占位符变量将以独热向量格式存储训练集的实际类别标签：
 
-```
+```py
 transferValues_arrLength = inception_model.transfer_len
 input_values = tf.placeholder(tf.float32, shape=[None, transferValues_arrLength], name='input_values')
 y_actual = tf.placeholder(tf.float32, shape=[None, num_classes], name='y_actual')
@@ -527,13 +527,13 @@ y_actual = tf.placeholder(tf.float32, shape=[None, num_classes], name='y_actual'
 
 我们还可以通过定义另一个占位符变量，获取每个类别从 1 到 10 的对应整数值：
 
-```
+```py
 y_actual_cls = tf.argmax(y_actual, axis=1)
 ```
 
 接下来，我们需要构建实际的分类神经网络，该网络将接受这些输入占位符，并生成预测的类别：
 
-```
+```py
 def new_weights(shape):
     return tf.Variable(tf.truncated_normal(shape, stddev=0.05))
 
@@ -587,7 +587,7 @@ loss = tf.reduce_mean(cross_entropy)
 
 然后，我们需要定义一个优化标准，作为分类器训练过程中使用的准则。在此实现中，我们将使用`AdamOptimizer`。该分类器的输出将是一个包含 10 个概率分数的数组，对应 CIFAR-10 数据集中类别的数量。接下来，我们将对这个数组应用`argmax`操作，将最大分数的类别分配给该输入样本：
 
-```
+```py
 step = tf.Variable(initial_value=0,
                           name='step', trainable=False)
 optimizer = tf.train.AdamOptimizer(learning_rate=1e-4).minimize(loss, step)
@@ -600,7 +600,7 @@ model_accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 接下来，我们需要定义一个 TensorFlow 会话，实际执行计算图，并初始化我们之前在此实现中定义的变量：
 
-```
+```py
 session = tf.Session()
 session.run(tf.global_variables_initializer())
 
@@ -610,7 +610,7 @@ session.run(tf.global_variables_initializer())
 
 因此，我们将定义一个辅助函数，从输入的训练集转移值中生成一个随机批次：
 
-```
+```py
 #defining the size of the train batch
 train_batch_size = 64
 
@@ -634,7 +634,7 @@ def select_random_batch():
 
 接下来，我们需要定义一个辅助函数，进行实际的优化过程，优化网络的权重。它将在每次迭代时生成一个批次，并根据该批次优化网络：
 
-```
+```py
 def optimize(num_iterations):
 
     for i in range(num_iterations):
@@ -666,7 +666,7 @@ def optimize(num_iterations):
 
 我们将定义一些辅助函数来显示之前神经网络的结果，并展示预测结果的混淆矩阵：
 
-```
+```py
 def plot_errors(cls_predicted, cls_correct):
 
     # cls_predicted is an array of the predicted class-number for
@@ -698,7 +698,7 @@ def plot_errors(cls_predicted, cls_correct):
 
 接下来，我们需要定义一个用于绘制混淆矩阵的辅助函数：
 
-```
+```py
 from sklearn.metrics import confusion_matrix
 
 def plot_confusionMatrix(cls_predicted):
@@ -723,7 +723,7 @@ def plot_confusionMatrix(cls_predicted):
 
 此外，我们还将定义另一个辅助函数，用于在测试集上运行训练好的分类器，并测量训练模型在测试集上的准确性：
 
-```
+```py
 # Split the data-set in batches of this size to limit RAM usage.
 batch_size = 128
 
@@ -810,7 +810,7 @@ def test_accuracy(show_example_errors=False,
 
 在进行任何优化之前，让我们看看之前神经网络模型的表现：
 
-```
+```py
 test_accuracy(show_example_errors=True,
                     show_confusion_matrix=True)
 
@@ -819,7 +819,7 @@ Accuracy on Test-Set: 9.4% (939 / 10000)
 
 如你所见，网络的表现非常差，但在我们基于已定义的优化标准进行一些优化后，性能会有所提升。因此，我们将运行优化器进行 10,000 次迭代，并在此之后测试模型的准确性：
 
-```
+```py
 optimize(num_iterations=10000)
 test_accuracy(show_example_errors=True,
                            show_confusion_matrix=True)
@@ -831,7 +831,7 @@ Example errors:
 
 图 10.11：来自测试集的部分误分类图像
 
-```
+```py
 Confusion Matrix:
 [926   6  13   2   3   0   1   1  29  19] (0) airplane
 [  9 921   2   5   0   1   1   1   2  58] (1) automobile
@@ -848,7 +848,7 @@ Confusion Matrix:
 
 最后，我们将结束之前打开的会话：
 
-```
+```py
 model.close()
 session.close()
 ```

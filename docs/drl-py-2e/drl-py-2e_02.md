@@ -40,13 +40,13 @@ Anaconda 是一个开源的 Python 发行版，广泛用于科学计算和处理
 
 1.  打开终端并输入以下命令以下载 Anaconda：
 
-    ```
+    ```py
     wget https://repo.continuum.io/archive/Anaconda3-5.0.1-Linux-x86_64.sh 
     ```
 
 1.  下载完成后，我们可以使用以下命令安装 Anaconda：
 
-    ```
+    ```py
     bash Anaconda3-5.0.1-Linux-x86_64.sh 
     ```
 
@@ -54,13 +54,13 @@ Anaconda 是一个开源的 Python 发行版，广泛用于科学计算和处理
 
 虚拟环境是为特定项目创建的一个隔离环境，使得每个项目可以拥有自己独立的依赖项，并且不会影响其他项目。我们将使用以下命令创建一个名为`universe`的虚拟环境：
 
-```
+```py
 conda create --name universe python=3.6 anaconda 
 ```
 
 请注意，我们使用的是 Python 版本 3.6。虚拟环境创建完成后，我们可以使用以下命令激活它：
 
-```
+```py
 source activate universe 
 ```
 
@@ -70,13 +70,13 @@ source activate universe
 
 在本节中，我们将学习如何安装 Gym 工具包。在继续之前，首先让我们激活虚拟环境`universe`：
 
-```
+```py
 source activate universe 
 ```
 
 现在，安装以下依赖项：
 
-```
+```py
 sudo apt-get update
 sudo apt-get install golang libcupti-dev libjpeg-turbo8-dev make tmux htop chromium-browser git cmake zlib1g-dev libjpeg-dev xvfb libav-tools xorg-dev python-opengl libboost-all-dev libsdl2-dev swig
 conda install pip six libgcc swig
@@ -85,13 +85,13 @@ conda install opencv
 
 我们可以通过`pip`直接安装 Gym。请注意，本书中将使用 Gym 版本 0.15.4。我们可以使用以下命令安装 Gym：
 
-```
+```py
 pip install gym==0.15.4 
 ```
 
 我们也可以通过克隆 Gym 仓库来安装 Gym，如下所示：
 
-```
+```py
 cd ~
 git clone https://github.com/openai/gym.git
 cd gym
@@ -104,14 +104,14 @@ pip install -e '.[all]'
 
 +   **构建 pachi-py 轮文件失败**或**构建 pachi-py atari-py 轮文件失败**：
 
-    ```
+    ```py
     sudo apt-get update
     sudo apt-get install xvfb libav-tools xorg-dev libsdl2-dev swig cmake 
     ```
 
 +   **构建 mujoco-py 轮文件失败**：
 
-    ```
+    ```py
     git clone https://github.com/openai/mujoco-py.git
     cd mujoco-py
     sudo apt-get update
@@ -122,7 +122,7 @@ pip install -e '.[all]'
 
 +   **错误：命令'gcc'以退出状态 1 失败**：
 
-    ```
+    ```py
     sudo apt-get update
     sudo apt-get install python-dev 
     sudo apt-get install libevent-dev 
@@ -168,19 +168,19 @@ pip install -e '.[all]'
 
 现在，我们将学习如何使用 Gym 创建我们的 Frozen Lake 环境。在运行任何代码之前，请确保你已经激活了我们的虚拟环境`universe`。首先，让我们导入 Gym 库：
 
-```
+```py
 import gym 
 ```
 
 接下来，我们可以使用`make`函数创建一个 Gym 环境。`make`函数需要环境 ID 作为参数。在 Gym 中，Frozen Lake 环境的 ID 是`FrozenLake-v0`。因此，我们可以按如下方式创建我们的 Frozen Lake 环境：
 
-```
+```py
 env = gym.make("FrozenLake-v0") 
 ```
 
 创建环境后，我们可以使用`render`函数查看我们的环境长什么样：
 
-```
+```py
 env.render() 
 ```
 
@@ -212,13 +212,13 @@ env.render()
 
 状态空间由我们所有的状态组成。我们可以通过输入 `env.observation_space` 来获取环境中状态的数量，如下所示：
 
-```
+```py
 print(env.observation_space) 
 ```
 
 上面的代码将打印：
 
-```
+```py
 Discrete(16) 
 ```
 
@@ -232,13 +232,13 @@ Discrete(16)
 
 我们了解到，动作空间由环境中所有可能的动作组成。我们可以通过使用 `env.action_space` 来获取动作空间：
 
-```
+```py
 print(env.action_space) 
 ```
 
 上面的代码将打印：
 
-```
+```py
 Discrete(4) 
 ```
 
@@ -268,13 +268,13 @@ Discrete(4)
 
 我们可以通过输入 `env.P[state][action]` 来获取转移概率和奖励函数。因此，要获取通过执行动作 *right* 从状态 **S** 转移到其他状态的转移概率，我们可以输入 `env.P[S][right]`。但是我们不能直接输入状态 **S** 和动作 *right*，因为它们是以数字编码的。我们知道状态 **S** 编码为 0，动作 *right* 编码为 2，因此，为了获取执行动作 *right* 后状态 **S** 的转移概率，我们输入 `env.P[0][2]`，如下面所示：
 
-```
+```py
 print(env.P[0][2]) 
 ```
 
 上述代码将打印：
 
-```
+```py
 [(0.33333, 4, 0.0, False),
  (0.33333, 1, 0.0, False),
  (0.33333, 0, 0.0, False)] 
@@ -310,13 +310,13 @@ print(env.P[0][2])
 
 假设我们在状态 3 (**F**) 执行动作 1 (*down*)。那么，通过执行动作 1 (*down*)，状态 3 (**F**) 的转移概率如下所示：
 
-```
+```py
 print(env.P[3][1]) 
 ```
 
 上述代码将打印：
 
-```
+```py
 [(0.33333, 2, 0.0, False),
  (0.33333, 7, 0.0, True),
  (0.33333, 3, 0.0, False)] 
@@ -352,7 +352,7 @@ print(env.P[3][1])
 
 在我们开始之前，我们通过重置环境来初始化状态；重置操作将智能体带回初始状态。我们可以使用 `reset()` 函数来重置环境，具体如下所示：
 
-```
+```py
 state = env.reset() 
 ```
 
@@ -366,13 +366,13 @@ state = env.reset()
 
 假设我们需要执行动作 1 (*下*) 并移动到新的状态 7 (**H**)。我们该如何做呢？我们可以使用 `step` 函数来执行一个动作。只需将我们的动作作为参数输入 `step` 函数。于是，我们可以在状态 3 (**F**) 中使用 `step` 函数执行动作 1 (*下*)，如以下所示：
 
-```
+```py
 env.step(1) 
 ```
 
 现在，让我们使用 `render` 函数渲染我们的环境：
 
-```
+```py
 env.render() 
 ```
 
@@ -384,7 +384,7 @@ env.render()
 
 注意，每当我们使用 `env.step()` 执行动作时，它会输出一个包含 4 个值的元组。所以，当我们在状态 3 (**F**) 中使用 `env.step(1)` 执行动作 1 (*下*) 时，它会给出如下输出：
 
-```
+```py
 (7, 0.0, True, {'prob': 0.33333}) 
 ```
 
@@ -400,7 +400,7 @@ env.render()
 
 所以，我们可以将这些信息存储为：
 
-```
+```py
 (next_state, reward, done, info) = env.step(1) 
 ```
 
@@ -416,13 +416,13 @@ env.render()
 
 我们还可以从我们的动作空间中采样动作，并执行一个随机动作以探索我们的环境。我们可以使用`sample`函数采样一个动作：
 
-```
+```py
 random_action = env.action_space.sample() 
 ```
 
 在从我们的动作空间中采样了一个动作后，我们使用我们的步进函数执行采样的动作：
 
-```
+```py
 next_state, reward, done, info = env.step(random_action) 
 ```
 
@@ -436,37 +436,37 @@ next_state, reward, done, info = env.step(random_action)
 
 首先，让我们设置时间步长的数量：
 
-```
+```py
 num_timesteps = 20 
 ```
 
 对于每个时间步长：
 
-```
+```py
 for t in range(num_timesteps): 
 ```
 
 通过从动作空间中采样，随机选择一个动作：
 
-```
+```py
  random_action = env.action_space.sample() 
 ```
 
 执行选择的操作：
 
-```
+```py
  next_state, reward, done, info = env.step(random_action) 
 ```
 
 如果下一个状态是终止状态，则退出。这意味着我们的回合结束：
 
-```
+```py
  if done:
         break 
 from the action space, and our episode will end if the agent reaches the terminal state:
 ```
 
-```
+```py
 import gym
 env = gym.make("FrozenLake-v0")
 state = env.reset()
@@ -492,7 +492,7 @@ for t in range(num_timesteps):
 
 我们不仅可以生成一个回合，还可以通过在每个状态下执行一些随机动作来生成一系列回合：
 
-```
+```py
 import gym
 env = gym.make("FrozenLake-v0")
 **num_episodes =** **10**
@@ -542,19 +542,19 @@ Gym 提供了多个经典控制任务的环境，如小车-摆杆平衡、摆动
 
 现在，让我们学习如何使用 Gym 创建小车-摆杆环境。Gym 中小车-摆杆环境的环境 ID 是 `CartPole-v0`，所以我们可以使用 `make` 函数来创建小车-摆杆环境，如下所示：
 
-```
+```py
 env = gym.make("CartPole-v0") 
 ```
 
 创建环境后，我们可以使用 `render` 函数查看环境：
 
-```
+```py
 env.render() 
 ```
 
 我们还可以使用 `close` 函数关闭渲染的环境：
 
-```
+```py
 env.close() 
 ```
 
@@ -564,7 +564,7 @@ env.close()
 
 但是，仅凭小车位置我们无法完全描述环境的状态。因此，我们还包括了小车速度、杆角度和杆端的速度。因此，我们可以通过一个值数组来描述我们的状态空间，如下所示：
 
-```
+```py
 array([cart position, cart velocity, pole angle, pole velocity at the tip]) 
 ```
 
@@ -580,13 +580,13 @@ array([cart position, cart velocity, pole angle, pole velocity at the tip])
 
 因此，我们的状态空间包含一个由连续值组成的数组。让我们学习如何从 Gym 中获取这一点。为了获取状态空间，我们可以直接输入`env.observation_space`，如下所示：
 
-```
+```py
 print(env.observation_space) 
 ```
 
 前面的代码将输出：
 
-```
+```py
 Box(4,) 
 ```
 
@@ -594,13 +594,13 @@ Box(4,)
 
 例如，让我们重置我们的环境，看看我们的初始状态空间会是什么样子。我们可以使用`reset`函数来重置环境：
 
-```
+```py
 print(env.reset()) 
 ```
 
 前面的代码将输出：
 
-```
+```py
 array([ 0.02002635, -0.0228838 ,  0.01248453,  0.04931007]) 
 ```
 
@@ -616,13 +616,13 @@ array([ 0.02002635, -0.0228838 ,  0.01248453,  0.04931007])
 
 例如，让我们来看一下我们状态空间的最大值：
 
-```
+```py
 print(env.observation_space.high) 
 ```
 
 前面的代码将输出：
 
-```
+```py
 [4.8000002e+00 3.4028235e+38 4.1887903e-01 3.4028235e+38] 
 ```
 
@@ -638,13 +638,13 @@ print(env.observation_space.high)
 
 类似地，我们可以得到我们的状态空间的最小值为：
 
-```
+```py
 print(env.observation_space.low) 
 ```
 
 上述代码将输出：
 
-```
+```py
 [-4.8000002e+00 -3.4028235e+38 -4.1887903e-01 -3.4028235e+38] 
 ```
 
@@ -664,13 +664,13 @@ print(env.observation_space.low)
 
 为了获得动作空间，我们可以直接输入`env.action_space`，如下所示：
 
-```
+```py
 print(env.action_space) 
 ```
 
 上述代码将输出：
 
-```
+```py
 Discrete(2) 
 ```
 
@@ -686,89 +686,89 @@ Discrete(2)
 
 首先，让我们创建我们的 Cart-Pole 环境：
 
-```
+```py
 import gym
 env = gym.make('CartPole-v0') 
 ```
 
 设置回合数和每回合的时间步数：
 
-```
+```py
 num_episodes = 100
 num_timesteps = 50 
 ```
 
 对于每个回合：
 
-```
+```py
 for i in range(num_episodes): 
 ```
 
 将返回值设置为`0`：
 
-```
+```py
  Return = 0 
 ```
 
 通过重置环境来初始化状态：
 
-```
+```py
  state = env.reset() 
 ```
 
 对于每一步：
 
-```
+```py
  for t in range(num_timesteps): 
 ```
 
 渲染环境：
 
-```
+```py
  env.render() 
 ```
 
 通过从环境中采样随机选择一个动作：
 
-```
+```py
  random_action = env.action_space.sample() 
 ```
 
 执行随机选择的动作：
 
-```
+```py
  next_state, reward, done, info = env.step(random_action) 
 ```
 
 更新返回值：
 
-```
+```py
  Return = Return + reward 
 ```
 
 如果下一个状态是终止状态，则结束回合：
 
-```
+```py
  if done:
             break 
 ```
 
 每经过 10 个回合，打印返回值（奖励总和）：
 
-```
+```py
  if i%10==0:
         print('Episode: {}, Return: {}'.format(i, Return)) 
 ```
 
 关闭环境：
 
-```
+```py
 env.close() 
 ```
 
 上述代码将输出每 10 个回合获得的奖励总和：
 
-```
+```py
 Episode: 0, Return: 14.0
 Episode: 10, Return: 31.0
 Episode: 20, Return: 16.0
@@ -833,7 +833,7 @@ Episode: 90, Return: 14.0
 
 让我们使用`make`函数创建一个 Pong 环境：
 
-```
+```py
 env = gym.make("Pong-v0") 
 ```
 
@@ -841,19 +841,19 @@ env = gym.make("Pong-v0")
 
 因此，我们的环境状态将是一个包含游戏屏幕像素值的数组：
 
-```
+```py
  [Image height, image width, number of the channel] 
 ```
 
 请注意，像素值的范围是从 0 到 255。为了获取状态空间，我们只需输入`env.observation_space`，如下所示：
 
-```
+```py
 print(env.observation_space) 
 ```
 
 上面的代码将输出：
 
-```
+```py
 Box(210, 160, 3) 
 ```
 
@@ -861,7 +861,7 @@ Box(210, 160, 3)
 
 例如，我们可以重置环境并查看初始状态空间的样子。我们可以使用重置函数来重置环境：
 
-```
+```py
 print(env.reset()) 
 ```
 
@@ -869,25 +869,25 @@ print(env.reset())
 
 现在，让我们创建一个 Pong 环境，其中环境的状态是 Atari 机器的 RAM，而不是游戏屏幕的像素值：
 
-```
+```py
 env = gym.make("Pong-ram-v0") 
 ```
 
 让我们看看状态空间：
 
-```
+```py
 print(env.observation_space) 
 ```
 
 上面的代码将输出：
 
-```
+```py
 Box(128,) 
 ```
 
 这意味着我们的状态空间是一个包含 128 个值的一维数组。我们可以重置环境并查看初始状态空间的样子：
 
-```
+```py
 print(env.reset()) 
 ```
 
@@ -903,14 +903,14 @@ print(env.reset())
 
 请注意，所有前述的 18 个动作并不适用于所有的 Atari 游戏环境，动作空间因游戏而异。例如，有些游戏只使用前六个动作作为其动作空间，有些游戏只使用前九个动作，而其他游戏则使用全部 18 个动作。让我们通过一个例子来理解这一点，使用 Pong 游戏：
 
-```
+```py
 env = gym.make("Pong-v0")
 print(env.action_space) 
 ```
 
 上述代码将打印：
 
-```
+```py
 Discrete(6) 
 ```
 
@@ -924,14 +924,14 @@ Discrete(6)
 
 让我们查看 Road Runner 游戏的动作空间：
 
-```
+```py
 env = gym.make("RoadRunner-v0")
 print(env.action_space) 
 ```
 
 上述代码将打印：
 
-```
+```py
 Discrete(18) 
 ```
 
@@ -943,14 +943,14 @@ Discrete(18)
 
 首先，让我们创建我们的网球环境：
 
-```
+```py
 import gym
 env = gym.make('Tennis-v0') 
 ```
 
 让我们查看网球环境：
 
-```
+```py
 env.render() 
 ```
 
@@ -962,82 +962,82 @@ env.render()
 
 设置回合数和每个回合的时间步数：
 
-```
+```py
 num_episodes = 100
 num_timesteps = 50 
 ```
 
 每个回合：
 
-```
+```py
 for i in range(num_episodes): 
 ```
 
 将回报设置为`0`：
 
-```
+```py
  Return = 0 
 ```
 
 通过重置环境初始化状态：
 
-```
+```py
  state = env.reset() 
 ```
 
 每个回合的每一步：
 
-```
+```py
  for t in range(num_timesteps): 
 ```
 
 渲染环境：
 
-```
+```py
  env.render() 
 ```
 
 通过从环境中采样随机选择一个动作：
 
-```
+```py
  random_action = env.action_space.sample() 
 ```
 
 执行随机选择的动作：
 
-```
+```py
  next_state, reward, done, info = env.step(random_action) 
 ```
 
 更新回报：
 
-```
+```py
  Return = Return + reward 
 ```
 
 如果下一个状态是终止状态，则结束该回合：
 
-```
+```py
  if done:
             break 
 ```
 
 每 10 个回合打印回报（奖励的总和）：
 
-```
+```py
  if i%10==0:
         print('Episode: {}, Return: {}'.format(i, Return)) 
 ```
 
 关闭环境：
 
-```
+```py
 env.close() 
 ```
 
 上述代码将输出每 10 个回合获得的回报（奖励总和）：
 
-```
+```py
 Episode: 0, Return: -1.0
 Episode: 10, Return: -1.0
 Episode: 20, Return: 0.0
@@ -1058,13 +1058,13 @@ Episode: 90, Return: 0.0
 
 我们可以使用`Monitor`包装器来录制我们的游戏，如下代码所示。它需要三个参数：环境；我们想保存录制文件的目录；以及 force 选项。如果我们设置`force = False`，则意味着每次保存新录制时都需要创建一个新目录；如果我们设置`force = True`，目录中的旧录制文件将被清除并替换为新录制：
 
-```
+```py
 env = gym.wrappers.Monitor(env, 'recording', force=True) 
 ```
 
 我们只需要在创建环境后添加前述的代码行。让我们通过一个简单的例子来看看录制是如何工作的。我们让代理随机玩一次网球游戏并记录代理的游戏过程作为视频：
 
-```
+```py
 import gym
 env = gym.make('Tennis-v0')
 #Record the game
@@ -1135,7 +1135,7 @@ Gym 提供了几个用于执行目标任务的环境，适用于 fetch 和 shado
 
 我们还可以使用 `registry.all()` 方法查看 Gym 中所有可用的环境：
 
-```
+```py
 from gym import envs
 print(envs.registry.all()) 
 ```

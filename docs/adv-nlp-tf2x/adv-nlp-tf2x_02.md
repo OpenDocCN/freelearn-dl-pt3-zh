@@ -128,7 +128,7 @@ TensorFlow 通过`tf.data`包提供了解决数据加载、转换和批处理的
 
 第一步是安装适当的包并下载数据集：
 
-```
+```py
 !pip install tensorflow_datasets
 import tensorflow as tf
 import tensorflow_datasets as tfds
@@ -137,11 +137,11 @@ import numpy as np
 
 `tfds` 包提供了许多不同领域的数据集，例如图像、音频、视频、文本、摘要等。要查看可用的数据集：
 
-```
+```py
 ", ".join(tfds.list_builders()) 
 ```
 
-```
+```py
 'abstract_reasoning, aeslc, aflw2k3d, amazon_us_reviews, arc, bair_robot_pushing_small, beans, big_patent, bigearthnet, billsum, binarized_mnist, binary_alpha_digits, c4, caltech101, caltech_birds2010, caltech_birds2011, cars196, cassava, cats_vs_dogs, celeb_a, celeb_a_hq, cfq, chexpert, cifar10, cifar100, cifar10_1, cifar10_corrupted, citrus_leaves, cityscapes, civil_comments, clevr, cmaterdb, cnn_dailymail, coco, coil100, colorectal_histology, colorectal_histology_large, cos_e, curated_breast_imaging_ddsm, cycle_gan, deep_weeds, definite_pronoun_resolution, diabetic_retinopathy_detection, div2k, dmlab, downsampled_imagenet, dsprites, dtd, duke_ultrasound, dummy_dataset_shared_generator, dummy_mnist, emnist, eraser_multi_rc, esnli, eurosat, fashion_mnist, flic, flores, food101, gap, gigaword, glue, groove, higgs, horses_or_humans, i_naturalist2017, image_label_folder, imagenet2012, imagenet2012_corrupted, imagenet_resized, imagenette, imagewang, imdb_reviews, iris, kitti, kmnist, lfw, librispeech, librispeech_lm, libritts, lm1b, lost_and_found, lsun, malaria, math_dataset, mnist, mnist_corrupted, movie_rationales, moving_mnist, multi_news, multi_nli, multi_nli_mismatch, natural_questions, newsroom, nsynth, omniglot, open_images_v4, opinosis, oxford_flowers102, oxford_iiit_pet, para_crawl, patch_camelyon, pet_finder, places365_small, plant_leaves, plant_village, plantae_k, qa4mre, quickdraw_bitmap, reddit_tifu, resisc45, rock_paper_scissors, rock_you, scan, scene_parse150, scicite, scientific_papers, shapes3d, smallnorb, snli, so2sat, speech_commands, squad, stanford_dogs, stanford_online_products, starcraft_video, sun397, super_glue, svhn_cropped, ted_hrlr_translate, ted_multi_translate, tf_flowers, the300w_lp, tiny_shakespeare, titanic, trivia_qa, uc_merced, ucf101, vgg_face2, visual_domain_decathlon, voc, wider_face, wikihow, wikipedia, wmt14_translate, wmt15_translate, wmt16_translate, wmt17_translate, wmt18_translate, wmt19_translate, wmt_t2t_translate, wmt_translate, xnli, xsum, yelp_polarity_reviews' 
 ```
 
@@ -149,7 +149,7 @@ import numpy as np
 
 IMDb 数据提供了三个分割——训练集、测试集和无监督集。训练集和测试集各有 25,000 行数据，每行有两列。第一列是评论文本，第二列是标签。 "0" 表示带有负面情绪的评论，而 "1" 表示带有正面情绪的评论。以下代码加载训练集和测试集数据：
 
-```
+```py
 imdb_train, ds_info = tfds.load(name="imdb_reviews", split="train", 
                                with_info=True, as_supervised=True)
 imdb_test = tfds.load(name="imdb_reviews", split="test", 
@@ -158,11 +158,11 @@ imdb_test = tfds.load(name="imdb_reviews", split="test",
 
 请注意，由于数据正在下载，此命令可能需要一些时间才能执行。`ds_info` 包含有关数据集的信息。当提供 `with_info` 参数时，它会返回该信息。让我们来看一下 `ds_info` 中包含的信息：
 
-```
+```py
 print(ds_info) 
 ```
 
-```
+```py
 tfds.core.DatasetInfo(
     name='imdb_reviews',
     version=1.0.0,
@@ -197,12 +197,12 @@ This is a dataset for binary sentiment classification containing substantially m
 
 我们可以看到，在监督模式下，`text` 和 `label` 两个键是可用的。使用 `as_supervised` 参数是将数据集加载为一组值元组的关键。如果没有指定此参数，数据将作为字典键加载并提供。在数据有多个输入的情况下，这可能是首选。为了了解已加载的数据：
 
-```
+```py
 for example, label in imdb_train.take(1):
     print(example, '\n', label) 
 ```
 
-```
+```py
 tf.Tensor(b"This was an absolutely terrible movie. Don't be lured in by Christopher Walken or Michael Ironside. Both are great actors, but this must simply be their worst role in history. Even their great acting could not redeem this movie's ridiculous storyline. This movie is an early nineties US propaganda piece. The most pathetic scenes were those when the Columbian rebels were making their cases for revolutions. Maria Conchita Alonso appeared phony, and her pseudo-love affair with Walken was nothing but a pathetic emotional plug in a movie that was devoid of any real meaning. I am disappointed that there are movies like this, ruining actor's like Christopher Walken's good name. I could barely sit through it.", shape=(), dtype=string)
 tf.Tensor(0, shape=(), dtype=int64) 
 ```
@@ -217,7 +217,7 @@ tf.Tensor(0, shape=(), dtype=int64)
 
 文本的标准化，例如转换为小写字母等，是在此分词步骤中执行的。`tfds` 提供了一组用于文本的特征构建器，位于 `tfds.features.text` 包中。首先，需要创建一个包含训练数据中所有单词的集合：
 
-```
+```py
 tokenizer = tfds.features.text.Tokenizer()
 vocabulary_set = set()
 MAX_TOKENS = 0
@@ -230,27 +230,27 @@ for example, label in imdb_train:
 
 通过遍历训练示例，对每个评论进行分词，将评论中的单词添加到一个集合中。将它们添加到集合中以获取唯一的单词。注意，令牌或单词并未转换为小写。这意味着词汇表的大小会稍微大一些。使用此词汇表，可以创建一个编码器。`TokenTextEncoder` 是 `tfds` 中提供的三种现成编码器之一。注意如何将令牌列表转换为集合，以确保词汇表中只保留唯一的令牌。用于生成词汇表的分词器被传递进来，这样每次调用编码字符串时都能使用相同的分词方案。此编码器期望分词器对象提供 `tokenize()` 和 `join()` 方法。如果您想使用 StanfordNLP 或前一章节中讨论的其他分词器，只需将 StanfordNLP 接口封装在自定义对象中，并实现方法来将文本拆分为令牌并将令牌合并回字符串：
 
-```
+```py
 imdb_encoder = tfds.features.text.TokenTextEncoder(vocabulary_set, 
                                               tokenizer=tokenizer)
 vocab_size = imdb_encoder.vocab_size
 print(vocab_size, MAX_TOKENS) 
 ```
 
-```
+```py
 93931 2525 
 ```
 
 词汇表包含 93,931 个令牌。最长的评论有 2,525 个令牌。真是一个冗长的评论！评论的长度会有所不同。LSTM 期望输入的是长度相等的序列。填充和截断操作会使评论具有相同的长度。在执行此操作之前，我们先测试编码器是否正常工作：
 
-```
+```py
 for example, label in imdb_train.take(1):
     print(example)
     encoded = imdb_encoder.encode(example.numpy())
     print(imdb_encoder.decode(encoded)) 
 ```
 
-```
+```py
 tf.Tensor(b"This was an absolutely terrible movie. Don't be lured in by Christopher Walken or Michael Ironside. Both are great actors, but this must simply be their worst role in history. Even their great acting could not redeem this movie's ridiculous storyline. This movie is an early nineties US propaganda piece. The most pathetic scenes were those when the Columbian rebels were making their cases for revolutions. Maria Conchita Alonso appeared phony, and her pseudo-love affair with Walken was nothing but a pathetic emotional plug in a movie that was devoid of any real meaning. I am disappointed that there are movies like this, ruining actor's like Christopher Walken's good name. I could barely sit through it.", shape=(), dtype=string)
 This was an absolutely terrible movie Don t be lured in by Christopher Walken or Michael Ironside Both are great actors but this must simply be their worst role in history Even their great acting could not redeem this movie s ridiculous storyline This movie is an early nineties US propaganda piece The most pathetic scenes were those when the Columbian rebels were making their cases for revolutions Maria Conchita Alonso appeared phony and her pseudo love affair with Walken was nothing but a pathetic emotional plug in a movie that was devoid of any real meaning I am disappointed that there are movies like this ruining actor s like Christopher Walken s good name I could barely sit through it 
 ```
@@ -259,18 +259,18 @@ This was an absolutely terrible movie Don t be lured in by Christopher Walken or
 
 编码器提供的一个便利功能是将词汇表持久化到磁盘。这使得词汇表和分布的计算可以仅执行一次，以供生产用例使用。即使在开发过程中，每次运行或重启笔记本之前，计算词汇表也可能是一项资源密集型的任务。将词汇表和编码器保存到磁盘，可以在完成词汇表构建步骤后，从任何地方继续进行编码和模型构建。要保存编码器，可以使用以下命令：
 
-```
+```py
 imdb_encoder.save_to_file("reviews_vocab") 
 ```
 
 要从文件加载编码器并进行测试，可以使用以下命令：
 
-```
+```py
 enc = tfds.features.text.TokenTextEncoder.load_from_file("reviews_vocab")
 enc.decode(enc.encode("Good case. Excellent value.")) 
 ```
 
-```
+```py
 'Good case Excellent value' 
 ```
 
@@ -284,7 +284,7 @@ enc.decode(enc.encode("Good case. Excellent value."))
 
 以下函数执行了此操作：
 
-```
+```py
 from tensorflow.keras.preprocessing import sequence
 def encode_pad_transform(sample):
     encoded = imdb_encoder.encode(sample.numpy())
@@ -306,7 +306,7 @@ def encode_tf_fn(sample, label):
 
 转换数据是非常简单的。让我们在一个小样本数据上试试这段代码：
 
-```
+```py
 subset = imdb_train.take(10)
 tst = subset.map(encode_tf_fn)
 for review, label in tst.take(1):
@@ -314,7 +314,7 @@ for review, label in tst.take(1):
     print(imdb_encoder.decode(review)) 
 ```
 
-```
+```py
 tf.Tensor(
 [40205  9679 51728 91747 21013  7623  6550 40338 18966 36012 64846 80722
  81643 29176 14002 73549 52960 40359 49248 62585 75017 67425 18181  2673
@@ -336,7 +336,7 @@ This was an absolutely terrible movie Don t be lured in by Christopher Walken or
 
 可以这样在整个数据集上运行这个 map 操作：
 
-```
+```py
 encoded_train = imdb_train.map(encode_tf_fn)
 encoded_test = imdb_test.map(encode_tf_fn) 
 ```
@@ -349,7 +349,7 @@ encoded_test = imdb_test.map(encode_tf_fn)
 
 如上图所示，多个操作共同影响一个 epoch 中的整体训练时间。上面这个示例图展示了需要打开文件（如最上面一行所示）、读取数据（如下一行所示）、对读取的数据执行映射转换，然后才能进行训练。由于这些步骤是按顺序进行的，这可能会使整体训练时间变长。相反，映射步骤可以并行执行，这将使得整体执行时间变短。CPU 用于预取、批处理和转换数据，而 GPU 则用于训练计算和诸如梯度计算和更新权重等操作。通过对上述 `map` 函数调用做一个小的修改，可以启用此功能：
 
-```
+```py
 encoded_train = imdb_train.map(encode_tf_fn,
        num_parallel_calls=tf.data.experimental.AUTOTUNE)
 encoded_test = imdb_test.map(encode_tf_fn,
@@ -368,7 +368,7 @@ encoded_test = imdb_test.map(encode_tf_fn,
 
 TensorFlow 和 Keras 使得实例化一个基于 LSTM 的模型变得非常简单。实际上，添加一个 LSTM 层只需一行代码。最简单的形式如下所示：
 
-```
+```py
 tf.keras.layers.LSTM(rnn_units) 
 ```
 
@@ -376,7 +376,7 @@ tf.keras.layers.LSTM(rnn_units)
 
 回到学习嵌入，TensorFlow 提供了一个嵌入层，可以在 LSTM 层之前添加。这个层有几个选项，文档也有很好的说明。为了完成二分类模型，剩下的就是一个最终的全连接层，该层有一个单元用于分类。一个可以构建具有一些可配置参数的模型的工具函数可以这样配置：
 
-```
+```py
 def build_model_lstm(vocab_size, embedding_dim, rnn_units, batch_size):
   model = tf.keras.Sequential([
     tf.keras.layers.Embedding(vocab_size, embedding_dim, 
@@ -390,7 +390,7 @@ def build_model_lstm(vocab_size, embedding_dim, rnn_units, batch_size):
 
 这个函数暴露了一些可配置的参数，以便尝试不同的架构。除了这些参数之外，批次大小是另一个重要的参数。可以按照以下方式配置：
 
-```
+```py
 vocab_size = imdb_encoder.vocab_size 
 # The embedding dimension
 embedding_dim = 64
@@ -402,7 +402,7 @@ BATCH_SIZE=100
 
 除了词汇表大小外，所有其他参数都可以进行调整，以查看对模型性能的影响。在设置好这些配置后，可以构建模型：
 
-```
+```py
 model = build_model_lstm(
   vocab_size = vocab_size,
   embedding_dim=embedding_dim,
@@ -411,7 +411,7 @@ model = build_model_lstm(
 model.summary() 
 ```
 
-```
+```py
 Model: "sequential_3"
 _________________________________________________________________
 Layer (type)                 Output Shape              Param #   
@@ -432,7 +432,7 @@ _________________________________________________________________
 
 现在，这个模型已经准备好进行编译，指定损失函数、优化器和评估指标。在这种情况下，由于只有两个标签，所以使用二元交叉熵作为损失函数。Adam 优化器是一个非常好的选择，具有很好的默认设置。由于我们正在进行二分类，准确率、精确度和召回率是我们希望在训练过程中跟踪的指标。然后，需要对数据集进行批处理，并开始训练：
 
-```
+```py
 model.compile(loss='binary_crossentropy', 
              optimizer='adam', 
              metrics=['accuracy', 'Precision', 'Recall'])
@@ -440,7 +440,7 @@ encoded_train_batched = encoded_train.batch(BATCH_SIZE)
 model.fit(encoded_train_batched, epochs=10) 
 ```
 
-```
+```py
 Epoch 1/10
 250/250 [==============================] - 23s 93ms/step - loss: 0.4311 - accuracy: 0.7920 - Precision: 0.7677 - Recall: 0.8376
 Epoch 2/10
@@ -452,11 +452,11 @@ Epoch 10/10
 
 这是一个非常好的结果！让我们将其与测试集进行比较：
 
-```
+```py
 model.evaluate(encoded_test.batch(BATCH_SIZE)) 
 ```
 
-```
+```py
  250/Unknown - 20s 80ms/step - loss: 0.8682 - accuracy: 0.8063 - Precision: 0.7488 - Recall: 0.9219 
 ```
 
@@ -470,7 +470,7 @@ model.evaluate(encoded_test.batch(BATCH_SIZE))
 
 在 TensorFlow 中构建 BiLSTM 很容易。所需要的只是对模型定义进行一行的修改。在 `build_model_lstm()` 函数中，添加 LSTM 层的那一行需要修改。修改后的新函数如下所示，修改的部分已突出显示：
 
-```
+```py
 def build_model_bilstm(vocab_size, embedding_dim, rnn_units, batch_size):
   model = tf.keras.Sequential([
     tf.keras.layers.Embedding(vocab_size, embedding_dim, 
@@ -510,7 +510,7 @@ def build_model_bilstm(vocab_size, embedding_dim, rnn_units, batch_size):
 
 这个新的 BiLSTM 模型有超过 1200 万个参数。
 
-```
+```py
 bilstm = build_model_bilstm(
   vocab_size = vocab_size,
   embedding_dim=embedding_dim,
@@ -519,7 +519,7 @@ bilstm = build_model_bilstm(
 bilstm.summary() 
 ```
 
-```
+```py
 Model: "sequential_1"
 _________________________________________________________________
 Layer (type)                 Output Shape              Param #   
@@ -546,11 +546,11 @@ _________________________________________________________________
 
 如果你按照上面所示的模型运行，且没有其他更改，你会看到模型的准确性和精度有所提升：
 
-```
+```py
 bilstm.fit(encoded_train_batched, epochs=5) 
 ```
 
-```
+```py
 Epoch 1/5
 500/500 [==============================] - 80s 160ms/step - loss: 0.3731 - accuracy: 0.8270 - Precision: 0.8186 - Recall: 0.8401
 …

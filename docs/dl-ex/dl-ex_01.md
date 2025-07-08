@@ -74,7 +74,7 @@
 
 因此，根据我们的训练样本，我们可以推导出以下规则：
 
-```
+```py
 If length(fish)> length* then label(fish) = Tuna
 Otherwise label(fish) = Opah 
 ```
@@ -87,7 +87,7 @@ Otherwise label(fish) = Opah
 
 在这种情况下，我们可以根据长度特征推导出一条规则来区分金枪鱼和大眼金枪鱼。在这个特定的例子中，我们可以得出`length*`为`7`。因此，我们可以更新前面的规则为：
 
-```
+```py
 If length(fish)> 7 then label(fish) = Tuna
 Otherwise label(fish) = Opah
 ```
@@ -306,12 +306,12 @@ Keras 是一个高级神经网络 API，使用 Python 编写，并能够运行�
 
 所以让我们从导入实现所需的包开始：
 
-```
+```py
 import numpy as np
 np.random.seed(2018)
 ```
 
-```
+```py
 import os
 import glob
 import cv2
@@ -322,7 +322,7 @@ import warnings
 warnings.filterwarnings("ignore")
 ```
 
-```
+```py
 from sklearn.cross_validation import KFold
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Flatten
@@ -340,7 +340,7 @@ OpenCV（开源计算机视觉库）是根据 BSD 许可证发布的，因此它
 
 你可以通过使用 Python 包管理器安装 OpenCV，命令为 `pip install` `opencv-python`
 
-```
+```py
 # Parameters
 # ----------
 # img_path : path
@@ -355,7 +355,7 @@ return img_resized
 
 现在，我们需要加载数据集中的所有训练样本，并根据之前的函数调整每张图像的大小。所以我们将实现一个函数，从我们为每种鱼类类型准备的不同文件夹中加载训练样本：
 
-```
+```py
 # Loading the training samples and their corresponding labels
 def load_training_samples():
     #Variables to hold the training input and output variables
@@ -383,7 +383,7 @@ def load_training_samples():
 
 正如我们讨论的，我们有一个测试集，它将充当未见数据，以测试我们模型的泛化能力。因此，我们需要对测试图像做同样的处理；加载它们并进行调整大小处理：
 
-```
+```py
 def load_testing_samples():
     # Scanning images from the test folder
     imgs_path = os.path.join('..', 'input', 'test_stg1', '*.jpg')
@@ -403,7 +403,7 @@ def load_testing_samples():
 
 现在，我们需要将之前的函数调用到另一个函数中，后者将使用 `load_training_samples()` 函数来加载并调整训练样本的大小。它还会增加几行代码，将训练数据转换为 NumPy 格式，重新调整数据形状以适应我们的分类器，最后将其转换为浮动格式：
 
-```
+```py
 def load_normalize_training_samples():
     # Calling the load function in order to load and resize the training samples
     training_samples, training_label, training_samples_id = load_training_samples()
@@ -421,7 +421,7 @@ def load_normalize_training_samples():
 
 我们也需要对测试进行相同的处理：
 
-```
+```py
 def load_normalize_testing_samples():
     # Calling the load function in order to load and resize the testing samples
     testing_samples, testing_samples_id = load_testing_samples()
@@ -447,7 +447,7 @@ def load_normalize_testing_samples():
 
 所以，让我们继续创建一个函数，负责构建将在鱼类识别任务中使用的 CNN 架构：
 
-```
+```py
 def create_cnn_model_arch():
     pool_size = 2 # we will use 2x2 pooling throughout
     conv_depth_1 = 32 # we will initially have 32 kernels per conv. layer...
@@ -492,7 +492,7 @@ def create_cnn_model_arch():
 
 所以，让我们开始创建一个帮助我们评估和验证模型的函数：
 
-```
+```py
 def create_model_with_kfold_cross_validation(nfolds=10):
     batch_size = 16 # in each iteration, we consider 32 training examples at once
     num_epochs = 30 # we iterate 200 times over the entire training set
@@ -551,7 +551,7 @@ def create_model_with_kfold_cross_validation(nfolds=10):
 
 所以，让我们定义一个函数，该函数将以训练好的 CNN 模型为输入，然后使用我们拥有的测试集对其进行测试：
 
-```
+```py
 def test_generality_crossValidation_over_test_set( overall_settings_output_string, cnn_models):
     batch_size = 16 # in each iteration, we consider 32 training examples at once
     fold_number = 0 # fold iterator
@@ -577,7 +577,7 @@ def test_generality_crossValidation_over_test_set( overall_settings_output_strin
 
 现在，我们准备通过调用主函数`create_model_with_kfold_cross_validation()`来开始模型训练阶段，该函数用于通过 10 折交叉验证构建并训练 CNN 模型；然后我们可以调用测试函数来衡量模型对测试集的泛化能力：
 
-```
+```py
 if __name__ == '__main__':
   info_string, models = create_model_with_kfold_cross_validation()
   test_generality_crossValidation_over_test_set(info_string, models)

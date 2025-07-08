@@ -396,7 +396,7 @@ TensorBoard 使你能够可视化标量值（例如，训练迭代中的损失�
 
 1.  你现在应该能看到以下消息：
 
-    ```
+    ```py
     TensorBoard 1.6.0 at <url>;:6006 (Press CTRL+C to quit) 
     ```
 
@@ -406,7 +406,7 @@ TensorBoard 使你能够可视化标量值（例如，训练迭代中的损失�
 
 首先，我们将从[`nlp.stanford.edu/projects/glove/`](https://nlp.stanford.edu/projects/glove/)下载并加载 50 维的 GloVe 词向量文件（`glove.6B.zip`），并将其放入`Appendix`文件夹中。我们将加载文件中的前 50,000 个词向量，稍后将这些词向量用于初始化 TensorFlow 变量。同时，我们还将记录每个词的字符串，因为稍后我们会将这些字符串作为标签，在 TensorBoard 中显示每个点：
 
-```
+```py
 vocabulary_size = 50000
 embedding_df = [] 
 index = []
@@ -443,7 +443,7 @@ embedding_df = pd.DataFrame(embedding_df, index=index)
 
 我们还需要定义与 TensorFlow 相关的变量和操作。在此之前，我们将创建一个名为`embeddings`的目录，用于存储这些变量：
 
-```
+```py
 # Create a directory to save our model
 log_dir = 'embeddings'
 os.makedirs(log_dir, exist_ok=True) 
@@ -451,7 +451,7 @@ os.makedirs(log_dir, exist_ok=True)
 
 然后，我们将定义一个变量，该变量将用我们之前从文本文件中复制的词嵌入进行初始化：
 
-```
+```py
 # Save the weights we want to analyse as a variable. 
 embeddings = tf.Variable(embedding_df.values)
 print(f"weights.shape: {embeddings.shape}")
@@ -462,7 +462,7 @@ checkpoint.save(os.path.join(log_dir, "embedding.ckpt"))
 
 我们还需要保存一个元数据文件。元数据文件包含与词嵌入相关的标签/图像或其他类型的信息，以便当你悬停在嵌入可视化上时，相应的点将显示它们所代表的词/标签。元数据文件应为`.tsv`（制表符分隔值）格式，且应包含`vocabulary_size`行，其中每行包含一个词，按它们在词嵌入矩阵中出现的顺序排列：
 
-```
+```py
 with open(os.path.join(log_dir, 'metadata.tsv'), 'w', encoding='utf-8') as f:
     for w in embedding_df.index:
         f.write(w+'\n') 
@@ -470,13 +470,13 @@ with open(os.path.join(log_dir, 'metadata.tsv'), 'w', encoding='utf-8') as f:
 
 然后，我们需要告诉 TensorFlow 它在哪里可以找到我们保存到磁盘的嵌入数据的元数据。为此，我们需要创建一个`ProjectorConfig`对象，该对象保存有关我们要显示的嵌入的各种配置信息。存储在`ProjectorConfig`文件夹中的详细信息将保存在`models`目录中的`projector_config.pbtxt`文件中：
 
-```
+```py
 config = projector.ProjectorConfig() 
 ```
 
 在这里，我们将填写我们创建的`ProjectorConfig`对象的必填字段。首先，我们将告诉它我们感兴趣的变量名称。然后，我们将告诉它在哪里可以找到与该变量对应的元数据：
 
-```
+```py
 config = projector.ProjectorConfig()
 # You can add multiple embeddings. Here we add only one.
 embedding_config = config.embeddings.add()
@@ -489,7 +489,7 @@ projector.visualize_embeddings(log_dir, config)
 
 请注意，我们在`embedding`名称后添加了后缀`/.ATTRIBUTES/VARIABLE_VALUE`。这是 TensorBoard 找到此张量所必需的。TensorBoard 将在启动时读取必要的文件：
 
-```
+```py
 projector.visualize_embeddings(log_dir, config) 
 ```
 

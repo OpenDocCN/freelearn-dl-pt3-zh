@@ -146,7 +146,7 @@ GAN 的应用令人惊叹，其实际应用也在不断被发现。从下一部�
 
 `(tf2)`
 
-```
+```py
 import tensorflow as tf
 
 def sample_dataset():
@@ -158,7 +158,7 @@ def sample_dataset():
 
 `(tf2)`
 
-```
+```py
 import matplotlib.pyplot as plt
 
 counts, bin, ignored = plt.hist(sample_dataset().numpy(), 100)
@@ -188,7 +188,7 @@ plt.show()
 
 `(tf2)`
 
-```
+```py
 def generator(input_shape):
     """Defines the generator keras.Model.
     Args:
@@ -214,7 +214,7 @@ def generator(input_shape):
 
 `(tf2)`
 
-```
+```py
 def disciminator(input_shape):
     """Defines the Discriminator keras.Model.
     Args:
@@ -233,7 +233,7 @@ def disciminator(input_shape):
 
 `(tf2)`
 
-```
+```py
 # Define the real input shape
 input_shape = (1,)
 
@@ -254,7 +254,7 @@ G = generator(latent_space_shape)
 
 `(tf2)`
 
-```
+```py
 bce = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 ```
 
@@ -280,7 +280,7 @@ bce = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
 `(tf2)`
 
-```
+```py
 def d_loss(d_real, d_fake):
     """The disciminator loss function."""
     return bce(tf.ones_like(d_real), d_real) + bce(tf.zeros_like(d_fake), d_fake)
@@ -300,7 +300,7 @@ TensorFlow 实现非常简单：
 
 `(tf2)`
 
-```
+```py
 def g_loss(generated_output):
     """The Generator loss function."""
     return bce(tf.ones_like(generated_output), generated_output)
@@ -318,7 +318,7 @@ TensorFlow 允许我们轻松定义自定义训练循环。特别是 `tf.Gradien
 
 `(tf2)`
 
-```
+```py
 def train():
     # Define the optimizers and the train operations
     optimizer = tf.keras.optimizers.Adam(1e-5)
@@ -355,7 +355,7 @@ def train():
 
 `(tf2)`
 
-```
+```py
     fig, ax = plt.subplots()
     for step in range(40000):
         real_data, fake_data,g_loss_value, d_loss_value = train_step()
@@ -441,7 +441,7 @@ Mirza 等人在他们的论文*条件生成对抗网络*中，提出了一种条
 
 `(tf2)`
 
-```
+```py
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import matplotlib.pyplot as plt
@@ -463,7 +463,7 @@ dataset = dataset.map(convert).batch(batch_size).prefetch(1)
 
 `(tf2)`
 
-```
+```py
 def get_generator(latent_dimension):
 
   # Condition subnetwork: encode the condition in a hidden representation
@@ -515,7 +515,7 @@ def get_generator(latent_dimension):
 
 `(tf2)`
 
-```
+```py
 def get_Discriminator():
   # Encoder subnetwork: feature extactor to get a feature vector
   image = tf.keras.layers.Input((28,28,1))
@@ -545,7 +545,7 @@ def get_Discriminator():
 
 `(tf2)`
 
-```
+```py
   # Create a hidden representation of the condition
   condition = tf.keras.layers.Input((1,))
   hidden = tf.keras.layers.Dense(32, activation=tf.nn.elu)(condition)
@@ -568,7 +568,7 @@ def get_Discriminator():
 
 `(tf2)`
 
-```
+```py
 bce = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 
 def d_loss(d_real, d_fake):
@@ -586,7 +586,7 @@ def g_loss(generated_output):
 
 `(tf2)`
 
-```
+```py
 latent_dimension = 100
 G = get_generator(latent_dimension)
 D = get_Discriminator()

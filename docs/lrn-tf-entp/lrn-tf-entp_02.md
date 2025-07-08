@@ -52,7 +52,7 @@
 
 我们将在*第二章*，*在 Google AI Platform 上运行 TensorFlow Enterprise* 中详细讲解如何启动 JupyterLab，但目前作为演示，可以在 **JupyterLab** 单元格中执行以下命令作为 CLI 命令。它将提供您实例中每个包的版本信息，确保版本一致性：
 
-```
+```py
 !pip list | grep tensorflow
 ```
 
@@ -204,7 +204,7 @@
 
 1.  一旦表格创建完成，你可以点击 **查询表格** 来更新 SQL 查询语法，或者直接输入这个查询：
 
-    ```
+    ```py
     SELECT * FROM `project1-190517.myworkdataset.iris` LIMIT 1000
     ```
 
@@ -258,23 +258,23 @@ TensorFlow Enterprise 可以轻松访问 Google Cloud Storage 和 BigQuery 中�
 
 `tf.data`，因此一个`tf.data`对象可以轻松地访问 Google Cloud Storage 中的数据。例如，下面的代码片段演示了如何读取一个`tfrecord`数据集：
 
-```
+```py
 my_train_dataset = tf.data.TFRecordDataset('gs://<BUCKET_NAME>/<FILE_NAME>*.tfrecord')
 ```
 
-```
+```py
 my_train_dataset = my_train_dataset.repeat()
 ```
 
-```
+```py
 my_train_dataset = my_train_dataset.batch()
 ```
 
-```
+```py
 …
 ```
 
-```
+```py
 model.fit(my_train_dataset, …)
 ```
 
@@ -294,13 +294,13 @@ BigQuery 魔法命令
 
 1.  指定一个项目 ID。此 JupyterLab 单元使用默认解释器。因此，这里是一个 Python 变量。如果 BigQuery 表与您当前运行的项目相同，那么无需指定项目 ID：
 
-    ```
+    ```py
     project_id = '<PROJECT-XXXXX>'
     ```
 
 1.  调用 `%%bigquery` 魔法命令，并为结果指定项目 ID 和 DataFrame 名称：
 
-    ```
+    ```py
     %%bigquery --project $project_id mydataframe
     SELECT * from `bigquery-public-data.covid19_jhu_csse.summary` limit 5
     ```
@@ -309,13 +309,13 @@ BigQuery 魔法命令
 
 1.  验证结果是一个 pandas DataFrame：
 
-    ```
+    ```py
     type(mydataframe)
     ```
 
 1.  显示 DataFrame：
 
-    ```
+    ```py
     mydataframe
     ```
 
@@ -323,7 +323,7 @@ BigQuery 魔法命令
 
 ![图 1.23 – BigQuery 与 Python 运行时集成的代码片段](img/Figure_1.23.jpg)
 
-```
+```py
 me integration
 ```
 
@@ -341,67 +341,67 @@ me integration
 
 这个代码片段演示了如何调用 BigQuery API，并使用它将结果返回为 pandas DataFrame：
 
-```
+```py
 from google.cloud import bigquery
 ```
 
-```
+```py
 project_id ='project-xxxxx'
 ```
 
-```
+```py
 client = bigquery.Client(project=project_id)
 ```
 
-```
+```py
 sample_count = 1000
 ```
 
-```
+```py
 row_count = client.query('''
 ```
 
-```
+```py
   SELECT 
 ```
 
-```
+```py
     COUNT(*) as total
 ```
 
-```
+```py
   FROM `bigquery-public-data.covid19_jhu_csse.summary`''').to_dataframe().total[0]
 ```
 
-```
+```py
 df = client.query('''
 ```
 
-```
+```py
   SELECT
 ```
 
-```
+```py
     *
 ```
 
-```
+```py
   FROM
 ```
 
-```
+```py
     `bigquery-public-data.covid19_jhu_csse.summary`
 ```
 
-```
+```py
   WHERE RAND() < %d/%d
 ```
 
-```
+```py
 ''' % (sample_count, row_count)).to_dataframe()
 ```
 
-```
+```py
 print('Full dataset has %d rows' % row_count)
 ```
 
@@ -441,7 +441,7 @@ BigQuery 表的 pandas DataFrame 版本包含以下列：
 
 1.  按如下方式加载所需的库并设置变量：
 
-    ```
+    ```py
     import tensorflow as tf
     from tensorflow_io.bigquery import BigQueryClient
     PROJECT_ID = 'project-xxxxx' # This is from what you created in your Google Cloud Account. 
@@ -452,14 +452,14 @@ BigQuery 表的 pandas DataFrame 版本包含以下列：
 
 1.  实例化一个 BigQuery 客户端并指定批次大小：
 
-    ```
+    ```py
     batch_size = 2048
     client = BigQueryClient()
     ```
 
 1.  使用客户端创建一个读取会话并指定感兴趣的列和数据类型。注意，在使用 BigQuery 客户端时，你需要知道正确的列名及其相应的数据类型：
 
-    ```
+    ```py
     read_session = client.read_session(
         'projects/' + PROJECT_ID,
         DATASET_GCP_PROJECT_ID, TABLE_ID, DATASET_ID,
@@ -482,13 +482,13 @@ BigQuery 表的 pandas DataFrame 版本包含以下列：
 
 1.  现在我们可以使用创建的会话对象来执行读取操作：
 
-    ```
+    ```py
     dataset = read_session.parallel_read_rows(sloppy=True).batch(batch_size)
     ```
 
 1.  让我们用`type()`来查看数据集：
 
-    ```
+    ```py
     type(dataset)
     ```
 
@@ -500,7 +500,7 @@ BigQuery 表的 pandas DataFrame 版本包含以下列：
 
 1.  为了实际查看数据，我们需要将数据集操作转换为 Python 迭代器，并使用`next()`查看第一批次的内容：
 
-    ```
+    ```py
     itr = tf.compat.v1.data.make_one_shot_iterator(
         dataset
     )
@@ -541,13 +541,13 @@ BigQuery 表的 pandas DataFrame 版本包含以下列：
 
 1.  指定项目 ID：
 
-    ```
+    ```py
     project_id = 'project1-190517'
     ```
 
 1.  执行 BigQuery SQL 命令并将结果分配给 pandas DataFrame：
 
-    ```
+    ```py
     %%bigquery --project $project_id mydataframe
     SELECT * from `bigquery-public-data.covid19_jhu_csse.summary`
     ```
@@ -556,20 +556,20 @@ BigQuery 表的 pandas DataFrame 版本包含以下列：
 
 1.  将 pandas DataFrame 写入本地目录中的 CSV 文件。在这种情况下，我们使用了 JupyterLab 运行时的`/home`目录：
 
-    ```
+    ```py
     import pandas as pd
     mydataframe.to_csv('my_new_data.csv')
     ```
 
 1.  指定数据集名称：
 
-    ```
+    ```py
     dataset_id = 'my_new_dataset'
     ```
 
 1.  使用 BigQuery 命令行工具在此项目的数据集中创建一个空表。该命令以`!bq`开头：
 
-    ```
+    ```py
     !bq --location=US mk --dataset $dataset_id
     ```
 
@@ -577,7 +577,7 @@ BigQuery 表的 pandas DataFrame 版本包含以下列：
 
 1.  将本地 CSV 文件写入新表：
 
-    ```
+    ```py
     'my_new_data.csv' will suffice. Otherwise, a full path is required. Also, {dataset_id}.my_new_data_table indicates that we want to write the CSV file into this particular dataset and the table name.
     ```
 
@@ -629,7 +629,7 @@ BigQuery 表的 pandas DataFrame 版本包含以下列：
 
 1.  我们使用 IMDB 数据集，因为它已经以 NumPy 格式提供：
 
-    ```
+    ```py
     import tensorflow as tf
     import pickle as pkl
     (x_train, y_train), (x_test, y_test) = tf.keras.datasets.imdb.load_data(
@@ -652,25 +652,25 @@ BigQuery 表的 pandas DataFrame 版本包含以下列：
 
 1.  为新的存储桶指定一个名称：
 
-    ```
+    ```py
     bucket_name = 'ai-platform-bucket'
     ```
 
 1.  使用指定的名称创建一个新的存储桶：
 
-    ```
+    ```py
     !gsutil mb gs://{bucket_name}/
     ```
 
     使用 `!gsutil` 将 `pkl` 文件从运行时移动到存储桶：
 
-    ```
+    ```py
     !gsutil cp /home/jupyter/x_train.pkl gs://{bucket_name}/
     ```
 
 1.  读取 `pkl` 文件：
 
-    ```
+    ```py
     !gsutil cp gs://{bucket_name}/x_train.pkl /home/jupyter/x_train_readback.pkl
     ```
 

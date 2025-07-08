@@ -150,7 +150,7 @@ DQN 算法涉及三个主要部分：
 
 DQN 的伪代码如下：
 
-```
+```py
 Initialize  function with random weight 
 Initialize  function with random weight 
 Initialize empty replay memory 
@@ -238,7 +238,7 @@ Atari 中的每一帧为 210 x 160 像素，采用 RGB 颜色，因此其整体�
 
 所有这些功能都作为包装器实现。包装器是一种通过在环境上方添加新层，来轻松转换环境的方式。例如，要在 Pong 中缩放帧，我们会使用以下代码：
 
-```
+```py
 env = gym.make('Pong-v0')
 env = ScaledFloatFrame(env)
 ```
@@ -247,7 +247,7 @@ env = ScaledFloatFrame(env)
 
 这里我们不会展示所有列出的包装器的实现，因为它们超出了本书的范围，但我们将使用`FireResetEnv`和`WrapFrame`作为示例，给你一个大致的实现概念。完整的代码可以在本书的 GitHub 仓库中找到：
 
-```
+```py
 class FireResetEnv(gym.Wrapper):
     def __init__(self, env):
         """Take action on reset for environments that are fixed until firing."""
@@ -273,7 +273,7 @@ class FireResetEnv(gym.Wrapper):
 
 `WrapFrame`具有类似的定义：
 
-```
+```py
 class WarpFrame(gym.ObservationWrapper):
     def __init__(self, env):
         """Warp frames to 84x84 as done in the Nature paper and later work."""
@@ -292,7 +292,7 @@ class WarpFrame(gym.ObservationWrapper):
 
 然后我们可以创建一个函数`make_env`，将每个包装器应用到环境中：
 
-```
+```py
 def make_env(env_name, fire=True, frames_num=2, noop_num=30, skip_frames=True):
     env = gym.make(env_name)
     if skip_frames:
@@ -327,7 +327,7 @@ DQN 代码包含四个主要组件：
 
 让我们立即开始实现，导入所需的库：
 
-```
+```py
 import numpy as np
 import tensorflow as tf
 import gym
@@ -357,7 +357,7 @@ DNN 架构如下（组件按顺序构建）：
 
 在`cnn`中，我们定义了前三个卷积层，而在`fnn`中，我们定义了最后两个全连接层：
 
-```
+```py
 def cnn(x):
     x = tf.layers.conv2d(x, filters=16, kernel_size=8, strides=4, padding='valid', activation='relu') 
     x = tf.layers.conv2d(x, filters=32, kernel_size=4, strides=2, padding='valid', activation='relu') 
@@ -374,7 +374,7 @@ def fnn(x, hidden_layers, output_layer, activation=tf.nn.relu, last_activation=N
 
 在`qnet`中，CNN 和 FNN 层通过一个层连接，该层将 CNN 的二维输出展平：
 
-```
+```py
 def qnet(x, hidden_layers, output_size, fnn_activation=tf.nn.relu, last_activation=None):
     x = cnn(x)
     x = tf.layers.flatten(x)
@@ -387,7 +387,7 @@ def qnet(x, hidden_layers, output_size, fnn_activation=tf.nn.relu, last_activati
 
 经验缓冲区是`ExperienceBuffer`类型的类，并存储一个**FIFO**（**先进先出**）类型的队列，用于存储以下每个组件：观察、奖励、动作、下一观察和完成。FIFO 意味着，一旦达到`maxlen`指定的最大容量，它将从最旧的元素开始丢弃。在我们的实现中，容量为`buffer_size`：
 
-```
+```py
 class ExperienceBuffer():
 
     def __init__(self, buffer_size):
@@ -407,7 +407,7 @@ class ExperienceBuffer():
 
 `ExperienceBuffer`类还管理小批量的采样，这些小批量用于训练神经网络。这些小批量是从缓冲区中均匀采样的，并且具有预定义的`batch_size`大小：
 
-```
+```py
     def sample_minibatch(self, batch_size):
         mb_indices = np.random.randint(len(self.obs_buf), size=batch_size)
 
@@ -422,7 +422,7 @@ class ExperienceBuffer():
 
 最后，我们重写了`_len`方法，以提供缓冲区的长度。请注意，由于每个缓冲区的大小相同，我们只返回`self.obs_buf`的长度：
 
-```
+```py
     def __len__(self):
         return len(self.obs_buf)
 ```
@@ -431,7 +431,7 @@ class ExperienceBuffer():
 
 算法的核心，即计算图和训练（及评估）循环，已经在`DQN`函数中实现，该函数将环境的名称和所有其他超参数作为参数：
 
-```
+```py
 def DQN(env_name, hidden_sizes=[32], lr=1e-2, num_epochs=2000, buffer_size=100000, discount=0.99, update_target_net=1000, batch_size=64, update_freq=4, frames_num=2, min_buffer_size=5000, test_frequency=20, start_explor=1, end_explor=0.1, explor_steps=100000):
 
     env = make_env(env_name, frames_num=frames_num, skip_frames=True, noop_num=20)
@@ -446,7 +446,7 @@ def DQN(env_name, hidden_sizes=[32], lr=1e-2, num_epochs=2000, buffer_size=10000
 
 然后，我们可以重置 TensorFlow 图并为观察值、动作和目标值创建占位符。这可以通过以下代码行完成：
 
-```
+```py
     tf.reset_default_graph()
     obs_ph = tf.placeholder(shape=(None, obs_dim[0], obs_dim[1], obs_dim[2]), dtype=tf.float32, name='obs')
     act_ph = tf.placeholder(shape=(None,), dtype=tf.int32, name='act')
@@ -455,7 +455,7 @@ def DQN(env_name, hidden_sizes=[32], lr=1e-2, num_epochs=2000, buffer_size=10000
 
 现在，我们可以通过调用之前定义的`qnet`函数来创建目标网络和在线网络。由于目标网络需要时不时更新自己并采用在线网络的参数，因此我们创建了一个名为`update_target_op`的操作，用于将在线网络的每个变量分配给目标网络。这一分配通过 TensorFlow 的`assign`方法完成。另一方面，`tf.group`将`update_target`列表中的每个元素聚合为一个操作。实现如下：
 
-```
+```py
     with tf.variable_scope('target_network'):
         target_qv = qnet(obs_ph, hidden_sizes, act_dim)
     target_vars = tf.trainable_variables()
@@ -472,7 +472,7 @@ def DQN(env_name, hidden_sizes=[32], lr=1e-2, num_epochs=2000, buffer_size=10000
 
 按照公式(5.6)计算，它们通过`y_ph`占位符和在线网络的 Q 值传递，![](img/4c3d2453-13e9-4a90-a0f6-4f70c3870bce.png)。Q 值依赖于动作，![](img/75e3b146-8d3a-44a9-a4d5-e68839ae0317.png)，但由于在线网络为每个动作输出一个值，我们必须找到一种方法来仅提取![](img/75e3b146-8d3a-44a9-a4d5-e68839ae0317.png)的 Q 值，同时丢弃其他动作值。这个操作可以通过使用动作的独热编码（one-hot encoding）来实现，![](img/75e3b146-8d3a-44a9-a4d5-e68839ae0317.png)，然后将其与在线网络的输出相乘。例如，如果有五个可能的动作且![](img/2fd1422c-a331-4a0b-8e78-ea40cba7152e.png)，那么独热编码将是![](img/45cdd9fa-4046-428e-beb0-144c41ed74eb.png)。然后，假设网络输出![](img/5fa70caf-4f92-4cdc-9301-28ecd0a56d0e.png)，与独热编码的乘积结果将是![](img/3e063c4c-06eb-47aa-9f2a-a80a98004442.png)。接下来，通过对这个向量求和，获得 q 值。结果将是![](img/8578bb25-bfaf-444e-b319-116517194c6c.png)。这一切在以下三行代码中完成：
 
-```
+```py
     act_onehot = tf.one_hot(act_ph, depth=act_dim)
     q_values = tf.reduce_sum(act_onehot * online_qv, axis=1)
     v_loss = tf.reduce_mean((y_ph - q_values)**2)
@@ -480,13 +480,13 @@ def DQN(env_name, hidden_sizes=[32], lr=1e-2, num_epochs=2000, buffer_size=10000
 
 为了最小化我们刚才定义的损失函数，我们将使用 Adam，这是 SGD 的一种变体：
 
-```
+```py
     v_opt = tf.train.AdamOptimizer(lr).minimize(v_loss)
 ```
 
 这就完成了计算图的创建。在进入主要的 DQN 循环之前，我们需要准备好一切，以便可以保存标量和直方图。这样做后，我们就能够在 TensorBoard 中查看它们：
 
-```
+```py
     now = datetime.now()
     clock_time = "{}_{}.{}.{}".format(now.day, now.hour, now.minute, int(now.second))
 
@@ -509,7 +509,7 @@ def DQN(env_name, hidden_sizes=[32], lr=1e-2, num_epochs=2000, buffer_size=10000
 
 我们现在可以定义`agent_op`函数，用于计算缩放后的观察值的前向传递。该观察值已经通过了预处理管道（在环境中通过包装器构建），但我们将缩放操作放到了一边：
 
-```
+```py
     def agent_op(o):
         o = scale_frames(o)
         return sess.run(online_qv, feed_dict={obs_ph:[o]})
@@ -518,7 +518,7 @@ def DQN(env_name, hidden_sizes=[32], lr=1e-2, num_epochs=2000, buffer_size=10000
 
 然后，创建会话，初始化变量，并重置环境：
 
-```
+```py
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
 
@@ -532,7 +532,7 @@ def DQN(env_name, hidden_sizes=[32], lr=1e-2, num_epochs=2000, buffer_size=10000
 
 接下来的步骤包括实例化回放缓冲区，更新目标网络使其具有与在线网络相同的参数，并用`eps_decay`初始化衰减率。epsilon 衰减的策略与 DQN 论文中采用的相同。衰减率的选择使得当它线性应用于`eps`变量时，它将在大约`explor_steps`步内达到终值`end_explor`。例如，如果你想在 1000 步内从 1.0 降低到 0.1，那么你必须在每一步减小一个等于![](img/951d4743-6522-4fda-a081-4e6b31ab9563.png)的值。所有这一切都在以下几行代码中完成：
 
-```
+```py
     obs = env.reset()
 
     buffer = ExperienceBuffer(buffer_size)
@@ -545,7 +545,7 @@ def DQN(env_name, hidden_sizes=[32], lr=1e-2, num_epochs=2000, buffer_size=10000
 
 如你所记得，训练循环由两个内层循环组成：第一个循环遍历训练周期，第二个循环遍历每个周期的过渡阶段。最内层循环的第一部分是相当标准的。它根据使用在线网络的![](img/d28bbae0-9b7d-46ba-b063-afde075d2465.png)-贪婪行为策略选择一个动作，执行一步环境操作，将新的过渡加入缓冲区，并最终更新变量：
 
-```
+```py
     for ep in range(num_epochs):
         g_rew = 0
         done = False
@@ -564,7 +564,7 @@ def DQN(env_name, hidden_sizes=[32], lr=1e-2, num_epochs=2000, buffer_size=10000
 
 然后，在相同的循环中，`eps`会衰减，如果满足某些条件，则训练在线网络。这些条件确保缓冲区已达到最小大小，并且神经网络仅在每`update_freq`步时训练一次。为了训练在线网络，首先，从缓冲区中采样一个小批量，并计算目标值。然后，运行会话以最小化损失函数`v_loss`，并将目标值、动作和小批量的观察值传入字典。在会话运行期间，它还会返回`v_loss`和`scalar_summary`以供统计使用。接着，`scalar_summary`会被添加到`file_writer`中保存到 TensorBoard 日志文件。最后，每经过`update_target_net`个周期，目标网络会更新。一个包含平均损失的总结也会被运行并添加到 TensorBoard 日志文件中。所有这些操作通过以下代码片段完成：
 
-```
+```py
             if eps > end_explor:
                 eps -= eps_decay
 
@@ -585,7 +585,7 @@ def DQN(env_name, hidden_sizes=[32], lr=1e-2, num_epochs=2000, buffer_size=10000
 
 当一个周期结束时，环境会被重置，游戏的总奖励被添加到`batch_rew`中，并将后者设为零。此外，每隔`test_frequency`个周期，代理会在 10 局游戏中进行测试，统计数据会被添加到`file_writer`中。在训练结束时，环境和写入器将被关闭。代码如下：
 
-```
+```py
             if done:
                 obs = env.reset()
                 batch_rew.append(g_rew)
@@ -603,7 +603,7 @@ def DQN(env_name, hidden_sizes=[32], lr=1e-2, num_epochs=2000, buffer_size=10000
 
 就是这样。我们现在可以调用`DQN`函数，传入 Gym 环境的名称和所有超参数：
 
-```
+```py
 if __name__ == '__main__':
     DQN('PongNoFrameskip-v4', hidden_sizes=[128], lr=2e-4, buffer_size=100000, update_target_net=1000, batch_size=32, update_freq=2, frames_num=2, min_buffer_size=10000)
 
@@ -617,7 +617,7 @@ if __name__ == '__main__':
 
 基于这些原因，我们在每 20 次训练周期后评估算法在 10 个测试游戏上的表现，并跟踪整个游戏过程中累积的总（非折扣）奖励的平均值。此外，由于环境的确定性，我们使用 ![](img/3e83ab04-37b2-43ca-961d-e824a111b62b.png)-贪婪策略（与 ![](img/ddd88359-b1c5-411d-a2a1-3141eceef4d2.png)）进行测试，以便进行更稳健的评估。这个标量总结称为 `test_rew`。你可以通过访问保存日志的目录并执行以下命令，在 TensorBoard 中查看它：
 
-```
+```py
 tensorboard --logdir .
 ```
 
@@ -669,14 +669,14 @@ Q 学习算法中的 Q 值过度估计是一个众所周知的问题。其原因
 
 从实现的角度来看，实现 DDQN 的唯一变化是在训练阶段。只需要在 DDQN 实现中替换以下代码行：
 
-```
+```py
 mb_trg_qv = sess.run(target_qv, feed_dict={obs_ph:mb_obs2})
 y_r = q_target_values(mb_rew, mb_done, mb_trg_qv, discount)
 ```
 
 使用以下代码替换：
 
-```
+```py
 mb_onl_qv, mb_trg_qv = sess.run([online_qv,target_qv], feed_dict={obs_ph:mb_obs2})
 y_r = double_q_target_values(mb_rew, mb_done, mb_trg_qv, mb_onl_qv, discount)
 ```
@@ -723,7 +723,7 @@ DDQN（蓝线）和 DQN（橙线）的表现，通过测试游戏的平均奖励
 
 这种架构以及公式 (5.8) 的一个好处是，它不会对底层的强化学习算法施加任何更改。唯一的变化是在 Q 网络的构建上。因此，我们可以用 `dueling_qnet` 函数替换 `qnet`，其实现方法如下：
 
-```
+```py
 def dueling_qnet(x, hidden_layers, output_size, fnn_activation=tf.nn.relu, last_activation=None):
     x = cnn(x)
     x = tf.layers.flatten(x)

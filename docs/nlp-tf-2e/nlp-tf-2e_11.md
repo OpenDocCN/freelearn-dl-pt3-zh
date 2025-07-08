@@ -112,7 +112,7 @@ ImageNet 是一个很好的训练数据集，用于获取生成字幕所需的�
 
 在数据下载并放入正确的文件夹后，让我们定义包含所需数据的目录：
 
-```
+```py
 trainval_image_dir = os.path.join('data', 'train2014', 'train2014')
 trainval_captions_dir = os.path.join('data', 'annotations_trainval2014', 'annotations')
 test_image_dir = os.path.join('data', 'val2017', 'val2017')
@@ -127,7 +127,7 @@ test_captions_filepath = os.path.join(test_captions_dir, 'captions_val2017.json'
 
 接下来的步骤是将训练集分割为训练集和验证集。我们将使用原始数据集的 80% 作为训练数据，20% 作为验证数据（随机选择）：
 
-```
+```py
 all_filepaths = np.array([os.path.join(trainval_image_dir, f) for f in os.listdir(trainval_image_dir)])
 rand_indices = np.arange(len(all_filepaths))
 np.random.shuffle(rand_indices)
@@ -137,14 +137,14 @@ train_filepaths, valid_filepaths = all_filepaths[rand_indices[:split]], all_file
 
 我们可以打印数据集的大小，看看我们得到了什么：
 
-```
+```py
 print(f"Train dataset size: {len(train_filepaths)}")
 print(f"Valid dataset size: {len(valid_filepaths)}") 
 ```
 
 这将打印：
 
-```
+```py
 Train dataset size: 66226
 Valid dataset size: 16557 
 ```
@@ -161,7 +161,7 @@ Valid dataset size: 16557
 
 首先，我们将加载 JSON 文件中的数据，并将其导入到 DataFrame 中：
 
-```
+```py
 with open(trainval_captions_filepath, 'r') as f:
     trainval_data = json.load(f)
 trainval_captions_df = pd.json_normalize(trainval_data, "annotations") 
@@ -173,7 +173,7 @@ trainval_captions_df = pd.json_normalize(trainval_data, "annotations")
 
 我们只保留 `image_filepath` 值在我们存储在 `train_filepaths` 中的训练图像中的数据点：
 
-```
+```py
 trainval_captions_df["image_filepath"] = trainval_captions_df["image_id"].apply(
     lambda x: os.path.join(trainval_image_dir, 
     'COCO_train2014_'+format(x, '012d')+'.jpg')
@@ -183,7 +183,7 @@ train_captions_df = trainval_captions_df[trainval_captions_df["image_filepath"].
 
 我们现在定义一个名为 `preprocess_captions()` 的函数，用来处理原始标题：
 
-```
+```py
 def preprocess_captions(image_captions_df):
     """ Preprocessing the captions """
 
@@ -203,13 +203,13 @@ def preprocess_captions(image_captions_df):
 
 然后我们在训练数据集上调用这个函数：
 
-```
+```py
 train_captions_df = preprocess_captions(train_captions_df) 
 ```
 
 然后我们对验证数据和测试数据执行类似的过程：
 
-```
+```py
 valid_captions_df = trainval_captions_df[
     trainval_captions_df[
         "image_filepath"
@@ -236,7 +236,7 @@ test_captions_df = preprocess_captions(test_captions_df)
 
 让我们也分析一些关于图像的统计信息。我们将从训练数据集中取出前 1,000 张图像的小样本，并查看图像的大小：
 
-```
+```py
 n_samples = 1000
 train_image_stats_df = train_captions_df.loc[:n_samples, "image_filepath"].apply(lambda x: Image.open(x).size)
 train_image_stats_df = pd.DataFrame(train_image_stats_df.tolist(), index=train_image_stats_df.index)
@@ -251,14 +251,14 @@ train_image_stats_df.describe()
 
 我们可以看到大多数图像的分辨率为 640x640。稍后我们需要将图像调整为 224x224，以匹配模型的输入要求。我们还可以查看词汇表大小：
 
-```
+```py
 train_vocabulary = train_captions_df["preprocessed_caption"].str.split(" ").explode().value_counts()
 print(len(train_vocabulary[train_vocabulary>=25])) 
 ```
 
 这将打印：
 
-```
+```py
 3629 
 ```
 
@@ -268,7 +268,7 @@ print(len(train_vocabulary[train_vocabulary>=25]))
 
 由于我们正在开发 Transformer 模型，我们需要一个强大的分词器，类似于 BERT 等流行模型使用的分词器。Hugging Face 的`tokenizers`库为我们提供了一系列易于使用的分词器。让我们了解如何使用这些分词器之一来满足我们的需求。你可以通过以下方式导入它：
 
-```
+```py
 from tokenizers import BertWordPieceTokenizer 
 ```
 
@@ -282,7 +282,7 @@ from tokenizers import BertWordPieceTokenizer
 
 以下是这些参数：
 
-```
+```py
 # Initialize an empty BERT tokenizer
 tokenizer = BertWordPieceTokenizer(
     unk_token="[UNK]",
@@ -295,7 +295,7 @@ tokenizer = BertWordPieceTokenizer(
 
 tokenizer.train_from_iterator(
 
-```
+```py
  train_captions_df["preprocessed_caption"].tolist(),
     vocab_size=4000,
     special_tokens=["[PAD]", "[UNK]", "[START]", "[END]"]
@@ -312,7 +312,7 @@ tokenizer.train_from_iterator(
 
 一旦分词器训练完成，我们可以使用它将文本字符串转换为标记序列。让我们使用训练好的分词器将几个示例句子转换为标记序列：
 
-```
+```py
 # Encoding a sentence
 example_captions = valid_captions_df["preprocessed_caption"].iloc[:10].tolist()
 example_tokenized_captions = tokenizer.encode_batch(example_captions)
@@ -322,7 +322,7 @@ for caption, tokenized_cap in zip(example_captions, example_tokenized_captions):
 
 这将输出：
 
-```
+```py
 [START] an empty kitchen with white and black appliances [END] -> ['[START]', 'an', 'empty', 'kitchen', 'with', 'white', 'and', 'black', 'appliances', '[END]']
 [START] a white square kitchen with tile floor that needs repairs  [END] -> ['[START]', 'a', 'white', 'square', 'kitchen', 'with', 'tile', 'floor', 'that', 'need', '##s', 'rep', '##air', '##s', '[END]']
 [START] a few people sit on a dim transportation system  [END] -> ['[START]', 'a', 'few', 'people', 'sit', 'on', 'a', 'dim', 'transport', '##ation', 'system', '[END]']
@@ -333,7 +333,7 @@ for caption, tokenized_cap in zip(example_captions, example_tokenized_captions):
 
 你可以看到分词器如何学习自己的词汇，并且正在对字符串句子进行分词。前面带有`##`的词汇表示它们必须与前面的标记（无空格）结合，才能得到最终结果。例如，来自标记`'image'`，`'cap'`和`'##tion'`的最终字符串是`'image caption'`。让我们看看我们定义的特殊标记映射到哪些 ID：
 
-```
+```py
 vocab = tokenizer.get_vocab()
 for token in ["[UNK]", "[PAD]", "[START]", "[END]"]:
     print(f"{token} -> {vocab[token]}") 
@@ -341,7 +341,7 @@ for token in ["[UNK]", "[PAD]", "[START]", "[END]"]:
 
 这将输出：
 
-```
+```py
 [UNK] -> 1
 [PAD] -> 0
 [START] -> 2
@@ -368,7 +368,7 @@ for token in ["[UNK]", "[PAD]", "[START]", "[END]"]:
 
 该函数定义如下：
 
-```
+```py
 def parse_image(filepath, resize_height, resize_width):
     """ Reading an image from a given filepath """
 
@@ -400,7 +400,7 @@ def parse_image(filepath, resize_height, resize_width):
 
 基于此，我们定义了第二个辅助函数。这个函数封装了我们之前讨论过的`BertWordPieceTokenizer`的功能：
 
-```
+```py
 def generate_tokenizer(captions_df, n_vocab):
     """ Generate the tokenizer with given captions """
 
@@ -423,7 +423,7 @@ def generate_tokenizer(captions_df, n_vocab):
 
 有了这些，我们可以定义我们的主数据函数，以生成 TensorFlow 数据管道：
 
-```
+```py
 def generate_tf_dataset(
     image_captions_df, tokenizer=None, n_vocab=5000, pad_length=33, batch_size=32, training=False
 ):
@@ -506,7 +506,7 @@ def generate_tf_dataset(
 
 最后，如果处于训练模式，我们使用`batch_size`的 10 倍作为`buffer_size`来打乱数据集。然后我们使用在调用函数时提供的`batch_size`来批处理数据集。让我们在我们的训练数据集上调用这个函数，看看得到的结果：
 
-```
+```py
 n_vocab=4000
 batch_size=2
 sample_dataset, sample_tokenizer = generate_tf_dataset(train_captions_df, n_vocab=n_vocab, pad_length=10, batch_size=batch_size, training=True)
@@ -516,7 +516,7 @@ for i in sample_dataset.take(1):
 
 它将输出：
 
-```
+```py
 (
     (
         <tf.Tensor: shape=(2, 224, 224, 3), dtype=float32, numpy=
@@ -619,7 +619,7 @@ for i in sample_dataset.take(1):
 
 我们现在将实现刚才学习的模型。首先让我们导入一些内容：
 
-```
+```py
 import tensorflow_hub as hub
 import tensorflow as tf
 import tensorflow.keras.backend as K 
@@ -629,26 +629,26 @@ import tensorflow.keras.backend as K
 
 接下来，我们将从 TensorFlow Hub 下载预训练的 ViT 模型。我们将使用 Sayak Paul 提交的模型。该模型可在[`tfhub.dev/sayakpaul/vit_s16_fe/1`](https://tfhub.dev/sayakpaul/vit_s16_fe/1)找到。你还可以查看其他 Vision Transformer 模型，网址是[`tfhub.dev/sayakpaul/collections/vision_transformer/1`](https://tfhub.dev/sayakpaul/collections/vision_transformer/1)。
 
-```
+```py
 image_encoder = hub.KerasLayer("https://tfhub.dev/sayakpaul/vit_s16_fe/1", trainable=False) 
 ```
 
 然后我们定义一个输入层来输入图像，并将其传递给`image_encoder`以获取该图像的最终特征向量：
 
-```
+```py
 image_input = tf.keras.layers.Input(shape=(224, 224, 3))
 image_features = image_encoder(image_input) 
 ```
 
 你可以通过运行以下代码来查看最终图像表示的大小：
 
-```
+```py
 print(f"Final representation shape: {image_features.shape}") 
 ```
 
 该代码将输出：
 
-```
+```py
 Final representation shape: (None, 384) 
 ```
 
@@ -664,7 +664,7 @@ Final representation shape: (None, 384)
 
 在这里，我们使用 Keras 子类化 API 定义自注意力层：
 
-```
+```py
 class SelfAttentionLayer(tf.keras.layers.Layer):
     """ Defines the computations in the self attention layer """
 
@@ -731,7 +731,7 @@ class SelfAttentionLayer(tf.keras.layers.Layer):
 
 使用自注意力层，我们可以捕捉单个 Transformer 层中的计算过程。它使用自注意力、全连接层和其他优化技术来计算输出：
 
-```
+```py
 class TransformerDecoderLayer(tf.keras.layers.Layer):
     """ The Decoder layer """
 
@@ -802,14 +802,14 @@ class TransformerDecoderLayer(tf.keras.layers.Layer):
 
 当所有实用程序层实现后，我们可以实现文本解码器。我们将定义两个输入层。第一个接受一个令牌序列作为输入，第二个接受一个序列位置（基于 0 索引），以表示每个令牌的位置。您可以看到，两个层都被定义为能够接受任意长度的序列作为输入。这将在推理过程中起重要作用：。
 
-```
+```py
 caption_input = tf.keras.layers.Input(shape=(None,))
 position_input = tf.keras.layers.Input(shape=(None,)) 
 ```
 
 接下来我们定义嵌入。我们的嵌入向量长度为 384，以匹配 ViT 模型的输出维度。我们定义了两个嵌入层：token 嵌入层和位置嵌入层：
 
-```
+```py
 d_model = 384
 # Token embeddings
 input_embedding = tf.keras.layers.Embedding(len(tokenizer.get_vocab()), d_model, mask_zero=True) 
@@ -817,7 +817,7 @@ input_embedding = tf.keras.layers.Embedding(len(tokenizer.get_vocab()), d_model,
 
 令牌嵌入层的工作方式与我们多次见过的一样。它为序列中的每个令牌生成一个嵌入向量。我们用 `ID 0` 掩盖输入，因为它们表示填充的令牌。接下来让我们了解如何实现位置嵌入：
 
-```
+```py
 position_embedding = tf.keras.layers.Lambda(
     lambda x: tf.where(
         tf.math.mod(tf.repeat(tf.expand_dims(x, axis=-1), d_model, 
@@ -844,7 +844,7 @@ position_embedding = tf.keras.layers.Lambda(
 
 这里 *pos* 表示序列中的位置，*i* 表示第 *i*^(th) 个特征维度 (`0< i<d_model`)。偶数特征使用正弦函数，奇数特征使用余弦函数。计算这一层需要一些工作。让我们慢慢分解这个逻辑。首先我们计算以下两个张量（为了方便我们用 `x` 和 `y` 表示）：
 
-```
+```py
 x = PE(pos, i) = sin(pos/10000**(2i/d))
 y = PE(pos, i) = cos(pos/10000**(2i/d)) 
 ```
@@ -855,7 +855,7 @@ y = PE(pos, i) = cos(pos/10000**(2i/d))
 
 让我们稍微了解一下广播是如何帮助的。来看一下计算：
 
-```
+```py
 tf.math.sin(
             tf.expand_dims(x, axis=-1) /
             10000**(2*tf.reshape(tf.range(d_model, 
@@ -867,19 +867,19 @@ tf.math.sin(
 
 一旦令牌和位置嵌入被计算出来，我们将它们按元素相加，得到最终的嵌入：
 
-```
+```py
 embed_out = input_embedding(caption_input) + position_embedding(position_input) 
 ```
 
 如果你还记得，解码器的第一个输入是图像特征向量，后面跟着字幕令牌。因此，我们需要将`image_features`（由 ViT 产生）与`embed_out`拼接起来，得到完整的输入序列：
 
-```
+```py
 image_caption_embed_out = tf.keras.layers.Concatenate(axis=1)([tf.expand_dims(image_features,axis=1), embed_out]) 
 ```
 
 然后我们定义四个 Transformer 解码器层，并计算这些层的隐藏输出：
 
-```
+```py
 out = image_caption_embed_out
 for l in range(4):
     out  = TransformerDecoderLayer(d_model, 64)(out) 
@@ -887,7 +887,7 @@ for l in range(4):
 
 我们使用一个`Dense`层，具有`n_vocab`个输出节点，并采用*softmax*激活函数来计算最终输出：
 
-```
+```py
 final_out = tf.keras.layers.Dense(n_vocab, activation='softmax')(out) 
 ```
 
@@ -901,7 +901,7 @@ final_out = tf.keras.layers.Dense(n_vocab, activation='softmax')(out)
 
 并将`final_out`作为输出：
 
-```
+```py
 full_model = tf.keras.models.Model(inputs=[image_input, caption_input, position_input], outputs=final_out)
 full_model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics='accuracy')
 full_model.summary() 
@@ -917,7 +917,7 @@ full_model.summary()
 
 现在数据管道和模型已定义，训练它就非常容易了。首先定义一些参数：
 
-```
+```py
 n_vocab = 4000
 batch_size=96
 train_fraction = 0.6
@@ -926,7 +926,7 @@ valid_fraction = 0.2
 
 我们使用 4,000 的词汇量和 96 的批量大小。为了加速训练，我们只使用 60%的训练数据和 20%的验证数据。然而，你可以增加这些数据以获得更好的结果。然后我们得到在完整训练数据集上训练的分词器：
 
-```
+```py
 tokenizer = generate_tokenizer(
     train_captions_df, n_vocab=n_vocab
 ) 
@@ -934,19 +934,19 @@ tokenizer = generate_tokenizer(
 
 接下来我们定义 BLEU 指标。这与*第九章*《序列到序列学习——神经机器翻译*中的 BLEU 计算相同，仅有一些小的差异。因此，我们在这里不再重复讨论。
 
-```
+```py
 bleu_metric = BLEUMetric(tokenizer=tokenizer) 
 ```
 
 在训练循环外采样较小的验证数据集，以保持数据集的恒定：
 
-```
+```py
 sampled_validation_captions_df = valid_captions_df.sample(frac=valid_fraction) 
 ```
 
 接下来，我们训练模型 5 个周期：
 
-```
+```py
 for e in range(5):
     print(f"Epoch: {e+1}")
 
@@ -986,7 +986,7 @@ for e in range(5):
 
 在每次迭代中，我们会生成`train_dataset`和`valid_dataset`。注意，训练集在每个周期内会随机采样，导致不同的数据点，而验证集是固定的。还要注意，我们将先前生成的 tokenizer 作为参数传递给数据管道函数。我们在循环中使用`full_model.fit()`函数，并用训练数据集对其进行单次训练。最后，我们遍历验证数据集的批次，计算每个批次的损失、准确率和 BLEU 值。然后，我们输出这些批次指标的平均值。输出结果如下所示：
 
-```
+```py
 Epoch: 1
 2071/2071 [==============================] - 1945s 903ms/step - loss: 1.3344 - accuracy: 0.7625
 173 batches processed
@@ -1100,7 +1100,7 @@ METEOR 在计算上更复杂，但通常被发现与人工评判的相关性高�
 
 训练好模型后，让我们在未见过的测试数据集上测试模型。测试逻辑与我们在模型训练过程中讨论的验证逻辑几乎相同。因此，我们不会在这里重复讨论。
 
-```
+```py
 bleu_metric = BLEUMetric(tokenizer=tokenizer)
 test_dataset, _ = generate_tf_dataset(
     test_captions_df, tokenizer=tokenizer, n_vocab=n_vocab, batch_size=batch_size, training=False
@@ -1121,7 +1121,7 @@ print(
 
 这将输出：
 
-```
+```py
 261 batches processed
 test_loss: 1.057080413646625 - test_accuracy: 0.7914185857407434 - test_bleu: 0.10505496256163914 
 ```
@@ -1140,7 +1140,7 @@ test_loss: 1.057080413646625 - test_accuracy: 0.7914185857407434 - test_bleu: 0.
 
 我们将从测试数据集中选择一个包含 10 个样本的小数据集，并生成标题：
 
-```
+```py
 n_samples = 10
 test_dataset, _ = generate_tf_dataset(
     test_captions_df.sample(n=n_samples), tokenizer=tokenizer, 
@@ -1160,7 +1160,7 @@ test_dataset, _ = generate_tf_dataset(
 
 如下所示：
 
-```
+```py
 def generate_caption(model, image_input, tokenizer, n_samples):
     # 2 -> [START]
     batch_tokens = np.repeat(np.array([[2]]), n_samples, axis=0)
@@ -1196,7 +1196,7 @@ def generate_caption(model, image_input, tokenizer, n_samples):
 
 我们现在可以使用这个函数生成标题：
 
-```
+```py
 for batch in test_dataset.take(1):
     (batch_image_input, _, _), batch_true_caption = batch
 batch_predicted_text = generate_caption(full_model, batch_image_input, tokenizer, n_samples) 
@@ -1204,7 +1204,7 @@ batch_predicted_text = generate_caption(full_model, batch_image_input, tokenizer
 
 现在，让我们将标题与图像输入并排显示。另外，我们还将展示真实的标题：
 
-```
+```py
 fig, axes = plt.subplots(n_samples, 2, figsize=(8,30))
 for i,(sample_image_input, sample_true_caption, sample_predicated_caption) in enumerate(zip(batch_image_input, batch_true_caption, batch_predicted_text)):
 

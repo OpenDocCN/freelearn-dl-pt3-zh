@@ -84,7 +84,7 @@
 
 一旦 Jupyter Notebook 安装在您的机器上，导航到包含书籍代码文件的目录，打开终端并执行以下命令：
 
-```
+```py
 $ jupyter notebook
 ```
 
@@ -108,7 +108,7 @@ $ jupyter notebook
 
 代码块的设置如下：
 
-```
+```py
 import tensorflow as tf
 
 x1 = tf.constant([[0, 1], [2, 3]])
@@ -118,7 +118,7 @@ x = x1 * x2
 
 当我们希望您注意代码块中的特定部分时，相关的行或项会用粗体显示：
 
-```
+```py
 neural_network = tf.keras.Sequential(
     [tf.keras.layers.Dense(64),
      tf.keras.layers.Dense(10, activation="softmax")])
@@ -126,7 +126,7 @@ neural_network = tf.keras.Sequential(
 
 任何命令行输入或输出如下所示：
 
-```
+```py
 $ tensorboard --logdir ./logs
 ```
 

@@ -113,7 +113,7 @@ Rotten Tomatoes、Metacritic 和 IMDb 有自己汇总电影评论和独特的评
 
 1.  导入所需的库：
 
-    ```
+    ```py
     import numpy as np
     import pandas as pd
     from scipy import stats
@@ -127,7 +127,7 @@ Rotten Tomatoes、Metacritic 和 IMDb 有自己汇总电影评论和独特的评
 
 1.  读取数据集并创建一个 Panda DataFrame：
 
-    ```
+    ```py
     df = pd.read_csv('fandango_score_comparison.csv')
     print(df.head())
     ```
@@ -140,13 +140,13 @@ Rotten Tomatoes、Metacritic 和 IMDb 有自己汇总电影评论和独特的评
 
     因此，如果你仔细查看前面的 DataFrame，会发现一个可能导致灾难的错别字。从直觉来看，很明显`Metacritic_user_nom`应该是`Metacritic_user_norm`。我们将其重命名，以避免进一步的混淆：
 
-    ```
+    ```py
     df.rename(columns={'Metacritic_user_nom':'Metacritic_user_norm'}, inplace=True)
     ```
 
     此外，根据[`fivethirtyeight.com/features/fandango-movies-ratings`](https://fivethirtyeight.com/features/fandango-movies-ratings)/上的统计分析，所有变量并非等同贡献；以下列出的列对电影排名的影响更大：
 
-    ```
+    ```py
      'Fandango_Stars',
     'RT_user_norm',
     'RT_norm',
@@ -157,7 +157,7 @@ Rotten Tomatoes、Metacritic 和 IMDb 有自己汇总电影评论和独特的评
 
     现在，我们可以在构建 LR 模型之前检查变量之间的相关系数。首先，让我们为此创建一个排名列表：
 
-    ```
+    ```py
     rankings_lst = ['Fandango_Stars',
                     'RT_user_norm',
                     'RT_norm',
@@ -168,7 +168,7 @@ Rotten Tomatoes、Metacritic 和 IMDb 有自己汇总电影评论和独特的评
 
     以下函数计算`Pearson`相关系数并构建完整的相关矩阵：
 
-    ```
+    ```py
     def my_heatmap(df):    
         import seaborn as sns    
         fig, axes = plt.subplots()
@@ -179,7 +179,7 @@ Rotten Tomatoes、Metacritic 和 IMDb 有自己汇总电影评论和独特的评
 
     我们可以调用前述方法来绘制矩阵，如下所示：
 
-    ```
+    ```py
     my_heatmap(df[rankings_lst].corr(method='pearson'))
     ```
 
@@ -195,7 +195,7 @@ Rotten Tomatoes、Metacritic 和 IMDb 有自己汇总电影评论和独特的评
 
     所以，Fandango 与 Metacritic 之间的相关性依然是正相关。接下来，让我们通过只考虑 RT 至少给出 4 星评分的电影来进行另一个研究：
 
-    ```
+    ```py
     RT_lst = df['RT_norm'] >= 4.
     my_heatmap(df[RT_lst][rankings_lst].corr(method='pearson'))
     >>>
@@ -215,14 +215,14 @@ Rotten Tomatoes、Metacritic 和 IMDb 有自己汇总电影评论和独特的评
 
     通过选择两个数据框列来创建一个特征矩阵`X`：
 
-    ```
+    ```py
     feature_cols = ['Fandango_Stars', 'RT_user_norm', 'RT_norm', 'Metacritic_user_norm', 'Metacritic_norm']
     X = df.loc[:, feature_cols]
     ```
 
     在这里，我只使用了选定的列作为特征，现在我们需要创建一个响应向量`y`：
 
-    ```
+    ```py
     y = df['IMDB_norm']
     ```
 
@@ -230,7 +230,7 @@ Rotten Tomatoes、Metacritic 和 IMDb 有自己汇总电影评论和独特的评
 
     现在我们已经有了特征列和响应列，接下来是将数据划分为训练集和测试集：
 
-    ```
+    ```py
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.50, random_state=43)
     ```
 
@@ -248,27 +248,27 @@ Rotten Tomatoes、Metacritic 和 IMDb 有自己汇总电影评论和独特的评
 
     现在，我们需要知道数据集的维度，以便将其传递给张量：
 
-    ```
+    ```py
     dim = len(feature_cols)
     ```
 
     我们需要为独立系数添加一个额外的维度：
 
-    ```
+    ```py
     dim += 1
 
     ```
 
     因此，我们还需要为训练集和测试特征集中的独立系数创建一个额外的列：
 
-    ```
+    ```py
     X_train = X_train.assign( independent = pd.Series([1] * len(y_train), index=X_train.index))
     X_test = X_test.assign( independent = pd.Series([1] * len(y_train), index=X_test.index))
     ```
 
     到目前为止，我们已经使用并利用了 Pandas DataFrame，但将其转换为张量很麻烦，因此我们改为将它们转换为 NumPy 数组：
 
-    ```
+    ```py
     P_train = X_train.as_matrix(columns=None)
     P_test = X_test.as_matrix(columns=None)
 
@@ -280,7 +280,7 @@ Rotten Tomatoes、Metacritic 和 IMDb 有自己汇总电影评论和独特的评
 
     现在我们已经有了所有的训练集和测试集，在初始化这些变量之前，我们需要为 TensorFlow 创建占位符，以便通过张量传递训练集：
 
-    ```
+    ```py
     P = tf.placeholder(tf.float32,[None,dim])
     q = tf.placeholder(tf.float32,[None,1])
     T = tf.Variable(tf.ones([dim,1]))
@@ -288,7 +288,7 @@ Rotten Tomatoes、Metacritic 和 IMDb 有自己汇总电影评论和独特的评
 
     让我们添加一些偏差，以区分在两种类型量化的情况下的值，如下所示：
 
-    ```
+    ```py
     bias = tf.Variable(tf.constant(1.0, shape = [n_dim]))
     q_ = tf.add(tf.matmul(P, T),bias)
     ```
@@ -297,7 +297,7 @@ Rotten Tomatoes、Metacritic 和 IMDb 有自己汇总电影评论和独特的评
 
     让我们为目标函数创建一个优化器：
 
-    ```
+    ```py
     cost = tf.reduce_mean(tf.square(q_ - q))
     learning_rate = 0.0001
     training_op = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cost)
@@ -305,7 +305,7 @@ Rotten Tomatoes、Metacritic 和 IMDb 有自己汇总电影评论和独特的评
 
 1.  初始化全局变量：
 
-    ```
+    ```py
     init_op = tf.global_variables_initializer()
     cost_history = np.empty(shape=[1],dtype=float)
     ```
@@ -314,7 +314,7 @@ Rotten Tomatoes、Metacritic 和 IMDb 有自己汇总电影评论和独特的评
 
     在这里，我们将训练迭代 50,000 次，并跟踪多个参数，例如均方误差，它表示训练的好坏；我们保持成本历史记录，以便未来可视化，等等：
 
-    ```
+    ```py
     training_epochs = 50000
     with tf.Session() as sess:
         sess.run(init_op)
@@ -332,7 +332,7 @@ Rotten Tomatoes、Metacritic 和 IMDb 有自己汇总电影评论和独特的评
 
     最后，我们评估`mse`，以便从测试集上的训练评估中得到标量值。现在，让我们计算`mse`和`rmse`值，如下所示：
 
-    ```
+    ```py
     print(mse_temp)
     RMSE = math.sqrt(mse_temp)
     print(RMSE)
@@ -343,20 +343,20 @@ Rotten Tomatoes、Metacritic 和 IMDb 有自己汇总电影评论和独特的评
 
     你也可以按如下方式更改特征列：
 
-    ```
+    ```py
     feature_cols = ['RT_user_norm', 'RT_norm', 'Metacritic_user_norm', 'Metacritic_norm']
     ```
 
     现在我们不考虑 Fandango 的评分，我得到了`mse`和`rmse`的以下结果：
 
-    ```
+    ```py
     0.426362842426
     0.6529646563375979
     ```
 
 1.  观察整个迭代过程中的训练成本：
 
-    ```
+    ```py
     fig, axes = plt.subplots()
     plt.plot(range(len(cost_history)), cost_history)
     axes.set_xlim(xmin=0.95)
@@ -382,7 +382,7 @@ Rotten Tomatoes、Metacritic 和 IMDb 有自己汇总电影评论和独特的评
 
 1.  评估模型：
 
-    ```
+    ```py
     predictedDF = X_test.copy(deep=True)
     predictedDF.insert(loc=0, column='IMDB_norm_predicted', value=pd.Series(data=q_pred, index=predictedDF.index))
     predictedDF.insert(loc=0, column='IMDB_norm_actual', value=q_test)
@@ -394,7 +394,7 @@ Rotten Tomatoes、Metacritic 和 IMDb 有自己汇总电影评论和独特的评
 
     以下显示了使用 LR 模型的预测与实际评分：
 
-    ```
+    ```py
               IMDB_norm_actual  IMDB_norm_predicted
     45              3.30              3.232061
     50              3.35              3.381659
@@ -410,7 +410,7 @@ Rotten Tomatoes、Metacritic 和 IMDb 有自己汇总电影评论和独特的评
 
     我们可以看到，预测是一个连续的值。现在是时候看看 LR 模型如何推广并拟合回归线：
 
-    ```
+    ```py
     How the LR fit with the predicted data points:
     plt.scatter(q_test, q_pred, color='blue', alpha=0.5)
     plt.plot([q_test.min(), q_test.max()], [q_test.min(), q_test.max()], '--', lw=1)
@@ -457,7 +457,7 @@ Rotten Tomatoes、Metacritic 和 IMDb 有自己汇总电影评论和独特的评
 
 我们将看到各个变量如何对生存率产生影响。首先，我们需要导入所需的包：
 
-```
+```py
 import os
 import pandas as pd
 import numpy as np
@@ -471,7 +471,7 @@ import shutil
 
 现在，让我们加载数据并检查可以使用的特征：
 
-```
+```py
 train = pd.read_csv(os.path.join('input', 'train.csv'))
 test = pd.read_csv(os.path.join('input', 'test.csv'))
 print("Information about the data")
@@ -495,7 +495,7 @@ Embarked       889 non-null object
 
 因此，训练数据集一共有`12`列和`891`行。此外，`Age`、`Cabin`和`Embarked`列存在空值或缺失值。我们将在特征工程部分处理这些空值，但目前，让我们看看有多少数据是有效的：
 
-```
+```py
 print("How many have survived?")
 print(train.Survived.value_counts(normalize=True))
 count_plot = sns.countplot(train.Survived)
@@ -505,7 +505,7 @@ count_plot.get_figure().savefig("survived_count.png")
 
 有多少人幸存了下来？
 
-```
+```py
 0    0.616162
 1    0.383838
 ```
@@ -518,7 +518,7 @@ count_plot.get_figure().savefig("survived_count.png")
 
 那么，乘客的舱位与生存率之间有什么关系呢？首先我们应该查看每个舱位的计数：
 
-```
+```py
 train['Name_Title'] = train['Name'].apply(lambda x: x.split(',')[1]).apply(lambda x: x.split()[0])
 print('Title count')
 print(train['Name_Title'].value_counts())
@@ -547,7 +547,7 @@ Mme.           1
 
 正如你可能记得的那样（即电影《泰坦尼克号》1997 年版），来自较高阶层的人有更好的生还机会。所以，你可能会认为，乘客的头衔也可能是生还的重要因素。另一个有趣的现象是，名字较长的人生还的几率更高。这是因为大多数名字较长的人是已婚女士，可能得到了丈夫或家人帮助，从而增加了生还机会：
 
-```
+```py
 train['Name_Len'] = train['Name'].apply(lambda x: len(x))
 print('Survived by name length')
 print(train['Survived'].groupby(pd.qcut(train['Name_Len'],5)).mean())
@@ -562,7 +562,7 @@ Survived by name length
 
 妇女和儿童的生还几率更高，因为他们是最先撤离船难的乘客：
 
-```
+```py
 print('Survived by sex')
 print(train['Survived'].groupby(train['Sex']).mean())
 >>> 
@@ -574,7 +574,7 @@ male      0.188908
 
 舱位字段包含最多的空值（近 700 个），但我们仍然可以从中提取信息，比如每个舱位的首字母。因此，我们可以看到大多数舱位字母与生存率相关：
 
-```
+```py
 train['Cabin_Letter'] = train['Cabin'].apply(lambda x: str(x)[0])
 print('Survived by Cabin_Letter')
 print(train['Survived'].groupby(train['Cabin_Letter']).mean())
@@ -593,7 +593,7 @@ n    0.299854
 
 最后，看起来在谢尔堡登船的人生还率比其他登船地点高出 20%。这很可能是因为那个地方的上层阶级乘客比例较高：
 
-```
+```py
 print('Survived by Embarked')
 print(train['Survived'].groupby(train['Embarked']).mean())
 count_plot = sns.countplot(train['Embarked'], hue=train['Pclass'])
@@ -624,7 +624,7 @@ S    0.336957
 
 def create_name_feat(train, test):
 
-```
+```py
     for i in [train, test]:
         i['Name_Len'] = i['Name'].apply(lambda x: len(x))
         i['Name_Title'] = i['Name'].apply(lambda x: x.split(',')[1]).apply(lambda x: x.split()[0])
@@ -634,7 +634,7 @@ def create_name_feat(train, test):
 
 由于年龄字段有 177 个空值，而这些空值的生还率比非空值低 10%。因此，在填充空值之前，我们将添加一个 Age_null 标志，以确保我们能够考虑数据的这一特征：
 
-```
+```py
 def age_impute(train, test):
     for i in [train, test]:
         i['Age_Null_Flag'] = i['Age'].apply(lambda x: 1 if pd.isnull(x) else 0)
@@ -647,7 +647,7 @@ def age_impute(train, test):
 
 然后我们将`SibSp`和`Parch`列合并，创建家庭规模，并将其分为三个级别：
 
-```
+```py
 def fam_size(train, test):
     for i in [train, test]:
         i['Fam_Size'] = np.where((i['SibSp']+i['Parch']) == 0, 'One',
@@ -658,7 +658,7 @@ def fam_size(train, test):
 We are using the Ticket column to create Ticket_Letr, which indicates the first letter of each ticket and Ticket_Len, which indicates the length of the Ticket field:
 ```
 
-```
+```py
 def ticket_grouped(train, test):
     for i in [train, test]:
         i['Ticket_Letr'] = i['Ticket'].apply(lambda x: str(x)[0])
@@ -673,7 +673,7 @@ def ticket_grouped(train, test):
 
 我们还需要提取`Cabin`列的第一个字母：
 
-```
+```py
 def cabin(train, test):
     for i in [train, test]:
         i['Cabin_Letter'] = i['Cabin'].apply(lambda x: str(x)[0])
@@ -683,7 +683,7 @@ def cabin(train, test):
 
 用最常见的值`'S'`填充`Embarked`列中的空值：
 
-```
+```py
 def embarked_impute(train, test):
     for i in [train, test]:
         i['Embarked'] = i['Embarked'].fillna('S')
@@ -692,7 +692,7 @@ def embarked_impute(train, test):
 
 现在我们需要转换我们的分类列。到目前为止，我们认为对我们将要创建的预测模型来说，字符串变量需要转换为数值。下面的`dummies()`函数对字符串变量进行一热编码：
 
-```
+```py
 def dummies(train, test,
             columns = ['Pclass', 'Sex', 'Embarked', 'Ticket_Letr', 'Cabin_Letter', 'Name_Title', 'Fam_Size']):
     for column in columns:
@@ -708,7 +708,7 @@ def dummies(train, test,
 
 我们已经有了数值特征，最后，我们需要为预测值或目标创建一个单独的列：
 
-```
+```py
 def PrepareTarget(data):
     return np.array(data.Survived, dtype='int8').reshape(-1, 1)
 ```
@@ -767,13 +767,13 @@ contrib 是一个用于 TensorFlow 学习的高级 API。它支持以下估算�
 
 因此，我们无需从头开发逻辑回归模型，而是使用 TensorFlow contrib 包中的估计器。当我们从头创建自己的估计器时，构造函数仍然接受两个高层次的参数来配置模型：`model_fn` 和 `params`：
 
-```
+```py
 nn = tf.contrib.learn.Estimator(model_fn=model_fn, params=model_params)
 ```
 
 要实例化一个估计器，我们需要提供两个参数，如 `model_fn` 和 `model_params`，如下所示：
 
-```
+```py
 nn = tf.contrib.learn.Estimator(model_fn=model_fn, params=model_params)
 ```
 
@@ -781,7 +781,7 @@ nn = tf.contrib.learn.Estimator(model_fn=model_fn, params=model_params)
 
 现在，调用 `main()` 方法时，`model_params` 包含学习率，实例化估计器。您可以按如下方式定义 `model_params`：
 
-```
+```py
 model_params = {"learning_rate": LEARNING_RATE}
 ```
 
@@ -793,7 +793,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
 1.  导入所需的包和模块：
 
-    ```
+    ```py
     import os
     import shutil
     import random
@@ -814,7 +814,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     首先，我们加载这两个数据集：
 
-    ```
+    ```py
     random.seed(12345) # For the reproducibility 
     train = pd.read_csv(os.path.join('input', 'train.csv'))
     test = pd.read_csv(os.path.join('input', 'test.csv'))
@@ -822,7 +822,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     让我们做一些特征工程。我们将调用在特征工程部分定义的函数，但该函数将作为名为 `feature.py` 的独立 Python 脚本提供：
 
-    ```
+    ```py
     train, test = create_name_feat(train, test)
     train, test = age_impute(train, test)
     train, test = cabin(train, test)
@@ -834,13 +834,13 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     值得注意的是，上述调用的顺序对于确保训练集和测试集的一致性至关重要。现在，我们还需要使用 sklearn 的 `dummies()` 函数为分类变量创建数值：
 
-    ```
+    ```py
     train, test = dummies(train, test, columns=['Pclass', 'Sex', 'Embarked', 'Ticket_Letr', 'Cabin_Letter', 'Name_Title', 'Fam_Size'])
     ```
 
     我们需要准备训练集和测试集：
 
-    ```
+    ```py
     TEST = True
     if TEST:
         train, test = train_test_split(train, test_size=0.25, random_state=10)
@@ -853,7 +853,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     然后我们将训练集和测试集转换为 NumPy 数组，因为到目前为止我们一直将它们保存在 Pandas DataFrame 格式中：
 
-    ```
+    ```py
     x_train = np.array(x_train.iloc[:, 1:], dtype='float32')
     if TEST:
      x_test = np.array(x_test.iloc[:, 1:], dtype='float32')
@@ -863,13 +863,13 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     让我们准备目标列进行预测：
 
-    ```
+    ```py
     y_train = PrepareTarget(train)
     ```
 
     我们还需要知道特征数量，以便构建 LR 估计器：
 
-    ```
+    ```py
     feature_count = x_train.shape[1]
 
     ```
@@ -878,7 +878,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     我们构建 LR 估计器。我们将使用 `LinearClassfier` 估计器进行构建。由于这是一个二分类问题，我们提供了两个类别：
 
-    ```
+    ```py
     def build_lr_estimator(model_dir, feature_count):
         return estimator.SKCompat(learn.LinearClassifier(
             feature_columns=[tf.contrib.layers.real_valued_column("", dimension=feature_count)],
@@ -889,7 +889,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     在这里，我们训练上述 LR 估计器`10,000`次迭代。`fit()` 方法完成了训练，而 `predict()` 方法计算训练集的预测结果，其中包含特征 `X_train` 和标签 `y_train`：
 
-    ```
+    ```py
     print("Training...")
     try:
         shutil.rmtree('lr/')
@@ -905,7 +905,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     我们将评估模型，查看几个分类性能指标，如精度、召回率、F1 分数和混淆矩阵：
 
-    ```
+    ```py
     if TEST:
      target_names = ['Not Survived', 'Survived']
      print("Logistic Regression Report")
@@ -922,7 +922,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     由于我们用 NumPy 数据训练了 LR 模型，现在我们需要将其转换回 Pandas DataFrame 格式，以便创建混淆矩阵：
 
-    ```
+    ```py
     cm = confusion_matrix(test['Survived'], lr_pred)
         df_cm = pd.DataFrame(cm, index=[i for i in ['Not Survived', 'Survived']],
                              columns=[i for i in ['Not Survived', 'Survived']])
@@ -937,7 +937,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     现在，让我们看看计数：
 
-    ```
+    ```py
     print("Predicted Counts")
     print(sol.Survived.value_counts())
 
@@ -949,7 +949,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     由于以图形方式查看计数非常棒，我们来绘制一下它：
 
-    ```
+    ```py
     sol = pd.DataFrame()
     sol['PassengerId'] = test['PassengerId']
     sol['Survived'] = pd.Series(lr_pred.reshape(-1)).map({True:1, False:0}).values
@@ -990,7 +990,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
 1.  导入所需的包和模块：
 
-    ```
+    ```py
     import os
     import shutil
     import random
@@ -1009,7 +1009,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     现在，构建 SVM 模型的数据准备工作与 LR 模型差不多，只是我们需要将 `PassengerId` 转换为字符串，因为 SVM 需要这个格式：
 
-    ```
+    ```py
     train['PassengerId'] = train['PassengerId'].astype(str)
     test['PassengerId'] = test['PassengerId'].astype(str)
     ```
@@ -1022,7 +1022,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     我为特征和标签都编写了两个函数。让我们看看第一个函数是什么样的：
 
-    ```
+    ```py
     def train_input_fn():
         continuous_cols = {k: tf.expand_dims(tf.constant(train[k].values), 1)
                            for k in list(train) if k not in ['Survived', 'PassengerId']}
@@ -1037,7 +1037,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     现在，第二种方法几乎做了相同的操作，唯一的区别是它只返回特征列，如下所示：
 
-    ```
+    ```py
     def predict_input_fn():
         continuous_cols = {k: tf.expand_dims(tf.constant(test[k].values), 1)
                            for k in list(test) if k not in ['Survived', 'PassengerId']}
@@ -1051,7 +1051,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     现在，我们将只对实值列进行 10,000 次迭代训练。最后，它会创建一个包含所有预测值的预测列表：
 
-    ```
+    ```py
     svm_model = svm.SVM(example_id_column="PassengerId",
                         feature_columns=[tf.contrib.layers.real_valued_column(k) for k in list(train)
                                          if k not in ['Survived', 'PassengerId']], 
@@ -1062,7 +1062,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
 1.  模型评估：
 
-    ```
+    ```py
     target_names = ['Not Survived', 'Survived']
     print("SVM Report")
     print(classification_report(test['Survived'], svm_pred, target_names=target_names))
@@ -1076,7 +1076,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     因此，使用 SVM 时，准确率仅为 79%，低于 LR 模型的准确率。与 LR 模型类似，绘制并观察混淆矩阵：
 
-    ```
+    ```py
     print("SVM Confusion Matrix")
     cm = confusion_matrix(test['Survived'], svm_pred)
     df_cm = pd.DataFrame(cm, index=[i for i in ['Not Survived', 'Survived']],
@@ -1091,7 +1091,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     然后，我们绘制计数图，直观地查看比例：
 
-    ```
+    ```py
     sol = pd.DataFrame()
     sol['PassengerId'] = test['PassengerId']
     sol['Survived'] = pd.Series(svm_pred).values
@@ -1107,7 +1107,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     现在，计数：
 
-    ```
+    ```py
     print("Predicted Counts")
     print(sol.Survived.value_counts())
 
@@ -1141,7 +1141,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
 1.  导入所需的包和模块：
 
-    ```
+    ```py
     import os
     import shutil
     import random
@@ -1167,7 +1167,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     以下函数构建了一个随机森林估计器。它创建了 1,000 棵树，最多 1,000 个节点，并进行了 10 倍交叉验证。由于这是一个二分类问题，我将类别数设为 2：
 
-    ```
+    ```py
     def build_rf_estimator(model_dir, feature_count):
         params = tensor_forest.ForestHParams(
             num_classes=2,
@@ -1185,7 +1185,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     在这里，我们训练上述 RF 估计器。一旦`fit()`方法完成工作，`predict()`方法便会计算在包含特征`x_train`和标签`y_train`的训练集上的预测结果：
 
-    ```
+    ```py
     rf = build_rf_estimator('rf/', feature_count)
     rf.fit(x_train, y_train, batch_size=100)
     rf_pred = rf.predict(x_test)
@@ -1196,7 +1196,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     现在让我们评估 RF 模型的性能：
 
-    ```
+    ```py
         target_names = ['Not Survived', 'Survived']
         print("RandomForest Report")
         print(classification_report(test['Survived'], rf_pred, target_names=target_names))
@@ -1213,7 +1213,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     因此，使用 RF 时，准确率为 87%，高于 LR 和 SVM 模型。与 LR 和 SVM 模型类似，我们将绘制并观察混淆矩阵：
 
-    ```
+    ```py
         print("Random Forest Confusion Matrix")
         cm = confusion_matrix(test['Survived'], rf_pred)
         df_cm = pd.DataFrame(cm, index=[i for i in ['Not Survived', 'Survived']],
@@ -1229,7 +1229,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     然后，让我们绘制计数图，直观地查看比例：
 
-    ```
+    ```py
     sol = pd.DataFrame()
     sol['PassengerId'] = test['PassengerId']
     sol['Survived'] = pd.Series(svm_pred).values
@@ -1245,7 +1245,7 @@ model_params = {"learning_rate": LEARNING_RATE}
 
     现在，分别统计每个的数量：
 
-    ```
+    ```py
     print("Predicted Counts")
     print(sol.Survived.value_counts())
     >>>  Predicted Counts

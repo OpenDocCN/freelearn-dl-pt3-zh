@@ -28,7 +28,7 @@
 
 要完成此配方，请确保您拥有最新版本。您需要激活`tf2rl-cookbook`的 Python/conda 虚拟环境。请确保更新环境，以便它与最新的 conda 环境规范文件（`tfrl-cookbook.yml`）匹配，您可以在本烹饪书的代码库中找到该文件。如果以下`import`语句运行没有任何问题，您就可以开始了：
 
-```
+```py
 import os
 import random
 from typing import Dict
@@ -45,7 +45,7 @@ from trading_utils import TradeVisualizer
 
 1.  让我们初始化环境的可配置参数：
 
-    ```
+    ```py
     env_config = {
         "ticker": "TSLA",
         "opening_account_balance": 1000,
@@ -59,7 +59,7 @@ from trading_utils import TradeVisualizer
 
 1.  让我们初始化`StockTradingEnv`类并加载配置的股票交易代码的数据：
 
-    ```
+    ```py
     class StockTradingEnv(gym.Env):
         def __init__(self, env_config: Dict = env_config):
             """Stock trading environment for RL agents
@@ -78,7 +78,7 @@ from trading_utils import TradeVisualizer
 
 1.  让我们确保股票市场数据源存在，然后加载数据流：
 
-    ```
+    ```py
             assert os.path.isfile(
                 self.ticker_file_stream
             ), f"Historical stock data file stream not found 
@@ -94,7 +94,7 @@ from trading_utils import TradeVisualizer
 
 1.  现在我们准备好定义观察空间和动作空间/环境，以便完成初始化函数的定义：
 
-    ```
+    ```py
             self.opening_account_balance = \
                 env_config["opening_account_balance"]
             # Action: 0-> Hold; 1-> Buy; 2 ->Sell;
@@ -121,7 +121,7 @@ from trading_utils import TradeVisualizer
 
 1.  接下来，我们将实现一个方法，以便收集观察数据：
 
-    ```
+    ```py
         def get_observation(self):
             # Get stock price info data table from input 
             # (file/live) stream
@@ -139,7 +139,7 @@ from trading_utils import TradeVisualizer
 
 1.  接下来，为了执行交易订单，我们需要确保相关逻辑已经就位。让我们现在添加这个：
 
-    ```
+    ```py
         def execute_trade_action(self, action):
             if action == 0:  # Hold position
                 return
@@ -155,7 +155,7 @@ from trading_utils import TradeVisualizer
 
 1.  初始化完成后，我们可以添加买入股票的逻辑：
 
-    ```
+    ```py
             if order_type == "buy":
                 allowable_shares = \
                     int(self.cash_balance / current_price)
@@ -187,7 +187,7 @@ from trading_utils import TradeVisualizer
 
 1.  同样，我们现在可以添加卖出股票的逻辑：
 
-    ```
+    ```py
             elif order_type == "sell":
                 # Simulate a SELL order and execute it at 
                 # current_price
@@ -212,7 +212,7 @@ from trading_utils import TradeVisualizer
 
 1.  最后，让我们更新账户余额：
 
-    ```
+    ```py
             # Update account value
             self.account_value = self.cash_balance + \
                                  self.num_shares_held * \
@@ -221,7 +221,7 @@ from trading_utils import TradeVisualizer
 
 1.  我们现在准备好启动并检查新环境了：
 
-    ```
+    ```py
     if __name__ == "__main__":
         env = StockTradingEnv()
         obs = env.reset()
@@ -243,7 +243,7 @@ from trading_utils import TradeVisualizer
 
 为了完成本教程，请确保你使用的是最新版本。你需要激活`tf2rl-cookbook` Python/conda 虚拟环境。确保更新环境，使其与最新的 conda 环境规范文件（`tfrl-cookbook.yml`）匹配，该文件可以在本教程的代码库中找到。如果以下`import`语句没有问题，那么你就准备好开始了：
 
-```
+```py
 import os
 import random
 from typing import Dict
@@ -263,7 +263,7 @@ from trading_utils import TradeVisualizer
 
 1.  配置学习环境，具体如下：
 
-    ```
+    ```py
     env_config = {
         "ticker": "TSLA",
         "opening_account_balance": 100000,
@@ -277,7 +277,7 @@ from trading_utils import TradeVisualizer
 
 1.  让我们实现`StockTradingVisualEnv`的初始化步骤：
 
-    ```
+    ```py
     class StockTradingVisualEnv(gym.Env):
         def __init__(self, env_config: Dict = env_config):
             """Stock trading environment for RL agents
@@ -308,7 +308,7 @@ from trading_utils import TradeVisualizer
 
 1.  让我们完成`__init__`方法的实现：
 
-    ```
+    ```py
             self.opening_account_balance = \
                 env_config["opening_account_balance"]
 
@@ -334,7 +334,7 @@ from trading_utils import TradeVisualizer
 
 1.  下一步是为环境定义`step`方法：
 
-    ```
+    ```py
         def step(self, action):
             # Execute one step within the trading environment
             self.execute_trade_action(action)
@@ -351,7 +351,7 @@ from trading_utils import TradeVisualizer
 
 1.  让我们实现前一步中用到的两个缺失的方法。为了实现`get_observation`方法，我们需要初始化`TradeVisualizer`方法。鉴于此，让我们首先实现`reset`方法：
 
-    ```
+    ```py
         def reset(self):
             # Reset the state of the environment to an 
             # initial state
@@ -372,7 +372,7 @@ from trading_utils import TradeVisualizer
 
 1.  现在，让我们继续实现`get_observation`方法：
 
-    ```
+    ```py
         def get_observation(self):
             """Return a view of the Ticker price chart as 
                image observation
@@ -394,7 +394,7 @@ from trading_utils import TradeVisualizer
 
 1.  是时候实现执行智能体交易动作的逻辑了。我们将把交易执行逻辑的实现分为接下来的三步：
 
-    ```
+    ```py
        def execute_trade_action(self, action):
             if action == 0:  # Hold position
                 return
@@ -410,7 +410,7 @@ from trading_utils import TradeVisualizer
 
 1.  让我们实现执行“买入”订单的逻辑：
 
-    ```
+    ```py
     if order_type == "buy":
                 allowable_shares = \
                     int(self.cash_balance / current_price)
@@ -438,7 +438,7 @@ from trading_utils import TradeVisualizer
 
 1.  现在，让我们处理“卖出”订单：
 
-    ```
+    ```py
     elif order_type == "sell":
                 # Simulate a SELL order and execute it at 
                 # current_price
@@ -470,7 +470,7 @@ from trading_utils import TradeVisualizer
 
 1.  到这里，我们的实现就完成了！现在我们可以使用一个随机动作的智能体来测试环境：
 
-    ```
+    ```py
     if __name__ == "__main__":
         env = StockTradingVisualEnv()
         obs = env.reset()
@@ -498,7 +498,7 @@ from trading_utils import TradeVisualizer
 
 要完成此配方，请确保您拥有最新版本。您需要激活 `tf2rl-cookbook` Python/conda 虚拟环境。确保更新环境，使其与最新的 conda 环境规范文件（`tfrl-cookbook.yml`）匹配，该文件可以在本书的代码仓库中找到。如果以下的 `import` 语句没有问题，则表示您可以开始了：
 
-```
+```py
 import os
 import random
 from typing import Dict
@@ -516,7 +516,7 @@ from trading_utils import TradeVisualizer
 
 1.  让我们开始实现 `StockTradingVisualContinuousEnv`：
 
-    ```
+    ```py
         def __init__(self, env_config: Dict = env_config):
             """Stock trading environment for RL agents with 
                continuous action space
@@ -543,7 +543,7 @@ from trading_utils import TradeVisualizer
 
 1.  让我们定义状态空间、动作空间和其他必要的变量，以完成 `__init__` 方法的实现：
 
-    ```
+    ```py
             self.opening_account_balance = \
                 env_config["opening_account_balance"]
             # Action: 1-dim value indicating a fraction 
@@ -576,7 +576,7 @@ from trading_utils import TradeVisualizer
 
 1.  接下来，我们来实现 `get_observation` 方法：
 
-    ```
+    ```py
         def get_observation(self):
             """Return a view of the Ticker price chart as 
                image observation
@@ -598,7 +598,7 @@ from trading_utils import TradeVisualizer
 
 1.  让我们初始化交易执行逻辑：
 
-    ```
+    ```py
         def execute_trade_action(self, action):
             if action == 0:  # Indicates "Hold" action
                 # Hold position; No trade to be executed
@@ -616,7 +616,7 @@ from trading_utils import TradeVisualizer
 
 1.  现在，我们准备好定义 `"buy"` 动作的行为了：
 
-    ```
+    ```py
             if order_type == "buy":
                 allowable_shares = \
                     int(self.cash_balance / current_price)
@@ -649,7 +649,7 @@ from trading_utils import TradeVisualizer
 
 1.  类似地，我们可以定义 `"sell"` 动作的行为，并更新账户余额来完成该方法的实现：
 
-    ```
+    ```py
             elif order_type == "sell":
                 # Simulate a SELL order and execute it at
                 # current_price
@@ -681,7 +681,7 @@ from trading_utils import TradeVisualizer
 
 1.  我们现在准备好实现 `step` 方法，该方法允许智能体在环境中执行一步操作：
 
-    ```
+    ```py
         def step(self, action):
             # Execute one step within the environment
             self.execute_trade_action(action)
@@ -698,7 +698,7 @@ from trading_utils import TradeVisualizer
 
 1.  接下来，让我们实现 `reset()` 方法，该方法将在每个训练回合开始时执行：
 
-    ```
+    ```py
         def reset(self):
             # Reset the state of the environment to an 
             # initial state
@@ -720,7 +720,7 @@ from trading_utils import TradeVisualizer
 
 1.  让我们通过实现 `render` 和 `close` 方法来完成环境的实现：
 
-    ```
+    ```py
         def render(self, **kwargs):
             # Render the environment to the screen
             if self.current_step > self.horizon:
@@ -738,7 +738,7 @@ from trading_utils import TradeVisualizer
 
 1.  现在，是时候让你在上一章中构建的一个智能体来训练和测试这个真实数据支持的股市交易环境了。现在，让我们用一个简单的随机智能体来测试这个环境：
 
-    ```
+    ```py
     if __name__ == "__main__":
         env = StockTradingVisualContinuousEnv()
         obs = env.reset()

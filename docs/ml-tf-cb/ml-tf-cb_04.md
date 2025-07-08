@@ -66,7 +66,7 @@ Estimators 在 TensorFlow 1.3 中首次引入（见 [`github.com/tensorflow/tens
 
 我们首先加载必要的库，然后使用 pandas 函数将数据加载到内存中。接下来，我们将预测变量与目标变量（MEDV，中位房价）分开，并将数据划分为训练集和测试集：
 
-```
+```py
 import tensorflow as tf 
 import numpy as np
 import pandas as pd
@@ -96,7 +96,7 @@ test.drop('MEDV', axis=1, inplace=True)
 
 `define_feature_columns`函数用于通过`numeric_column`函数（[`www.tensorflow.org/api_docs/python/tf/feature_column/numeric_column`](https://www.tensorflow.org/api_docs/python/tf/feature_column/numeric_column)）映射数值变量，通过`categorical_column_with_vocabulary_list`（[`www.tensorflow.org/api_docs/python/tf/feature_column/categorical_column_with_vocabulary_list`](https://www.tensorflow.org/api_docs/python/tf/feature_column/categorical_column_with_vocabulary_list)）映射类别变量。两者都会告诉我们的估算器如何以最佳方式处理这些数据：
 
-```
+```py
 learning_rate = 0.05 
 def make_input_fn(data_df, label_df, num_epochs=10, 
                   shuffle=True, batch_size=256):
@@ -131,13 +131,13 @@ test_input_fn = make_input_fn(test, y_test, num_epochs=1, shuffle=False)
 
 接下来的步骤是实例化线性回归模型的估算器。我们将回顾线性模型的公式，*y = aX + b*，这意味着存在一个截距值的系数，然后对于每个特征或特征转换（例如，类别数据是独热编码的，因此每个变量值都有一个单独的系数）也会有一个系数：
 
-```
+```py
 linear_est = tf.estimator.LinearRegressor(feature_columns=feature_columns) 
 ```
 
 现在，我们只需要训练模型并评估其性能。使用的指标是均方根误差（越小越好）：
 
-```
+```py
 linear_est.train(train_input_fn)
 result = linear_est.evaluate(test_input_fn)
 print(result) 
@@ -145,7 +145,7 @@ print(result)
 
 以下是报告的结果：
 
-```
+```py
 INFO:tensorflow:Loss for final step: 25.013594.
 ...
 INFO:tensorflow:Finished evaluation at 2020-05-11-15:48:16
@@ -174,7 +174,7 @@ INFO:tensorflow:Saving dict for global step 2800: average_loss = 32.715736, glob
 
 如果你想提高线性模型的性能，交互特征可能是关键。这意味着你在两个变量之间创建组合，而这个组合比单独的特征更能解释目标。在我们的波士顿住房数据集中，结合房屋的平均房间数和某个地区低收入人群的比例，可以揭示更多关于邻里类型的信息，并帮助推断该地区的住房价值。我们通过将它们传递给`tf.feature_column.crossed_column`函数来组合这两个特征。估计器在接收这些输出作为特征的一部分时，会自动创建这个交互特征：
 
-```
+```py
 def create_interactions(interactions_list, buckets=5):
     interactions = list()
     for (a, b) in interactions_list:
@@ -197,7 +197,7 @@ print(result)
 
 另一个有用的配方函数适用于处理预测：估计器将其作为字典返回。一个简单的函数将把所有内容转换为更有用的预测数组：
 
-```
+```py
 def dicts_to_preds(pred_dicts):
     return np.array([pred['predictions'] for pred in pred_dicts])
 preds = dicts_to_preds(linear_est.predict(test_input_fn))
@@ -214,7 +214,7 @@ print(preds)
 
 我们将使用与前一配方中相同的波士顿住房数据集，同时还将利用`make_input_fn`函数。与之前一样，我们需要导入我们的核心包：
 
-```
+```py
 import tensorflow as tf 
 import numpy as np
 import pandas as pd
@@ -224,7 +224,7 @@ tfds.disable_progress_bar()
 
 我们还需要从 TensorFlow 导入 Keras 模块。
 
-```
+```py
 import tensorflow.keras as keras 
 ```
 
@@ -234,7 +234,7 @@ import tensorflow.keras as keras
 
 我们的第一步将是重新定义创建特征列的函数。事实上，现在我们必须为我们的 Keras 模型指定一个输入，这是在原生 Estimators 中不需要的，因为它们只需要一个`tf.feature`函数来映射特征：
 
-```
+```py
 def define_feature_columns_layers(data_df, categorical_cols, numeric_cols):
     feature_columns = []
     feature_layer_inputs = {}
@@ -255,7 +255,7 @@ def define_feature_columns_layers(data_df, categorical_cols, numeric_cols):
 
 互动也是一样的。在这里，我们还需要定义将由我们的 Keras 模型使用的输入（在本例中是独热编码）：
 
-```
+```py
 def create_interactions(interactions_list, buckets=5):
     feature_columns = []
 
@@ -269,7 +269,7 @@ def create_interactions(interactions_list, buckets=5):
 
 准备好必要的输入后，我们可以开始模型本身。这些输入将被收集在一个特征层中，该层将数据传递给一个`batchNormalization`层，该层将自动标准化数据。然后数据将被导向输出节点，该节点将生成数值输出。
 
-```
+```py
 def create_linreg(feature_columns, feature_layer_inputs, optimizer):
     feature_layer = keras.layers.DenseFeatures(feature_columns)
     feature_layer_outputs = feature_layer(feature_layer_inputs)
@@ -283,7 +283,7 @@ def create_linreg(feature_columns, feature_layer_inputs, optimizer):
 
 在此时，已经设置了所有必要的输入，新函数被创建，我们可以运行它们：
 
-```
+```py
 categorical_cols = ['CHAS', 'RAD']
 numeric_cols = ['CRIM', 'ZN', 'INDUS',  'NOX', 'RM', 'AGE', 'DIS', 'TAX', 'PTRATIO', 'B', 'LSTAT']
 feature_columns, feature_layer_inputs = define_feature_columns_layers(data, categorical_cols, numeric_cols)
@@ -295,7 +295,7 @@ model = create_linreg(feature_columns, feature_layer_inputs, optimizer)
 
 现在我们已经获得了一个工作的 Keras 模型。我们可以使用`model_to_estimator`函数将其转换为 Estimator。这需要为 Estimator 的输出建立一个临时目录：
 
-```
+```py
 import tempfile
 def canned_keras(model):
     model_dir = tempfile.mkdtemp()
@@ -307,7 +307,7 @@ estimator = canned_keras(model)
 
 将 Keras 模型转换为 Estimator 后，我们可以像以前一样训练模型并评估结果。
 
-```
+```py
 train_input_fn = make_input_fn(train, y_train, num_epochs=1400)
 test_input_fn = make_input_fn(test, y_test, num_epochs=1, shuffle=False)
 estimator.train(train_input_fn)
@@ -331,7 +331,7 @@ Canned Keras Estimators 确实是将 Keras 用户定义解决方案的灵活性�
 
 使用线性模型的一个重要优势是能够探索其权重，并了解哪个特征对我们获得的结果产生了影响。每个系数会告诉我们，鉴于输入在批处理层被标准化，特征相对于其他特征的影响（系数在绝对值上是可以比较的），以及它是增加还是减少结果（根据正负符号）：
 
-```
+```py
 weights = estimator.get_variable_value('layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE')
 print(weights) 
 ```
@@ -340,7 +340,7 @@ print(weights)
 
 我们需要一个函数来提取从特征列中正确的标签，因为在将它们输入到预设估算器之前，我们已经将它们映射过：
 
-```
+```py
 def extract_labels(feature_columns):
     labels = list()
     for col in feature_columns:
@@ -363,7 +363,7 @@ def extract_labels(feature_columns):
 
 现在，我们可以提取所有标签，并有意义地将每个输出中的权重与其相应的特征匹配：
 
-```
+```py
 labels = extract_labels(feature_columns)
 for label, weight in zip(labels, weights):
     print(f"{label:15s} : {weight[0]:+.2f}") 
@@ -379,7 +379,7 @@ for label, weight in zip(labels, weights):
 
 我们将使用与前面配方中相同的波士顿房价数据集，并使用以下函数：
 
-```
+```py
 * define_feature_columns_layers
 * make_input_fn
 * create_interactions 
@@ -393,7 +393,7 @@ for label, weight in zip(labels, weights):
 
 程序的开始与上一个配方相同。因此，我们加载必要的包，并且如果波士顿房价数据集尚不可用，我们将下载它：
 
-```
+```py
 import tensorflow as tf 
 import tensorflow.keras as keras
 import numpy as np
@@ -404,7 +404,7 @@ tfds.disable_progress_bar()
 
 之后，我们需要重新定义`create_linreg`，通过添加一个新的参数来控制损失类型。默认值仍然是均方误差（L2 损失），但现在在实例化预设估算器时可以轻松更改：
 
-```
+```py
 def create_linreg(feature_columns, feature_layer_inputs, optimizer, 
                   loss='mean_squared_error', 
                   metrics=['mean_absolute_error']):
@@ -422,7 +422,7 @@ def create_linreg(feature_columns, feature_layer_inputs, optimizer,
 
 这样做之后，我们可以通过使用不同学习率的`Ftrl`优化器显式地训练我们的模型，更适合 L1 损失（我们将损失设置为平均绝对误差）：
 
-```
+```py
 categorical_cols = ['CHAS', 'RAD']
 numeric_cols = ['CRIM', 'ZN', 'INDUS',  'NOX', 'RM', 'AGE', 'DIS', 'TAX', 'PTRATIO', 'B', 'LSTAT']
 feature_columns, feature_layer_inputs = define_feature_columns_layers(data, categorical_cols, numeric_cols)
@@ -442,7 +442,7 @@ print(result)
 
 这是我们通过切换到 L1 损失函数得到的结果：
 
-```
+```py
 {'loss': 3.1208777, 'mean_absolute_error': 3.1208777, 'mean_squared_error': 27.170328, 'global_step': 2800} 
 ```
 
@@ -484,7 +484,7 @@ Lasso 和 Ridge 回归与普通线性回归非常相似，不同之处在于我�
 
 我们将再次使用波士顿房价数据集，并按照之前的食谱设置函数。特别是，我们需要`define_feature_columns_layers`、`make_input_fn` 和 `create_interactions`。我们再次首先加载库，然后定义一个新的 `create_ridge_linreg`，在其中我们使用`keras.regularizers.l2`作为我们密集层的`regularizer`来设置一个新的 Keras 模型：
 
-```
+```py
 import tensorflow as tf 
 import tensorflow.keras as keras
 import numpy as np
@@ -512,7 +512,7 @@ def create_ridge_linreg(feature_columns, feature_layer_inputs, optimizer,
 
 完成这些后，我们可以再次运行之前的线性模型，并使用 L1 损失来观察结果的改进：
 
-```
+```py
 categorical_cols = ['CHAS', 'RAD']
 numeric_cols = ['CRIM', 'ZN', 'INDUS',  'NOX', 'RM', 'AGE', 'DIS', 'TAX', 'PTRATIO', 'B', 'LSTAT']
 feature_columns, feature_layer_inputs = define_feature_columns_layers(data, categorical_cols, numeric_cols)
@@ -533,7 +533,7 @@ print(result)
 
 这是 Ridge 回归的结果：
 
-```
+```py
 {'loss': 25.903751, 'mean_absolute_error': 3.27314, 'mean_squared_error': 25.676477, 'global_step': 2800} 
 ```
 
@@ -545,7 +545,7 @@ print(result)
 
 我们也可以通过创建一个新函数来复制 L1 正则化：
 
-```
+```py
 create_lasso_linreg.
 def create_lasso_linreg(feature_columns, feature_layer_inputs, optimizer, 
                         loss='mean_squared_error', metrics=['mean_absolute_error'],
@@ -583,7 +583,7 @@ print(result)
 
 这是从 L1 Lasso 回归得到的结果：
 
-```
+```py
 {'loss': 24.616476, 'mean_absolute_error': 3.1985352, 'mean_squared_error': 24.59167, 'global_step': 2800} 
 ```
 
@@ -607,7 +607,7 @@ print(result)
 
 我们只需创建一个 `create_elasticnet_linreg` 函数，它将 L1 和 L2 强度的值作为参数传入：
 
-```
+```py
 def create_elasticnet_linreg(feature_columns, feature_layer_inputs, 
                              optimizer,                         
                              loss='mean_squared_error', 
@@ -631,7 +631,7 @@ def create_elasticnet_linreg(feature_columns, feature_layer_inputs,
 
 最后，我们重新运行从数据开始的完整训练步骤，并评估模型的性能：
 
-```
+```py
 categorical_cols = ['CHAS', 'RAD']
 numeric_cols = ['CRIM', 'ZN', 'INDUS',  'NOX', 'RM', 'AGE', 'DIS', 'TAX', 'PTRATIO', 'B', 'LSTAT']
 feature_columns, feature_layer_inputs = define_feature_columns_layers(data, categorical_cols, numeric_cols)
@@ -653,7 +653,7 @@ print(result)
 
 这是得到的结果：
 
-```
+```py
 {'loss': 24.910872, 'mean_absolute_error': 3.208289, 'mean_squared_error': 24.659771, 'global_step': 2800} 
 ```
 
@@ -689,7 +689,7 @@ print(result)
 
 我们首先加载库并从互联网恢复数据：
 
-```
+```py
 import tensorflow as tf 
 import tensorflow.keras as keras
 import numpy as np
@@ -716,7 +716,7 @@ test.drop(['sample_code', 'class'], axis=1, inplace=True)
 
 接下来，我们指定逻辑回归函数。与我们之前的线性回归模型相比，主要的修改是将单个输出神经元的激活函数从`linear`改为`sigmoid`，这就足够让我们得到一个逻辑回归模型，因为我们的输出将是一个概率值，范围从 0.0 到 1.0：
 
-```
+```py
 def create_logreg(feature_columns, feature_layer_inputs, optimizer, 
                   loss='binary_crossentropy', metrics=['accuracy'],
                   l2=0.01):
@@ -737,7 +737,7 @@ def create_logreg(feature_columns, feature_layer_inputs, optimizer,
 
 最后，我们运行我们的程序：
 
-```
+```py
 categorical_cols = []
 numeric_cols = ['clump_thickness', 'cell_size_uniformity', 'cell_shape_uniformity',
                 'marginal_adhesion', 'single_epithelial_cell_size', 'bare_  nuclei',
@@ -756,7 +756,7 @@ print(result)
 
 下面是我们逻辑回归的准确率报告：
 
-```
+```py
 {'accuracy': 0.95, 'loss': 0.16382739, 'global_step': 5400} 
 ```
 
@@ -784,7 +784,7 @@ print(result)
 
 我们仍然会使用之前示例中的函数，包括`define_feature_columns_layers`和`make_input_fn`。和逻辑回归示例一样，我们将继续使用乳腺癌数据集。和以前一样，我们需要加载以下包：
 
-```
+```py
 import tensorflow as tf 
 import tensorflow.keras as keras
 import numpy as np
@@ -801,7 +801,7 @@ tfds.disable_progress_bar()
 
 根据你使用的 TensorFlow 2.x 版本，你可能需要从不同的模块导入它：
 
-```
+```py
 try:
     from tensorflow.python.keras.layers.kernelized import RandomFourierFeatures
 except:
@@ -811,7 +811,7 @@ except:
 
 现在我们开发`create_svc`函数。它包含了一个 L2 正则化项用于最终的全连接节点，一个用于输入的批归一化层，以及一个插入其中的`RandomFourierFeatures`层。在这个中间层中，产生了非线性特征，你可以通过设置`output_dim`参数来确定层生成的非线性交互的数量。当然，你可以通过增加 L2 正则化值来对比在设置较高`output_dim`值后出现的过拟合，从而实现更多的正则化：
 
-```
+```py
 def create_svc(feature_columns, feature_layer_inputs, optimizer, 
                loss='hinge', metrics=['accuracy'],
                l2=0.01, output_dim=64, scale=None):
@@ -833,7 +833,7 @@ def create_svc(feature_columns, feature_layer_inputs, optimizer,
 
 和之前的示例一样，我们定义了不同的列，设置了模型和优化器，准备了输入函数，最后我们训练并评估结果：
 
-```
+```py
 categorical_cols = []
 numeric_cols = ['clump_thickness', 'cell_size_uniformity', 'cell_shape_uniformity',
                 'marginal_adhesion', 'single_epithelial_cell_size', 'bare_nuclei', 'bland_chromatin',
@@ -852,7 +852,7 @@ print(result)
 
 这里是报告的准确度。为了获得更好的结果，你需要尝试不同的`RandomFourierFeatures`层的输出维度和正则化项的组合：
 
-```
+```py
 {'accuracy': 0.95 'loss': 0.7390725, 'global_step': 1000} 
 ```
 
@@ -900,7 +900,7 @@ print(result)
 
 我们首先从 UCI 存档中下载成人数据集：
 
-```
+```py
 census_dir = 'https://archive.ics.uci.edu/ml/machine-learning-databases/adult/'
 train_path = tf.keras.utils.get_file('adult.data', census_dir + 'adult.data')
 test_path = tf.keras.utils.get_file('adult.test', census_dir + 'adult.test')
@@ -914,7 +914,7 @@ test_data = pd.read_csv(test_path, header=None, names=columns, skiprows=1)
 
 然后，我们根据需要选择特征子集，并提取目标变量，将其从字符串类型转换为整数类型：
 
-```
+```py
 predictors = ['age', 'workclass', 'education', 'education_num',
               'marital_status', 'occupation', 'relationship', 'gender']
 y_train = (train_data.income_bracket==' >50K').astype(int)
@@ -925,7 +925,7 @@ test_data = test_data[predictors]
 
 该数据集需要额外处理，因为某些字段存在缺失值。我们通过用均值替换缺失值来处理这些数据。作为一般规则，我们必须在将数据输入 TensorFlow 模型之前，填补所有缺失的数据：
 
-```
+```py
 train_data[['age', 'education_num']] = train_data[['age', 'education_num']].fillna(train_data[['age', 'education_num']].mean())
 test_data[['age', 'education_num']] = test_data[['age', 'education_num']].fillna(train_data[['age', 'education_num']].mean()) 
 ```
@@ -940,7 +940,7 @@ test_data[['age', 'education_num']] = test_data[['age', 'education_num']].fillna
 
 我们还定义了一个函数，用于简化分类列和数值列之间的交互：
 
-```
+```py
 def define_feature_columns(data_df, numeric_cols, categorical_cols, categorical_embeds, dimension=30):
     numeric_columns = []
     categorical_columns = []
@@ -974,7 +974,7 @@ def create_interactions(interactions_list, buckets=10):
 
 现在所有函数已经定义完毕，我们将不同的列进行映射，并添加一些有意义的交互（例如将教育与职业进行交叉）。我们通过设置维度参数，将高维分类特征映射到一个固定的 32 维低维数值空间：
 
-```
+```py
 numeric_columns, categorical_columns, embeddings = define_feature_columns(train_data, 
                                                                           numeric_cols=['age', 'education_num'], 
                                                                           categorical_cols=['gender'], 
@@ -987,7 +987,7 @@ interactions = create_interactions([['education', 'occupation']], buckets=10)
 
 映射完特征后，我们将它们输入到我们的估计器中（参见[`www.tensorflow.org/api_docs/python/tf/estimator/DNNLinearCombinedClassifier`](https://www.tensorflow.org/api_docs/python/tf/estimator/DNNLinearCombinedClassifier)），并指定由宽部分处理的特征列和由深部分处理的特征列。对于每个部分，我们还指定优化器（通常线性部分使用 Ftrl，深部分使用 Adam），并且对于深部分，我们指定隐藏层的架构，作为一个神经元数量的列表：
 
-```
+```py
 estimator = tf.estimator.DNNLinearCombinedClassifier(
     # wide settings
     linear_feature_columns=numeric_columns+categorical_columns+interactions,    linear_optimizer=keras.optimizers.Ftrl(learning_rate=0.0002),
@@ -999,7 +999,7 @@ estimator = tf.estimator.DNNLinearCombinedClassifier(
 
 然后，我们继续定义输入函数（与本章其他食谱中所做的没有不同）：
 
-```
+```py
 def make_input_fn(data_df, label_df, num_epochs=10, shuffle=True, batch_size=256):
 
     def input_function():
@@ -1014,7 +1014,7 @@ def make_input_fn(data_df, label_df, num_epochs=10, shuffle=True, batch_size=256
 
 最后，我们训练 Estimator 1,500 步并在测试数据上评估结果：
 
-```
+```py
 train_input_fn = make_input_fn(train_data, y_train, 
                                num_epochs=100, batch_size=256)
 test_input_fn = make_input_fn(test_data, y_test, 
@@ -1026,7 +1026,7 @@ print(results)
 
 我们在测试集上获得了约 0.83 的准确率，这是通过使用 Estimator 的 evaluate 方法报告的：
 
-```
+```py
 {'accuracy': 0.83391684, 'accuracy_baseline': 0.76377374, 'auc': 0.88012385, 'auc_precision_recall': 0.68032277, 'average_loss': 0.35969484, 'label/mean': 0.23622628, 'loss': 0.35985297, 'precision': 0.70583993, 'prediction/mean': 0.21803579, 'recall': 0.5091004, 'global_step': 1000} 
 ```
 
@@ -1038,7 +1038,7 @@ print(results)
 
 对于完整的预测概率，我们只需从 Estimator 使用的字典数据类型中提取它们。`predict_proba`函数将返回一个 NumPy 数组，包含正类（收入超过 50K 美元）和负类的概率，分别位于不同的列中：
 
-```
+```py
 def predict_proba(predictor):
     preds = list()
     for pred in predictor:

@@ -72,7 +72,7 @@ OpenAI Gym 的原始研究论文可以在以下链接找到：[`arxiv.org/abs/16
 
 1.  使用以下命令安装 OpenAI Gym：
 
-```
+```py
 pip3 install gym
 ```
 
@@ -80,7 +80,7 @@ pip3 install gym
 
 1.  使用以下代码打印 OpenAI Gym 中可用的环境数量：
 
-```
+```py
 all_env = list(gym.envs.registry.all())
 print('Total Environments in Gym version {} : {}'
     .format(gym.__version__,len(all_env)))
@@ -89,20 +89,20 @@ print('Total Environments in Gym version {} : {}'
 
 前述代码生成了以下输出：
 
-```
+```py
 Total Environments in Gym version 0.10.5 : 797
 ```
 
 1.  打印所有环境的列表，如下代码所示：
 
-```
+```py
 for e in list(all_env):
     print(e)
 ```
 
 输出的部分列表如下：
 
-```
+```py
 EnvSpec(Copy-v0) EnvSpec(RepeatCopy-v0) EnvSpec(ReversedAddition-v0) EnvSpec(ReversedAddition3-v0) EnvSpec(DuplicatedInput-v0) EnvSpec(Reverse-v0) EnvSpec(CartPole-v0) EnvSpec(CartPole-v1) EnvSpec(MountainCar-v0) EnvSpec(MountainCarContinuous-v0) EnvSpec(Pendulum-v0)
 ```
 
@@ -134,19 +134,19 @@ EnvSpec(Copy-v0) EnvSpec(RepeatCopy-v0) EnvSpec(ReversedAddition-v0) EnvSpec(Rev
 
 1.  使用标准的 `make` 函数创建 `env` 对象，如下命令所示：
 
-```
+```py
 env=gym.make('MsPacman-v0')
 ```
 
 1.  让我们用以下代码打印游戏的动作空间：
 
-```
+```py
 print(env.action_space)
 ```
 
 前面的代码生成了以下输出：
 
-```
+```py
 Discrete(9)
 ```
 
@@ -154,13 +154,13 @@ Discrete(9)
 
 1.  现在我们可以看到观察空间，如下例所示：
 
-```
+```py
 print(env.observation_space)
 ```
 
 前述代码生成了以下输出：
 
-```
+```py
 Box(210, 160, 3)
 ```
 
@@ -170,7 +170,7 @@ Box(210, 160, 3)
 
 1.  章节数是游戏次数的数量。我们现在将其设置为 1，表示我们只想玩一次游戏。由于每一轮游戏都是随机的，实际生产运行时，你会运行多轮游戏并计算奖励的平均值。让我们运行一次游戏，同时在游戏过程中随机选择一个动作，代码如下：
 
-```
+```py
 import time
 
 frame_time = 1.0 / 15 # seconds
@@ -197,13 +197,13 @@ for i_episode in range(n_episodes):
 
 我们随后得到以下输出：
 
-```
+```py
 Episode 0 finished at t 551 with score 100.0
 ```
 
 1.  现在，让我们运行游戏 `500` 次，看看我们得到的最大分数、最小分数和平均分数。这在以下示例中得以演示：
 
-```
+```py
 import time
 import numpy as np
 
@@ -236,7 +236,7 @@ print('Average score {}, max {}, min {}'.format(np.mean(scores),
 
 上述代码生成了以下输出：
 
-```
+```py
 Average 219.46, max 1070.0, min 70.0
 ```
 
@@ -298,7 +298,7 @@ Average 219.46, max 1070.0, min 70.0
 
 1.  我们定义了 `q_nn` 策略函数，如下所示：
 
-```
+```py
 def policy_q_nn(obs, env):
     # Exploration strategy - Select a random action
     if np.random.random() < explore_rate:
@@ -311,7 +311,7 @@ def policy_q_nn(obs, env):
 
 1.  接下来，我们修改 `episode` 函数，将 `q_values` 的计算和神经网络训练加入到采样的经验缓存中。代码如下所示：
 
-```
+```py
 def episode(env, policy, r_max=0, t_max=0):
 
     # create the empty list to contain game memory
@@ -370,7 +370,7 @@ def episode(env, policy, r_max=0, t_max=0):
 
 1.  定义一个 `experiment` 函数，该函数将在特定数量的回合中运行；每个回合运行直到游戏失败，即 `done` 为 `True` 时结束。我们使用 `rewards_max` 来表示何时退出循环，因为我们不希望实验永远运行，代码如下所示：
 
-```
+```py
 # experiment collect observations and rewards for each episode
 def experiment(env, policy, n_episodes,r_max=0, t_max=0):
 
@@ -389,7 +389,7 @@ def experiment(env, policy, n_episodes,r_max=0, t_max=0):
 
 1.  使用以下代码创建一个简单的 MLP 网络：
 
-```
+```py
 from collections import deque 
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Flatten
@@ -406,7 +406,7 @@ q_nn = model
 
 上述代码生成了以下输出：
 
-```
+```py
 _________________________________________________________________
 Layer (type)                 Output Shape              Param #   
 =================================================================
@@ -424,7 +424,7 @@ _________________________________________________________________
 
 1.  创建一个空列表来保存游戏记忆，并定义其他超参数，运行一个回合的实验，如下所示：
 
-```
+```py
 # Hyperparameters
 
 discount_rate = 0.9
@@ -439,7 +439,7 @@ experiment(env, policy_q_nn, n_episodes)
 
 我们得到的结果如下：
 
-```
+```py
 Policy:policy_q_nn, Min reward:490.0, Max reward:490.0, Average reward:490.0
 ```
 
@@ -447,7 +447,7 @@ Policy:policy_q_nn, Min reward:490.0, Max reward:490.0, Average reward:490.0
 
 1.  现在，运行 `100` 回合，如下所示：
 
-```
+```py
 # Hyperparameters
 
 discount_rate = 0.9
@@ -462,13 +462,13 @@ experiment(env, policy_q_nn, n_episodes)
 
 我们得到以下结果：
 
-```
+```py
 Policy:policy_q_nn, Min reward:70.0, Max reward:580.0, Average reward:270.5
 ```
 
 因此，我们看到，尽管我们达到了高的最大奖励，平均结果并没有得到改善。调整网络架构、特征和超参数可能会产生更好的结果。我们鼓励你修改代码。例如，你可以用简单的单层卷积网络替代 MLP，如下所示：
 
-```
+```py
 from collections import deque 
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Flatten
@@ -492,7 +492,7 @@ q_nn = model
 
 上述代码显示了网络摘要，如下所示：
 
-```
+```py
 _________________________________________________________________
 Layer (type)                 Output Shape              Param #   
 =================================================================

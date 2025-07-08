@@ -26,25 +26,25 @@
 
 你可以把 TensorFlow Hub 当作一个包含许多预训练模型的库。它包含数百个经过训练、可以直接部署的深度学习模型。TensorFlow Hub 提供了图像分类、图像分割、目标检测、文本嵌入、文本分类、视频分类和生成等预训练模型。TF Hub 中的模型可以以 SavedModel、TFLite 和 TF.js 格式提供。我们可以直接使用这些预训练模型进行推理，或者对它们进行微调。随着用户和开发者社区的不断壮大，TensorFlow Hub 已成为寻找和分享机器学习模型的首选平台。要使用 TensorFlow Hub，我们首先需要安装它：
 
-```
+```py
 pip install tensorflow_hub 
 ```
 
 安装完成后，我们可以通过以下方式简单地导入它：
 
-```
+```py
 import tensorflow_hub as hub 
 ```
 
 并使用 `load` 函数加载模型：
 
-```
+```py
 model = hub.load(handle) 
 ```
 
 这里的 `handle` 是一个字符串，包含我们想要使用的模型链接。如果我们希望将其作为现有模型的一部分使用，可以将其包装为 Keras 层：
 
-```
+```py
 hub.KerasLayer(
     handle,
     trainable=False,
@@ -76,7 +76,7 @@ hub.KerasLayer(
 
 1.  让我们导入必要的模块：
 
-    ```
+    ```py
     import tensorflow as tf
     import tensorflow_hub as hub
     import requests
@@ -88,7 +88,7 @@ hub.KerasLayer(
 
 1.  我们定义了一个从 URL 加载图像的函数。该函数从网页上获取图像，并通过添加批次索引进行推理。图像还根据所选的预训练模型进行了归一化和缩放：
 
-    ```
+    ```py
     def load_image_from_url(img_url, image_size):
       """Get the image from url. The image return has shape [1, height, width, num_channels]."""
       response = requests.get(img_url, headers={'User-agent': 'Colab Sample (https://tensorflow.org)'})
@@ -104,7 +104,7 @@ hub.KerasLayer(
 
 1.  另一个辅助函数，用于显示图像：
 
-    ```
+    ```py
     def show_image(image, title=''):
       image_size = image.shape[1]
       w = (image_size * 6) // 320
@@ -117,7 +117,7 @@ hub.KerasLayer(
 
 1.  我们使用的模型是 EfficientNet-B2（[`arxiv.org/abs/1905.11946`](https://arxiv.org/abs/1905.11946)），该模型是在 ImageNet 数据集上训练的。它提供更好的准确性，体积更小，并且推理速度更快。为了方便起见，我们选择将图像调整为 330 x 330 像素。我们使用在第 2 步中定义的辅助函数从 Wikimedia 下载图像：
 
-    ```
+    ```py
     image_size = 330
     print(f"Images will be converted to {image_size}x{image_size}")
     img_url =  "https://upload.wikimedia.org/wikipedia/commons/c/c6/Okonjima_Lioness.jpg"
@@ -131,7 +131,7 @@ hub.KerasLayer(
 
 1.  为了完整性，我们还获取了 ImageNet 数据集的所有标签，以便从模型预测中推断标签；我们从 TensorFlow 的公共存储库下载它：
 
-    ```
+    ```py
     labels_file = "https://storage.googleapis.com/download.tensorflow.org/data/ImageNetLabels.txt"
     #download labels and creates a maps
     downloaded_file = tf.keras.utils.get_file("labels.txt", origin=labels_file)
@@ -143,19 +143,19 @@ hub.KerasLayer(
 
 1.  现在所有的准备工作都完成了，我们从 `tfhub.dev` 下载模型：
 
-    ```
+    ```py
     classifier = hub.load("https://tfhub.dev/tensorflow/efficientnet/b2/classification/1") 
     ```
 
 1.  我们获取图像在第 5 步下载后的所有类别的 Softmax 概率：
 
-    ```
+    ```py
     probabilities = tf.nn.softmax(classifier(image)).numpy() 
     ```
 
 1.  让我们看看顶部的预测结果：
 
-    ```
+    ```py
     top_5 = tf.argsort(probabilities, axis=-1, direction="DESCENDING")[0][:5].numpy()
     show_image(image, f'{classes[top_5[0]+1]}: {probabilities[0][top_5][0]:.4f}') 
     ```
@@ -172,24 +172,24 @@ hub.KerasLayer(
 
 使用 TFDS，您可以快速开始机器学习项目，节省时间，无需自行收集和准备数据。该库目前包含各种各样的数据集，包括图像分类、目标检测、文本分类等。此外，库还提供了从零开始创建新数据集的工具，这对于需要为自己项目创建自定义数据集的研究人员或开发人员非常有用。TFDS 是开源的，且以 Apache 2.0 许可证发布。要使用 TFDS，您需要安装它：
 
-```
+```py
 pip install tensorflow-datasets 
 ```
 
 安装后，您可以像这样导入它：
 
-```
+```py
 import tensorflow_datasets as tfds 
 ```
 
 在编写本书时，TFDS 包含了 224 个公共数据集，涵盖了广泛的任务：
 
-```
+```py
 datasets = tfds.list_builders()
 print(f"TFDS contains {len(datasets)} datasets") 
 ```
 
-```
+```py
 ### Output
 TFDS contains 224 datasets 
 ```
@@ -200,7 +200,7 @@ TFDS contains 224 datasets
 
 TFDS 中的每个数据集都有唯一的名称，并且每个数据集都与发布者和数据集版本相关联。要获取数据，您可以使用 TFDS 的 `load` 函数（这是一个功能强大的函数，具有很大的灵活性；您可以在[`www.tensorflow.org/datasets/api_docs/python/tfds/load`](https://www.tensorflow.org/datasets/api_docs/python/tfds/load)上查看更多关于此函数的内容）：
 
-```
+```py
 tfds.load(
     name: str,
     *,
@@ -223,7 +223,7 @@ None,
 
 您只需要指定数据集名称，其余参数是可选的。您可以从 TFDS 文档中了解更多关于可选参数的内容。例如，下面我们将下载著名的 MNIST 数据集：
 
-```
+```py
 data, info = tfds.load(name="mnist", as_supervised=True, split=['train', 'test'], with_info=True) 
 ```
 
@@ -231,11 +231,11 @@ data, info = tfds.load(name="mnist", as_supervised=True, split=['train', 'test']
 
 首先让我们检查信息：
 
-```
+```py
 print(info) 
 ```
 
-```
+```py
 ### output
 tfds.core.DatasetInfo(
     name='mnist',
@@ -265,14 +265,14 @@ tfds.core.DatasetInfo(
 
 所以，我们可以看到信息是相当详细的。它告诉我们每个拆分中的样本数、如果用于监督学习时可用的键、引用细节等。这里的变量数据是一个包含两个 TFDS 数据集对象的列表——第一个是对应测试数据集，第二个是对应训练数据集。TFDS 数据集对象默认是 `dict` 类型。让我们从训练数据集中获取一个样本并进行探索：
 
-```
+```py
 data_train = data[1].take(1)
 for sample, label in data_train:
   print(sample.shape)
   print(label) 
 ```
 
-```
+```py
 ### output
 (28, 28, 1)
 tf.Tensor(2, shape=(), dtype=int64) 
@@ -280,7 +280,7 @@ tf.Tensor(2, shape=(), dtype=int64)
 
 您可以看到，样本是一个 28 x 28 x 1 形状的手写数字图像，其标签为 `2`。对于图像数据，TFDS 还提供了一个 `show_examples` 方法，您可以用它来查看数据集中的示例图像：
 
-```
+```py
 fig = tfds.show_examples(data[0], info) 
 ```
 
@@ -294,14 +294,14 @@ fig = tfds.show_examples(data[0], info)
 
 1.  和往常一样，我们首先导入必要的模块。由于我们将使用 TensorFlow 构建模型，并且使用 TFDS 获取数据集，因此现在只导入这两个：
 
-    ```
+    ```py
     import tensorflow as tf
     import tensorflow_datasets as tfds 
     ```
 
 1.  使用 Keras 的顺序 API，我们构建了一个简单的卷积神经网络，包含三个卷积层和两个全连接层：
 
-    ```
+    ```py
     model = tf.keras.models.Sequential([ 
       tf.keras.layers.Conv2D(16, (3,3), activation='relu', input_shape=(300, 300, 3)), 
       tf.keras.layers.MaxPooling2D(2, 2),
@@ -317,20 +317,20 @@ fig = tfds.show_examples(data[0], info)
 
 1.  我们将构建一个二分类器，因此选择二元交叉熵作为损失函数，Adam 作为优化器：
 
-    ```
+    ```py
     model.compile(optimizer='Adam', loss='binary_crossentropy',metrics=['accuracy']) 
     ```
 
 1.  接下来，我们来处理数据集。我们使用`horses_or_humans`数据集，因此使用`tfds.load`函数获取训练数据和验证数据：
 
-    ```
+    ```py
     data = tfds.load('horses_or_humans', split='train', as_supervised=True) 
     val_data = tfds.load('horses_or_humans', split='test', as_supervised=True) 
     ```
 
 1.  图像需要进行归一化；此外，为了提高性能，我们将在训练过程中对图像进行增强：
 
-    ```
+    ```py
     def normalize_img(image, label):
       """Normalizes images: 'uint8' -> 'float32'."""
       return tf.cast(image, tf.float32) / 255., label
@@ -342,7 +342,7 @@ fig = tfds.show_examples(data[0], info)
 
 1.  现在我们开始构建数据管道；首先使用`cache`以提高内存效率，应用预处理步骤（归一化和增强），确保在训练时数据会被打乱，定义批次大小，并使用`prefetch`，以便在当前批次训练时下一个批次也已准备好。我们对验证数据执行相同的步骤，唯一的区别是验证数据不需要进行增强或打乱：
 
-    ```
+    ```py
     data = data.cache()
     data = data.map(augment_img, num_parallel_calls=tf.data.AUTOTUNE)
     train_data = data.shuffle(1024).batch(32)
@@ -355,7 +355,7 @@ fig = tfds.show_examples(data[0], info)
 
 1.  最后，我们开始训练模型：
 
-    ```
+    ```py
     %time history = model.fit(train_data, epochs=10, validation_data=val_data, validation_steps=1) 
     ```
 
@@ -423,7 +423,7 @@ TensorFlow Lite 的架构如 *图 19.6* 所示（来自 [`www.tensorflow.org/lit
 
 在本节中，我们将展示如何将模型转换为 TensorFlow Lite 并运行它。请注意，训练仍然可以在最适合您需求的环境中通过 TensorFlow 执行。然而，推理将在移动设备上运行。让我们通过以下 Python 代码片段来看看：
 
-```
+```py
 import tensorflow as tf
 converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
 tflite_model = converter.convert()
@@ -432,7 +432,7 @@ open("converted_model.tflite", "wb").write(tflite_model)
 
 代码本身很容易理解。通过使用 `tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)` 打开并转换一个标准的 TensorFlow 2.x 模型。非常简单！请注意，您无需特定安装。我们只需使用 `tf.lite` API ([`www.tensorflow.org/api_docs/python/tf/lite`](https://www.tensorflow.org/api_docs/python/tf/lite))。还可以应用一些优化。例如，默认情况下可以应用训练后量化：
 
-```
+```py
 import tensorflow as tf
 converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
 converter.optimizations = [tf.lite.Optimize.DEFAULT]
@@ -442,7 +442,7 @@ open("converted_model.tflite", "wb").write(tflite_quant_model)
 
 一旦模型转换完成，就可以将其复制到特定的设备上。当然，这一步骤对于每个设备来说有所不同。然后，可以使用您偏好的编程语言来运行模型。例如，在 Java 中，调用的代码如下：
 
-```
+```py
 try (Interpreter interpreter = new Interpreter(tensorflow_lite_model_file)) {
   interpreter.run(input, output);
 } 
@@ -454,7 +454,7 @@ try (Interpreter interpreter = new Interpreter(tensorflow_lite_model_file)) {
 
 现代手机通常配备加速器，能够加速浮动点矩阵运算。在这种情况下，解释器可以使用 Delegate 概念，特别是使用 `GpuDelegate()` 来利用 GPU。我们来看一个 Java 示例：
 
-```
+```py
 GpuDelegate delegate = new GpuDelegate();
 Interpreter.Options options = (new Interpreter.Options()).addDelegate(delegate);
 Interpreter interpreter = new Interpreter(tensorflow_lite_model_file, options);
@@ -469,7 +469,7 @@ try {
 
 在本节中，我们将使用 TensorFlow Lite 构建一个示例应用程序，后续将其部署到 Android 上。我们将使用 Android Studio ([`developer.android.com/studio/`](https://developer.android.com/studio/)) 来编译代码。第一步是克隆仓库，命令如下：
 
-```
+```py
 git clone https://github.com/tensorflow/examples 
 ```
 
@@ -477,7 +477,7 @@ git clone https://github.com/tensorflow/examples
 
 然后，您需要从 [`developer.android.com/studio/install`](https://developer.android.com/studio/install) 安装 Android Studio 和合适的 Java 版本。在我的情况下，我选择了 macOS 版本的 Android Studio，并通过 `brew` 使用以下命令安装了 Java：
 
-```
+```py
 brew tap adoptopenjdk/openjdk
 brew cask install  homebrew/cask-versions/adoptopenjdk8 
 ```
@@ -632,7 +632,7 @@ FL API 有三个关键部分：
 
 1.  **模型**：用于封装现有模型以启用联邦学习。这可以通过`tff.learning.from_keras_model()`实现，或者通过子类化`tff.learning.Model()`实现。例如，你可以使用以下代码片段：
 
-    ```
+    ```py
     keras_model = …
     keras_model.compile(...)
     keras_federated_model = tff.learning.from_compiled_keras_model(keras_model, ..) 
@@ -672,7 +672,7 @@ TensorFlow.js 最常见的用途是使预训练的机器学习/深度学习模�
 
 JavaScript 在浏览器环境内工作，在 HTML 页面中。下面的 HTML 文件（命名为`index.xhtml`）表示该 HTML 页面。注意两个 TensorFlow.js（`tf.min.js`）和 TensorFlow.js 可视化库（`tfjs-vis.umd.min.js`）的导入——这些提供了我们在应用中使用的库函数。我们的应用程序的 JavaScript 代码来自`data.js`和`script.js`文件，位于与`index.xhtml`文件相同的目录中：
 
-```
+```py
 <!DOCTYPE html>
 <html>
 <head>
@@ -695,13 +695,13 @@ JavaScript 在浏览器环境内工作，在 HTML 页面中。下面的 HTML 文
 
 对于部署，我们将这三个文件（`index.xhtml`、`data.js`和`script.js`）部署到一个网络服务器上，但对于开发，我们可以通过调用一个简单的、与 Python 发行版一起捆绑的 Web 服务器来启动一个 Web 服务器。这将在`localhost`的`8000`端口启动一个 Web 服务器，`index.xhtml`文件可以通过浏览器在`http://localhost:8000`上进行渲染：
 
-```
+```py
 python -m http.server 
 ```
 
 下一步是加载数据。幸运的是，Google 提供了一个 JavaScript 脚本，我们直接从`index.xhtml`文件中调用它。它从 GCP 存储中下载图像和标签，并返回已打乱并标准化的图像和标签对的批次，用于训练和测试。我们可以使用以下命令将其下载到与`index.xhtml`文件相同的文件夹中：
 
-```
+```py
 wget -cO - https://storage.googleapis.com/tfjs-tutorials/mnist_data.js > data.js 
 ```
 
@@ -709,7 +709,7 @@ wget -cO - https://storage.googleapis.com/tfjs-tutorials/mnist_data.js > data.js
 
 模型定义、训练和评估的代码都在`script.js`文件中指定。定义和构建网络的函数显示在下面的代码块中。正如你所看到的，它与使用`tf.keras`构建顺序模型的方法非常相似。唯一的不同是指定参数的方式，它使用的是名称-值对的字典，而不是参数列表。这个模型是一个顺序模型，也就是说，它是一个层的列表。最后，模型使用 Adam 优化器进行编译：
 
-```
+```py
 function getModel() {
   const IMAGE_WIDTH = 28;
   const IMAGE_HEIGHT = 28;
@@ -758,7 +758,7 @@ function getModel() {
 
 这可能会给我们带来比使用一个未见过的（在训练过程中未见过的）测试集时更好的准确度，但对于像这样说明性的示例来说，这并不重要：
 
-```
+```py
 async function train(model, data) {
   const metrics = ['loss', 'val_loss', 'acc', 'val_acc'];
   const container = {
@@ -795,7 +795,7 @@ async function train(model, data) {
 
 一旦模型完成训练，我们希望进行预测并评估模型的预测。以下函数将进行预测，并计算所有测试集示例中每个类别的总体准确性，同时生成整个测试集样本的混淆矩阵：
 
-```
+```py
 const classNames = [
   'Zero', 'One', 'Two', 'Three', 'Four', 
   'Five', 'Six', 'Seven', 'Eight', 'Nine'];
@@ -831,7 +831,7 @@ async function showConfusion(model, data) {
 
 最后，`run()`函数将按顺序调用所有这些函数，以构建端到端的机器学习管道：
 
-```
+```py
 import {MnistData} from './data.js';
 async function run() { 
   const data = new MnistData();
@@ -868,13 +868,13 @@ document.addEventListener('DOMContentLoaded', run);
 
 有时将已经用`tf.keras`创建的模型转换成其他格式非常方便。这非常简单，可以离线使用以下命令完成，该命令将从`/tmp/model.h5`中获取 Keras 模型，并将 JavaScript 模型输出到`/tmp/tfjs_model`目录中：
 
-```
+```py
 tensorflowjs_converter --input_format=keras /tmp/model.h5 /tmp/tfjs_model 
 ```
 
 要使用此命令，您需要一个安装了 TensorFlow JS 的 Python 环境，可以使用以下命令进行安装：
 
-```
+```py
 pip install tensorflowjs 
 ```
 
@@ -909,7 +909,7 @@ TensorFlow.js 提供了大量的深度学习预训练模型，涵盖图像、视
 
 每个预训练模型可以直接从 HTML 中使用。例如，这是一个使用 KNN 分类器的示例：
 
-```
+```py
 <html>
   <head>
     <!-- Load TensorFlow.js -->
@@ -929,19 +929,19 @@ TensorFlow.js 提供了大量的深度学习预训练模型，涵盖图像、视
 
 CPU 包通过以下代码行导入，这将适用于所有 macOS、Linux 和 Windows 平台：
 
-```
+```py
 import * as tf from '@tensorflow/tfjs-node' 
 ```
 
 GPU 包通过以下代码行导入（截至 2019 年 11 月，这仅适用于 CUDA 环境中的 GPU）：
 
-```
+```py
 import * as tf from '@tensorflow/tfjs-node-gpu' 
 ```
 
 以下是一个 Node.js 代码示例，用于定义和编译一个简单的全连接模型。代码不言自明：
 
-```
+```py
 const model = tf.sequential();
 model.add(tf.layers.dense({ units: 1, inputShape: [400] }));
 model.compile({
@@ -953,7 +953,7 @@ model.compile({
 
 然后可以使用典型的 Node.js 异步调用开始训练：
 
-```
+```py
 const xs = tf.randomUniform([10000, 400]);
 const ys = tf.randomUniform([10000, 1]);
 const valXs = tf.randomUniform([1000, 400]);

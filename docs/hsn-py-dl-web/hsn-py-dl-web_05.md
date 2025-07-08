@@ -100,14 +100,14 @@
 
 在浏览器中打开你的 Jupyter Notebook 环境，并创建一个新的 Python 笔记本。首先，导入必要的模块：
 
-```
+```py
 import numpy as np
 import matplotlib.pyplot as plt
 ```
 
 上面的代码行导入了`numpy`模块和`matplotlib.pyplot`模块。`numpy`模块提供了 Python 中的高性能数学函数，而`matplotlib.pyplot`模块提供了一个简单的接口，用于绘制和可视化图表和图像。为了在 Jupyter 笔记本中查看此库的所有输出，请添加以下代码行：
 
-```
+```py
 %matplotlib inline
 ```
 
@@ -117,7 +117,7 @@ import matplotlib.pyplot as plt
 
 如前所述，无法直接查看下载的图像文件中的图像。因此，我们将创建一个 Python 函数，`matplotlib`模块将使用该函数显示文件中的图像：
 
-```
+```py
 def loadImageFile(fileimage):
   f = open(fileimage, "rb")
 
@@ -143,13 +143,13 @@ def loadImageFile(fileimage):
 
 前面的`loadImageFile`函数接受一个参数，即包含图像的文件名称。在我们下载的文件夹中，有两个这样的文件：`train-images-idx3-ubyte`和`t10k-images-idx3-ubyte`。前面函数的输出是一个`numpy`数组，包含图像数据。我们可以将结果存储在一个 Python 变量中，如下所示：
 
-```
+```py
 test_images = loadImageFile("t10k-images-idx3-ubyte")
 ```
 
 现在，为了查看变量中保存着`numpy`图像数组的图像，我们可以定义另一个函数，该函数以 784 个浮点数的单个图像像素数组作为输入，并将它们绘制成一幅图像。该函数定义如下：
 
-```
+```py
 def gen_image(arr):
  two_d = (np.reshape(arr, (28, 28)) * 255).astype(np.uint8)
  plt.imshow(two_d, interpolation='nearest', cmap='gray')
@@ -159,7 +159,7 @@ def gen_image(arr):
 
 现在，假设我们想显示测试图像集中的第一张图像；因为我们已经将`numpy`图像数组存储在`test_images`变量中，我们可以运行以下代码：
 
-```
+```py
 gen_image(test_images[0])
 ```
 
@@ -173,7 +173,7 @@ gen_image(test_images[0])
 
 在 MNIST 数据集中，我们有两个标签文件可用：`train-labels-idx1-ubyte`和`t10k-labels-idx1-ubyte`。为了查看这些文件，我们可以使用下面的函数，该函数以文件名作为参数输入，并生成一个独热编码标签的数组：
 
-```
+```py
 def loadLabelFile(filelabel):
   f = open(filelabel, "rb")
 
@@ -197,14 +197,14 @@ def loadLabelFile(filelabel):
 
 此函数返回一个`numpy`数组，其中包含独热编码的标签，维度为数据集中的样本数乘以 10。让我们观察单个条目，以了解独热编码的性质。运行以下代码，从测试集的第一个样本中打印独热编码的标签集：
 
-```
+```py
 test_labels = loadLabelFile("t10k-labels-idx1-ubyte")
 print(test_labels[0])
 ```
 
 我们得到以下输出：
 
-```
+```py
 [0 0 0 0 0 0 0 1 0 0]
 ```
 
@@ -250,7 +250,7 @@ print(test_labels[0])
 
 `Model.ipynb` 中将需要的模块如下导入：
 
-```
+```py
 import numpy as np
 import keras
 from keras.models import Sequential
@@ -262,7 +262,7 @@ from keras.layers.normalization import BatchNormalization
 
 `keras` 模块用于快速实现具有 TensorFlow 后端的高性能神经网络。我们在前面的章节中讨论过 Keras。要安装 Keras，可以使用以下命令：
 
-```
+```py
 pip3 install keras 
 ```
 
@@ -280,7 +280,7 @@ pip3 install keras
 
 在新的代码单元中，我们创建 `loadImageFile()` 函数：
 
-```
+```py
 def loadImageFile(fileimage):
   f = open(fileimage, "rb")
 
@@ -305,7 +305,7 @@ def loadImageFile(fileimage):
 
 在另一个新的代码单元中，创建 `loadLabelFile()` 函数：
 
-```
+```py
 def loadLabelFile(filelabel):
   f = open(filelabel, "rb")
   f.read(8)
@@ -328,7 +328,7 @@ def loadLabelFile(filelabel):
 
 然后，我们可以通过以下代码行将图像和标签文件导入为 `numpy` 数组：
 
-```
+```py
 train_images = loadImageFile("train-images-idx3-ubyte")
 train_labels = loadLabelFile("train-labels-idx1-ubyte")
 
@@ -338,7 +338,7 @@ test_labels = loadLabelFile("t10k-labels-idx1-ubyte")
 
 这会创建 `train_images`、`train_labels`、`test_images` 和 `test_labels` 的 NumPy 数组。我们可以观察它们的形状，`train_images` 的输出如下：
 
-```
+```py
 (60000, 784)
 ```
 
@@ -350,20 +350,20 @@ test_labels = loadLabelFile("t10k-labels-idx1-ubyte")
 
 为此，我们使用以下代码行：
 
-```
+```py
 x_train = train_images.reshape(train_images.shape[0], 28, 28, 1)
 x_test = test_images.reshape(test_images.shape[0], 28, 28, 1)
 ```
 
 现在，如果我们观察 `x_train` 的形状，我们将得到如下输出：
 
-```
+```py
 (60000, 28, 28, 1)
 ```
 
 我们无需对标签数组进行任何更改，因此直接将其赋值给 `y_train` 和 `y_test`：
 
-```
+```py
 y_train = train_labels
 y_test = test_labels
 ```
@@ -376,13 +376,13 @@ y_test = test_labels
 
 1.  我们将首先在 Keras 中创建一个 `Sequential` 神经网络模型：
 
-```
+```py
 model = Sequential()
 ```
 
 1.  要向网络中添加一个神经元层，我们使用以下代码：
 
-```
+```py
 model.add(Conv2D(32, (3, 3), input_shape=(28,28,1)))
 ```
 
@@ -390,19 +390,19 @@ model.add(Conv2D(32, (3, 3), input_shape=(28,28,1)))
 
 1.  现在，让我们添加激活层，并将 `relu` 作为激活函数：
 
-```
+```py
 model.add(Activation('relu'))
 ```
 
 1.  添加激活层后，我们可以执行批量归一化。在训练过程中，数据会通过多个计算层，可能会变得过大或过小。这被称为**协方差偏移**，而批量归一化有助于将数据重新调整到中心区域。这有助于神经网络更快地训练：
 
-```
+```py
 BatchNormalization(axis=-1)
 ```
 
 1.  现在让我们在模型中添加更多的隐藏层：
 
-```
+```py
 model.add(Conv2D(32, (3, 3)))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(2,2)))
@@ -426,13 +426,13 @@ model.add(Dropout(0.2))
 
 1.  在神经网络的最后一层，我们需要输出`10`个值，采用独热编码（one-hot encoding）形式，以表示预测的数字。为此，我们添加了最后一层`10`个神经元。这将包含`0`到`1`之间的 10 个值：
 
-```
+```py
 model.add(Dense(10))
 ```
 
 1.  最后，为了将这 10 个浮动值转换为独热编码，我们使用`softmax`激活函数：
 
-```
+```py
 model.add(Activation('softmax'))
 ```
 
@@ -442,7 +442,7 @@ model.add(Activation('softmax'))
 
 我们现在准备好编译并训练神经网络。要编译神经网络，我们使用以下代码：
 
-```
+```py
 model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer=keras.optimizers.Adam(),
               metrics=['accuracy'])
@@ -452,7 +452,7 @@ model.compile(loss=keras.losses.categorical_crossentropy,
 
 然后，我们使用 Keras 模型对象的`fit()`方法来训练神经网络：
 
-```
+```py
 model.fit(x_train, y_train,
           batch_size=100,
           epochs=10,
@@ -468,7 +468,7 @@ model.fit(x_train, y_train,
 
 训练完模型后，我们现在准备好评估它的准确性。为此，我们将使用以下代码：
 
-```
+```py
 score = model.evaluate(x_test, y_test, verbose=1)
 
 print('Test loss:', score[0])
@@ -481,7 +481,7 @@ print('Test accuracy:', score[1])
 
 我们得到了 99%的准确率，这是一个非常好的准确率分数。现在，我们可以保存模型，它将在未来通过网页门户用于对用户输入进行预测。我们将把模型分为两部分——模型结构和模型权重。为了保存结构，我们将使用 JSON 格式，如下所示：
 
-```
+```py
 model_json = model.to_json()
 with open("model.json", "w") as json_file:
     json_file.write(model_json)
@@ -489,7 +489,7 @@ with open("model.json", "w") as json_file:
 
 现在，为了保存 Keras 模型的权重，我们使用`save_weights()`方法来保存该对象：
 
-```
+```py
 model.save_weights('weights.h5')
 ```
 
@@ -513,7 +513,7 @@ model.save_weights('weights.h5')
 
 你可以参考以下命令块来安装 TensorFlow、Keras、Pillow 和 Flask：
 
-```
+```py
 pip3 install tensorflow keras pillow flask
 ```
 
@@ -527,7 +527,7 @@ pip3 install tensorflow keras pillow flask
 
 在工作目录中创建一个新文件，命名为`flask_app.py`。这个文件将处理所有发送到服务器的请求。将以下代码放入该文件：
 
-```
+```py
 from flask import Flask
 app = Flask(__name__)
 @app.route("/")
@@ -541,7 +541,7 @@ if __name__ == "__main__":
 
 我们现在可以部署这个简单的*Hello World* Flask 服务器了。我们在终端中运行以下命令：
 
-```
+```py
 python flask_app.py
 ```
 
@@ -551,20 +551,20 @@ python flask_app.py
 
 在前面的示例中，我们将扩展`flask import`语句，导入一个额外的方法`request`，该方法将允许我们处理发送到服务器的`POST`请求。该行代码如下所示：
 
-```
+```py
 from flask import Flask, request
 ```
 
 然后，我们导入读取和存储图像所需的模块。同时，还导入了`numpy`模块，如下所示：
 
-```
+```py
 from scipy.misc import imread, imresize
 import numpy as np
 ```
 
 最后，我们导入 Keras 模块的`model_from_json()`方法来加载保存的模型文件。然后，我们导入`tensorflow`，因为 Keras 依赖于它来执行：
 
-```
+```py
 from keras.models import model_from_json
 import tensorflow as tf
 ```
@@ -575,7 +575,7 @@ import tensorflow as tf
 
 一旦我们导入了必要的模块，就会加载保存的模型 JSON 和权重，代码如下所示：
 
-```
+```py
 json_file = open('model.json','r')
 model_json = json_file.read()
 json_file.close()
@@ -592,7 +592,7 @@ graph = tf.get_default_graph()
 
 现在，我们将`app`变量设置为 Flask 对象，并将`"/"`路由设置为由`index`函数处理，该函数实际上不会产生任何有意义的输出。这是因为我们将使用`/predict`路由来提供我们的预测 API，如下所示：
 
-```
+```py
 app = Flask(__name__)
 
 @app.route('/')
@@ -606,7 +606,7 @@ def index():
 
 有时，如果用户使用合适的设置发起图像 `POST` 请求，我们可能会收到 `base64` 编码的字符串形式的图像。我们可以创建一个函数来处理它：
 
-```
+```py
 import re
 import base64
 
@@ -622,7 +622,7 @@ def stringToImage(img):
 
 现在，让我们定义 `/predict` 路由，这将是我们的 API，用于响应预测的数字：
 
-```
+```py
 @app.route('/predict/', methods=['POST'])
 def predict():
     global model, graph
@@ -648,7 +648,7 @@ def predict():
 
 现在，我们必须在文件的末尾添加代码，将服务器绑定到一个端口并设置所需的配置：
 
-```
+```py
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=80)
     app.run(debug=True)
@@ -658,7 +658,7 @@ if __name__ == "__main__":
 
 在我们运行应用程序之前的最后一步是更新 `'/'` 路由的代码。每当有人访问这个路由时，我们将加载我们创建的 `index.html` 文件，如下所示：
 
-```
+```py
 @app.route('/')
 def index():
     return render_template("index.html")
@@ -666,7 +666,7 @@ def index():
 
 我们现在已经准备好启动服务器并检查它是否正常工作。我们使用之前使用的相同命令来启动服务器：
 
-```
+```py
 python flask_app.py
 ```
 
@@ -688,7 +688,7 @@ python flask_app.py
 
 在终端或命令提示符中使用以下命令向您的预测 API 发出 `curl` 请求：
 
-```
+```py
 curl -X POST -F img=@"path_to_file" http://localhost/predict/
 ```
 
@@ -710,13 +710,13 @@ API 的输出是一个整数——`2`。因此，API 成功运行。
 
 我们现在将创建一个简单的网页客户端来调用 API。为此，我们必须修改当前的代码。在`flask_app.py`中，首先修改 Flask 的`import`语句，以便将其扩展到另一个模块——`render_template`，如下所示：
 
-```
+```py
 from flask import Flask, request, render_template
 ```
 
 现在，我们在工作目录中创建一个文件夹`templates`，并在其中添加一个文件`index.html`，文件内容如下：
 
-```
+```py
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -745,7 +745,7 @@ from flask import Flask, request, render_template
 
 让我们创建`index.js`文件。首先，在根目录下创建一个文件夹`static`，然后创建一个新文件`index.js`，并写入以下代码：
 
-```
+```py
 $("form").submit(function(evt){ 
     evt.preventDefault();
     var formData = new FormData($(this)[0]);

@@ -12,7 +12,7 @@
 
 我们首先加载必要的包：
 
-```
+```py
 import tensorflow as tf
 import numpy as np
 import pandas as pd
@@ -29,7 +29,7 @@ from sklearn.metrics import roc_curve
 
 原则上，类别变量可以简单地重新编码为整数（使用如`LabelEncoder`之类的函数），而梯度提升模型也能很好地工作——数据预处理的这些最小要求是树集成方法流行的原因之一。然而，在本案例中，我们希望集中展示模型的可解释性，因此我们要分析各个指标的值。基于这个原因，我们创建了一个在 TF 友好的格式中执行独热编码的函数：
 
-```
+```py
 def one_hot_cat_column(feature_name, vocab):
     return tf.feature_column.indicator_column(
     tf.feature_column.categorical_column_with_vocabulary_list(feature_name,                                                               vocab)) 
@@ -41,21 +41,21 @@ def one_hot_cat_column(feature_name, vocab):
 
 我们选择这个数据集是因为它对于读者可能遇到的典型商业预测问题来说相当现实：数据中包含时间维度，并且有数值型和类别型特征。同时，它也相当干净（没有缺失值），这意味着我们可以专注于实际的建模，而不是数据处理：
 
-```
+```py
 xtrain = pd.read_csv('../input/hotel-booking-                              demand/hotel_bookings.csv')
 xtrain.head(3) 
 ```
 
 数据集有时间维度，因此可以基于`reservation_status_date`进行自然的训练/验证集划分：
 
-```
+```py
 xvalid = xtrain.loc[xtrain['reservation_status_date'] >= '2017-08-01']
 xtrain = xtrain.loc[xtrain['reservation_status_date'] < '2017-08-01'] 
 ```
 
 将特征与目标分开：
 
-```
+```py
 ytrain, yvalid = xtrain['is_canceled'], xvalid['is_canceled']
 xtrain.drop('is_canceled', axis = 1, inplace = True)
 xvalid.drop('is_canceled', axis = 1, inplace = True) 
@@ -65,7 +65,7 @@ xvalid.drop('is_canceled', axis = 1, inplace = True)
 
 我们从训练数据中去除一些额外的变量——这个步骤可以在建模过程之前基于专家判断进行，或者可以通过自动化方法进行。后一种方法将包括运行一个小型模型并检查全局特征的重要性：如果结果显示某一个非常重要的特征主导了其他特征，它可能是信息泄露的潜在来源：
 
-```
+```py
 xtrain.drop(['arrival_date_year','assigned_room_type', 'booking_changes', 'reservation_status', 'country', 'days_in_waiting_list'], axis =1, inplace = True)
 num_features = ["lead_time","arrival_date_week_number",               
                 "arrival_date_day_of_month",
@@ -94,7 +94,7 @@ for feature_name in num_features:
 
 下一步是为提升树算法创建输入函数：我们指定如何将数据读入模型，用于训练和推理。我们使用 `tf.data` API 中的 `from_tensor_slices` 方法直接从 pandas 读取数据：
 
-```
+```py
 NUM_EXAMPLES = len(ytrain)
 def make_input_fn(X, y, n_epochs=None, shuffle=True):
 
@@ -117,7 +117,7 @@ eval_input_fn = make_input_fn(xvalid, yvalid, shuffle=False,                    
 
 现在我们可以构建实际的 BoostedTrees 模型。我们设置了一个最小的参数列表（`max_depth` 是其中一个最重要的参数）——在定义中没有指定的参数将保持默认值，这些可以通过文档中的帮助函数查找。
 
-```
+```py
 params = {
   'n_trees': 125,
   'max_depth': 5,
@@ -131,7 +131,7 @@ est.train(train_input_fn, max_steps=100)
 
 一旦我们训练好一个模型，就可以根据不同的评估指标来评估其性能。`BoostedTreesClassifier` 包含一个 `evaluate` 方法，输出涵盖了广泛的可能指标；使用哪些指标进行指导取决于具体应用，但默认输出的指标已经能让我们从多个角度评估模型（例如，如果我们处理的是一个高度不平衡的数据集，`auc` 可能会有些误导，此时我们应该同时评估损失值）。更详细的说明，请参考文档：[`www.tensorflow.org/api_docs/python/tf/estimator/BoostedTreesClassifier`](https://www.tensorflow.org/api_docs/python/tf/estimator/BoostedTreesClassifier)：
 
-```
+```py
 # Evaluation
 results = est.evaluate(eval_input_fn)
 pd.Series(results).to_frame() 
@@ -141,14 +141,14 @@ pd.Series(results).to_frame()
 
 ![Obraz zawierający stół  Opis wygenerowany automatycznie](img/B16254_05_01.png)
 
-```
+```py
 pred_dicts = list(est.predict(eval_input_fn))
 probs = pd.Series([pred['probabilities'][1] for pred in pred_dicts]) 
 ```
 
 我们可以在不同的泛化层次上评估结果——以下给出全球性和局部性差异的具体说明。我们从**接收者操作特征**（**ROC**）曲线开始：这是一种图形，显示了分类模型在所有可能分类阈值下的性能。我们绘制假阳性率与真正阳性率的关系：一个随机分类器会表现为从 (0,0) 到 (1,1) 的对角线，越远离这种情况，朝左上角移动，我们的分类器就越好：
 
-```
+```py
 fpr, tpr, _ = roc_curve(yvalid, probs)
 plt.plot(fpr, tpr)
 plt.title('ROC curve')
@@ -163,7 +163,7 @@ plt.xlim(0,); plt.ylim(0,); plt.show()
 
 局部可解释性指的是对模型在单个示例层面的预测的理解：我们将创建并可视化每个实例的贡献。这对于需要向具有技术认知多样性的观众解释模型预测时尤其有用。我们将这些值称为**方向性特征贡献**（**DFC**）：
 
-```
+```py
 pred_dicts = list(est.experimental_predict_with_explanations(eval_input_fn))
 # Create DFC Pandas dataframe.
 labels = yvalid.values
@@ -180,7 +180,7 @@ df_dfc.describe().T
 
 以下代码块演示了提取某个记录的预测特征贡献所需的步骤。为了方便和可重用，我们首先定义了一个绘制选定记录的函数（为了更容易解释，我们希望使用不同的颜色绘制特征重要性，具体取决于它们的贡献是正向还是负向）：
 
-```
+```py
 def _get_color(value):
     """To make positive DFCs plot green, negative DFCs plot red."""
     green, red = sns.color_palette()[2:4]
@@ -217,7 +217,7 @@ def plot_example(example):
 
 定义好样板代码后，我们可以以一种直接的方式绘制特定记录的详细图表：
 
-```
+```py
 ID = 10
 example = df_dfc.iloc[ID]  # Choose ith example from evaluation set.
 TOP_N = 8  # View top 8 features.
@@ -242,7 +242,7 @@ plt.show()
 
 计算置换特征重要性的函数如下：
 
-```
+```py
 def permutation_importances(est, X_eval, y_eval, metric, features):
     """Column by column, shuffle values and observe effect on eval set.
     source: http://explained.ai/rf-importance/index.html
@@ -268,7 +268,7 @@ def accuracy_metric(est, X, y):
 
 我们使用以下函数来显示最相关的列：
 
-```
+```py
 features = CATEGORICAL_COLUMNS + NUMERIC_COLUMNS
 importances = permutation_importances(est, dfeval, y_eval, accuracy_metric,
                                       features)
@@ -288,7 +288,7 @@ plt.show()
 
 我们使用以下函数以相同的方式显示增益特征重要性列：
 
-```
+```py
 importances = est.experimental_feature_importances(normalize=True)
 df_imp = pd.Series(importances)
 # Visualize importances.
@@ -309,7 +309,7 @@ ax.grid(False, axis='y')
 
 DFCs 的绝对值可以被平均，以理解全局层面的影响：
 
-```
+```py
 dfc_mean = df_dfc.abs().mean()
 N = 8
 sorted_ix = dfc_mean.abs().sort_values()[-N:].index  # Average and sort by absolute.

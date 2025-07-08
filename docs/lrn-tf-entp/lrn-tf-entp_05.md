@@ -50,7 +50,7 @@
 
 1.  加载库、定义变量，并仅在你运行在不同项目中时定义项目 ID：
 
-    ```
+    ```py
     PROJECT_ID = '<PROJECT_ID>' 
     import tensorflow as tf
     import pandas as pd
@@ -58,7 +58,7 @@
 
 1.  使用 BigQuery 魔法命令将表格读取到 pandas DataFrame（`train_raw_df`）中：
 
-    ```
+    ```py
     %%bigquery train_raw_df
     SELECT countries_and_territories, geo_id, country_territory_code, 
     year, month, day, confirmed_cases, daily_deaths, pop_data_2019
@@ -67,7 +67,7 @@
 
 1.  看几个样本行：
 
-    ```
+    ```py
     train_raw_df.sample(n=5)
     ```
 
@@ -79,19 +79,19 @@
 
 1.  一些列是类别型的。我们需要将它们编码为整数。首先，我们将该列指定为 pandas 类别特征：
 
-    ```
+    ```py
     train_raw_df['countries_and_territories'] = pd.Categorical(train_raw_df['countries_and_territories'])
     ```
 
 1.  然后我们将列内容替换为类别编码：
 
-    ```
+    ```py
     train_raw_df['countries_and_territories'] = train_raw_df.countries_and_territories.cat.codes
     ```
 
 1.  然后，我们对其他类别列重复此过程：
 
-    ```
+    ```py
     train_raw_df['geo_id'] = pd.Categorical(train_raw_df['geo_id'])
     train_raw_df['geo_id'] = train_raw_df.geo_id.cat.codes
     train_raw_df['country_territory_code'] = pd.Categorical(train_raw_df['country_territory_code'])
@@ -100,7 +100,7 @@
 
 1.  按数据类型创建列表来存放列名。这样做的原因是确保数据集能够将我们 DataFrame 中的列转换为正确的 TensorFlow 数据类型：
 
-    ```
+    ```py
     int32_features = ['confirmed_cases']
     float32_features = ['pop_data_2019']
     int16_features = ['year', 'month', 'day']
@@ -110,7 +110,7 @@
 
 1.  从 pandas DataFrame 创建数据集时，我们需要指定正确的列名和数据类型。列名根据其数据类型存放在相应的列表中：
 
-    ```
+    ```py
     training_dataset = tf.data.Dataset.from_tensor_slices(
             (
                 tf.cast(train_raw_df[int32_features].values, 
@@ -129,13 +129,13 @@
 
 1.  查看数据集的结构，确保其元数据与前一步创建过程中指定的内容一致：
 
-    ```
+    ```py
     training_dataset
     ```
 
     输出结果如下：
 
-    ```
+    ```py
     <TensorSliceDataset shapes: ((1,), (1,), (3,), (3,), (1,)), types: (tf.int32, tf.float32, tf.int16, tf.int32, tf.int32)>
     ```
 
@@ -161,29 +161,29 @@
 
 在将分布式文件存储到 Google Cloud Storage 桶时，文件名的常见模式如下：
 
-```
+```py
 <FILE_NAME>-<pattern>-001.csv
 ```
 
-```
+```py
 …
 ```
 
-```
+```py
 <FILE_NAME>-<pattern>-00n.csv
 ```
 
 或者，存在以下模式：
 
-```
+```py
 <FILE_NAME>-<pattern>-aa.csv
 ```
 
-```
+```py
 …
 ```
 
-```
+```py
 <FILE_NAME>-<pattern>-zz.csv
 ```
 
@@ -195,7 +195,7 @@
 
 你可以在本地系统上运行以下命令（你已经下载了上述文件）：
 
-```
+```py
 wget https://raw.githubusercontent.com/jbrownlee/Datasets/master/pima-indians-diabetes.data.csv
 ```
 
@@ -203,7 +203,7 @@ wget https://raw.githubusercontent.com/jbrownlee/Datasets/master/pima-indians-di
 
 该文件的列名如下：
 
-```
+```py
 ['Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness', 'Insulin', 'BMI', 'DiabetesPedigree', 'Age', 'Outcome']
 ```
 
@@ -213,13 +213,13 @@ wget https://raw.githubusercontent.com/jbrownlee/Datasets/master/pima-indians-di
 
     下载 CSV 文件后，你可以使用以下`awk`命令将其拆分为多个部分。这个命令会在每 200 行处将文件拆分成多个 CSV 部分：
 
-    ```
+    ```py
     awk '{filename = 'pima_indian_diabetes_data_part0' int((NR-1)/200) '.csv'; print >> filename}' pima-indians-diabetes.data.csv
     ```
 
     生成了以下 CSV 文件：
 
-    ```
+    ```py
     -rw-r--r--  1 mbp16  staff      6043 Jul 21 16:25 pima_indian_diabetes_data_part00.csv
     -rw-r--r--  1 mbp16  staff      6085 Jul 21 16:25 pima_indian_diabetes_data_part01.csv
     -rw-r--r--  1 mbp16  staff      6039 Jul 21 16:25 pima_indian_diabetes_data_part02.csv
@@ -242,33 +242,33 @@ wget https://raw.githubusercontent.com/jbrownlee/Datasets/master/pima-indians-di
 
 文件上传完成后，接下来我们进入 AI 平台笔记本环境，执行以下代码行：
 
-```
+```py
 import tensorflow as tf
 ```
 
-```
+```py
 distributed_files_pattern = 'gs://myworkdataset/pima_indian_diabetes_data_part*'
 ```
 
-```
+```py
 filenames = tf.io.gfile.glob(distributed_files_pattern)
 ```
 
 `Tf.io.gfile.glob`接收一个文件模式字符串作为输入，并创建一个`filenames`列表：
 
-```
+```py
 ['gs://myworkdataset/pima_indian_diabetes_data_part00.csv',
 ```
 
-```
+```py
  'gs://myworkdataset/pima_indian_diabetes_data_part01.csv',
 ```
 
-```
+```py
  'gs://myworkdataset/pima_indian_diabetes_data_part02.csv',
 ```
 
-```
+```py
  'gs://myworkdataset/pima_indian_diabetes_data_part03.csv']
 ```
 
@@ -278,15 +278,15 @@ filenames = tf.io.gfile.glob(distributed_files_pattern)
 
 通常，多个 CSV 文件要么没有表头，要么全部都有表头。在这种情况下，没有表头。我们需要在将 CSV 转换为数据集之前准备列名：
 
-```
+```py
 COLUMN_NAMES = ['Pregnancies', 'Glucose', 'BloodPressure', 
 ```
 
-```
+```py
                 'SkinThickness', 'Insulin', 'BMI', 
 ```
 
-```
+```py
                 'DiabetesPedigree', 'Age', 'Outcome']
 ```
 
@@ -294,39 +294,39 @@ COLUMN_NAMES = ['Pregnancies', 'Glucose', 'BloodPressure', 
 
 然后我们需要指定这些文件的第一行不是表头，因为我们要将 CSV 文件转换为数据集：
 
-```
+```py
 ds = tf.data.experimental.make_csv_dataset(
 ```
 
-```
+```py
       filenames,
 ```
 
-```
+```py
       header = False,
 ```
 
-```
+```py
       column_names = COLUMN_NAMES,
 ```
 
-```
+```py
       batch_size=5, # Intentionally make it small for 
 ```
 
-```
+```py
       # convenience.
 ```
 
-```
+```py
       label_name='Outcome',
 ```
 
-```
+```py
       num_epochs=1,
 ```
 
-```
+```py
       ignore_errors=True)
 ```
 
@@ -338,65 +338,65 @@ ds = tf.data.experimental.make_csv_dataset(
 
 让我们以数据集的第一批数据为例，其中包含五个观测值，并打印出特征列和目标列的数据。在数据集中，数据以数组的形式存储，每一列现在是一个键值对。在`features`中是另一级别的键值对，表示每个特征：
 
-```
+```py
 for features, target in ds.take(1):
 ```
 
-```
+```py
     print(''Outcome': {}'.format(target))
 ```
 
-```
+```py
     print(''Features:'')
 ```
 
-```
+```py
     for k, v in features.items():
 ```
 
-```
+```py
         print('  {!r:20s}: {}'.format(k, v))
 ```
 
 输出如下：
 
-```
+```py
 'Outcome': [1 0 0 0 0]
 ```
 
-```
+```py
 'Features:'
 ```
 
-```
+```py
   'Pregnancies'       : [ 7 12  1  0  2]
 ```
 
-```
+```py
   'Glucose'           : [129  88 128  93  96]
 ```
 
-```
+```py
   'BloodPressure'     : [ 68  74  82 100  68]
 ```
 
-```
+```py
   'SkinThickness'     : [49 40 17 39 13]
 ```
 
-```
+```py
   'Insulin'           : [125  54 183  72  49]
 ```
 
-```
+```py
   'BMI'               : [38.5 35.3 27.5 43.4 21.1]
 ```
 
-```
+```py
   'DiabetesPedigree'  : [0.439 0.378 0.115 1.021 0.647]
 ```
 
-```
+```py
   'Age'               : [43 48 22 35 26]
 ```
 
@@ -432,7 +432,7 @@ for features, target in ds.take(1):
 
 1.  显示图像以进行验证：
 
-    ```
+    ```py
     import IPython.display as display
     my_image = 'images-ai-platform-example/maldives/maldives-1.jpg'
     display.display(display.Image(filename=my_image))
@@ -446,7 +446,7 @@ for features, target in ds.take(1):
 
 1.  创建一个字典，将文件名与标签映射。我们可以使用 `my_image` 别名作为键，并且可以验证此字典：
 
-    ```
+    ```py
     image_labels = {
         my_image : 0
     }
@@ -455,7 +455,7 @@ for features, target in ds.take(1):
 
     输出应如下所示：
 
-    ```
+    ```py
     dict_items([('images-ai-platform-example/maldives/maldives-1.jpg', 0)])
     ```
 
@@ -475,7 +475,7 @@ for features, target in ds.take(1):
 
 1.  首先，我们可以使用 TensorFlow 文档中提供的这些函数。这些函数可以将值转换为与 `tf.Example` 兼容的类型：
 
-    ```
+    ```py
     def _bytes_feature(value):
       '''Returns a bytes_list from a string / byte.'''
       if isinstance(value, type(tf.constant(0))):
@@ -498,7 +498,7 @@ for features, target in ds.take(1):
 
 1.  然后，我们可以将图像作为字节串打开并提取其尺寸：
 
-    ```
+    ```py
     image_string = open(my_image, 'rb').read()
     image_shape = tf.image.decode_jpeg(image_string).shape
     image_shape
@@ -506,7 +506,7 @@ for features, target in ds.take(1):
 
 1.  现在我们构建一个字典，将这些键值对组合在一起：
 
-    ```
+    ```py
     label = image_labels[my_image]
     feature_dictionary = {
           'height': _int64_feature(image_shape[0]),
@@ -521,25 +521,25 @@ for features, target in ds.take(1):
 
 1.  然后我们将此字典转换为 `tf.Train.Features`：
 
-    ```
+    ```py
     features_msg = tf.train.Features(feature=feature_dictionary)
     ```
 
 1.  将 `tf.Features` protobuf 消息转换为 `tf.Example` protobuf 消息：
 
-    ```
+    ```py
     example_msg = tf.train.Example(features=features_msg)
     ```
 
 1.  现在，创建一个存储 `tfrecords` 的目录：
 
-    ```
+    ```py
     !mkdir tfrecords-collection
     ```
 
 1.  指定目标名称，然后执行写操作：
 
-    ```
+    ```py
     record_file = 'tfrecords-collection/maldives-1.tfrecord'
     with tf.io.TFRecordWriter(record_file) as writer:
         writer.write(example_msg.SerializeToString())
@@ -553,13 +553,13 @@ for features, target in ds.take(1):
 
 1.  从存储路径中读取`TFRecord`：
 
-    ```
+    ```py
     read_back_tfrecord = tf.data.TFRecordDataset('tfrecords-collection/maldives-1.tfrecord')
     ```
 
 1.  创建一个字典来指定`TFRecord`中的键和值，并使用它来解析`TFRecord`数据集中的所有元素：
 
-    ```
+    ```py
     # Create a dictionary describing the features.
     image_feature_description = {
         'height': tf.io.FixedLenFeature([], tf.int64),
@@ -580,7 +580,7 @@ for features, target in ds.take(1):
 
 1.  接下来，我们将使用以下代码来显示图像：
 
-    ```
+    ```py
     for image_features in parsed_image_dataset:
       image_raw = image_features['image_raw'].numpy()
       display.display(display.Image(data=image_raw))
@@ -602,129 +602,129 @@ for features, target in ds.take(1):
 
 通常，在处理分类图像时，我们会按照以下目录结构组织图像，从一个基本目录开始（换句话说，项目名称）。下一级目录为`train`、`validation`和`test`。在这三个目录中，每个目录下都有图像类别目录。换句话说，标签是最底层的目录名称。例如，目录可以组织为以下结构：
 
-```
+```py
 /home/<user_name>/Documents/<project_name>
 ```
 
 然后，在此级别下，我们将拥有以下内容：
 
-```
+```py
 /home/<user_name>/Documents/<project_name>train
 ```
 
-```
+```py
 /home/<user_name>/Documents/<project_name>train/<class_1_dir>
 ```
 
-```
+```py
 /home/<user_name>/Documents/<project_name>train/<class_2_dir>
 ```
 
-```
+```py
 /home/<user_name>/Documents/<project_name>train/<class_n_dir>
 ```
 
-```
+```py
 /home/<user_name>/Documents/<project_name>validation
 ```
 
-```
+```py
 /home/<user_name>/Documents/<project_name>/validation/<class_1_dir>
 ```
 
-```
+```py
 /home/<user_name>/Documents/<project_name>/validation/<class_2_dir>
 ```
 
-```
+```py
 /home/<user_name>/Documents/<project_name>/validation/<class_n_dir>
 ```
 
-```
+```py
 /home/<user_name>/Documents/<project_name>test
 ```
 
-```
+```py
 /home/<user_name>/Documents/<project_name> /test /<class_1_dir>
 ```
 
-```
+```py
 /home/<user_name>/Documents/<project_name> test/<class_2_dir>
 ```
 
-```
+```py
 /home/<user_name>/Documents/<project_name> /test/<class_n_dir>
 ```
 
 另一种展示图像按类别组织的方式如下：
 
-```
+```py
 -base_dir
 ```
 
-```
+```py
        -train_dir
 ```
 
-```
+```py
             -class_1_dir 
 ```
 
-```
+```py
             -class_2_dir
 ```
 
-```
+```py
             -class_n_dir
 ```
 
-```
+```py
        -validation_dir
 ```
 
-```
+```py
            -class_1_dir
 ```
 
-```
+```py
            -class_2_dir
 ```
 
-```
+```py
            -class_n_dir
 ```
 
-```
+```py
        -test
 ```
 
-```
+```py
           -class_1_dir
 ```
 
-```
+```py
           -class_2_dir
 ```
 
-```
+```py
           -class_n_dir
 ```
 
 图像根据其类别放置在相应的目录中。在本节中，示例简化为云存储中的以下结构：
 
-```
+```py
 -bucket
 ```
 
-```
+```py
  -badlands (Badlands national park)
 ```
 
-```
+```py
  -kistefos (Kistefos Museum)
 ```
 
-```
+```py
  -maldives (Maldives beaches)
 ```
 
@@ -746,7 +746,7 @@ for features, target in ds.take(1):
 
 1.  将图像从存储桶复制到笔记本运行时：
 
-    ```
+    ```py
     !mkdir from_gs
     !gsutil cp -r gs://image-collection from_gs
     ```
@@ -771,7 +771,7 @@ for features, target in ds.take(1):
 
 1.  导入库并将标签名称指定为`CLASS_NAMES`：
 
-    ```
+    ```py
     import tensorflow as tf
     import numpy as np
     import IPython.display as display
@@ -784,13 +784,13 @@ for features, target in ds.take(1):
 
     并且`CLASS_NAMES`被正确捕获，如下所示：
 
-    ```
+    ```py
     array(['kistefos', 'badlands', 'maldives'], dtype='<U8')
     ```
 
 1.  现在，我们需要构建一个字典，将文件名映射到它们对应的标签（来自`CLASS_NAMES`）。我们可以使用`glob`来编码目录和文件名模式。创建几个空列表，以便我们可以递归遍历目录，并将路径到文件名添加到文件名列表中，将标签（由目录名表示）添加到类别列表中：
 
-    ```
+    ```py
     import glob
     file_name_list = []
     class_list = []
@@ -807,7 +807,7 @@ for features, target in ds.take(1):
 
 1.  一旦两个列表按准确顺序填充，我们可以将这些列表组合在一起并将结果编码为键值对（字典）：
 
-    ```
+    ```py
     image_label_dict = dict(zip(file_name_list, class_list))
     image_label_dict should look similar to:
     {'from_gs/image-collection/kistefos/kistefos-1.jpg': 0,
@@ -833,7 +833,7 @@ for features, target in ds.take(1):
 
         如果我们想要将一串文本（字节字符串）转换成 `tf.train.ByteList` 类型的特征，下面的函数首先将文本（它是一个急切张量）转换成 `numpy` 数组，因为 `tf.train.BytesList` 目前只能将 `numpy` 格式解包成字节列表。在将一个 protobuf 消息的值转换为 `ByteList` 类型之后，它会被转换为一个带有 `ByteList` 数据类型的特征对象：
 
-        ```
+        ```py
         def _bytes_feature(value):
           if not tf.is_tensor(value):
             value = tf.convert_to_tensor(value)
@@ -846,7 +846,7 @@ for features, target in ds.take(1):
 
         如果我们需要将浮点数转换为 `tf.train.FloatList` 类型的特征，下面的函数可以完成这个任务：
 
-        ```
+        ```py
         def _float_feature(value):
           float_list_msg = tf.train.FloatList(value=[value])
           coerced_list = tf.train.Feature(float_list = 
@@ -856,7 +856,7 @@ for features, target in ds.take(1):
 
 1.  最后，对于生成 `tf.train.Int64List` 类型的特征，可以按照以下方式完成：
 
-    ```
+    ```py
     def _int64_feature(value):
       int64_list_msg = tf.train.Int64List(value=[value])
       coerced_list = tf.train.Feature(int64_list = 
@@ -872,7 +872,7 @@ for features, target in ds.take(1):
 
     在这个函数内部，首先通过 `decode_jpeg` 的输出指定图像形状，`decode_jpeg` 将字节数组转换为 `jpeg` 格式。维度值存储在 `image_shape` 中，作为 `numpy` 数组，我们可以将这些值传入特征字典。在 `feature` 字典内，指定了键，并且从前面步骤中的辅助函数中得到了相应的值并进行了类型转换。特征字典随后被用来指定特征的 schema 到 `features` protobuf 中。然后，`feature` protobuf 被转换为一个示例 protobuf，这是最终的格式，将被序列化为 `TFRecord`：
 
-    ```
+    ```py
     def image_example(image_str, label):
       image_shape = tf.image.decode_jpeg(image_string).shape
       feature = {
@@ -889,7 +889,7 @@ for features, target in ds.take(1):
 
 1.  通过遍历 `image_label_dict` 将多个图像文件写入 `TFRecords`：
 
-    ```
+    ```py
     record_file = 'image-collection.tfrecords'
     with tf.io.TFRecordWriter(record_file) as writer:
       for filename, label in image_image_label_dict.items():
@@ -906,13 +906,13 @@ for features, target in ds.take(1):
 
 1.  使用与前一节相同的 API 读取`tfrecords`：
 
-    ```
+    ```py
     image_collection_dataset = tf.data.TFRecordDataset('image-collection.tfrecords')
     ```
 
 1.  定义数据集的规格：
 
-    ```
+    ```py
     feature_specs = {
         'height': tf.io.FixedLenFeature([], tf.int64),
         'width': tf.io.FixedLenFeature([], tf.int64),
@@ -924,7 +924,7 @@ for features, target in ds.take(1):
 
 1.  解析 protobuf。这与前一节所示的完全相同：
 
-    ```
+    ```py
     def parse_image(example):
       return tf.io.parse_single_example(example, 
       feature_specs)
@@ -933,7 +933,7 @@ for features, target in ds.take(1):
 
 1.  使用以下代码帮助显示图像：
 
-    ```
+    ```py
     import IPython.display as display
     for image_features in parsed_image_dataset:
       image_raw = image_features['image_raw'].numpy()

@@ -206,7 +206,7 @@ Seq2seq，或称编码器-解码器（参见*神经网络的序列到序列学�
 
 我们将从构造函数开始：
 
-```
+```py
 class EncoderRNN(torch.nn.Module):
     def __init__(self, input_size, hidden_size):
         super(EncoderRNN, self).__init__()
@@ -224,7 +224,7 @@ class EncoderRNN(torch.nn.Module):
 
 接下来，让我们实现`EncoderRNN.forward`方法（请注意缩进）：
 
-```
+```py
 def forward(self, input, hidden):
     # Pass through the embedding
     embedded = self.embedding(input).view(1, 1, -1)
@@ -239,7 +239,7 @@ def forward(self, input, hidden):
 
 我们还将实现`EncoderRNN.init_hidden`方法，该方法创建一个与隐藏 RNN 状态大小相同的空张量。这个张量作为序列开始时的第一个 RNN 隐藏状态（请注意缩进）：
 
-```
+```py
 def init_hidden(self):
     return torch.zeros(1, 1, self.hidden_size, device=device)
 ```
@@ -250,7 +250,7 @@ def init_hidden(self):
 
 让我们实现`DecoderRNN`类——一个没有注意力的基础解码器。同样，我们从构造函数开始：
 
-```
+```py
 class DecoderRNN(torch.nn.Module):
 
     def __init__(self, hidden_size, output_size):
@@ -273,7 +273,7 @@ class DecoderRNN(torch.nn.Module):
 
 我们将继续实现`DecoderRNN.forward`方法（请注意缩进）：
 
-```
+```py
     def forward(self, input, hidden, _):
         # Pass through the embedding
         embedded = self.embedding(input).view(1, 1, -1)
@@ -295,7 +295,7 @@ class DecoderRNN(torch.nn.Module):
 
 我们从`AttnDecoderRNN.__init__`方法开始：
 
-```
+```py
 class AttnDecoderRNN(torch.nn.Module):
     def __init__(self, hidden_size, output_size, max_length=MAX_LENGTH,
     dropout=0.1):
@@ -328,7 +328,7 @@ class AttnDecoderRNN(torch.nn.Module):
 
 像往常一样，我们有`self.embedding`，但这次我们还将添加`self.dropout`来防止过拟合。全连接层`self.attn`和`self.w_c`与注意力机制相关，接下来我们将在查看`AttnDecoderRNN.forward`方法时学习如何使用它们。`AttnDecoderRNN.forward`实现了我们在*带注意力机制的 Seq2seq*部分中描述的 Luong 注意力算法。我们从方法声明和参数预处理开始：
 
-```
+```py
 def forward(self, input, hidden, encoder_outputs):
     embedded = self.embedding(input).view(1, 1, -1)
     embedded = self.dropout(embedded)
@@ -336,38 +336,38 @@ def forward(self, input, hidden, encoder_outputs):
 
 接下来，我们将计算当前的隐藏状态（`hidden` = **s***[t]*）。请注意缩进，因为这段代码仍然是`AttnDecoderRNN.forward`方法的一部分：
 
-```
+```py
     rnn_out, hidden = self.rnn_cell(embedded, hidden)
 ```
 
 然后，我们将计算对齐分数（`alignment_scores` = *e[t,i]*），遵循乘法注意力公式。在这里，`torch.mm`是矩阵乘法，`encoder_outputs`是编码器的输出（惊讶吧！）：
 
-```
+```py
     alignment_scores = torch.mm(self.attn(hidden)[0], encoder_outputs.t())
 ```
 
 接下来，我们将对分数计算 softmax 以产生注意力权重（`attn_weights` = *a[t,i]*）：
 
-```
+```py
     attn_weights = torch.nn.functional.softmax(alignment_scores, dim=1)
 ```
 
 然后，我们将根据注意力公式计算上下文向量（`c_t` = **c***[t]*）：
 
-```
+```py
     c_t = torch.mm(attn_weights, encoder_outputs)
 ```
 
 接下来，我们将通过连接当前的隐藏状态和上下文向量来计算修改后的状态向量（`hidden_s_t` = ![](img/e679dcd7-79cf-4eed-abe6-a71dc56c242f.png)）：
 
-```
+```py
     hidden_s_t = torch.cat([hidden[0], c_t], dim=1)
     hidden_s_t = torch.tanh(self.w_c(hidden_s_t))
 ```
 
 最后，我们将计算下一个预测词：
 
-```
+```py
     output = torch.nn.functional.log_softmax(self.w_y(hidden_s_t), dim=1)
 ```
 
@@ -375,7 +375,7 @@ def forward(self, input, hidden, encoder_outputs):
 
 最后，方法返回`output`、`hidden`和`attn_weights`。稍后，我们将使用`attn_weights`来可视化输入和输出句子之间的注意力（方法`AttnDecoderRNN.forward`在此结束）：
 
-```
+```py
     return output, hidden, attn_weights
 ```
 
@@ -387,7 +387,7 @@ def forward(self, input, hidden, encoder_outputs):
 
 首先，我们将启动训练集的迭代，设置初始序列张量，并重置梯度：
 
-```
+```py
 def train(encoder, decoder, loss_function, encoder_optimizer, decoder_optimizer, data_loader, max_length=MAX_LENGTH):
     print_loss_total = 0
 
@@ -413,7 +413,7 @@ def train(encoder, decoder, loss_function, encoder_optimizer, decoder_optimizer,
 
 接下来，我们将进行实际的训练：
 
-```
+```py
 with torch.set_grad_enabled(True):
     # Pass the sequence through the encoder and store the hidden states
     at each step
@@ -453,7 +453,7 @@ with torch.set_grad_enabled(True):
 
 类似于`train`，我们有一个`evaluate`函数，它接受一个输入序列并返回其翻译结果和相应的注意力分数。我们不会在这里包括完整的实现，而是关注编码器/解码器部分。不同于教师强制，`decoder`在每个步骤的输入是前一步的输出词：
 
-```
+```py
 # Initiate the decoder with the last encoder hidden state
 decoder_input = torch.tensor([[GO_token]], device=device)  # GO
 
@@ -614,7 +614,7 @@ Transformer 使用 dropout 作为正则化技术。在每个子层的输出添�
 
 首先，我们从实用函数`clone`开始，该函数接受`torch.nn.Module`的实例并生成`n`个相同的深拷贝（不包括原始源实例）：
 
-```
+```py
 def clones(module: torch.nn.Module, n: int):
     return torch.nn.ModuleList([copy.deepcopy(module) for _ in range(n)])
 ```
@@ -625,7 +625,7 @@ def clones(module: torch.nn.Module, n: int):
 
 在本节中，我们将按照*Transformer Attention*部分的定义实现多头注意力。我们将从实现常规的缩放点积注意力开始：
 
-```
+```py
 def attention(query, key, value, mask=None, dropout=None):
     """Scaled Dot Product Attention"""
     d_k = query.size(-1)
@@ -653,7 +653,7 @@ def attention(query, key, value, mask=None, dropout=None):
 
 我们将从 `__init__` 方法开始：
 
-```
+```py
 class MultiHeadedAttention(torch.nn.Module):
     def __init__(self, h, d_model, dropout=0.1):
         """
@@ -678,7 +678,7 @@ class MultiHeadedAttention(torch.nn.Module):
 
 接下来，我们实现`MultiHeadedAttention.forward`方法（请注意缩进）：
 
-```
+```py
 def forward(self, query, key, value, mask=None):
     if mask is not None:
         # Same mask applied to all h heads.
@@ -709,7 +709,7 @@ def forward(self, query, key, value, mask=None):
 
 我们遍历 **Q**/**K**/**V** 向量及其参考投影 `self.fc_layers`，并使用以下代码片段生成 **Q**/**K**/**V** 的 `projections`：
 
-```
+```py
 l(x).view(batch_samples, -1, self.h, self.d_k).transpose(1, 2)
 ```
 
@@ -719,7 +719,7 @@ l(x).view(batch_samples, -1, self.h, self.d_k).transpose(1, 2)
 
 在这一部分，我们将实现编码器，编码器由多个不同的子组件组成。我们先从主要定义开始，然后深入更多的细节：
 
-```
+```py
 class Encoder(torch.nn.Module):
     def __init__(self, block: EncoderBlock, N: int):
         super(Encoder, self).__init__()
@@ -738,7 +738,7 @@ class Encoder(torch.nn.Module):
 
 我们将省略 `LayerNorm` 的定义（只需知道它是编码器末尾的归一化），我们将专注于 `EncoderBlock`：
 
-```
+```py
 class EncoderBlock(torch.nn.Module):
     def __init__(self,
                  size: int,
@@ -762,7 +762,7 @@ class EncoderBlock(torch.nn.Module):
 
 提醒一下，每个编码器块由两个子层组成（`self.sublayers` 使用熟悉的 `clones` 函数实例化）：一个多头自注意力 `self_attn`（`MultiHeadedAttention` 的实例），后跟一个简单的全连接网络 `ffn`（`PositionwiseFFN` 的实例）。每个子层都被它的残差连接包装，残差连接是通过 `SublayerConnection` 类实现的：
 
-```
+```py
 class SublayerConnection(torch.nn.Module):
     def __init__(self, size, dropout):
         super(SublayerConnection, self).__init__()
@@ -777,7 +777,7 @@ class SublayerConnection(torch.nn.Module):
 
 唯一尚未定义的组件是 `PositionwiseFFN`，它实现了公式 ![]。让我们添加这个缺失的部分：
 
-```
+```py
 class PositionwiseFFN(torch.nn.Module):
     def __init__(self, d_model: int, d_ff: int, dropout=0.1):
         super(PositionwiseFFN, self).__init__()
@@ -795,7 +795,7 @@ class PositionwiseFFN(torch.nn.Module):
 
 在这一部分，我们将实现解码器。它遵循与编码器非常相似的模式：
 
-```
+```py
 class Decoder(torch.nn.Module):
     def __init__(self, block: DecoderBlock, N: int, vocab_size: int):
         super(Decoder, self).__init__()
@@ -816,7 +816,7 @@ class Decoder(torch.nn.Module):
 
 接下来，让我们实现`DecoderBlock`：
 
-```
+```py
 class DecoderBlock(torch.nn.Module):
     def __init__(self,
                  size: int,
@@ -850,7 +850,7 @@ class DecoderBlock(torch.nn.Module):
 
 我们将继续实现主`EncoderDecoder`类：
 
-```
+```py
 class EncoderDecoder(torch.nn.Module):
     def __init__(self,
                  encoder: Encoder,
@@ -879,7 +879,7 @@ class EncoderDecoder(torch.nn.Module):
 
 接下来，我们将实现`build_model`函数，它将我们迄今为止实现的所有内容结合成一个连贯的模型：
 
-```
+```py
 def build_model(source_vocabulary: int,
                 target_vocabulary: int,
                 N=6, d_model=512, d_ff=2048, h=8, dropout=0.1):
@@ -909,7 +909,7 @@ def build_model(source_vocabulary: int,
 
 除了熟悉的`MultiHeadedAttention`和`PositionwiseFFN`，我们还创建了`position`变量（`PositionalEncoding`类的一个实例）。该类实现了我们在*Transformer 模型*部分描述的正弦位置编码（这里不包括完整实现）。现在让我们聚焦于`EncoderDecoder`的实例化：我们已经熟悉了编码器和解码器，所以在这方面没有什么意外。但嵌入层稍微有些不同。以下代码实例化了源嵌入（但对于目标嵌入也是有效的）：
 
-```
+```py
 source_embeddings=torch.nn.Sequential(Embeddings(d_model, source_vocabulary), c(position))
 ```
 
@@ -1175,7 +1175,7 @@ Transformer-XL 在变压器模型中引入了递归关系。在训练过程中�
 
 1.  我们从导入开始：
 
-```
+```py
 import torch
 from transformers import TransfoXLLMHeadModel, TransfoXLTokenizer
 ```
@@ -1184,7 +1184,7 @@ from transformers import TransfoXLLMHeadModel, TransfoXLTokenizer
 
 1.  接下来，我们将初始化设备并实例化`model`和`tokenizer`。请注意，我们将使用库中可用的`transfo-xl-wt103`预训练参数集：
 
-```
+```py
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # Instantiate pre-trained model-specific tokenizer and the model itself
@@ -1194,7 +1194,7 @@ model = TransfoXLLMHeadModel.from_pretrained('transfo-xl-wt103').to(device)
 
 1.  然后，我们将指定初始序列，对其进行分词，并将其转化为一个与模型兼容的输入`tokens_tensor`，该输入包含一个 token 列表：
 
-```
+```py
 text = "The company was founded in"
 tokens_tensor = \
     torch.tensor(tokenizer.encode(text)) \
@@ -1204,7 +1204,7 @@ tokens_tensor = \
 
 1.  接下来，我们将使用这个 token 来启动一个循环，在这个循环中，模型将生成序列的新 token：
 
-```
+```py
 mems = None  # recurrence mechanism
 
 predicted_tokens = list()
@@ -1233,14 +1233,14 @@ for i in range(50):  # stop at 50 predicted tokens
 
 1.  最后，我们将展示结果：
 
-```
+```py
 print('Initial sequence: ' + text)
 print('Predicted output: ' + " ".join(predicted_tokens))
 ```
 
 程序的输出如下：
 
-```
+```py
 Initial sequence: The company was founded in
 Predicted output: the United States .
 ```

@@ -28,7 +28,7 @@
 
 你会首先注意到的是，**AutoML**非常消耗资源，因此如果你想复制并扩展我们将在本章中讨论的配方，访问**GPU**是必须的。此外，由于我们将在所有提供的示例中使用**AutoKeras**，请按以下方式安装它：
 
-```
+```py
 $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autokeras pydot graphviz
 ```
 
@@ -50,7 +50,7 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  导入所有需要的模块：
 
-    ```
+    ```py
     from autokeras import ImageClassifier
     from tensorflow.keras.datasets import fashion_mnist as fm
     ```
@@ -59,26 +59,26 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  加载训练和测试数据：
 
-    ```
+    ```py
     (X_train, y_train), (X_test, y_test) = fm.load_data()
     ```
 
 1.  将图像归一化到[0, 1]的范围：
 
-    ```
+    ```py
     X_train = X_train.astype('float32') / 255.0
     X_test = X_test.astype('float32') / 255.0
     ```
 
 1.  定义我们允许每个可能的网络（称为一次试验）训练的轮次数：
 
-    ```
+    ```py
     EPOCHS = 10
     ```
 
 1.  这就是魔法发生的地方。定义一个`ImageClassifier()`实例：
 
-    ```
+    ```py
     classifier = ImageClassifier(seed=9, max_trials=10)
     ```
 
@@ -86,13 +86,13 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  在测试数据上对分类器进行 10 个轮次的训练（每次试验）：
 
-    ```
+    ```py
     classifier.fit(X_train, y_train, epochs=EPOCHS)
     ```
 
 1.  最后，在测试集上评估最佳分类器并打印准确率：
 
-    ```
+    ```py
     print(classifier.evaluate(X_test, y_test))
     ```
 
@@ -142,7 +142,7 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  导入我们将要使用的模块：
 
-    ```
+    ```py
     import csv
     import pathlib
     import numpy as np
@@ -152,7 +152,7 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  数据集的每个子集（训练集、测试集和验证集）都在一个 CSV 文件中定义。在这个文件中，除了许多其他列外，我们还有图像路径和照片中人物的实际年龄。在此步骤中，我们将定义`load_mapping()`函数，该函数将从图像路径创建一个映射，用于加载实际数据到内存中：
 
-    ```
+    ```py
     def load_mapping(csv_path, faces_path):
         mapping = {}
         with open(csv_path, 'r') as f:
@@ -166,7 +166,7 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  定义`get_image_and_labels()`函数，该函数接收`load_mapping()`函数生成的映射，并返回一个图像数组（归一化到[-1, 1]范围内）和一个相应年龄的数组：
 
-    ```
+    ```py
     def get_images_and_labels(mapping):
         images = []
         labels = []
@@ -187,7 +187,7 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  定义 CSV 文件的路径，以创建每个子集的数据映射：
 
-    ```
+    ```py
     base_path = (pathlib.Path.home() / '.keras' / 'datasets' 
                  /'appa-real-release')
     train_csv_path = str(base_path / 'gt_train.csv')
@@ -197,7 +197,7 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  定义每个子集的图像所在目录的路径：
 
-    ```
+    ```py
     train_faces_path = str(base_path / 'train')
     test_faces_path = str(base_path / 'test')
     val_faces_path = str(base_path / 'valid')
@@ -205,7 +205,7 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  为每个子集创建映射：
 
-    ```
+    ```py
     train_mapping = load_mapping(train_csv_path, 
                                 train_faces_path)
     test_mapping = load_mapping(test_csv_path, 
@@ -216,7 +216,7 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  获取每个子集的图像和标签：
 
-    ```
+    ```py
     X_train, y_train = get_images_and_labels(train_mapping)
     X_test, y_test = get_images_and_labels(test_mapping)
     X_val, y_val = get_images_and_labels(val_mapping)
@@ -224,13 +224,13 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  我们将在每次试验中训练每个网络，最多训练 15 个 epoch：
 
-    ```
+    ```py
     EPOCHS = 15
     ```
 
 1.  我们实例化一个`ImageRegressor()`对象，它封装了`adam`优化器：
 
-    ```
+    ```py
     regressor = ImageRegressor(seed=9,
                                max_trials=10,
                                optimizer='adam')
@@ -238,7 +238,7 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  拟合回归器。请注意，我们传递了自己的验证集。如果我们不这样做，**AutoKeras**默认会取 20%的训练数据来验证它的实验：
 
-    ```
+    ```py
     regressor.fit(X_train, y_train,
                   epochs=EPOCHS,
                   validation_data=(X_val, y_val))
@@ -246,7 +246,7 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  最后，我们必须在测试数据上评估最佳回归器并打印其性能指标：
 
-    ```
+    ```py
     print(regressor.evaluate(X_test, y_test))
     ```
 
@@ -282,7 +282,7 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  导入必要的依赖项：
 
-    ```
+    ```py
     from autokeras import *
     from tensorflow.keras.datasets import fashion_mnist as fm
     from tensorflow.keras.models import load_model
@@ -291,26 +291,26 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  加载`Fashion-MNIST`数据集的训练和测试集：
 
-    ```
+    ```py
     (X_train, y_train), (X_test, y_test) = fm.load_data()
     ```
 
 1.  将数据归一化到[0, 1]区间：
 
-    ```
+    ```py
     X_train = X_train.astype('float32') / 255.0
     X_test = X_test.astype('float32') / 255.0
     ```
 
 1.  定义我们将为每个网络训练的周期数：
 
-    ```
+    ```py
     EPOCHS = 10
     ```
 
 1.  创建一个`ImageClassifier()`，它将尝试在 20 次试验中找到最佳分类器，每次训练 10 个周期。我们将指定`adam`作为优化器，并为可重复性设置`ImageClassifier()`的种子：
 
-    ```
+    ```py
     classifier = ImageClassifier(seed=9,
                                  max_trials=20,
                                  optimizer='adam')
@@ -318,39 +318,39 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  训练分类器。我们将允许**AutoKeras**自动选择 20%的训练数据作为验证集：
 
-    ```
+    ```py
     classifier.fit(X_train, y_train, epochs=EPOCHS)
     ```
 
 1.  导出最佳模型并将其保存到磁盘：
 
-    ```
+    ```py
     model = classifier.export_model()
     model.save('model.h5')
     ```
 
 1.  将模型重新加载到内存中：
 
-    ```
+    ```py
     model = load_model('model.h5',
                        custom_objects=CUSTOM_OBJECTS)
     ```
 
 1.  在测试集上评估训练模型：
 
-    ```
+    ```py
     print(classifier.evaluate(X_test, y_test))
     ```
 
 1.  打印最佳模型的文本摘要：
 
-    ```
+    ```py
     print(model.summary())
     ```
 
 1.  最后，生成**AutoKeras**找到的最佳模型的架构图：
 
-    ```
+    ```py
     plot_model(model,
                show_shapes=True,
                show_layer_names=True,
@@ -399,7 +399,7 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  我们需要做的第一件事是导入所有必需的依赖项：
 
-    ```
+    ```py
     from autokeras import *
     from tensorflow.keras.datasets import fashion_mnist as fm
     from tensorflow.keras.models import load_model
@@ -408,20 +408,20 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  因为我们将在`Fashion-MNIST`上训练我们的自定义模型，所以我们必须分别加载训练和测试拆分数据：
 
-    ```
+    ```py
     (X_train, y_train), (X_test, y_test) = fm.load_data()
     ```
 
 1.  为了避免数值不稳定问题，让我们将两个拆分的图像归一化到[0, 1]范围内：
 
-    ```
+    ```py
     X_train = X_train.astype('float32')
     X_test = X_test.astype('float32')
     ```
 
 1.  定义`create_automodel()`函数，该函数定义了底层`Block`的自定义搜索空间，负责定义的任务，如图像增强、归一化、图像处理或分类。首先，我们必须定义输入块，它将通过`Normalization()`和`ImageAugmentation()`块分别进行归一化和增强：
 
-    ```
+    ```py
     def create_automodel(max_trials=10):
         input = ImageInput()
         x = Normalization()(input)
@@ -433,7 +433,7 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  现在，我们将图表分叉。左侧分支使用`ConvBlock()`搜索普通卷积层。右侧分支，我们将探索更复杂的类似 Xception 的架构（有关**Xception**架构的更多信息，请参阅*另见*部分）：
 
-    ```
+    ```py
         left = ConvBlock()(x)
         right = XceptionBlock(pretrained=True)(x)
     ```
@@ -442,7 +442,7 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  我们将合并左右两个分支，展开它们，然后通过`DenseBlock()`传递结果，正如它的名字所示，它会搜索完全连接的层组合：
 
-    ```
+    ```py
         x = Merge()([left, right])
         x = SpatialReduction(reduction_type='flatten')(x)
         x = DenseBlock()(x)
@@ -450,13 +450,13 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  这个图表的输出将是一个`ClassificationHead()`。这是因为我们处理的是一个分类问题。请注意，我们没有指定类别的数量。这是因为**AutoKeras**会从数据中推断出这些信息：
 
-    ```
+    ```py
         output = ClassificationHead()(x)
     ```
 
 1.  我们可以通过构建并返回一个`AutoModel()`实例来结束`create_automodel()`。我们必须指定输入和输出，以及要执行的最大尝试次数：
 
-    ```
+    ```py
         return AutoModel(inputs=input,
                          outputs=output,
                          overwrite=True,
@@ -465,32 +465,32 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 1.  让我们训练每个试验模型 10 个周期：
 
-    ```
+    ```py
     EPOCHS = 10
     ```
 
 1.  创建`AutoModel`并进行拟合：
 
-    ```
+    ```py
     model = create_automodel()
     model.fit(X_train, y_train, epochs=EPOCHS)
     ```
 
 1.  让我们导出最佳模型：
 
-    ```
+    ```py
     model = model.export_model()
     ```
 
 1.  在测试集上评估模型：
 
-    ```
+    ```py
     print(model.evaluate(X_test, to_categorical(y_test)))
     ```
 
 1.  绘制最佳模型的架构：
 
-    ```
+    ```py
     plot_model(model,
                show_shapes=True,
                show_layer_names=True,
@@ -533,7 +533,7 @@ $> pip install git+https://github.com/keras-team/keras-tuner.git@1.0.2rc2 autoke
 
 我们需要几个外部库，比如 OpenCV、`scikit-learn` 和 `imutils`。所有这些依赖项可以一次性安装，方法如下：
 
-```
+```py
 $> pip install opencv-contrib-python scikit-learn imutils
 ```
 
@@ -581,7 +581,7 @@ $> pip install opencv-contrib-python scikit-learn imutils
 
 1.  我们需要做的第一件事是导入所有必要的依赖：
 
-    ```
+    ```py
     import csv
     import os
     import pathlib
@@ -597,7 +597,7 @@ $> pip install opencv-contrib-python scikit-learn imutils
 
 1.  定义`Adience`数据集的基本路径，以及包含图像与其受试者年龄和性别关系的折叠（CSV 格式）：
 
-    ```
+    ```py
     base_path = (pathlib.Path.home() / '.keras' / 'datasets' 
                      /'adience')
     folds_path = str(base_path / 'folds')
@@ -605,14 +605,14 @@ $> pip install opencv-contrib-python scikit-learn imutils
 
 1.  `Adience`中的年龄以区间、组别或括号的形式表示。在这里，我们将定义一个数组，用于将折叠中的报告年龄映射到正确的区间：
 
-    ```
+    ```py
     AGE_BINS = [(0, 2), (4, 6), (8, 13), (15, 20), (25, 32), 
                 (38, 43), (48, 53), (60, 99)]
     ```
 
 1.  定义`age_to_bin()`函数，该函数接收一个输入（如折叠 CSV 行中的值），并将其映射到相应的区间。例如，如果输入是`(27, 29)`，输出将是`25_32`：
 
-    ```
+    ```py
     def age_to_bin(age):
         age = age.replace('(', '').replace(')', '').
                                         split(',')
@@ -625,14 +625,14 @@ $> pip install opencv-contrib-python scikit-learn imutils
 
 1.  定义一个函数来计算矩形的面积。我们稍后将用它来获取最大的面部检测区域：
 
-    ```
+    ```py
     def rectangle_area(r):
         return (r[2] - r[0]) * (r[3] - r[1])
     ```
 
 1.  我们还将绘制一个边框框住检测到的人脸，并附上识别出的年龄和性别：
 
-    ```
+    ```py
     def plot_face(image, age_gender, detection):
         frame_x, frame_y, frame_width, frame_height = detection
         cv2.rectangle(image,
@@ -653,7 +653,7 @@ $> pip install opencv-contrib-python scikit-learn imutils
 
 1.  定义`predict()`函数，我们将用它来预测传入`roi`参数的人的年龄和性别（取决于`model`）：
 
-    ```
+    ```py
     def predict(model, roi):
         roi = cv2.resize(roi, (64, 64))
         roi = roi.astype('float32') / 255.0
@@ -665,7 +665,7 @@ $> pip install opencv-contrib-python scikit-learn imutils
 
 1.  定义存储数据集中所有图像、年龄和性别的列表：
 
-    ```
+    ```py
     images = []
     ages = []
     genders = []
@@ -673,7 +673,7 @@ $> pip install opencv-contrib-python scikit-learn imutils
 
 1.  遍历每个折叠文件。这些文件将是 CSV 格式：
 
-    ```
+    ```py
     folds_pattern = os.path.sep.join([folds_path, '*.txt'])
     for fold_path in glob(folds_pattern):
         with open(fold_path, 'r') as f:
@@ -682,7 +682,7 @@ $> pip install opencv-contrib-python scikit-learn imutils
 
 1.  如果年龄或性别字段不明确，跳过当前行：
 
-    ```
+    ```py
             for line in reader:
                 if ((line['age'][0] != '(') or
                         (line['gender'] not in {'m', 'f'})):
@@ -691,7 +691,7 @@ $> pip install opencv-contrib-python scikit-learn imutils
 
 1.  将年龄映射到一个有效的区间。如果从`age_to_bin()`返回`None`，这意味着年龄不对应我们定义的任何类别，因此必须跳过此记录：
 
-    ```
+    ```py
                 age_label = age_to_bin(line['age'])
                 if age_label is None:
                     continue
@@ -699,7 +699,7 @@ $> pip install opencv-contrib-python scikit-learn imutils
 
 1.  加载图像：
 
-    ```
+    ```py
                 aligned_face_file = 
                                (f'landmark_aligned_face.'
                                      f'{line["face_id"]}.'
@@ -715,7 +715,7 @@ $> pip install opencv-contrib-python scikit-learn imutils
 
 1.  将图像、年龄和性别添加到相应的集合中：
 
-    ```
+    ```py
                 images.append(image)
                 ages.append(age_label)
                 genders.append(line['gender'])
@@ -723,14 +723,14 @@ $> pip install opencv-contrib-python scikit-learn imutils
 
 1.  为每个问题（年龄分类和性别预测）创建两份图像副本：
 
-    ```
+    ```py
     age_images = np.array(images).astype('float32') / 255.0
     gender_images = np.copy(images)
     ```
 
 1.  编码年龄和性别：
 
-    ```
+    ```py
     gender_enc = LabelEncoder()
     age_enc = LabelEncoder()
     gender_labels = gender_enc.fit_transform(genders)
@@ -739,14 +739,14 @@ $> pip install opencv-contrib-python scikit-learn imutils
 
 1.  定义每次试验的次数和每次试验的周期。这些参数会影响两个模型：
 
-    ```
+    ```py
     EPOCHS = 100
     MAX_TRIALS = 10
     ```
 
 1.  如果有训练好的年龄分类器，加载它；否则，从头开始训练一个`ImageClassifier()`并保存到磁盘：
 
-    ```
+    ```py
     if os.path.exists('age_model.h5'):
         age_model = load_model('age_model.h5')
     else:
@@ -761,7 +761,7 @@ $> pip install opencv-contrib-python scikit-learn imutils
 
 1.  如果有训练好的性别分类器，加载它；否则，从头开始训练一个`ImageClassifier()`并保存到磁盘：
 
-    ```
+    ```py
     if os.path.exists('gender_model.h5'):
         gender_model = load_model('gender_model.h5')
     else:
@@ -778,32 +778,32 @@ $> pip install opencv-contrib-python scikit-learn imutils
 
 1.  从磁盘读取测试图像：
 
-    ```
+    ```py
     image = cv2.imread('woman.jpg')
     ```
 
 1.  创建一个**Haar Cascades**人脸检测器。（这是本书范围之外的主题。如果你想了解更多关于 Haar Cascades 的内容，请参阅本配方的*另见*部分。）使用以下代码来完成：
 
-    ```
+    ```py
     cascade_file = 'resources/haarcascade_frontalface_default.xml'
     det = cv2.CascadeClassifier(cascade_file)
     ```
 
 1.  调整图像大小，使其宽度为 380 像素。得益于`imutils.resize()`函数，我们可以放心结果会保持纵横比。因为该函数会自动计算高度以确保这一条件：
 
-    ```
+    ```py
     image = imutils.resize(image, width=380)
     ```
 
 1.  创建原始图像的副本，以便我们可以在其上绘制检测结果：
 
-    ```
+    ```py
     copy = image.copy()
     ```
 
 1.  将图像转换为灰度，并通过人脸检测器：
 
-    ```
+    ```py
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     detections = \
         det.detectMultiScale(gray,
@@ -815,7 +815,7 @@ $> pip install opencv-contrib-python scikit-learn imutils
 
 1.  验证是否有检测到的对象，并获取具有最大面积的一个：
 
-    ```
+    ```py
     if len(detections) > 0:
         detections = sorted(detections, key=rectangle_area)
         best_detection = detections[-1]
@@ -823,7 +823,7 @@ $> pip install opencv-contrib-python scikit-learn imutils
 
 1.  提取与检测到的人脸相对应的兴趣区域（`roi`），并提取其年龄和性别：
 
-    ```
+    ```py
         (frame_x, frame_y,
          frame_width, frame_height) = best_detection
         roi = image[frame_y:frame_y + frame_height,
@@ -838,7 +838,7 @@ $> pip install opencv-contrib-python scikit-learn imutils
 
 1.  将预测的年龄和性别标注在原始图像上，并显示结果：
 
-    ```
+    ```py
         clone = plot_face(copy,
                           f'Gender: {gender} - Age: 
                            {age}',

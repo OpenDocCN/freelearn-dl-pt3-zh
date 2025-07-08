@@ -96,7 +96,7 @@ ETL 过程包括以下三个步骤，`tf.data.Dataset`对象可以轻松实现�
 
 `(tf2)`
 
-```
+```py
 dataset = tf.data.Dataset.from_tensor_slices({
     "a": tf.random.uniform([4]),
     "b": tf.random.uniform([4, 100], maxval=100, dtype=tf.int32)
@@ -112,7 +112,7 @@ for value in dataset:
 
 `(tf2)`
 
-```
+```py
 def noise():
     while True:
         yield tf.random.uniform((100,))
@@ -126,7 +126,7 @@ dataset = tf.data.Dataset.from_generator(noise, (tf.float32))
 
 `(tf2)`
 
-```
+```py
 buffer_size = 10
 batch_size = 32
 dataset = dataset.map(lambda x: x + 10).shuffle(buffer_size).batch(batch_size)
@@ -194,7 +194,7 @@ dataset = dataset.map(lambda x: x + 10).shuffle(buffer_size).batch(batch_size)
 
 例如，`tf.Example` 可以是字典（伪代码形式）：
 
-```
+```py
 {
     "height": image.height,
     "width": image.widht,
@@ -218,7 +218,7 @@ dataset = dataset.map(lambda x: x + 10).shuffle(buffer_size).batch(batch_size)
 
 `(tf2)`
 
-```
+```py
 import tensorflow as tf 
 from tensorflow.keras.datasets import fashion_mnist 
 
@@ -253,7 +253,7 @@ def train_dataset(batch_size=32, num_epochs=1):
 
 `(tf2)`
 
-```
+```py
 def augment(image):
     image = tf.image.random_flip_left_right(image)
     image = tf.image.random_flip_up_down(image)
@@ -287,7 +287,7 @@ TensorFlow 数据集（`tfds`）不仅下载并将数据集转换为标准格式
 
 作为一个 Python 包，通过`pip`安装非常简单：
 
-```
+```py
 pip install tensorflow-datasets
 ```
 
@@ -305,7 +305,7 @@ pip install tensorflow-datasets
 
 `(tf2)`
 
-```
+```py
 import tensorflow_datasets as tfds
 
 # See available datasets
@@ -323,14 +323,14 @@ ds_train, ds_test = tfds.load(name="mnist", split=["train", "test"])
 
 `(tf2)`
 
-```
+```py
 builder = tfds.builder("mnist")
 print(builder.info)
 ```
 
 执行它后，我们得到如下结果：
 
-```
+```py
 tfds.core.DatasetInfo(
     name='mnist',
     version=1.0.0,
@@ -371,7 +371,7 @@ tfds.core.DatasetInfo(
 
 `(tf2)`
 
-```
+```py
 model.compile(
     optimizer=tf.keras.optimizers.Adam(1e-5),
     loss='sparse_categorical_crossentropy',
@@ -396,7 +396,7 @@ TensorFlow 2.0 默认是急切执行的，原生支持遍历`tf.data.Dataset`对
 
 `(tf2)`
 
-```
+```py
 def train():
     # Define the model
     n_classes = 10
@@ -508,7 +508,7 @@ Estimator API 强制你使用的编程模型包括两个组件的实现：
 
 实际上，Estimator API 是将数据与模型分离的良好实践的标准化。这一点通过`tf.estimator.Estimator`对象的构造函数得到了很好的体现，该对象是本章的主题：
 
-```
+```py
 __init__(
     model_fn,
     model_dir=None,
@@ -556,7 +556,7 @@ __init__(
 
 `(tf2)`
 
-```
+```py
 import tensorflow as tf 
 from tensorflow.keras.datasets import fashion_mnist 
 
@@ -601,7 +601,7 @@ def get_input_fn(mode, batch_size=32, num_epochs=1):
 
 `model_fn`函数遵循以下签名：
 
-```
+```py
 model_fn(
     features,
     labels,
@@ -637,7 +637,7 @@ model_fn(
 
 请参阅第三章，*TensorFlow 图架构*，以更好地理解图定义。`(tf2)`
 
-```
+```py
 def model_fn(features, labels, mode): 
     v1 = tf.compat.v1 
     model = make_model(10) 
@@ -682,7 +682,7 @@ def model_fn(features, labels, mode):
 
 `(tf2)`
 
-```
+```py
 print("Every log is on TensorBoard, please run TensorBoard --logidr log") 
 estimator = tf.estimator.Estimator(model_fn, model_dir="log") 
 for epoch in range(50): 
@@ -722,7 +722,7 @@ TensorFlow 2.0 有两种不同类型的预制 Estimator：一种是自动从 Ker
 
 `(tf2)`
 
-```
+```py
 # Define train & eval specs
 train_spec = tf.estimator.TrainSpec(input_fn=get_input_fn(tf.estimator.ModeKeys.TRAIN, num_epochs=50))
 eval_spec = tf.estimator.EvalSpec(input_fn=get_input_fn(tf.estimator.ModeKeys.EVAL, num_epochs=1))

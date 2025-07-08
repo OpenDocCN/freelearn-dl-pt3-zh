@@ -92,7 +92,7 @@
 
 一段代码如下设置：
 
-```
+```py
 def epsilon_greedy(epsilon):
     if np.random.uniform(0,1) < epsilon:
         return env.action_space.sample()
@@ -102,7 +102,7 @@ def epsilon_greedy(epsilon):
 
 当我们希望引起你对代码块中特定部分的注意时，相关的行或项目会被高亮显示：
 
-```
+```py
 def epsilon_greedy(epsilon):
 **if** **np.random.uniform(****0****,****1****) < epsilon:**
         return env.action_space.sample()
@@ -112,7 +112,7 @@ def epsilon_greedy(epsilon):
 
 任何命令行输入或输出如下所示：
 
-```
+```py
 source activate universe 
 ```
 

@@ -54,7 +54,7 @@
 
 代码块的设置如下：
 
-```
+```py
 int_variable = tf.Variable(4113, tf.int16)
 int_variable
 ```
@@ -63,7 +63,7 @@ int_variable
 
 代码片段中的关键部分被加粗如下：
 
-```
+```py
 df = pd.read_csv('Bias_correction_ucl.csv')
 ```
 
@@ -73,7 +73,7 @@ df = pd.read_csv('Bias_correction_ucl.csv')
 
 例如，
 
-```
+```py
 year_dummies = pd.get_dummies(df['Date'].dt.year, \
                               prefix='year')
 year_dummies
@@ -81,7 +81,7 @@ year_dummies
 
 代码中添加了注释，以帮助解释特定的逻辑部分。单行注释使用 `#` 符号表示，如下所示：
 
-```
+```py
 # Importing the matplotlib library
 import matplotlib.pyplot as plt
 ```
@@ -228,7 +228,7 @@ import matplotlib.pyplot as plt
 
 1.  在终端中，使用`cd`命令导航到保存`environment.yml`文件的目录。例如，如果你把文件保存在`Documents\The-TensorFlow-Workshop`中，那么在命令提示符下输入以下命令并按*Enter*键：
 
-    ```
+    ```py
     cd Documents\The-TensorFlow-Workshop
     ```
 
@@ -236,7 +236,7 @@ import matplotlib.pyplot as plt
 
 1.  现在你已导航到正确的文件夹，在终端中键入或粘贴以下命令来创建新的`conda`环境。按*Enter*键运行该命令：
 
-    ```
+    ```py
     conda env create -f environment.yml
     ```
 
@@ -250,7 +250,7 @@ import matplotlib.pyplot as plt
 
 1.  完成后，在终端中键入或粘贴以下命令来激活新安装的环境——`tensorflow`：
 
-    ```
+    ```py
     conda activate tensorflow
     ```
 
@@ -264,19 +264,19 @@ import matplotlib.pyplot as plt
 
 1.  在新激活的`conda`环境中运行以下命令来安装`ipykernel`：
 
-    ```
+    ```py
     pip3 instead of pip. 
     ```
 
 1.  在同一环境中，运行以下命令以将`ipykernel`添加为 Jupyter 内核：
 
-    ```
+    ```py
     python -m ipykernel install --user --name=tensorflow
     ```
 
 1.  **仅限 Windows：**如果你使用的是 Windows 系统，请键入或粘贴以下命令。否则，你可以跳过此步骤并退出终端：
 
-    ```
+    ```py
     conda install pywin32
     ```
 

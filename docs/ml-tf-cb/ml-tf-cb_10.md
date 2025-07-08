@@ -30,14 +30,14 @@ Transformers 是 Google 在 2017 年提出的深度学习架构，旨在处理�
 
 像往常一样，我们首先加载所需的包：
 
-```
+```py
 #get deep learning basics
 import tensorflow as tf 
 ```
 
 Transformers 库的一个优势——也是其流行的原因之一——是我们可以轻松下载特定模型（并且还可以定义合适的分词器）：
 
-```
+```py
 from transformers import TFGPT2LMHeadModel, GPT2Tokenizer
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2-large")
 GPT2 = TFGPT2LMHeadModel.from_pretrained("gpt2-large", pad_token_id=tokenizer.eos_token_id) 
@@ -45,7 +45,7 @@ GPT2 = TFGPT2LMHeadModel.from_pretrained("gpt2-large", pad_token_id=tokenizer.eo
 
 通常，固定随机种子是一个好主意，以确保结果的可重复性：
 
-```
+```py
 # settings
 #for reproducability
 SEED = 34
@@ -58,13 +58,13 @@ MAX_LEN = 70
 
 使用**贪心搜索**，预测具有最高概率的单词作为序列中的下一个单词：
 
-```
+```py
 input_sequence = "There are times when I am really tired of people, but I feel lonely too." 
 ```
 
 一旦我们有了输入序列，就将其编码，然后调用`decode`方法：
 
-```
+```py
 # encode context the generation is conditioned on
 input_ids = tokenizer.encode(input_sequence, return_tensors='tf')
 # generate text until the output length (which includes the context length) reaches 70
@@ -80,7 +80,7 @@ There are times when I am really tired of people, but I feel lonely too. I feel 
 
 一种简单的解决方法是**束搜索**：我们跟踪备选变体，从而使得更多的比较成为可能：
 
-```
+```py
 # set return_num_sequences > 1
 beam_outputs = GPT2.generate(
     input_ids, 
@@ -113,7 +113,7 @@ Output:
 
 接下来，我们可以探索采样——不确定性解码。我们并不严格按照路径来找到具有最高概率的最终文本，而是根据条件概率分布随机选择下一个单词。这个方法有可能生成不连贯的胡言乱语，因此我们使用`temperature`参数，它会影响概率质量分布：
 
-```
+```py
 # use temperature to decrease the sensitivity to low probability candidates
 sample_output = GPT2.generate(
                              input_ids, 
@@ -131,7 +131,7 @@ There are times when I am really tired of people, but I feel lonely too. I feel 
 
 稍微有点诗意地说，若我们提高温度，会发生什么呢？
 
-```
+```py
 sample_output = GPT2.generate(
                              input_ids, 
                              do_sample = True, 
@@ -151,7 +151,7 @@ What are some of your favourite things to do in the area
 
 在**Top-K 采样**中，选择最有可能的前*k*个单词，并将整个概率质量转移到这*k*个单词上。因此，我们并不增加高概率词汇出现的机会或减少低概率词汇的机会，而是直接将低概率词汇完全移除：
 
-```
+```py
 #sample from only top_k most likely words
 sample_output = GPT2.generate(
                              input_ids, 
@@ -170,7 +170,7 @@ There are times when I am really tired of people, but I feel lonely too. I go to
 
 Top-P 采样（也叫做核采样）类似于 Top-K 采样，但不是选择最有可能的前*k*个单词，而是选择概率总和大于*p*的最小单词集合，然后将整个概率质量转移到该集合中的单词上。这里的主要区别是，Top-K 采样中，单词集合的大小是静态的（显然），而在 Top-P 采样中，集合的大小可以变化。要使用这种采样方法，我们只需设置`top_k = 0`并选择一个`top_p`值：
 
-```
+```py
 #sample only from 80% most likely words
 sample_output = GPT2.generate(
                              input_ids, 
@@ -188,7 +188,7 @@ There are times when I am really tired of people, but I feel lonely too. I feel 
 
 我们可以结合这两种方法：
 
-```
+```py
 #combine both sampling techniques
 sample_outputs = GPT2.generate(
                               input_ids,
@@ -236,7 +236,7 @@ The government is committed to making Iceland a country where everyone can live 
 
 显然，更复杂的方法设置可以给我们带来相当令人印象深刻的结果。让我们进一步探索这个方向——我们将使用从 OpenAI 的 GPT-2 网站上获取的提示词，并将其输入完整的 GPT-2 模型。这种对比将让我们了解本地（较小）模型与用于原始演示的大型模型之间的表现差异：
 
-```
+```py
 MAX_LEN = 500
 prompt1 = 'In a shocking finding, scientist discovered a herd of unicorns living in a remote, previously unexplored valley, in the Andes Mountains. Even more surprising to the researchers was the fact that the unicorns spoke perfect English.'
 input_ids = tokenizer.encode(prompt1, return_tensors='tf')
@@ -283,7 +283,7 @@ The team believes that the species was probably domesticated in the Andes Mounta
 
 *在另一个例子中，似乎模型作者的担忧是有道理的：GPT-2 确实能够生成假新闻故事。*
 
-```
+```py
 prompt2 = 'Miley Cyrus was caught shoplifting from Abercrombie and Fitch on Hollywood Boulevard today.'
 input_ids = tokenizer.encode(prompt2, return_tensors='tf')
 sample_outputs = GPT2.generate(
@@ -324,7 +324,7 @@ In addition to the aforementioned "stolen" footwear, Miley Cyrus...
 
 那么，像托尔金这样的文学经典，怎么样？
 
-```
+```py
 prompt3 = 'Legolas and Gimli advanced on the orcs, raising their weapons with a harrowing war cry'
 input_ids = tokenizer.encode(prompt3, return_tensors='tf')
 sample_outputs = GPT2.generate(
@@ -388,7 +388,7 @@ The two armies fought one last time in battle. Gimli slew many of the orcs and l
 
 和往常一样，我们首先加载必要的包。
 
-```
+```py
 import pandas as pd
 import re
 import numpy as np
@@ -424,7 +424,7 @@ import os
 
 为了简化代码，我们定义了一些帮助函数来清理文本：去除网站链接、星号遮蔽的 NSFW 词汇和表情符号。
 
-```
+```py
 def basic_cleaning(text):
     text=re.sub(r'https?://www\.\S+\.com','',text)
     text=re.sub(r'[^A-Za-z|\s]','',text)
@@ -483,7 +483,7 @@ def preprocess_news(df,stop=stop,n=1,col='text'):
 
 加载数据。
 
-```
+```py
 df = pd.read_csv('/kaggle/input/tweet-sentiment-extraction/train.csv')
 df.head() 
 ```
@@ -504,14 +504,14 @@ df.head()
 
 1.  `remove_multiplechars` – 该函数用于处理当一个单词中有超过 3 个连续字符时，例如，wayyyyy。该函数会去除其中的多余字母，保留一个。
 
-```
+```py
 df.dropna(inplace=True)
 df_clean = clean(df) 
 ```
 
 对于标签，我们进行独热编码，将它们分词，并转换为序列。
 
-```
+```py
 df_clean_selection = df_clean.sample(frac=1)
 X = df_clean_selection.text.values
 y = pd.get_dummies(df_clean_selection.sentiment)
@@ -523,7 +523,7 @@ X_t = sequence.pad_sequences(list_tokenized_train, maxlen=128)
 
 DistilBERT 是 BERT 的轻量版本：它的参数比 BERT 少 40%，但性能达到 BERT 的 97%。对于本例，我们主要使用它的分词器和嵌入矩阵。虽然该矩阵是可训练的，但为了减少训练时间，我们不使用这个选项。
 
-```
+```py
 tokenizer = transformers.AutoTokenizer.from_pretrained("distilbert-base-uncased")  ## change it to commit
 # Save the loaded tokenizer locally
 save_path = '/kaggle/working/distilbert_base_uncased/'
@@ -543,7 +543,7 @@ x = Embedding(embedding_matrix.shape[0], embedding_matrix.shape[1],embeddings_in
 
 我们按常规步骤定义模型。
 
-```
+```py
 x = Bidirectional(LSTM(50, return_sequences=True))(x) 
 x = Bidirectional(LSTM(25, return_sequences=True))(x) 
 x = GlobalMaxPool1D()(x) x = Dropout(0.5)(x) 
@@ -583,7 +583,7 @@ _________________________________________________________________
 
 现在我们可以拟合模型了：
 
-```
+```py
 model_DistilBert.fit(X,y,batch_size=32,epochs=10,validation_split=0.1)
 Train on 24732 samples, validate on 2748 samples
 Epoch 1/10
@@ -634,7 +634,7 @@ Epoch 10/10
 
 ## 我们如何开始？
 
-```
+```py
 import os
 import zipfile
 import shutil
@@ -652,7 +652,7 @@ from transformers import AutoTokenizer, TFAutoModelForQuestionAnswering, TFBertF
 
 和往常一样，我们需要一些样板代码：首先编写一个用于获取预训练 QA 模型的函数。
 
-```
+```py
 def get_pretrained_squad_model(model_name):
 
     model, tokenizer = None, None
@@ -695,7 +695,7 @@ distilroberta-base-squad2", from_pt=True)
 
 确定答案的范围。
 
-```
+```py
 def get_answer_span(question, context, model, tokenizer): 
     inputs = tokenizer.encode_plus(question, context, return_tensors="tf", add_special_tokens=True, max_length=512) 
     answer_start_scores, answer_end_scores = model(inputs)  
@@ -707,7 +707,7 @@ def get_answer_span(question, context, model, tokenizer):
 
 我们需要一些用于数据准备的函数。
 
-```
+```py
 def clean_tokens(gradients, tokens, token_types):
 
     """
@@ -818,7 +818,7 @@ def explain_model(question, context, model, tokenizer, explain_method = "gradien
 
 最后进行绘图：
 
-```
+```py
 def plot_gradients(tokens, token_types, gradients, title): 
 
     """ Plot  explanations
@@ -836,7 +836,7 @@ def plot_gradients(tokens, token_types, gradients, title):
 
 我们将比较一小部分模型在不同问题上的表现。
 
-```
+```py
 questions = [
     { "question": "what is the goal of the fourth amendment?  ", "context": "The Fourth Amendment of the U.S. Constitution provides that '[t]he right of the people to be secure in their persons, houses, papers, and effects, against unreasonable searches and seizures, shall not be violated, and no Warrants shall issue, but upon probable cause, supported by Oath or affirmation, and particularly describing the place to be searched, and the persons or things to be seized.'The ultimate goal of this provision is to protect people's right to privacy and freedom from unreasonable intrusions by the government. However, the Fourth Amendment does not guarantee protection from all searches and seizures, but only those done by the government and deemed unreasonable under the law." },
     { "question": ""what is the taj mahal made of?", "context": "The Taj Mahal is an ivory-white marble mausoleum on the southern bank of the river Yamuna in the Indian city of Agra. It was commissioned in 1632 by the Mughal emperor Shah Jahan (reigned from 1628 to 1658) to house the tomb of his favourite wife, Mumtaz Mahal; it also houses the tomb of Shah Jahan himself. The tomb is the centrepiece of a 17-hectare (42-acre) complex, which includes a mosque and a guest house, and is set in formal gardens bounded on three sides by a crenellated wall. Construction of the mausoleum was essentially completed in 1643, but work continued on other phases of the project for another 10 years. The Taj Mahal complex is believed to have been completed in its entirety in 1653 at a cost estimated at the time to be around 32 million rupees, which in 2020 would be approximately 70 billion rupees (about U.S. $916 million). The construction project employed some 20,000 artisans under the guidance of a board of architects led by the court architect to the emperor. The Taj Mahal was designated as a UNESCO World Heritage Site in 1983 for being the jewel of Muslim art in India and one of the universally admired masterpieces of the world's heritage. It is regarded by many as the best example of Mughal architecture and a symbol of India's rich history. The Taj Mahal attracts 7–8 million visitors a year and in 2007, it was declared a winner of the New 7 Wonders of the World (2000–2007) initiative." },
@@ -860,7 +860,7 @@ result_df = pd.DataFrame(result_holder)
 
 格式化结果以便于检查。
 
-```
+```py
 question_df = result_df[result_df["model"] == "bertsquad2"].reset_index()[["question"]]
 df_list = [question_df]
 for model_name in model_names:
@@ -888,7 +888,7 @@ jdf[answer_cols]
 
 +   BERT large 能回答 7/8 个问题，正确 7 个
 
-```
+```py
 runtime_cols = [col for col in jdf.columns if 'runtime' in col] 
 mean_runtime = jdf[runtime_cols].mean()
 print("Mean runtime per model across 4 question/context pairs")

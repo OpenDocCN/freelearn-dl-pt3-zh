@@ -60,7 +60,7 @@ GAN 的关键思想可以通过将其类比为“艺术伪造”来轻松理解�
 
 让我们构建一个简单的 GAN，能够生成手写数字。我们将使用 MNIST 手写数字来训练网络。我们需要导入 TensorFlow 模块；为了保持代码的简洁，我们将从 TensorFlow 框架中导出所有需要的类：
 
-```
+```py
 from tensorflow.keras.datasets import mnist
 from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout
 from tensorflow.keras.layers import BatchNormalization, Activation, ZeroPadding2D
@@ -75,7 +75,7 @@ import numpy as np
 
 我们使用 TensorFlow Keras 数据集来访问 MNIST 数据。数据包含 60,000 张手写数字的训练图像，每张图像的大小为 28 × 28。数字的像素值范围为 0-255；我们将输入值标准化，使得每个像素的值在 [-1, 1] 范围内：
 
-```
+```py
 randomDim = 10
 (X_train, _), (_,  _) = mnist.load_data()
 X_train = (X_train.astype(np.float32) - 127.5)/127.5 
@@ -83,13 +83,13 @@ X_train = (X_train.astype(np.float32) - 127.5)/127.5
 
 我们将使用一个简单的**多层感知器**（**MLP**），并将其输入一个大小为 784 的平面向量图像，因此我们需要重塑训练数据：
 
-```
+```py
 X_train = X_train.reshape(60000, 784) 
 ```
 
 现在我们需要构建生成器和鉴别器。生成器的目的是接收一个噪声输入，并生成一张与训练数据集相似的图像。噪声输入的大小由变量`randomDim`决定；你可以将其初始化为任何整数值。通常人们将其设置为 100。对于我们的实现，我们尝试了一个值为 10。这个输入会传入一个有`256`个神经元并使用 LeakyReLU 激活函数的全连接层。接下来，我们添加另一个有`512`个隐藏神经元的全连接层，紧接着是第三个有`1024`个神经元的隐藏层，最后是输出层，包含`784`个神经元。你可以改变隐藏层中神经元的数量，看看性能如何变化；然而，输出层神经元的数量必须与训练图像的像素数量匹配。对应的生成器如下：
 
-```
+```py
 generator = Sequential()
 generator.add(Dense(256, input_dim=randomDim))
 generator.add(LeakyReLU(0.2))
@@ -102,7 +102,7 @@ generator.add(Dense(784, activation='tanh'))
 
 同样，我们构建了一个鉴别器。现在注意（*图 9.1*）鉴别器接收的图像，可能来自训练集，也可能是由生成器生成的图像，因此其输入大小为`784`。此外，在这里我们使用了 TensorFlow 的初始化器来初始化全连接层的权重，使用的是标准差为 0.02，均值为 0 的正态分布。如*第一章：TensorFlow 神经网络基础*中所述，TensorFlow 框架中提供了许多初始化器。鉴别器的输出是一个单一的比特，`0`表示假图像（由生成器生成），`1`表示图像来自训练数据集：
 
-```
+```py
 discriminator = Sequential()
 discriminator.add(Dense(1024, input_dim=784, kernel_initializer=initializers.RandomNormal(stddev=0.02))
 )
@@ -119,7 +119,7 @@ discriminator.add(Dense(1, activation='sigmoid'))
 
 接下来，我们将生成器和鉴别器结合在一起，形成一个 GAN（生成对抗网络）。在 GAN 中，我们确保鉴别器的权重是固定的，通过将`trainable`参数设置为`False`来实现：
 
-```
+```py
 discriminator.trainable = False
 ganInput = Input(shape=(randomDim,))
 x = generator(ganInput)
@@ -129,14 +129,14 @@ gan = Model(inputs=ganInput, outputs=ganOutput)
 
 训练这两个网络的技巧是，我们首先单独训练鉴别器；我们对鉴别器使用二元交叉熵损失函数。随后，我们冻结鉴别器的权重，并训练组合的 GAN；这时的训练目标是生成器。此时的损失函数仍然是二元交叉熵：
 
-```
+```py
 discriminator.compile(loss='binary_crossentropy', optimizer='adam')
 gan.compile(loss='binary_crossentropy', optimizer='adam') 
 ```
 
 现在我们开始进行训练。对于每一个训练轮次（epoch），我们首先取一个随机噪声样本，输入到生成器中，生成器会产生一张假图像。然后，我们将生成的假图像与实际的训练图像以及它们对应的标签一起放入一个批次，并用这些数据先对鉴别器进行训练：
 
-```
+```py
 def train(epochs=1, batchSize=128):
     batchCount = int(X_train.shape[0] / batchSize)
     print ('Epochs:', epochs)
@@ -167,7 +167,7 @@ def train(epochs=1, batchSize=128):
 
 现在，在同一个`for`循环中，我们将训练生成器。我们希望生成器生成的图像被鉴别器判断为真实的，因此我们使用一个随机向量（噪声）作为输入给生成器；生成器生成一张假图像，然后训练 GAN，使得鉴别器将这张图像判断为真实（输出为`1`）：
 
-```
+```py
  # Train generator
             noise = np.random.normal(0, 1, size=[batchSize,
             randomDim])
@@ -178,7 +178,7 @@ def train(epochs=1, batchSize=128):
 
 很酷的技巧，对吧？如果你愿意，你还可以保存生成器和判别器的损失，以及生成的图像。接下来，我们将保存每个 epoch 的损失，并在每 20 个 epoch 后生成图像：
 
-```
+```py
  # Store loss of most recent batch from this epoch
         dLosses.append(dloss)
         gLosses.append(gloss)
@@ -202,7 +202,7 @@ def train(epochs=1, batchSize=128):
 
 为了绘制损失和生成的手写数字图像，我们定义了两个辅助函数，`plotLoss()`和`saveGeneratedImages()`。它们的代码如下：
 
-```
+```py
 # Plot the loss from each batch
 def plotLoss(epoch):
     plt.figure(figsize=(10, 8))
@@ -265,7 +265,7 @@ DCGAN 的基本理念与基础 GAN 相同：我们有一个生成器，它接受
 
 Upsampling2D 层现在将 7 × 7 × 128（行 × 列 × 通道）图像的行和列加倍，得到 14 × 14 × 128 的输出。上采样后的图像将传递到一个卷积层，该卷积层学习填充上采样图像中的细节。卷积的输出传递到批量归一化层，以改善梯度流。批量归一化后的输出在所有中间层中会经过 ReLU 激活。我们重复这种结构，即上采样 | 卷积 | 批量归一化 | ReLU。在接下来的生成器中，我们有两个这样的结构，第一个卷积操作使用 128 个滤波器，第二个使用 64 个滤波器。最终的输出通过一个纯卷积层得到，该层使用 3 个滤波器和双曲正切激活，输出大小为 28 × 28 × 1 的图像：
 
-```
+```py
 def build_generator(self):
     model = Sequential()
     model.add(Dense(128 * 7 * 7, activation="relu",
@@ -289,7 +289,7 @@ def build_generator(self):
 
 结果生成器模型如下：
 
-```
+```py
 Model: "sequential_1"
 _________________________________________________________________
  Layer (type)                Output Shape              Param #   
@@ -346,7 +346,7 @@ Non-trainable params: 896
 
 该单元的输出将图像分类为伪造或真实：
 
-```
+```py
 def build_discriminator(self):
     model = Sequential()
     model.add(Conv2D(32, kernel_size=3, strides=2,
@@ -376,7 +376,7 @@ def build_discriminator(self):
 
 结果判别器网络是：
 
-```
+```py
 Model: "sequential"
 _________________________________________________________________
  Layer (type)                Output Shape              Param #   
@@ -418,7 +418,7 @@ _________________________________________________________________
 
 完整的 GAN 是通过将两者结合而成的：
 
-```
+```py
 class DCGAN():
     def __init__(self, rows, cols, channels, z = 10):
         # Input shape
@@ -454,7 +454,7 @@ GAN 的训练方式与之前相同；每一步，首先将随机噪声输入生�
 
 这一过程会对下一批图像重复进行。GAN 的训练通常需要几百到几千轮：
 
-```
+```py
  def train(self, epochs, batch_size=256, save_interval=50):
         # Load the dataset
         (X_train, _), (_, _) = mnist.load_data()
@@ -492,7 +492,7 @@ GAN 的训练方式与之前相同；每一步，首先将随机噪声输入生�
 
 最后，我们需要一个辅助函数来保存图像：
 
-```
+```py
  def save_imgs(self, epoch):
         r, c = 5, 5
         noise = np.random.normal(0, 1, (r * c, self.latent_dim))
@@ -512,7 +512,7 @@ GAN 的训练方式与之前相同；每一步，首先将随机噪声输入生�
 
 现在让我们开始训练我们的 GAN：
 
-```
+```py
 dcgan = DCGAN(28,28,1)
 dcgan.train(epochs=5000, batch_size=256, save_interval=50) 
 ```
@@ -677,7 +677,7 @@ GAN 的另一个酷应用是生成虚拟人脸。NVIDIA 于 2018 年推出了一
 
 在本节中，我们将实现一个基于 TensorFlow 的 CycleGAN。CycleGAN 需要一个特殊的数据集，一个成对数据集，来自一个图像领域到另一个领域。因此，除了必要的模块外，我们还将使用`tensorflow_datasets`。另外，我们将使用`tensorflow_examples`库，直接使用`tensorflow_examples`中定义的`pix2pix`模型中的生成器和判别器。这里的代码来自于这里的[`github.com/tensorflow/docs/blob/master/site/en/tutorials/generative/cyclegan.ipynb`](https://github.com/tensorflow/docs/blob/master/site/en/tutorials/generative/cyclegan.ipynb)：
 
-```
+```py
 import tensorflow_datasets as tfds
 from tensorflow_examples.models.pix2pix import pix2pix
 import os
@@ -691,7 +691,7 @@ TensorFlow 的`Dataset` API 包含了一个数据集列表。它有许多适用�
 
 让我们加载数据并获取训练和测试图像：
 
-```
+```py
 dataset, metadata = tfds.load('cycle_gan/summer2winter_yosemite',
                               with_info=True, as_supervised=True)
 train_summer, train_winter = dataset['trainA'], dataset['trainB']
@@ -700,7 +700,7 @@ test_summer, test_winter = dataset['testA'], dataset['testB']
 
 我们需要设置一些超参数：
 
-```
+```py
 BUFFER_SIZE = 1000
 BATCH_SIZE = 1
 IMG_WIDTH = 256
@@ -712,7 +712,7 @@ AUTOTUNE = tf.data.AUTOTUNE
 
 在我们训练网络之前，图像需要进行归一化。为了更好的性能，我们还会对训练图像添加随机抖动；这些图像首先被调整为 286x286 的大小，然后我们随机裁剪回 256x256 的大小，最后应用随机抖动：
 
-```
+```py
 def normalize(input_image, label):
     input_image = tf.cast(input_image, tf.float32)
     input_image = (input_image / 127.5) - 1
@@ -734,7 +734,7 @@ def random_jitter(image):
 
 数据增强（随机裁剪和抖动）仅应用于训练图像；因此，我们需要为图像预处理分离出两个函数，一个用于训练数据，另一个用于测试数据：
 
-```
+```py
 def preprocess_image_train(image, label):
     image = random_jitter(image)
     image = normalize(image)
@@ -746,7 +746,7 @@ def preprocess_image_test(image, label):
 
 之前的函数应用于图像时，将会将其归一化到[-1,1]的范围内，并对训练图像应用增强。让我们将这些应用到我们的训练和测试数据集，并创建一个数据生成器，它将批量提供训练图像：
 
-```
+```py
 train_summer = train_summer.cache().map(
     preprocess_image_train, num_parallel_calls=AUTOTUNE).shuffle(
     BUFFER_SIZE).batch(BATCH_SIZE)
@@ -767,7 +767,7 @@ test_winter = test_winter.map(
 
 如前所述，我们使用的是从`pix2pix`模型中提取的生成器和判别器，定义在`tensorflow_examples`模块中。我们将有两个生成器和两个判别器：
 
-```
+```py
 OUTPUT_CHANNELS = 3
 generator_g = pix2pix.unet_generator(OUTPUT_CHANNELS, norm_type='instancenorm')
 generator_f = pix2pix.unet_generator(OUTPUT_CHANNELS, norm_type='instancenorm')
@@ -777,7 +777,7 @@ discriminator_y = pix2pix.discriminator(norm_type='instancenorm', target=False)
 
 在继续进行模型定义之前，让我们看看图像。每张图像在绘制之前都会进行处理，以确保其强度是正常的：
 
-```
+```py
 to_winter = generator_g(sample_summer)
 to_summer = generator_f(sample_winter)
 plt.figure(figsize=(8, 8))
@@ -800,7 +800,7 @@ plt.show()
 
 接下来我们定义损失和优化器。我们保留与 DCGAN 相同的生成器和判别器的损失函数：
 
-```
+```py
 loss_obj = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 def discriminator_loss(real, generated):
     real_loss = loss_obj(tf.ones_like(real), real)
@@ -813,7 +813,7 @@ def generator_loss(generated):
 
 由于现在有四个模型，两个生成器和两个判别器，我们需要定义四个优化器：
 
-```
+```py
 generator_g_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
 generator_f_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
 discriminator_x_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
@@ -822,7 +822,7 @@ discriminator_y_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
 
 此外，在 CycleGAN 中，我们需要定义两个额外的损失函数，第一个是循环一致性损失；我们可以使用相同的函数来计算前向和反向的循环一致性损失。循环一致性损失确保结果接近原始输入：
 
-```
+```py
 def calc_cycle_loss(real_image, cycled_image):
     loss1 = tf.reduce_mean(tf.abs(real_image - cycled_image))
     return LAMBDA * loss1 
@@ -830,7 +830,7 @@ def calc_cycle_loss(real_image, cycled_image):
 
 我们还需要定义一个身份损失，确保如果输入给生成器一个图像*Y*，它将输出真实图像*Y*或与*Y*相似的图像。因此，如果我们给夏季图像生成器输入一张夏季图像，它不应该有太大变化：
 
-```
+```py
 def identity_loss(real_image, same_image):
     loss = tf.reduce_mean(tf.abs(real_image - same_image))
     return LAMBDA * 0.5 * loss 
@@ -846,7 +846,7 @@ def identity_loss(real_image, same_image):
 
 1.  最后，应用梯度：
 
-    ```
+    ```py
     @tf.function
     def train_step(real_x, real_y):
         # persistent is set to True because the tape is used
@@ -900,7 +900,7 @@ def identity_loss(real_image, same_image):
 
 我们定义了检查点来保存模型权重。由于训练一个足够好的 CycleGAN 可能需要一些时间，因此我们保存检查点，如果我们下次开始时，可以加载现有的检查点——这将确保模型从上次停止的地方继续学习：
 
-```
+```py
 checkpoint_path = "./checkpoints/train"
 ckpt = tf.train.Checkpoint(generator_g=generator_g,
                            generator_f=generator_f,
@@ -919,7 +919,7 @@ if ckpt_manager.latest_checkpoint:
 
 现在让我们将所有部分结合起来，并训练网络 100 轮。请记住，在论文中，测试网络被训练了 200 轮，因此我们的结果不会那么好：
 
-```
+```py
 for epoch in range(EPOCHS):
     start = time.time()
     n = 0

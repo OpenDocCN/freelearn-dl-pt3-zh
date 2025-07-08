@@ -14,7 +14,7 @@
 
 要按照本章进行操作，并尝试此处的示例代码：https://github.com/PacktPublishing/learn-tensorflow-enterprise，您需要克隆此书的 GitHub 存储库，并导航到`chapter_09`文件夹。您可以使用以下命令克隆存储库：
 
-```
+```py
 git clone https://github.com/PacktPublishing/learn-tensorflow-enterprise.git
 ```
 
@@ -26,33 +26,33 @@ git clone https://github.com/PacktPublishing/learn-tensorflow-enterprise.git
 
 通常，在使用 Fit 进行模型训练过程时，您最终会得到类似这样的东西：
 
-```
+```py
 mdl.fit(
 ```
 
-```
+```py
     train_dataset,
 ```
 
-```
+```py
     epochs=5, steps_per_epoch=steps_per_epoch,
 ```
 
-```
+```py
     validation_data=valid_dataset,
 ```
 
-```
+```py
     validation_steps=validation_steps)
 ```
 
 在执行了上述代码之后，您将拥有一个名为`mdl`的模型对象，可以通过以下语法保存：
 
-```
+```py
 saved_model_path = ''
 ```
 
-```
+```py
 tf.saved_model.save(mdl, saved_model_path)
 ```
 
@@ -60,15 +60,15 @@ tf.saved_model.save(mdl, saved_model_path)
 
 为了方便起见，本练习提供了一个`saved_model`文件。在`flowerclassifier/001`目录中，您会找到以下输出：
 
-```
+```py
 -rw-r--r--  1 2405393 Oct 12 22:02 saved_model.pb
 ```
 
-```
+```py
 drwxr-xr-x@ 2      64 Oct 12 22:02 assets
 ```
 
-```
+```py
 drwxr-xr-x@ 4     128 Oct 12 22:02 variables
 ```
 
@@ -78,39 +78,39 @@ drwxr-xr-x@ 4     128 Oct 12 22:02 variables
 
 1.  如果你只是想使用 Python 脚本调用`SavedModel`，这非常简单。你需要做的就是按照以下方式加载模型：
 
-    ```
+    ```py
     path_saved_model =  'flowerclassifier/001'
     working_model = tf.saved_model.load(path_saved_model)
     ```
 
 1.  每个`SavedModel`都有一个默认的模型签名，用于描述模型的输入和输出结构。该签名还关联了一个名称。我们需要找出这个名称是什么：
 
-    ```
+    ```py
     print(list(working_model.signatures.keys()))
     ```
 
     由于在保存过程中没有指定签名名称，签名名称的输出如下：
 
-    ```
+    ```py
     ['serving_default']
     ```
 
 1.  接下来，我们需要创建一个推理对象`infer`，然后找到模型输出的名称及其形状，这些在使用模型对测试数据进行评分时是必需的：
 
-    ```
+    ```py
     infer = working_model.signatures['serving_default']
     print(infer.structured_outputs)
     ```
 
     这将输出以下内容：
 
-    ```
+    ```py
     {'custom_class': TensorSpec(shape=(None, 5), dtype=tf.float32, name='custom_class')}
     ```
 
     输出的名称为`custom_class`，它是一个形状为`shape=(None, 5)`的浮点型 NumPy 数组张量。这表示输出是一个五种花卉类型的概率数组。数组中概率最高的索引位置是我们需要映射到花卉类型的地方。我们在*第七章*《模型优化》中看到了这个映射，在那里我们学习了如何处理 TFRecord 来构建和训练这个模型。这个映射如下：
 
-    ```
+    ```py
     {4: 'tulips', 3: 'dandelion', 1: 'sunflowers', 2: 'daisy', 0: 'roses'}
     ```
 
@@ -118,13 +118,13 @@ drwxr-xr-x@ 4     128 Oct 12 22:02 variables
 
 1.  另一个我们需要确认的是模型期望的输入形状。我们可以使用`save_model_cli`来获取这些信息。我们可以在 Jupyter notebook 单元格中执行以下内联命令：
 
-    ```
+    ```py
     !saved_model_cli show --dir {path_saved_model} --all
     ```
 
     你将看到该命令的输出包括以下内容：
 
-    ```
+    ```py
     signature_def['serving_default']:
       The given SavedModel SignatureDef contains the following input(s):
         inputs['input_4'] tensor_info:
@@ -136,7 +136,7 @@ drwxr-xr-x@ 4     128 Oct 12 22:02 variables
 
 1.  我们使用`raw_image`目录中的一张测试图像，并通过`nvision`库的`imread`读取图像：
 
-    ```
+    ```py
     jpg1 = 'raw_images2440874162_27a7030402_n.jpg'
     img1_np = nv.imread(jpg1, resize=(224,224),normalize=True)
     img1_np = nv.expand_dims(img1_np,axis=0)
@@ -146,19 +146,19 @@ drwxr-xr-x@ 4     128 Oct 12 22:02 variables
 
 1.  使用`infer`对象对该图像进行评分：
 
-    ```
+    ```py
     prediction = infer(tf.constant(img1_np))
     ```
 
     这会为每个五种花卉类型生成预测结果，给定`img1_np`：
 
-    ```
+    ```py
     prediction['custom_class'].numpy()
     ```
 
     这将生成以下输出：
 
-    ```
+    ```py
     array([[2.4262092e-06, 5.6151916e-06, 1.8000206e-05, 1.4342861e-05, 9.9995959e-01]], dtype=float32)
     ```
 
@@ -184,13 +184,13 @@ TFS 的核心实际上是一个运行模型 Protobuf 文件的 TensorFlow 模型
 
 1.  你可以使用以下 Docker 命令拉取最新的 TFS Docker 镜像：
 
-    ```
+    ```py
     docker pull tensorflow/serving
     ```
 
 1.  这就是我们当前的基础镜像。为了在这个镜像上添加我们的模型，我们需要先运行这个基础镜像：
 
-    ```
+    ```py
     docker run -d --name serv_base_img tensorflow/serving
     ```
 
@@ -210,25 +210,25 @@ TFS 的核心实际上是一个运行模型 Protobuf 文件的 TensorFlow 模型
 
 1.  基本上，我们需要将模型复制到 TFS 容器的`model`文件夹中：
 
-    ```
+    ```py
     flowerclassifier is the directory name two levels up from the saved_model.pb file. In between the two, you will notice that there is a directory, 001. This hierarchy is required by TFS, and so is the naming convention for the middle directory, which has to be an integer. It doesn't have to be 001, as long as it is all integers.The preceding command copies our model into the base image's `/model` directory.
     ```
 
 1.  现在我们将更改提交到基础镜像，并为容器命名，使其与我们的模型目录匹配：
 
-    ```
+    ```py
     docker commit --change "ENV MODEL_NAME flowermodel" serv_base_img flowermodel
     ```
 
 1.  我们不再需要运行基础镜像。现在，我们可以直接停止它：
 
-    ```
+    ```py
     flowermodel, which is deployed in a TFS container. Once we launch the TFS container, it brings our model up for serving.
     ```
 
 1.  为了服务图像并对我们的测试图像进行评分，我们将运行以下命令：
 
-    ```
+    ```py
     8501, and map it to the Docker container's port, 8501. If your local port 8501 is not available, you may try another local port, say 8502. Then the command would take on -p 8502:8501. The source of our model is in the current directory (as indicated by the inline `$PWD` command) and followed by `flowerclassifier`. This folder also defines an environment variable, `MODEL_NAME`. `-t tensorflow/serving` indicates we want the container to be ready for `STDIN` from `tensorflow/serving`. 
     ```
 
@@ -252,7 +252,7 @@ TFS 的核心实际上是一个运行模型 Protobuf 文件的 TensorFlow 模型
 
 1.  我们将使用以下命令构建 JSON 负载：
 
-    ```
+    ```py
     data = json.dumps({ 
         "instances": img1_np.tolist()
     })
@@ -265,7 +265,7 @@ TFS 的核心实际上是一个运行模型 Protobuf 文件的 TensorFlow 模型
 
 1.  我们将用以下命令为这个数据评分，使用我们的测试图像`img1_np`：
 
-    ```
+    ```py
     response = requests.post('http://localhost:8501/v1/models/flowerclassifier:predict', data=data, headers=headers)
     ```
 
@@ -273,13 +273,13 @@ TFS 的核心实际上是一个运行模型 Protobuf 文件的 TensorFlow 模型
 
 1.  我们将使用以下命令检查`response`负载：
 
-    ```
+    ```py
     response.json()
     ```
 
     以下是前面命令的输出：
 
-    ```
+    ```py
     {'predictions': [[2.42621149e-06,
        5.61519164e-06,
        1.80002226e-05,

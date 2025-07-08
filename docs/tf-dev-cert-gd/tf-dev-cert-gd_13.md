@@ -32,37 +32,37 @@
 
 1.  我们从导入该项目所需的库开始：
 
-    ```
+    ```py
     import numpy as np
     ```
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     ```
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
-    ```
+    ```py
     from tensorflow import keras
     ```
 
 1.  接下来，让我们加载我们的数据集：
 
-    ```
+    ```py
     #CSV sales data
     ```
 
-    ```
+    ```py
     url = 'https://raw.githubusercontent.com/oluwole-packt/datasets/main/sales_data.csv'
     ```
 
-    ```
+    ```py
     # Load the CSV data into a pandas DataFrame
     ```
 
-    ```
+    ```py
     df = pd.read_csv(url)
     ```
 
@@ -70,11 +70,11 @@
 
 1.  现在，我们将`Date`列转换为日期时间格式并将其设置为索引：
 
-    ```
+    ```py
     df['Date'] = pd.to_datetime(df['Date'])
     ```
 
-    ```
+    ```py
     df.set_index('Date', inplace=True)
     ```
 
@@ -82,7 +82,7 @@
 
 1.  让我们从 DataFrame 中提取销售值：
 
-    ```
+    ```py
     data = df['Sales'].values
     ```
 
@@ -90,23 +90,23 @@
 
 1.  接下来，我们将创建一个滑动窗口：
 
-    ```
+    ```py
     window_size = 20
     ```
 
-    ```
+    ```py
     X, y = [], []
     ```
 
-    ```
+    ```py
     for i in range(window_size, len(data)):
     ```
 
-    ```
+    ```py
         X.append(data[i-window_size:i])
     ```
 
-    ```
+    ```py
         y.append(data[i])
     ```
 
@@ -114,23 +114,23 @@
 
 1.  现在，让我们将数据拆分为训练集和验证集：
 
-    ```
+    ```py
     X = np.array(X)
     ```
 
-    ```
+    ```py
     y = np.array(y)
     ```
 
-    ```
+    ```py
     train_size = int(len(X) * 0.8)
     ```
 
-    ```
+    ```py
     X_train, X_val = X[:train_size], X[train_size:]
     ```
 
-    ```
+    ```py
     y_train, y_val = y[:train_size], y[train_size:]
     ```
 
@@ -138,31 +138,31 @@
 
 1.  我们的下一个目标是构建一个 TensorFlow 数据集，这是训练 TensorFlow 模型时更高效的格式：
 
-    ```
+    ```py
     batch_size = 128
     ```
 
-    ```
+    ```py
     buffer_size = 10000
     ```
 
-    ```
+    ```py
     train_data = tf.data.Dataset.from_tensor_slices(
     ```
 
-    ```
+    ```py
         (X_train, y_train))
     ```
 
-    ```
+    ```py
     train_data = train_data.cache().shuffle(
     ```
 
-    ```
+    ```py
         buffer_size).batch(batch_size).prefetch(
     ```
 
-    ```
+    ```py
         tf.data.experimental.AUTOTUNE)
     ```
 
@@ -176,27 +176,27 @@
 
 1.  我们将从模型定义开始：
 
-    ```
+    ```py
     # Model
     ```
 
-    ```
+    ```py
     model = Sequential()
     ```
 
-    ```
+    ```py
     model.add(Dense(10, activation='relu',
     ```
 
-    ```
+    ```py
         input_shape=(window_size,)))
     ```
 
-    ```
+    ```py
     model.add(Dense(10, activation='relu'))
     ```
 
-    ```
+    ```py
     model.add(Dense(1))
     ```
 
@@ -204,35 +204,35 @@
 
 1.  接下来，我们将使用指数衰减学习率调度器：
 
-    ```
+    ```py
     # ExponentialDecay
     ```
 
-    ```
+    ```py
     lr_exp = tf.keras.optimizers.schedules.ExponentialDecay(
     ```
 
-    ```
+    ```py
         initial_learning_rate=0.1,
     ```
 
-    ```
+    ```py
         decay_steps=100, decay_rate=0.96)
     ```
 
-    ```
+    ```py
     optimizer = tf.keras.optimizers.Adam(
     ```
 
-    ```
+    ```py
         learning_rate=lr_exp)
     ```
 
-    ```
+    ```py
     model.compile(optimizer=optimizer, loss='mse')
     ```
 
-    ```
+    ```py
     history_exp = model.fit(X_train, y_train, epochs=100)
     ```
 
@@ -240,47 +240,47 @@
 
 1.  接下来，我们将使用 MAE 和 **均方误差** (**MSE**) 评估模型的性能，并将验证预测与真实值进行比较：
 
-    ```
+    ```py
     # Evaluation
     ```
 
-    ```
+    ```py
     forecast_exp = model.predict(X_val)
     ```
 
-    ```
+    ```py
     mae_exp = mean_absolute_error(y_val, forecast_exp)
     ```
 
-    ```
+    ```py
     mse_exp = mean_squared_error(y_val, forecast_exp)
     ```
 
-    ```
+    ```py
     # Plot
     ```
 
-    ```
+    ```py
     plt.plot(forecast_exp,
     ```
 
-    ```
+    ```py
         label='Exponential Decay Predicted')
     ```
 
-    ```
+    ```py
     plt.plot(y_val, label='Actual')
     ```
 
-    ```
+    ```py
     plt.title('Exponential Decay LR')
     ```
 
-    ```
+    ```py
     plt.legend()
     ```
 
-    ```
+    ```py
     plt.show()
     ```
 
@@ -294,35 +294,35 @@
 
 1.  让我们使用 `PiecewiseConstantDecay` 学习率调度器：
 
-    ```
+    ```py
     # PiecewiseConstantDecay
     ```
 
-    ```
+    ```py
     lr_piecewise = tf.keras.optimizers.schedules.PiecewiseConstantDecay(
     ```
 
-    ```
+    ```py
         [30, 60], [0.1, 0.01, 0.001])
     ```
 
-    ```
+    ```py
     optimizer = tf.keras.optimizers.Adam(
     ```
 
-    ```
+    ```py
         learning_rate=lr_piecewise)
     ```
 
-    ```
+    ```py
     model.compile(optimizer=optimizer, loss='mse')
     ```
 
-    ```
+    ```py
     history_piecewise = model.fit(X_train, y_train,
     ```
 
-    ```
+    ```py
         epochs=100)
     ```
 
@@ -342,27 +342,27 @@
 
 1.  现在让我们应用`PolynomialDecay`：
 
-    ```
+    ```py
     # PolynomialDecay
     ```
 
-    ```
+    ```py
     lr_poly = tf.keras.optimizers.schedules.PolynomialDecay(
     ```
 
-    ```
+    ```py
     initial_learning_rate=0.1,
     ```
 
-    ```
+    ```py
         decay_steps=100,
     ```
 
-    ```
+    ```py
         end_learning_rate=0.01,
     ```
 
-    ```
+    ```py
         power=1.0)
     ```
 
@@ -384,15 +384,15 @@
 
 1.  让我们从定义自定义学习率调度器开始：
 
-    ```
+    ```py
     # Define learning rate schedule
     ```
 
-    ```
+    ```py
     lr_schedule = tf.keras.callbacks.LearningRateScheduler(
     ```
 
-    ```
+    ```py
         lambda epoch: 1e-7 * 10**(epoch / 10))
     ```
 
@@ -400,15 +400,15 @@
 
 1.  我们使用初始学习率定义优化器：
 
-    ```
+    ```py
     # Define optimizer with initial learning rate
     ```
 
-    ```
+    ```py
     optimizer = tf.keras.optimizers.SGD(
     ```
 
-    ```
+    ```py
         learning_rate=1e-7, momentum=0.9)
     ```
 
@@ -416,17 +416,17 @@
 
 1.  接下来，我们用定义好的优化器编译模型，并将损失设置为 MSE：
 
-    ```
+    ```py
     model.compile(optimizer=optimizer, loss='mse')
     ```
 
 1.  现在，我们开始训练模型：
 
-    ```
+    ```py
     history = model.fit(train_data, epochs=200,
     ```
 
-    ```
+    ```py
         callbacks=[lr_schedule], verbose=0)
     ```
 
@@ -434,7 +434,7 @@
 
 1.  计算每个 epoch 的学习率：
 
-    ```
+    ```py
     lrs = 1e-7 * (10 ** (np.arange(200) / 10))
     ```
 
@@ -442,27 +442,27 @@
 
 1.  我们绘制模型损失与学习率的关系图：
 
-    ```
+    ```py
     plt.semilogx(lrs, history.history["loss"])
     ```
 
-    ```
+    ```py
     plt.axis([1e-7, 1e-3, 0, 300])
     ```
 
-    ```
+    ```py
     plt.xlabel('Learning Rate')
     ```
 
-    ```
+    ```py
     plt.ylabel('Loss')
     ```
 
-    ```
+    ```py
     plt.title('Learning Rate vs Loss')
     ```
 
-    ```
+    ```py
     plt.show()
     ```
 
@@ -492,95 +492,95 @@ CNN 需要一个批量大小、一个窗口大小和特征数量。批量大小�
 
 1.  让我们准备数据以适应 CNN 模型的正确形状：
 
-    ```
+    ```py
     # Create sequences
     ```
 
-    ```
+    ```py
     window_size = 20
     ```
 
-    ```
+    ```py
     X = []
     ```
 
-    ```
+    ```py
     y = []
     ```
 
-    ```
+    ```py
     for i in range(window_size, len(data)):
     ```
 
-    ```
+    ```py
         X.append(data[i-window_size:i])
     ```
 
-    ```
+    ```py
         y.append(data[i])
     ```
 
-    ```
+    ```py
     X = np.array(X)
     ```
 
-    ```
+    ```py
     y = np.array(y)
     ```
 
-    ```
+    ```py
     # Train/val split
     ```
 
-    ```
+    ```py
     split = int(0.8 * len(X))
     ```
 
-    ```
+    ```py
     X_train, X_val = X[:split], X[split:]
     ```
 
-    ```
+    ```py
     y_train, y_val = y[:split], y[split:]
     ```
 
-    ```
+    ```py
     # Reshape data
     ```
 
-    ```
+    ```py
     X_train = X_train.reshape(-1, window_size, 1)
     ```
 
-    ```
+    ```py
     X_val = X_val.reshape(-1, window_size, 1)
     ```
 
-    ```
+    ```py
     # Set batch size and shuffle buffer
     ```
 
-    ```
+    ```py
     batch_size = 128
     ```
 
-    ```
+    ```py
     shuffle_buffer = 1000
     ```
 
-    ```
+    ```py
     train_data = tf.data.Dataset.from_tensor_slices(
     ```
 
-    ```
+    ```py
         (X_train, y_train))
     ```
 
-    ```
+    ```py
     train_data = train_data.shuffle(
     ```
 
-    ```
+    ```py
         shuffle_buffer).batch(batch_size)
     ```
 
@@ -588,67 +588,67 @@ CNN 需要一个批量大小、一个窗口大小和特征数量。批量大小�
 
 1.  让我们构建我们的模型：
 
-    ```
+    ```py
     # Build model
     ```
 
-    ```
+    ```py
     model = Sequential()
     ```
 
-    ```
+    ```py
     model.add(Conv1D(filters=64, kernel_size=3,
     ```
 
-    ```
+    ```py
         strides=1,
     ```
 
-    ```
+    ```py
         padding='causal',
     ```
 
-    ```
+    ```py
         activation='relu',
     ```
 
-    ```
+    ```py
         input_shape=(window_size, 1)))
     ```
 
-    ```
+    ```py
     model.add(MaxPooling1D(pool_size=2))
     ```
 
-    ```
+    ```py
     model.add(Conv1D(filters=32, kernel_size=3,
     ```
 
-    ```
+    ```py
         strides=1,
     ```
 
-    ```
+    ```py
         padding='causal',
     ```
 
-    ```
+    ```py
         activation='relu'))
     ```
 
-    ```
+    ```py
     model.add(MaxPooling1D(pool_size=2))
     ```
 
-    ```
+    ```py
     model.add(Flatten())
     ```
 
-    ```
+    ```py
     model.add(Dense(16, activation='relu'))
     ```
 
-    ```
+    ```py
     model.add(Dense(1))
     ```
 
@@ -658,49 +658,49 @@ CNN 需要一个批量大小、一个窗口大小和特征数量。批量大小�
 
 1.  让我们编译并训练模型 100 个周期：
 
-    ```
+    ```py
     model.compile(loss='mse', optimizer='adam')
     ```
 
-    ```
+    ```py
     # Train model
     ```
 
-    ```
+    ```py
     model.fit(train_data, epochs=100)
     ```
 
 1.  最后，让我们评估一下我们模型的性能：
 
-    ```
+    ```py
     # Make predictions
     ```
 
-    ```
+    ```py
     preds = model.predict(X_val)
     ```
 
-    ```
+    ```py
     # Calculate metrics
     ```
 
-    ```
+    ```py
     mae = mean_absolute_error(y_val, preds)
     ```
 
-    ```
+    ```py
     mse = mean_squared_error(y_val, preds)
     ```
 
-    ```
+    ```py
     # Print metrics
     ```
 
-    ```
+    ```py
     print('MAE: ', mae)
     ```
 
-    ```
+    ```py
     print('MSE: ', mse)
     ```
 
@@ -720,75 +720,75 @@ CNN 需要一个批量大小、一个窗口大小和特征数量。批量大小�
 
 1.  让我们从准备数据开始：
 
-    ```
+    ```py
     # Create sequences
     ```
 
-    ```
+    ```py
     seq_len = 20
     ```
 
-    ```
+    ```py
     X = []
     ```
 
-    ```
+    ```py
     y = []
     ```
 
-    ```
+    ```py
     for i in range(seq_len, len(data)):
     ```
 
-    ```
+    ```py
         X.append(data[i-seq_len:i])
     ```
 
-    ```
+    ```py
         y.append(data[i])
     ```
 
-    ```
+    ```py
     X = np.array(X)
     ```
 
-    ```
+    ```py
     y = np.array(y)
     ```
 
-    ```
+    ```py
     # Train/val split
     ```
 
-    ```
+    ```py
     split = int(0.8*len(X))
     ```
 
-    ```
+    ```py
     X_train, X_val = X[:split], X[split:]
     ```
 
-    ```
+    ```py
     y_train, y_val = y[:split], y[split:]
     ```
 
-    ```
+    ```py
     # Create dataset
     ```
 
-    ```
+    ```py
     batch_size = 128
     ```
 
-    ```
+    ```py
     dataset = tf.data.Dataset.from_tensor_slices(
     ```
 
-    ```
+    ```py
         (X_train, y_train))
     ```
 
-    ```
+    ```py
     dataset = dataset.shuffle(buffer_size=1024).batch(batch_size)
     ```
 
@@ -796,43 +796,43 @@ CNN 需要一个批量大小、一个窗口大小和特征数量。批量大小�
 
 1.  让我们定义我们的模型架构：
 
-    ```
+    ```py
     model = tf.keras.models.Sequential([
     ```
 
-    ```
+    ```py
         tf.keras.layers.Lambda(lambda x: tf.expand_dims(
     ```
 
-    ```
+    ```py
             x, axis=-1),
     ```
 
-    ```
+    ```py
             input_shape=[None]),
     ```
 
-    ```
+    ```py
         tf.keras.layers.SimpleRNN(40,
     ```
 
-    ```
+    ```py
             return_sequences=True),
     ```
 
-    ```
+    ```py
         tf.keras.layers.SimpleRNN(40),
     ```
 
-    ```
+    ```py
         tf.keras.layers.Dense(1),
     ```
 
-    ```
+    ```py
         tf.keras.layers.Lambda(lambda x: x * 100.0)
     ```
 
-    ```
+    ```py
     ])
     ```
 
@@ -842,19 +842,19 @@ CNN 需要一个批量大小、一个窗口大小和特征数量。批量大小�
 
 1.  让我们编译并拟合我们的模型：
 
-    ```
+    ```py
     model.compile(optimizer=tf.keras.optimizers.Adam(
     ```
 
-    ```
+    ```py
         learning_rate=8e-4), loss='mse')
     ```
 
-    ```
+    ```py
     # Train model
     ```
 
-    ```
+    ```py
     model.fit(dataset, epochs=100)momentum=0.9))
     ```
 
@@ -868,91 +868,91 @@ CNN 需要一个批量大小、一个窗口大小和特征数量。批量大小�
 
 1.  让我们首先准备我们的数据：
 
-    ```
+    ```py
     # Create sequences
     ```
 
-    ```
+    ```py
     seq_len = 20
     ```
 
-    ```
+    ```py
     X = []
     ```
 
-    ```
+    ```py
     y = []
     ```
 
-    ```
+    ```py
     for i in range(seq_len, len(data)):
     ```
 
-    ```
+    ```py
         X.append(data[i-seq_len:i])
     ```
 
-    ```
+    ```py
         y.append(data[i])
     ```
 
-    ```
+    ```py
     X = np.array(X)
     ```
 
-    ```
+    ```py
     X = X.reshape(X.shape[0], X.shape[1], 1)
     ```
 
-    ```
+    ```py
     y = np.array(y)
     ```
 
-    ```
+    ```py
     # Train/val split
     ```
 
-    ```
+    ```py
     split = int(0.8*len(X))
     ```
 
-    ```
+    ```py
     X_train, X_val = X[:split], X[split:]
     ```
 
-    ```
+    ```py
     y_train, y_val = y[:split], y[split:]
     ```
 
-    ```
+    ```py
     # Set batch size and buffer size
     ```
 
-    ```
+    ```py
     batch_size = 64
     ```
 
-    ```
+    ```py
     buffer_size = 1000
     ```
 
-    ```
+    ```py
     # Create dataset
     ```
 
-    ```
+    ```py
     dataset = tf.data.Dataset.from_tensor_slices(
     ```
 
-    ```
+    ```py
         (X_train, y_train))
     ```
 
-    ```
+    ```py
     dataset = dataset.shuffle(
     ```
 
-    ```
+    ```py
         buffer_size).batch(batch_size)
     ```
 
@@ -960,27 +960,27 @@ CNN 需要一个批量大小、一个窗口大小和特征数量。批量大小�
 
 1.  接下来，让我们定义我们的模型：
 
-    ```
+    ```py
     model_lstm = tf.keras.models.Sequential([
     ```
 
-    ```
+    ```py
         tf.keras.layers.LSTM(50, return_sequences=True,
     ```
 
-    ```
+    ```py
             input_shape=[None, 1]),
     ```
 
-    ```
+    ```py
         tf.keras.layers.LSTM(50),
     ```
 
-    ```
+    ```py
         tf.keras.layers.Dense(1)
     ```
 
-    ```
+    ```py
     ])
     ```
 
@@ -1002,31 +1002,31 @@ CNN 需要一个批量大小、一个窗口大小和特征数量。批量大小�
 
 1.  让我们使用卷积层来构建我们的模型：
 
-    ```
+    ```py
        # Build the Model
     ```
 
-    ```
+    ```py
     model = tf.keras.models.Sequential([
     ```
 
-    ```
+    ```py
         tf.keras.layers.Conv1D(filters=64, kernel_size=3,
     ```
 
-    ```
+    ```py
         strides=1,
     ```
 
-    ```
+    ```py
         activation="relu",
     ```
 
-    ```
+    ```py
         padding='causal',
     ```
 
-    ```
+    ```py
         input_shape=[window_size, 1]),
     ```
 
@@ -1034,25 +1034,25 @@ CNN 需要一个批量大小、一个窗口大小和特征数量。批量大小�
 
 1.  接下来，我们的数据进入 LSTM 层，由 2 个 LSTM 层组成，每个 LSTM 层包含 64 个神经元：
 
-    ```
+    ```py
         tf.keras.layers.LSTM(64, return_sequences=True),
     ```
 
-    ```
+    ```py
         tf.keras.layers.LSTM(64),
     ```
 
 1.  然后，我们有密集层：
 
-    ```
+    ```py
         tf.keras.layers.Dense(30, activation="relu"),
     ```
 
-    ```
+    ```py
         tf.keras.layers.Dense(10, activation="relu"),
     ```
 
-    ```
+    ```py
         tf.keras.layers.Dense(1),
     ```
 
@@ -1066,23 +1066,23 @@ CNN 需要一个批量大小、一个窗口大小和特征数量。批量大小�
 
 1.  我们首先导入所需的库：
 
-    ```
+    ```py
     import numpy as np
     ```
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     ```
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
-    ```
+    ```py
     from tensorflow import keras
     ```
 
-    ```
+    ```py
     import yfinance as yf
     ```
 
@@ -1094,15 +1094,15 @@ CNN 需要一个批量大小、一个窗口大小和特征数量。批量大小�
 
 1.  创建一个 DataFrame：
 
-    ```
+    ```py
     df_apple = yf.Ticker(tickerSymbol)
     ```
 
-    ```
+    ```py
     df_apple = df_apple.history(period='1d',
     ```
 
-    ```
+    ```py
         start='2013-01-01', end='2023-01-01')
     ```
 
@@ -1132,39 +1132,39 @@ CNN 需要一个批量大小、一个窗口大小和特征数量。批量大小�
 
 1.  让我们绘制每日收盘价：
 
-    ```
+    ```py
     plt.figure(figsize=(14,7))
     ```
 
-    ```
+    ```py
     plt.plot(df_apple.index, df_apple['Close'],
     ```
 
-    ```
+    ```py
         label='Close price')
     ```
 
-    ```
+    ```py
     plt.title('Historical prices for AAPL')
     ```
 
-    ```
+    ```py
     plt.xlabel('Date')
     ```
 
-    ```
+    ```py
     plt.ylabel('Price')
     ```
 
-    ```
+    ```py
     plt.grid(True)
     ```
 
-    ```
+    ```py
     plt.legend()
     ```
 
-    ```
+    ```py
     plt.show()
     ```
 
@@ -1178,7 +1178,7 @@ CNN 需要一个批量大小、一个窗口大小和特征数量。批量大小�
 
 1.  将数据转换为 NumPy 数组：
 
-    ```
+    ```py
     Series = df_apple['Close'].values
     ```
 
@@ -1186,83 +1186,83 @@ CNN 需要一个批量大小、一个窗口大小和特征数量。批量大小�
 
 1.  准备窗口数据集：
 
-    ```
+    ```py
     # Sliding window
     ```
 
-    ```
+    ```py
     window_size = 20
     ```
 
-    ```
+    ```py
     X, y = [], []
     ```
 
-    ```
+    ```py
     for i in range(window_size, len(data)):
     ```
 
-    ```
+    ```py
         X.append(data[i-window_size:i])
     ```
 
-    ```
+    ```py
         y.append(data[i])
     ```
 
-    ```
+    ```py
     X = np.array(X)
     ```
 
-    ```
+    ```py
     y = np.array(y)
     ```
 
-    ```
+    ```py
     # Train/val split
     ```
 
-    ```
+    ```py
     train_size = int(len(X) * 0.8)
     ```
 
-    ```
+    ```py
     X_train, X_val = X[:train_size], X[train_size:]
     ```
 
-    ```
+    ```py
     y_train, y_val = y[:train_size], y[train_size:]
     ```
 
-    ```
+    ```py
     # Dataset using tf.data
     ```
 
-    ```
+    ```py
     batch_size = 128
     ```
 
-    ```
+    ```py
     buffer_size = 10000
     ```
 
-    ```
+    ```py
     train_data = tf.data.Dataset.from_tensor_slices(
     ```
 
-    ```
+    ```py
         (X_train, y_train))
     ```
 
-    ```
+    ```py
     train_data = train_data.cache().shuffle(
     ```
 
-    ```
+    ```py
         buffer_size).batch(batch_size).prefetch(
     ```
 
-    ```
+    ```py
         tf.data.experimental.AUTOTUNE)
     ```
 

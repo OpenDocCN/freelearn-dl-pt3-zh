@@ -174,7 +174,7 @@ ECG 测量的采样率为 300 Hz，噪声通过 AliveCor 设备的带通滤波�
 
 对于痤疮检测和护理系统用例，我们依赖于一个图像数据集。我们从*Dermnet 皮肤病图谱*中收集了图片，这是一个关于各种皮肤病的开源数据库。数据库包含 23 个数据集，每个数据集都涉及不同的皮肤病，每个类别（包括痤疮和酒渣鼻）都有子类别。由于页面太多，这些数据集不易下载。我们使用 Python 的 Beautiful Soup 模块编写了一个图像爬虫，我们使爬虫通用化，以便读者可以在不同的皮肤病上测试他们的 LSTM/CNN 模型。爬虫`image_scraper.py`位于本章代码子文件夹`use-case-2`中。要爬取所有 23 个数据集，请运行以下命令：
 
-```
+```py
 python image_scraper.py
 ```
 
@@ -226,7 +226,7 @@ python image_scraper.py
 
 我们可以通过运行`LSTM_ECG.py`文件来训练和测试模型，该文件位于本章代码文件夹中的`use-case-1`子文件夹内：
 
-```
+```py
 python LSTM_ECG.py
 ```
 
@@ -236,7 +236,7 @@ python LSTM_ECG.py
 
 我们可以通过运行`CNN1D_ECG.py`文件来训练和测试模型，该文件位于本章代码文件夹中的`use-case-1`子文件夹内：
 
-```
+```py
 python CNN1D_ECG.py
 ```
 
@@ -248,7 +248,7 @@ python CNN1D_ECG.py
 
 为了在痤疮数据集上训练和验证模型，我们需要运行`retrain_CNN.py`文件，该文件位于本章代码文件夹中的`use-case-2`子文件夹内。要训练和测试模型*，*我们只需在命令提示符下运行以下命令。
 
-```
+```py
 python retrain_CNN.py \
 --output_graph=trained_model_mobilenetv1/retrained_graph.pb \
 --output_labels=trained_model_mobilenetv1/retrained_labels.txt   \

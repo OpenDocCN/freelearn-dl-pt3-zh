@@ -80,7 +80,7 @@
 
 1.  接下来，我们需要加载数据并以二进制格式呈现它，因为原始图像的像素值为 0 和 255。我们还将把数据集分为训练集和测试集。这将允许我们衡量神经网络的性能。机器学习方法的一个好习惯是，在训练数据集上训练模型，并在测试数据集上衡量最终得分。这可以确保模型在训练后不会看到它将被评估的数据点。接下来我们将看到具体的解释：
 
-```
+```py
 import tensorflow as tf
 
 mnist = tf.keras.datasets.mnist
@@ -99,7 +99,7 @@ x_train, x_test = x_train / 255.0, x_test / 255.0
 
     +   最后，`metrics`允许我们在数据集上衡量神经网络的性能。例如，`accuracy`帮助我们理解数据集中哪些部分被正确分类。这个度量不会直接参与训练过程，主要帮助我们理解网络性能是否有所提升。我们可以通过以下代码来理解前面的解释：
 
-```
+```py
 model = tf.keras.models.Sequential([
   tf.keras.layers.Flatten(),
   tf.keras.layers.Dense(512, activation=tf.nn.relu),
@@ -112,7 +112,7 @@ model.compile(optimizer='adam',
 
 1.  一切设置好后，我们只需要在训练数据集上进行训练。这可能需要几分钟，具体取决于您计算机的配置。之后，我们可以评估模型在测试集上的表现。我们的模型将达到大约 97%的准确率/测试集，这非常令人印象深刻，正如演示所示，即使是一个简单的神经网络，也能通过如下代码实现这一点：
 
-```
+```py
 model.fit(x_train, y_train, epochs=2)
 print('Evaluation:')
 print(model.evaluate(x_test, y_test))
@@ -120,7 +120,7 @@ print(model.evaluate(x_test, y_test))
 
 1.  最后，一旦神经网络被训练好，我们可以保存它，以便以后使用。如您所见，这是一个非常简单的过程。模型文件将包含模型架构、层的组成、层的权重和训练配置，以及优化器的状态，这些都可以帮助我们在已经训练的模型上继续训练：
 
-```
+```py
 model.save('MNISTmodel.h5')
 modelImported = tf.keras.models.load_model('MNISTmodel.h5')
 print('Evaluation by imported model:')
@@ -131,7 +131,7 @@ print(modelImported.evaluate(x_test, y_test))
 
 现在，让我们在命令行中运行`testMNIST.py`文件来查看结果。通过运行代码，我们可以看到训练过程，它是以“epoch”为单位进行的。这种神经网络不需要 GPU 进行训练，即使在 CPU 上也可以取得非常好的结果：
 
-```
+```py
 python testMNIST.py
 ```
 
@@ -215,7 +215,7 @@ Inception v3 是由 Google 提出的，并且达到了 3.46% 的错误率。你�
 
 1.  我们需要运行一个强大的模型并接收一系列行预测，然后将这些预测转化为实际的标签值，如下代码所示：
 
-```
+```py
 SESSION = tf.InteractiveSession()
 softmax_tensor = tf.get_default_graph().get_tensor_by_name('softmax:0')
 
@@ -230,21 +230,21 @@ node_loolup.id_to_string(predictions)
 
 1.  如以下代码所示，存在 `NodeLookup` 类，它将帮助我们将模型的响应转换为标签名称：
 
-```
+```py
 class NodeLookup(object):
     """Converts integer node ID's to human readable labels."""
 ```
 
 1.  以下代码展示了我们如何读取图像：
 
-```
+```py
 image = 'inputimage.png'
 image_data = tf.gfile.FastGFile(image, 'rb').read()
 ```
 
 1.  接下来，这是导入预训练模型的代码：
 
-```
+```py
 with tf.gfile.FastGFile('classify_image_graph_def.pb', 'rb') as f:
   graph_def = tf.GraphDef()
   graph_def.ParseFromString(f.read())
@@ -253,7 +253,7 @@ with tf.gfile.FastGFile('classify_image_graph_def.pb', 'rb') as f:
 
 1.  在这里，我们更换了模型：
 
-```
+```py
 SESSION = tf.InteractiveSession()
 softmax_tensor = tf.get_default_graph().get_tensor_by_name('softmax:0')
 
@@ -262,7 +262,7 @@ predictions = SESSION.run(softmax_tensor,{'DecodeJpeg/contents:0': image_data})
 
 1.  最后，我们翻译模型的结果：
 
-```
+```py
 predictions = np.squeeze(predictions)
 node_lookup = NodeLookup(label_lookup_path='imagenet_2012_challenge_label_map_proto.pbtxt',
   uid_lookup_path='imagenet_synset_to_human_label_map.txt')

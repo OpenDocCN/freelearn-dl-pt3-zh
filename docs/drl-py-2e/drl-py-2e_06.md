@@ -76,20 +76,20 @@ MAB 问题是强化学习中的经典问题之一。MAB 是一种老虎机，我
 
 首先，让我们克隆 Gym bandits 仓库：
 
-```
+```py
 git clone https://github.com/JKCooper2/gym-bandits 
 ```
 
 接下来，我们可以使用 `pip` 安装它：
 
-```
+```py
 cd gym-bandits
 pip install -e . 
 ```
 
 安装完成后，我们导入 `gym_bandits` 和 `gym` 库：
 
-```
+```py
 import gym_bandits
 import gym 
 ```
@@ -98,31 +98,31 @@ import gym
 
 让我们创建一个简单的 2 臂 bandit，其环境 ID 为 `BanditTwoArmedHighLowFixed-v0`：
 
-```
+```py
 env = gym.make("BanditTwoArmedHighLowFixed-v0") 
 ```
 
 由于我们创建了一个双臂 bandit，所以我们的行动空间将是 `2`（因为有两个臂），如下所示：
 
-```
+```py
 print(env.action_space.n) 
 ```
 
 上面的代码将输出：
 
-```
+```py
 2 
 ```
 
 我们也可以通过以下方式检查臂的概率分布：
 
-```
+```py
 print(env.p_dist) 
 ```
 
 上面的代码将输出：
 
-```
+```py
 [0.8, 0.2] 
 ```
 
@@ -204,7 +204,7 @@ print(env.p_dist)
 
 现在，让我们学习实现 epsilon-greedy 方法来找到最好的臂。首先，让我们导入必要的库：
 
-```
+```py
 import gym
 import gym_bandits
 import numpy as np 
@@ -212,19 +212,19 @@ import numpy as np
 
 为了更好地理解，我们只创建一个具有两个臂的赌博机：
 
-```
+```py
 env = gym.make("BanditTwoArmedHighLowFixed-v0") 
 ```
 
 让我们检查一下这个臂的概率分布：
 
-```
+```py
 print(env.p_dist) 
 ```
 
 上述代码将输出：
 
-```
+```py
 [0.8, 0.2] 
 ```
 
@@ -234,25 +234,25 @@ print(env.p_dist)
 
 初始化 `count` 以存储每个臂被拉取的次数：
 
-```
+```py
 count = np.zeros(2) 
 ```
 
 初始化`sum_rewards`以存储每个臂的奖励总和：
 
-```
+```py
 sum_rewards = np.zeros(2) 
 ```
 
 初始化`Q`以存储每个臂的平均奖励：
 
-```
+```py
 Q = np.zeros(2) 
 ```
 
 设置回合数（迭代次数）：
 
-```
+```py
 num_rounds = 100 
 ```
 
@@ -260,7 +260,7 @@ num_rounds = 100
 
 首先，我们从均匀分布中生成一个随机数。如果随机数小于 epsilon，那么我们拉取一个随机臂；否则，我们拉取具有最大平均奖励的最佳臂，如下所示：
 
-```
+```py
 def epsilon_greedy(epsilon):
 
     if np.random.uniform(0,1) < epsilon:
@@ -273,49 +273,49 @@ def epsilon_greedy(epsilon):
 
 对于每一回合：
 
-```
+```py
 for i in range(num_rounds): 
 ```
 
 根据 epsilon-greedy 方法选择臂：
 
-```
+```py
  arm = epsilon_greedy(epsilon=0.5) 
 ```
 
 拉取臂并存储奖励和下一个状态信息：
 
-```
+```py
  next_state, reward, done, info = env.step(arm) 
 ```
 
 将臂的计数增加`1`：
 
-```
+```py
  count[arm] += 1 
 ```
 
 更新臂的奖励总和：
 
-```
+```py
  sum_rewards[arm]+=reward 
 ```
 
 更新臂的平均奖励：
 
-```
+```py
  Q[arm] = sum_rewards[arm]/count[arm] 
 ```
 
 在所有回合结束后，我们查看每个臂获得的平均奖励：
 
-```
+```py
 print(Q) 
 ```
 
 上述代码将打印出如下内容：
 
-```
+```py
 [0.83783784 0.34615385] 
 ```
 
@@ -325,13 +325,13 @@ print(Q)
 
 由于臂 1 的平均奖励高于臂 2，我们的最佳臂将是臂 1：
 
-```
+```py
 print('The optimal arm is arm {}'.format(np.argmax(Q)+1)) 
 ```
 
 上述代码将打印出：
 
-```
+```py
 The optimal arm is arm 1 
 ```
 
@@ -409,7 +409,7 @@ Softmax 探索，也称为 Boltzmann 探索，是另一种有用的探索策略�
 
 现在，让我们学习如何实现软最大探索方法来找到最佳臂。首先，我们导入必要的库：
 
-```
+```py
 import gym
 import gym_bandits
 import numpy as np 
@@ -417,7 +417,7 @@ import numpy as np
 
 让我们以在ε-贪婪部分看到的同一个二臂老虎机为例：
 
-```
+```py
 env = gym.make("BanditTwoArmedHighLowFixed-v0") 
 ```
 
@@ -425,25 +425,25 @@ env = gym.make("BanditTwoArmedHighLowFixed-v0")
 
 初始化`count`用于存储每个臂被拉动的次数：
 
-```
+```py
 count = np.zeros(2) 
 ```
 
 初始化`sum_rewards`用于存储每个臂的奖励总和：
 
-```
+```py
 sum_rewards = np.zeros(2) 
 ```
 
 初始化`Q`用于存储每个臂的平均奖励：
 
-```
+```py
 Q = np.zeros(2) 
 ```
 
 设置回合数（迭代次数）：
 
-```
+```py
 num_rounds = 100 
 ```
 
@@ -451,20 +451,20 @@ num_rounds = 100
 
 ![](img/B15558_06_007.png)
 
-```
+```py
 def softmax(T): 
 ```
 
 根据前面的公式计算每个臂的概率：
 
-```
+```py
  denom = sum([np.exp(i/T) for i in Q])
     probs = [np.exp(i/T)/denom for i in Q] 
 ```
 
 根据计算的臂的概率分布选择臂：
 
-```
+```py
  arm = np.random.choice(env.action_space.n, p=probs)
 
     return arm 
@@ -474,73 +474,73 @@ def softmax(T):
 
 让我们从将温度`T`设置为一个较大的数值开始，比如`50`：
 
-```
+```py
 T = 50 
 ```
 
 对于每一回合：
 
-```
+```py
 for i in range(num_rounds): 
 ```
 
 根据软最大探索方法选择臂：
 
-```
+```py
  arm = softmax(T) 
 ```
 
 拉动臂并存储奖励和下一状态信息：
 
-```
+```py
  next_state, reward, done, info = env.step(arm) 
 ```
 
 将该臂的计数增加 1：
 
-```
+```py
  count[arm] += 1 
 ```
 
 更新该臂的奖励总和：
 
-```
+```py
  sum_rewards[arm]+=reward 
 ```
 
 更新该臂的平均奖励：
 
-```
+```py
  Q[arm] = sum_rewards[arm]/count[arm] 
 ```
 
 降低温度`T`：
 
-```
+```py
  T = T*0.99 
 ```
 
 所有回合结束后，我们检查 Q 值，也就是每个臂的平均奖励：
 
-```
+```py
 print(Q) 
 ```
 
 上面的代码会输出类似于以下内容：
 
-```
+```py
 [0.77700348 0.1971831 ] 
 ```
 
 如我们所见，臂 1 的平均奖励高于臂 2，因此我们选择臂 1 作为最优臂：
 
-```
+```py
 print('The optimal arm is arm {}'.format(np.argmax(Q)+1)) 
 ```
 
 上面的代码会输出：
 
-```
+```py
 The optimal arm is arm 1 
 ```
 
@@ -606,7 +606,7 @@ UCB 算法如下所示：
 
 首先，让我们导入必要的库：
 
-```
+```py
 import gym
 import gym_bandits
 import numpy as np 
@@ -614,7 +614,7 @@ import numpy as np
 
 让我们创建与上一节看到的相同的双臂赌博机：
 
-```
+```py
 env = gym.make("BanditTwoArmedHighLowFixed-v0") 
 ```
 
@@ -622,50 +622,50 @@ env = gym.make("BanditTwoArmedHighLowFixed-v0")
 
 初始化 `count` 用于存储某个臂被拉动的次数：
 
-```
+```py
 count = np.zeros(2) 
 ```
 
 初始化 `sum_rewards` 用于存储每个臂的奖励总和：
 
-```
+```py
 sum_rewards = np.zeros(2) 
 ```
 
 初始化 `Q` 用于存储每个臂的平均奖励：
 
-```
+```py
 Q = np.zeros(2) 
 ```
 
 设置轮次数（迭代次数）：
 
-```
+```py
 num_rounds = 100 
 ```
 
 现在，我们定义 **UCB 函数**，它返回具有最高 UCB 的最佳臂：
 
-```
+```py
 def UCB(i): 
 ```
 
 初始化 `numpy` 数组，用于存储所有臂的 UCB：
 
-```
+```py
  ucb = np.zeros(2) 
 ```
 
 在计算 UCB 之前，我们至少探索每个臂一次，因此在前两轮中，我们直接选择与轮次编号对应的臂：
 
-```
+```py
  if i < 2:
         return i 
 ```
 
 如果轮次大于 2，则我们按照公式（3）计算所有臂的 UCB，并返回具有最高 UCB 的臂：
 
-```
+```py
  else:
         for arm in range(2):
             ucb[arm] = Q[arm] + np.sqrt((2*np.log(sum(count))) / count[arm])
@@ -676,49 +676,49 @@ def UCB(i):
 
 每一轮：
 
-```
+```py
 for i in range(num_rounds): 
 ```
 
 基于 UCB 方法选择臂：
 
-```
+```py
  arm = UCB(i) 
 ```
 
 拉动臂并存储奖励和下一个状态信息：
 
-```
+```py
  next_state, reward, done, info = env.step(arm) 
 ```
 
 将该臂的计数增加 `1`：
 
-```
+```py
  count[arm] += 1 
 ```
 
 更新臂的奖励总和：
 
-```
+```py
  sum_rewards[arm]+=reward 
 ```
 
 更新臂的平均奖励：
 
-```
+```py
  Q[arm] = sum_rewards[arm]/count[arm] 
 ```
 
 在所有回合结束后，我们可以选择具有最大平均奖励的最佳臂：
 
-```
+```py
 print('The optimal arm is arm {}'.format(np.argmax(Q)+1)) 
 ```
 
 上述代码将打印：
 
-```
+```py
 The optimal arm is arm 1 
 ```
 
@@ -836,7 +836,7 @@ The optimal arm is arm 1
 
 首先，让我们导入必要的库：
 
-```
+```py
 import gym
 import gym_bandits
 import numpy as np 
@@ -844,7 +844,7 @@ import numpy as np
 
 为了更好理解，让我们创建前一节中看到的相同的双臂老虎机：
 
-```
+```py
 env = gym.make("BanditTwoArmedHighLowFixed-v0") 
 ```
 
@@ -852,37 +852,37 @@ env = gym.make("BanditTwoArmedHighLowFixed-v0")
 
 初始化`count`用于存储每个臂被拉取的次数：
 
-```
+```py
 count = np.zeros(2) 
 ```
 
 初始化`sum_rewards`用于存储每个臂的奖励总和：
 
-```
+```py
 sum_rewards = np.zeros(2) 
 ```
 
 初始化`Q`用于存储每个臂的平均奖励：
 
-```
+```py
 Q = np.zeros(2) 
 ```
 
 为两个臂初始化 alpha 值为`1`：
 
-```
+```py
 alpha = np.ones(2) 
 ```
 
 为两个臂初始化 beta 值为`1`：
 
-```
+```py
 beta = np.ones(2) 
 ```
 
 设置轮次数量（迭代次数）：
 
-```
+```py
 num_rounds = 100 
 ```
 
@@ -890,7 +890,7 @@ num_rounds = 100
 
 如下代码所示，我们从两个臂的 beta 分布中随机抽取值，并返回具有最大抽取值的臂：
 
-```
+```py
 def thompson_sampling(alpha,beta):
 
     samples = [np.random.beta(alpha[i]+1,beta[i]+1) for i in range(2)]
@@ -901,43 +901,43 @@ def thompson_sampling(alpha,beta):
 
 对于每一轮：
 
-```
+```py
 for i in range(num_rounds): 
 ```
 
 根据汤普森抽样方法选择臂：
 
-```
+```py
  arm = thompson_sampling(alpha,beta) 
 ```
 
 拉取臂并存储奖励和下一状态信息：
 
-```
+```py
  next_state, reward, done, info = env.step(arm) 
 ```
 
 将臂的计数增加 1：
 
-```
+```py
  count[arm] += 1 
 ```
 
 更新臂的奖励总和：
 
-```
+```py
  sum_rewards[arm]+=reward 
 ```
 
 更新臂的平均奖励：
 
-```
+```py
  Q[arm] = sum_rewards[arm]/count[arm] 
 ```
 
 如果我们赢得游戏，即奖励为 1，则将 alpha 值更新为 ![](img/B15558_06_037.png)，否则将 beta 值更新为 ![](img/B15558_06_033.png)：
 
-```
+```py
  if reward==1:
         alpha[arm] = alpha[arm] + 1
     else:
@@ -946,13 +946,13 @@ for i in range(num_rounds):
 
 所有轮次结束后，我们可以选择拥有最高平均奖励的臂作为最优臂：
 
-```
+```py
 print('The optimal arm is arm {}'.format(np.argmax(Q)+1)) 
 ```
 
 上述代码将输出：
 
-```
+```py
 The optimal arm is arm 1 
 ```
 
@@ -976,7 +976,7 @@ The optimal arm is arm 1
 
 首先，让我们导入必要的库：
 
-```
+```py
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -989,7 +989,7 @@ plt.style.use('ggplot')
 
 现在，让我们创建一个数据集。我们生成一个包含五列的列表示五个广告横幅的数据集，并生成 100,000 行，其中每行的值为 0 或 1，表示用户是否点击了广告横幅（1）或未点击（0）：
 
-```
+```py
 df = pd.DataFrame()
 for i in range(5):
     df['Banner_type_'+str(i)] = np.random.randint(0,2,100000) 
@@ -997,7 +997,7 @@ for i in range(5):
 
 让我们来看一下数据集的前几行：
 
-```
+```py
 df.head() 
 ```
 
@@ -1013,37 +1013,37 @@ df.head()
 
 设置迭代次数：
 
-```
+```py
 num_iterations = 100000 
 ```
 
 定义横幅的数量：
 
-```
+```py
 num_banner = 5 
 ```
 
 初始化 `count` 以存储横幅被点击的次数：
 
-```
+```py
 count = np.zeros(num_banner) 
 ```
 
 初始化 `sum_rewards` 以存储每个横幅获得的奖励总和：
 
-```
+```py
 sum_rewards = np.zeros(num_banner) 
 ```
 
 初始化 `Q` 以存储每个横幅的平均奖励：
 
-```
+```py
 Q = np.zeros(num_banner) 
 ```
 
 定义一个列表来存储已选择的横幅：
 
-```
+```py
 banner_selected = [] 
 ```
 
@@ -1051,7 +1051,7 @@ banner_selected = []
 
 现在，让我们定义 epsilon-greedy 方法。我们从均匀分布中生成一个随机值。如果随机值小于 epsilon，则选择一个随机横幅；否则，选择具有最大平均奖励的最佳横幅：
 
-```
+```py
 def epsilon_greedy_policy(epsilon):
 
     if np.random.uniform(0,1) < epsilon:
@@ -1066,61 +1066,61 @@ def epsilon_greedy_policy(epsilon):
 
 对于每次迭代：
 
-```
+```py
 for i in range(num_iterations): 
 ```
 
 使用 epsilon-greedy 策略选择横幅：
 
-```
+```py
  banner = epsilon_greedy_policy(0.5) 
 ```
 
 获取横幅的奖励：
 
-```
+```py
  reward = df.values[i, banner] 
 ```
 
 增加计数器：
 
-```
+```py
  count[banner] += 1 
 ```
 
 存储奖励总和：
 
-```
+```py
  sum_rewards[banner]+=reward 
 ```
 
 计算平均奖励：
 
-```
+```py
  Q[banner] = sum_rewards[banner]/count[banner] 
 ```
 
 将横幅存储到已选择的横幅列表中：
 
-```
+```py
  banner_selected.append(banner) 
 ```
 
 在所有轮次结束后，我们可以选择平均奖励最大的一面作为最佳横幅：
 
-```
+```py
 print( 'The best banner is banner {}'.format(np.argmax(Q))) 
 ```
 
 上述代码将输出：
 
-```
+```py
 The best banner is banner 2 
 ```
 
 我们还可以绘制并查看哪一面横幅被选择得最多：
 
-```
+```py
 ax = sns.countplot(banner_selected)
 ax.set(xlabel='Banner', ylabel='Count')
 plt.show() 

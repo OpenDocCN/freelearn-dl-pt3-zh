@@ -174,7 +174,7 @@ Peephole LSTM 是一种 LSTM 变体，最早由 Gers 和 Schmidhuber 提出 [19]
 
 TensorFlow 2.0 提供了一个实验性的 peephole LSTM 单元实现。要在自己的 RNN 层中使用此功能，您需要将该单元（或单元列表）包装在 RNN 包装器中，如下所示的代码片段所示：
 
-```
+```py
 hidden_dim = 256
 peephole_cell = tf.keras.experimental.PeepholeLSTMCell(hidden_dim)
 rnn_layer = tf.keras.layers.RNN(peephole_cell) 
@@ -200,7 +200,7 @@ rnn_layer = tf.keras.layers.RNN(peephole_cell)
 
 TensorFlow 2.0 通过一个双向包装层支持双向 RNN。为了使 RNN 层变成双向，只需要用这个包装层将其包裹起来，具体如下所示。由于 biLSTM 中左右 LSTM 的每一对单元的输出是连接在一起的（见 *图 5.4*），因此需要返回每个单元的输出。因此，我们将 `return_sequences` 设置为 `True`（默认值是 `False`，意味着只返回 LSTM 中最后一个单元的输出）：
 
-```
+```py
 self.lstm = tf.keras.layers.Bidirectional(
     tf.keras.layers.LSTM(10, return_sequences=True, 
         input_shape=(5, 10))
@@ -255,7 +255,7 @@ RNN 在自然语言处理（NLP）社区被广泛用于各种应用中。其中�
 
 和往常一样，我们将首先导入必要的库并设置一些常量。这里，`DATA_DIR`指向您下载本章源代码所在位置下的数据文件夹。`CHECKPOINT_DIR`是该数据文件夹下的一个存储每 10 个 epochs 结束时模型权重的检查点文件夹：
 
-```
+```py
 import os
 import numpy as np
 import re
@@ -267,7 +267,7 @@ CHECKPOINT_DIR = os.path.join(DATA_DIR, "checkpoints")
 
 接下来，我们将下载并准备网络所需的数据。这两本书的文本可以从 Project Gutenberg 网站上公开获取。`tf.keras.utils.get_file()` 函数会检查文件是否已经下载到本地磁盘，如果没有，它将下载到代码所在位置的 `datasets` 文件夹下。我们还会稍微预处理一下输入，去除文本中的换行符和字节顺序标记字符。此步骤将创建 `texts` 变量，它是这两本书的一个字符扁平化列表：
 
-```
+```py
 def download_and_read(urls):
     texts = []
     for i, url in enumerate(urls):
@@ -292,7 +292,7 @@ texts = download_and_read([
 
 然而，网络的实际输入和输出是整数序列，我们将使用这些映射字典来处理这种转换：
 
-```
+```py
 # create the vocabulary
 vocab = sorted(set(texts))
 print("vocab size: {:d}".format(len(vocab)))
@@ -303,7 +303,7 @@ idx2char = {i:c for c, i in char2idx.items()}
 
 下一步是使用这些映射字典将我们的字符序列输入转换为整数序列，然后转换为 TensorFlow 数据集。每个序列将包含 100 个字符，输出将比输入偏移 1 个字符位置。我们首先将数据集批量化为 101 个字符的切片，然后对数据集的每个元素应用 `split_train_labels()` 函数，以创建我们的序列数据集，该数据集由包含两个元素的元组组成，每个元素是一个大小为 100、类型为 `tf.int64` 的向量。然后我们对这些序列进行洗牌，并为每个输入到网络的序列创建 64 个元组的批次。现在，数据集的每个元素都是一个由两个矩阵组成的元组，每个矩阵的大小为 (64, 100)，类型为 `tf.int64`：
 
-```
+```py
 # numericize the texts
 texts_as_ints = np.array([char2idx[c] for c in texts])
 data = tf.data.Dataset.from_tensor_slices(texts_as_ints)
@@ -330,7 +330,7 @@ dataset = sequences.shuffle(10000).batch(
 
 最后，每个时间步都会发出一个形状为(1024,)的向量，进入一个密集层，该层输出一个形状为(90,)的向量（`vocab_size`）。该层的输出将是一个形状为(64, 100, 90)的张量。输出向量中的每个位置对应于我们词汇表中的一个字符，值对应于该字符在该输出位置出现的概率：
 
-```
+```py
 class CharGenModel(tf.keras.Model):
     def __init__(self, vocab_size, num_timesteps,
             embedding_dim, **kwargs):
@@ -359,7 +359,7 @@ model.build(input_shape=(batch_size, seq_length))
 
 接下来，我们定义一个损失函数并编译我们的模型。我们将使用稀疏类别交叉熵作为损失函数，因为当输入和输出是整数序列时，这是标准的损失函数。对于优化器，我们将选择 Adam 优化器：
 
-```
+```py
 def loss(labels, predictions):
     return tf.losses.sparse_categorical_crossentropy(
         labels,
@@ -373,7 +373,7 @@ model.compile(optimizer=tf.optimizers.Adam(), loss=loss)
 
 逻辑遵循一个可预测的模式。我们将`prefix_string`中的字符序列转换为整数序列，然后通过`expand_dims`添加一个批次维度，以便将输入传递到我们的模型中。接着我们重置模型的状态。这是必要的，因为我们的模型是有状态的，我们不希望预测过程中的第一个时间步的隐藏状态被训练时计算出的状态所继承。然后，我们将输入传递通过模型并得到预测结果。这是一个形状为(90,)的向量，表示词汇表中每个字符在下一时间步出现的概率。接下来，我们通过去除批次维度并除以温度参数来重塑预测结果，然后从向量中随机抽样。我们将预测结果作为下一时间步的输入。我们重复这一过程，直到生成所需数量的字符，并将每次预测转换回字符形式，积累到一个列表中，最后在循环结束时返回该列表：
 
-```
+```py
 def generate_text(model, prefix_string, char2idx, idx2char,
         num_chars_to_generate=1000, temperature=1.0):
     input = [char2idx[s] for s in prefix_string]
@@ -394,7 +394,7 @@ def generate_text(model, prefix_string, char2idx, idx2char,
 
 最后，我们准备好运行训练和评估循环。如前所述，我们将训练网络 50 个周期，每隔 10 个周期，我们将尝试用迄今为止训练的模型生成一些文本。每个阶段的前缀是字符串 `"Alice "`。请注意，为了适应单个字符串前缀，我们会在每隔 10 个周期保存一次权重，并使用这些权重构建一个单独的生成模型，但输入形状的批量大小为 1。以下是执行此操作的代码：
 
-```
+```py
 num_epochs = 50
 for i in range(num_epochs // 10):
     model.fit(
@@ -417,19 +417,19 @@ for i in range(num_epochs // 10):
 
 训练的第一次周期后的输出包含一些完全无法解读的单词：
 
-```
+```py
 Alice nIPJtce otaishein r. henipt il nn tu t hen mlPde hc efa hdtioDDeteeybeaewI teu"t e9B ce nd ageiw  eai rdoCr ohrSI ey Pmtte:vh ndte taudhor0-gu s5'ria,tr gn inoo luwomg Omke dee sdoohdn ggtdhiAoyaphotd t- kta e c t- taLurtn   hiisd tl'lpei od y' tpacoe dnlhr oG mGhod ut hlhoy .i, sseodli., ekngnhe idlue'aa'  ndti-rla nt d'eiAier adwe ai'otteniAidee hy-ouasq"plhgs tuutandhptiw  oohe.Rastnint:e,o odwsir"omGoeuall1*g taetphhitoge ds wr li,raa,  h$jeuorsu  h cidmdg't ku..n,HnbMAsn nsaathaa,' ase woe  ehf re ig"hTr ddloese eod,aed toe rh k. nalf bte seyr udG n,ug lei hn icuimty"onw Qee ivtsae zdrye g eut rthrer n sd,Zhqehd' sr caseruhel are fd yse e  kgeiiday odW-ldmkhNw endeM[harlhroa h Wydrygslsh EnilDnt e "lue "en wHeslhglidrth"ylds rln n iiato taue flitl nnyg ittlno re 'el yOkao itswnadoli'.dnd Akib-ehn hftwinh yd ee tosetf tonne.;egren t wf, ota nfsr, t&he desnre e" oo fnrvnse aid na tesd is ioneetIf ·itrn tttpakihc s nih'bheY ilenf yoh etdrwdplloU ooaeedo,,dre snno'ofh o epst. lahehrw 
 ```
 
 然而，在大约训练了 30 个周期后，我们开始看到一些看起来熟悉的单词：
 
-```
+```py
 Alice Red Queen. He best I had defores it,' glily do flose time it makes the talking of find a hand mansed in she loweven to the rund not bright prough: the and she a chill be the sand using that whever sullusn--the dear of asker as 'IS now-- Chich the hood." "Oh!"' '_I'm num about--again was wele after a WAG LoANDE BITTER OF HSE!0 UUL EXMENN 1*.t, this wouldn't teese to Dumark THEVER Project Gutenberg-tmy of himid out flowal woulld: 'Nis song, Eftrin in pully be besoniokinote. "Com, contimemustion--of could you knowfum to hard, she can't the with talking to alfoeys distrint, for spacemark!' 'You gake to be would prescladleding readieve other togrore what it mughturied ford of it was sen!" You squs, _It I hap: But it was minute to the Kind she notion and teem what?" said Alice, make there some that in at the shills distringulf out to the Froge, and very mind to it were it?' the King was set telm, what's the old all reads talking a minuse. "Where ream put find growned his so," _you 'Fust to t 
 ```
 
 经过 50 个周期的训练，模型仍然很难表达连贯的思想，但已经学会了合理地拼写单词。令人惊讶的是，尽管模型是基于字符的，并且不了解单词，但它学会了拼写看起来可能来源于原始文本的单词：
 
-```
+```py
 Alice Vex her," he prope of the very managed by this thill deceed. I will ear she a much daid. "I sha?' Nets: "Woll, I should shutpelf, and now and then, cried, How them yetains, a tround her about in a shy time, I pashng round the sandle, droug" shrees went on what he seting that," said Alice. "Was this will resant again. Alice stook of in a faid.' 'It's ale. So they wentle shall kneeltie-and which herfer--the about the heald in pum little each the UKECE P@TTRUST GITE Ever been my hever pertanced to becristrdphariok, and your pringing that why the King as I to the King remark, but very only all Project Grizly: thentiused about doment,' Alice with go ould, are wayings for handsn't replied as mave about to LISTE!' (If the UULE 'TARY-HAVE BUY DIMADEANGNE'G THING NOOT,' be this plam round an any bar here! No, you're alard to be a good aftered of the sam--I canon't?" said Alice. 'It's one eye of the olleations. Which saw do it just opened hardly deat, we hastowe. 'Of coum, is tried try slowing 
 ```
 
@@ -437,7 +437,7 @@ Alice Vex her," he prope of the very managed by this thill deceed. I will ear sh
 
 这个例子的完整代码可以在本章的源代码文件夹中的 `alice_text_generator.py` 找到。可以通过以下命令在命令行中运行：
 
-```
+```py
 $ python alice_text_generator.py 
 ```
 
@@ -449,7 +449,7 @@ $ python alice_text_generator.py
 
 和往常一样，我们首先进行导入：
 
-```
+```py
 import numpy as np
 import os
 import shutil
@@ -459,7 +459,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 
 数据集以压缩文件的形式提供，解压后是一个包含三个人物标注句子文件的文件夹，每行一个句子和标签，句子与标签之间由制表符分隔。我们首先下载压缩文件，然后将文件解析为 `(sentence, label)` 对的列表：
 
-```
+```py
 def download_and_read(url):
     local_file = url.split('/')[-1]
     local_file = local_file.replace("%20", " ")
@@ -486,7 +486,7 @@ labels = [int(l) for (s, l) in labeled_sentences]
 
 序列中的每个整数都将指向一个单词。我们语料库中整数到单词的映射称为词汇表。因此，我们需要对句子进行分词并生成一个词汇表。这是通过以下代码完成的：
 
-```
+```py
 tokenizer = tf.keras.preprocessing.text.Tokenizer()
 tokenizer.fit_on_texts(sentences)
 vocab_size = len(tokenizer.word_counts)
@@ -501,7 +501,7 @@ idx2word = {v:k for (k, v) in word2idx.items()}
 
 每个句子的单词数可能不同。我们的模型要求我们为每个句子提供相同长度的整数序列。为了支持这一要求，通常会选择一个足够大的最大序列长度，以容纳大多数训练集中的句子。任何较短的句子将会被零填充，较长的句子将会被截断。选择最大序列长度的一个简单方法是查看不同百分位位置的句子长度（例如，单词数量）：
 
-```
+```py
 seq_lengths = np.array([len(s.split()) for s in sentences])
 print([(p, np.percentile(seq_lengths, p)) for p
     in [75, 80, 90, 95, 99, 100]]) 
@@ -509,7 +509,7 @@ print([(p, np.percentile(seq_lengths, p)) for p
 
 这将给我们以下输出：
 
-```
+```py
 [(75, 16.0), (80, 18.0), (90, 22.0), (95, 26.0), (99, 36.0), (100, 71.0)] 
 ```
 
@@ -521,7 +521,7 @@ print([(p, np.percentile(seq_lengths, p)) for p
 
 标签也被转换为 NumPy 数组`labels_as_ints`，最后，我们将张量`sentences_as_ints`和`labels_as_ints`结合，形成一个 TensorFlow 数据集：
 
-```
+```py
 max_seqlen = 64
 # create dataset
 sentences_as_ints = tokenizer.texts_to_sequences(sentences)
@@ -534,7 +534,7 @@ dataset = tf.data.Dataset.from_tensor_slices(
 
 我们希望将数据集的 1/3 部分留作评估数据。剩余的数据中，我们将 10%作为内联验证数据集，模型将在训练过程中使用它来评估自身进度，其余部分作为训练数据集。最后，我们为每个数据集创建 64 个句子的批次：
 
-```
+```py
 dataset = dataset.shuffle(10000)
 test_size = len(sentences) // 3
 val_size = (len(sentences) - test_size) // 10
@@ -551,7 +551,7 @@ test_dataset = test_dataset.batch(batch_size)
 
 该模型使用二元交叉熵损失函数和 Adam 优化器进行编译，并经过 10 轮训练：
 
-```
+```py
 class SentimentAnalysisModel(tf.keras.Model):
     def __init__(self, vocab_size, max_seqlen, **kwargs):
         super(SentimentAnalysisModel, self).__init__(**kwargs)
@@ -593,7 +593,7 @@ history = model.fit(train_dataset, epochs=num_epochs,
 
 从输出中你可以看到，训练集的准确率达到了 99.8%，验证集的准确率约为 78.5%。训练集的准确率较高是预期的，因为模型是在该数据集上训练的。你还可以查看以下的损失图，准确看到模型开始在训练集上过拟合的位置。注意，训练损失持续下降，但验证损失最初下降后开始上升。当验证损失开始上升时，我们就知道模型在训练集上过拟合了：
 
-```
+```py
 Epoch 1/10
 29/29 [==============================] - 7s 239ms/step - loss: 0.6918 - accuracy: 0.5148 - val_loss: 0.6940 - val_accuracy: 0.4750
 Epoch 2/10
@@ -624,7 +624,7 @@ Epoch 10/10
 
 我们的检查点回调基于最低的验证损失保存了最佳模型，现在我们可以重新加载该模型，并用它对我们保留的测试集进行评估：
 
-```
+```py
 best_model = SentimentAnalysisModel(vocab_size+1, max_seqlen)
 best_model.build(input_shape=(batch_size, max_seqlen))
 best_model.load_weights(best_model_file)
@@ -637,7 +637,7 @@ best_model.compile(
 
 评估模型与数据集的最简单高层方法是使用`model.evaluate()`调用：
 
-```
+```py
 test_loss, test_acc = best_model.evaluate(test_dataset)
 print("test loss: {:.3f}, test accuracy: {:.3f}".format(
     test_loss, test_acc)) 
@@ -645,13 +645,13 @@ print("test loss: {:.3f}, test accuracy: {:.3f}".format(
 
 这将给我们以下输出：
 
-```
+```py
 test loss: 0.487, test accuracy: 0.782 
 ```
 
 我们还可以使用`model.predict()`来获取预测结果，并将其与标签逐一对比，利用外部工具（例如来自 scikit-learn 的工具）来计算我们的结果：
 
-```
+```py
 labels, predictions = [], []
 idx2word[0] = "PAD"
 is_first_batch = True
@@ -676,7 +676,7 @@ print(confusion_matrix(labels, predictions))
 
 对于我们测试数据集中的第一批 64 个句子，我们重建句子并显示标签（第一列）以及模型的预测（第二列）。这里我们展示前 10 个句子。如你所见，模型在这个列表中的大多数句子上都预测正确：
 
-```
+```py
 LBL  PRED  SENT
 1     1    one of my favorite purchases ever
 1     1    works great
@@ -692,7 +692,7 @@ LBL  PRED  SENT
 
 我们还报告了所有测试数据集句子的结果。如你所见，测试准确率与`evaluate`调用报告的结果相同。我们还生成了混淆矩阵，显示在 1,000 个测试示例中，我们的情感分析网络正确预测了 782 次，错误预测了 218 次：
 
-```
+```py
 accuracy score: 0.782
 confusion matrix
 [[391  97]
@@ -701,7 +701,7 @@ confusion matrix
 
 本例的完整代码位于此章节源代码文件夹中的`lstm_sentiment_analysis.py`中。可以通过以下命令从命令行运行：
 
-```
+```py
 $ python lstm_sentiment_analysis.py 
 ```
 
@@ -717,14 +717,14 @@ $ python lstm_sentiment_analysis.py
 
 要获取数据，如果尚未安装 NLTK 库（NLTK 已包含在 Anaconda 分发中），则需要安装 NLTK 库（NLTK）。要安装树库数据集，请在 Python REPL 中执行以下操作：
 
-```
+```py
 >>> import nltk
 >>> nltk.download("treebank") 
 ```
 
 完成这些步骤后，我们就可以构建我们的网络了。像往常一样，我们将从导入必要的包开始：
 
-```
+```py
 import numpy as np
 import os
 import shutil
@@ -733,7 +733,7 @@ import tensorflow as tf
 
 我们将懒惰地将 NLTK treebank 数据集导入成一对平行的扁平文件，一个包含句子，另一个包含相应的**词性**序列：
 
-```
+```py
 def download_and_read(dataset_dir, num_pairs=None):
     sent_filename = os.path.join(dataset_dir, "treebank-sents.txt")
     poss_filename = os.path.join(dataset_dir, "treebank-poss.txt")
@@ -779,7 +779,7 @@ print("# of records: {:d}".format(len(sents)))
 
 我们需要考虑两个词汇表，一个是句子集合中的词汇表，另一个是词性集合中的词性标签词汇表。以下代码展示了如何对这两个集合进行分词并生成必要的映射字典：
 
-```
+```py
 def tokenize_and_build_vocab(texts, vocab_size=None, lower=True):
     if vocab_size is None:
         tokenizer = tf.keras.preprocessing.text.Tokenizer(lower=lower)
@@ -808,7 +808,7 @@ print("vocab sizes (source): {:d}, (target): {:d}".format(
 
 我们的句子将具有不同的长度，尽管句子中的标记数量及其相应的词性标签序列是相同的。网络要求输入具有相同的长度，因此我们需要决定句子的长度是多少。以下（临时）代码计算了不同的百分位数，并将这些百分位数的句子长度打印到控制台：
 
-```
+```py
 sequence_lengths = np.array([len(s.split()) for s in sents])
 print([(p, np.percentile(sequence_lengths, p))
     for p in [75, 80, 90, 95, 99, 100]])
@@ -819,7 +819,7 @@ print([(p, np.percentile(sequence_lengths, p))
 
 下一步是根据我们的输入创建数据集。首先，我们需要将输入和输出序列中的标记和词性标签序列转换为整数序列。其次，我们需要将较短的序列填充到最大长度 271\。请注意，在填充之后，我们对词性标签序列进行额外的操作，而不是保持它为整数序列；我们将其转换为一系列独热编码，使用`to_categorical()`函数。TensorFlow 2.0 确实提供了处理输出为整数序列的损失函数，但我们希望尽可能简化代码，因此选择自行进行转换。最后，我们使用`from_tensor_slices()`函数创建数据集，对其进行打乱，并将其划分为训练集、验证集和测试集：
 
-```
+```py
 max_seqlen = 271
 # convert sentences to sequence of integers
 sents_as_ints = tokenizer_s.texts_to_sequences(sents)
@@ -858,7 +858,7 @@ test_dataset = test_dataset.batch(batch_size)
 
 最后，我们声明模型并设置一些参数，然后使用 Adam 优化器、分类交叉熵损失函数和准确度作为度量来编译它：
 
-```
+```py
 class POSTaggingModel(tf.keras.Model):
     def __init__(self, source_vocab_size, target_vocab_size,
             embedding_dim, max_seqlen, rnn_output_dim, **kwargs):
@@ -893,7 +893,7 @@ model.compile(
 
 或许最好的方法是用一个忽略所有数字为零的匹配项的损失函数来替代当前的损失函数；然而，一个更简单的方法是构建一个更严格的度量，并使用它来判断何时停止训练。因此，我们构建了一个新的准确度函数`masked_accuracy()`，其代码如下所示：
 
-```
+```py
 def masked_accuracy():
     def masked_accuracy_fn(ytrue, ypred):
         ytrue = tf.keras.backend.argmax(ytrue, axis=-1)
@@ -911,7 +911,7 @@ def masked_accuracy():
 
 我们现在准备训练我们的模型。像往常一样，我们设置了模型检查点和 TensorBoard 回调，然后调用模型的`fit()`便捷方法，以批量大小 128 训练模型 50 个 epoch：
 
-```
+```py
 num_epochs = 50
 best_model_file = os.path.join(data_dir, "best_model.h5")
 checkpoint = tf.keras.callbacks.ModelCheckpoint(
@@ -927,7 +927,7 @@ history = model.fit(train_dataset,
 
 训练的一个截断输出如下所示。如你所见，`masked_accuracy`和`val_masked_accuracy`的数值似乎比`accuracy`和`val_accuracy`的数值更为保守。这是因为掩码版本没有考虑输入为 PAD 字符的序列位置：
 
-```
+```py
 Epoch 1/50
 19/19 [==============================] - 8s 431ms/step - loss: 1.4363 - accuracy: 0.7511 - masked_accuracy_fn: 0.00
 38 - val_loss: 0.3219 - val_accuracy: 0.9116 - val_masked_accuracy_fn: 0.5833
@@ -959,7 +959,7 @@ test loss: 0.144, test accuracy: 0.963, masked test accuracy: 0.578
 
 这里展示了一些随机句子的 POS 标签，这些句子来自测试集，并与相应的真实标签句子的 POS 标签一起展示。如你所见，尽管度量值并不完美，但它似乎已经学会了相当好地进行 POS 标注：
 
-```
+```py
 labeled  : among/IN segments/NNS that/WDT t/NONE 1/VBP continue/NONE 2/TO to/VB operate/RB though/DT the/NN company/POS 's/NN steel/NN division/VBD continued/NONE 3/TO to/VB suffer/IN from/JJ soft/NN demand/IN for/PRP its/JJ tubular/NNS goods/VBG serving/DT the/NN oil/NN industry/CC and/JJ other/NNS
 predicted: among/IN segments/NNS that/WDT t/NONE 1/NONE continue/NONE 2/TO to/VB operate/IN though/DT the/NN company/NN 's/NN steel/NN division/NONE continued/NONE 3/TO to/IN suffer/IN from/IN soft/JJ demand/NN for/IN its/JJ tubular/NNS goods/DT serving/DT the/NNP oil/NN industry/CC and/JJ other/NNS
 labeled  : as/IN a/DT result/NN ms/NNP ganes/NNP said/VBD 0/NONE t/NONE 2/PRP it/VBZ is/VBN believed/IN that/JJ little/CC or/DT no/NN sugar/IN from/DT the/CD 1989/NN 90/VBZ crop/VBN has/VBN been/NONE shipped/RB 1/RB yet/IN even/DT though/NN the/NN crop/VBZ year/CD is/NNS six/JJ
@@ -974,7 +974,7 @@ predicted: primerica/NNP closed/VBD at/CD 28/CD 25/CD u/CD down/CD
 
 如果你想自己运行这段代码，你可以在本章的代码文件夹中找到它。要从命令行运行，输入以下命令。输出将写入控制台：
 
-```
+```py
 $ python gru_pos_tagger.py 
 ```
 
@@ -1006,7 +1006,7 @@ $ python gru_pos_tagger.py
 
 和往常一样，我们将从导入开始：
 
-```
+```py
 import nltk
 import numpy as np
 import re
@@ -1025,7 +1025,7 @@ from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 
 第一个序列从位置 0 开始，停止于句子中的倒数第二个单词，第二个序列从位置 1 开始，一直延伸到句子的末尾：
 
-```
+```py
 def preprocess_sentence(sent):
     sent = "".join([c for c in unicodedata.normalize("NFD", sent)
         if unicodedata.category(c) != "Mn"])
@@ -1059,7 +1059,7 @@ tf.keras 框架提供了一个非常强大且多功能的分词器类——在�
 
 接下来，我们通过使用 `pad_sequences()` 函数在序列末尾填充零来处理不同长度的单词序列。因为我们的字符串比较短，所以我们不进行截断，只对句子的最大长度进行填充（英语为 8 个单词，法语为 16 个单词）：
 
-```
+```py
 tokenizer_en = tf.keras.preprocessing.text.Tokenizer(
     filters="", lower=False)
 tokenizer_en.fit_on_texts(sents_en)
@@ -1091,7 +1091,7 @@ print("seqlen (en): {:d}, (fr): {:d}".format(maxlen_en, maxlen_fr))
 
 最后，我们将数据转换成 TensorFlow 数据集，然后将其分割为训练数据集和测试数据集：
 
-```
+```py
 batch_size = 64
 dataset = tf.data.Dataset.from_tensor_slices(
     (data_en, data_fr_in, data_fr_out))
@@ -1109,7 +1109,7 @@ train_dataset = dataset.skip(test_size).batch(
 
 在我们的示例网络中，我们选择将嵌入维度设置为 128，然后是每个 1024 的编码器和解码器 RNN 维度。请注意，我们必须为英文和法文词汇表的词汇大小分别加 1，以便考虑在 `pad_sequences()` 步骤中添加的 PAD 字符：
 
-```
+```py
 class Encoder(tf.keras.Model):
     def __init__(self, vocab_size, num_timesteps,
             embedding_dim, encoder_dim, **kwargs):
@@ -1150,7 +1150,7 @@ decoder = Decoder(vocab_size_fr+1,
 
 现在我们已经定义了 `Encoder` 和 `Decoder` 类，让我们回顾一下它们的输入和输出的维度。以下一段（临时）代码可以用来打印系统中各种输入和输出的维度。为了方便，代码已经作为注释块保留在本章随附的代码中：
 
-```
+```py
 for encoder_in, decoder_in, decoder_out in train_dataset:
     encoder_state = encoder.init_state(batch_size)
     encoder_out, encoder_state = encoder(encoder_in, encoder_state)
@@ -1169,7 +1169,7 @@ print("decoder output (labels):", decoder_out.shape)
 
 解码器的预测是一个跨所有时间步的概率分布的批次；因此，维度为（`batch_size`，`maxlen_fr`，`vocab_size_fr+1`），解码器状态的维度与编码器状态相同（`batch_size`，`decoder_dim`）：
 
-```
+```py
 encoder input          : (64, 8)
 encoder output         : (64, 1024) state: (64, 1024)
 decoder output (logits): (64, 16, 7658) state: (64, 1024)
@@ -1178,7 +1178,7 @@ decoder output (labels): (64, 16)
 
 接下来，我们定义损失函数。由于我们对句子进行了填充，我们不想通过考虑标签和预测之间填充词的相等性来偏倚结果。我们的损失函数通过标签对预测进行掩蔽，因此标签上的任何填充位置也会从预测中移除，我们仅使用标签和预测中的非零元素来计算损失。实现如下：
 
-```
+```py
 def loss_fn(ytrue, ypred):
     scce = tf.keras.losses.SparseCategoricalCrossentropy(
         from_logits=True)
@@ -1194,7 +1194,7 @@ def loss_fn(ytrue, ypred):
 
 这是一种常用的技术，称为**教师强迫（Teacher Forcing）**，其中解码器的输入是实际的输出，而不是来自上一个时间步的预测。这样做的优势是可以加速训练，但也可能导致预测质量的下降。为了解决这个问题，可以使用**定时采样（Scheduled Sampling）**等技术，在这种技术中，输入会根据某个阈值从实际输出或上一个时间步的预测中随机选择（这个阈值依赖于问题，通常在 0.1 到 0.4 之间）：
 
-```
+```py
 @tf.function
 def train_step(encoder_in, decoder_in, decoder_out, encoder_state):
     with tf.GradientTape() as tape:
@@ -1213,7 +1213,7 @@ def train_step(encoder_in, decoder_in, decoder_out, encoder_state):
 
 `predict()`方法用于从数据集中随机选择一个英语句子，并利用目前训练的模型预测法语句子。为了参考，标签的法语句子也会显示出来。`evaluate()`方法计算**双语评估准则（BiLingual Evaluation Understudy）**（**BLEU**）分数[35]，该分数衡量测试集中的所有记录的标签和预测之间的差异。BLEU 分数通常用于多个地面真实标签存在的情况（我们这里只有一个），并比较参考句子和候选句子中的最多 4-gram（n-gram 中的*n=4*）。`predict()`和`evaluate()`方法在每个 epoch 结束时都会被调用：
 
-```
+```py
 def predict(encoder, decoder, batch_size,
         sents_en, data_en, sents_fr_out,
         word2idx_fr, idx2word_fr):
@@ -1268,7 +1268,7 @@ def evaluate_bleu_score(encoder, decoder, test_dataset,
 
 训练循环如下所示。我们将使用 Adam 优化器进行模型训练。我们还设置了检查点，以便在每 10 个 epoch 后保存我们的模型。然后，我们训练模型 250 个 epoch，并打印出损失、一个示例句子及其翻译，以及在整个测试集上计算的 BLEU 分数：
 
-```
+```py
 optimizer = tf.keras.optimizers.Adam()
 checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
 checkpoint = tf.train.Checkpoint(optimizer=optimizer,
@@ -1318,7 +1318,7 @@ checkpoint.save(file_prefix=checkpoint_prefix)
 
 这个例子的完整代码可以在本章附带的源代码中找到。你需要一台基于 GPU 的计算机来运行它，尽管通过使用较小的网络维度（`embedding_dim`，`encoder_dim`，`decoder_dim`），较小的超参数（`batch_size`，`num_epochs`）和较少的句子对，可能能够在 CPU 上运行它。要完整运行代码，执行以下命令。输出将写入控制台：
 
-```
+```py
 $ python seq2seq_wo_attn.py 
 ```
 
@@ -1376,7 +1376,7 @@ Luong、Pham 和 Manning [29] 提出了一组三种注意力形式（点积、�
 
 第一个变化是对编码器的改动。它不再返回单一的上下文或思想向量，而是会在每个时间点返回输出，因为注意力机制需要这些信息。以下是突出显示的修改后的编码器类：
 
-```
+```py
 class Encoder(tf.keras.Model):
      def __init__(self, vocab_size, num_timesteps,
            embedding_dim, encoder_dim, **kwargs):
@@ -1400,7 +1400,7 @@ class Encoder(tf.keras.Model):
 
 方程中的*W [s;h]*是两个单独线性变换的简写（形式为*y = Wx + b*），一个作用于*s*，另一个作用于*h*。这两个线性变换被实现为全连接层，如下实现所示。我们继承了`tf.keras`的 Layer 对象，因为我们的最终目标是将其用作网络中的一层，但继承 Model 对象也是可以接受的。`call()`方法接受查询（解码器状态）和值（编码器状态），计算分数，然后根据对应的 softmax 计算对齐，并根据方程给出上下文向量，最后返回它们。上下文向量的形状为（`batch_size`，`num_decoder_timesteps`），对齐的形状为（`batch_size`，`num_encoder_timesteps`，`1`）。全连接层的`W1`、`W2`和`V`张量的权重在训练过程中学习：
 
-```
+```py
 class BahdanauAttention(tf.keras.layers.Layer):
     def __init__(self, num_units):
         super(BahdanauAttention, self).__init__()
@@ -1432,7 +1432,7 @@ class BahdanauAttention(tf.keras.layers.Layer):
 
 Luong 注意力是乘法形式的，但其一般实现类似。我们不再声明三个线性变换`W1`、`W2`和`V`，而是只有一个`W`。`call()`方法中的步骤遵循相同的一般步骤——首先，我们根据 Luong 注意力的方程计算分数，如上一节所述。然后，我们计算对齐作为分数的对应 softmax 版本，再计算上下文向量作为对齐与值的点积。与 Bahdanau 注意力类中的权重一样，表示全连接层`W`的权重矩阵在训练过程中学习：
 
-```
+```py
 class LuongAttention(tf.keras.layers.Layer):
     def __init__(self, num_units):
         super(LuongAttention, self).__init__()
@@ -1452,7 +1452,7 @@ class LuongAttention(tf.keras.layers.Layer):
 
 为了验证这两个类是否可以互相替代，我们运行以下这段临时代码（在本示例的源代码中已被注释掉）。我们只需制造一些随机输入并将其发送给两个注意力类：
 
-```
+```py
 batch_size = 64
 num_timesteps = 100
 num_units = 1024
@@ -1472,14 +1472,14 @@ print("Luong: context.shape:", context.shape,
 
 上述代码产生了以下输出，并如预期所示，两个类在给定相同输入时生成了相同形状的输出。因此，它们可以互相替代：
 
-```
+```py
 Bahdanau: context.shape: (64, 1024) alignments.shape: (64, 8, 1)
 Luong: context.shape: (64, 1024) alignments.shape: (64, 8, 1) 
 ```
 
 现在我们有了注意力类，让我们看看解码器。`init()`方法中的区别在于增加了注意力类变量，我们已将其设置为`BahdanauAttention`类。此外，我们还有两个附加的变换，`Wc`和`Ws`，它们将应用于解码器 RNN 的输出。第一个变换使用`tanh`激活函数，将输出调节到-1 和+1 之间，接下来的变换是标准的线性变换。与没有注意力解码器组件的 seq2seq 网络相比，这个解码器在`call()`方法中接受额外的参数`encoder_output`，并返回一个额外的上下文向量：
 
-```
+```py
 class Decoder(tf.keras.Model):
     def __init__(self, vocab_size, embedding_dim, num_timesteps,
             decoder_dim, **kwargs):
@@ -1510,7 +1510,7 @@ class Decoder(tf.keras.Model):
 
 训练循环也有所不同。与没有注意力机制的 seq2seq 网络不同，在该网络中我们使用教师强制（teacher forcing）来加速训练，而使用注意力机制意味着我们现在必须逐个消费解码器的输入。这是因为前一步的解码器输出通过注意力机制对当前时间步的输出影响更大。我们新的训练循环由下面的`train_step`函数描述，且比没有注意力机制的 seq2seq 网络的训练循环要慢得多。然而，这种训练循环也可以用于前述网络，特别是在我们想要实现计划性采样策略时：
 
-```
+```py
 @tf.function
 def train_step(encoder_in, decoder_in, decoder_out, encoder_state):
     with tf.GradientTape() as tape:
@@ -1556,7 +1556,7 @@ def train_step(encoder_in, decoder_in, decoder_out, encoder_state):
 
 这里描述的网络的完整代码在本章的代码文件夹中的`seq2seq_with_attn.py`文件中。要从命令行运行代码，请使用以下命令。你可以通过注释掉`Decoder`类的`init()`方法中的一个或另一个来切换使用 Bahdanau（加性）或 Luong（乘性）注意力机制：
 
-```
+```py
 $ python seq2seq_with_attn.py 
 ```
 

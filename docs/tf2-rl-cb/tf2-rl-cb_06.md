@@ -58,7 +58,7 @@ WebGym 提供了供代理学习的环境，让代理以我们（人类）感知�
 
 1.  让我们首先导入必要的 Python 模块：
 
-    ```
+    ```py
     import os
     import gym
     from PIL import Image
@@ -68,7 +68,7 @@ WebGym 提供了供代理学习的环境，让代理以我们（人类）感知�
 
 1.  让我们指定导入本地 `miniwob` 环境的目录：
 
-    ```
+    ```py
     cur_path_dir = \
         os.path.dirname(os.path.realpath(__file__))
     miniwob_dir = os.path.join(cur_path_dir, "miniwob",
@@ -77,7 +77,7 @@ WebGym 提供了供代理学习的环境，让代理以我们（人类）感知�
 
 1.  现在，我们可以开始创建 `MiniWoBEnvironment` 的子类。然后，我们可以调用父类的初始化函数来初始化环境并在配置 `miniwob` 环境之前设置 `base_url` 的值：
 
-    ```
+    ```py
     class MiniWoBEnv(MiniWoBEnvironment, gym.Env):
         def __init__(
             self,
@@ -97,7 +97,7 @@ WebGym 提供了供代理学习的环境，让代理以我们（人类）感知�
 
 1.  现在是定制 `reset(…)` 方法的时候了。为了使环境可以随机化，我们将使用 `seeds` 参数来接收随机种子。这可以用来生成随机的起始状态和任务，确保我们训练的代理不会对固定/静态网页产生过拟合：
 
-    ```
+    ```py
     def reset(self, seeds=[1], mode=None, 
     record_screenshots=False):
             """Forces stop and start all instances.
@@ -127,7 +127,7 @@ WebGym 提供了供代理学习的环境，让代理以我们（人类）感知�
 
 1.  接下来，我们将重新定义`step(…)`方法。让我们分两步完成实现。首先，我们将定义该方法并添加文档字符串，解释方法的参数：
 
-    ```
+    ```py
         def step(self, actions):
             """Applies an action on each instance and returns 
             the results.
@@ -149,7 +149,7 @@ WebGym 提供了供代理学习的环境，让代理以我们（人类）感知�
 
 1.  在这一步，我们将完成`step(…)`方法的实现：
 
-    ```
+    ```py
             states, rewards, dones, info = \
                                     super().step(actions)
             # Obtain screenshot & Resize image obs to match 
@@ -164,7 +164,7 @@ WebGym 提供了供代理学习的环境，让代理以我们（人类）感知�
 
 1.  这就完成了我们的`MiniWoBEnv`类实现！为了测试我们的类实现，并理解如何使用这个类，我们将编写一个简短的`main()`函数：
 
-    ```
+    ```py
     if __name__ == "__main__":
         env = MiniWoBVisualEnv("click-pie")
         for _ in range(10):
@@ -179,7 +179,7 @@ WebGym 提供了供代理学习的环境，让代理以我们（人类）感知�
 
 1.  你可以将前面的脚本保存为`miniwob_env.py`并执行它，查看一个随机智能体在样本环境中的表现。在接下来的几个步骤中，我们将扩展`MiniWoBEnv`，以创建一个与 OpenAI Gym 兼容的学习环境接口。让我们首先创建一个名为`envs.py`的新文件，并包括以下导入：
 
-    ```
+    ```py
     import gym.spaces
     import numpy as np
     import string
@@ -189,7 +189,7 @@ WebGym 提供了供代理学习的环境，让代理以我们（人类）感知�
 
 1.  对于第一个环境，我们将实现`MiniWoBVisualClickEnv`类：
 
-    ```
+    ```py
     class MiniWoBVisualClickEnv(MiniWoBEnv):
         def __init__(self, name, num_instances=1):
             """RL environment with visual observations and 
@@ -219,7 +219,7 @@ WebGym 提供了供代理学习的环境，让代理以我们（人类）感知�
 
 1.  让我们在`__init__`方法中定义该环境的观察空间和动作空间：
 
-    ```
+    ```py
             self.observation_space = gym.spaces.Box(
                 0,
                 255,
@@ -238,7 +238,7 @@ WebGym 提供了供代理学习的环境，让代理以我们（人类）感知�
 
 1.  接下来，我们将进一步扩展`reset(…)`方法，以提供与 OpenAI Gym 兼容的接口方法：
 
-    ```
+    ```py
         def reset(self, seeds=[1]):
             """Forces stop and start all instances.
             Args:
@@ -261,7 +261,7 @@ WebGym 提供了供代理学习的环境，让代理以我们（人类）感知�
 
 1.  下一个重要的部分是`step`方法。我们将分以下两步来实现它：
 
-    ```
+    ```py
         def step(self, actions):
             """Applies an action on each instance and returns 
                the results.
@@ -287,7 +287,7 @@ WebGym 提供了供代理学习的环境，让代理以我们（人类）感知�
 
 1.  为了完成`step`方法的实现，让我们先检查动作的维度是否符合预期，然后在必要时绑定动作。最后，我们必须在环境中执行一步：
 
-    ```
+    ```py
             assert (
                 len(actions) == self.num_instances
             ), f"Expected len(actions)={self.num_instances}.\
@@ -308,7 +308,7 @@ WebGym 提供了供代理学习的环境，让代理以我们（人类）感知�
 
 1.  我们可以使用描述性的类名将环境注册到 Gym 的注册表中：
 
-    ```
+    ```py
     class MiniWoBClickButtonVisualEnv(MiniWoBVisualClickEnv):
         def __init__(self, num_instances=1):
             super().__init__("click-button", num_instances)
@@ -316,7 +316,7 @@ WebGym 提供了供代理学习的环境，让代理以我们（人类）感知�
 
 1.  最后，为了将环境本地注册到 OpenAI Gym 的注册表中，我们必须将环境注册信息添加到`__init__.py`文件中：
 
-    ```
+    ```py
     import sys
     import os
     from gym.envs.registration import register
@@ -363,7 +363,7 @@ WebGym 提供了供代理学习的环境，让代理以我们（人类）感知�
 
 要完成此配方，您需要激活 `tf2rl-cookbook` Python/conda 虚拟环境。确保更新该环境，使其与本食谱代码库中的最新 conda 环境规范文件（`tfrl-cookbook.yml`）匹配。如果以下 `import` 语句能够顺利执行，那么您就准备好开始了：
 
-```
+```py
 import argparse
 import os
 from datetime import datetime
@@ -384,7 +384,7 @@ import webgym  # Used to register webgym environments
 
 1.  让我们首先定义 CTA 代理训练脚本的命令行参数：
 
-    ```
+    ```py
     parser = argparse.ArgumentParser(prog="TFRL-Cookbook-Ch5-Click-To-Action-Agent")
     parser.add_argument("--env", default="MiniWoBClickButtonVisualEnv-v0")
     parser.add_argument("--update-freq", type=int, default=16)
@@ -399,7 +399,7 @@ import webgym  # Used to register webgym environments
 
 1.  接下来，我们将创建一个 TensorBoard 日志记录器，以便记录和可视化 CTA 代理的实时训练进度：
 
-    ```
+    ```py
     args = parser.parse_args()
     logdir = os.path.join(
         args.logdir, parser.prog, args.env, \
@@ -411,7 +411,7 @@ import webgym  # Used to register webgym environments
 
 1.  在接下来的步骤中，我们将实现 `Actor` 类。然而，我们将首先实现 `__init__` 方法：
 
-    ```
+    ```py
     class Actor:
         def __init__(self, state_dim, action_dim, 
         action_bound, std_bound):
@@ -431,7 +431,7 @@ import webgym  # Used to register webgym environments
 
 1.  接下来，我们将定义表示代理模型的 DNN。我们将把 DNN 的实现拆分为多个步骤，因为它会稍长一些，涉及多个神经网络层的堆叠。作为第一个主要处理步骤，我们将通过堆叠卷积-池化-卷积-池化层来实现一个模块：
 
-    ```
+    ```py
         def nn_model(self):
             obs_input = Input(self.state_dim)
             conv1 = Conv2D(
@@ -458,7 +458,7 @@ import webgym  # Used to register webgym environments
 
 1.  现在，我们将扁平化池化层的输出，以便开始使用带有丢弃层的全连接层或稠密层，生成我们期望的代理网络输出：
 
-    ```
+    ```py
             flat = Flatten()(pool2)
             dense1 = Dense(
                 16, activation="relu", \
@@ -480,7 +480,7 @@ import webgym  # Used to register webgym environments
 
 1.  我们需要对预测值进行缩放和裁剪，以确保值被限定在我们期望的范围内。让我们使用 **Lambda 层** 来实现自定义的裁剪和缩放，如以下代码片段所示：
 
-    ```
+    ```py
             mu_output = Lambda(
                 lambda x: tf.clip_by_value(x * \
                   self.action_bound, 1e-9, self.action_bound)
@@ -503,7 +503,7 @@ import webgym  # Used to register webgym environments
 
 1.  这完成了我们的`nn_model`实现。现在，让我们定义一个便捷函数，以便给定状态时获取一个动作：
 
-    ```
+    ```py
         def get_action(self, state):
             # Convert [Image] to np.array(np.adarray)
             state_np = np.array([np.array(s) for s in state])
@@ -527,7 +527,7 @@ import webgym  # Used to register webgym environments
 
 1.  现在，到了实现主要训练方法的时候。这个方法将更新 Actor 网络的参数：
 
-    ```
+    ```py
         def train(self, log_old_policy, states, actions, 
         gaes):
             with tf.GradientTape() as tape:
@@ -545,7 +545,7 @@ import webgym  # Used to register webgym environments
 
 1.  尽管我们在之前的`train`方法中使用了`compute_loss`和`log_pdf`，但我们还没有真正定义它们！让我们一个接一个地实现它们，从`compute_loss`方法开始：
 
-    ```
+    ```py
         def compute_loss(self, log_old_policy, 
         log_new_policy, actions, gaes):
             # Avoid INF in exp by setting 80 as the upper 
@@ -567,7 +567,7 @@ import webgym  # Used to register webgym environments
 
 1.  在这一步，我们将实现`log_pdf`方法：
 
-    ```
+    ```py
         def log_pdf(self, mu, std, action):
             std = tf.clip_by_value(std, self.std_bound[0],
                                    self.std_bound[1])
@@ -582,7 +582,7 @@ import webgym  # Used to register webgym environments
 
 1.  上一步已经完成了 Actor 的实现。现在是时候开始实现`Critic`类了：
 
-    ```
+    ```py
     class Critic:
         def __init__(self, state_dim):
             self.state_dim = state_dim
@@ -597,7 +597,7 @@ import webgym  # Used to register webgym environments
 
 1.  接下来是`Critic`类的神经网络模型。与 Actor 的神经网络模型类似，这也是一个 DNN。我们将把实现分为几个步骤。首先，来实现一个卷积-池化-卷积-池化模块：
 
-    ```
+    ```py
             obs_input = Input(self.state_dim)
             conv1 = Conv2D(
                 filters=64,
@@ -623,7 +623,7 @@ import webgym  # Used to register webgym environments
 
 1.  虽然我们可以堆叠更多的模块或层来加深神经网络，但对于我们当前的任务，DNN 中已经有足够的参数来学习如何在 CTA 任务中表现良好。让我们添加全连接层，这样我们就能最终产生状态条件下的动作值：
 
-    ```
+    ```py
             flat = Flatten()(pool2)
             dense1 = Dense(
                 16, activation="relu", \
@@ -643,7 +643,7 @@ import webgym  # Used to register webgym environments
 
 1.  让我们实现一个方法来计算 Critic 的学习损失，本质上是时间差学习目标与 Critic 预测的值之间的均方误差：
 
-    ```
+    ```py
         def compute_loss(self, v_pred, td_targets):
             mse = tf.keras.losses.MeanSquaredError()
             return mse(td_targets, v_pred)
@@ -651,7 +651,7 @@ import webgym  # Used to register webgym environments
 
 1.  让我们通过实现`train`方法来更新 Critic 的参数，从而最终完成`Critic`类的实现：
 
-    ```
+    ```py
         def train(self, states, td_targets):
             with tf.GradientTape() as tape:
                 v_pred = self.model(states, training=True)
@@ -667,7 +667,7 @@ import webgym  # Used to register webgym environments
 
 1.  现在，我们可以利用 Actor 和 Critic 的实现来构建我们的 PPO 代理，使其能够处理高维（图像）观察。让我们从定义`PPOAgent`类的`__init__`方法开始：
 
-    ```
+    ```py
     class PPOAgent:
         def __init__(self, env):
             self.env = env
@@ -687,7 +687,7 @@ import webgym  # Used to register webgym environments
 
 1.  我们将使用**广义优势估计**（**GAE**）来更新我们的策略。所以，让我们实现一个方法来计算 GAE 目标值：
 
-    ```
+    ```py
         def gae_target(self, rewards, v_values, next_v_value, 
         done):
             n_step_targets = np.zeros_like(rewards)
@@ -710,7 +710,7 @@ import webgym  # Used to register webgym environments
 
 1.  我们来到了这个脚本的核心！让我们为深度 PPO 代理定义训练例程。我们将把实现分为多个步骤，以便于跟随。我们将从最外层的循环开始，这个循环必须为可配置的最大回合数运行：
 
-    ```
+    ```py
         def train(self, max_episodes=1000):
             with writer.as_default():
                 for ep in range(max_episodes):
@@ -726,7 +726,7 @@ import webgym  # Used to register webgym environments
 
 1.  接下来，我们将实现遍历环境并通过检查环境中的`done`值来处理回合结束的逻辑：
 
-    ```
+    ```py
                         while not done:
                             log_old_policy, action = \
                                  self.actor.get_action(state)
@@ -759,7 +759,7 @@ import webgym  # Used to register webgym environments
 
 1.  接下来，我们将实现检查回合是否结束或是否需要更新的逻辑，并执行更新步骤：
 
-    ```
+    ```py
                         if len(state_batch) >= \
                         args.update_freq or done:
                             states = \
@@ -790,7 +790,7 @@ import webgym  # Used to register webgym environments
 
 1.  现在，我们已经有了更新的 GAE 目标，可以训练 Actor 和 Critic 网络，并记录损失和其他训练指标以便追踪：
 
-    ```
+    ```py
                             for epoch in range(args.epochs):
                                 actor_loss = \
                                     self.actor.train(
@@ -824,7 +824,7 @@ import webgym  # Used to register webgym environments
 
 1.  最后，让我们实现`__main__`函数来训练 CTA 代理：
 
-    ```
+    ```py
     if __name__ == "__main__":
         env_name = "MiniWoBClickButtonVisualEnv-v0"
         env = gym.make(env_name)
@@ -874,7 +874,7 @@ import webgym  # Used to register webgym environments
 
 为了完成这个教程，请确保你拥有最新版本。首先，你需要激活`tf2rl-cookbook` Python/conda 虚拟环境。确保更新该环境，使其与本教程代码库中最新的 conda 环境规范文件（`tfrl-cookbook.yml`）匹配。如果以下`import`语句能顺利运行，那么你已经准备好开始了：
 
-```
+```py
 import argparse
 import os
 from datetime import datetime
@@ -895,7 +895,7 @@ import webgym  # Used to register webgym environments
 
 1.  首先，让我们设置训练脚本的命令行参数和日志记录：
 
-    ```
+    ```py
     parser = argparse.ArgumentParser(prog="TFRL-Cookbook-Ch5-Login-Agent")
     parser.add_argument("--env", default="MiniWoBLoginUserVisualEnv-v0")
     parser.add_argument("--update-freq", type=int, default=16)
@@ -917,7 +917,7 @@ import webgym  # Used to register webgym environments
 
 1.  现在，我们可以直接跳入`Critic`类的定义：
 
-    ```
+    ```py
     class Critic:
         def __init__(self, state_dim):
             self.state_dim = state_dim
@@ -932,7 +932,7 @@ import webgym  # Used to register webgym environments
 
 1.  现在，让我们定义 Critic 模型的 DNN。我们将从实现一个由卷积-池化-卷积-池化组成的感知块开始。在随后的步骤中，我们将通过堆叠另一个感知块来增加网络的深度：
 
-    ```
+    ```py
         def nn_model(self):
             obs_input = Input(self.state_dim)
             conv1 = Conv2D(
@@ -959,7 +959,7 @@ import webgym  # Used to register webgym environments
 
 1.  接下来，我们将添加另一个感知块，以便提取更多特征：
 
-    ```
+    ```py
             conv3 = Conv2D(
                 filters=16,
                 kernel_size=(3, 3),
@@ -982,7 +982,7 @@ import webgym  # Used to register webgym environments
 
 1.  接下来，我们将添加一个展平层，接着是全连接（密集）层，将网络输出的形状压缩成一个单一的动作值：
 
-    ```
+    ```py
             flat = Flatten()(pool4)
             dense1 = Dense(
                 16, activation="relu", 
@@ -1004,7 +1004,7 @@ import webgym  # Used to register webgym environments
 
 1.  为了完成我们的 Critic 实现，让我们定义`compute_loss`方法和`update`方法，以便训练参数：
 
-    ```
+    ```py
         def compute_loss(self, v_pred, td_targets):
             mse = tf.keras.losses.MeanSquaredError()
             return mse(td_targets, v_pred)
@@ -1023,7 +1023,7 @@ import webgym  # Used to register webgym environments
 
 1.  现在，我们可以开始实现`Actor`类。我们将在这一步初始化`Actor`类，并在随后的步骤中继续实现：
 
-    ```
+    ```py
     class Actor:
         def __init__(self, state_dim, action_dim, 
         action_bound, std_bound):
@@ -1043,7 +1043,7 @@ import webgym  # Used to register webgym environments
 
 1.  我们将为我们的 Actor 使用与 Critic 实现中相似的 DNN 架构。因此，`nn_model`方法的实现将保持不变，除了最后几层，Actor 和 Critic 的实现将在此处有所不同。Actor 网络模型输出均值和标准差，这取决于动作空间的维度。另一方面，Critic 网络输出一个状态条件下的动作值，无论动作空间的维度如何。与 Critic 的 DNN 实现不同的层如下所示：
 
-    ```
+    ```py
             # action_dim[0] = 2
             output_val = Dense(
                 self.action_dim[0],
@@ -1075,7 +1075,7 @@ import webgym  # Used to register webgym environments
 
 1.  让我们实现一些方法来计算 Actor 的损失和`log_pdf`：
 
-    ```
+    ```py
         def log_pdf(self, mu, std, action):
             std = tf.clip_by_value(std, self.std_bound[0], 
                                    self.std_bound[1])
@@ -1107,7 +1107,7 @@ import webgym  # Used to register webgym environments
 
 1.  借助这些辅助方法，我们的训练方法实现变得更加简洁：
 
-    ```
+    ```py
         def train(self, log_old_policy, states, actions, 
         gaes):
             with tf.GradientTape() as tape:
@@ -1126,7 +1126,7 @@ import webgym  # Used to register webgym environments
 
 1.  最后，让我们实现一个方法，当给定一个状态作为输入时，它将从 Actor 中获取一个动作：
 
-    ```
+    ```py
         def get_action(self, state):
             # Convert [Image] to np.array(np.adarray)
             state_np = np.array([np.array(s) for s in state])
@@ -1150,7 +1150,7 @@ import webgym  # Used to register webgym environments
 
 1.  这完成了我们的 Actor 实现。现在，我们可以通过`PPOAgent`类的实现将 Actor 和 Critic 结合起来。由于之前的食谱中已经讨论了 GAE 目标计算，我们将跳过这一部分，专注于训练方法的实现：
 
-    ```
+    ```py
                    while not done:
                         # self.env.render()
                         log_old_policy, action = \
@@ -1193,7 +1193,7 @@ import webgym  # Used to register webgym environments
 
 1.  Agent 的更新是在预设的频率下执行的，频率依据收集的样本数量或每个回合结束时执行——以先到者为准：
 
-    ```
+    ```py
                         if len(state_batch) >= \
                             args.update_freq or done:
                             states = np.array([state.\
@@ -1231,7 +1231,7 @@ import webgym  # Used to register webgym environments
 
 1.  最后，我们可以运行`MiniWoBLoginUserVisualEnv-v0`并使用以下代码片段训练 Agent：
 
-    ```
+    ```py
     if __name__ == "__main__":
         env_name = "MiniWoBLoginUserVisualEnv-v0"
         env = gym.make(env_name)
@@ -1279,7 +1279,7 @@ import webgym  # Used to register webgym environments
 
 为了完成这个食谱，你需要激活 `tf2rl-cookbook` Python/conda 虚拟环境。确保更新环境，以便它与本食谱代码仓库中的最新 conda 环境规范文件 (`tfrl-cookbook.yml`) 匹配。如果以下的 `import` 语句能正常运行，那么你就可以开始了：
 
-```
+```py
 import argparse
 import os
 import random
@@ -1300,7 +1300,7 @@ import webgym  # Used to register webgym environments
 
 1.  首先，让我们将超参数暴露为可配置的参数，以便在训练脚本中使用：
 
-    ```
+    ```py
     parser = argparse.ArgumentParser(
         prog="TFRL-Cookbook-Ch5-SocialMedia-Mute-User-DDPGAgent"
     )
@@ -1317,7 +1317,7 @@ import webgym  # Used to register webgym environments
 
 1.  接下来，我们将设置 TensorBoard 日志记录，以便实时可视化训练进度：
 
-    ```
+    ```py
     logdir = os.path.join(
         args.logdir, parser.prog, args.env, \
         datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -1328,7 +1328,7 @@ import webgym  # Used to register webgym environments
 
 1.  我们将使用重放缓冲区来实现经验回放。让我们实现一个简单的 `ReplayBuffer` 类：
 
-    ```
+    ```py
     class ReplayBuffer:
         def __init__(self, capacity=10000):
             self.buffer = deque(maxlen=capacity)
@@ -1353,7 +1353,7 @@ import webgym  # Used to register webgym environments
 
 1.  让我们从实现 `Actor` 类开始：
 
-    ```
+    ```py
     class Actor:
         def __init__(self, state_dim, action_dim, 
         action_bound):
@@ -1370,7 +1370,7 @@ import webgym  # Used to register webgym environments
 
 1.  Actor 的 DNN 模型将由两个感知块组成，每个感知块包含卷积-池化-卷积-池化层，正如我们之前的配方。我们将在这里跳过这一部分，直接查看`train`方法的实现。像往常一样，完整的源代码将会在本食谱的代码库中提供。让我们继续实现`train`和`predict`方法：
 
-    ```
+    ```py
         def train(self, states, q_grads):
             with tf.GradientTape() as tape:
                 grads = tape.gradient(
@@ -1386,7 +1386,7 @@ import webgym  # Used to register webgym environments
 
 1.  `Actor`类的最后一部分是实现一个函数来获取动作：
 
-    ```
+    ```py
         def get_action(self, state):
             # Convert [Image] to np.array(np.adarray)
             state_np = np.array([np.array(s) for s in state])
@@ -1404,7 +1404,7 @@ import webgym  # Used to register webgym environments
 
 1.  这样，我们的`Actor`类就准备好了。现在，我们可以继续并实现`Critic`类：
 
-    ```
+    ```py
     class Critic:
         def __init__(self, state_dim, action_dim):
             self.state_dim = state_dim
@@ -1418,7 +1418,7 @@ import webgym  # Used to register webgym environments
 
 1.  类似于`Actor`类的 DNN 模型，我们将重新使用之前食谱中的类似架构来构建`Critic`类，包含两个感知块。你可以参考这个食谱的完整源代码或前一个食谱中的 DNN 实现，以获得完整性。让我们深入实现`predict`和`g_gradients`的计算，以计算 Q 函数：
 
-    ```
+    ```py
         def predict(self, inputs):
             return self.model.predict(inputs)
         def q_gradients(self, states, actions):
@@ -1432,7 +1432,7 @@ import webgym  # Used to register webgym environments
 
 1.  为了更新我们的 Critic 模型，我们需要一个损失函数来驱动参数更新，并且需要一个实际的训练步骤来执行更新。在这一步中，我们将实现这两个核心方法：
 
-    ```
+    ```py
         def compute_loss(self, v_pred, td_targets):
             mse = tf.keras.losses.MeanSquaredError()
             return mse(td_targets, v_pred)
@@ -1452,7 +1452,7 @@ import webgym  # Used to register webgym environments
 
 1.  现在是时候将 Actor 和 Critic 结合起来实现 DDPGAgent 了！让我们深入了解：
 
-    ```
+    ```py
     class DDPGAgent:
         def __init__(self, env):
             self.env = env
@@ -1478,7 +1478,7 @@ import webgym  # Used to register webgym environments
 
 1.  我们来实现一个方法，用于更新 Actor 和 Critic 的目标模型：
 
-    ```
+    ```py
         def update_target(self):
             actor_weights = self.actor.model.get_weights()
             t_actor_weights = \
@@ -1502,7 +1502,7 @@ import webgym  # Used to register webgym environments
 
 1.  接下来，我们将实现一个方法，用于计算时序差分目标：
 
-    ```
+    ```py
         def get_td_target(self, rewards, q_values, dones):
             targets = np.asarray(q_values)
             for i in range(q_values.shape[0]):
@@ -1515,7 +1515,7 @@ import webgym  # Used to register webgym environments
 
 1.  因为我们使用的是确定性策略梯度且没有分布来从中采样，我们将使用一个噪声函数来在 Actor 网络预测的动作周围进行采样。**Ornstein Uhlenbeck**（**OU**）噪声过程是 DDPG 代理的一个流行选择。我们将在这里实现它：
 
-    ```
+    ```py
         def add_ou_noise(self, x, rho=0.15, mu=0, dt=1e-1,
                          sigma=0.2, dim=1):
             return (
@@ -1525,7 +1525,7 @@ import webgym  # Used to register webgym environments
 
 1.  接下来，我们将实现一个方法，用于重放 Replay Buffer 中的经验：
 
-    ```
+    ```py
         def replay_experience(self):
             for _ in range(10):
                 states, actions, rewards, next_states, \
@@ -1548,7 +1548,7 @@ import webgym  # Used to register webgym environments
 
 1.  我们在代理（Agent）实现中的最后一个但最关键的任务是实现`train`方法。我们将把实现分为几个步骤。首先，我们将从最外层的循环开始，该循环必须运行至最多的回合数：
 
-    ```
+    ```py
         def train(self, max_episodes=1000):
             with writer.as_default():
                 for ep in range(max_episodes):
@@ -1565,7 +1565,7 @@ import webgym  # Used to register webgym environments
 
 1.  接下来，我们将实现内层循环，它将一直运行到回合结束：
 
-    ```
+    ```py
                     while not done:
                         # self.env.render()
                         action = self.actor.get_action(state)
@@ -1584,7 +1584,7 @@ import webgym  # Used to register webgym environments
 
 1.  我们还没有完成！我们仍然需要用代理收集到的新经验来更新我们的 Replay Buffer：
 
-    ```
+    ```py
                     for (s, a, r, s_n, d) in zip(next_state,\
                     action, reward, next_state, dones):
                             self.buffer.store(s, a, \
@@ -1601,7 +1601,7 @@ import webgym  # Used to register webgym environments
 
 1.  我们完成了吗？！差不多！我们只需要记得在 Replay Buffer 的大小大于我们用于训练的批量大小时重放经验：
 
-    ```
+    ```py
                     if (self.buffer.size() >= args.batch_size
                         and self.buffer.size() >= \
                         args.train_start):
@@ -1615,7 +1615,7 @@ import webgym  # Used to register webgym environments
 
 1.  这就完成了我们的实现。现在，我们可以使用以下`__main__`函数启动在 Visual Flight Booking 环境中的 Agent 训练：
 
-    ```
+    ```py
     if __name__ == "__main__":
         env_name = "MiniWoBBookFlightVisualEnv-v0"
         env = gym.make(env_name)
@@ -1655,7 +1655,7 @@ DDPG 代理从航班预订环境中收集一系列样本，在探索过程中利
 
 为了完成这个食谱，请确保你拥有最新版本。首先，你需要激活 `tf2rl-cookbook` Python/conda 虚拟环境。确保更新该环境，以便它与本食谱代码库中的最新 conda 环境规范文件（`tfrl-cookbook.yml`）匹配。如果以下 `import` 语句可以顺利运行，那么你就可以开始了：
 
-```
+```py
 import tensorflow as tf
 from tensorflow.keras.layers import (
     Conv2D,
@@ -1677,7 +1677,7 @@ import webgym  # Used to register webgym environments
 
 1.  首先，我们将定义一个 `ArgumentParser`，以便从命令行配置脚本。有关可配置超参数的完整列表，请参考本食谱的源代码：
 
-    ```
+    ```py
     parser = argparse.ArgumentParser(
         prog="TFRL-Cookbook-Ch5-Important-Emails-Manager-Agent"
     )
@@ -1686,7 +1686,7 @@ import webgym  # Used to register webgym environments
 
 1.  接下来，让我们设置 TensorBoard 日志记录：
 
-    ```
+    ```py
     args = parser.parse_args()
     logdir = os.path.join(
         args.logdir, parser.prog, args.env, \
@@ -1698,7 +1698,7 @@ import webgym  # Used to register webgym environments
 
 1.  现在，我们可以初始化 `Actor` 类：
 
-    ```
+    ```py
     class Actor:
         def __init__(self, state_dim, action_dim, 
         action_bound, std_bound):
@@ -1718,7 +1718,7 @@ import webgym  # Used to register webgym environments
 
 1.  由于我们的电子邮件管理环境中的观察结果是视觉的（图像），我们需要为 Agent 的 Actor 提供感知能力。为此，我们必须使用基于卷积的感知块，如下所示：
 
-    ```
+    ```py
         def nn_model(self):
             obs_input = Input(self.state_dim)
             conv1 = Conv2D(
@@ -1745,7 +1745,7 @@ import webgym  # Used to register webgym environments
 
 1.  现在，让我们添加更多的感知块，包括卷积层，接着是最大池化层：
 
-    ```
+    ```py
             conv3 = Conv2D(
                 filters=16,
                 kernel_size=(3, 3),
@@ -1768,7 +1768,7 @@ import webgym  # Used to register webgym environments
 
 1.  现在，我们准备将 DNN 输出展平，以生成我们希望从 Actor 输出的均值（mu）和标准差。首先，让我们添加展平层和全连接层：
 
-    ```
+    ```py
            flat = Flatten()(pool4)
             dense1 = Dense(
                 16, activation="relu", \
@@ -1790,7 +1790,7 @@ import webgym  # Used to register webgym environments
 
 1.  我们现在准备定义我们 Actor 网络的最终层。这些层将帮助我们生成 `mu` 和 `std`，正如我们在前一步中讨论的那样：
 
-    ```
+    ```py
             # Scale & clip x[i] to be in range [0, 
                                              action_bound[i]]
             mu_output = Lambda(
@@ -1814,7 +1814,7 @@ import webgym  # Used to register webgym environments
 
 1.  这完成了我们 Actor 的 DNN 模型实现。为了实现剩余的方法并完成 Actor 类，请参考本食谱的完整代码，该代码可以在本食谱的代码库中找到。接下来，我们将专注于定义 `Critic` 类的接口：
 
-    ```
+    ```py
     class Critic:
         def __init__(self, state_dim):
             self.state_dim = state_dim
@@ -1829,7 +1829,7 @@ import webgym  # Used to register webgym environments
 
 1.  Critic 的 DNN 模型也基于与我们为 `Actor` 使用的相同的卷积神经网络架构。为了完整性，请参考本食谱的完整源代码，该代码可在本食谱的代码库中找到。我们将在这里实现损失计算和训练方法：
 
-    ```
+    ```py
         def compute_loss(self, v_pred, td_targets):
             mse = tf.keras.losses.MeanSquaredError()
             return mse(td_targets, v_pred)
@@ -1848,7 +1848,7 @@ import webgym  # Used to register webgym environments
 
 1.  有了这些，我们现在可以定义我们的 Agent 类：
 
-    ```
+    ```py
     class PPOAgent:
         def __init__(self, env):
             self.env = env
@@ -1868,7 +1868,7 @@ import webgym  # Used to register webgym environments
 
 1.  上述代码应该对你来说是熟悉的，来自本章中前面的 Agent 实现。你可以基于我们之前的实现完成剩余的方法（和训练循环）。如果遇到困难，可以通过访问本食谱的代码库，查看完整源代码。我们现在将编写 `__main__` 函数，这样我们就可以在 `MiniWoBEmailInboxImportantVisualEnv` 中训练 Agent。这将使我们能够看到 Agent 学习过程的实际表现：
 
-    ```
+    ```py
     if __name__ == "__main__":
         env_name = "MiniWoBEmailInboxImportantVisualEnv-v0"
         env = gym.make(env_name)
@@ -1904,7 +1904,7 @@ PPO 代理使用卷积神经网络层来处理演员和评论家类中的高维�
 
 要完成这个教程，你需要激活 `tf2rl-cookbook` Python/conda 虚拟环境。确保更新环境，使其与本教程代码库中的最新 conda 环境规范文件（`tfrl-cookbook.yml`）匹配。如果以下的 `import` 语句能够正常运行，那么你就可以开始了：
 
-```
+```py
 import tensorflow as tf
 from tensorflow.keras.layers import (Conv2D, Dense, Dropout, Flatten, Input, Lambda, MaxPool2D, concatenate,)
 import webgym  # Used to register webgym environments
@@ -1918,7 +1918,7 @@ import webgym  # Used to register webgym environments
 
 1.  让我们直接进入实现！我们将从 `ReplayBuffer` 实现开始：
 
-    ```
+    ```py
     class ReplayBuffer:
         def __init__(self, capacity=10000):
             self.buffer = deque(maxlen=capacity)
@@ -1943,7 +1943,7 @@ import webgym  # Used to register webgym environments
 
 1.  接下来，我们将实现我们的 `Actor` 类：
 
-    ```
+    ```py
     class Actor:
         def __init__(self, state_dim, action_dim, 
         action_bound):
@@ -1960,7 +1960,7 @@ import webgym  # Used to register webgym environments
 
 1.  下一个核心部分是我们演员的 DNN 定义：
 
-    ```
+    ```py
         def nn_model(self):
             obs_input = Input(self.state_dim)
             conv1 = Conv2D(filters=64, kernel_size=(3, 3),\ 
@@ -1979,7 +1979,7 @@ import webgym  # Used to register webgym environments
 
 1.  根据任务的复杂性，我们可以修改（增加/减少）DNN 的深度。我们将通过将池化层的输出连接到带有丢弃层的全连接层开始：
 
-    ```
+    ```py
             flat = Flatten()(pool2)
             dense1 = Dense(
                 16, activation="relu", \
@@ -2008,7 +2008,7 @@ import webgym  # Used to register webgym environments
 
 1.  这完成了我们对 Actor 的 DNN 模型实现。现在，让我们实现一些方法来训练 Actor 并获取 Actor 模型的预测：
 
-    ```
+    ```py
         def train(self, states, q_grads):
             with tf.GradientTape() as tape:
                 grads = tape.gradient(self.model(states),\ 
@@ -2022,7 +2022,7 @@ import webgym  # Used to register webgym environments
 
 1.  我们现在可以从我们的 Actor 获取动作：
 
-    ```
+    ```py
         def get_action(self, state):
             # Convert [Image] to np.array(np.adarray)
             state_np = np.array([np.array(s) for s in state])
@@ -2036,7 +2036,7 @@ import webgym  # Used to register webgym environments
 
 1.  让我们开始实现 Critic。这里，我们需要实现我们所需要的智能体类：
 
-    ```
+    ```py
     class Critic:
         def __init__(self, state_dim, action_dim):
             self.state_dim = state_dim
@@ -2050,7 +2050,7 @@ import webgym  # Used to register webgym environments
 
 1.  请注意，Critic 的模型是通过 `self.nn_model()` 初始化的。让我们在这里实现它：
 
-    ```
+    ```py
         def nn_model(self):
             obs_input = Input(self.state_dim)
             conv1 = Conv2D(filters=64, kernel_size=(3, 3), 
@@ -2069,7 +2069,7 @@ import webgym  # Used to register webgym environments
 
 1.  我们将通过将输出传递通过带有丢弃层的全连接层来完成 Critic 的 DNN 架构。这样，我们可以得到所需的动作值：
 
-    ```
+    ```py
             flat = Flatten()(pool2)
             dense1 = Dense(16, activation="relu", 
                            kernel_initializer= \
@@ -2091,7 +2091,7 @@ import webgym  # Used to register webgym environments
 
 1.  现在，让我们实现 `g_gradients` 和 `compute_loss` 方法。这应该是相当直接的：
 
-    ```
+    ```py
         def q_gradients(self, states, actions):
             actions = tf.convert_to_tensor(actions)
             with tf.GradientTape() as tape:
@@ -2106,7 +2106,7 @@ import webgym  # Used to register webgym environments
 
 1.  最后，我们可以通过实现 `predict` 和 `train` 方法来完成 Critic 的实现：
 
-    ```
+    ```py
         def predict(self, inputs):
             return self.model.predict(inputs)    
         def train(self, states, actions, td_targets):
@@ -2125,7 +2125,7 @@ import webgym  # Used to register webgym environments
 
 1.  我们现在可以利用 Actor 和 Critic 来实现我们的智能体：
 
-    ```
+    ```py
     class DDPGAgent:
         def __init__(self, env):
             self.env = env
@@ -2153,7 +2153,7 @@ import webgym  # Used to register webgym environments
 
 1.  接下来，我们将根据 DDPG 算法实现 `update_target` 方法：
 
-    ```
+    ```py
         def update_target(self):
             actor_weights = self.actor.model.get_weights()
             t_actor_weights = \
@@ -2179,7 +2179,7 @@ import webgym  # Used to register webgym environments
 
 1.  我们在这里不讨论 `train` 方法的实现。相反，我们将从外部循环的实现开始，然后在接下来的步骤中完成它：
 
-    ```
+    ```py
         def train(self, max_episodes=1000):
             with writer.as_default():
                 for ep in range(max_episodes):
@@ -2195,7 +2195,7 @@ import webgym  # Used to register webgym environments
 
 1.  主要的内部循环实现如下：
 
-    ```
+    ```py
                     while not done:
                         action = self.actor.get_action(state)
                         noise = self.add_ou_noise(bg_noise, 
@@ -2232,7 +2232,7 @@ import webgym  # Used to register webgym environments
 
 1.  让我们编写 `__main__` 函数，这样我们就可以开始在社交媒体环境中训练智能体：
 
-    ```
+    ```py
     if __name__ == "__main__":
         env_name = "MiniWoBSocialMediaMuteUserVisualEnv-v0"
         env = gym.make(env_name)

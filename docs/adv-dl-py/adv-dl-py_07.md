@@ -96,7 +96,7 @@ VAE 使用一种特殊类型的损失函数，该函数包含两个项：
 
 1.  我们从导入开始。我们将使用集成在 TF 中的 Keras 模块：
 
-```
+```py
 import matplotlib.pyplot as plt
 from matplotlib.markers import MarkerStyle
 import numpy as np
@@ -109,7 +109,7 @@ from tensorflow.keras.models import Model
 
 1.  现在，我们将实例化 MNIST 数据集。回想一下，在 第二章 中的 *理解卷积网络* 部分，我们使用 TF/Keras 实现了一个迁移学习的示例，并使用 `tensorflow_datasets` 模块加载了 CIFAR-10 数据集。在这个例子中，我们将使用 `keras.datasets` 模块加载 MNIST，这同样适用：
 
-```
+```py
 (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
 
 image_size = x_train.shape[1] * x_train.shape[1]
@@ -132,7 +132,7 @@ x_test = x_test.astype('float32') / 255
 
 以下展示了这一全球实现方式：
 
-```
+```py
 def build_vae(intermediate_dim=512, latent_dim=2):
    # encoder first
     inputs = Input(shape=(image_size,), name='encoder_input')
@@ -184,7 +184,7 @@ def build_vae(intermediate_dim=512, latent_dim=2):
 
 1.  与网络定义直接相关的是 `sampling` 函数，它实现了从高斯单位随机采样潜在向量 `z`（这是我们在 *VAE 简介* 部分介绍的重参数化技巧）：
 
-```
+```py
 def sampling(args: tuple):
     """
     :param args: (tensor, tensor) mean and log of variance of 
@@ -208,7 +208,7 @@ def sampling(args: tuple):
 
 1.  现在，我们需要实现 `plot_latent_distribution` 函数。它收集所有测试集图像的潜在表示，并将其显示在二维图上。我们之所以能够这样做，是因为我们的网络只有两个潜在变量（对应图的两个轴）。请注意，为了实现这一点，我们只需要 `encoder`：
 
-```
+```py
 def plot_latent_distribution(encoder, x_test, y_test, batch_size=128):
     z_mean, _, _ = encoder.predict(x_test, batch_size=batch_size)
     plt.figure(figsize=(6, 6))
@@ -229,7 +229,7 @@ def plot_latent_distribution(encoder, x_test, y_test, batch_size=128):
 
 1.  接下来，我们将实现 `plot_generated_images` 函数。它将在 `[-4, 4]` 范围内为每个潜在变量 `z` 采样 `n*n` 个向量。然后，它将基于这些采样的向量生成图像，并在二维网格中显示。请注意，为了做到这一点，我们只需要 `decoder`：
 
-```
+```py
 def plot_generated_images(decoder):
     # display a nxn 2D manifold of digits
     n = 15
@@ -268,7 +268,7 @@ def plot_generated_images(decoder):
 
 1.  现在，运行整个代码。我们将使用 Adam 优化器（在 第一章中介绍的，*神经网络的基础*）训练网络 50 个周期：
 
-```
+```py
 if __name__ == '__main__':
     encoder, decoder, vae = build_vae()
 
@@ -498,7 +498,7 @@ DCGAN、CGAN、WGAN 和 CycleGAN 的代码部分灵感来自于 [`github.com/er
 
 1.  让我们从导入必要的模块和类开始：
 
-```
+```py
 import matplotlib.pyplot as plt
 import numpy as np
 from tensorflow.keras.datasets import mnist
@@ -512,7 +512,7 @@ from tensorflow.keras.optimizers import Adam
 
 1.  实现`build_generator`函数。我们将遵循本节开头概述的指导原则——使用反卷积进行上采样、批量归一化和 LeakyReLU 激活。模型从一个全连接层开始，用于上采样 1D 潜在向量。然后，向量通过一系列`Conv2DTranspose`进行上采样。最后一个`Conv2DTranspose`使用`tanh`激活，生成的图像只有 1 个通道：
 
-```
+```py
 def build_generator(latent_input: Input):
     model = Sequential([
         Dense(7 * 7 * 256, use_bias=False,
@@ -546,7 +546,7 @@ def build_generator(latent_input: Input):
 
 1.  构建判别器。再次说明，这是一个简单的 CNN，使用步幅卷积：
 
-```
+```py
 def build_discriminator():
     model = Sequential([
         Conv2D(filters=64, kernel_size=(5, 5), strides=(2, 2),
@@ -567,7 +567,7 @@ def build_discriminator():
 
 1.  实现`train`函数，进行实际的 GAN 训练。这个函数实现了在*Training GANs*部分的*Putting it all together*小节中概述的过程。我们将从函数声明和变量初始化开始：
 
-```
+```py
 def train(generator, discriminator, combined, steps, batch_size):
     # Load the dataset
     (x_train, _), _ = mnist.load_data()
@@ -585,7 +585,7 @@ def train(generator, discriminator, combined, steps, batch_size):
 
 我们将继续训练循环，其中我们交替进行一次判别器训练和一次生成器训练。首先，我们在一批`real_images`和一批`generated_images`上训练`discriminator`。然后，我们在同一批`generated_images`上训练生成器（其中也包括`discriminator`）。注意，我们将这些图像标记为真实图像，因为我们希望最大化`discriminator`的损失。以下是实现代码（请注意缩进，这仍然是`train`函数的一部分）：
 
-```
+```py
 for step in range(steps):
     # Train the discriminator
 
@@ -634,7 +634,7 @@ for step in range(steps):
 
 以下是实现代码：
 
-```
+```py
 def plot_generated_images(generator):
     n = 10
     digit_size = 28
@@ -667,7 +667,7 @@ def plot_generated_images(generator):
 
 1.  通过包含`generator`、`discriminator`和`combined`网络来构建完整的 GAN 模型。我们将使用大小为 64 的潜在向量（`latent_dim`变量），并使用 Adam 优化器运行 50,000 个批次的训练（这可能需要一段时间）。然后，我们将绘制结果：
 
-```
+```py
 latent_dim = 64
 
 # Build the generator
@@ -735,7 +735,7 @@ CGAN 的实现蓝图与*实现 DCGAN*部分中的 DCGAN 示例非常相似。也
 
 第一个显著的区别是生成器的定义：
 
-```
+```py
 def build_generator(z_input: Input, label_input: Input):
     model = Sequential([
         Dense(128, input_dim=latent_dim),
@@ -772,7 +772,7 @@ def build_generator(z_input: Input, label_input: Input):
 
 接下来，我们将重点讨论判别器，它也是一个全连接网络，并使用与生成器相同的嵌入机制。这次，嵌入输出的大小是`np.prod((28, 28, 1))`，等于 784（MNIST 图像的大小）：
 
-```
+```py
 def build_discriminator():
     model = Sequential([
         Flatten(input_shape=(28, 28, 1)),
@@ -846,7 +846,7 @@ Wasserstein 距离相较于常规 GAN 判别器的优势。来源：[`arxiv.org/
 
 现在我们对 Wasserstein GAN 的基本工作原理有了初步了解，让我们来实现它。我们将再次使用 DCGAN 的框架，并省略重复的代码段，以便我们可以专注于不同之处。`build_generator`和`build_critic`函数分别实例化生成器和判别器。为了简化起见，这两个网络只包含全连接层。所有隐藏层都使用 LeakyReLU 激活函数。根据论文的指导，生成器使用 Tanh 输出激活函数，而判别器则有一个单一的标量输出（没有 sigmoid 激活）。接下来，让我们实现`train`方法，因为它包含一些 WGAN 的特定内容。我们将从方法的声明和训练过程的初始化开始：
 
-```
+```py
 def train(generator, critic, combined, steps, batch_size, n_critic, clip_value):
     # Load the dataset
     (x_train, _), _ = mnist.load_data()
@@ -866,7 +866,7 @@ def train(generator, critic, combined, steps, batch_size, n_critic, clip_value):
 
 然后，我们将继续训练循环，按照我们在本节中前面描述的 WGAN 算法步骤进行。内循环每训练`generator`的每个训练步骤时，训练`critic`的`n_critic`步骤。事实上，这是训练`critic`和在*实现 DCGAN*部分的训练函数中训练`discriminator`的主要区别，后者在每一步都交替进行生成器和判别器的训练。此外，每个小批次后，`critic`的`weights`都会被裁剪。以下是实现（请注意缩进；这段代码是`train`函数的一部分）：
 
-```
+```py
     for step in range(steps):
         # Train the critic first for n_critic steps
         for _ in range(n_critic):
@@ -905,7 +905,7 @@ def train(generator, critic, combined, steps, batch_size, n_critic, clip_value):
 
 接下来，我们将实现 Wasserstein 损失本身的导数。这是一个 TensorFlow 操作，表示网络输出与标签（真实或伪造）乘积的均值：
 
-```
+```py
 def wasserstein_loss(y_true, y_pred):
     """The Wasserstein loss implementation"""
     return tensorflow.keras.backend.mean(y_true * y_pred)
@@ -913,7 +913,7 @@ def wasserstein_loss(y_true, y_pred):
 
 现在，我们可以构建完整的 GAN 模型。这个步骤类似于其他 GAN 模型：
 
-```
+```py
 latent_dim = 100
 
 # Build the generator
@@ -946,7 +946,7 @@ combined.compile(loss=wasserstein_loss, optimizer=optimizer)
 
 最后，让我们开始训练和评估：
 
-```
+```py
 # train the GAN system
 train(generator, critic, combined,
       steps=40000, batch_size=100, n_critic=5, clip_value=0.01)
@@ -1015,13 +1015,13 @@ CycleGAN 尝试通过所谓的**循环一致性**来解决这些问题。为了�
 
 首先，我们将实现`build_generator`函数。到目前为止，我们看到的 GAN 模型都是从某种潜在向量开始的。但在这里，生成器的输入是来自其中一个领域的图像，输出是来自另一个领域的图像。按照论文中的指南，生成器采用 U-Net 风格的网络。它有一个下采样的编码器，一个上采样的解码器，以及在相应的编码器/解码器块之间的快捷连接。我们将从`build_generator`的定义开始：
 
-```
+```py
 def build_generator(img: Input) -> Model:
 ```
 
 U-Net 的下采样编码器由多个卷积层和 `LeakyReLU` 激活组成，后跟 `InstanceNormalization`。批量归一化和实例归一化的区别在于，批量归一化计算它的参数是跨整个小批量的，而实例归一化是单独为小批量中的每个图像计算参数。为了更清晰，我们将实现一个单独的子程序，名为 `downsampling2d`，它定义了这样一层。我们将使用此函数在构建网络编码器时构建所需数量的层（请注意这里的缩进；`downsampling2d` 是在 `build_generator` 中定义的子程序）：
 
-```
+```py
     def downsampling2d(layer_input, filters: int):
         """Layers used in the encoder"""
         d = Conv2D(filters=filters,
@@ -1035,7 +1035,7 @@ U-Net 的下采样编码器由多个卷积层和 `LeakyReLU` 激活组成，后�
 
 接下来，让我们关注解码器，它不是通过转置卷积来实现的。相反，输入数据通过 `UpSampling2D` 操作进行上采样，这只是将每个输入像素复制为一个 2×2 的块。接着是一个常规卷积操作，以平滑这些块。这个平滑后的输出会与来自相应编码器块的捷径（或 `skip_input`）连接进行拼接。解码器由多个这样的上采样块组成。为了更清晰，我们将实现一个单独的子程序，名为 `upsampling2d`，它定义了这样一个块。我们将使用它来构建网络解码器所需的多个块（请注意这里的缩进；`upsampling2d` 是在 `build_generator` 中定义的子程序）：
 
-```
+```py
     def upsampling2d(layer_input, skip_input, filters: int):
         """
         Layers used in the decoder
@@ -1056,7 +1056,7 @@ U-Net 的下采样编码器由多个卷积层和 `LeakyReLU` 激活组成，后�
 
 接下来，我们将使用刚刚定义的子程序实现 U-Net 的完整定义（请注意这里的缩进；代码是 `build_generator` 的一部分）：
 
-```
+```py
     # Encoder
     gf = 32
     d1 = downsampling2d(img, gf)
@@ -1088,7 +1088,7 @@ U-Net 的下采样编码器由多个卷积层和 `LeakyReLU` 激活组成，后�
 
 此时，我们通常会实现 `train` 方法，但由于 CycleGAN 有更多的组件，我们将展示如何构建整个模型。首先，我们实例化 `data_loader` 对象，你可以指定训练集的名称（可以随意尝试不同的数据集）。所有图像将被调整为 `img_res=(IMG_SIZE, IMG_SIZE)`，作为网络输入，其中 `IMG_SIZE = 256`（你也可以尝试 `128` 以加速训练过程）：
 
-```
+```py
 # Input shape
 img_shape = (IMG_SIZE, IMG_SIZE, 3)
 
@@ -1099,7 +1099,7 @@ data_loader = DataLoader(dataset_name='facades',
 
 然后，我们将定义优化器和损失权重：
 
-```
+```py
 lambda_cycle = 10.0  # Cycle-consistency loss
 lambda_id = 0.1 * lambda_cycle  # Identity loss
 
@@ -1108,7 +1108,7 @@ optimizer = Adam(0.0002, 0.5)
 
 接下来，我们将创建两个生成器，`g_XY` 和 `g_YX`，以及它们各自的判别器，`d_Y` 和 `d_X`。我们还将创建 `combined` 模型，以同时训练这两个生成器。然后，我们将创建复合损失函数，其中包含一个额外的身份映射项。你可以在相关论文中了解更多内容，但简而言之，它有助于在将图像从绘画领域转换到照片领域时，保持输入和输出之间的颜色组合：
 
-```
+```py
 # Build and compile the discriminators
 d_X = build_discriminator(Input(shape=img_shape))
 d_Y = build_discriminator(Input(shape=img_shape))
@@ -1151,7 +1151,7 @@ combined = Model(inputs=[img_X, img_Y],
 
 接下来，让我们配置用于训练的`combined`模型：
 
-```
+```py
 combined.compile(loss=['mse', 'mse',
                        'mae', 'mae',
                        'mae', 'mae'],
@@ -1163,7 +1163,7 @@ combined.compile(loss=['mse', 'mse',
 
 一旦模型准备好，我们便通过`train`函数启动训练过程。根据论文的指导方针，我们将使用大小为 1 的小批量：
 
-```
+```py
 train(epochs=200, batch_size=1, data_loader=data_loader,
       g_XY=g_XY,
       g_YX=g_YX,
@@ -1175,7 +1175,7 @@ train(epochs=200, batch_size=1, data_loader=data_loader,
 
 最后，我们将实现`train`函数。它与之前的 GAN 模型有些相似，但也考虑到了两对生成器和判别器：
 
-```
+```py
 def train(epochs: int, data_loader: DataLoader,
           g_XY: Model, g_YX: Model, d_X: Model, d_Y: Model, 
           combined:Model, batch_size=1, sample_interval=50):

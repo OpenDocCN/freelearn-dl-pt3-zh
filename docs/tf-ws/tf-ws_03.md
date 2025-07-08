@@ -44,20 +44,20 @@ TensorBoard 是一个用于辅助机器学习实验的可视化工具包。该�
 
 TensorBoard 从开发过程中写入的日志中创建可视化图像。为了创建日志以可视化图形，需要在开发代码中初始化文件写入对象，并将日志的位置作为参数提供。文件写入对象通常在 Jupyter notebook 或等效开发环境的开始阶段创建，在写入任何日志之前。具体如下：
 
-```
+```py
 logdir = 'logs/'
 writer = tf.summary.create_file_writer(logdir)
 ```
 
 在前面的代码中，设置了写入日志的目录，如果该目录尚不存在，则在运行代码后，工作目录中会自动创建一个新目录。文件写入对象在日志导出时将文件写入日志目录。要开始追踪，必须执行以下代码：
 
-```
+```py
 tf.summary.trace_on(graph=True, profiler=True)
 ```
 
 前面的命令启动了追踪功能，用于记录从执行命令时开始的计算图。如果没有开启追踪，则不会记录任何内容，因此也无法在 TensorBoard 中可视化。计算图的追踪完成后，可以使用文件写入对象将日志写入日志目录，具体如下：
 
-```
+```py
 with writer.as_default():
     tf.summary.trace_export(name="my_func_trace",\
                             step=0, profiler_outdir=logdir)
@@ -73,7 +73,7 @@ with writer.as_default():
 
 日志写入目录设置完成后，可以通过命令行启动 TensorBoard，使用以下命令传入日志目录作为 `logdir` 参数：
 
-```
+```py
 tensorboard --logdir=./logs
 ```
 
@@ -89,21 +89,21 @@ tensorboard --logdir=./logs
 
 1.  打开一个新的 Jupyter Notebook，导入 TensorFlow 库，并设置随机种子以保证结果的可重复性。由于你正在生成随机值，设置种子可以确保每次运行代码时生成的值相同：
 
-    ```
+    ```py
     import tensorflow as tf
     tf.random.set_seed(42)
     ```
 
 1.  创建一个 `file_writer` 对象，并设置日志存储目录：
 
-    ```
+    ```py
     logdir = 'logs/'
     writer = tf.summary.create_file_writer(logdir)
     ```
 
 1.  创建一个 TensorFlow 函数来进行两个矩阵相乘：
 
-    ```
+    ```py
     @tf.function
     def my_matmult_func(x, y):
         result = tf.matmul(x, y)
@@ -112,20 +112,20 @@ tensorboard --logdir=./logs
 
 1.  创建两个形状为 `7x7` 的张量，数据为随机变量：
 
-    ```
+    ```py
     x = tf.random.uniform((7, 7))
     y = tf.random.uniform((7, 7))
     ```
 
 1.  使用 TensorFlow 的 `summary` 类开启图形追踪：
 
-    ```
+    ```py
     tf.summary.trace_on(graph=True, profiler=True)
     ```
 
 1.  将第*3 步*中创建的函数应用于第*4 步*中创建的示例张量。接下来，将追踪数据导出到 `log` 目录，并为图形设置 `name` 参数以便参考，同时将 `log` 目录设置为 `profiler_outdir` 参数。`step` 参数表示摘要的单调步长值；如果被追踪的值有变化，该值应非零，并且可以通过该参数指定的步长进行可视化。对于静态对象，例如此处的图形追踪，步长应设置为零：
 
-    ```
+    ```py
     z = my_matmult_func(x, y)
     with writer.as_default():
         tf.summary.trace_export(name="my_func_trace",\
@@ -135,13 +135,13 @@ tensorboard --logdir=./logs
 
 1.  最后，使用命令行在当前工作目录下启动 TensorBoard，查看图形的可视化表示。启动 TensorBoard 后，可以通过访问提供的网址在网页浏览器中查看：
 
-    ```
+    ```py
     tensorboard --logdir=./logs
     ```
 
     对于在 Windows 上运行的用户，请在 Anaconda 提示符下运行以下命令：
 
-    ```
+    ```py
     tensorboard --logdir=logs
     ```
 
@@ -185,7 +185,7 @@ tensorboard --logdir=./logs
 
 然而，TensorBoard 不仅仅用于可视化计算图。通过使用合适的 TensorFlow `summary` 方法，将图片、标量变量、直方图和分布写入日志目录后，均可在 TensorBoard 中查看。例如，图片可以按照以下方式写入日志：
 
-```
+```py
 with file_writer.as_default():
     tf.summary.image("Training data", training_images, step=0)
 ```
@@ -194,14 +194,14 @@ with file_writer.as_default():
 
 同样地，标量变量也可以以如下方式写入日志，以便在 TensorBoard 中查看：
 
-```
+```py
 with file_writer.as_default():
     tf.summary.scalar('scalar variable', variable, step=0)
 ```
 
 音频文件也可以按照以下方式写入日志，以便在 TensorBoard 中播放：
 
-```
+```py
 with file_writer.as_default():
     tf.summary.audio('audio file', data, sample_rate=44100, \
                      step=0)
@@ -209,7 +209,7 @@ with file_writer.as_default():
 
 可以通过传入数据如下方式记录直方图：
 
-```
+```py
 with file_writer.as_default():
     tf.summary.histogram('histogram', data, step=0)
 ```
@@ -230,7 +230,7 @@ with file_writer.as_default():
 
 1.  导入 TensorFlow 库和 `ImageDataGenerator` 类：
 
-    ```
+    ```py
     import tensorflow as tf
     from tensorflow.keras.preprocessing.image import \
         ImageDataGenerator
@@ -238,20 +238,20 @@ with file_writer.as_default():
 
 1.  创建一个 `file_writer` 对象，并设置日志存储的目录：
 
-    ```
+    ```py
     logdir = 'logs/'
     writer = tf.summary.create_file_writer(logdir)
     ```
 
 1.  初始化一个 `ImageDataGenerator` 对象：
 
-    ```
+    ```py
     train_datagen = ImageDataGenerator(rescale = 1./255)
     ```
 
 1.  使用数据生成器的 `flow_from_directory` 方法创建一个批次图片加载器：
 
-    ```
+    ```py
     batch_size = 25
     training_set = train_datagen.flow_from_directory\
                    ('image_data',\ 
@@ -266,7 +266,7 @@ with file_writer.as_default():
 
 1.  从第一批图片中取出并使用文件写入器将其写入日志：
 
-    ```
+    ```py
     with file_writer.as_default():
         tf.summary.image("Training data", \
                          next(training_set)[0], \
@@ -276,13 +276,13 @@ with file_writer.as_default():
 
 1.  在命令行中启动 TensorBoard 以查看图形的可视化表示。启动 TensorBoard 后，可以通过访问提供的 URL 在 Web 浏览器中查看 TensorBoard。默认的 URL 是 `http://localhost:6006/`：
 
-    ```
+    ```py
     tensorboard --logdir=./logs
     ```
 
     对于在 Windows 上运行的用户，请在 Anaconda 提示符下运行以下命令：
 
-    ```
+    ```py
     tensorboard --logdir=logs
     ```
 
@@ -330,26 +330,26 @@ TensorFlow Hub 上有许多模型可供使用，这些模型以图像作为输�
 
 可以通过使用 `tensorflow_hub` 库在笔记本环境中访问 TensorFlow Hub 上的模型。可以按照以下方式导入该库：
 
-```
+```py
 import tensorflow_hub as hub
 ```
 
 可以通过使用库的 `load` 函数并传入模型的参考 URL 来加载模型：
 
-```
+```py
 module = hub.load("https://tfhub.dev/google/imagenet"\
                   "/inception_resnet_v2/classification/4")
 ```
 
 可以通过访问 `signatures` 属性来查看模型模块的资源，例如其架构。每个模型的 `signatures` 属性中可能有不同的键；然而，相关信息通常会包含在 `default` 键中：
 
-```
+```py
 model = module.signatures['default']
 ```
 
 该模型还可以通过将整个模型视为一个单独的 Keras 层，并使用 `KerasLayer` 方法直接用于训练：
 
-```
+```py
 layer = hub.KerasLayer("https://tfhub.dev/google/imagenet"\
                        "/inception_resnet_v2/classification/4")
 ```
@@ -358,7 +358,7 @@ layer = hub.KerasLayer("https://tfhub.dev/google/imagenet"\
 
 可以通过将模型图写入日志来查看 TensorFlow Hub 中的模型，方法是使用文件写入器，如下所示：
 
-```
+```py
 from tensorflow.python.client import session
 from tensorflow.python.summary import summary
 from tensorflow.python.framework import ops
@@ -383,7 +383,7 @@ with session.Session(graph=ops.Graph()) as sess:
 
 1.  从 TensorFlow 导入以下库：
 
-    ```
+    ```py
     import tensorflow as tf
     import tensorflow_hub as hub
     from tensorflow.python.client import session
@@ -395,26 +395,26 @@ with session.Session(graph=ops.Graph()) as sess:
 
 1.  为存储日志创建一个变量：
 
-    ```
+    ```py
     logdir = 'logs/'
     ```
 
 1.  通过使用 `tensorflow_hub` 库中的 `load` 方法并传入模型的 URL，可以加载模型模块：
 
-    ```
+    ```py
     module = hub.load('https://tfhub.dev/google/imagenet'\
                       '/inception_v3/classification/5')
     ```
 
 1.  从模块的 `signatures` 属性加载模型：
 
-    ```
+    ```py
     model = module.signatures['default']
     ```
 
 1.  使用文件写入器将模型图写入 TensorBoard：
 
-    ```
+    ```py
     with session.Session(graph=ops.Graph()) as sess:
         file_writer = summary.FileWriter(logdir)
         file_writer.add_graph(model.graph)
@@ -422,13 +422,13 @@ with session.Session(graph=ops.Graph()) as sess:
 
 1.  在命令行中启动 TensorBoard，以查看图形的可视化表示。启动 TensorBoard 后，您可以通过访问提供的 URL 在网页浏览器中查看 TensorBoard：
 
-    ```
+    ```py
     tensorboard --logdir=./logs
     ```
 
     对于运行 Windows 的用户，在 Anaconda 提示符中运行以下命令：
 
-    ```
+    ```py
     tensorboard --logdir=logs
     ```
 
@@ -510,7 +510,7 @@ Google Colab 提供了与 Jupyter Notebooks 非常相似的开发体验，使用
 
 1.  导入 TensorFlow 并检查库的版本：
 
-    ```
+    ```py
     import tensorflow as tf
     print('TF version:', tf.__version__)
     ```
@@ -523,7 +523,7 @@ Google Colab 提供了与 Jupyter Notebooks 非常相似的开发体验，使用
 
 1.  导航到 `编辑` 标签，进入 `笔记本设置`，然后从 `硬件加速` 下拉菜单中选择 `GPU`。通过显示 GPU 设备名称来验证 GPU 是否已启用：
 
-    ```
+    ```py
     tf.test.gpu_device_name()
     ```
 
@@ -535,7 +535,7 @@ Google Colab 提供了与 Jupyter Notebooks 非常相似的开发体验，使用
 
 1.  导入 `pandas` 库并直接从 GitHub 仓库加载数据集：
 
-    ```
+    ```py
     import pandas as pd
     df = pd.read_csv('https://raw.githubusercontent.com'\
                      '/PacktWorkshops/The-TensorFlow-Workshop'\
@@ -545,7 +545,7 @@ Google Colab 提供了与 Jupyter Notebooks 非常相似的开发体验，使用
 
 1.  使用 `head` 方法查看数据集的前五行：
 
-    ```
+    ```py
     df.head()
     ```
 
@@ -557,13 +557,13 @@ Google Colab 提供了与 Jupyter Notebooks 非常相似的开发体验，使用
 
 1.  删除 `Date` 字段，因为您将进行矩阵乘法，而矩阵乘法需要数值字段：
 
-    ```
+    ```py
     df.drop('Date', axis=1, inplace=True)
     ```
 
 1.  导入 NumPy，将 DataFrame 转换为 NumPy 数组，然后创建一个包含均匀随机变量的 TensorFlow 张量。张量的第一个轴的值将等于数据集字段的数量，第二个轴将等于 `1`：
 
-    ```
+    ```py
     import numpy as np
     df = np.asarray(df).astype(np.float32)
     random_tensor = tf.random.normal((df.shape[1],1))
@@ -571,7 +571,7 @@ Google Colab 提供了与 Jupyter Notebooks 非常相似的开发体验，使用
 
 1.  使用 TensorFlow 的 `matmul` 函数对数据集和随机张量进行张量乘法，并打印结果：
 
-    ```
+    ```py
     tf.matmul(df, random_tensor)
     ```
 

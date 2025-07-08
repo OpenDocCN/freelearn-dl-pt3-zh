@@ -94,7 +94,7 @@ DDPG 从 DQN 继承的一个特点是，能够在每一步环境交互后更新�
 
 整个算法的总结见下列伪代码：
 
-```
+```py
 ---------------------------------------------------------------------------------
 DDPG Algorithm
 ---------------------------------------------------------------------------------
@@ -145,7 +145,7 @@ if :
 
 我们在一个名为`deterministic_actor_critic`的函数中定义了一个确定性策略的演员和评论员。这个函数将被调用两次，因为我们需要同时创建在线和目标演员-评论员。代码如下：
 
-```
+```py
 def deterministic_actor_critic(x, a, hidden_sizes, act_dim, max_act):
     with tf.variable_scope('p_mlp'):
         p_means = max_act * mlp(x, hidden_sizes, act_dim, last_activation=tf.tanh)
@@ -166,7 +166,7 @@ def deterministic_actor_critic(x, a, hidden_sizes, act_dim, max_act):
 
 我们将从创建我们需要的占位符开始，用于观察值、动作和目标值：
 
-```
+```py
 obs_dim = env.observation_space.shape
 act_dim = env.action_space.shape
 
@@ -179,7 +179,7 @@ y_ph = tf.placeholder(shape=(None,), dtype=tf.float32, name='y')
 
 然后我们在`online`和`target`变量作用域内调用之前定义的`deterministic_actor_critic`函数，以便区分四个神经网络：
 
-```
+```py
 with tf.variable_scope('online'):
     p_onl, qd_onl, qa_onl = deterministic_actor_critic(obs_ph, act_ph, hidden_sizes, act_dim[0], np.max(env.action_space.high))
 
@@ -189,19 +189,19 @@ with tf.variable_scope('target'):
 
 评论员的损失是`qa_onl`在线网络的 Q 值和`y_ph`目标动作值之间的 MSE 损失：
 
-```
+```py
 q_loss = tf.reduce_mean((qa_onl - y_ph)**2)
 ```
 
 这将通过 Adam 优化器来最小化：
 
-```
+```py
 q_opt = tf.train.AdamOptimizer(cr_lr).minimize(q_loss)
 ```
 
 关于演员的损失函数，它是在线 Q 网络的相反符号。在这种情况下，在线 Q 网络的输入是由在线确定性演员选择的动作（如公式(8.6)所示，这在《DDPG 算法》部分的伪代码中定义）。因此，Q 值由`qd_onl`表示，策略损失函数写作如下：
 
-```
+```py
 p_loss = -tf.reduce_mean(qd_onl)
 ```
 
@@ -211,7 +211,7 @@ p_loss = -tf.reduce_mean(qd_onl)
 
 这通过将`p_loss`传递给优化器的`minimize`方法来完成，该方法指定了需要更新的变量。在这种情况下，我们只需要更新在`online/m_mlp`变量作用域中定义的在线演员的变量：
 
-```
+```py
 p_opt = tf.train.AdamOptimizer(ac_lr).minimize(p_loss, var_list=variables_in_scope('online/p_mlp'))
 ```
 
@@ -219,7 +219,7 @@ p_opt = tf.train.AdamOptimizer(ac_lr).minimize(p_loss, var_list=variables_in_sco
 
 现在，我们需要定义`variable_in_scope(scope)`函数，它返回名为`scope`的作用域中的变量：
 
-```
+```py
 def variables_in_scope(scope):
     return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope)
 ```
@@ -230,7 +230,7 @@ def variables_in_scope(scope):
 
 这在以下代码片段中完成：
 
-```
+```py
 update_target = [target_var.assign(tau*online_var + (1-tau)*target_var) for target_var, online_var in zip(variables_in_scope('target'), variables_in_scope('online'))]
 update_target_op = tf.group(*update_target)
 ```
@@ -251,7 +251,7 @@ update_target_op = tf.group(*update_target)
 
 所有这些操作都在几行代码中完成：
 
-```
+```py
     ... 
 
     mb_obs, mb_rew, mb_act, mb_obs2, mb_done = buffer.sample_minibatch(batch_size)
@@ -323,7 +323,7 @@ TD3 应用于我们在前一节中讨论的 DDPG 实现。以下代码片段仅�
 
 关于双评论员，你只需通过调用`deterministic_actor_double_critic`两次来创建它们，一次用于目标网络，一次用于在线网络，正如在 DDPG 中所做的那样。代码大致如下：
 
-```
+```py
 def deterministic_actor_double_critic(x, a, hidden_sizes, act_dim, max_act):
     with tf.variable_scope('p_mlp'):
         p_means = max_act * mlp(x, hidden_sizes, act_dim, last_activation=tf.tanh)
@@ -345,7 +345,7 @@ def deterministic_actor_double_critic(x, a, hidden_sizes, act_dim, max_act):
 
 剪切目标值（![](img/f7156912-91fe-4f61-8ab6-883d68efd60d.png)（8.7））是通过首先运行我们称之为`qa1_tar`和`qa2_tar`的两个目标评论员，然后计算估计值之间的最小值，最后使用它来估算目标值：
 
-```
+```py
             ...            
             double_actions = sess.run(p_tar, feed_dict={obs_ph:mb_obs2})
 
@@ -357,7 +357,7 @@ def deterministic_actor_double_critic(x, a, hidden_sizes, act_dim, max_act):
 
 接下来，评论员可以像往常一样进行优化：
 
-```
+```py
             ...
             q1_train_loss, q2_train_loss = sess.run([q1_opt, q2_opt], feed_dict={obs_ph:mb_obs, y_ph:y_r, act_ph: mb_act})
             ...
@@ -376,7 +376,7 @@ TD3 的第二个也是最后一个贡献是方差的减少。为什么高方差�
 
 由于高方差归因于不准确的评论，TD3 提议将策略更新延迟，直到评论误差足够小为止。TD3 以经验方式延迟更新策略，仅在固定的迭代次数之后才更新策略。通过这种方式，评论有时间学习并稳定自身，然后再进行策略优化。实际上，策略仅在几个迭代中保持固定，通常是 1 到 6 次。如果设置为 1，则与 DDPG 中的情况相同。延迟的策略更新可以通过以下方式实现：
 
-```
+```py
             ...
             q1_train_loss, q2_train_loss = sess.run([q1_opt, q2_opt], feed_dict={obs_ph:mb_obs, y_ph:y_r, act_ph: mb_act})
             if step_count % policy_update_freq == 0:
@@ -393,14 +393,14 @@ TD3 的第二个也是最后一个贡献是方差的减少。为什么高方差�
 
 该正则化可以通过一个函数实现，该函数接受一个向量和一个比例作为参数：
 
-```
+```py
 def add_normal_noise(x, noise_scale):
     return x + np.clip(np.random.normal(loc=0.0, scale=noise_scale, size=x.shape), -0.5, 0.5)
 ```
 
 然后，在运行目标策略后，调用 `add_normal_noise`，如下代码所示（与 DDPG 实现的不同之处已加粗）：
 
-```
+```py
             ...            
             double_actions = sess.run(p_tar, feed_dict={obs_ph:mb_obs2})
             double_noisy_actions = np.clip(add_normal_noise(double_actions, target_noise), env.action_space.low, env.action_space.high)
@@ -415,7 +415,7 @@ def add_normal_noise(x, noise_scale):
 
 将所有内容结合起来，我们得到了以下伪代码所示的算法：
 
-```
+```py
 ---------------------------------------------------------------------------------
 TD 3 Algorithm
 ---------------------------------------------------------------------------------

@@ -110,7 +110,7 @@ Atari 上有超过 50 款此类游戏，它们现在是**经典街机学习环�
 
 `reset()`函数重置游戏环境，`render()`函数渲染游戏截图：
 
-```
+```py
 import gym
 env = gym.make('SpaceInvaders-v0')
 env.reset()
@@ -135,7 +135,7 @@ env.render()
 
 1.  **导入所需的包**：
 
-```
+```py
 import numpy as np
 import sys
 import os
@@ -145,25 +145,25 @@ import tensorflow as tf
 
 1.  **选择** **更大** **或** **更小** **的网络**：我们将使用两种神经网络架构，一种称为 `bigger`，另一种称为 `smaller`。暂时使用 `bigger` 网络，感兴趣的用户可以稍后将网络更改为 `smaller` 选项并比较性能：
 
-```
+```py
 NET = 'bigger' # 'smaller'
 ```
 
 1.  **选择** **损失** **函数（L2 损失或 Huber 损失）**：对于 Q-learning 的`loss`函数，我们可以选择 L2 损失或 Huber 损失。两者都会在代码中使用。我们暂时选择`huber`：
 
-```
+```py
 LOSS = 'huber' # 'L2'
 ```
 
 1.  **定义神经网络权重初始化**：接下来，我们将为神经网络的权重指定一个初始化器。`tf.variance_scaling_initializer(scale=2)` 用于 He 初始化。也可以使用 Xavier 初始化，并且已提供为注释。感兴趣的用户稍后可以比较 He 和 Xavier 初始化器的性能：
 
-```
+```py
 init = tf.variance_scaling_initializer(scale=2) # tf.contrib.layers.xavier_initializer()
 ```
 
 1.  **定义** **QNetwork()** **类**：然后我们将按如下方式定义 `QNetwork()` 类。它将包含一个 `__init__()` 构造函数，以及 `_build_model()`、`predict()` 和 `update()` 函数。`__init__` 构造函数如下所示：
 
-```
+```py
 class QNetwork():
  def __init__(self, scope="QNet", VALID_ACTIONS=[0, 1, 2, 3]):
  self.scope = scope
@@ -174,7 +174,7 @@ class QNetwork():
 
 1.  **完成** **_build_model()** **函数**：在 `_build_model()` 中，我们首先定义 TensorFlow 的 `tf_X`、`tf_Y` 和 `tf_actions` 占位符。请注意，图像帧在重放缓冲区中以 `uint8` 格式存储，以节省内存，因此它们通过转换为 `float` 并除以 `255.0` 来进行归一化，以将 `X` 输入值压缩到 0-1 范围内：
 
-```
+```py
 def _build_model(self):
   # input placeholders; input is 4 frames of shape 84x84 
   self.tf_X = tf.placeholder(shape=[None, 84, 84, 4], dtype=tf.uint8, name="X")
@@ -189,7 +189,7 @@ def _build_model(self):
 
 1.  **定义卷积层**：如前所述，我们有两个神经网络选项，`bigger` 和 `smaller`。`bigger` 网络有三个卷积层，后面跟着一个全连接层。`smaller` 网络只有两个卷积层，后面跟着一个全连接层。我们可以使用 `tf.contrib.layers.conv2d()` 定义卷积层，使用 `tf.contrib.layers.fully_connected()` 定义全连接层。请注意，在最后一个卷积层之后，我们需要先将输出展平，然后再传递给全连接层，展平操作将使用 `tf.contrib.layers.flatten()`。我们使用之前定义的 `winit` 对象作为权重初始化器：
 
-```
+```py
 if (NET == 'bigger'):
   # bigger net
   # 3 conv layers
@@ -213,7 +213,7 @@ if (NET == 'bigger'):
 
 1.  **定义全连接层**：最后，我们有一个全连接层，其大小根据动作的数量来确定，使用`len(self.VALID_ACTIONS)`来指定。这个最后的全连接层的输出存储在`self.predictions`中，表示*Q(s,a)*，我们在之前的*学习 DQN 背后的理论*部分的方程中看到过。传递给这个函数的动作（`self.tf_actions`）需要转换为独热编码格式，我们使用`tf.one_hot()`。请注意，`one_hot`是一种表示动作编号的方式，它将所有动作的值设为零，除了某个动作外，该动作对应的值为`1.0`。然后，我们使用`self.predictions * action_one_hot`将预测与独热编码的动作相乘，最后使用`tf.reduce_sum()`对其求和；这被存储在`self.action_predictions`变量中：
 
-```
+```py
 # Q(s,a)
   self.predictions = tf.contrib.layers.fully_connected(fc1, len(self.VALID_ACTIONS), activation_fn=None, weights_initializer=winit)
   action_one_hot = tf.one_hot(self.tf_actions, tf.shape(self.predictions)[1], 1.0, 0.0, name='action_one_hot')
@@ -222,7 +222,7 @@ if (NET == 'bigger'):
 
 1.  **计算训练 Q 网络的损失**：我们通过使用 L2 损失或 Huber 损失来计算训练 Q 网络的损失，存储在`self.loss`中，损失的类型由`LOSS`变量决定。对于 L2 损失，我们使用`tf.squared_difference()`函数；对于 Huber 损失，我们使用`huber_loss()`，我们很快会定义它。损失会在多个样本上取平均，为此我们使用`tf.reduce_mean()`函数。请注意，我们将计算之前定义的`tf_y`占位符和前一步获得的`action_predictions`变量之间的损失：
 
-```
+```py
 if (LOSS == 'L2'):
    # L2 loss
    self.loss = tf.reduce_mean(tf.squared_difference(self.tf_y, self.action_predictions), name='loss')
@@ -233,7 +233,7 @@ elif (LOSS == 'huber'):
 
 1.  **使用优化器**：我们使用 RMSprop 或 Adam 优化器，并将其存储在`self.optimizer`中。我们的学习目标是最小化`self.loss`，因此我们使用`self.optimizer.minimize()`。这被存储在`self.train_op`中：
 
-```
+```py
 # optimizer 
   #self.optimizer = tf.train.RMSPropOptimizer(learning_rate=0.00025, momentum=0.95, epsilon=0.01)
   self.optimizer = tf.train.AdamOptimizer(learning_rate=2e-5)
@@ -243,14 +243,14 @@ elif (LOSS == 'huber'):
 
 1.  **为类定义** **predict()** **函数**：在`predict()`函数中，我们使用 TensorFlow 的`sess.run()`运行之前定义的`self.predictions`函数，其中`sess`是传递给此函数的`tf.Session()`对象。状态作为参数传递给此函数，存储在`s`变量中，之后传递给 TensorFlow 占位符`tf_X`：
 
-```
+```py
 def predict(self, sess, s):
    return sess.run(self.predictions, { self.tf_X: s})
 ```
 
 1.  **为类定义** **update()** **函数**：最后，在`update()`函数中，我们调用`train_op`和`loss`对象，并将字典`a`传递给参与执行这些操作的占位符，我们称之为`feed_dict`。状态存储在`s`中，动作存储在`a`中，目标存储在`y`中：
 
-```
+```py
 def update(self, sess, s, a, y):
    feed_dict = { self.tf_X: s, self.tf_y: y, self.tf_actions: a }
    _, loss = sess.run([self.train_op, self.loss], feed_dict)
@@ -259,7 +259,7 @@ def update(self, sess, s, a, y):
 
 1.  **在类外定义** **huber_loss()** **函数**：完成`model.py`的最后一项任务是定义 Huber 损失函数，它是 L1 和 L2 损失的结合。当输入小于`1.0`时，使用 L2 损失，其他情况使用 L1 损失：
 
-```
+```py
 # huber loss
 def huber_loss(x):
  condition = tf.abs(x) < 1.0
@@ -274,7 +274,7 @@ def huber_loss(x):
 
 1.  **导入包**：首先，我们导入所需的包：
 
-```
+```py
 import numpy as np
 import sys
 import tensorflow as tf
@@ -282,7 +282,7 @@ import tensorflow as tf
 
 1.  **完成** **ImageProcess()** **类**：接下来，将来自 Atari 模拟器的 210 x 160 x 3 RGB 图像转换为 84 x 84 的灰度图像。为此，我们创建了一个`ImageProcess()`类，并使用 TensorFlow 的实用函数，如`rgb_to_grayscale()`将 RGB 转换为灰度，`crop_to_bounding_box()`将图像裁剪到感兴趣的区域，`resize_images()`将图像调整为所需的 84 x 84 大小，以及`squeeze()`去除输入中的维度。该类的`process()`函数通过调用`self.output`上的` sess.run()`函数来执行这些操作；请注意，我们将`state`变量作为字典传递。
 
-```
+```py
 # convert raw Atari RGB image of size 210x160x3 into 84x84 grayscale image
 class ImageProcess():
   def __init__(self):
@@ -299,7 +299,7 @@ class ImageProcess():
 
 1.  **从一个网络复制模型参数到另一个网络**：下一步是编写一个名为`copy_model_parameters()`的函数，该函数将接受`tf.Session()`对象`sess`和两个网络（在本例中为 Q 网络和目标网络）作为参数。我们将它们命名为`qnet1`和`qnet2`。该函数将把`qnet1`的参数值复制到`qnet2`：
 
-```
+```py
 # copy params from qnet1 to qnet2
 def copy_model_parameters(sess, qnet1, qnet2):
     q1_params = [t for t in tf.trainable_variables() if t.name.startswith(qnet1.scope)]
@@ -315,7 +315,7 @@ def copy_model_parameters(sess, qnet1, qnet2):
 
 1.  **编写一个使用 ε-贪婪策略进行探索或开发的函数**：我们将编写一个名为`epsilon_greedy_policy()`的函数，该函数将根据通过 NumPy 的`np.random.rand()`计算得到的随机实数是否小于`epsilon`（之前描述的ε-贪婪策略参数）来决定是进行探索还是开发。对于探索，所有的动作具有相等的概率，每个动作的概率为`1/(num_actions)`，其中`num_actions`是动作的数量（在 Breakout 游戏中为四个）。另一方面，对于开发，我们使用 Q 网络的`predict()`函数获取 Q 值，并通过 NumPy 的`np.argmax()`函数确定具有最高 Q 值的动作。该函数的输出是每个动作的概率，在开发的情况下，除了与最大 Q 值对应的那个动作，其他动作的概率都为`0`，对应的最大 Q 值动作的概率被赋为`1.0`：
 
-```
+```py
 # epsilon-greedy
 def epsilon_greedy_policy(qnet, num_actions):
     def policy_fn(sess, observation, epsilon):
@@ -334,7 +334,7 @@ def epsilon_greedy_policy(qnet, num_actions):
 
 1.  **编写一个函数来填充回放记忆**：最后，我们将编写`populate_replay_mem`函数，用于将`replay_memory_init_size`数量的样本填充到回放缓冲区。首先，我们使用`env.reset()`重置环境。然后，我们处理从重置中获得的状态。每个状态需要四帧，因为代理否则无法判断球或挡板的运动方向、速度和/或加速度（在 Breakout 游戏中；对于其他游戏，如《太空侵略者》，类似的推理也适用于确定何时以及在哪里开火）。对于第一帧，我们堆叠四个副本。我们还计算`delta_epsilon`，即每个时间步长ε的减少量。回放记忆被初始化为空列表：
 
-```
+```py
 # populate replay memory
 def populate_replay_mem(sess, env, state_processor, replay_memory_init_size, policy, epsilon_start, epsilon_end, epsilon_decay_steps, VALID_ACTIONS, Transition):
     state = env.reset()
@@ -350,7 +350,7 @@ def populate_replay_mem(sess, env, state_processor, replay_memory_init_size, pol
 
 1.  **追加到重放缓冲区**：我们接着处理下一个状态，并将其追加到重放记忆中，格式为元组（`state`、`action`、`reward`、`next_state`、`done`）。如果回合结束，我们将重置环境，进入新一轮游戏，处理图像并像之前一样叠加四次。如果回合尚未结束，新的状态将成为下一个时间步的当前状态，我们将继续这样进行，直到循环结束：
 
-```
+```py
 for i in range(replay_memory_init_size):
         epsilon = max(epsilon_start - float(i) * delta_epsilon, epsilon_end)
         action_probs = policy(sess, state, epsilon)
@@ -380,7 +380,7 @@ for i in range(replay_memory_init_size):
 
 1.  **导入必要的包**：我们将按如下方式导入所需的包：
 
-```
+```py
 import gym
 import itertools
 import numpy as np
@@ -396,7 +396,7 @@ from funcs import *
 
 1.  **设置游戏并选择有效的动作**：然后，我们将设置游戏。现在选择`BreakoutDeterministic-v4`游戏，它是 Breakout v0 的后续版本。该游戏有四个动作，编号从零到三，分别表示`0`：无操作（`noop`）、`1`：开火、`2`：向左移动、`3`：向右移动：
 
-```
+```py
 GAME = "BreakoutDeterministic-v4" # "BreakoutDeterministic-v0"
 # Atari Breakout actions: 0 (noop), 1 (fire), 2 (left) and 3 (right) 
 VALID_ACTIONS = [0, 1, 2, 3]
@@ -404,7 +404,7 @@ VALID_ACTIONS = [0, 1, 2, 3]
 
 1.  **设置模式（训练/测试）和初始迭代次数**：我们接下来将设置`train_or_test`变量中的模式。首先我们选择`train`开始（训练完成后，你可以将其设置为`test`来评估模型）。我们还将从`0`迭代开始训练：
 
-```
+```py
 # set parameters for running
 train_or_test = 'train' #'test' #'train'
 train_from_scratch = True
@@ -415,7 +415,7 @@ epsilon_start = 1.0
 
 1.  **创建环境**：我们将创建`env`环境对象，它将创建`GAME`游戏。`env.action_space.n`将打印该游戏中的动作数量。`env.reset()`将重置游戏并输出初始状态/观察（请注意，在强化学习术语中，状态和观察是相同的，可以互换）。`observation.shape`将打印状态空间的形状：
 
-```
+```py
 env = gym.envs.make(GAME)
 print("Action space size: {}".format(env.action_space.n))
 observation = env.reset()
@@ -424,7 +424,7 @@ print("Observation space shape: {}".format(observation.shape)
 
 1.  **创建存储检查点文件的路径和目录**：接下来，我们将创建存储检查点模型文件的路径并创建目录：
 
-```
+```py
 # experiment dir
 experiment_dir = os.path.abspath("./experiments/{}".format(env.spec.id))
 
@@ -434,14 +434,14 @@ checkpoint_path = os.path.join(checkpoint_dir, "model")
 
 ```
 
-```
+```py
 if not os.path.exists(checkpoint_dir):
  os.makedirs(checkpoint_dir)
 ```
 
 1.  **定义** **deep_q_learning()** **函数**：接下来我们将创建`deep_q_learning()`函数，该函数将接受一个包含多个参数的长列表，涉及 TensorFlow 会话对象、环境、*Q*和目标网络对象等。要遵循的策略是`epsilon_greedy_policy()`：
 
-```
+```py
 def deep_q_learning(sess, env, q_net, target_net, state_processor, num_episodes, train_or_test='train', train_from_scratch=True,start_iter=0, start_episode=0, replay_memory_size=250000, replay_memory_init_size=50000, update_target_net_every=10000, gamma=0.99, epsilon_start=1.0, epsilon_end=[0.1,0.01], epsilon_decay_steps=[1e6,1e6], batch_size=32):
 
     Transition = namedtuple("Transition", ["state", "action", "reward", "next_state", "done"])
@@ -452,7 +452,7 @@ def deep_q_learning(sess, env, q_net, target_net, state_processor, num_episodes,
 
 1.  **用初始随机动作遇到的经验填充重放记忆**：然后，我们用初始样本填充重放记忆：
 
-```
+```py
 # populate replay memory
  if (train_or_test == 'train'):
    print("populating replay memory")
@@ -461,7 +461,7 @@ def deep_q_learning(sess, env, q_net, target_net, state_processor, num_episodes,
 
 1.  **设置 epsilon 值：** 接下来，我们将设置`epsilon`值。注意，我们有一个双线性函数，它将首先把`epsilon`的值从 1 减少到 0.1，然后从 0.1 减少到 0.01，步数由`epsilon_decay_steps`指定：
 
-```
+```py
 # epsilon start
 if (train_or_test == 'train'):
   delta_epsilon1 = (epsilon_start - epsilon_end[0])/float(epsilon_decay_steps[0]) 
@@ -481,14 +481,14 @@ elif (train_or_test == 'test'):
 
 1.  然后，我们将设置总的时间步数：
 
-```
+```py
 # total number of time steps 
 total_t = start_iter
 ```
 
 1.  然后，主循环从开始到总集数开始遍历每一集。我们重置集数，处理第一帧，并将其堆叠`4`次。接着，我们将`loss`、`time_steps`和`episode_rewards`初始化为`0`。对于 Breakout 游戏，每集的总生命数为`5`，因此我们在`ale_lives`变量中跟踪这一数据。该代理在这一生命阶段的总时间步数初始化为一个较大的数字：
 
-```
+```py
 for ep in range(start_episode, num_episodes):
 
         # save ckpt
@@ -511,7 +511,7 @@ for ep in range(start_episode, num_episodes):
 
 1.  **跟踪时间步数：** 我们将使用一个内部`while`循环来跟踪给定集中的时间步数（注意：外部`for`循环是针对集数的，而这个内部`while`循环是针对当前集中的时间步数的）。我们将根据`epsilon`的值是否处于 0.1 到 1 的范围内，或 0.01 到 0.1 的范围内，来相应地减少`epsilon`，两者有不同的`delta_epsilon`值：
 
-```
+```py
 while True:
 
     if (train_or_test == 'train'):
@@ -527,7 +527,7 @@ while True:
 
 1.  **更新目标网络：** 如果迄今为止的总时间步数是`update_target_net_every`的倍数，我们将更新目标网络，这个值是一个用户定义的参数。这通过调用`copy_model_parameters()`函数来实现：
 
-```
+```py
  # update target net
  if total_t % update_target_net_every == 0:
     copy_model_parameters(sess, q_net, target_net)
@@ -538,7 +538,7 @@ while True:
 
 1.  注意，我们仍然需要在每次新生命开始时进行一次射击操作（对应的动作概率是[0, 1, 0, 0]），这对于启动代理是必需的。对于 ALE 框架来说，如果没有这一步，画面将会冻结。因此，生命周期的演变是：首先进行一次射击操作，然后进行一个随机次数（介于零到七之间）的无操作，再然后代理使用`policy`函数：
 
-```
+```py
 time_to_fire = False
 if (time_steps == 0 or ale_lives != info_ale_lives):
    # new game or new life 
@@ -559,7 +559,7 @@ if (steps_in_this_life < num_no_ops_this_life and not time_to_fire):
 
 1.  然后，我们将使用 NumPy 的`random.choice`根据`action_probs`的概率选择行动。接着，我们渲染环境并执行一步操作。`info['ale.lives']`将告知我们代理剩余的生命数，从而帮助我们确定代理是否在当前时间步丧失了生命。在 DeepMind 的论文中，奖励被设定为`+1`或`-1`，具体取决于奖励的符号，以便比较不同的游戏。这可以通过`np.sign(reward)`实现，但我们现在不使用它。然后，我们将处理`next_state_img`，将其转换为所需大小的灰度图像，接着将其追加到`next_state`向量中，该向量保持四帧连续的图像。获得的奖励将用于增加`episode_rewards`，同时我们也增加`time_steps`：
 
-```
+```py
 action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
 
 env.render()
@@ -588,7 +588,7 @@ time_steps += 1
 
 1.  **从回放缓冲区采样一个小批次：** 我们从回放缓冲区中采样一个小批次，大小为`batch_size`。我们使用目标网络计算下一个状态的*Q*值（`q_values_next`），并利用它计算贪婪的*Q*值，该值用于计算目标（公式中之前提到的*y*）。每四个时间步更新一次 Q 网络，使用`q_net.update()`；这种更新频率是每四次，因为已知这样更稳定：
 
-```
+```py
   if (train_or_test == 'train'):
 
      # if replay memory is full, pop the first element
@@ -620,7 +620,7 @@ time_steps += 1
 
 1.  如果`done = True`，我们将退出内部的`while`循环，否则，我们将继续到下一个时间步，此时状态将是来自上一时间步的`new_state`。我们还可以在屏幕上打印出回合号、该回合的时间步数、回合中获得的总奖励、当前的`epsilon`以及回放缓冲区的大小。这些值对于后续分析也很有用，因此我们将它们存储在名为`performance.txt`的文本文件中：
 
-```
+```py
 if done:
     #print("done: ", done)
     break
@@ -641,7 +641,7 @@ total_t += 1
 
 1.  接下来的几行代码将完成`dqn.py`。首先，我们使用`tf.reset_default_graph()`重置 TensorFlow 图。然后，我们创建`QNetwork`类的两个实例，分别是`q_net`和`target_net`对象。我们还创建了一个`state_processor`对象，属于`ImageProcess`类，并创建了 TensorFlow 的`saver`对象：
 
-```
+```py
 tf.reset_default_graph()
 
 # Q and target networks 
@@ -659,7 +659,7 @@ saver = tf.train.Saver()
 
 1.  `replay_memory_size` 参数的大小受限于可用的内存大小。本次模拟是在一台 16GB 内存的计算机上进行的，`replay_memory_size = 300000` 是该计算机的内存限制。如果读者有更大的内存，可以为此参数使用更大的值。供参考，DeepMind 使用了 1,000,000 的重放记忆大小。更大的重放记忆大小有助于提供更多的多样性，从而在采样迷你批次时有更好的训练效果：
 
-```
+```py
 with tf.Session() as sess:
 
       # load model/ initialize model

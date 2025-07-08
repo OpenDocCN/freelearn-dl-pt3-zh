@@ -42,7 +42,7 @@
 
 你需要安装`Pillow`，使用`pip`安装非常简单：
 
-```
+```py
 $> pip install Pillow
 ```
 
@@ -60,7 +60,7 @@ $> pip install Pillow
 
 1.  导入所有必要的包：
 
-    ```
+    ```py
     import os
     import pathlib
     import glob
@@ -73,7 +73,7 @@ $> pip install Pillow
 
 1.  定义一个函数从文件路径列表中加载图像和标签：
 
-    ```
+    ```py
     def load_images_and_labels(image_paths):
         images = []
         labels = []
@@ -93,7 +93,7 @@ $> pip install Pillow
 
 1.  定义一个函数来构建神经网络。该模型的结构基于**LeNet**（你可以在*另见*部分找到 LeNet 论文的链接）：
 
-    ```
+    ```py
     def build_network():
         input_layer = Input(shape=(32, 32, 1))
         x = Conv2D(filters=20,
@@ -127,7 +127,7 @@ $> pip install Pillow
 
 1.  将图像路径加载到列表中：
 
-    ```
+    ```py
     files_pattern = (pathlib.Path.home() / '.keras' / 
                      'datasets' /
                      'SMILEsmileD-master' / 'SMILEs' / '*' 
@@ -139,13 +139,13 @@ $> pip install Pillow
 
 1.  使用之前定义的`load_images_and_labels()`函数将数据集加载到内存中：
 
-    ```
+    ```py
     X, y = load_images_and_labels(dataset_paths)
     ```
 
 1.  对图像进行归一化处理，并计算数据集中的正例、负例和总例数：
 
-    ```
+    ```py
     X /= 255.0
     total = len(y)
     total_positive = np.sum(y)
@@ -154,7 +154,7 @@ $> pip install Pillow
 
 1.  创建训练、测试和验证数据子集：
 
-    ```
+    ```py
     (X_train, X_test,
      y_train, y_test) = train_test_split(X, y,
                                          test_size=0.2,
@@ -169,7 +169,7 @@ $> pip install Pillow
 
 1.  实例化模型并编译它：
 
-    ```
+    ```py
     model = build_network()
     model.compile(loss='binary_crossentropy',
                   optimizer='rmsprop',
@@ -178,7 +178,7 @@ $> pip install Pillow
 
 1.  训练模型。由于数据集不平衡，我们为每个类别分配了与数据集中正负图像数量成比例的权重：
 
-    ```
+    ```py
     BATCH_SIZE = 32
     EPOCHS = 20
     model.fit(X_train, y_train,
@@ -193,7 +193,7 @@ $> pip install Pillow
 
 1.  在测试集上评估模型：
 
-    ```
+    ```py
     test_loss, test_accuracy = model.evaluate(X_test, 
                                               y_test)
     ```
@@ -240,7 +240,7 @@ $> pip install Pillow
 
 1.  导入所需的包：
 
-    ```
+    ```py
     import os
     import pathlib
     import glob
@@ -254,7 +254,7 @@ $> pip install Pillow
 
 1.  定义一个包含三个类别的列表，并为`tf.data.experimental.AUTOTUNE`定义一个别名，我们稍后将使用它：
 
-    ```
+    ```py
     CLASSES = ['rock', 'paper', 'scissors']
     AUTOTUNE = tf.data.experimental.AUTOTUNE
     ```
@@ -263,7 +263,7 @@ $> pip install Pillow
 
 1.  定义一个函数来加载图像及其标签，给定图像的文件路径：
 
-    ```
+    ```py
     def load_image_and_label(image_path, target_size=(32, 32)):
         image = tf.io.read_file(image_path)
         image = tf.image.decode_jpeg(image, channels=3)
@@ -281,7 +281,7 @@ $> pip install Pillow
 
 1.  定义一个函数来构建网络架构。在这个例子中，这是一个非常简单和浅层的架构，对于我们要解决的问题足够了：
 
-    ```
+    ```py
     def build_network():
         input_layer = Input(shape=(32, 32, 1))
         x = Conv2D(filters=32,
@@ -298,7 +298,7 @@ $> pip install Pillow
 
 1.  定义一个函数，给定数据集路径，返回一个`tf.data.Dataset`实例，其中包含图像和标签，按批次并可选地进行洗牌：
 
-    ```
+    ```py
     def prepare_dataset(dataset_path,
                         buffer_size,
                         batch_size,
@@ -317,7 +317,7 @@ $> pip install Pillow
 
 1.  将图像路径加载到列表中：
 
-    ```
+    ```py
     file_patten = (pathlib.Path.home() / '.keras' / 
                    'datasets' /
                    'rockpaperscissors' / 'rps-cv-images' / 
@@ -329,7 +329,7 @@ $> pip install Pillow
 
 1.  创建训练、测试和验证数据集的图像路径：
 
-    ```
+    ```py
     train_paths, test_paths = train_test_split(dataset_paths,
                                               test_size=0.2,
                                             random_state=999)
@@ -340,7 +340,7 @@ $> pip install Pillow
 
 1.  准备训练、测试和验证数据集：
 
-    ```
+    ```py
     BATCH_SIZE = 1024
     BUFFER_SIZE = 1024
     train_dataset = prepare_dataset(train_paths,
@@ -358,7 +358,7 @@ $> pip install Pillow
 
 1.  实例化并编译模型：
 
-    ```
+    ```py
     model = build_network()
     model.compile(loss=CategoricalCrossentropy
                  (from_logits=True),
@@ -368,7 +368,7 @@ $> pip install Pillow
 
 1.  将模型拟合`250`个 epoch：
 
-    ```
+    ```py
     EPOCHS = 250
     model.fit(train_dataset,
               validation_data=validation_dataset,
@@ -377,7 +377,7 @@ $> pip install Pillow
 
 1.  在测试集上评估模型：
 
-    ```
+    ```py
     test_loss, test_accuracy = model.evaluate(test_dataset)
     ```
 
@@ -409,7 +409,7 @@ $> pip install Pillow
 
 首先，我们必须安装`Pillow`：
 
-```
+```py
 $> pip install Pillow
 ```
 
@@ -429,7 +429,7 @@ $> pip install Pillow
 
 1.  导入必要的包：
 
-    ```
+    ```py
     import os
     import pathlib
     from csv import DictReader
@@ -444,7 +444,7 @@ $> pip install Pillow
 
 1.  定义一个函数来构建网络架构。首先，实现卷积模块：
 
-    ```
+    ```py
     def build_network(width, height, depth, classes):
         input_layer = Input(shape=(width, height, depth))
         x = Conv2D(filters=32,
@@ -475,7 +475,7 @@ $> pip install Pillow
 
     接下来，添加全卷积层：
 
-    ```
+    ```py
         x = Flatten()(x)
         x = Dense(units=512)(x)
         x = ReLU()(x)
@@ -488,7 +488,7 @@ $> pip install Pillow
 
 1.  定义一个函数，根据图像路径列表和与每个图像关联的元数据字典，加载所有图像和标签（性别和使用场景）：
 
-    ```
+    ```py
     def load_images_and_labels(image_paths, styles, 
                                target_size):
         images = []
@@ -509,14 +509,14 @@ $> pip install Pillow
 
 1.  设置随机种子以确保结果可复现：
 
-    ```
+    ```py
     SEED = 999
     np.random.seed(SEED)
     ```
 
 1.  定义图像路径和`styles.csv`元数据文件的路径：
 
-    ```
+    ```py
     base_path = (pathlib.Path.home() / '.keras' / 
                  'datasets' /
                  'fashion-product-images-small')
@@ -527,7 +527,7 @@ $> pip install Pillow
 
 1.  仅保留适用于`Casual`、`Smart Casual`和`Formal`使用场景的`Watches`图像，适合`Men`和`Women`：
 
-    ```
+    ```py
     with open(styles_path, 'r') as f:
         dict_reader = DictReader(f)
         STYLES = [*dict_reader]
@@ -548,14 +548,14 @@ $> pip install Pillow
 
 1.  加载图像和标签，将图像调整为 64x64x3 的形状：
 
-    ```
+    ```py
     X, y = load_images_and_labels(image_paths, STYLES, 
                                   (64, 64))
     ```
 
 1.  对图像进行归一化，并对标签进行多热编码：
 
-    ```
+    ```py
     X = X.astype('float') / 255.0
     mlb = MultiLabelBinarizer()
     y = mlb.fit_transform(y)
@@ -563,7 +563,7 @@ $> pip install Pillow
 
 1.  创建训练集、验证集和测试集的划分：
 
-    ```
+    ```py
     (X_train, X_test,
      y_train, y_test) = train_test_split(X, y,
                                          stratify=y,
@@ -579,7 +579,7 @@ $> pip install Pillow
 
 1.  构建并编译网络：
 
-    ```
+    ```py
     model = build_network(width=64,
                           height=64,
                           depth=3,
@@ -591,7 +591,7 @@ $> pip install Pillow
 
 1.  训练模型`20`个 epoch，每次批处理`64`张图像：
 
-    ```
+    ```py
     BATCH_SIZE = 64
     EPOCHS = 20
     model.fit(X_train, y_train,
@@ -602,7 +602,7 @@ $> pip install Pillow
 
 1.  在测试集上评估模型：
 
-    ```
+    ```py
     result = model.evaluate(X_test, y_test, 
                            batch_size=BATCH_SIZE)
     print(f'Test accuracy: {result[1]}')
@@ -610,13 +610,13 @@ $> pip install Pillow
 
     该块打印如下内容：
 
-    ```
+    ```py
     Test accuracy: 0.90233546
     ```
 
 1.  使用模型对测试图像进行预测，显示每个标签的概率：
 
-    ```
+    ```py
     test_image = np.expand_dims(X_test[0], axis=0)
     probabilities = model.predict(test_image)[0]
     for label, p in zip(mlb.classes_, probabilities):
@@ -625,7 +625,7 @@ $> pip install Pillow
 
     打印出如下内容：
 
-    ```
+    ```py
     Casual: 100.00%
     Formal: 0.00%
     Men: 1.08%
@@ -635,7 +635,7 @@ $> pip install Pillow
 
 1.  比较真实标签与网络预测的结果：
 
-    ```
+    ```py
     ground_truth_labels = np.expand_dims(y_test[0], 
                                          axis=0)
     ground_truth_labels = mlb.inverse_transform(ground_truth_labels)
@@ -644,7 +644,7 @@ $> pip install Pillow
 
     输出如下：
 
-    ```
+    ```py
     Ground truth labels: [('Casual', 'Women')]
     ```
 
@@ -676,7 +676,7 @@ $> pip install Pillow
 
 1.  导入所有必要的模块：
 
-    ```
+    ```py
     import os
     import numpy as np
     import tarfile
@@ -690,13 +690,13 @@ $> pip install Pillow
 
 1.  定义一个别名给`tf.data.experimental.AUTOTUNE`选项，稍后我们会使用它：
 
-    ```
+    ```py
     AUTOTUNE = tf.data.experimental.AUTOTUNE
     ```
 
 1.  定义一个函数，在`reduce=True`时创建一个残差模块，我们应用 1x1 卷积：
 
-    ```
+    ```py
         if reduce:
             shortcut = Conv2D(filters=filters,
                               kernel_size=(1, 1),
@@ -707,14 +707,14 @@ $> pip install Pillow
 
     最后，我们将跳跃连接和第三个块合并成一个单一的层，并将其作为输出返回：
 
-    ```
+    ```py
         x = Add()([conv_3, shortcut])
         return x
     ```
 
 1.  定义一个函数来构建自定义**ResNet**网络：
 
-    ```
+    ```py
     def build_resnet(input_shape,
                      classes,
                      stages,
@@ -760,7 +760,7 @@ $> pip install Pillow
 
 1.  定义一个函数来加载图像及其一热编码标签，基于其文件路径：
 
-    ```
+    ```py
     def load_image_and_label(image_path, target_size=(32, 32)):
         image = tf.io.read_file(image_path)
         image = tf.image.decode_png(image, channels=3)
@@ -776,7 +776,7 @@ $> pip install Pillow
 
 1.  定义一个函数，通过类似 glob 的模式创建`tf.data.Dataset`实例，模式指向图像所在的文件夹：
 
-    ```
+    ```py
     def prepare_dataset(data_pattern, shuffle=False):
         dataset = (tf.data.Dataset
                    .list_files(data_pattern)
@@ -792,13 +792,13 @@ $> pip install Pillow
 
 1.  定义`CINIC-10`数据集的平均 RGB 值，这些值将在`load_image_and_label()`函数中用于图像的均值归一化（该信息可在官方`CINIC-10`网站上找到）：
 
-    ```
+    ```py
     CINIC_MEAN_RGB = np.array([0.47889522, 0.47227842, 0.43047404])
     ```
 
 1.  定义`CINIC-10`数据集的类别：
 
-    ```
+    ```py
     CINIC_10_CLASSES = ['airplane', 'automobile', 'bird', 'cat',
                         'deer', 'dog', 'frog', 'horse',    'ship',
                         'truck']
@@ -806,7 +806,7 @@ $> pip install Pillow
 
 1.  下载并解压`CINIC-10`数据集到`~/.keras/datasets`目录：
 
-    ```
+    ```py
     DATASET_URL = ('https://datashare.is.ed.ac.uk/bitstream/handle/'
                    '10283/3192/CINIC-10.tar.gz?'
                    'sequence=4&isAllowed=y')
@@ -827,7 +827,7 @@ $> pip install Pillow
 
 1.  定义类似 glob 的模式来表示训练、测试和验证子集：
 
-    ```
+    ```py
     train_pattern = os.path.sep.join(
         [data_directory, 'train/*/*.png'])
     test_pattern = os.path.sep.join(
@@ -838,7 +838,7 @@ $> pip install Pillow
 
 1.  准备数据集：
 
-    ```
+    ```py
     BATCH_SIZE = 128
     BUFFER_SIZE = 1024
     train_dataset = prepare_dataset(train_pattern, 
@@ -849,7 +849,7 @@ $> pip install Pillow
 
 1.  构建、编译并训练`ModelCheckpoint()`回调：
 
-    ```
+    ```py
     model = build_resnet(input_shape=(32, 32, 3),
                          classes=10,
                          stages=(9, 9, 9),
@@ -871,7 +871,7 @@ $> pip install Pillow
 
 1.  加载最佳模型（在此例中为`model.38-0.72.hdf5`）并在测试集上进行评估：
 
-    ```
+    ```py
     model = load_model('model.38-0.72.hdf5')
     result = model.evaluate(test_dataset)
     print(f'Test accuracy: {result[1]}')
@@ -879,7 +879,7 @@ $> pip install Pillow
 
     这将打印以下内容：
 
-    ```
+    ```py
     Test accuracy: 0.71956664
     ```
 
@@ -909,7 +909,7 @@ $> pip install Pillow
 
 我们将需要 `Pillow`。可以通过以下方式安装：
 
-```
+```py
 $> pip install Pillow
 ```
 
@@ -927,7 +927,7 @@ $> pip install Pillow
 
 1.  导入所需的包，包括用于分类的预训练网络，以及一些预处理图像的辅助函数：
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     import numpy as np
     from tensorflow.keras.applications import imagenet_utils
@@ -937,32 +937,32 @@ $> pip install Pillow
 
 1.  实例化一个在 ImageNet 上预训练的 `InceptionV3` 网络：
 
-    ```
+    ```py
     model = InceptionV3(weights='imagenet')
     ```
 
 1.  加载要分类的图像。`InceptionV3` 接受一个 299x299x3 的图像，因此我们必须相应地调整其大小：
 
-    ```
+    ```py
     image = load_img('dog.jpg', target_size=(299, 299))
     ```
 
 1.  将图像转换为 `numpy` 数组，并将其包装成一个单例批次：
 
-    ```
+    ```py
     image = img_to_array(image)
     image = np.expand_dims(image, axis=0)
     ```
 
 1.  按照 `InceptionV3` 的方式预处理图像：
 
-    ```
+    ```py
     image = preprocess_input(image)
     ```
 
 1.  使用模型对图像进行预测，然后将预测解码为矩阵：
 
-    ```
+    ```py
     predictions = model.predict(image)
     prediction_matrix = (imagenet_utils
                          .decode_predictions(predictions))
@@ -970,7 +970,7 @@ $> pip install Pillow
 
 1.  查看前 `5` 个预测及其概率：
 
-    ```
+    ```py
     for i in range(5):
         _, label, probability = prediction_matrix[0][i]
         print(f'{i + 1}. {label}: {probability * 100:.3f}%')
@@ -978,7 +978,7 @@ $> pip install Pillow
 
     这将产生以下输出：
 
-    ```
+    ```py
     1\. pug: 85.538%
     2\. French_bulldog: 0.585%
     3\. Brabancon_griffon: 0.543%
@@ -988,7 +988,7 @@ $> pip install Pillow
 
 1.  绘制原始图像及其最可能的标签：
 
-    ```
+    ```py
     _, label, _ = prediction_matrix[0][0]
     plt.figure()
     plt.title(f'Label: {label}.')
@@ -1028,7 +1028,7 @@ $> pip install Pillow
 
 我们需要`tensorflow-hub`和`Pillow`包，它们可以通过`pip`轻松安装，如下所示：
 
-```
+```py
 $> pip install tensorflow-hub Pillow
 ```
 
@@ -1048,7 +1048,7 @@ $> pip install tensorflow-hub Pillow
 
 1.  导入必要的包：
 
-    ```
+    ```py
     import matplotlib.pyplot as plt
     import numpy as np
     import tensorflow_hub as hub
@@ -1059,14 +1059,14 @@ $> pip install tensorflow-hub Pillow
 
 1.  定义预训练的`ResNetV2152`分类器的 URL 地址，托管在**TFHub**上：
 
-    ```
+    ```py
     classifier_url = ('https://tfhub.dev/google/imagenet/'
                       'resnet_v2_152/classification/4')
     ```
 
 1.  下载并实例化托管在 TFHub 上的分类器：
 
-    ```
+    ```py
     model = Sequential([
         hub.KerasLayer(classifier_url, input_shape=(224, 
                                                   224, 3))])
@@ -1074,7 +1074,7 @@ $> pip install tensorflow-hub Pillow
 
 1.  加载我们要分类的图像，将其转换为`numpy`数组，对其进行归一化，并将其包装为单例批次：
 
-    ```
+    ```py
     image = load_img('beetle.jpg', target_size=(224, 224))
     image = img_to_array(image)
     image = image / 255.0
@@ -1083,19 +1083,19 @@ $> pip install tensorflow-hub Pillow
 
 1.  使用预训练模型对图像进行分类：
 
-    ```
+    ```py
     predictions = model.predict(image)
     ```
 
 1.  提取最可能的预测的索引：
 
-    ```
+    ```py
     predicted_index = np.argmax(predictions[0], axis=-1)
     ```
 
 1.  下载名为`ImageNetLabels.txt`的 ImageNet 标签文件：
 
-    ```
+    ```py
     file_name = 'ImageNetLabels.txt'
     file_url = ('https://storage.googleapis.com/'
         'download.tensorflow.org/data/ImageNetLabels.txt')
@@ -1104,20 +1104,20 @@ $> pip install tensorflow-hub Pillow
 
 1.  将标签读取到`numpy`数组中：
 
-    ```
+    ```py
     with open(labels_path) as f:
         imagenet_labels = np.array(f.read().splitlines())
     ```
 
 1.  提取与最可能的预测索引对应的类别名称：
 
-    ```
+    ```py
     predicted_class = imagenet_labels[predicted_index]
     ```
 
 1.  绘制原始图像及其最可能的标签：
 
-    ```
+    ```py
     plt.figure()
     plt.title(f'Label: {predicted_class}.')
     original = load_img('beetle.jpg')
@@ -1154,7 +1154,7 @@ $> pip install tensorflow-hub Pillow
 
 我们必须安装 `Pillow` 和 `tensorflow_docs`：
 
-```
+```py
 $> pip install Pillow git+https://github.com/tensorflow/docs
 ```
 
@@ -1174,7 +1174,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  导入所需的模块：
 
-    ```
+    ```py
     import os
     import pathlib
     import matplotlib.pyplot as plt
@@ -1191,7 +1191,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  定义一个函数，根据文件路径加载数据集中的所有图像及其标签：
 
-    ```
+    ```py
     def load_images_and_labels(image_paths, target_size=(64, 64)):
         images = []
         labels = []
@@ -1207,7 +1207,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  定义一个函数来构建一个更小版本的**VGG**：
 
-    ```
+    ```py
     def build_network(width, height, depth, classes):
         input_layer = Input(shape=(width, height, depth))
         x = Conv2D(filters=32,
@@ -1246,7 +1246,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  定义一个函数来绘制并保存模型的训练曲线：
 
-    ```
+    ```py
     def plot_model_history(model_history, metric, 
                            plot_name):
         plt.style.use('seaborn-darkgrid')
@@ -1261,14 +1261,14 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  设置随机种子：
 
-    ```
+    ```py
     SEED = 999
     np.random.seed(SEED)
     ```
 
 1.  加载数据集中所有图像的路径，除了 `BACKGROUND_Google` 类别的图像：
 
-    ```
+    ```py
     base_path = (pathlib.Path.home() / '.keras' / 
                  'datasets' /
                  '101_ObjectCategories')
@@ -1281,14 +1281,14 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  计算数据集中的类别集合：
 
-    ```
+    ```py
     classes = {p.split(os.path.sep)[-2] for p in 
               image_paths}
     ```
 
 1.  将数据集加载到内存中，对图像进行归一化处理并进行 one-hot 编码标签：
 
-    ```
+    ```py
     X, y = load_images_and_labels(image_paths)
     X = X.astype('float') / 255.0
     y = LabelBinarizer().fit_transform(y)
@@ -1296,7 +1296,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  创建训练和测试子集：
 
-    ```
+    ```py
     (X_train, X_test,
      y_train, y_test) = train_test_split(X, y,
                                          test_size=0.2,
@@ -1305,7 +1305,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  构建、编译、训练并评估一个没有数据增强的神经网络：
 
-    ```
+    ```py
     EPOCHS = 40
     BATCH_SIZE = 64
     model = build_network(64, 64, 3, len(classes))
@@ -1323,7 +1323,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
     测试集上的准确率如下：
 
-    ```
+    ```py
     Test accuracy: 0.61347926
     ```
 
@@ -1335,7 +1335,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  构建、编译、训练并评估相同的网络，这次使用数据增强：
 
-    ```
+    ```py
     model = build_network(64, 64, 3, len(classes))
     model.compile(loss='categorical_crossentropy',
                   optimizer='rmsprop',
@@ -1361,7 +1361,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
     使用数据增强时，我们在测试集上的准确率如下：
 
-    ```
+    ```py
     Test accuracy: 0.65207374
     ```
 
@@ -1389,7 +1389,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 我们必须安装`tensorflow_docs`：
 
-```
+```py
 $> pip install git+https://github.com/tensorflow/docs
 ```
 
@@ -1409,7 +1409,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  导入必要的依赖项：
 
-    ```
+    ```py
     import os
     import pathlib
     import matplotlib.pyplot as plt
@@ -1425,13 +1425,13 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  为`tf.data.experimental.AUTOTUNE`标志创建一个别名，稍后我们将使用它：
 
-    ```
+    ```py
     AUTOTUNE = tf.data.experimental.AUTOTUNE
     ```
 
 1.  定义一个函数来创建一个更小版本的**VGG**。首先创建输入层和第一组具有 32 个滤波器的两个卷积层：
 
-    ```
+    ```py
     def build_network(width, height, depth, classes):
         input_layer = Input(shape=(width, height, depth))
         x = Conv2D(filters=32,
@@ -1450,7 +1450,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  继续进行第二个包含两个卷积层的模块，这次每个模块有 64 个卷积核：
 
-    ```
+    ```py
         x = Conv2D(filters=64,
                    kernel_size=(3, 3),
                    padding='same')(x)
@@ -1467,7 +1467,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  定义架构的最后部分，其中包括一系列全连接层：
 
-    ```
+    ```py
         x = Flatten()(x)
         x = Dense(units=512)(x)
         x = ReLU()(x)
@@ -1480,7 +1480,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  定义一个函数，根据模型的训练历史绘制并保存训练曲线：
 
-    ```
+    ```py
     def plot_model_history(model_history, metric, 
                            plot_name):
         plt.style.use('seaborn-darkgrid')
@@ -1495,7 +1495,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  定义一个函数来加载图像并进行独热编码标签，基于图像的文件路径：
 
-    ```
+    ```py
     def load_image_and_label(image_path, target_size=(64, 
                                                      64)):
         image = tf.io.read_file(image_path)
@@ -1511,7 +1511,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  定义一个函数，通过对图像执行随机变换来增强图像：
 
-    ```
+    ```py
     def augment(image, label):
         image = tf.image.resize_with_crop_or_pad(image, 
                                                  74, 74)
@@ -1523,7 +1523,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  定义一个函数来准备基于类似 glob 模式的`tf.data.Dataset`图像集，该模式指向图像所在的文件夹：
 
-    ```
+    ```py
     def prepare_dataset(data_pattern):
         return (tf.data.Dataset
                 .from_tensor_slices(data_pattern)
@@ -1533,14 +1533,14 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  设置随机种子：
 
-    ```
+    ```py
     SEED = 999
     np.random.seed(SEED)
     ```
 
 1.  加载数据集中所有图像的路径，排除`BACKGROUND_Google`类别的图像：
 
-    ```
+    ```py
     base_path = (pathlib.Path.home() / '.keras' / 
                  'datasets' /
                  '101_ObjectCategories')
@@ -1553,14 +1553,14 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  计算数据集中的唯一类别：
 
-    ```
+    ```py
     CLASSES = np.unique([p.split(os.path.sep)[-2]
                          for p in image_paths])
     ```
 
 1.  将图像路径分割成训练集和测试集：
 
-    ```
+    ```py
     train_paths, test_paths = train_test_split(image_paths,
                                               test_size=0.2,
                                           random_state=SEED)
@@ -1568,7 +1568,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  准备训练和测试数据集，不进行数据增强：
 
-    ```
+    ```py
     BATCH_SIZE = 64
     BUFFER_SIZE = 1024
     train_dataset = (prepare_dataset(train_paths)
@@ -1582,7 +1582,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  实例化、编译、训练并评估网络：
 
-    ```
+    ```py
     EPOCHS = 40
     model = build_network(64, 64, 3, len(CLASSES))
     model.compile(loss='categorical_crossentropy',
@@ -1598,7 +1598,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
     在测试集上的精度是：
 
-    ```
+    ```py
     Test accuracy: 0.6532258
     ```
 
@@ -1610,7 +1610,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  准备训练和测试集，这次对训练集应用数据增强：
 
-    ```
+    ```py
     train_dataset = (prepare_dataset(train_paths)
                      .map(augment, 
                          num_parallel_calls=AUTOTUNE)
@@ -1624,7 +1624,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
 1.  实例化、编译、训练并在增强数据上评估网络：
 
-    ```
+    ```py
     model = build_network(64, 64, 3, len(CLASSES))
     model.compile(loss='categorical_crossentropy',
                   optimizer='rmsprop',
@@ -1639,7 +1639,7 @@ $> pip install git+https://github.com/tensorflow/docs
 
     使用数据增强时，测试集上的精度如下所示：
 
-    ```
+    ```py
     Test accuracy: 0.74711984
     ```
 

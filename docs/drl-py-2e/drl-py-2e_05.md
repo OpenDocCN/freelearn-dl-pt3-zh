@@ -258,27 +258,27 @@ TD 预测算法如下所示：
 
 首先，让我们导入必要的库：
 
-```
+```py
 import gym
 import pandas as pd 
 ```
 
 现在，我们使用 Gym 创建冻结湖环境：
 
-```
+```py
 env = gym.make('FrozenLake-v0') 
 ```
 
 定义随机策略，通过从动作空间中采样返回随机动作：
 
-```
+```py
 def random_policy():
     return env.action_space.sample() 
 ```
 
 让我们定义一个字典来存储状态的值，并将所有状态的值初始化为 `0.0`：
 
-```
+```py
 V = {}
 for s in range(env.observation_space.n):
     V[s]=0.0 
@@ -286,14 +286,14 @@ for s in range(env.observation_space.n):
 
 初始化折扣因子 ![](img/B15558_05_049.png) 和学习率 ![](img/B15558_05_050.png)：
 
-```
+```py
 alpha = 0.85
 gamma = 0.90 
 ```
 
 设置回合数和每个回合中的时间步数：
 
-```
+```py
 num_episodes = 50000
 num_timesteps = 1000 
 ```
@@ -304,49 +304,49 @@ num_timesteps = 1000
 
 对于每个回合：
 
-```
+```py
 for i in range(num_episodes): 
 ```
 
 通过重置环境来初始化状态：
 
-```
+```py
  s = env.reset() 
 ```
 
 对于回合中的每个步骤：
 
-```
+```py
  for t in range(num_timesteps): 
 ```
 
 根据随机策略选择一个动作：
 
-```
+```py
  a = random_policy() 
 ```
 
 执行选择的动作并存储下一个状态信息：
 
-```
+```py
  s_, r, done, _ = env.step(a) 
 ```
 
 计算状态的值，如 ![](img/B15558_05_010.png) 所示：
 
-```
+```py
  V[s] += alpha * (r + gamma * V[s_]-V[s]) 
 ```
 
 更新下一个状态为当前状态 ![](img/B15558_05_052.png)：
 
-```
+```py
  s = s_ 
 ```
 
 如果当前状态是终止状态，则跳出：
 
-```
+```py
  if done:
             break 
 ```
@@ -357,7 +357,7 @@ for i in range(num_episodes):
 
 现在，让我们评估我们的值函数（状态值）。首先，让我们将值字典转换为 pandas 数据框以便更清晰地查看：
 
-```
+```py
 df = pd.DataFrame(list(V.items()), columns=['state', 'value']) 
 ```
 
@@ -369,7 +369,7 @@ df = pd.DataFrame(list(V.items()), columns=['state', 'value'])
 
 现在，让我们检查状态的值：
 
-```
+```py
 df 
 ```
 
@@ -509,20 +509,20 @@ SARSA 算法如下所示：
 
 首先，让我们导入必要的库：
 
-```
+```py
 import gym
 import random 
 ```
 
 现在，我们使用 Gym 创建 Frozen Lake 环境：
 
-```
+```py
 env = gym.make('FrozenLake-v0') 
 ```
 
 让我们定义一个字典来存储状态-动作对的 Q 值，并将所有状态-动作对的 Q 值初始化为 `0.0`：
 
-```
+```py
 Q = {}
 for s in range(env.observation_space.n):
     for a in range(env.action_space.n):
@@ -531,7 +531,7 @@ for s in range(env.observation_space.n):
 
 现在，让我们定义 epsilon-greedy 策略。我们从均匀分布中生成一个随机数，如果随机数小于 epsilon，则选择随机动作，否则选择具有最大 Q 值的最佳动作：
 
-```
+```py
 def epsilon_greedy(state, epsilon):
     if random.uniform(0,1) < epsilon:
         return env.action_space.sample()
@@ -541,7 +541,7 @@ def epsilon_greedy(state, epsilon):
 
 初始化折扣因子 ![](img/B15558_03_005.png)，学习率 ![](img/B15558_05_055.png) 和 epsilon 值：
 
-```
+```py
 alpha = 0.85
 gamma = 0.90
 epsilon = 0.8 
@@ -549,7 +549,7 @@ epsilon = 0.8
 
 设置回合数和每回合的时间步数：
 
-```
+```py
 num_episodes = 50000
 num_timesteps = 1000 
 ```
@@ -558,56 +558,56 @@ num_timesteps = 1000
 
 对于每一回合：
 
-```
+```py
 for i in range(num_episodes): 
 ```
 
 通过重置环境初始化状态：
 
-```
+```py
  s = env.reset() 
 ```
 
 使用 epsilon-greedy 策略选择动作：
 
-```
+```py
  a = epsilon_greedy(s,epsilon) 
 ```
 
 对于每个步骤，在这一回合中：
 
-```
+```py
  for t in range(num_timesteps): 
 ```
 
 执行所选动作并存储下一个状态信息：
 
-```
+```py
  s_, r, done, _ = env.step(a) 
 ```
 
 使用 epsilon-greedy 策略在下一个状态 ![](img/B15558_03_046.png) 中选择动作 ![](img/B15558_05_079.png)：
 
-```
+```py
  a_ = epsilon_greedy(s_,epsilon) 
 ```
 
 计算状态-动作对的 Q 值，公式为 ![](img/B15558_05_072.png)：
 
-```
+```py
  Q[(s,a)] += alpha * (r + gamma * Q[(s_,a_)]-Q[(s,a)]) 
 ```
 
 更新 ![](img/B15558_05_082.png) 和 ![](img/B15558_05_083.png)（将下一个状态 ![](img/B15558_03_073.png)-动作 ![](img/B15558_05_076.png) 对更新为当前状态 *s*-动作 *a* 对）：
 
-```
+```py
  s = s_
         a = a_ 
 ```
 
 如果当前状态是终止状态，则跳出：
 
-```
+```py
  if done:
             break 
 ```
@@ -730,7 +730,7 @@ Q 学习算法如下所示：
 
 首先，让我们导入必要的库：
 
-```
+```py
 import gym
 import numpy as np
 import random 
@@ -738,13 +738,13 @@ import random
 
 现在，我们使用 Gym 创建 Frozen Lake 环境：
 
-```
+```py
 env = gym.make('FrozenLake-v0') 
 ```
 
 我们先定义一个字典来存储状态-动作对的 Q 值，并将所有状态-动作对的 Q 值初始化为`0.0`：
 
-```
+```py
 Q = {}
 for s in range(env.observation_space.n):
     for a in range(env.action_space.n):
@@ -753,7 +753,7 @@ for s in range(env.observation_space.n):
 
 现在，让我们定义ε-贪婪策略。我们从均匀分布中生成一个随机数，如果该随机数小于ε，则选择一个随机动作，否则选择具有最大 Q 值的最佳动作：
 
-```
+```py
 def epsilon_greedy(state, epsilon):
     if random.uniform(0,1) < epsilon:
         return env.action_space.sample()
@@ -763,7 +763,7 @@ def epsilon_greedy(state, epsilon):
 
 初始化折扣因子 ![](img/B15558_05_056.png)、学习率 ![](img/B15558_05_055.png) 和ε值：
 
-```
+```py
 alpha = 0.85
 gamma = 0.90
 epsilon = 0.8 
@@ -771,7 +771,7 @@ epsilon = 0.8
 
 设置回合数和每个回合中的时间步数：
 
-```
+```py
 num_episodes = 50000
 num_timesteps = 1000 
 ```
@@ -780,31 +780,31 @@ num_timesteps = 1000
 
 对于每个回合：
 
-```
+```py
 for i in range(num_episodes): 
 ```
 
 通过重置环境来初始化状态：
 
-```
+```py
  s = env.reset() 
 ```
 
 对于回合中的每一步：
 
-```
+```py
  for t in range(num_timesteps): 
 ```
 
 使用ε-贪婪策略选择动作：
 
-```
+```py
  a = epsilon_greedy(s,epsilon) 
 ```
 
 执行选择的动作并存储下一个状态的信息：
 
-```
+```py
  s_, r, done, _ = env.step(a) 
 ```
 
@@ -812,25 +812,25 @@ for i in range(num_episodes):
 
 首先，选择下一个状态 ![](img/B15558_03_046.png)中具有最大 Q 值的动作 ![](img/B15558_05_116.png)：
 
-```
+```py
  a_ = np.argmax([Q[(s_, a)] for a in range(env.action_space.n)]) 
 ```
 
 现在，我们可以计算状态-动作对的 Q 值为：
 
-```
+```py
  Q[(s,a)] += alpha * (r + gamma * Q[(s_,a_)]-Q[(s,a)]) 
 ```
 
 更新 ![](img/B15558_05_118.png)（将下一个状态 ![](img/B15558_03_073.png)更新为当前状态 *s*）：
 
-```
+```py
  s = s_ 
 ```
 
 如果当前状态是终止状态，则中断：
 
-```
+```py
  if done:
             break 
 ```

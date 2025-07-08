@@ -226,7 +226,7 @@ TensorFlow 使用一种特殊的结构来在不同的设备上执行代码，如
 
 为了使用 TensorFlow，我们需要导入该库；我们将其命名为 `tf`，这样就可以通过写 `tf` 点号再加上模块名来访问模块：
 
-```
+```py
 import tensorflow as tf
 ```
 
@@ -234,38 +234,38 @@ import tensorflow as tf
 
 让我们创建两个源操作，它们将输出数字。我们将它们定义为 `A` 和 `B`，你可以在下面的代码片段中看到：
 
-```
+```py
 A = tf.constant([2])
 ```
 
-```
+```py
 B = tf.constant([3])
 ```
 
 之后，我们将定义一个简单的计算操作 `tf.add()`，用来将两个元素相加。你也可以使用 `C = A + B`，如下面的代码所示：
 
-```
+```py
 C = tf.add(A,B)
 ```
 
-```
+```py
 #C = A + B is also a way to define the sum of the terms
 ```
 
 由于图形需要在会话的上下文中执行，我们需要创建一个会话对象：
 
-```
+```py
 session = tf.Session()
 ```
 
 为了查看图形，让我们运行会话来获取之前定义的 `C` 操作的结果：
 
-```
+```py
 result = session.run(C)
 print(result)
 ```
 
-```
+```py
 Output:
 [5]
 ```
@@ -280,7 +280,7 @@ Output:
 
 现在我们将尝试使用 TensorFlow 定义这些数组：
 
-```
+```py
 salar_var = tf.constant([4])
 vector_var = tf.constant([5,4,2])
 matrix_var = tf.constant([[1,2,3],[2,2,4],[3,5,5]])
@@ -296,7 +296,7 @@ with tf.Session() as session:
     print "Tensor (3x3x3 entries) :\n %s \n" % result
 ```
 
-```
+```py
 Output:
 Scalar (1 entry):
  [2] 
@@ -325,7 +325,7 @@ Tensor (3x3x3 entries) :
 
 现在你已经理解了这些数据结构，我鼓励你使用一些之前的函数来尝试这些数据结构，看看它们如何根据结构类型表现：
 
-```
+```py
 Matrix_one = tf.constant([[1,2,3],[2,3,4],[3,4,5]])
 Matrix_two = tf.constant([[2,2,2],[2,2,2],[2,2,2]])
 first_operation = tf.add(Matrix_one, Matrix_two)
@@ -339,7 +339,7 @@ with tf.Session() as session:
     print(result)
 ```
 
-```
+```py
 Output:
 Defined using tensorflow function :
 [[3 4 5]
@@ -353,7 +353,7 @@ Defined using normal expressions :
 
 使用常规符号定义以及`tensorflow`函数，我们能够实现逐元素相乘，也叫做**哈达玛积**。但如果我们想要常规的矩阵乘法呢？我们需要使用另一个 TensorFlow 函数，叫做`tf.matmul()`：
 
-```
+```py
 Matrix_one = tf.constant([[2,3],[3,4]])
 Matrix_two = tf.constant([[2,3],[3,4]])
 first_operation = tf.matmul(Matrix_one, Matrix_two)
@@ -363,7 +363,7 @@ with tf.Session() as session:
     print(result)
 ```
 
-```
+```py
 Output:
 Defined using tensorflow function :
 [[13 18]
@@ -396,13 +396,13 @@ Defined using tensorflow function :
 
 要更新变量的值，我们只需运行一个赋值操作，将一个值分配给变量：
 
-```
+```py
 state = tf.Variable(0)
 ```
 
 让我们首先创建一个简单的计数器，一个每次增加一个单位的变量：
 
-```
+```py
 one = tf.constant(1)
 new_value = tf.add(state, one)
 update = tf.assign(state, new_value)
@@ -410,7 +410,7 @@ update = tf.assign(state, new_value)
 
 变量必须通过运行初始化操作来初始化，前提是图已启动。我们首先需要将初始化操作添加到图中：
 
-```
+```py
 init_op = tf.global_variables_initializer()
 ```
 
@@ -418,7 +418,7 @@ init_op = tf.global_variables_initializer()
 
 我们首先初始化变量，然后打印状态变量的初始值，最后运行更新状态变量的操作，并在每次更新后打印结果：
 
-```
+```py
 with tf.Session() as session:
  session.run(init_op)
  print(session.run(state))
@@ -427,7 +427,7 @@ with tf.Session() as session:
     print(session.run(state))
 ```
 
-```
+```py
 Output:
 0
 1
@@ -466,13 +466,13 @@ Output:
 
 所以，让我们创建一个占位符：
 
-```
+```py
 a=tf.placeholder(tf.float32)
 ```
 
 定义一个简单的乘法操作：
 
-```
+```py
 b=a*2
 ```
 
@@ -480,27 +480,27 @@ b=a*2
 
 为了将数据传递给模型，我们调用会话时会传入一个额外的参数 `feed_dict`，在其中我们应该传递一个字典，字典的每个占位符名称后跟其对应的数据，就像这样：
 
-```
+```py
 with tf.Session() as sess:
     result = sess.run(b,feed_dict={a:3.5})
     print result
 ```
 
-```
+```py
 Output:
 7.0
 ```
 
 由于 TensorFlow 中的数据是以多维数组的形式传递的，我们可以通过占位符传递任何类型的张量，以获得简单的乘法操作的结果：
 
-```
+```py
 dictionary={a: [ [ [1,2,3],[4,5,6],[7,8,9],[10,11,12] ] , [ [13,14,15],[16,17,18],[19,20,21],[22,23,24] ] ] }
 with tf.Session() as sess:
     result = sess.run(b,feed_dict=dictionary)
     print result
 ```
 
-```
+```py
 Output:
 [[[  2\.   4\.   6.]
   [  8\.  10\.  12.]
@@ -523,7 +523,7 @@ Output:
 
 让我们来尝试一些操作：
 
-```
+```py
 a = tf.constant([5])
 b = tf.constant([2])
 c = tf.add(a,b)
@@ -535,7 +535,7 @@ with tf.Session() as session:
     print 'd =: %s' % result
 ```
 
-```
+```py
 Output:
 c =: [7]
 d =: [3]
@@ -549,7 +549,7 @@ d =: [3]
 
 让我们首先导入实现所需的必要包：
 
-```
+```py
 import numpy as np
 import tensorflow as tf
 import matplotlib.patches as mpatches
@@ -559,12 +559,12 @@ plt.rcParams['figure.figsize'] = (10, 6)
 
 让我们定义一个自变量：
 
-```
+```py
 input_values = np.arange(0.0, 5.0, 0.1)
 input_values
 ```
 
-```
+```py
 Output:
 array([ 0\. ,  0.1,  0.2,  0.3,  0.4,  0.5,  0.6,  0.7,  0.8,  0.9,  1\. ,
         1.1,  1.2,  1.3,  1.4,  1.5,  1.6,  1.7,  1.8,  1.9,  2\. ,  2.1,
@@ -573,7 +573,7 @@ array([ 0\. ,  0.1,  0.2,  0.3,  0.4,  0.5,  0.6,  0.7,  0.8,  0.9,  1\. ,
         4.4,  4.5,  4.6,  4.7,  4.8,  4.9])
 ```
 
-```
+```py
 ##You can adjust the slope and intercept to verify the changes in the graph
 weight=1
 bias=0
@@ -595,7 +595,7 @@ Output:
 
 在第一部分，我们将生成随机数据点并定义线性关系；我们将使用 TensorFlow 来调整并获得正确的参数：
 
-```
+```py
 input_values = np.random.rand(100).astype(np.float32)
 ```
 
@@ -605,18 +605,18 @@ input_values = np.random.rand(100).astype(np.float32)
 
 这个方程没有什么特别之处，它只是我们用来生成数据点的模型。事实上，你可以像稍后一样更改参数。我们添加了一些高斯噪声，使数据点看起来更有趣：
 
-```
+```py
 output_values = input_values * 2 + 3
 output_values = np.vectorize(lambda y: y + np.random.normal(loc=0.0, scale=0.1))(output_values)
 ```
 
 这是数据的一个示例：
 
-```
+```py
 list(zip(input_values,output_values))[5:10]
 ```
 
-```
+```py
 Output:
 [(0.25240293, 3.474361759429548), 
 (0.946697, 4.980617375175061), 
@@ -627,7 +627,7 @@ Output:
 
 首先，我们用任何随机猜测初始化变量 ![](img/7beac794-06f0-4f0c-95d2-8f5344ad94e2.png) 和 ![](img/323cad53-6532-4e69-8234-50b2b8511bc7.png)，然后我们定义线性函数：
 
-```
+```py
 weight = tf.Variable(1.0)
 bias = tf.Variable(0.2)
 predicted_vals = weight * input_values + bias
@@ -637,7 +637,7 @@ predicted_vals = weight * input_values + bias
 
 为了找到损失值，我们使用 `tf.reduce_mean()`。这个函数计算多维张量的均值，结果可以具有不同的维度：
 
-```
+```py
 model_loss = tf.reduce_mean(tf.square(predicted_vals - output_values))
 ```
 
@@ -647,14 +647,14 @@ model_loss = tf.reduce_mean(tf.square(predicted_vals - output_values))
 
 `.minimize()` 函数将最小化优化器的误差函数，从而得到一个更好的模型：
 
-```
+```py
 model_optimizer = tf.train.GradientDescentOptimizer(0.5)
 train = model_optimizer.minimize(model_loss)
 ```
 
 别忘了在执行图表之前初始化变量：
 
-```
+```py
 init = tf.global_variables_initializer()
 sess = tf.Session()
 sess.run(init)
@@ -662,7 +662,7 @@ sess.run(init)
 
 现在，我们准备开始优化并运行图表：
 
-```
+```py
 train_data = []
 for step in range(100):
     evals = sess.run([train,weight,bias])[1:]
@@ -671,7 +671,7 @@ for step in range(100):
        train_data.append(evals)
 ```
 
-```
+```py
 Output:
 (0, [2.5176678, 2.9857566])
 (5, [2.4192538, 2.3015416])
@@ -697,7 +697,7 @@ Output:
 
 让我们可视化训练过程，以适应数据点：
 
-```
+```py
 print('Plotting the data points with their corresponding fitted line...')
 converter = plt.colors
 cr, cg, cb = (1.0, 1.0, 0.0)
@@ -722,7 +722,7 @@ plt.legend(handles=[green_line])
 plt.show()
 ```
 
-```
+```py
 Output:
 ```
 
@@ -742,7 +742,7 @@ Output:
 
 为了在 TensorFlow 中使用逻辑回归，我们首先需要导入我们将要使用的库。为此，你可以运行以下代码单元：
 
-```
+```py
 import tensorflow as tf
 
 import pandas as pd
@@ -756,7 +756,7 @@ import matplotlib.pyplot as plt
 
 接下来，我们将加载我们要使用的数据集。在这种情况下，我们使用内置的鸢尾花数据集。因此，不需要进行任何预处理，我们可以直接开始操作它。我们将数据集分成 *x* 和 *y*，然后再分成训练集的 *x* 和 *y* 以及测试集的 *x* 和 *y*，（伪）随机地：
 
-```
+```py
 iris_dataset = load_iris()
 iris_input_values, iris_output_values = iris_dataset.data[:-1,:], iris_dataset.target[:-1]
 iris_output_values= pd.get_dummies(iris_output_values).values
@@ -769,7 +769,7 @@ train_input_values, test_input_values, train_target_values, test_target_values =
 
 TensorFlow 的这一特性使得我们可以创建一个接受数据并且知道数据形状的算法，而不需要知道进入的数据量。在训练时，当我们插入 *batch* 数据时，我们可以轻松调整每次训练步骤中训练样本的数量，而无需改变整个算法：
 
-```
+```py
 # numFeatures is the number of features in our input data.
 # In the iris dataset, this number is '4'.
 num_explanatory_features = train_input_values.shape[1]
@@ -793,7 +793,7 @@ output_values = tf.placeholder(tf.float32, [None, num_target_values]) # This wil
 
 请注意，*W* 的形状是 [4, 3]，因为我们希望将 4 维的输入向量与其相乘，以产生 3 维的证据向量来区分不同的类别。*b* 的形状是 [3]，因此我们可以将它加到输出中。此外，与我们的占位符（本质上是等待数据的空壳）不同，TensorFlow 变量需要用值进行初始化，比如使用零初始化：
 
-```
+```py
 #Randomly sample from a normal distribution with standard deviation .01
 
 weights = tf.Variable(tf.random_normal([num_explanatory_features,num_target_values],
@@ -823,7 +823,7 @@ biases = tf.Variable(tf.random_normal([1,num_target_values],
 
 因此，您将会发现这些组件被定义为三个独立的操作：
 
-```
+```py
 # Three-component breakdown of the Logistic Regression equation.
 # Note that these feed into each other.
 apply_weights = tf.matmul(input_values, weights, name="apply_weights")
@@ -845,7 +845,7 @@ activation_output = tf.nn.sigmoid(add_bias, name="activation")
 
 在定义我们的成本函数之前，我们需要定义我们将要训练多长时间以及我们应该如何定义学习速率：
 
-```
+```py
 #Number of training epochs
 num_epochs = 700
 # Defining our learning rate iterations (decay)
@@ -865,7 +865,7 @@ model_train = tf.train.GradientDescentOptimizer(learning_rate).minimize(model_co
 
 首先，我们需要使用`tf.initialize_all_variables()`将我们的权重和偏差初始化为零或随机值。这个初始化步骤将成为我们计算图中的一个节点，当我们将图放入会话中时，操作将运行并创建变量：
 
-```
+```py
 # tensorflow session
 sess = tf.Session()
 
@@ -937,7 +937,7 @@ for i in range(num_epochs):
            print("Training step %d, accuracy %g, cost %g, cost change %g"%(i, train_accuracy, new_cost, diff))
 ```
 
-```
+```py
 Output:
 Training step 0, accuracy 0.343434, cost 34.6022, cost change 34.6022
 Training step 10, accuracy 0.434343, cost 30.3272, cost change 30.3272
@@ -1014,14 +1014,14 @@ Training step 690, accuracy 0.909091, cost 14.8975, cost change 14.8975
 
 现在，是时候看看我们训练好的模型在`iris`数据集上的表现了，让我们将训练好的模型与测试集进行测试：
 
-```
+```py
 # test the model against the test set
 print("final accuracy on test set: %s" %str(sess.run(model_accuracy,
                                                     feed_dict={input_values: test_input_values,
                                                                output_values: test_target_values}))
 ```
 
-```
+```py
 Output:
 final accuracy on test set: 0.9
 ```

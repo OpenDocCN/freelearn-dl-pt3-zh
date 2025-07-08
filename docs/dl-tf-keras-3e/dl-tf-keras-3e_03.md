@@ -4,7 +4,7 @@
 
 在*第一章*，*使用 TF 的神经网络基础*中，我们讨论了密集网络，其中每一层都与相邻的层完全连接。我们探讨了这些密集网络在分类 MNIST 手写字符数据集中的应用。在那个情境中，输入图像中的每个像素都分配给一个神经元，总共有 784 个输入神经元（28 x 28 像素）。然而，这种策略并没有利用图像之间的空间结构和关系。特别是，这段代码是一个密集网络，它将表示每个手写数字的位图转换为一个平坦的向量，移除了局部空间结构。移除空间结构是一个问题，因为重要的信息会丢失：
 
-```
+```py
 #X_train is 60000 rows of 28x28 values --> reshaped in 60000 x 784
 X_train = X_train.reshape(60000, 784)
 X_test = X_test.reshape(10000, 784) 
@@ -100,7 +100,7 @@ X_test = X_test.reshape(10000, 784)
 
 在 TensorFlow 中，如果我们想添加一个具有 32 个并行特征和 3x3 滤波器的卷积层，我们写：
 
-```
+```py
 import tensorflow as tf
 from tensorflow.keras import datasets, layers, models
 model = models.Sequential()
@@ -123,7 +123,7 @@ model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)))
 
 一个简单且常见的选择是所谓的最大池化运算符，它仅输出在该区域内观察到的最大激活值。在 Keras 中，如果我们想定义一个 2x2 的最大池化层，我们写：
 
-```
+```py
 model.add(layers.MaxPooling2D((2, 2))) 
 ```
 
@@ -153,7 +153,7 @@ model.add(layers.MaxPooling2D((2, 2)))
 
 要在代码中定义 LeNet，我们使用一个 2D 卷积模块（请注意，`tf.keras.layers.Conv2D`是`tf.keras.layers.Convolution2D`的别名，因此这两者可以互换使用——详见[`www.tensorflow.org/api_docs/python/tf/keras/layers/Conv2D`](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Conv2D)）：
 
-```
+```py
 layers.Convolution2D(20, (5, 5), activation='relu', input_shape=input_shape) 
 ```
 
@@ -161,7 +161,7 @@ layers.Convolution2D(20, (5, 5), activation='relu', input_shape=input_shape)
 
 此外，我们还使用了`MaxPooling2D`模块：
 
-```
+```py
 layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)) 
 ```
 
@@ -169,7 +169,7 @@ layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2))
 
 现在，让我们回顾一下代码。首先，我们导入一些模块：
 
-```
+```py
 import tensorflow as tf
 from tensorflow.keras import datasets, layers, models, optimizers
 # network and training
@@ -185,7 +185,7 @@ NB_CLASSES = 10  # number of outputs = number of digits
 
 然后我们定义 LeNet 网络：
 
-```
+```py
 #define the convnet 
 def build(input_shape, classes):
     model = models.Sequential() 
@@ -195,7 +195,7 @@ def build(input_shape, classes):
 
 最大池化操作实现了一个滑动窗口，窗口在层上滑动，并在每个区域中取最大值，步长为 2 个像素，垂直和水平方向都适用：
 
-```
+```py
 # CONV => RELU => POOL
 model.add(layers.Convolution2D(20, (5, 5), activation='relu',
             input_shape=input_shape))
@@ -204,7 +204,7 @@ model.add(layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
 
 接着是第二个卷积阶段，使用 ReLU 激活函数，之后再次是最大池化层。在这种情况下，我们将学习到的卷积滤波器数量从之前的 20 增加到 50。增加深层滤波器数量是深度学习中的常见技术：
 
-```
+```py
 # CONV => RELU => POOL
 model.add(layers.Convolution2D(50, (5, 5), activation='relu'))
 model.add(layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2))) 
@@ -212,7 +212,7 @@ model.add(layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
 
 然后我们进行一个标准的展平操作，接着是一个包含 500 个神经元的全连接网络，再接一个具有 10 类的 softmax 分类器：
 
-```
+```py
 # Flatten => RELU layers
 model.add(layers.Flatten())
 model.add(layers.Dense(500, activation='relu'))
@@ -229,7 +229,7 @@ return model
 
 现在我们需要一些额外的代码来训练网络，但这与我们在*第一章*《使用 TF 的神经网络基础》中描述的非常相似。这次我们还展示了打印损失的代码：
 
-```
+```py
 # data: shuffled and split between train and test sets
 (X_train, y_train), (X_test, y_test) = datasets.mnist.load_data()
 # reshape
@@ -271,7 +271,7 @@ print('Test accuracy:', score[1])
 
 让我们看看完整运行 20 个周期的执行情况：
 
-```
+```py
 Model: "sequential_1"
 _____________________________________________________________________
 Layer (type)                    Output Shape              Param #    
@@ -344,7 +344,7 @@ Test accuracy: 0.9915
 
 让我们绘制模型的准确率和模型损失图，并了解到，我们只需训练 10 次迭代，就能达到类似的 99.1%准确率：
 
-```
+```py
 Train on 48000 samples, validate on 12000 samples
 Epoch 1/10
 [2019-04-04 15:57:17.848186: I tensorflow/core/profiler/lib/profiler_session.cc:164] Profile Session started.
@@ -416,7 +416,7 @@ CIFAR-10 数据集包含 60,000 张 32 x 32 像素的彩色图像，分为三个
 
 首先，我们导入一些有用的模块，定义几个常量并加载数据集（包括加载操作的完整代码可在线获取）：
 
-```
+```py
 import tensorflow as tf
 from tensorflow.keras import datasets, layers, models, optimizers
 # CIFAR_10 is a set of 60K images 32x32 pixels on 3 channels
@@ -434,7 +434,7 @@ OPTIM = tf.keras.optimizers.RMSprop()
 
 我们的网络将学习 32 个卷积滤波器，每个滤波器的大小为 3 x 3。输出维度与输入形状相同，因此为 32 x 32，所使用的激活函数是 ReLU 函数，这是引入非线性的一种简单方法。之后，我们有一个 `MaxPooling` 操作，池大小为 2 x 2，并且丢弃率为 25%：
 
-```
+```py
 #define the convnet 
 def build(input_shape, classes):
     model = models.Sequential() 
@@ -446,7 +446,7 @@ def build(input_shape, classes):
 
 深度管道中的下一个阶段是一个包含 512 个单元的密集网络，并使用 ReLU 激活，随后是 50%的 dropout，最后是一个带有 10 个类别输出的 softmax 层，每个类别对应一个类别：
 
-```
+```py
  model.add(layers.Flatten())
     model.add(layers.Dense(512, activation='relu'))
     model.add(layers.Dropout(0.5))
@@ -456,7 +456,7 @@ def build(input_shape, classes):
 
 在定义了网络之后，我们可以训练模型。在这种情况下，我们将数据进行拆分，并计算一个验证集，除了训练集和测试集外。训练集用于构建我们的模型，验证集用于选择表现最佳的方式，而测试集用于检查我们最佳模型在新数据上的表现：
 
-```
+```py
 # use TensorBoard, princess Aurora!
 callbacks = [
   # Write TensorBoard logs to './logs' directory
@@ -477,7 +477,7 @@ print('Test accuracy:', score[1])
 
 让我们运行代码。我们的网络在 20 次迭代后达到了 66.8%的测试准确率。我们还打印了准确率和损失图，并使用`model.summary()`输出了网络的总结：
 
-```
+```py
 Epoch 17/20
 40000/40000 [==============================] - 112s 3ms/sample - loss: 0.6282 - accuracy: 0.7841 - val_loss: 1.0296 - val_accuracy: 0.6734
 Epoch 18/20
@@ -511,7 +511,7 @@ Test accuracy: 0.6686
 
 随后是一个标准的密集输出层。所有使用的激活函数都是 ReLU 函数。还有一个新层，我们在*第一章*中也讨论过，*神经网络基础与 TF*，`BatchNormalization()`，用于在模块之间引入一种正则化形式：
 
-```
+```py
 def build_model(): 
     model = models.Sequential()
 
@@ -546,7 +546,7 @@ def build_model():
 
 恭喜！你已经定义了一个更深的网络。让我们运行代码 40 次，达到 82%的准确率！为了完整性，我们加上剩余的代码部分。第一部分是加载和标准化数据：
 
-```
+```py
 import tensorflow as tf
 from tensorflow.keras import datasets, layers, models, regularizers, optimizers
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
@@ -572,7 +572,7 @@ def load_data():
 
 然后我们需要有一部分代码来训练网络：
 
-```
+```py
 (x_train, y_train, x_test, y_test) = load_data()
 model = build_model()
 model.compile(loss='categorical_crossentropy', 
@@ -594,7 +594,7 @@ print('Test accuracy:', score[1])
 
 提高性能的另一种方法是为我们的训练生成更多的图像。这里的想法是，我们可以从标准的 CIFAR 训练集开始，通过多种转换类型来增强这个集合，包括旋转、重新缩放、水平或垂直翻转、缩放、通道偏移等。让我们看看在上一节中定义的相同网络上应用的代码：
 
-```
+```py
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 #image augmentation
 datagen = ImageDataGenerator(
@@ -616,7 +616,7 @@ datagen.fit(x_train)
 
 现在我们可以直接应用这个直觉来进行训练。使用之前定义的相同 ConvNet，我们只需生成更多的增强图像，然后进行训练。为了提高效率，生成器与模型并行运行。这使得图像增强可以在 CPU 上进行，同时在 GPU 上并行训练。以下是代码：
 
-```
+```py
 #train
 batch_size = 64
 model.fit_generator(datagen.flow(x_train, y_train, batch_size=batch_size),
@@ -634,7 +634,7 @@ print('\nTest result: %.3f loss: %.3f' % (scores[1]*100,scores[0]))
 
 每次迭代现在变得更昂贵，因为我们拥有更多的训练数据。因此，我们只进行 50 次迭代。我们可以看到，通过这样做，我们达到了 85.91%的准确率：
 
-```
+```py
 Epoch 46/50
 50000/50000 [==============================] - 36s 722us/sample - loss: 0.2440 - accuracy: 0.9183 - val_loss: 0.4918 - val_accuracy: 0.8546
 Epoch 47/50
@@ -662,7 +662,7 @@ CIFAR-10 的最新结果列表可以在网上找到（请见[`rodrigob.github.io
 
 假设我们希望使用刚刚训练的 CIFAR-10 深度学习模型来批量评估图像。由于我们已经保存了模型和权重，因此每次不需要重新训练：
 
-```
+```py
 import numpy as np
 import scipy.misc
 from tensorflow.keras.models import model_from_json
@@ -701,7 +701,7 @@ print(predictions)
 
 模型在 Caffe 中实现的权重已经直接转换为（[`gist.github.com/baraldilorenzo/07d7802847aaad0a35d3`](https://gist.github.com/baraldilorenzo/07d7802847aaad0a35d3)）`tf.Keras`，可以通过预加载到下面实现的`tf.Keras`模型中使用，正如论文所述：
 
-```
+```py
 import tensorflow as tf
 from tensorflow.keras import layers, models
 # define a VGG16 network
@@ -758,7 +758,7 @@ def VGG_16(weights_path=None):
 
 请注意，我们将使用预定义的权重：
 
-```
+```py
 import cv2
 im = cv2.resize(cv2.imread('cat.jpg'), (224, 224)).astype(np.float32)
 #im = im.transpose((2,0,1))
@@ -773,7 +773,7 @@ print(np.argmax(out))
 
 当代码执行时，返回类别`285`，对应于“埃及猫”（参见[`gist.github.com/yrevar/942d3a0ac09ec9e5eb3a`](https://gist.github.com/yrevar/942d3a0ac09ec9e5eb3a)）：
 
-```
+```py
 Total params: 138,357,544
 Trainable params: 138,357,544
 Non-trainable params: 0
@@ -787,7 +787,7 @@ Non-trainable params: 0
 
 `tf.Keras`应用程序是预构建和预训练的深度学习模型。在实例化模型时，权重将自动下载并存储在`~/.keras/models/`中。使用内置代码非常简单：
 
-```
+```py
 import tensorflow as tf
 from tensorflow.keras.applications.vgg16 import VGG16
 import matplotlib.pyplot as plt
@@ -822,7 +822,7 @@ plt.show()
 
 请注意，我们需要切换到函数式 API，因为顺序模型仅接受层：
 
-```
+```py
 import tensorflow as tf
 from tensorflow.keras.applications.vgg16 import VGG16 
 from tensorflow.keras import models
@@ -868,7 +868,7 @@ Inception V3 是一个由 Google 开发的非常深的卷积神经网络[2]。`t
 
 这个骨架示例灵感来源于一个在线可用的方案（见[`keras.io/applications/`](https://keras.io/applications/)）。假设我们有一个来自不同领域的训练数据集 *D*，与 ImageNet 不同。*D* 的输入有 1,024 个特征，输出有 200 个类别。让我们看一个代码片段：
 
-```
+```py
 import tensorflow as tf
 from tensorflow.keras.applications.inception_v3 import InceptionV3
 from tensorflow.keras.preprocessing import image
@@ -879,14 +879,14 @@ base_model = InceptionV3(weights='imagenet', include_top=False)
 
 我们使用一个经过训练的 Inception V3 模型：我们不包括全连接层——具有 1,024 个输入的稠密层——因为我们希望在 *D* 上进行微调。上述代码片段将会为我们下载预训练的权重：
 
-```
+```py
 Downloading data from https://github.com/fchollet/deep-learning-models/releases/download/v0.5/inception_v3_weights_tf_dim_ordering_tf_kernels_notop.h5
 87916544/87910968 [===========================] – 26s 0us/step 
 ```
 
 因此，如果你查看最后四层（`include_top=True`时），你会看到这些形状：
 
-```
+```py
 # layer.name, layer.input_shape, layer.output_shape
 ('mixed10', [(None, 8, 8, 320), (None, 8, 8, 768), (None, 8, 8, 768), (None, 8, 8, 192)], (None, 8, 8, 2048))
 ('avg_pool', (None, 8, 8, 2048), (None, 1, 1, 2048))
@@ -896,7 +896,7 @@ Downloading data from https://github.com/fchollet/deep-learning-models/releases/
 
 当`include_top=False`时，你移除了最后三层并暴露了`mixed_10`层。`GlobalAveragePooling2D`层将`(None, 8, 8, 2048)`转换为`(None, 2048)`，其中`(None, 2048)`张量中的每个元素是对应的`(8,8)`子张量在`(None, 8, 8, 2048)`张量中的平均值。`None`表示未指定的维度，这对于定义占位符非常有用：
 
-```
+```py
 x = base_model.output
 # let's add a fully-connected layer as first layer
 x = layers.Dense(1024, activation='relu')(x)
@@ -908,7 +908,7 @@ model = models.Model(inputs=base_model.input, outputs=predictions)
 
 所有卷积层都是预训练的，因此我们在训练完整模型时冻结这些层：
 
-```
+```py
 # i.e. freeze all convolutional InceptionV3 layers
 for layer in base_model.layers:
     layer.trainable = False 
@@ -916,7 +916,7 @@ for layer in base_model.layers:
 
 然后，模型会被编译并训练几个周期，以便训练顶层。为了简化，这里我们省略了训练代码本身：
 
-```
+```py
 # compile the model (should be done *after* setting layers to non-trainable)
 model.compile(optimizer='rmsprop', loss='categorical_crossentropy')
 # train the model on the new data for a few epochs
@@ -925,7 +925,7 @@ model.fit_generator(...)
 
 然后，我们冻结顶层的 Inception 层，并微调其他 Inception 层。在这个示例中，我们决定冻结前 172 层（这是一个可调的超参数）：
 
-```
+```py
 # we chose to train the top 2 inception blocks, i.e. we will freeze
 # the first 172 layers and unfreeze the rest:
 for layer in model.layers[:172]:
@@ -936,7 +936,7 @@ for layer in model.layers[172:]:
 
 然后，模型会重新编译以进行微调优化：
 
-```
+```py
 # we need to recompile the model for these modifications to take effect
 # we use SGD with a low learning rate
 from tensorflow.keras.optimizers import SGD
@@ -1018,7 +1018,7 @@ top-1 和 top-5 准确率指的是模型在 ImageNet 验证数据集上的表现
 
 为了生成漂亮的图像，我们需要确保生成图像的内容与输入图像的内容相似（即，距离较小）。因此，通过标准的反向传播算法来最小化该距离。代码非常简单：
 
-```
+```py
 #
 #content distance
 #
@@ -1041,7 +1041,7 @@ def get_content_loss(base_content, target):
 
 因此，关键思想是对内容图像执行梯度下降，使其风格与风格图像相似。代码很简单：
 
-```
+```py
 #style distance
 #
 def gram_matrix(input_tensor):

@@ -184,7 +184,7 @@ BMP 是无压缩的。我们可以将 BMP 图像视为前面图示中的 RGB 格
 
 在这个文件加载函数中，如下代码所示，我们使用`.numpy()`将 TensorFlow 张量转换为 Python 对象。函数名有点误导，因为它不仅适用于数值值，还适用于字符串值：
 
-```
+```py
 def load(image_file): 
     def load_data(image_file):
         jpg_file = image_file.numpy().decode("utf-8")
@@ -226,7 +226,7 @@ SPADE 不仅在网络输入阶段使用，而且在内部层中也有应用。re
 
 我们将首先在`__init__`构造函数中定义卷积层，如下所示：
 
-```
+```py
 class SPADE(layers.Layer):
     def __init__(self, filters, epsilon=1e-5):
         super(SPADE, self).__init__()
@@ -238,14 +238,14 @@ class SPADE(layers.Layer):
 
 接下来，我们将获取激活图的尺寸，稍后用于调整大小：
 
-```
+```py
     def build(self, input_shape):
         self.resize_shape = input_shape[1:3]
 ```
 
 最后，我们将在`call()`中将层和操作连接起来，如下所示：
 
-```
+```py
     def call(self, input_tensor, raw_mask):
         mask = tf.image.resize(raw_mask, self.resize_shape, 					    method='nearest')
         x = self.conv(mask)
@@ -272,7 +272,7 @@ SPADE 残差块中的基本构建块是 **SPADE-ReLU-Conv 层**。每个 SPADE �
 
 与标准残差块一样，它包含两个卷积-ReLU 层和一个跳跃连接路径。每当残差块前后的通道数量发生变化时，跳跃连接通过前面图中虚线框内的子块进行学习。当这种情况发生时，前向路径中两个 SPADE 的输入激活图会具有不同的维度。没关系，因为我们在 SPADE 块内已构建了内置的调整大小功能。以下是构建所需层的 SPADE 残差块代码：
 
-```
+```py
 class Resblock(layers.Layer):
     def __init__(self, filters):
         super(Resblock, self).__init__()
@@ -292,7 +292,7 @@ class Resblock(layers.Layer):
 
 接下来，我们将在 `call()` 中连接各个层：
 
-```
+```py
     def call(self, input_tensor, mask):
         x = self.spade_1(input_tensor, mask)
         x = self.conv_1(tf.nn.leaky_relu(x, 0.2))
@@ -333,7 +333,7 @@ class Resblock(layers.Layer):
 
 以下是我们之前编写的使用残差块构建生成器的代码：
 
-```
+```py
 def build_generator(self):
     DIM = 64
     z = Input(shape=(self.z_dim))
@@ -375,7 +375,7 @@ GauGAN 在不同的尺度上使用多个判别器。由于我们的数据集图�
 
 单个 PatchGAN 的代码实现如下：
 
-```
+```py
 def build_discriminator(self):
     DIM = 64
     model = tf.keras.Sequential(name='discriminators') 
@@ -407,7 +407,7 @@ def build_discriminator(self):
 
 计算 VGG 特征损失的代码如下：
 
-```
+```py
 def VGG_loss(self, real_image, fake_image):
     # RGB to BGR
     x = tf.reverse(real_image, axis=[-1])
@@ -430,7 +430,7 @@ def VGG_loss(self, real_image, fake_image):
 
 特征匹配还用于鉴别器，我们在真实和虚假图像的鉴别器层输出中提取特征。以下代码用于计算鉴别器中的 L1 特征匹配损失：
 
-```
+```py
 def feature_matching_loss(self, feat_real, feat_fake):
     loss = 0
     mae = tf.keras.losses.MeanAbsoluteError()
@@ -453,7 +453,7 @@ def feature_matching_loss(self, feat_real, feat_fake):
 
 我们可以通过以下基本的数学运算来实现铰链损失：
 
-```
+```py
 def d_hinge_loss(y, is_real):
     if is_real:
         loss = tf.reduce_mean(tf.maximum(0., 1-y))
@@ -464,7 +464,7 @@ def d_hinge_loss(y, is_real):
 
 另一种做法是使用 TensorFlow 的铰链损失 API：
 
-```
+```py
 def hinge_loss_d(self, y, is_real):
     label = 1\. if is_real else -1.
     loss = tf.keras.losses.Hinge()(y, label)
@@ -473,7 +473,7 @@ def hinge_loss_d(self, y, is_real):
 
 生成器的损失并不是真正的铰链损失；它只是一个负的预测均值。这是无界的，所以当预测分数越高时，损失越低：
 
-```
+```py
 def g_hinge_loss(y):
     return –tf.reduce_mean(y)
 ```

@@ -234,7 +234,7 @@ Signature Track 的独特特征不仅与身份验证和身份确认程序相关�
 
 击键检测脚本的代码如下：
 
-```
+```py
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -264,7 +264,7 @@ plot.iloc[:6].T.plot(figsize=(8, 6), title='Average Keystroke Latency per Subjec
 
 脚本继续进行数据集拆分，然后应用不同的分类器，如以下示例所示：
 
-```
+```py
 data_train, data_test = train_test_split(pwd_data, test_size = 0.2, random_state=0)
 
 X_train = data_train[pwd_data.columns[2:]]
@@ -304,7 +304,7 @@ Multi Linear Perceptron Classifier Accuracy: 0.9115196078431372
 
 现在我们可以绘制`多层感知器（MLP）`结果的混淆矩阵：
 
-```
+```py
 # Drawing confusion matrix for Multi Layer Perceptron results
 from sklearn.metrics import confusion_matrix
 
@@ -446,7 +446,7 @@ PCA 可以识别数据集的代表性变量（也称为**主成分**），并选
 
 我们可以使用 Python 库 NumPy 计算方差、协方差的值，并表示协方差矩阵。在以下示例中，我们展示了一个由 NumPy 列表数组表示的协方差矩阵（列表表示向量），最后，我们使用指令`print(np.cov(X).T)`打印协方差矩阵，如下所示：
 
-```
+```py
 import numpy as np
 
 X = np.array([
@@ -488,7 +488,7 @@ print(np.cov(X).T)
 
 特征向量和特征值（如果存在）的计算可以归结为以下 NumPy 指令：
 
-```
+```py
 import numpy as np
 eigenvalues, eigenvectors = np.linalg.eig(np.array([[2, -4], [4, -6]]))
 ```
@@ -513,7 +513,7 @@ eigenvalues, eigenvectors = np.linalg.eig(np.array([[2, -4], [4, -6]]))
 
 MLP 分类器的结果通过`classification_report()`显示，该报告展示了精度、召回率和 F1 分数等指标的值，如下例所示：
 
-```
+```py
 from sklearn.datasets import fetch_lfw_people
 from sklearn.decomposition import PCA
 from sklearn.neural_network import MLPClassifier
@@ -543,7 +543,7 @@ print(classification_report(y_test, y_pred, target_names=names))
 
 执行前述脚本后返回的输出如下：
 
-```
+```py
 
                 precision    recall  f1-score   support
 

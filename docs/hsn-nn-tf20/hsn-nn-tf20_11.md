@@ -100,7 +100,7 @@ U-Net 架构的左侧是一个编码器，它逐层将输入大小从 572 x 572 
 
 `(tf2)`
 
-```
+```py
 import tensorflow as tf
 import math
 
@@ -129,7 +129,7 @@ def upsample(depth):
 
 `(tf2)`
 
-```
+```py
 def get_unet(input_size=(256, 256, 3), num_classes=21):
     # Downsample from 256x256 to 4x4, while adding depth
     # using powers of 2, startin from 2**5\. Cap to 512.
@@ -180,7 +180,7 @@ def get_unet(input_size=(256, 256, 3), num_classes=21):
 
 `(tf2)`
 
-```
+```py
 from tensorflow.keras.utils import plot_model
 model = get_unet()
 plot_model(model, to_file="unet.png")
@@ -246,7 +246,7 @@ TensorFlow Datasets 项目的逻辑组织结构。原始数据经过多个抽象
 
 `(tf2)`
 
-```
+```py
 import tensorflow as tf 
 import tensorflow_datasets as tfds 
 import os
@@ -279,7 +279,7 @@ class Voc2007Semantic(tfds.image.Voc2007):
 
 `(tf2)`
 
-```
+```py
     def _info(self):
         parent_info = tfds.image.Voc2007().info
         return tfds.core.DatasetInfo(
@@ -311,7 +311,7 @@ class Voc2007Semantic(tfds.image.Voc2007):
 
 `(tf2)`
 
-```
+```py
   def _split_generators(self, dl_manager):
     trainval_path = dl_manager.download_and_extract(
         os.path.join(_VOC2007_DATA_URL, "VOCtrainval_06-Nov-2007.tar"))
@@ -361,7 +361,7 @@ TensorFlow Datasets 限制我们使用 Python 文件操作，但明确要求使�
 
 `(tf2)`
 
-```
+```py
 LUT = {
     (0, 0, 0): 0, # background
     (128, 0, 0): 1, # aeroplane
@@ -394,7 +394,7 @@ LUT = {
 
 `(tf2)`
 
-```
+```py
     def _generate_examples(self, data_path, set_name):
         set_filepath = os.path.join(
             data_path,
@@ -458,7 +458,7 @@ LUT = {
 
 TensorFlow Datasets 可以自动检测当前作用域中是否存在 `DatasetBuilder` 对象。因此，通过继承现有的 `DatasetBuilder` 类实现的 `"voc2007_semantic"` 构建器已经可以直接使用：
 
-```
+```py
 dataset, info = tfds.load("voc2007_semantic", with_info=True)
 ```
 
@@ -466,7 +466,7 @@ dataset, info = tfds.load("voc2007_semantic", with_info=True)
 
 通过检查 `info` 变量，我们可以看到一些数据集统计信息：
 
-```
+```py
 [...]
     features=FeaturesDict({
         'image': Image(shape=(None, None, 3), dtype=tf.uint8), 
@@ -500,7 +500,7 @@ dataset, info = tfds.load("voc2007_semantic", with_info=True)
 
 `(tf2)`
 
-```
+```py
 def resize_and_scale(row):
     # Resize and convert to float, [0,1] range
     row["image"] = tf.image.convert_image_dtype(
@@ -526,7 +526,7 @@ def to_pair(row):
 
 `(tf2)`
 
-```
+```py
 batch_size= 32
 
 train_set = dataset["train"].map(resize_and_scale).map(to_pair)
@@ -548,7 +548,7 @@ validation_set = validation_set.map(to_pair).batch(batch_size)
 
 `(tf2)`
 
-```
+```py
 # Define the model
 model = get_unet()
 
@@ -573,7 +573,7 @@ model.compile(optimizer=optimizer,
 
 `(tf2)`
 
-```
+```py
 num_epochs = 50
 model.fit(train_set, validation_data=validation_set, epochs=num_epochs,
           callbacks=[cp_callback, TensorBoard])
@@ -603,7 +603,7 @@ model.fit(train_set, validation_data=validation_set, epochs=num_epochs,
 
 `(tf2)`
 
-```
+```py
 sample = tf.image.decode_jpeg(tf.io.read_file("author.jpg"))
 sample = tf.expand_dims(tf.image.convert_image_dtype(sample, tf.float32), axis=[0])
 sample = tf.image.resize(sample, (512,512))
@@ -616,7 +616,7 @@ pred_image = tf.squeeze(tf.argmax(model(sample), axis=-1), axis=[0])
 
 `(tf2)`
 
-```
+```py
 REV_LUT = {value: key for key, value in LUT.items()}
 
 color_image = tf.Variable(tf.zeros((512,512,3), dtype=tf.uint8))
@@ -644,14 +644,14 @@ tf.io.write_file("seg.jpg", tf.io.encode_jpeg(color_image))
 
 `(tf2)`
 
-```
+```py
 for label, count in pixels_per_label:
  print(label, ": ", count.numpy())
 ```
 
 这将产生以下结果：
 
-```
+```py
 0: 218871
 1: 0
 3: 383

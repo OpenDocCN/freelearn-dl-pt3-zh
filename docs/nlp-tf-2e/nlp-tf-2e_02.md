@@ -38,14 +38,14 @@ TensorFlow 不是一夜之间开发出来的。这是由一群有才华、心地
 
 首先，我们需要导入 TensorFlow 和 NumPy。NumPy 是另一个科学计算框架，提供了各种数学和其他操作来处理数据。在运行任何与 TensorFlow 或 NumPy 相关的操作之前，导入它们是必不可少的：
 
-```
+```py
 import tensorflow as tf 
 import numpy as np 
 ```
 
 首先，我们将编写一个函数，该函数可以接收 `x`、`W` 和 `b` 作为输入，并为我们执行这个计算：
 
-```
+```py
 def layer(x, W, b):    
     # Building the graph
     h = tf.nn.sigmoid(tf.matmul(x,W) + b) # Operation to perform
@@ -54,7 +54,7 @@ def layer(x, W, b):
 
 接下来，我们添加一个名为 `tf.function` 的 Python 装饰器，如下所示：
 
-```
+```py
 @tf.function
 def layer(x, W, b):    
     # Building the graph
@@ -90,13 +90,13 @@ def layer(x, W, b):
 
 接下来，你可以立即使用这个函数，方法如下：
 
-```
+```py
 x = np.array([[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]],dtype=np.float32) 
 ```
 
 这里，`x` 是一个简单的 NumPy 数组：
 
-```
+```py
 init_w = tf.initializers.RandomUniform(minval=-0.1, maxval=0.1)(shape=[10,5])
 W = tf.Variable(init_w, dtype=tf.float32, name='W') 
 init_b = tf.initializers.RandomUniform()(shape=[5])
@@ -107,14 +107,14 @@ b = tf.Variable(init_b, dtype=tf.float32, name='b')
 
 另外，请注意，对于 `W` 和 `b`，我们提供了一些重要的参数，例如以下内容：
 
-```
+```py
 init_w = tf.initializers.RandomUniform(minval=-0.1, maxval=0.1)(shape=[10,5])
 init_b = tf.initializers.RandomUniform()(shape=[5]) 
 ```
 
 这些被称为变量初始化器，是会被初始赋值给 `W` 和 `b` 变量的张量。变量必须提供一个初始值。在这里，`tf.initializers.RandomUniform` 表示我们在 `minval` `(-0.1)` 和 `maxval` `(0.1)` 之间均匀地抽取值并赋给张量。TensorFlow 提供了许多不同的初始化器（[`www.tensorflow.org/api_docs/python/tf/keras/initializers`](https://www.tensorflow.org/api_docs/python/tf/keras/initializers)）。在定义初始化器时，定义初始化器的 *shape*（形状）属性也非常重要。`shape` 属性定义了输出张量的每个维度的大小。例如，如果 `shape` 是 `[10, 5]`，这意味着它将是一个二维结构，在轴 0（行）上有 `10` 个元素，在轴 1（列）上有 `5` 个元素：
 
-```
+```py
 h = layer(x,W,b) 
 ```
 
@@ -130,19 +130,19 @@ h = layer(x,W,b)
 
 最后，你可以立即看到 `h` 的值，通过以下代码：
 
-```
+```py
 print(f"h = {h.numpy()}") 
 ```
 
 这将给出：
 
-```
+```py
 h = [[0.7027744 0.687556  0.635395  0.6193934 0.6113584]] 
 ```
 
 `numpy()` 函数从 TensorFlow 张量对象中获取 NumPy 数组。完整的代码如下。章节中的所有代码示例都可以在 `ch2` 文件夹中的 `tensorflow_introduction.ipynb` 文件中找到：
 
-```
+```py
 @tf.function
 def layer(x, W, b):    
     # Building the graph
@@ -241,7 +241,7 @@ TensorFlow 2 中引入的大部分变化都可以归结为前端的变化。也�
 
 首先，我们将定义一个 `graph` 对象，稍后我们将向其中添加操作和变量：
 
-```
+```py
 graph = tf.Graph() # Creates a graph
 session = tf.InteractiveSession(graph=graph) # Creates a session 
 ```
@@ -258,7 +258,7 @@ session = tf.InteractiveSession(graph=graph) # Creates a session
 
 这些张量的定义如下：
 
-```
+```py
 x = tf.placeholder(shape=[1,10],dtype=tf.float32,name='x')
 W = tf.Variable(tf.random_uniform(shape=[10,5], minval=-0.1, maxval=0.1, dtype=tf.float32),name='W')
 b = tf.Variable(tf.zeros(shape=[5],dtype=tf.float32),name='b') h = tf.nn.sigmoid(tf.matmul(x,W) + b) 
@@ -268,25 +268,25 @@ TensorFlow 1 中变量的生命周期由 session 对象管理，这意味着变�
 
 接下来，我们将运行一个初始化操作，用于初始化图中的变量 `W` 和 `b`：
 
-```
+```py
 tf.global_variables_initializer().run() 
 ```
 
 现在，我们将执行计算图以获取最终所需的输出 `h`。这通过运行 `session.run(...)` 来完成，在此过程中我们将值提供给占位符作为 `session.run()` 命令的参数：
 
-```
+```py
 h_eval = session.run(h,feed_dict={x: np.random.rand(1,10)}) 
 ```
 
 最后，我们关闭会话，释放 `session` 对象占用的任何资源：
 
-```
+```py
 session.close() 
 ```
 
 这是这个 TensorFlow 1 示例的完整代码：
 
-```
+```py
 import tensorflow as tf import numpy as np
 # Defining the graph and session graph = tf.Graph() # Creates a graph
 session = tf.InteractiveSession(graph=graph) # Creates a session
@@ -369,20 +369,20 @@ session.close()
 
 为了查看这个过程，让我们修改我们的 sigmoid 示例。记得我们将 `x` 定义为：
 
-```
+```py
 x = np.array([[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]], dtype=np.float32) 
 ```
 
 相反，让我们将其定义为包含特定值的张量：
 
-```
+```py
 x = tf.constant(value=[[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]],
 dtype=tf.float32,name='x') 
 ```
 
 此外，完整的代码将如下所示：
 
-```
+```py
 import tensorflow as tf
 @tf.function
 def layer(x, W, b):    
@@ -424,26 +424,26 @@ print(f"h is of type {type(h)}")
 
 首先，像以前一样导入几个重要的库：
 
-```
+```py
 import tensorflow as tf
 import numpy as np 
 ```
 
 接下来，我们将定义一个包含文件名的列表：
 
-```
+```py
 filenames = [f"./iris.data.{i}" for i in range(1,4)] 
 ```
 
 现在我们将使用 TensorFlow 提供的其中一个数据集读取器。数据集读取器接受一个文件名列表和另一个指定数据集每列数据类型的列表。如我们之前所见，我们有四个浮动数字和一个字符串：
 
-```
+```py
 dataset = tf.data.experimental.CsvDataset(filenames, [tf.float32, tf.float32, tf.float32, tf.float32, tf.string]) 
 ```
 
 现在我们将按如下方式组织数据为输入和标签：
 
-```
+```py
 dataset = dataset.map(lambda x1,x2,x3,x4,y: (tf.stack([x1,x2,x3,x4]), y)) 
 ```
 
@@ -463,7 +463,7 @@ map 函数非常简单但功能强大。它的作用是将一组给定的输入�
 
 接下来，你可以像遍历普通 Python 列表那样遍历这个数据集，检查每个数据点。在这里，我们打印出所有受损的项目：
 
-```
+```py
 for next_element in dataset:
     x, y = next_element[0].numpy(), next_element[1].numpy().decode('ascii')
     if np.min(x)<0.0:
@@ -472,7 +472,7 @@ for next_element in dataset:
 
 由于你不希望数据集中包含那些受损的输入，你可以使用 `dataset.filter()` 函数来过滤掉这些受损的条目，方法如下：
 
-```
+```py
 dataset = dataset.filter(lambda x,y: tf.reduce_min(x)>0) 
 ```
 
@@ -480,14 +480,14 @@ dataset = dataset.filter(lambda x,y: tf.reduce_min(x)>0)
 
 另一个有用的函数是 `dataset.batch()`。在训练深度神经网络时，我们通常以批次而不是单个项遍历数据集。`dataset.batch()` 提供了一个方便的方式来做到这一点：
 
-```
+```py
 batch_size = 5
 dataset = dataset.batch(batch_size=batch_size) 
 ```
 
 现在，如果你打印数据集中单个元素的形状，你应该会得到以下内容：
 
-```
+```py
 x.shape = (5, 4), y.shape = (5,) 
 ```
 
@@ -525,7 +525,7 @@ TensorFlow 中的张量秩表示张量的维度；对于一个二维矩阵，*�
 
 变量的形状可以作为初始化器的一部分提供，如下所示：
 
-```
+```py
 `tf.initializers.RandomUniform(minval=-`0.1`, maxval=`0.1`)(shape=[`10`,`5`])` 
 ```
 
@@ -537,7 +537,7 @@ TensorFlow 中的张量秩表示张量的维度；对于一个二维矩阵，*�
 
 请注意，Python 变量 `tf.Variable` 被赋值后，在计算图中是不可见的，且不属于 TensorFlow 变量命名的一部分。考虑以下示例，你指定一个 TensorFlow 变量如下：
 
-```
+```py
 `a = tf.Variable(tf.zeros([`5`]),name=`'b'`)` 
 ```
 
@@ -549,7 +549,7 @@ TensorFlow 中的张量秩表示张量的维度；对于一个二维矩阵，*�
 
 TensorFlow 的输出通常是张量，并且是对输入、变量或两者的变换结果。在我们的示例中，`h` 是一个输出，其中 `h = tf.nn.sigmoid(tf.matmul(x,W) + b)`。也可以将这种输出传递给其他操作，形成一系列链式操作。此外，它们不一定非得是 TensorFlow 操作，你还可以使用标准的 Python 算术与 TensorFlow 结合。以下是一个示例：
 
-```
+```py
 x = tf.matmul(w,A) 
 y = x + B 
 ```
@@ -566,7 +566,7 @@ TensorFlow 中的操作接受一个或多个输入，并生成一个或多个输
 
 为了理解这些操作的工作原理，我们来考虑两个示例张量，`x` 和 `y`：
 
-```
+```py
 # Let's assume the following values for x and y 
 # x (2-D tensor) => [[1,2],[3,4]]
 # y (2-D tensor) => [[4,3],[3,2]]
@@ -595,7 +595,7 @@ x_cond_y = tf.where(condition, x, y, name=None)
 
 TensorFlow 允许你对张量执行从简单到复杂的数学操作。我们将讨论一些在 TensorFlow 中提供的数学操作。完整的操作集可以在[`www.tensorflow.org/versions/r2.0/api_docs/python/tf/math`](https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/math)找到：
 
-```
+```py
 # Let's assume the following values for x and y
 # x (2-D tensor) => [[1,2],[3,4]]
 # y (2-D tensor) => [[4,3],[3,2]]
@@ -631,19 +631,19 @@ x_seg_sum = tf.segment_sum(data, segment_ids)
 
 然而，在最近的 TensorFlow 版本中，你可以通过使用类似于 NumPy 的语法进行数组索引和切片来执行散布操作。让我们看几个例子。假设你有一个 TensorFlow 变量`v`，它是一个[3,2]的矩阵：
 
-```
+```py
 `v = tf.Variable(tf.constant([[`1`,`9`],[`3`,`10`],[`5`,`11`]],dtype=tf.float32),name=`'ref'`)` 
 ```
 
 你可以通过以下方式更改此张量的第 0 行：
 
-```
+```py
 `v[`0`].assign([-`1`, -`9`])` 
 ```
 
 这将导致：
 
-```
+```py
 <tf.Variable 'ref:0' shape=(3, 2) dtype=float32, numpy=
 array([[-1., -9.],
        [ 3., 10.],
@@ -652,13 +652,13 @@ array([[-1., -9.],
 
 你可以通过以下方式更改索引[1,1]处的值：
 
-```
+```py
 `v[`1`,`1`].assign(-`10`)` 
 ```
 
 这将导致：
 
-```
+```py
 <tf.Variable 'ref:0' shape=(3, 2) dtype=float32, numpy=
 array([[  1.,   9.],
        [  3., -10.],
@@ -667,13 +667,13 @@ array([[  1.,   9.],
 
 你可以通过以下方式进行行切片：
 
-```
+```py
 `v[`1`:,`0`].assign([-`3`,-`5`])` 
 ```
 
 这将导致：
 
-```
+```py
 <tf.Variable 'ref:0' shape=(3, 2) dtype=float32, numpy=
 array([[ 1.,  9.],
        [-3., 10.],
@@ -686,31 +686,31 @@ array([[ 1.,  9.],
 
 聚集操作与散布操作非常相似。请记住，散布是将值分配给张量，而聚集则是检索张量的值。让我们通过一个例子来理解这一点。假设你有一个 TensorFlow 张量`t`：
 
-```
+```py
 `t = tf.constant([[`1`,`9`],[`3`,`10`],[`5`,`11`]],dtype=tf.float32)` 
 ```
 
 你可以通过以下方式获取`t`的第 0 行：
 
-```
+```py
 `t[`0`].numpy()` 
 ```
 
 这将返回：
 
-```
+```py
 [1\. 9.] 
 ```
 
 你也可以通过以下方式进行行切片：
 
-```
+```py
 `t[`1`:,`0`].numpy()` 
 ```
 
 这将返回：
 
-```
+```py
 [3\. 5.] 
 ```
 
@@ -742,7 +742,7 @@ array([[ 1.,  9.],
 
 现在，我们列出两种在神经网络中常用的非线性激活（即 sigmoid 和 ReLU）以及它们如何在 TensorFlow 中实现：
 
-```
+```py
 # Sigmoid activation of x is given by 1 / (1 + exp(-x))
 tf.nn.sigmoid(x,name=None)
 # ReLU activation of x is given by max(0,x) 
@@ -767,7 +767,7 @@ tf.nn.relu(x, name=None)
 
 以下是卷积操作的实现：
 
-```
+```py
 x = tf.constant(
     [[
         [[1],[2],[3],[4]],
@@ -822,7 +822,7 @@ x_conv = tf.nn.conv2d(
 
 池化操作的行为类似于卷积操作，但最终输出是不同的。我们不再输出滤波器和图像块的逐元素乘积的和，而是对该位置的图像块选择最大元素（参见*图 2.9*）：
 
-```
+```py
 x = tf.constant(
     [[
         [[1],[2],[3],[4]],
@@ -849,7 +849,7 @@ x_pool = tf.nn.max_pool2d(
 
 我们知道，为了让神经网络学到有用的东西，需要定义损失函数。损失函数表示预测值与实际目标之间的差距。TensorFlow 中有几个函数可以自动计算损失，以下代码展示了其中两个。`tf.nn.l2_loss` 函数是均方误差损失，而 `tf.nn.softmax_cross_entropy_with_logits` 是另一种损失函数，实际上在分类任务中表现更好。这里的 logits 指的是神经网络的未归一化输出（即神经网络最后一层的线性输出）：
 
-```
+```py
 # Returns half of L2 norm of t given by sum(t**2)/2
 x = tf.constant([[2,4],[6,8]],dtype=tf.float32)
 x_hat = tf.constant([[1,2],[3,4]],dtype=tf.float32)
@@ -889,7 +889,7 @@ Keras 中最本质的概念之一是模型由一个或多个以特定方式连�
 
 在使用顺序 API 时，你只需将模型定义为一个层的列表。在这里，列表中的第一个元素最接近输入，而最后一个元素则是输出层：
 
-```
+```py
 model = tf.keras.Sequential([
         tf.keras.layers.Dense(500, activation='relu', shape=(784, )),
         tf.keras.layers.Dense(250, activation='relu'),
@@ -903,7 +903,7 @@ model = tf.keras.Sequential([
 
 在功能性 API 中，我们采取不同的做法。我们首先定义一个或多个输入层，以及进行计算的其他层。然后，我们自己将输入与输出连接起来，如下所示的代码所示：
 
-```
+```py
 inp = tf.keras.layers.Input(shape=(784,))
 out_1 = tf.keras.layers.Dense(500, activation='relu')(inp)
 out_2 = tf.keras.layers.Dense(250, activation='relu')(out_1)
@@ -923,7 +923,7 @@ model = tf.keras.models.Model(inputs=inp, outputs=out)
 
 最后，我们将使用子类化 API 来定义一个模型。通过子类化，你将模型定义为一个继承自基础对象`tf.keras.Model`的 Python 对象。在使用子类化时，你需要定义两个重要的函数：`__init__()`，它将指定成功执行计算所需的任何特殊参数、层等；以及`call()`，它定义了模型中需要执行的计算：
 
-```
+```py
 class MyModel(tf.keras.Model):
     def __init__(self, num_classes):
         super().__init__()
@@ -965,7 +965,7 @@ model = MyModel(num_classes=10)
 
 以下代码为我们执行这些功能：
 
-```
+```py
 os.makedirs('data', exist_ok=True)
 (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data(
     path=os.path.join(os.getcwd(), 'data', 'mnist.npz')
@@ -1006,7 +1006,7 @@ y_onehot_test[np.arange(y_test.shape[0]), y_test] = 1.0
 
 你可以在`Ch02-Understanding-TensorFlow`文件夹中的`tensorflow_introduction.ipynb`文件中找到完整的练习：
 
-```
+```py
 model = tf.keras.Sequential([
         tf.keras.layers.Dense(500, activation='relu'),
         tf.keras.layers.Dense(250, activation='relu'),
@@ -1016,7 +1016,7 @@ model = tf.keras.Sequential([
 
 你可以看到，在 Keras 的 Sequential API 中只需要一行代码，就能定义我们刚才定义的模型。Keras 提供了多种层类型。你可以在[`www.tensorflow.org/api_docs/python/tf/keras/layers`](https://www.tensorflow.org/api_docs/python/tf/keras/layers)查看所有可用的层列表。对于全连接网络，我们只需要使用 Dense 层，它模拟全连接网络中隐藏层的计算。定义好模型后，你需要用适当的损失函数、优化器和可选的性能指标来编译模型：
 
-```
+```py
 optimizer = tf.keras.optimizers.RMSprop()
 loss_fn = tf.keras.losses.CategoricalCrossentropy()
 model.compile(optimizer=optimizer, loss=loss_fn, metrics=['acc']) 
@@ -1028,7 +1028,7 @@ model.compile(optimizer=optimizer, loss=loss_fn, metrics=['acc'])
 
 在 Keras 中训练模型非常简单。一旦数据准备好，你只需要调用`model.fit()`函数并传入所需的参数：
 
-```
+```py
 batch_size = 100
 num_epochs = 10
 train_history = model.fit(
@@ -1064,7 +1064,7 @@ train_history = model.fit(
 
 测试模型也很简单。在测试过程中，我们会测量模型在测试数据集上的损失和准确率。为了在数据集上评估模型，Keras 提供了一个方便的函数叫做`evaluate()`：
 
-```
+```py
 test_res = model.evaluate(
     x=x_test, 
     y=y_onehot_test, 

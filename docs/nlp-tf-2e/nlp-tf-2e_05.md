@@ -244,7 +244,7 @@ Fashion-MNIST 包含衣物图像。我们的任务是将每件衣物分类到一
 
 第一个任务是下载并探索数据。为了下载数据，我们将直接使用 `tf.keras.datasets` 模块，因为它提供了多个数据集，能够通过 TensorFlow 方便地进行下载。要查看其他可用的数据集，请访问 [`www.tensorflow.org/api_docs/python/tf/keras/datasets`](https://www.tensorflow.org/api_docs/python/tf/keras/datasets)。本章的完整代码位于 `Ch05-Sentence-Classification` 文件夹中的 `ch5_image_classification_fashion_mnist.ipynb` 文件里。只需调用以下函数即可下载数据：
 
-```
+```py
 (train_images, train_labels), (test_images, test_labels) = tf.keras.datasets.fashion_mnist.load_data() 
 ```
 
@@ -252,7 +252,7 @@ Fashion-MNIST 包含衣物图像。我们的任务是将每件衣物分类到一
 
 接着，我们将通过打印数据的形状来看数据的大小：
 
-```
+```py
 print("train_images is of shape: {}".format(train_images.shape))
 print("train_labels is of shape: {}".format(train_labels.shape))
 print("test_images is of shape: {}".format(test_images.shape))
@@ -261,7 +261,7 @@ print("test_labels is of shape: {}".format(test_labels.shape))
 
 这将产生：
 
-```
+```py
 train_images is of shape: (60000, 28, 28)
 train_labels is of shape: (60000,)
 test_images is of shape: (10000, 28, 28)
@@ -270,7 +270,7 @@ test_labels is of shape: (10000,)
 
 我们可以看到，我们有 60,000 张训练图像，每张大小为 28x28，还有 10,000 张相同尺寸的测试图像。标签是简单的类别 ID，范围从 0 到 9。我们还将创建一个变量来包含类别 ID 到类别名称的映射，这将在探索和训练后分析中帮助我们：
 
-```
+```py
 # Available at: https://www.tensorflow.org/api_docs/python/tf/keras/
 # datasets/fashion_mnist/load_data
 label_map = {
@@ -289,21 +289,21 @@ label_map = {
 
 在这里，图像中省略了通道维度，因为它们是黑白图像。因此，为了符合 TensorFlow 卷积操作的维度要求，我们需要在图像中添加这一额外的维度。这是使用 CNN 中卷积操作的必要条件。你可以按如下方式进行：
 
-```
+```py
 train_images = train_images[:, : , :, None]
 test_images = test_images[:, : ,: , None] 
 ```
 
 使用 NumPy 提供的索引和切片功能，你可以像上面那样简单地通过在索引时添加 `None` 维度来给张量添加新的维度。现在我们来检查张量的形状：
 
-```
+```py
 print("train_images is of shape: {}".format(train_images.shape))
 print("test_images is of shape: {}".format(test_images.shape)) 
 ```
 
 这会得到：
 
-```
+```py
 train_images is of shape: (60000, 28, 28, 1)
 test_images is of shape: (10000, 28, 28, 1) 
 ```
@@ -314,7 +314,7 @@ test_images is of shape: (10000, 28, 28, 1)
 
 在这一小节中，我们将查看 TensorFlow 实现 CNN 时的一些重要代码片段。完整的代码可在 `Ch05-Sentence-Classification` 文件夹中的 `ch5_image_classification_mnist.ipynb` 文件中找到。首先，我们将定义一些重要的超参数。代码注释已经自解释，这些超参数的作用如下：
 
-```
+```py
 batch_size = 100 # This is the typical batch size we've been using
 image_size = 28 # This is the width/height of a single image
 # Number of color channels in an image. These are black and white images 
@@ -353,7 +353,7 @@ n_classes = 10
 
 接下来，我们将概述整个模型。如果你一开始没有理解，不用担心。我们会逐行讲解，帮助你理解模型的构建过程：
 
-```
+```py
 from tensorflow.keras.layers import Conv2D, MaxPool2D, Flatten, Dense
 from tensorflow.keras.models import Sequential
 import tensorflow.keras.backend as K
@@ -388,7 +388,7 @@ lenet_like_model = Sequential([
 
 首先需要注意的是，我们使用的是 Keras 的 Sequential API。我们在这里实现的 CNN 模型由一系列层按顺序连接。因此，我们将使用最简单的 API。接下来是我们第一个卷积层。我们已经讨论过卷积操作。让我们来看第一行：
 
-```
+```py
 Conv2D(
         filters=16, kernel_size=(5,5), strides=(1,1), padding='valid', 
         activation='relu', 
@@ -412,32 +412,32 @@ Conv2D(
 
 接下来，我们有第一个最大池化层，其形式如下：
 
-```
+```py
 MaxPool2D(pool_size=(2,2), strides=(2,2), padding='valid') 
 ```
 
 这些参数与`tf.keras.layers.Conv2D`中的参数非常相似。`pool_size`参数对应于`kernel_size`参数，用于指定池窗口的（高度，宽度）。按照类似的模式，以下卷积和池化层被定义。最终的卷积层输出大小为`[batch size, 1, 1, 120]`。高度和宽度维度为 1，因为 LeNet 的设计使得最后一个卷积核的高度和宽度与输出相同。在将这个输入送入全连接层之前，我们需要将其展平，使其形状为`[batch size, 120]`。这是因为标准的 Dense 层接受的是二维输入。为此，我们使用`tf.keras.layers.Flatten()`层：
 
-```
+```py
 Flatten(), 
 ```
 
 最后，我们定义两个 Dense 层如下。
 
-```
+```py
 Dense(84, activation='relu'),
 Dense(n_classes, activation='softmax') 
 ```
 
 最后一步，我们将使用稀疏类别交叉熵损失函数和 Adam 优化器来编译模型。我们还将跟踪数据上的准确率：
 
-```
+```py
 lenet_like_model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy']) 
 ```
 
 数据准备好且模型完全定义后，我们可以开始训练模型。模型训练非常简单，只需调用一个函数：
 
-```
+```py
 lenet_like_model.fit(train_images, train_labels, validation_split=0.2, batch_size=batch_size, epochs=5) 
 ```
 
@@ -453,13 +453,13 @@ lenet_like_model.fit(train_images, train_labels, validation_split=0.2, batch_siz
 
 你可以通过调用以下命令在测试数据上评估训练好的模型：
 
-```
+```py
 lenet_like_model.evaluate(test_images, test_labels) 
 ```
 
 运行后，你将看到如下输出：
 
-```
+```py
 313/313 [==============================] - 1s 2ms/step - loss: 0.3368 - accuracy: 0.8806 
 ```
 
@@ -531,7 +531,7 @@ lenet_like_model.evaluate(test_images, test_labels)
 
 一旦文件下载完成，我们将把数据读入内存。为此，我们将实现`read_data()`函数：
 
-```
+```py
 def read_data(filename):
     '''
     Read data from a file with given filename
@@ -567,7 +567,7 @@ test_questions, test_categories, test_sub_categories = read_data(test_filename)
 
 `pandas`数据框是一种用于存储多维数据的表达型数据结构。一个数据框可以有索引、列和数值。每个值都有特定的索引和列。创建一个数据框是相当简单的：
 
-```
+```py
 # Define training and testing
 train_df = pd.DataFrame(
     {'question': train_questions, 'category': train_categories, 
@@ -589,14 +589,14 @@ test_df = pd.DataFrame(
 
 我们将对训练集中的行进行简单的洗牌，以确保不会在数据中引入任何无意的顺序：
 
-```
+```py
 # Shuffle the data for better randomization
 train_df = train_df.sample(frac=1.0, random_state=seed) 
 ```
 
 该过程将从 DataFrame 中随机抽样 100% 的数据。换句话说，它将打乱行的顺序。从此时起，我们将不再考虑 `sub_category` 列。我们将首先将每个类别标签映射到一个类别 ID：
 
-```
+```py
 # Generate the label to ID mapping
 unique_cats = train_df["category"].unique()
 labels_map = dict(zip(unique_cats, np.arange(unique_cats.shape[0])))
@@ -619,7 +619,7 @@ test_df["category"] = test_df["category"].map(labels_map)
 
 我们创建一个验证集，源自原始训练集，用于在训练过程中监控模型表现。我们将使用 scikit-learn 库中的`train_test_split()`函数。10%的数据将作为验证数据，其余 90% 保留作为训练数据。
 
-```
+```py
 from sklearn.model_selection import train_test_split
 train_df, valid_df = train_test_split(train_df, test_size=0.1)
 print("Train size: {}".format(train_df.shape))
@@ -628,7 +628,7 @@ print("Valid size: {}".format(valid_df.shape))
 
 输出如下：
 
-```
+```py
 Train size: (4906, 3)
 Valid size: (546, 3) 
 ```
@@ -639,7 +639,7 @@ Valid size: (546, 3)
 
 接下来，到了构建分词器的时刻，它可以将单词映射为数字 ID：
 
-```
+```py
 from tensorflow.keras.preprocessing.text import Tokenizer
 # Define a tokenizer and fit on train data
 tokenizer = Tokenizer()
@@ -648,7 +648,7 @@ tokenizer.fit_on_texts(train_df["question"].tolist())
 
 这里，我们简单地创建一个 `Tokenizer` 对象，并使用 `fit_on_texts()` 函数在训练语料库上训练它。在这个过程中，分词器会将词汇表中的单词映射为 ID。我们将把训练集、验证集和测试集中的所有输入转换为单词 ID 的序列。只需调用 `tokenizer.texts_to_sequences()` 函数，并传入一个字符串列表，每个字符串代表一个问题：
 
-```
+```py
 # Convert each list of tokens to a list of IDs, using tokenizer's mapping
 train_sequences = tokenizer.texts_to_sequences(train_df["question"].tolist())
 valid_sequences = tokenizer.texts_to_sequences(valid_df["question"].tolist())
@@ -669,7 +669,7 @@ test_sequences = tokenizer.texts_to_sequences(test_df["question"].tolist())
 
 在下面的代码中，我们使用这个函数为训练、验证和测试数据创建序列矩阵：
 
-```
+```py
 max_seq_length = 22
 # Pad shorter sentences and truncate longer ones (maximum length: max_seq_
 # length)
@@ -781,7 +781,7 @@ preprocessed_test_sequences = tf.keras.preprocessing.sequence.pad_sequences(
 
 我们开始在 TensorFlow 2 中实现模型。在此之前，让我们从 TensorFlow 中导入几个必要的模块：
 
-```
+```py
 import tensorflow.keras.backend as K
 import tensorflow.keras.layers as layers
 import tensorflow.keras.regularizers as regularizers
@@ -790,20 +790,20 @@ from tensorflow.keras.models import Model
 
 清除当前运行的会话，以确保之前的运行不会干扰当前的运行：
 
-```
+```py
 K.clear_session() 
 ```
 
 在我们开始之前，我们将使用 Keras 的功能性 API。这样做的原因是我们将在这里构建的模型不能使用顺序 API 构建，因为该模型中有复杂的路径。我们先从创建一个输入层开始：
 
-```
+```py
 Input layer takes word IDs as inputs
 word_id_inputs = layers.Input(shape=(max_seq_length,), dtype='int32') 
 ```
 
 输入层简单地接收一个`max_seq_length`的单词 ID 批次。也就是说，接收一批序列，其中每个序列都填充或截断到最大长度。我们将`dtype`指定为`int32`，因为它们是单词 ID。接下来，我们定义一个嵌入层，在该层中我们将查找与通过`word_id_inputs`层传入的单词 ID 对应的嵌入：
 
-```
+```py
 # Get the embeddings of the inputs / out [batch_size, sent_length, 
 # output_dim]
 embedding_out = layers.Embedding(input_dim=n_vocab, output_dim=64)(word_id_inputs) 
@@ -811,7 +811,7 @@ embedding_out = layers.Embedding(input_dim=n_vocab, output_dim=64)(word_id_input
 
 这是一个随机初始化的嵌入层。它包含一个大小为`[n_vocab, 64]`的大矩阵，其中每一行表示由该行编号索引的单词的词向量。嵌入将与模型共同学习，同时在监督任务上训练模型。在下一部分中，我们将定义三个不同的一维卷积层，分别使用三个不同的核（过滤器）大小：`3`、`4`和`5`，每个卷积层有 100 个特征图：
 
-```
+```py
 # For all layers: in [batch_size, sent_length, emb_size] / out [batch_
 # size, sent_length, 100]
 conv1_1 = layers.Conv1D(
@@ -830,14 +830,14 @@ conv1_3 = layers.Conv1D(
 
 这里需要做出一个重要区分，我们使用的是一维卷积，而不是之前练习中使用的二维卷积。然而，大多数概念仍然相同。主要的区别在于，`tf.keras.layers.Conv2D`作用于四维输入，而`tf.keras.layers.Conv1D`作用于三维输入（即形状为`[batch size, width, in channels]`的输入）。换句话说，卷积核仅沿一个方向在输入上滑动。这些层的每个输出都会产生一个形状为`[batch size, sentence length, 100]`的张量。然后，这些输出会在最后一个轴上连接，形成一个单一的张量：
 
-```
+```py
 # in previous conv outputs / out [batch_size, sent_length, 300]
 conv_out = layers.Concatenate(axis=-1)([conv1_1, conv1_2, conv1_3]) 
 ```
 
 随后，新的张量大小为`[batch size, sentence length, 300]`，将用于执行时间池化操作。我们可以通过定义一个一维最大池化层（即`tf.keras.layers.MaxPool1D`）来实现时间池化操作，其窗口宽度与序列长度相同。这样会为`conv_out`中的每个特征图生成一个单一值作为输出：
 
-```
+```py
 # Pooling over time operation. 
 # This is doing the max pooling over sequence length
 # in other words, each feature map results in a single output
@@ -847,14 +847,14 @@ pool_over_time_out = layers.MaxPool1D(pool_size=max_seq_length, padding='valid')
 
 这里我们在执行操作后获得了一个`[batch_size, 1, 300]`大小的输出。接下来，我们将使用`tf.keras.layers.Flatten`层将此输出转换为`[batch_size, 300]`大小的输出。Flatten 层将所有维度（除了批次维度）压缩为一个维度：
 
-```
+```py
 # Flatten the unit length dimension
 flatten_out = layers.Flatten()(pool_over_time_out) 
 ```
 
 最后，`flatten_out`将传递到一个全连接层，该层具有`n_classes`（即六个）节点作为输出，并且使用 softmax 激活函数：
 
-```
+```py
 # Compute the final output
 out = layers.Dense(
     n_classes, activation='softmax',
@@ -864,14 +864,14 @@ out = layers.Dense(
 
 注意使用了`kernel_regularizer`参数。我们可以使用该参数为给定层添加任何特殊的正则化（例如 L1 或 L2 正则化）。最后，我们定义一个模型如下，
 
-```
+```py
 # Define the model
 cnn_model = Model(inputs=word_id_inputs, outputs=out) 
 ```
 
 使用所需的损失函数、优化器和评估指标来编译模型：
 
-```
+```py
 # Compile the model with loss/optimzier/metrics
 cnn_model.compile(
     loss='sparse_categorical_crossentropy', 
@@ -882,13 +882,13 @@ cnn_model.compile(
 
 你可以通过运行以下代码查看模型：
 
-```
+```py
 cnn_model.summary() 
 ```
 
 结果为，
 
-```
+```py
 Model: "model"
 ______________________________________________________________________
 Layer (type)            Output Shape         Param #     Connected to 
@@ -925,7 +925,7 @@ ______________________________________________________________________
 
 由于我们在开始时已经做好了基础工作，确保数据已经转换，因此训练模型非常简单。我们需要做的就是调用`tf.keras.layers.Model.fit()`函数。不过，我们可以通过利用一些技术来提升模型性能。我们将使用 TensorFlow 内置的回调函数来实现这一点。我们要使用的技术叫做“学习率衰减”。其思想是，当模型停止提高性能时，按某个比例减少学习率。以下回调函数可以帮助我们实现这一点：
 
-```
+```py
 # Call backs
 lr_reduce_callback = tf.keras.callbacks.ReduceLROnPlateau(
     monitor='val_loss', factor=0.1, patience=3, verbose=1,
@@ -949,7 +949,7 @@ lr_reduce_callback = tf.keras.callbacks.ReduceLROnPlateau(
 
 让我们训练模型：
 
-```
+```py
 # Train the model
 cnn_model.fit(
     preprocessed_train_sequences, train_labels, 
@@ -962,7 +962,7 @@ cnn_model.fit(
 
 我们将看到准确率迅速上升，而验证准确率在 88%左右停滞。以下是生成的输出片段：
 
-```
+```py
 Epoch 1/50
 39/39 [==============================] - 1s 9ms/step - loss: 1.7147 - accuracy: 0.3063 - val_loss: 1.3912 - val_accuracy: 0.5696
 Epoch 2/50
@@ -977,7 +977,7 @@ Epoch 00016: early stopping
 
 接下来，让我们在测试数据集上测试模型：
 
-```
+```py
 cnn_model.evaluate(preprocessed_test_sequences, test_labels, return_dict=True) 
 ```
 

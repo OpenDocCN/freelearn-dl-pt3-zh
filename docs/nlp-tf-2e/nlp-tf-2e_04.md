@@ -103,7 +103,7 @@ GloVe，一种用于学习词嵌入的新技术，已在 Pennington 等人的论
 
 首先，我们将定义超参数，就像在上一章中做的那样：
 
-```
+```py
 batch_size = 4096 # Data points in a single batch
 embedding_size = 128 # Dimension of the embedding vector.
 window_size=1 # We use a window size of 1 on either side of target word
@@ -128,7 +128,7 @@ valid_term_ids = np.append(
 
 然后我们将定义模型。首先，我们将导入一些在后续代码中需要用到的库：
 
-```
+```py
 import tensorflow.keras.backend as K
 from tensorflow.keras.layers import Input, Embedding, Dot, Add
 from tensorflow.keras.models import Model
@@ -137,7 +137,7 @@ K.clear_session()
 
 模型将有两个输入层：`word_i` 和 `word_j`。它们分别表示一批上下文词和一批目标词（或一批正样本跳字）：
 
-```
+```py
 # Define two input layers for context and target words
 word_i = Input(shape=())
 word_j = Input(shape=()) 
@@ -157,7 +157,7 @@ word_j = Input(shape=())
 
 以下代码定义了这些内容：
 
-```
+```py
 # Each context and target has their own embeddings (weights and biases)
 # Embedding weights
 embeddings_i = Embedding(n_vocab, embedding_size, name='target_embedding')(word_i)
@@ -173,7 +173,7 @@ b_j = Embedding(n_vocab, 1, name='context_embedding_bias')(word_j)
 
 如你所见，这就是我们最终损失函数的一部分。我们拥有所有正确的元素来计算这个结果：
 
-```
+```py
 # Compute the dot product between embedding vectors (i.e. w_i.w_j)
 ij_dot = Dot(axes=-1)([embeddings_i,embeddings_j])
 # Add the biases (i.e. w_i.w_j + b_i + b_j )
@@ -184,7 +184,7 @@ pred = Add()([ij_dot, b_i, b_j])
 
 最后，模型被定义为以 `word_i` 和 `word_j` 作为输入，并输出 `pred`：
 
-```
+```py
 # The final model
 glove_model = Model(
     inputs=[word_i, word_j],outputs=pred,
@@ -214,7 +214,7 @@ name='glove_model'
 
 这仅仅是一个加权均方损失。因此，我们将使用`"mse"`作为我们模型的损失函数：
 
-```
+```py
 # Glove has a specific loss function with a sound mathematical
 # underpinning
 # It is a form of mean squared error
@@ -229,7 +229,7 @@ glove_model.compile(loss="mse", optimizer = 'adam')
 
 现在让我们生成数据。我们将数据生成封装在一个名为`glove_data_generator()`的函数中。第一步，让我们编写一个函数签名：
 
-```
+```py
 def glove_data_generator(
     sequences, window_size, batch_size, vocab_size, cooccurrence_matrix,
     x_max=100.0, alpha=0.75, seed=None
@@ -264,7 +264,7 @@ def glove_data_generator(
 
 首先，我们将打乱新闻文章的顺序：
 
-```
+```py
  # Shuffle the data so that, every epoch, the order of data is
     # different
     rand_sequence_ids = np.arange(len(sequences))
@@ -273,14 +273,14 @@ def glove_data_generator(
 
 接下来，我们将创建采样表，以便可以使用子采样避免过度采样常见词汇（例如停用词）：
 
-```
+```py
  sampling_table = 
     tf.keras.preprocessing.sequence.make_sampling_table(vocab_size) 
 ```
 
 在此基础上，对于每个序列（即表示文章的单词 ID 列表），我们生成正向 skip-gram。请注意，我们将`negative_samples=0.0`，因为与 skip-gram 或 CBOW 算法不同，GloVe 不依赖于负样本：
 
-```
+```py
  # For each story/article
     for si in rand_sequence_ids:
 
@@ -299,7 +299,7 @@ def glove_data_generator(
 
 在此基础上，我们首先将 skip-gram 元组拆分成两个列表，一个包含目标，另一个包含上下文单词，并随后将其转换为 NumPy 数组：
 
-```
+```py
  # Take targets and context words separately
         targets, context = zip(*positive_skip_grams)
         targets, context = np.array(targets).ravel(),
@@ -308,14 +308,14 @@ def glove_data_generator(
 
 然后，我们从共现矩阵中索引（目标，上下文）单词对所给出的位置信息，以检索相应的 ![](img/B14070_04_025.png) 值，其中（*i,j*）表示（目标，上下文）对：
 
-```
+```py
  x_ij = np.array(cooccurrence_matrix[targets, 
         context].toarray()).ravel() 
 ```
 
 然后，我们计算相应的 ![](img/B14070_04_043.png)（记作`log_x_ij`）和 ![](img/B14070_04_044.png)（记作`sample_weights`）：
 
-```
+```py
  # Compute log - Introducing an additive shift to make sure we
         # don't compute log(0)
         log_x_ij = np.log(x_ij + 1)
@@ -327,7 +327,7 @@ def glove_data_generator(
 
 如果未选择代码，则设置一个随机种子。之后，`context`、`targets`、`log_x_ij` 和 `sample_weights` 将被打乱，同时保持数组元素之间的对应关系：
 
-```
+```py
  # If seed is not provided generate a random one
         if not seed:
             seed = random.randint(0, 10e6)
@@ -353,7 +353,7 @@ def glove_data_generator(
 
 按此顺序。
 
-```
+```py
  # Generate a batch or data in the format 
         # ((target words, context words), log(X_ij) <- true targets,
         # f(X_ij) <- sample weights)
@@ -375,7 +375,7 @@ def glove_data_generator(
 
 训练模型是轻而易举的，因为我们拥有所有训练模型所需的组件。第一步，我们将重用在*第三章*中创建的`ValidationCallback`，即*Word2vec – 学习词嵌入*。回顾一下，`ValidationCallback`是一个 Keras 回调。Keras 回调让你能够在每次训练迭代、周期、预测步骤等结束时执行一些重要操作。在这里，我们使用回调在每个周期结束时执行验证步骤。我们的回调将接受一个词 ID 的列表（作为验证词，存放在`valid_term_ids`中），包含嵌入矩阵的模型，以及一个解码词 ID 的 tokenizer。然后，它将计算验证词集中的每个词的最相似的 top-k 词，并将其作为输出：
 
-```
+```py
 glove_validation_callback = ValidationCallback(valid_term_ids, glove_model, tokenizer)
 # Train the model for several epochs
 for ei in range(epochs):
@@ -394,7 +394,7 @@ for ei in range(epochs):
 
 一旦模型训练完成，你应该能得到一个合乎预期的输出。以下是一些精心挑选的结果：
 
-```
+```py
 election: attorney, posters, forthcoming, november's, month's
 months: weeks, years, nations, rbs, thirds
 you: afford, we, they, goodness, asked
@@ -414,7 +414,7 @@ machine: unforced, wireless, rapid, vehicle, workplace
 
 你可以看到，“months”，“weeks”和“years”等词被分到了一组。像“5bn”，“8bn”和“2bn”这样的数字也被分到了一组。“Deutsche”被“Austria’s”和“Austria”围绕。最后，我们将词嵌入保存到磁盘。我们将每个上下文和目标向量空间的权重与偏置合并为一个数组，其中数组的最后一列表示偏置，并将其保存到磁盘：
 
-```
+```py
 def save_embeddings(model, tokenizer, vocab_size, save_dir):
 
     os.makedirs(save_dir, exist_ok=True)
@@ -497,7 +497,7 @@ GloVe 相对于*第三章*中讨论的 Word2vec 技术的主要优点在于，�
 
 在下载模型之前，让我们设置以下环境变量：
 
-```
+```py
 # Not allocating full GPU memory upfront
 %env TF_FORCE_GPU_ALLOW_GROWTH=true
 # Making sure we cache the models and are not downloaded all the time
@@ -506,13 +506,13 @@ GloVe 相对于*第三章*中讨论的 Word2vec 技术的主要优点在于，�
 
 `TF_FORCE_GPU_ALLOW_GROWTH` 允许 TensorFlow 根据需要分配 GPU 内存，而不是一次性分配所有 GPU 内存。 `TFHUB_CACHE_DIR` 设置模型下载的目录。我们首先导入 TensorFlow Hub：
 
-```
+```py
 import tensorflow_hub as hub 
 ```
 
 接下来，像往常一样，我们将通过运行以下代码清除任何正在运行的 TensorFlow 会话：
 
-```
+```py
 import tensorflow as tf
 import tensorflow.keras.backend as K
 K.clear_session() 
@@ -526,7 +526,7 @@ K.clear_session()
 
 不幸的是，ELMo 还没有移植到 TensorFlow 2。因此，我们将使用 `hub.KerasLayer()` 作为在 TensorFlow 2 中加载 ELMo 的解决方法：
 
-```
+```py
 elmo_layer = hub.KerasLayer(
     "https://tfhub.dev/google/elmo/3", 
     signature="tokens",signature_outputs_as_dict=True
@@ -545,7 +545,7 @@ elmo_layer = hub.KerasLayer(
 
 在这里，我们将定义一个函数，将给定的字符串列表转换为 ELMo 期望输入的格式。请记住，我们将 ELMo 的签名设置为 `tokens`。签名 `"tokens"` 的示例输入如下。
 
-```
+```py
 {
     'tokens': [
         ['the', 'cat', 'sat', 'on', 'the', 'mat'],
@@ -559,7 +559,7 @@ elmo_layer = hub.KerasLayer(
 
 给定一个字符串列表，我们可以编写一个函数来为我们执行这个转换。这就是`format_text_for_elmo()`函数的作用。让我们深入了解具体细节：
 
-```
+```py
 def format_text_for_elmo(texts, lower=True, split=" ", max_len=None):
 
     """ Formats a given text for the ELMo model (takes in a list of
@@ -619,7 +619,7 @@ def format_text_for_elmo(texts, lower=True, split=" ", max_len=None):
 
 我们首先创建两个列表，`token_inputs`和`token_lengths`，用于包含单个令牌及其各自的长度。接下来，我们遍历`texts`中的每个字符串，使用`tf.keras.preprocessing.text.text_to_word_sequence()`函数获取单个令牌。在此过程中，我们将计算迄今为止观察到的最大令牌长度。遍历完所有序列后，我们检查从输入推断出的最大长度是否与`max_len`（如果指定）不同。如果不同，我们将使用`max_len_inferred`作为最大长度。这一点很重要，因为如果你不这样做，可能会通过为`max_len`定义一个大值来不必要地延长输入长度。不仅如此，如果你这么做，模型将抛出像下面这样的错误。
 
-```
+```py
  #InvalidArgumentError:  Incompatible shapes: [2,6,1] vs. [2,10,1024]
     #    [[node mul (defined at .../python3.6/site-packages/tensorflow_
     hub/module_v2.py:106) ]] [Op:__inference_pruned_3391] 
@@ -633,13 +633,13 @@ def format_text_for_elmo(texts, lower=True, split=" ", max_len=None):
 
 最后，我们将使用`tf.constant`构造将它们转换为`tf.Tensor`对象。例如，你可以使用以下方式调用该函数：
 
-```
+```py
 print(format_text_for_elmo(["the cat sat on the mat", "the mat sat"], max_len=10)) 
 ```
 
 这将输出：
 
-```
+```py
 {'tokens': <tf.Tensor: shape=(2, 6), dtype=string, numpy=
 array([[b'the', b'cat', b'sat', b'on', b'the', b'mat'],
        [b'the', b'mat', b'sat', b'', b'', b'']], dtype=object)>, 'sequence_len': <tf.Tensor: shape=(2,), dtype=int32, numpy=array([6, 3], dtype=int32)>} 
@@ -651,7 +651,7 @@ array([[b'the', b'cat', b'sat', b'on', b'the', b'mat'],
 
 一旦输入准备好，生成嵌入就非常简单。首先，我们将把输入转换为 ELMo 层规定的格式。这里我们使用 BBC 数据集中的一些示例标题：
 
-```
+```py
 # Titles of 001.txt - 005.txt in bbc/business
 elmo_inputs = format_text_for_elmo([
     "Ad sales boost Time Warner profit",
@@ -664,14 +664,14 @@ elmo_inputs = format_text_for_elmo([
 
 接下来，只需将`elmo_inputs`传递给`elmo_layer`作为输入，并获取结果：
 
-```
+```py
 # Get the result from ELMo
 elmo_result = elmo_layer(elmo_inputs) 
 ```
 
 现在让我们使用以下代码打印结果及其形状：
 
-```
+```py
 # Print the result
 for k,v in elmo_result.items():    
     print("Tensor under key={} is a {} shaped Tensor".format(k, v.shape)) 
@@ -679,7 +679,7 @@ for k,v in elmo_result.items():
 
 这将打印出：
 
-```
+```py
 Tensor under key=sequence_len is a (5,) shaped Tensor
 Tensor under key=elmo is a (5, 6, 1024) shaped Tensor
 Tensor under key=default is a (5, 1024) shaped Tensor
@@ -748,7 +748,7 @@ Transformer 模型是一类重新定义我们思考 NLP 问题方式的模型。
 
 首先，我们将下载数据并将其加载到内存中。我们将使用相同的`download_data()`函数来下载数据。然后，我们会稍微修改`read_data()`函数，使其不仅返回文章列表（每篇文章是一个字符串），还返回文件名列表，其中每个文件名对应存储该文章的文件。文件名随后将帮助我们为分类模型创建标签。
 
-```
+```py
 def read_data(data_dir):
 
     # This will contain the full list of stories
@@ -792,7 +792,7 @@ news_stories, filenames = read_data(os.path.join('data', 'bbc'))
 
 然后，我们将像之前一样在数据上创建并拟合一个分词器。
 
-```
+```py
 from tensorflow.keras.preprocessing.text import Tokenizer
 n_vocab = 15000 + 1
 tokenizer = Tokenizer(
@@ -807,31 +807,31 @@ tokenizer.fit_on_texts(news_stories)
 
 我们将使用 pandas 库来创建标签。首先，我们将文件名列表转换为 pandas 的 Series 对象，方法如下：
 
-```
+```py
 labels_ser = pd.Series(filenames, index=filenames) 
 ```
 
 该系列中的一个示例条目可能类似于`data/bbc/tech/127.txt`。接下来，我们将按“/”字符分割每个条目，这将返回一个列表`['data', 'bbc', 'tech', '127.txt']`。我们还会设置`expand=True`。`expand=True`将通过将列表中的每个项目转换为`DataFrame`的单独列，来把我们的 Series 对象转换成 DataFrame。换句话说，我们的`pd.Series`对象将变成一个形状为`[N, 4]`的`pd.DataFrame`，每一列包含一个 token，其中`N`是文件的数量：
 
-```
+```py
 labels_ser = labels_ser.str.split(os.path.sep, expand=True) 
 ```
 
 在生成的数据中，我们只关心第三列，它包含了给定文章的类别（例如`tech`）。因此，我们将丢弃其他数据，仅保留这一列：
 
-```
+```py
 labels_ser = labels_ser.iloc[:, -2] 
 ```
 
 最后，我们将使用 pandas 的`map()`函数将字符串标签映射到整数 ID，方法如下：
 
-```
+```py
 labels_ser = labels_ser.map({'business': 0, 'entertainment': 1, 'politics': 2, 'sport': 3, 'tech': 4}) 
 ```
 
 这将导致如下结果：
 
-```
+```py
 data/bbc/tech/272.txt    4
 data/bbc/tech/127.txt    4
 data/bbc/tech/370.txt    4
@@ -842,7 +842,7 @@ Name: 2, dtype: int64
 
 我们在这里所做的，可以通过将一系列命令链式写成一行来实现：
 
-```
+```py
 labels_ser = pd.Series(filenames, index=filenames).str.split(os.path.sep, expand=True).iloc[:, -2].map(
     {'business': 0, 'entertainment': 1, 'politics': 2, 'sport': 3,
     'tech': 4}
@@ -859,7 +859,7 @@ labels_ser = pd.Series(filenames, index=filenames).str.split(os.path.sep, expand
 
 在这个练习中，我们只使用训练集和测试集。这将帮助我们将讨论聚焦于嵌入部分，并简化关于下游分类模型的讨论。这里我们将 67%的数据作为训练数据，33%的数据作为测试数据。数据将随机拆分：
 
-```
+```py
 from sklearn.model_selection import train_test_split
 train_labels, test_labels = train_test_split(labels_ser, test_size=0.33) 
 ```
@@ -882,7 +882,7 @@ ELMo 嵌入是一个例外。由于 ELMo 为序列中的所有 token 生成上�
 
 为了从 skip-gram、CBOW 和 GloVe 嵌入计算文档嵌入，让我们编写以下函数：
 
-```
+```py
 def generate_document_embeddings(texts, filenames, tokenizer, embeddings):
 
     """ This function takes a sequence of tokens and compute the mean
@@ -930,7 +930,7 @@ def generate_document_embeddings(texts, filenames, tokenizer, embeddings):
 
 有了这个，我们可以加载来自不同算法（skip-gram、CBOW 和 GloVe）的嵌入，并计算文档嵌入。这里我们仅展示 skip-gram 算法的过程。但你可以轻松扩展到其他算法，因为它们有类似的输入和输出：
 
-```
+```py
 # Load the skip-gram embeddings context and target
 skipgram_context_embeddings = pd.read_pickle(
     os.path.join('../Ch03-Word-Vectors/skipgram_embeddings',
@@ -969,7 +969,7 @@ skipgram_doc_embeddings = generate_document_embeddings(news_stories, filenames, 
 
 代码如下所示：
 
-```
+```py
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 def get_classification_accuracy(doc_embeddings, train_labels, test_labels, n_trials):
@@ -1005,7 +1005,7 @@ print("Skip-gram accuracies: {}".format(skipgram_accuracies))
 
 通过设置`multi_class='multinomial'`，我们确保这是一个多类逻辑回归模型（或 softmax 分类器）。这将输出：
 
-```
+```py
 Skip-gram accuracies: [0.882…, 0.882…, 0.881…, 0.882…, 0.884…] 
 ```
 

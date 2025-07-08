@@ -122,13 +122,13 @@
 
 因此，一个可能的规则是：如果信用卡交易金额超过某一特定金额，并且与某一特定的日常频率相关（与客户购买习惯的历史系列进行比较），则将所有交易视为欺诈性交易，规则可能如下：
 
-```
+```py
 IF amount > $1,000 AND buying_frequency > historical_buying_frequency THEN fraud_likelihood = 90%
 ```
 
 对于在地理位置上相距很远的后续交易，可能会呈现如下情况：
 
-```
+```py
 IF distance(new_transaction, last_transaction) > 1000 km AND time_range < 30 min THEN block_transaction
 ```
 
@@ -362,7 +362,7 @@ AdaBoost 的主要缺点之一是该算法由于其顺序学习策略，无法�
 
 正如我们所知道的，bagging 方法使用有放回抽样。由于这一点，我们可以设置每个基本估计器关联的最大样本数量（使用 `max_samples` 参数），并通过将同名 `bootstrap` 参数设置为 `True` 来激活自助采样机制，如下所示：
 
-```
+```py
 from sklearn.tree import DecisionTreeClassifier
 
 from sklearn.ensemble import BaggingClassifier
@@ -379,7 +379,7 @@ bagging = BaggingClassifier(
 
 作为提升方法的示例，我们将实例化一个 `scikit-learn` 库中 `AdaBoostClassifier` 类型的对象，该库为我们提供了 AdaBoost 算法的实现；作为基本估计器，我们还将在此示例中使用 `DecisionTreeClassifier` 类的实例，并通过 `n_estimators` 参数设置基本估计器的数量*：*
 
-```
+```py
 from sklearn.tree import DecisionTreeClassifier
 
 from sklearn.ensemble import AdaBoostClassifier
@@ -432,7 +432,7 @@ adaboost = AdaBoostClassifier(
 
 对于`learning_rate`和`n_estimators`参数的最优值决策，必须考虑与过拟合相关的问题（即，模型在训练数据上的过度拟合可能导致的泛化误差）。克服这些问题的一种方法是设置`warm_start=True`参数，这将决定在训练阶段的提前停止，示例如下：
 
-```
+```py
 from sklearn.ensemble import GradientBoostingClassifier
 
 gradient_boost = GradientBoostingClassifier(
@@ -477,7 +477,7 @@ XGBoost 同样使用梯度下降法来最小化估计器的残差误差，并且
 
 让我们来看一个使用`RandomUnderSampler`类的欠采样技术示例：
 
-```
+```py
 # From the Imbalanced-Learn library documentation:
 # https://imbalanced-learn.readthedocs.io/en/stable/generated/imblearn.under_sampling.RandomUnderSampler.html
 
@@ -497,7 +497,7 @@ print('Resampled dataset shape %s' % Counter(y_res))
 
 这是一个使用 SMOTE 类的过采样技术示例：
 
-```
+```py
 # From the Imbalanced-Learn library documentation:
 # https://imbalanced-learn.readthedocs.io/en/stable/generated/imblearn.over_sampling.SMOTE.html
 
@@ -731,7 +731,7 @@ IBM Watson-添加笔记本
 
 1.  一旦数据集被转换为 `pandas` DataFrame，我们可以通过用自己选择的名称替换 Watson Studio 自动分配的名称来重命名它，如以下代码片段所示：
 
-```
+```py
 # Rename the dataframe to df
 
 df = df_data_2
@@ -739,7 +739,7 @@ df = df_data_2
 
 此时，我们可以使用`train_test_split`方法将数据集分为训练集和测试集；这通过使用常见的拆分比例（30%用于测试，剩余的 70%用于训练）来完成，如以下示例所示：
 
-```
+```py
 
 from sklearn.model_selection import train_test_split
 
@@ -770,7 +770,7 @@ random_state=0)
 
 让我们看一个`RandomForestClassifier`的例子及其准确度得分：
 
-```
+```py
 from sklearn.ensemble import RandomForestClassifier
 from sklearn import metrics
 
@@ -795,7 +795,7 @@ Accuracy : 0.999414
 
 在以下代码中，我们可以看到梯度提升集成分类器的应用：
 
-```
+```py
 from sklearn import ensemble
 
 params = {'n_estimators': 500, 'max_depth': 3, 'subsample': 0.5,
@@ -820,7 +820,7 @@ Accuracy is : 0.998945085858
 
 我们将使用`xgboost`库中的`XGBClassifier`类，它实现了极限梯度提升分类器，如以下代码所示：
 
-```
+```py
 from sklearn import metrics
 from xgboost.sklearn import XGBClassifier
 
@@ -870,7 +870,7 @@ F1 得分可以用来评估从预测中获得的结果；最佳估算值是 F1 �
 
 ROC 曲线是通过`scikit-learn`中的`roc_curve()`函数计算的，该函数以目标值和相应的概率作为参数，示例代码如下：
 
-```
+```py
 from sklearn.metrics import roc_curve
 
 FPR, TPR, OPC = roc_curve(targets, probs)
@@ -878,14 +878,14 @@ FPR, TPR, OPC = roc_curve(targets, probs)
 
 我们应该注意到真正率（`TPR`或敏感度）、假阳性率（`FPR`）和 ROC 曲线之间的关系（另外，`OPC`参数代表一个控制系数，称为**操作特征**，它标识了曲线上可能的分类阈值）。因此，我们可以通过绘制`TPR`值与`OPC`控制系数的关系来表示敏感度：
 
-```
+```py
 # Plotting Sensitivity
 plt.plot(OPC,TPR)
 ```
 
 我们可以看到，随着`OPC`值的增加，敏感度（`TPR`）会降低；同样地，我们可以通过将`TPR`与`FPR`进行比较，绘制 ROC 曲线：
 
-```
+```py
 # Plotting ROC curve
 plt.plot(FPR,TPR)
 ```
@@ -910,7 +910,7 @@ ROC 曲线允许我们通过将`TPR`与`FPR`绘制在一起，来评估分类器
 
 我们可以使用`scikit-learn`来计算`AUC`，如下所示：
 
-```
+```py
 from sklearn.metrics import auc
 
 AUC = auc(FPR, TPR)
@@ -926,7 +926,7 @@ AUC = auc(FPR, TPR)
 
 `RandomForestClassifier`度量的分类报告如下所示：
 
-```
+```py
 print('classification report')
 print(metrics.classification_report(ytest, ypredrf))
 print('Accuracy : %f' % (metrics.accuracy_score(ytest, ypredrf)))
@@ -948,7 +948,7 @@ Area under the curve : 0.863607
 
 `GradientBoostingClassifier`度量的分类报告如下所示：
 
-```
+```py
 print('classification report')
 print(metrics.classification_report(ytest, y_pred))
 print("Accuracy is :")
@@ -971,7 +971,7 @@ Area under the curve : 0.848250
 
 `XGBClassifier`度量的分类报告如下所示：
 
-```
+```py
 print('classification report')
 print(metrics.classification_report(ytest, y_pred))
 print("Accuracy is :")
@@ -998,7 +998,7 @@ Area under the curve : 0.893881
 
 我们将使用 imbalanced-learn 库提供的 SMOTE 过采样算法实现，将欺诈样本从 102 增加到 500，并在重新采样的数据上再次使用`RandomForestClassifier`，如下所示：
 
-```
+```py
 from collections import Counter
 from imblearn.over_sampling import SMOTE 
 

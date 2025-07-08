@@ -94,14 +94,14 @@ AlexNet 是由 Alex Krizhevsky 设计的 CNN 的名称。
 
 可以使用顺序模型来构建 CNN。可以使用不同的方法添加层；在这里，我们将使用顺序添加层到模型的框架，通过模型的`add`方法或在实例化模型时传入所有层的列表：
 
-```
+```py
 model = models.Sequential()
 model.add(Dense(32, input_shape=(250,)))
 ```
 
 以下是一个代码块，展示了你将在本章后续使用的代码：
 
-```
+```py
 our_cnn_model = models.Sequential([layers.Conv2D\
                                    (filters = 32, \
                                     kernel_size = (3,3),
@@ -135,26 +135,26 @@ our_cnn_model = models.Sequential([layers.Conv2D\
 
 1.  导入 TensorFlow 库以及`tensorflow.keras`中的`models`和`layers`类：
 
-    ```
+    ```py
     import tensorflow as tf
     from tensorflow.keras import models, layers
     ```
 
 1.  检查 TensorFlow 版本：
 
-    ```
+    ```py
     print(tf.__version__)
     ```
 
     你应该会得到以下输出：
 
-    ```
+    ```py
     2.6.0
     ```
 
 1.  现在，使用`models.Sequential`创建你的模型。第一层（`Conv2D`）将需要节点数（`filters`）、滤波器大小（`3,3`）以及输入的形状。你第一层的`input_shape`将决定输入图像的形状。添加一个 ReLU 激活层：
 
-    ```
+    ```py
     image_shape = (300, 300, 3)
     our_first_layer = models.Sequential([layers.Conv2D\
                                         (filters = 16, \
@@ -207,14 +207,14 @@ our_cnn_model = models.Sequential([layers.Conv2D\
 
 上述池化大小为 `(2, 2)`。它指定了你将使用的下采样因子。以下是你可以用来实现 `MaxPool2D` 的更详细步骤：
 
-```
+```py
 layers.MaxPool2D(pool_size=(2, 2), strides=None, \
                  padding='valid')
 ```
 
 `MaxPool2D` 实例。代码片段初始化了一个池化大小为 `2x2` 的最大池化层，`stride` 的值未指定，因此它将默认为池化大小值。`padding` 参数设置为 `valid`，意味着没有添加填充。以下代码片段演示了它在 CNN 中的使用。
 
-```
+```py
 image_shape = (300, 300, 3)
 our_first_model = models.Sequential([
     layers.Conv2D(filters = 16, kernel_size = (3,3), \
@@ -243,14 +243,14 @@ our_first_model = models.Sequential([
 
 要实现平均池化代码，您可以使用以下代码：
 
-```
+```py
 layers.AveragePooling2D(pool_size=(2, 2), strides=None, \
                         padding='valid')
 ```
 
 `AveragePooling2D` 层。与最大池化类似，`pool_size`、`strides` 和 `padding` 参数可以进行修改。以下代码片段演示了它在 CNN 中的使用：
 
-```
+```py
 image_shape = (300, 300, 3)
 our_first_model = models.Sequential([
     layers.Conv2D(filters = 16, kernel_size = (3,3), \
@@ -271,14 +271,14 @@ our_first_model = models.Sequential([
 
 1.  打开一个新的 Jupyter notebook，并导入 TensorFlow 库：
 
-    ```
+    ```py
     import tensorflow as tf
     from tensorflow.keras import models, layers
     ```
 
 1.  使用 `models.Sequential` 创建您的模型。第一个层，`Conv2D`，将需要节点数、滤波器大小以及张量的形状，和前一个练习一样。接下来是一个激活层，最后是神经网络的一个节点：
 
-    ```
+    ```py
     image_shape = (300, 300, 3)
     our_first_model = models.Sequential([
         layers.Conv2D(filters = 16, kernel_size = (3,3), \
@@ -288,7 +288,7 @@ our_first_model = models.Sequential([
 
 1.  现在，通过使用模型的 `add` 方法，添加一个 `MaxPool2D` 层：
 
-    ```
+    ```py
     our_first_model.add(layers.MaxPool2D(pool_size = (2, 2))
     ```
 
@@ -306,7 +306,7 @@ our_first_model = models.Sequential([
 
 以下是实现的展平层：
 
-```
+```py
 image_shape = (300, 300, 3)
 our_first_model = models.Sequential([
     layers.Conv2D(filters = 16, kernel_size = (3,3), \
@@ -333,7 +333,7 @@ our_first_model = models.Sequential([
 
 1.  导入所有必要的库：
 
-    ```
+    ```py
     import numpy as np
     import matplotlib.pyplot as plt
     import matplotlib.image as mpimg
@@ -348,7 +348,7 @@ our_first_model = models.Sequential([
 
 1.  从 `tensorflow_datasets` 包中加载您的数据集：
 
-    ```
+    ```py
     (our_train_dataset, our_test_dataset), \
     dataset_info = tfds.load('horses_or_humans',\
                              split = ['train', 'test'],\
@@ -370,7 +370,7 @@ our_first_model = models.Sequential([
 
 1.  查看使用加载的元数据`dataset_info`中的数据集信息：
 
-    ```
+    ```py
     image_shape = dataset_info.features["image"].shape
     print(f'Shape of Images in the Dataset: \t{image_shape}')
     print(f'Number of Classes in the Dataset: \
@@ -389,7 +389,7 @@ our_first_model = models.Sequential([
 
 1.  现在，查看数据集中图像的数量及其类别分布：
 
-    ```
+    ```py
     print(f'Total examples in Train Dataset: \
           \t{len(our_train_dataset)}')
     pos_tr_samples = sum(i['label'] for i in our_train_dataset)
@@ -412,7 +412,7 @@ our_first_model = models.Sequential([
 
 1.  现在，使用`tfds.show_examples()`函数查看训练数据集中的一些样本图像：
 
-    ```
+    ```py
     fig = tfds.show_examples(our_train_dataset, dataset_info)
     ```
 
@@ -426,7 +426,7 @@ our_first_model = models.Sequential([
 
 1.  查看测试数据集中的一些样本图像：
 
-    ```
+    ```py
     fig = tfds.show_examples(our_test_dataset, dataset_info)
     ```
 
@@ -438,7 +438,7 @@ our_first_model = models.Sequential([
 
 1.  最后，使用`our_model = models.Sequential`创建模型。设置第一个`Conv2D`层，并将`filters`设置为`16`。卷积核为`3x3`。使用 ReLU 激活函数。由于这是第一个卷积层，你还需要将`input_shape`设置为`image_shape`，即你正在处理的彩色图像的维度。接下来，添加`MaxPool2D`池化层。然后，再添加一个`Conv2D`和`MaxPool2D`层对，增加模型深度，接着添加展平层和全连接层：
 
-    ```
+    ```py
     our_cnn_model = models.Sequential([
         layers.Conv2D(filters = 16, kernel_size = (3,3), \
                       input_shape = image_shape),\
@@ -457,7 +457,7 @@ our_first_model = models.Sequential([
 
 1.  使用`RMSProp`编译模型，将`optimizer`设置为推荐的默认值`0.001`，`loss`设置为`binary_crossentropy`，并将`metrics`设置为`acc`以衡量准确率。使用`summary()`方法打印模型摘要：
 
-    ```
+    ```py
     our_cnn_model.compile(optimizer=RMSprop(learning_rate=0.001), \
                           loss='binary_crossentropy',\
                           metrics=['acc'], loss_weights=None,\
@@ -488,14 +488,14 @@ our_first_model = models.Sequential([
 
 与大多数其他类型的数据不同，图像可以进行平移、旋转和移动，从而产生原始图像的变体。这会产生更多的数据，而对于卷积神经网络（CNNs），更多的数据和数据变化将创造出表现更好的模型。为了能够创建这些图像增强操作，看看如何在 TensorFlow 中使用加载的`tf.data.Dataset`对象。你将使用`dataset.map()`函数将图像增强的预处理函数映射到你的数据集上，也就是`our_train_dataset`：
 
-```
+```py
 from tensorflow import image as tfimage
 from tensorflow.keras.preprocessing import image as kimage
 ```
 
 你将使用`tensorflow.image`和`tensorflow.keras.preprocessing.image`包来实现这个目的。这些包提供了许多图像处理函数，可以用于图像数据增强：
 
-```
+```py
 augment_dataset(image, label):
     image = kimage.random_shift(image, wrg = 0.1, hrg = 0.1)
     image = tfimage.random_flip_left_right(image)
@@ -518,7 +518,7 @@ augment_dataset(image, label):
 
 在下一步，你将使用`tf.data.Dataset.map()`函数传入你想要增强的数据：
 
-```
+```py
 augment_dataset(image, label):
     image = kimage.random_shift(image, wrg = 0.1, hrg = 0.1)
     image = tfimage.random_flip_left_right(image)
@@ -533,7 +533,7 @@ model.fit(our_train_dataset,\
 
 在您开始训练模型之前，您还需要为`our_train_dataset`添加一些功能。使用`batch()`函数，您可以指定每个批次将训练多少张图像。使用`cache()`函数，您可以将数据集缓存到内存中以提高性能。使用`shuffle()`函数，您可以将数据集的洗牌缓冲区设置为数据集的整个长度，从而实现真正的随机性。`prefetch()`函数也有助于提高性能：
 
-```
+```py
 our_train_dataset = our_train_dataset.cache()
 our_train_dataset = our_train_dataset.map(augment_dataset)
 our_train_dataset = our_train_dataset.shuffle\
@@ -547,7 +547,7 @@ our_train_dataset = our_train_dataset.prefetch\
 
 这是`random_rotation`、`random_shift`和`random_brightness`实现的一个例子。使用以下代码可以将图像随机旋转到指定值：
 
-```
+```py
 image = kimage.random_rotation(image, rg = 135)
 ```
 
@@ -561,7 +561,7 @@ image = kimage.random_rotation(image, rg = 135)
 
 `random_shift`用于随机在宽度上偏移像素。请注意以下代码中的`.15`，这意味着图像最多可以随机偏移 15 像素：
 
-```
+```py
 image = kimage.random_shift(image, wrg = 0.15, hrg = 0) 
 ```
 
@@ -573,7 +573,7 @@ image = kimage.random_shift(image, wrg = 0.15, hrg = 0)
 
 再次使用`random_shift`，它随机调整高度 15 像素：
 
-```
+```py
 image = kimage.random_shift(image, wrg = 0, hrg = 0.15)
 ```
 
@@ -585,7 +585,7 @@ image = kimage.random_shift(image, wrg = 0, hrg = 0.15)
 
 使用`random_brightness`进行随机亮度调整时，您将使用一个浮动值范围按百分比调节图像的亮度或暗度。低于`1.0`的任何值都会使图像变暗。所以，在这个例子中，图像的亮度会在 10%到 90%之间随机变暗：
 
-```
+```py
 image = kimage.random_brightness(image, brightness_range=(0.1,0.9))
 ```
 
@@ -615,7 +615,7 @@ image = kimage.random_brightness(image, brightness_range=(0.1,0.9))
 
 以下是`BatchNormalization`实现的示例。你可以简单地添加一个批归一化层，然后跟随一个激活层：
 
-```
+```py
 model.add(layers.Conv2D(filters = 64, kernel_size = (3, 3), use_bias=False))
 model.add(layers.BatchNormalization())
 model.add(layers.Activation("relu"))
@@ -635,7 +635,7 @@ model.add(layers.Activation("relu"))
 
 1.  创建一个函数来重新缩放图像，然后使用`map`方法将该函数应用于训练集和测试集。继续使用数据集的`cache`、`shuffle`、`batch`和`prefetch`方法来构建训练和测试数据集管道：
 
-    ```
+    ```py
     normalization_layer = layers.Rescaling(1./255)
     our_train_dataset = our_train_dataset.map\
                         (lambda x: (normalization_layer(x['image']), \
@@ -661,7 +661,7 @@ model.add(layers.Activation("relu"))
 
 1.  拟合模型。指定`epochs`和`validation_steps`的值，并将`verbose`设置为`1`：
 
-    ```
+    ```py
     history = our_cnn_model.fit\
               (our_train_dataset, \
               validation_data = our_test_dataset, \
@@ -678,7 +678,7 @@ model.add(layers.Activation("relu"))
 
 1.  从测试数据集中获取一批数据并绘制该批次中的第一张图片。将图片转换为数组，然后使用模型预测图片显示的内容：
 
-    ```
+    ```py
     from matplotlib.pyplot import imshow
     for images, lables in our_test_dataset.take(1):
         imshow(np.asarray(images[0]))
@@ -702,7 +702,7 @@ model.add(layers.Activation("relu"))
 
 1.  看一下每一层的变化情况。通过创建一个包含 CNN 中所有层名称的列表，以及另一个包含每一层的随机样本预测的列表来查看这一过程。接下来，迭代层名称列表及其相应的预测，并绘制特征：
 
-    ```
+    ```py
     layer_outputs = []
     for layer in our_cnn_model.layers[1:]:
         layer_outputs.append(layer.output)
@@ -763,13 +763,13 @@ model.add(layers.Activation("relu"))
 
 1.  导入 TensorFlow：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
 1.  接下来，进行一些额外的导入，例如 NumPy、Matplotlib，以及当然的层和模型。你会注意到这里会使用额外的 dropout 层。如果你还记得，dropout 层有助于防止过拟合：
 
-    ```
+    ```py
     import numpy as np
     import matplotlib.pyplot as plt
     import tensorflow_datasets as tfds
@@ -783,7 +783,7 @@ model.add(layers.Activation("relu"))
 
 1.  使用 `tdfs` 加载 `Fashion-MNIST` 数据集，这是他们决定包含的其中一个数据集。其他的还包括 `CIFAR-10` 和 `CIFAR-100`，仅举几个例子：
 
-    ```
+    ```py
     (our_train_dataset, our_test_dataset), \
     dataset_info = tfds.load(\
                              'fashion_mnist'
@@ -797,7 +797,7 @@ model.add(layers.Activation("relu"))
 
 1.  检查数据的属性：
 
-    ```
+    ```py
     image_shape = dataset_info.features["image"].shape
     print(f'Shape of Images in the Dataset: \t{image_shape}')
     num_classes = dataset_info.features["label"].num_classes
@@ -818,7 +818,7 @@ model.add(layers.Activation("relu"))
 
 1.  现在，打印训练集和测试集的总示例数：
 
-    ```
+    ```py
     print(f'Total examples in Train Dataset: \
           \t{len(our_train_dataset)}')
     print(f'Total examples in Test Dataset: \
@@ -833,7 +833,7 @@ model.add(layers.Activation("relu"))
 
 1.  使用功能 API 构建你的模型：
 
-    ```
+    ```py
     input_layer = Input(shape=image_shape)
     x = Conv2D(filters = 32, kernel_size = (3, 3), \
                strides=2)(input_layer)
@@ -854,7 +854,7 @@ model.add(layers.Activation("relu"))
 
 1.  编译并拟合你的模型。使用 `compile()` 方法，选择 `adam` 作为优化器，将损失设置为 `sparse_categorical_crossentropy`，并设置 `accuracy` 作为评估指标。然后，在你的训练集和验证集上调用 `model.fit()`：
 
-    ```
+    ```py
     our_classification_model.compile(
                        optimizer='adam', \
                        loss='sparse_categorical_crossentropy',
@@ -873,7 +873,7 @@ model.add(layers.Activation("relu"))
 
 1.  使用 `matplotlib.pyplot` 绘制损失和准确率：
 
-    ```
+    ```py
     def plot_trend_by_epoch(tr_values, val_values, title):
         epoch_number = range(len(tr_values))
         plt.plot(epoch_number, tr_values, 'r')
@@ -896,7 +896,7 @@ model.add(layers.Activation("relu"))
 
 1.  绘制验证损失和训练损失。使用以下代码：
 
-    ```
+    ```py
     tr_loss, val_loss = hist_dict['loss'], hist_dict['val_loss']
     plot_trend_by_epoch(tr_loss, val_loss, "Loss")
     ```
@@ -921,13 +921,13 @@ model.add(layers.Activation("relu"))
 
 1.  启动一个新的 Jupyter 笔记本并导入 TensorFlow 库：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
 1.  导入其他必要的附加库：
 
-    ```
+    ```py
     import numpy as np
     import matplotlib.pyplot as plt
     import tensorflow_datasets as tfds
@@ -942,7 +942,7 @@ model.add(layers.Activation("relu"))
 
 1.  从`tfds`直接加载`CIFAR-10`数据集，如下所示：
 
-    ```
+    ```py
     (our_train_dataset, our_test_dataset), \
     dataset_info = tfds.load('cifar10',\
                              split = ['train', 'test'],\
@@ -955,7 +955,7 @@ model.add(layers.Activation("relu"))
 
 1.  使用以下代码打印数据集的属性：
 
-    ```
+    ```py
     image_shape = dataset_info.features["image"].shape
     print(f'Shape of Images in the Dataset: \t{image_shape}')
     num_classes = dataset_info.features["label"].num_classes
@@ -979,7 +979,7 @@ model.add(layers.Activation("relu"))
 
 1.  构建训练和测试数据管道，如*练习 7.03*，*构建 CNN*所示：
 
-    ```
+    ```py
     normalization_layer = Rescaling(1./255)
     our_train_dataset = our_train_dataset.map\
                         (lambda x, y: (normalization_layer(x), y),\
@@ -1003,7 +1003,7 @@ model.add(layers.Activation("relu"))
 
 1.  使用功能式 API 构建模型。设置形状、层类型、步长和激活函数：
 
-    ```
+    ```py
     input_layer = Input(shape=image_shape)
     x = Conv2D(filters = 32, \
                kernel_size = (3, 3), strides=2)(input_layer)
@@ -1024,7 +1024,7 @@ model.add(layers.Activation("relu"))
 
 1.  编译并拟合你的模型。如果可能，请确保使用 GPU，因为这将显著加速过程。如果你决定不使用 GPU，而你的计算机在计算方面有困难，你可以相应地减少训练轮数（epochs）的数量：
 
-    ```
+    ```py
     our_classification_model.compile(
                           optimizer='adam', \
                           loss='sparse_categorical_crossentropy',
@@ -1044,7 +1044,7 @@ model.add(layers.Activation("relu"))
 
 1.  通过绘制每个 epoch 的损失和准确率，获得模型性能的可视化表示：
 
-    ```
+    ```py
     def plot_trend_by_epoch(tr_values, val_values, title):
         epoch_number = range(len(tr_values))
         plt.plot(epoch_number, tr_values, 'r')
@@ -1066,7 +1066,7 @@ model.add(layers.Activation("relu"))
 
 1.  接下来，使用以下代码获取准确率图：
 
-    ```
+    ```py
     tr_accuracy, val_accuracy = hist_dict['accuracy'], \
                                 hist_dict['val_accuracy']
     plot_trend_by_epoch(tr_accuracy, val_accuracy, "Accuracy")
@@ -1080,7 +1080,7 @@ model.add(layers.Activation("relu"))
 
 1.  绘制未标准化的混淆矩阵：
 
-    ```
+    ```py
     test_labels = []
     test_images = []
     for image, label in tfds.as_numpy(our_test_dataset.unbatch()):
@@ -1104,7 +1104,7 @@ model.add(layers.Activation("relu"))
 
 1.  使用以下代码绘制带标准化的混淆矩阵：
 
-    ```
+    ```py
     conf_matrix = conf_matrix.astype\
                   ('float') / conf_matrix.sum(axis=1) \
                   [:, np.newaxis]
@@ -1123,7 +1123,7 @@ model.add(layers.Activation("relu"))
 
 1.  查看模型预测错误的其中一张图片。使用以下代码绘制其中一个错误预测的图像：
 
-    ```
+    ```py
     incorrect_predictions = np.where(predictions != test_labels)[0]
     index = np.random.choice(incorrect_predictions)
     plt.imshow(test_images[index])

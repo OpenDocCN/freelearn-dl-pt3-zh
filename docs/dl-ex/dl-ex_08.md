@@ -36,7 +36,7 @@
 
 我们导入了此实现所需的所有包：
 
-```
+```py
 %matplotlib inline
 %config InlineBackend.figure_format = 'retina'
 
@@ -58,7 +58,7 @@ import tensorflow as tf
 
 在这个实现中，我们将使用 CIFAR-10 数据集，这是用于对象检测的最常用的数据集之一。因此，让我们先定义一个辅助类来下载和提取 CIFAR-10 数据集（如果尚未下载）：
 
-```
+```py
 cifar10_batches_dir_path = 'cifar-10-batches-py'
 
 tar_gz_filename = 'cifar-10-python.tar.gz'
@@ -112,7 +112,7 @@ if not isdir(cifar10_batches_dir_path):
 
 我们需要分析数据集并进行一些基本的预处理。因此，让我们首先定义一些辅助函数，这些函数将使我们能够从我们有的五批次中加载特定批次，并打印关于此批次及其样本的一些分析：
 
-```
+```py
 # Defining a helper function for loading a batch of images
 def load_batch(cifar10_dataset_dir_path, batch_num):
 
@@ -127,7 +127,7 @@ def load_batch(cifar10_dataset_dir_path, batch_num):
 
 然后，我们定义一个函数，可以帮助我们显示特定批次中特定样本的统计信息：
 
-```
+```py
 #Defining a function to show the stats for batch ans specific sample
 def batch_image_stats(cifar10_dataset_dir_path, batch_num, sample_num):
 
@@ -163,7 +163,7 @@ def batch_image_stats(cifar10_dataset_dir_path, batch_num, sample_num):
 
 现在，我们可以使用这个函数来操作我们的数据集，并可视化特定的图像：
 
-```
+```py
 # Explore a specific batch and sample from the dataset
 batch_num = 3
 sample_num = 6
@@ -172,7 +172,7 @@ batch_image_stats(cifar10_batches_dir_path, batch_num, sample_num)
 
 输出如下：
 
-```
+```py
 
 Statistics of batch number 3:
 Number of samples in this batch: 10000
@@ -200,7 +200,7 @@ Sample Label - Label Id: 8 Name: ship
 
 因此，让我们继续定义一个函数，该函数将负责将输入图像列表归一化，以便这些图像的所有像素值都在零到一之间。
 
-```
+```py
 #Normalize CIFAR-10 images to be in the range of [0,1]
 
 def normalize_images(images):
@@ -226,7 +226,7 @@ def normalize_images(images):
 
 输出向量的大小将取决于数据集中的类别数量，对于 CIFAR-10 数据集来说是 10 个类别：
 
-```
+```py
 #encoding the input images. Each image will be represented by a vector of zeros except for the class index of the image 
 # that this vector represents. The length of this vector depends on number of classes that we have
 # the dataset which is 10 in CIFAR-10
@@ -247,7 +247,7 @@ def one_hot_encode(images):
 
 现在，是时候调用之前的辅助函数进行预处理并保存数据集，以便我们以后可以使用它了：
 
-```
+```py
 def preprocess_persist_data(cifar10_batches_dir_path, normalize_images, one_hot_encode):
 
     num_batches = 5
@@ -298,7 +298,7 @@ preprocess_persist_data(cifar10_batches_dir_path, normalize_images, one_hot_enco
 
 我们还需要加载验证集，以便在训练过程的不同 epoch 上运行训练好的模型：
 
-```
+```py
 # Load the Preprocessed Validation data
 valid_input_features, valid_input_labels = pickle.load(open('preprocess_valid.p', mode='rb'))
 ```
@@ -309,7 +309,7 @@ valid_input_features, valid_input_labels = pickle.load(open('preprocess_valid.p'
 
 所以，让我们从定义模型输入占位符开始，这些占位符将输入图像、目标类别以及 dropout 层的保留概率参数（这有助于我们通过丢弃一些连接来减少架构的复杂性，从而减少过拟合的几率）：
 
-```
+```py
 
 # Defining the model inputs
 def images_input(img_shape):
@@ -327,7 +327,7 @@ def keep_prob_input():
 
 接下来，我们需要使用 TensorFlow 神经网络实现版本来构建我们的卷积层，并进行最大池化：
 
-```
+```py
 # Applying a convolution operation to the input tensor followed by max pooling
 def conv2d_layer(input_tensor, conv_layer_num_outputs, conv_kernel_size, conv_layer_strides, pool_kernel_size, pool_layer_strides):
 
@@ -353,7 +353,7 @@ def conv2d_layer(input_tensor, conv_layer_num_outputs, conv_kernel_size, conv_la
 
 正如你可能在前一章中看到的，最大池化操作的输出是一个 4D 张量，这与全连接层所需的输入格式不兼容。因此，我们需要实现一个展平层，将最大池化层的输出从 4D 转换为 2D 张量：
 
-```
+```py
 #Flatten the output of max pooling layer to be fing to the fully connected layer which only accepts the output
 # to be in 2D
 def flatten_layer(input_tensor):
@@ -362,7 +362,7 @@ return tf.contrib.layers.flatten(input_tensor)
 
 接下来，我们需要定义一个辅助函数，允许我们向架构中添加一个全连接层：
 
-```
+```py
 #Define the fully connected layer that will use the flattened output of the stacked convolution layers
 #to do the actuall classification
 def fully_connected_layer(input_tensor, num_outputs):
@@ -371,7 +371,7 @@ def fully_connected_layer(input_tensor, num_outputs):
 
 最后，在使用这些辅助函数创建整个架构之前，我们需要创建另一个函数，它将接收全连接层的输出并产生 10 个实值，对应于我们数据集中类别的数量：
 
-```
+```py
 #Defining the output function
 def output_layer(input_tensor, num_outputs):
     return  tf.layers.dense(input_tensor, num_outputs)
@@ -379,7 +379,7 @@ def output_layer(input_tensor, num_outputs):
 
 所以，让我们定义一个函数，把所有这些部分组合起来，创建一个具有三个卷积层的 CNN。每个卷积层后面都会跟随一个最大池化操作。我们还会有两个全连接层，每个全连接层后面都会跟一个 dropout 层，以减少模型复杂性并防止过拟合。最后，我们将有一个输出层，产生 10 个实值向量，每个值代表每个类别的得分，表示哪个类别是正确的：
 
-```
+```py
 def build_convolution_net(image_data, keep_prob):
 
  # Applying 3 convolution layers followed by max pooling layers
@@ -406,7 +406,7 @@ def build_convolution_net(image_data, keep_prob):
 
 让我们调用之前的辅助函数来构建网络并定义它的损失和优化标准：
 
-```
+```py
 #Using the helper function above to build the network
 
 #First off, let's remove all the previous inputs, weights, biases form the previous runs
@@ -441,7 +441,7 @@ tests.test_conv_net(build_convolution_net)
 
 因此，让我们定义一个辅助函数，使我们能够启动训练过程。这个函数将接受输入图像、目标类别的独热编码以及保持概率值作为输入。然后，它将把这些值传递给计算图，并调用模型优化器：
 
-```
+```py
 #Define a helper function for kicking off the training process
 def train(session, model_optimizer, keep_probability, in_feature_batch, target_batch):
 session.run(model_optimizer, feed_dict={input_images: in_feature_batch, input_images_target: target_batch, keep_prob: keep_probability})
@@ -449,7 +449,7 @@ session.run(model_optimizer, feed_dict={input_images: in_feature_batch, input_im
 
 我们需要在训练过程中的不同时间点验证模型，因此我们将定义一个辅助函数，打印出模型在验证集上的准确率：
 
-```
+```py
 #Defining a helper funcitno for print information about the model accuracy and it's validation accuracy as well
 def print_model_stats(session, input_feature_batch, target_label_batch, model_cost, model_accuracy):
 
@@ -462,7 +462,7 @@ def print_model_stats(session, input_feature_batch, target_label_batch, model_co
 
 让我们还定义一些模型的超参数，这些参数可以帮助我们调整模型以获得更好的性能：
 
-```
+```py
 # Model Hyperparameters
 num_epochs = 100
 batch_size = 128
@@ -473,7 +473,7 @@ keep_probability = 0.5
 
 然而，在此之前，我们将定义一个辅助函数，加载一个批次的训练数据，并将输入图像与目标类别分开：
 
-```
+```py
 # Splitting the dataset features and labels to batches
 def batch_split_features_labels(input_features, target_labels, train_batch_size):
     for start in range(0, len(input_features), train_batch_size):
@@ -491,7 +491,7 @@ def load_preprocess_training_batch(batch_id, batch_size):
 
 现在，让我们开始一个批次的训练过程：
 
-```
+```py
 print('Training on only a Single Batch from the CIFAR-10 Dataset...')
 with tf.Session() as sess:
 
@@ -549,7 +549,7 @@ Valid accuracy: 0.525000
 
 如你所见，仅在单一批次上训练时，验证准确率并不高。让我们看看仅通过完整训练过程，验证准确率会如何变化：
 
-```
+```py
 model_save_path = './cifar-10_classification'
 
 with tf.Session() as sess:
@@ -645,7 +645,7 @@ Valid accuracy: 0.950000
 
 让我们在 CIFAR-10 数据集的测试集部分上测试训练好的模型。首先，我们将定义一个辅助函数，帮助我们可视化一些示例图像的预测结果及其对应的真实标签：
 
-```
+```py
 #A helper function to visualize some samples and their corresponding predictions
 def display_samples_predictions(input_features, target_labels, samples_predictions):
 
@@ -682,7 +682,7 @@ axies[image_ind][1].barh(ind + margin, prediction_values[::-1], width)
 
 现在，让我们恢复训练好的模型并对测试集进行测试：
 
-```
+```py
 test_batch_size = 64
 save_model_path = './cifar-10_classification'
 #Number of images to visualize

@@ -54,7 +54,7 @@ TensorFlow 是开发**机器学习**（**ML**）解决方案的核心。它是�
 
 一段代码按以下方式设置：
 
-```
+```py
 def layer(x, W, b):
     # Building the graph
     h = tf.nn.sigmoid(tf.matmul(x,W) + b) # Operation to perform
@@ -63,7 +63,7 @@ def layer(x, W, b):
 
 任何命令行输入或输出均按以下方式书写：
 
-```
+```py
 <tf.Variable 'ref:0' shape=(3, 2) dtype=float32, numpy=
 array([[-1., -9.],
        [ 3., 10.],

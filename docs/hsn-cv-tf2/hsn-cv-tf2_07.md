@@ -286,7 +286,7 @@ YOLO 的最终输出是一个*w* × *h* × *M*矩阵，其中*w* × *h*是网格
 
 神经网络的输出是一个包含原始数值的矩阵，需要转换为边界框列表。简化版的代码如下所示：
 
-```
+```py
 boxes = []
 for row in range(grid_height):
     for col in range(grid_width):
@@ -311,7 +311,7 @@ for row in range(grid_height):
 
 我们得到了预测边界框的坐标和大小，以及置信度和类概率。现在我们只需将置信度乘以类概率，并进行阈值处理，只保留高概率：
 
-```
+```py
 # Confidence is a float, classes is an array of size NUM_CLASSES
 final_scores = box_confidence * classes_scores
 
@@ -332,7 +332,7 @@ filtered_scores = class_scores * filter
 
 然后，如果`filtered_scores`包含非空值，这意味着我们至少有一个类的分数超过了阈值。我们保留得分最高的类：
 
-```
+```py
 class_id = np.argmax(filtered_scores)
 class_label = CLASS_LABELS[class_id]
 ```
@@ -355,7 +355,7 @@ NMS 的思路是去除与概率最高框重叠的框。因此，我们移除**�
 
 使用伪代码，NMS 的实现如下所示：
 
-```
+```py
 sorted_boxes = sort_boxes_by_confidence(boxes)
 ids_to_suppress = []
 
@@ -408,7 +408,7 @@ YOLO 推理过程可以总结如下：
 
 Keras 使得在我们的网络中使用预训练的主干网络变得非常简单：
 
-```
+```py
 input_image = Input(shape=(IMAGE_H, IMAGE_W, 3))
 true_boxes = Input(shape=(1, 1, 1, TRUE_BOX_BUFFER , 4))
 

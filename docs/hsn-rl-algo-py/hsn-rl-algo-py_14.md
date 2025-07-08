@@ -78,7 +78,7 @@
 
 一般演化算法的主体非常简单，可以用几行代码来实现，如这里所示。概括来说，在每次迭代中，直到生成适应度合格的个体为止，会生成新的候选个体并进行评估。这些候选个体是由上一代中适应度最好的个体生成的：
 
-```
+```py
 solver = EvolutionaryAlgortihm()
 
 while best_fitness < required_fitness:
@@ -186,7 +186,7 @@ while best_fitness < required_fitness:
 
 结合所有这些特性的并行化进化策略总结如下伪代码：
 
-```
+```py
 ---------------------------------------------------------------------------------
 Parallelized Evolution Strategy
 ---------------------------------------------------------------------------------
@@ -233,13 +233,13 @@ for  do:
 
 这是在名为`ES`的函数中定义的，该函数具有以下参数：Gym 环境的名称，神经网络隐藏层的大小，代数总数，工作者数量，Adam 学习率，批量大小和标准差噪声：
 
-```
+```py
 def ES(env_name, hidden_sizes=[8,8], number_iter=1000, num_workers=4, lr=0.01, batch_size=50, std_noise=0.01):
 ```
 
 然后，我们设置一个初始种子，在所有工作者之间共享，以初始化参数并使权重保持一致。此外，我们计算每个工作者在每次迭代中需要生成并评估的个体数量，并创建两个 `multiprocessing.Queue` 队列。这些队列是传递给工作者以及从工作者传回的变量的进出口：
 
-```
+```py
     initial_seed = np.random.randint(1e7)
 indiv_per_worker = int(batch_size / num_workers)
     output_queue = mp.Queue(maxsize=num_workers*indiv_per_worker)
@@ -248,7 +248,7 @@ indiv_per_worker = int(batch_size / num_workers)
 
 接下来，实例化多进程`multiprocessing.Process`。这些进程将以异步方式运行`worker`函数，该函数作为第一个参数传递给`Process`构造函数。传递给`worker`函数的所有其他变量被分配到`args`，这些变量与 ES 所接受的参数非常相似，唯一不同的是额外的两个队列。进程在调用`start()`方法时开始运行：
 
-```
+```py
     processes = []
 
     for widx in range(num_workers):
@@ -260,7 +260,7 @@ indiv_per_worker = int(batch_size / num_workers)
 
 一旦并行工作者启动，我们就可以跨代进行迭代，直到所有个体在每个工作者中被生成并单独评估。请记住，每一代生成的个体总数是工作者数量`num_workers`与每个工作者生成的个体数`indiv_per_worker`的乘积。这种架构是我们实现的独特之处，因为我们只有四个 CPU 核心，而论文中的实现则利用了成千上万的 CPU。通常，每一代生成的人口数量通常在 20 到 1000 之间：
 
-```
+```py
     for n_iter in range(number_iter):
         batch_seed = []
         batch_return = []
@@ -276,7 +276,7 @@ indiv_per_worker = int(batch_size / num_workers)
 
 当`for`循环终止时，我们对返回值进行排序，并将批量返回值和种子放入`params_queue`队列中，所有的工作者将读取该队列来优化智能体。代码如下所示：
 
-```
+```py
         batch_return = normalized_rank(batch_return)
 
         for _ in range(num_workers):
@@ -285,7 +285,7 @@ indiv_per_worker = int(batch_size / num_workers)
 
 最后，当所有训练迭代执行完毕时，我们可以终止工作者：
 
-```
+```py
     for p in processes:
         p.terminate()
 ```
@@ -302,14 +302,14 @@ indiv_per_worker = int(batch_size / num_workers)
 
 直接跳到最有趣的部分，我们通过指定最多可以依赖 4 个 CPU 来创建一个新的会话，并初始化全局变量。如果你没有 4 个 CPU 可用，也不用担心。将`allow_soft_placement`设置为`True`，会告诉 TensorFlow 只使用受支持的设备：
 
-```
+```py
     sess = tf.Session(config=tf.ConfigProto(device_count={'CPU': 4}, allow_soft_placement=True))
     sess.run(tf.global_variables_initializer())
 ```
 
 尽管使用了所有 4 个 CPU，但我们仅为每个工作线程分配一个。在计算图的定义中，我们设置了计算将在哪个设备上执行。例如，要指定工作线程仅使用 CPU 0，可以将图形放在`with`语句中，从而定义要使用的设备：
 
-```
+```py
 with tf.device("/cpu:0"):
     # graph to compute on the CPUs 0
 
@@ -321,7 +321,7 @@ with tf.device("/cpu:0"):
 
 此外，在开始`while`循环之前，我们检索*扁平化*代理的形状：
 
-```
+```py
     agent_flatten_shape = sess.run(agent_variables_flatten).shape
 
     while True:
@@ -329,7 +329,7 @@ with tf.device("/cpu:0"):
 
 在`while`循环的第一部分，生成并评估候选解。候选解是通过向权重添加正态扰动构建的；也就是说，![](img/35368897-b2dd-4f34-9776-f797818d1a56.png)。这是通过每次选择一个新的随机种子来完成的，该种子将唯一地从正态分布中采样扰动（或噪声），![](img/acc67400-71b8-4b04-8fef-43469154d93a.png)。这是算法的关键部分，因为稍后，其他工作线程将必须从相同的种子重新生成相同的扰动。之后，两个新后代（由于我们使用的是镜像采样，所以有两个）将被评估，并将结果放入`output_queue`队列中：
 
-```
+```py
         for _ in range(indiv_per_worker):
             seed = np.random.randint(1e7)
 
@@ -344,7 +344,7 @@ with tf.device("/cpu:0"):
 
 请注意，以下代码片段（我们之前使用过的）只是用于在本地设置 NumPy 随机种子`seed`的一种方式：
 
-```
+```py
 with temp_seed(seed):
     ..
 ```
@@ -353,7 +353,7 @@ with temp_seed(seed):
 
 `while`循环的第二部分涉及获取所有返回值和种子，从这些种子中重建扰动，按照公式（11.2）计算随机梯度估计，并优化策略。`params_queue`队列由主进程填充，正如我们之前看到的那样。它通过发送在第一阶段由工作线程生成的种群的归一化排名和种子来完成此操作。代码如下：
 
-```
+```py
         batch_return, batch_seed = params_queue.get()
         batch_noise = []
 

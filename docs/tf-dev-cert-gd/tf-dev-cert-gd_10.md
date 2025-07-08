@@ -36,19 +36,19 @@
 
 1.  我们将首先导入必要的库：
 
-    ```
+    ```py
     import requests
     ```
 
-    ```
+    ```py
     from bs4 import BeautifulSoup
     ```
 
-    ```
+    ```py
     import re
     ```
 
-    ```
+    ```py
     from tensorflow.keras.preprocessing.text import Tokenizer
     ```
 
@@ -56,19 +56,19 @@
 
 1.  然后，我们将我们的变量分配给我们想要抓取的网页；在这种情况下，我们感兴趣的是抓取维基百科关于机器学习的页面数据：
 
-    ```
+    ```py
     # Define the URL of the page
     ```
 
-    ```
+    ```py
     url = "https://en.wikipedia.org/wiki/Machine_learning"
     ```
 
-    ```
+    ```py
     # Send a GET request to the webpage
     ```
 
-    ```
+    ```py
     response = requests.get(url)
     ```
 
@@ -76,11 +76,11 @@
 
 1.  我们使用`BeautifulSoup`类来完成解析 HTML 内容的繁重工作，我们通过`response.content`来访问这些内容：
 
-    ```
+    ```py
     # Parse the HTML content of the page with BeautifulSoup
     ```
 
-    ```
+    ```py
     soup = BeautifulSoup(response.content, 'html.parser')
     ```
 
@@ -88,15 +88,15 @@
 
 1.  现在，让我们提取段落中的所有文本内容：
 
-    ```
+    ```py
     # Extract the text from all paragraph tags on the page
     ```
 
-    ```
+    ```py
     passage = " ".join([
     ```
 
-    ```
+    ```py
         p.text for p in soup.find_all('p')])
     ```
 
@@ -104,111 +104,111 @@
 
 1.  下一步是从数据中删除停用词。停用词是指在某些使用场景下可能不包含有用信息的常见单词。因此，我们可能希望删除它们，以帮助减少数据的维度，特别是在这些高频词对任务贡献较小的情况下，比如信息检索或文档聚类。在这里，删除停用词有助于加速收敛并产生更好的分类结果。停用词的例子包括“and”、“the”、“in”和“is”：
 
-    ```
+    ```py
     # Define a simple list of stopwords
     ```
 
-    ```
+    ```py
     stopwords = ["i", "me", "my", "myself", "we", "our",
     ```
 
-    ```
+    ```py
         "ours", "ourselves", "you", "your",
     ```
 
-    ```
+    ```py
         "yours", "yourself", "yourselves", "he",
     ```
 
-    ```
+    ```py
         "him", "his", "himself", "she", "her",
     ```
 
-    ```
+    ```py
         "hers", "herself", "it", "its", "itself",
     ```
 
-    ```
+    ```py
         "they", "them", "their", "theirs",
     ```
 
-    ```
+    ```py
         "themselves", "what", "which", "who",
     ```
 
-    ```
+    ```py
         "whom", "this", "that", "these", "those",
     ```
 
-    ```
+    ```py
         "am", "is", "are", "was", "were", "be",
     ```
 
-    ```
+    ```py
         "been", "being", "have", "has", "had",
     ```
 
-    ```
+    ```py
         "having", "do", "does", "did", "doing",
     ```
 
-    ```
+    ```py
         "a", "an", "the", "and", "but", "if",
     ```
 
-    ```
+    ```py
         "or", "because", "as", "until", "while",
     ```
 
-    ```
+    ```py
         "of", "at", "by", "for", "with", "about",
     ```
 
-    ```
+    ```py
         "against", "between", "into", "through",
     ```
 
-    ```
+    ```py
         "during", "before", "after", "above",
     ```
 
-    ```
+    ```py
         "below", "to", "from", "up", "down",
     ```
 
-    ```
+    ```py
         "in", "out", "on", "off", "over",
     ```
 
-    ```
+    ```py
         "under", "again", "further", "then",
     ```
 
-    ```
+    ```py
         "once", "here", "there", "when", "where",
     ```
 
-    ```
+    ```py
         "why", "how", "all", "any", "both",
     ```
 
-    ```
+    ```py
         "each", "few", "more", "most", "other",
     ```
 
-    ```
+    ```py
         "some", "such", "no", "nor", "not",
     ```
 
-    ```
+    ```py
         "only", "own", "same", "so", "than",
     ```
 
-    ```
+    ```py
         "too", "very", "s", "t", "can", "will",
     ```
 
-    ```
+    ```py
         "just", "don", "should", "now"]
     ```
 
@@ -220,7 +220,7 @@
 
 1.  让我们将整段文字转换为小写字母。这样做是为了确保语义相同的单词不会有不同的表示——例如，“DOG”和“dog”。通过确保我们的数据都是小写字母，我们为数据集引入了一致性，避免了同一单词重复表示的可能性。为了将我们的文本转换为小写字母，我们使用以下代码：
 
-    ```
+    ```py
     passage = passage.lower()
     ```
 
@@ -232,35 +232,35 @@
 
 1.  接下来，让我们从我们从 Wikipedia 收集到的段落中删除 HTML 标签、特殊字符和停用词。为此，我们将使用以下代码：
 
-    ```
+    ```py
     # Remove HTML tags using regex
     ```
 
-    ```
+    ```py
     passage = re.sub(r'<[^>]+>', '', passage)
     ```
 
-    ```
+    ```py
     # Remove unwanted special characters
     ```
 
-    ```
+    ```py
     passage = re.sub('[^a-zA-Z\s]', '', passage)
     ```
 
-    ```
+    ```py
     # Remove stopwords
     ```
 
-    ```
+    ```py
     passage = ' '.join(word for word in passage.split() if word not in stopwords)
     ```
 
-    ```
+    ```py
     # Print the cleaned passage
     ```
 
-    ```
+    ```py
     print(passage[:500])  # print only first 500 characters for brevity
     ```
 
@@ -268,7 +268,7 @@
 
 1.  让我们打印前 500 个字符，并与*图 10.2*中的网页进行比较：
 
-    ```
+    ```py
     machine learning ml field devoted understanding building methods let machines learn methods leverage data improve computer performance set tasks machine learning algorithms build model based sample data known training data order make predictions decisions without explicitly programmed machine learning algorithms used wide variety applications medicine email filtering speech recognition agriculture computer vision difficult unfeasible develop conventional algorithms perform needed tasks subset ma
     ```
 
@@ -292,25 +292,25 @@
 
 1.  我们将从导入`Tokenizer`类开始：
 
-    ```
+    ```py
     from tensorflow.keras.preprocessing.text import Tokenizer
     ```
 
 1.  接着，我们创建一个变量`text`来存储我们的示例句子（`"Machine learning is fascinating. It is a field full of challenges!"`）。我们创建`Tokenizer`类的实例来处理我们示例句子的分词：
 
-    ```
+    ```py
     text = "Machine learning is fascinating. It is a field full of challenges!"
     ```
 
-    ```
+    ```py
     # Define the tokenizer and fit it on the text
     ```
 
-    ```
+    ```py
     tokenizer = Tokenizer()
     ```
 
-    ```
+    ```py
     tokenizer.fit_on_texts([text])
     ```
 
@@ -318,17 +318,17 @@
 
 1.  要查看单词到整数值的映射，我们使用`tokenizer`对象的`word_index`属性：
 
-    ```
+    ```py
     # Print out the word index to see how words are tokenized
     ```
 
-    ```
+    ```py
     print(tokenizer.word_index)
     ```
 
     当我们打印结果时，我们可以看到 `word_index` 返回一个键值对字典，其中每个键值对对应一个唯一单词及其在标记器词汇表中的整数索引：
 
-    ```
+    ```py
     {'is': 1, 'machine': 2, 'learning': 3, 'fascinating': 4, 'it': 5, 'a': 6, 'field': 7, 'full': 8, 'of': 9, 'challenges': 10}
     ```
 
@@ -338,7 +338,7 @@
 
 在字符级别标记化中，我们根据每个字符拆分示例文本。为了使用 TensorFlow 完成此操作，我们稍微修改了用于单词级别标记化的代码：
 
-```
+```py
 # Define the tokenizer and fit it on the text
 tokenizer = Tokenizer(char_level=True)
 tokenizer.fit_on_texts([text])
@@ -348,7 +348,7 @@ print(tokenizer.word_index)
 
 在这里，当我们创建 `tokenizer` 实例时，我们将 `char_level` 参数设置为 `True`。这样，我们可以看到文本中的唯一字符将被作为独立标记处理：
 
-```
+```py
 {' ': 1, 'i': 2, 'a': 3, 'n': 4, 'l': 5, 'e': 6, 's': 7,
     'f': 8, 'c': 9, 'g': 10, 'h': 11, 't': 12, 'm': 13,
     'r': 14, '.': 15, 'd': 16, 'u': 17, 'o': 18, '!': 19}
@@ -362,7 +362,7 @@ print(tokenizer.word_index)
 
 单词在句子中的使用顺序对于理解它们所传达的意义至关重要；序列化是将句子或一组单词或标记转换为它们的数值表示的过程，在使用神经网络构建自然语言处理应用时，能够保留单词的顺序。在 TensorFlow 中，我们可以使用 `texts_to_sequences` 函数将我们标记化的文本转换为整数序列。从我们单词级别标记化步骤的输出中，我们现在知道我们的示例句子（`"机器学习很迷人。它是一个充满挑战的领域！"）可以通过一系列标记来表示：
 
-```
+```py
 # Convert the text to sequences
 sequence = tokenizer.texts_to_sequences([text])
 print(sequence)
@@ -370,7 +370,7 @@ print(sequence)
 
 通过将文本转换为序列，我们将人类可读的文本转换为机器可读的格式，同时保留单词出现的顺序。当我们打印结果时，我们会得到如下输出：
 
-```
+```py
 [[2, 3, 1, 4, 5, 1, 6, 7, 8, 9, 10]]
 ```
 
@@ -382,37 +382,37 @@ print(sequence)
 
 1.  假设我们有以下四个句子：
 
-    ```
+    ```py
     sentences = [
     ```
 
-    ```
+    ```py
         "I love reading books.",
     ```
 
-    ```
+    ```py
         "The cat sat on the mat.",
     ```
 
-    ```
+    ```py
         "It's a beautiful day outside!",
     ```
 
-    ```
+    ```py
         "Have you done your homework?"
     ```
 
-    ```
+    ```py
     ]
     ```
 
     当我们执行词级标记化和序列化时，输出将如下所示：
 
-    ```
+    ```py
     [[2, 3, 4, 5], [1, 6, 7, 8, 1, 9],
     ```
 
-    ```
+    ```py
         [10, 11, 12, 13, 14], [15, 16, 17, 18, 19]]
     ```
 
@@ -420,7 +420,7 @@ print(sequence)
 
 1.  我们从 TensorFlow Keras 预处理模块中导入`pad_sequences`：
 
-    ```
+    ```py
     from tensorflow.keras.preprocessing.sequence import pad_sequences
     ```
 
@@ -428,65 +428,65 @@ print(sequence)
 
 1.  让我们开始仅传递序列作为参数，并观察结果是什么样的：
 
-    ```
+    ```py
     padded = pad_sequences(sequences)
     ```
 
-    ```
+    ```py
     print(padded)
     ```
 
     当我们使用`pad_sequences`函数时，它会确保所有的句子与我们最长的句子长度相同。为了实现这一点，使用一个特殊的符号（`0`）来填充较短的句子，直到它们与最长句子的长度相同。这个特殊符号（`0`）没有任何意义，模型会在训练和推理过程中忽略它们：
 
-    ```
+    ```py
     [[ 0  0  2  3  4  5]
     ```
 
-    ```
+    ```py
      [ 1  6  7  8  1  9]
     ```
 
-    ```
+    ```py
      [ 0 10 11 12 13 14]
     ```
 
-    ```
+    ```py
      [ 0 15 16 17 18 19]]
     ```
 
     从输出中，我们看到每隔一个句子就会在其前面添加零，直到它的长度与我们最长的句子（第二个句子）相同，而第二个句子有最长的序列。请注意，所有的零都是在每个句子的开头添加的。这个场景被称为`padding=post`参数：
 
-    ```
+    ```py
     # post padding
     ```
 
-    ```
+    ```py
     padded_sequences = pad_sequences(sequences,
     ```
 
-    ```
+    ```py
         padding='post')
     ```
 
-    ```
+    ```py
     print(padded_sequences)
     ```
 
     当我们打印结果时，我们得到以下输出：
 
-    ```
+    ```py
     [[ 2  3  4  5  0  0]
     ```
 
-    ```
+    ```py
      [ 1  6  7  8  1  9]
     ```
 
-    ```
+    ```py
      [10 11 12 13 14  0]
     ```
 
-    ```
+    ```py
      [15 16 17 18 19  0]]
     ```
 
@@ -494,57 +494,57 @@ print(sequence)
 
 1.  另一个有用的参数是`maxlen`。它用于指定我们希望保留的所有序列的最大长度。在这种情况下，任何超过指定`maxlen`的序列都会被截断。为了看看`maxlen`如何工作，让我们给我们的句子列表添加另一个句子：
 
-    ```
+    ```py
     Sentences = [
     ```
 
-    ```
+    ```py
         "I love reading books.",
     ```
 
-    ```
+    ```py
         "The cat sat on the mat.",
     ```
 
-    ```
+    ```py
         "It's a beautiful day outside!",
     ```
 
-    ```
+    ```py
         "Have you done your homework?",
     ```
 
-    ```
+    ```py
         "Machine Learning is a very interesting subject that enables 
     ```
 
-    ```
+    ```py
          you build amazing solutions beyond your imagination."
     ```
 
-    ```
+    ```py
     ]
     ```
 
 1.  我们拿到新的句子列表，并对它们进行标记化和序列化处理。然后，我们填充数值表示，确保输入数据的长度一致，并确保我们的特殊标记（`0`）出现在句子的末尾，我们将`padding`设置为`post`。当我们实施这些步骤时，输出结果如下：
 
-    ```
+    ```py
     [[ 5  6  7  8  0  0  0  0  0  0  0  0  0  0  0  0]
     ```
 
-    ```
+    ```py
      [ 1  9 10 11  1 12  0  0  0  0  0  0  0  0  0  0]
     ```
 
-    ```
+    ```py
      [13  2 14 15 16  0  0  0  0  0  0  0  0  0  0  0]
     ```
 
-    ```
+    ```py
      [17  3 18  4 19  0  0  0  0  0  0  0  0  0  0  0]
     ```
 
-    ```
+    ```py
      [20 21 22  2 23 24 25 26 27  3 28 29 30 31  4 32]]
     ```
 
@@ -552,89 +552,89 @@ print(sequence)
 
 1.  让我们看看如何在示例中应用`maxlen`。我们首先将`max_length`变量设置为`10`。这意味着它最多只会使用 10 个标记。我们传递`maxlen`参数并打印我们的填充序列：
 
-    ```
+    ```py
     # Define the max length
     ```
 
-    ```
+    ```py
     max_length = 10
     ```
 
-    ```
+    ```py
     # Pad the sequences
     ```
 
-    ```
+    ```py
     padded = pad_sequences(sequences, padding='post',
     ```
 
-    ```
+    ```py
         maxlen=max_length)
     ```
 
-    ```
+    ```py
     print(padded))
     ```
 
     我们的结果生成了一个更短的序列：
 
-    ```
+    ```py
     [[ 5  6  7  8  0  0  0  0  0  0]
     ```
 
-    ```
+    ```py
      [ 1  9 10 11  1 12  0  0  0  0]
     ```
 
-    ```
+    ```py
      [13  2 14 15 16  0  0  0  0  0]
     ```
 
-    ```
+    ```py
      [17  3 18  4 19  0  0  0  0  0]
     ```
 
-    ```
+    ```py
      [25 26 27  3 28 29 30 31  4 32]]
     ```
 
     请注意，我们的最长句子已经在序列的开头被截断。如果我们想将句子截断在结尾呢？我们该如何实现呢？为此，我们引入了另一个参数，叫做`truncating`，并将其设置为`post`：
 
-    ```
+    ```py
     # Pad the sequences
     ```
 
-    ```
+    ```py
     padded = pad_sequences(sequences, padding='post',
     ```
 
-    ```
+    ```py
         truncating='post', maxlen=max_length)
     ```
 
-    ```
+    ```py
     print(padded)
     ```
 
     我们的结果将如下所示：
 
-    ```
+    ```py
     [[ 5  6  7  8  0  0  0  0  0  0]
     ```
 
-    ```
+    ```py
      [ 1  9 10 11  1 12  0  0  0  0]
     ```
 
-    ```
+    ```py
      [13  2 14 15 16  0  0  0  0  0]
     ```
 
-    ```
+    ```py
      [17  3 18  4 19  0  0  0  0  0]
     ```
 
-    ```
+    ```py
      [20 21 22  2 23 24 25 26 27  3]]
     ```
 
@@ -644,7 +644,7 @@ print(sequence)
 
 到目前为止，我们已经看到如何准备数据，从构成句子的文本数据序列转换为数值表示，来训练我们的模型。现在，假设我们构建一个文本分类模型，使用我们句子列表中的五个句子进行训练。当然，这只是一个假设的情况，即使我们用大量文本数据进行训练，最终也会遇到模型在训练时未见过的单词，正如我们在这个示例测试句子（“*I love playing chess*”）中看到的那样。这意味着我们必须准备好让模型处理那些不在我们预定义词汇表中的单词。为了解决这个问题，我们在标记化过程中使用了`oov_token="<OOV>"`参数：
 
-```
+```py
 # Define the tokenizer with an OOV token
 tokenizer = Tokenizer(oov_token="<OOV>")
 # Fit the tokenizer on the texts
@@ -657,13 +657,13 @@ print(tokenizer.word_index)
 
 在这之后，我们在训练句子上拟合分词器，将句子转换为整数序列，然后我们打印出单词索引：
 
-```
+```py
 {'<OOV>': 1, 'the': 2, 'a': 3, 'you': 4, 'your': 5, 'i': 6, 'love': 7, 'reading': 8, 'books': 9, 'cat': 10, 'sat': 11, 'on': 12, 'mat': 13, "it's": 14, 'beautiful': 15, 'day': 16, 'outside': 17, 'have': 18, 'done': 19, 'homework': 20, 'machine': 21, 'learning': 22, 'is': 23, 'very': 24, 'interesting': 25, 'subject': 26, 'that': 27, 'enables': 28, 'build': 29, 'amazing': 30, 'solutions': 31, 'beyond': 32, 'imagination': 33}
 ```
 
 现在，我们可以看到`"<OOV>"`字符串被选中来表示这些 OOV 单词，并且它的值为`1`。这个标记将处理模型遇到的任何未知单词。让我们用我们的示例测试句子来看看实际效果：
 
-```
+```py
 # Now let's convert a sentence with some OOV words
 test_sentence = "I love playing chess"
 test_sequence = tokenizer.texts_to_sequences(
@@ -673,7 +673,7 @@ print(test_sequence)
 
 我们传入我们的测试句子（`"I love playing chess"`），其中包含了模型之前未见过的单词，然后使用`texts_to_sequences`方法将测试句子转换为一个序列。由于我们在训练句子上拟合了分词器，它会用单词索引中相应的数字表示来替换测试句子中的每个单词。然而，像“playing”和“chess”这样在我们的训练句子中未出现过的单词，将会被替换为特殊 OOV 标记的索引；因此，`print`语句返回如下内容：
 
-```
+```py
 [[6, 7, 1, 1]]
 ```
 
@@ -719,31 +719,31 @@ print(test_sequence)
 
 1.  我们将从加载所需的库开始：
 
-    ```
+    ```py
     import tensorflow as tf
     ```
 
-    ```
+    ```py
     import tensorflow_datasets as tfds
     ```
 
-    ```
+    ```py
     from tensorflow.keras.preprocessing.text import Tokenizer
     ```
 
-    ```
+    ```py
     from tensorflow.keras.preprocessing.sequence import pad_sequences
     ```
 
-    ```
+    ```py
     from sklearn.model_selection import train_test_split
     ```
 
-    ```
+    ```py
     import numpy as np
     ```
 
-    ```
+    ```py
     import io
     ```
 
@@ -751,23 +751,23 @@ print(test_sequence)
 
 1.  然后，我们加载数据集：
 
-    ```
+    ```py
     # Load the Yelp Polarity Reviews dataset
     ```
 
-    ```
+    ```py
     (train_dataset, test_dataset),
     ```
 
-    ```
+    ```py
         dataset_info = tfds.load('yelp_polarity_reviews',
     ```
 
-    ```
+    ```py
             split=['train', 'test'], shuffle_files=True,
     ```
 
-    ```
+    ```py
             with_info=True, as_supervised=True)
     ```
 
@@ -775,151 +775,151 @@ print(test_sequence)
 
 1.  让我们编写一些函数，以便探索我们的数据集：
 
-    ```
+    ```py
     def get_reviews(dataset, num_samples=5):
     ```
 
-    ```
+    ```py
         reviews = []
     ```
 
-    ```
+    ```py
         for text, label in dataset.take(num_samples):
     ```
 
-    ```
+    ```py
             reviews.append((text.numpy().decode('utf-8'), 
     ```
 
-    ```
+    ```py
                 label.numpy()))
     ```
 
-    ```
+    ```py
         return reviews
     ```
 
-    ```
+    ```py
     def dataset_insights(dataset, num_samples=2000):
     ```
 
-    ```
+    ```py
         total_reviews = 0
     ```
 
-    ```
+    ```py
         total_positive = 0
     ```
 
-    ```
+    ```py
         total_negative = 0
     ```
 
-    ```
+    ```py
         total_length = 0
     ```
 
-    ```
+    ```py
         min_length = float('inf')
     ```
 
-    ```
+    ```py
         max_length = 0
     ```
 
-    ```
+    ```py
         for text, label in dataset.take(num_samples):
     ```
 
-    ```
+    ```py
             total_reviews += 1
     ```
 
-    ```
+    ```py
             review_length = len(text.numpy().decode(
     ```
 
-    ```
+    ```py
                 'utf-8').split())
     ```
 
-    ```
+    ```py
             total_length += review_length
     ```
 
-    ```
+    ```py
             if review_length < min_length:
     ```
 
-    ```
+    ```py
                 min_length = review_length
     ```
 
-    ```
+    ```py
             if review_length > max_length:
     ```
 
-    ```
+    ```py
                 max_length = review_length
     ```
 
-    ```
+    ```py
             if label.numpy() == 1:
     ```
 
-    ```
+    ```py
                 total_positive += 1
     ```
 
-    ```
+    ```py
             else:
     ```
 
-    ```
+    ```py
                 total_negative += 1
     ```
 
-    ```
+    ```py
         avg_length = total_length / total_reviews
     ```
 
-    ```
+    ```py
         return min_length, max_length, avg_length,
     ```
 
-    ```
+    ```py
             total_positive, total_negative
     ```
 
-    ```
+    ```py
     def plot_reviews(positive, negative):
     ```
 
-    ```
+    ```py
         labels = ['Positive', 'Negative']
     ```
 
-    ```
+    ```py
         counts = [positive, negative]
     ```
 
-    ```
+    ```py
         plt.bar(labels, counts, color=['blue', 'red'])
     ```
 
-    ```
+    ```py
         plt.xlabel('Review Type')
     ```
 
-    ```
+    ```py
         plt.ylabel('Count')
     ```
 
-    ```
+    ```py
         plt.title('Distribution of Reviews')
     ```
 
-    ```
+    ```py
         plt.show()
     ```
 
@@ -927,119 +927,119 @@ print(test_sequence)
 
 1.  让我们查看训练数据中的前七条评论：
 
-    ```
+    ```py
     # Check out some reviews
     ```
 
-    ```
+    ```py
     print("Training Set Reviews:")
     ```
 
-    ```
+    ```py
     train_reviews = get_reviews(train_dataset, 7)
     ```
 
-    ```
+    ```py
     for review, label in train_reviews:
     ```
 
-    ```
+    ```py
         print(f"Label: {label}, Review: {review[:100]}")
     ```
 
     当我们运行代码时，它返回前七条评论。此外，为了简洁起见，我们只返回每条评论的前 100 个字符：
 
-    ```
+    ```py
     Training Set Reviews:
     ```
 
-    ```
+    ```py
     Label: 1, Review: The Groovy P. and I ventured to his old stomping grounds for lunch today.  The '5 and Diner' on 16th...
     ```
 
-    ```
+    ```py
     Label: 0, Review: Mediocre burgers - if you are in the area and want a fast food burger, Fatburger is  a better bet th...
     ```
 
-    ```
+    ```py
     Label: 0, Review: Not at all impressed...our server was not very happy to be there...food was very sub-par and it was ...
     ```
 
-    ```
+    ```py
     Label: 0, Review: I wish I would have read Megan P's review before I decided to cancel my dinner reservations because ...
     ```
 
-    ```
+    ```py
     Label: 1, Review: A large selection of food from all over the world. Great atmosphere and ambiance.  Quality of food i...
     ```
 
-    ```
+    ```py
     Label: 1, Review: I know, I know a review for Subway, come on.  But I have to say that the service at this subway is t...
     ```
 
-    ```
+    ```py
     Label: 1, Review: We came in for a pre-bachelor party madness meal and I have to say it was one of the best dining exp...
     ```
 
 1.  让我们检查一下关于训练数据的一些重要统计信息：
 
-    ```
+    ```py
     min_length, max_length, avg_length, total_positive, 
     ```
 
-    ```
+    ```py
         total_negative = dataset_insights(train_dataset)
     ```
 
-    ```
+    ```py
     # Display the results
     ```
 
-    ```
+    ```py
     print(f"Shortest Review Length: {min_length}")
     ```
 
-    ```
+    ```py
     print(f"Longest Review Length: {max_length}")
     ```
 
-    ```
+    ```py
     print(f"Average Review Length: {avg_length:.2f}")
     ```
 
-    ```
+    ```py
     print(f"Total Positive Reviews: {total_positive}")
     ```
 
-    ```
+    ```py
     print(f"Total Negative Reviews: {total_negative}")
     ```
 
     当我们运行代码时，它返回以下内容：
 
-    ```
+    ```py
     Shortest Review Length: 1
     ```
 
-    ```
+    ```py
     Longest Review Length: 942
     ```
 
-    ```
+    ```py
     Average Review Length: 131.53
     ```
 
-    ```
+    ```py
     Total Positive Reviews: 1030
     ```
 
-    ```
+    ```py
     Total Negative Reviews: 970
     ```
 
 1.  让我们绘制采样训练数据的分布图：
 
-    ```
+    ```py
     plot_reviews(total_positive, total_negative)
     ```
 
@@ -1053,47 +1053,47 @@ print(test_sequence)
 
 1.  我们定义了标记化、序列化和训练过程中的关键参数：
 
-    ```
+    ```py
     # Define parameters
     ```
 
-    ```
+    ```py
     vocab_size = 10000
     ```
 
-    ```
+    ```py
     embedding_dim = 16
     ```
 
-    ```
+    ```py
     max_length = 132
     ```
 
-    ```
+    ```py
     trunc_type='post'
     ```
 
-    ```
+    ```py
     padding_type='post'
     ```
 
-    ```
+    ```py
     oov_tok = "<OOV>"
     ```
 
-    ```
+    ```py
     num_epochs = 10
     ```
 
-    ```
+    ```py
     # Build the Tokenizer
     ```
 
-    ```
+    ```py
     tokenizer = Tokenizer(num_words=vocab_size,
     ```
 
-    ```
+    ```py
         oov_token=oov_tok)
     ```
 
@@ -1109,67 +1109,67 @@ print(test_sequence)
 
 1.  为了减少处理时间，我们将使用 20,000 个样本进行训练：
 
-    ```
+    ```py
     # Fetch and decode the training data
     ```
 
-    ```
+    ```py
     train_text = []
     ```
 
-    ```
+    ```py
     train_label = []
     ```
 
-    ```
+    ```py
     for example in train_dataset.take(20000):
     ```
 
-    ```
+    ```py
         text, label = example
     ```
 
-    ```
+    ```py
         train_text.append(text.numpy().decode('utf-8'))
     ```
 
-    ```
+    ```py
         train_label.append(label.numpy())
     ```
 
-    ```
+    ```py
     # Convert labels to numpy array
     ```
 
-    ```
+    ```py
     train_labels = np.array(train_label)
     ```
 
-    ```
+    ```py
     # Fit the tokenizer on the training texts
     ```
 
-    ```
+    ```py
     tokenizer.fit_on_texts(train_text)
     ```
 
-    ```
+    ```py
     # Get the word index from the tokenizer
     ```
 
-    ```
+    ```py
     word_index = tokenizer.word_index
     ```
 
-    ```
+    ```py
     # Convert texts to sequences
     ```
 
-    ```
+    ```py
     train_sequences = tokenizer.texts_to_sequences(
     ```
 
-    ```
+    ```py
         train_text)
     ```
 
@@ -1177,51 +1177,51 @@ print(test_sequence)
 
 1.  为了测试，我们选择 8,000 个样本。我们在这里执行的步骤与训练集上的步骤非常相似；然而，我们并不对测试集中的文本进行拟合。此步骤仅用于训练目的，帮助神经网络学习训练集中的词到索引的映射：
 
-    ```
+    ```py
     # Fetch and decode the test data
     ```
 
-    ```
+    ```py
     test_text = []
     ```
 
-    ```
+    ```py
     test_label = []
     ```
 
-    ```
+    ```py
     for example in test_dataset.take(8000):
     ```
 
-    ```
+    ```py
         text, label = example
     ```
 
-    ```
+    ```py
         test_text.append(text.numpy().decode('utf-8'))
     ```
 
-    ```
+    ```py
         test_label.append(label.numpy())
     ```
 
-    ```
+    ```py
     # Convert labels to numpy array
     ```
 
-    ```
+    ```py
     test_labels = np.array(test_label)
     ```
 
-    ```
+    ```py
     # Convert texts to sequences
     ```
 
-    ```
+    ```py
     test_sequences = tokenizer.texts_to_sequences(
     ```
 
-    ```
+    ```py
         test_text)
     ```
 
@@ -1229,31 +1229,31 @@ print(test_sequence)
 
 1.  下一步是对表示训练集和测试集中文本的整数序列进行填充和截断，确保它们具有相同的长度：
 
-    ```
+    ```py
     # Pad the sequences
     ```
 
-    ```
+    ```py
     train_padded = pad_sequences(train_sequences,
     ```
 
-    ```
+    ```py
         maxlen=max_length, padding=padding_type,
     ```
 
-    ```
+    ```py
         truncating=trunc_type)
     ```
 
-    ```
+    ```py
     test_padded = pad_sequences(test_sequences,
     ```
 
-    ```
+    ```py
         maxlen=max_length, padding=padding_type,
     ```
 
-    ```
+    ```py
         truncating=trunc_type)
     ```
 
@@ -1261,19 +1261,19 @@ print(test_sequence)
 
 1.  我们想要设置一个验证集，这将帮助我们跟踪模型训练过程的进展。为此，我们可以使用来自 scikit-learn 的 `train_test_split` 函数：
 
-    ```
+    ```py
     # Split the data into training and validation sets
     ```
 
-    ```
+    ```py
     train_padded, val_padded, train_labels,
     ```
 
-    ```
+    ```py
         val_labels = train_test_split(train_padded,
     ```
 
-    ```
+    ```py
             train_labels, test_size=0.2, random_state=42)
     ```
 
@@ -1281,39 +1281,39 @@ print(test_sequence)
 
 1.  让我们继续构建我们的情感分析模型：
 
-    ```
+    ```py
     # Define the model
     ```
 
-    ```
+    ```py
     model = tf.keras.Sequential([
     ```
 
-    ```
+    ```py
         tf.keras.layers.Embedding(vocab_size,
     ```
 
-    ```
+    ```py
             embedding_dim, input_length=max_length),
     ```
 
-    ```
+    ```py
         tf.keras.layers.GlobalAveragePooling1D(),
     ```
 
-    ```
+    ```py
         tf.keras.layers.Dense(24, activation='relu'),
     ```
 
-    ```
+    ```py
         tf.keras.layers.Dense(1, activation='sigmoid')
     ```
 
-    ```
+    ```py
     # because it's binary classification
     ```
 
-    ```
+    ```py
     ])
     ```
 
@@ -1325,75 +1325,75 @@ print(test_sequence)
 
 1.  现在，我们将编译并训练我们的模型。在编译步骤中，我们传入`binary_crossentropy`作为损失函数。我们使用 Adam 优化器，并将准确率作为我们的分类评估指标：
 
-    ```
+    ```py
     # Compile the model
     ```
 
-    ```
+    ```py
     model.compile(loss='binary_crossentropy',
     ```
 
-    ```
+    ```py
         optimizer='adam', metrics=['accuracy'])
     ```
 
 1.  我们使用训练数据（`train_padded`）和标签（`train_labels`）对模型进行了 10 个 epoch 的训练，并使用验证数据来跟踪实验进展：
 
-    ```
+    ```py
     # Train the model
     ```
 
-    ```
+    ```py
     history = model.fit(train_padded, train_labels,
     ```
 
-    ```
+    ```py
         epochs=num_epochs, validation_data=(val_padded,
     ```
 
-    ```
+    ```py
             val_labels))
     ```
 
     我们报告最后 5 个 epoch 的结果：
 
-    ```
+    ```py
     Epoch 6/10
     ```
 
-    ```
+    ```py
     625/625 [==============================] - 4s 7ms/step - loss: 0.1293 - accuracy: 0.9551 - val_loss: 0.3149 - val_accuracy: 0.8875
     ```
 
-    ```
+    ```py
     Epoch 7/10
     ```
 
-    ```
+    ```py
     625/625 [==============================] - 4s 6ms/step - loss: 0.1116 - accuracy: 0.9638 - val_loss: 0.3330 - val_accuracy: 0.8880
     ```
 
-    ```
+    ```py
     Epoch 8/10
     ```
 
-    ```
+    ```py
     625/625 [==============================] - 5s 9ms/step - loss: 0.0960 - accuracy: 0.9697 - val_loss: 0.3703 - val_accuracy: 0.8813
     ```
 
-    ```
+    ```py
     Epoch 9/10
     ```
 
-    ```
+    ```py
     625/625 [==============================] - 4s 6ms/step - loss: 0.0828 - accuracy: 0.9751 - val_loss: 0.3885 - val_accuracy: 0.8796
     ```
 
-    ```
+    ```py
     Epoch 10/10
     ```
 
-    ```
+    ```py
     625/625 [==============================] - 4s 6ms/step - loss: 0.0727 - accuracy: 0.9786 - val_loss: 0.4258 - val_accuracy: 0.8783
     ```
 
@@ -1401,19 +1401,19 @@ print(test_sequence)
 
 1.  我们使用`evaluate`函数来评估训练好的模型：
 
-    ```
+    ```py
     # Evaluate the model on the test set
     ```
 
-    ```
+    ```py
     results = model.evaluate(test_padded, test_labels)
     ```
 
-    ```
+    ```py
     print("Test Loss: ", results[0])
     ```
 
-    ```
+    ```py
     print("Test Accuracy: ", results[1])
     ```
 
@@ -1421,91 +1421,91 @@ print(test_sequence)
 
 1.  在训练和验证过程中绘制损失和准确率曲线是一个好习惯，因为它能为我们提供关于模型学习过程和性能的宝贵见解。为了实现这一点，我们将构建一个名为`plot_history`的函数：
 
-    ```
+    ```py
     def plot_history(history):
     ```
 
-    ```
+    ```py
         plt.figure(figsize=(12, 4))
     ```
 
-    ```
+    ```py
         # Plot training & validation accuracy values
     ```
 
-    ```
+    ```py
         plt.subplot(1, 2, 1)
     ```
 
-    ```
+    ```py
         plt.plot(history.history['accuracy'])
     ```
 
-    ```
+    ```py
         plt.plot(history.history['val_accuracy'])
     ```
 
-    ```
+    ```py
         plt.title('Model accuracy')
     ```
 
-    ```
+    ```py
         plt.ylabel('Accuracy')
     ```
 
-    ```
+    ```py
         plt.xlabel('Epoch')
     ```
 
-    ```
+    ```py
         plt.legend(['Train', 'Validation'],
     ```
 
-    ```
+    ```py
             loc='upper left')
     ```
 
-    ```
+    ```py
         # Plot training & validation loss values
     ```
 
-    ```
+    ```py
         plt.subplot(1, 2, 2)
     ```
 
-    ```
+    ```py
         plt.plot(history.history['loss'])
     ```
 
-    ```
+    ```py
         plt.plot(history.history['val_loss'])
     ```
 
-    ```
+    ```py
         plt.title('Model loss')
     ```
 
-    ```
+    ```py
         plt.ylabel('Loss')
     ```
 
-    ```
+    ```py
         plt.xlabel('Epoch')
     ```
 
-    ```
+    ```py
         plt.legend(['Train', 'Validation'],
     ```
 
-    ```
+    ```py
             loc='upper right')
     ```
 
-    ```
+    ```py
         plt.tight_layout()
     ```
 
-    ```
+    ```py
         plt.show()
     ```
 
@@ -1519,151 +1519,151 @@ print(test_sequence)
 
 1.  在我们探索如何解决过拟合问题之前，让我们先尝试四个新的句子，看看我们的模型如何处理它们：
 
-    ```
+    ```py
     # New sentences
     ```
 
-    ```
+    ```py
     new_sentences = ["The restaurant was absolutely fantastic. The staff were kind and the food was delicious.",  # positive
     ```
 
-    ```
+    ```py
         "I've had an incredible day at the beach, the weather was beautiful.",  # positive
     ```
 
-    ```
+    ```py
         "The movie was a big disappointment. I wouldn't recommend it to anyone.",  # negative
     ```
 
-    ```
+    ```py
         "I bought a new phone and it stopped working after a week. Terrible product."]  # negative
     ```
 
 1.  在此示例中，我们给出了每个句子的情感供参考。让我们看看我们训练的模型在这些新句子上的表现如何：
 
-    ```
+    ```py
     # Preprocess the sentences in the same way as the training data
     ```
 
-    ```
+    ```py
     new_sequences = tokenizer.texts_to_sequences(
     ```
 
-    ```
+    ```py
         new_sentences)
     ```
 
-    ```
+    ```py
     new_padded = pad_sequences(new_sequences,
     ```
 
-    ```
+    ```py
         maxlen=max_length, padding=padding_type,
     ```
 
-    ```
+    ```py
         truncating=trunc_type)
     ```
 
-    ```
+    ```py
     # Use the model to predict the sentiment of the new sentences
     ```
 
-    ```
+    ```py
     predictions = model.predict(new_padded)
     ```
 
-    ```
+    ```py
     # Print out the sequences and the corresponding predictions
     ```
 
-    ```
+    ```py
     for i in range(len(new_sentences)):
     ```
 
-    ```
+    ```py
         print("Sequence:", new_sequences[i])
     ```
 
-    ```
+    ```py
         print("Predicted sentiment (
     ```
 
-    ```
+    ```py
             probability):", predictions[i])
     ```
 
-    ```
+    ```py
         if predictions[i] > 0.5:
     ```
 
-    ```
+    ```py
             print("Interpretation: Positive sentiment")
     ```
 
-    ```
+    ```py
         else:
     ```
 
-    ```
+    ```py
             print("Interpretation: Negative sentiment")
     ```
 
-    ```
+    ```py
         print("\n")
     ```
 
 1.  让我们打印出每个句子对应的序列，并显示模型预测的情感：
 
-    ```
+    ```py
     1/1 [==============================] - 0s 21ms/step
     ```
 
-    ```
+    ```py
     Sequence: [2, 107, 7, 487, 533, 2, 123, 27, 290, 3, 2, 31, 7, 182]
     ```
 
-    ```
+    ```py
     Predicted sentiment (probability): [0.9689689]
     ```
 
-    ```
+    ```py
     Interpretation: Positive sentiment
     ```
 
-    ```
+    ```py
     Sequence: [112, 25, 60, 1251, 151, 26, 2, 3177, 2, 2079, 7, 634]
     ```
 
-    ```
+    ```py
     Predicted sentiment (probability): [0.9956489]
     ```
 
-    ```
+    ```py
     Interpretation: Positive sentiment
     ```
 
-    ```
+    ```py
     Sequence: [2, 1050, 7, 6, 221, 1174, 4, 454, 234, 9, 5, 528]
     ```
 
-    ```
+    ```py
     Predicted sentiment (probability): [0.43672907]
     ```
 
-    ```
+    ```py
     Interpretation: Negative sentiment
     ```
 
-    ```
+    ```py
     Sequence: [4, 764, 6, 161, 483, 3, 9, 695, 524, 83, 6, 393, 464, 1341]
     ```
 
-    ```
+    ```py
     Predicted sentiment (probability): [0.36306405]
     ```
 
-    ```
+    ```py
     Interpretation: Negative sentiment
     ```
 
@@ -1675,23 +1675,23 @@ print(test_sequence)
 
 1.  提取嵌入层权重：
 
-    ```
+    ```py
     weights = model.get_layer(
     ```
 
-    ```
+    ```py
         'embedding').get_weights()[0]
     ```
 
-    ```
+    ```py
     vocab = tokenizer.word_index
     ```
 
-    ```
+    ```py
     print(weights.shape)
     ```
 
-    ```
+    ```py
     # shape: (vocab_size, embedding_dim)
     ```
 
@@ -1699,39 +1699,39 @@ print(test_sequence)
 
 1.  然后，将权重和词汇保存到磁盘。TensorFlow 投影仪读取这些文件类型，并使用它们在 3D 空间中绘制向量，从而使我们能够可视化它们：
 
-    ```
+    ```py
     out_v = io.open('vectors.tsv', 'w', encoding='utf-8')
     ```
 
-    ```
+    ```py
     out_m = io.open('metadata.tsv', 'w', encoding='utf-8')
     ```
 
-    ```
+    ```py
     for word, index in vocab.items():
     ```
 
-    ```
+    ```py
         if index < vocab_size:
     ```
 
-    ```
+    ```py
             vec = weights[index]
     ```
 
-    ```
+    ```py
             out_v.write('\t'.join([str(x) for x in vec]) + "\n")
     ```
 
-    ```
+    ```py
             out_m.write(word + "\n")
     ```
 
-    ```
+    ```py
     out_v.close()
     ```
 
-    ```
+    ```py
     out_m.close()
     ```
 
@@ -1743,27 +1743,27 @@ print(test_sequence)
 
 1.  将文件下载到本地：
 
-    ```
+    ```py
     try:
     ```
 
-    ```
+    ```py
         from google.colab import files
     ```
 
-    ```
+    ```py
         files.download('vectors.tsv')
     ```
 
-    ```
+    ```py
         files.download('metadata.tsv')
     ```
 
-    ```
+    ```py
     except Exception:
     ```
 
-    ```
+    ```py
         pass
     ```
 
@@ -1785,7 +1785,7 @@ print(test_sequence)
 
 我们可能考虑调整的一个超参数是词汇表的大小。增加词汇表的大小使得模型能够从我们的数据集中学习到更多独特的单词。让我们看看这会如何影响基线模型的性能。在这里，我们将`vocab_size`从`10000`调整为`20000`，同时保持其他超参数不变：
 
-```
+```py
 # Increasing the vocab_size
 vocab_size = 10000 #Change from 10000 to 20000
 embedding_dim = 16
@@ -1805,7 +1805,7 @@ model_1, history_1 = sentiment_model(vocab_size,
 
 嵌入维度是指表示单词的向量空间的大小。高维度的嵌入能够捕捉到单词之间更为细致的关系。然而，它也增加了模型的复杂度，可能导致过拟合，尤其是在处理小数据集时。让我们将`embedding_dim`从`16`调整为`32`，同时保持其他参数不变，看看这对我们的实验有什么影响：
 
-```
+```py
 vocab_size = 10000
 embedding_dim = 32 #Change from 16 to 32
 train_size = 20000
@@ -1820,7 +1820,7 @@ model_2, history_2 = sentiment_model(vocab_size,
 
 在*第八章*《处理过拟合》中，我们探讨了在处理过拟合时的这一选项。收集更多的数据样本能够为我们提供更多样化的例子，供我们的模型学习。然而，这个过程可能会非常耗时。而且，当数据噪声大或不相关时，更多的数据可能并不会有所帮助。对于我们的案例研究，让我们将训练数据量从 20,000 个样本增加到 40,000 个样本：
 
-```
+```py
 vocab_size = 10000
 embedding_dim = 16
 train_size = 40000
@@ -1834,7 +1834,7 @@ model_3, history_3 = sentiment_model(vocab_size,
 
 在*第八章*《处理过拟合》中，我们讨论了 dropout 正则化方法，在训练过程中我们随机丢弃一部分神经元，以打破神经元之间的共依赖关系。由于我们正在处理过拟合的情况，试试这个技巧吧。为了在我们的模型中实现 dropout，我们可以添加一个 dropout 层，示例如下：
 
-```
+```py
 model_4  = tf.keras.Sequential([
     tf.keras.layers.Embedding(vocab_size, embedding_dim, 
     input_length=max_length),
@@ -1855,7 +1855,7 @@ model_4.compile(loss='binary_crossentropy',
 
 虽然 Adam 是一个很好的通用优化器，但您可能会发现，对于您的特定任务，不同的优化器（如 SGD 或 RMSprop）效果更好。根据手头的任务，不同的优化器可能效果更好。让我们尝试使用 RMSprop 来处理我们的用例，看看它的表现如何：
 
-```
+```py
 # Initialize the optimizer
 optimizer = tf.keras.optimizers.RMSprop(learning_rate=0.001)
 # Compile the model

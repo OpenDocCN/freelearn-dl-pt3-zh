@@ -70,13 +70,13 @@ API 指南还将训练数据管道与**提取、转换、加载**（**ETL**）�
 
 数据集可以通过多种方式初始化，这取决于它们的内容最初是如何存储的（例如文件、NumPy 数组、张量等）。例如，数据集可以基于一个图像文件的列表，如下所示：
 
-```
+```py
 dataset = tf.data.Dataset.list_files("/path/to/dataset/*.png")
 ```
 
 数据集还拥有许多可以应用于自身的方法，以提供一个变换后的数据集。例如，以下函数返回一个新的数据集实例，将文件的内容正确转换（即解析）为统一大小的图像张量：
 
-```
+```py
 def parse_fn(filename):
     img_bytes = tf.io.read_file(filename)
     img = tf.io.decode_png(img_bytes, channels=3)
@@ -87,7 +87,7 @@ dataset = dataset.map(map_func=parse_fn)
 
 传递给`.map()`的函数将在遍历数据集时应用于每个样本。事实上，一旦所有必要的转换应用完成，数据集可以像任何懒加载的列表/生成器一样使用，如下所示：
 
-```
+```py
 print(dataset.output_types)  # > "tf.uint8"
 print(dataset.output_shapes) # > "(64, 64, 3)"
 for image in dataset:
@@ -96,7 +96,7 @@ for image in dataset:
 
 所有的数据样本已经作为`Tensor`返回，并可以轻松加载到负责训练的设备上。为了更加简便，`tf.estimator.Estimator`和`tf.keras.Model`实例可以直接接收`tf.data.Dataset`对象作为输入进行训练（对于估算器，数据集操作必须包装成一个返回数据集的函数），如下所示：
 
-```
+```py
 keras_model.fit(dataset, ...)     # to train a Keras model on the data
 def input_fn():
     # ... build dataset
@@ -120,7 +120,7 @@ tf_estimator.train(input_fn, ...) # ... or to train a TF estimator
 
 两者都接受嵌套的数组/张量结构，但后者会沿第一个轴切片数据，将其拆分为样本，如下所示：
 
-```
+```py
 x, y = np.array([1, 2, 3, 4]), np.array([5, 6, 7, 8])
 d = tf.data.Dataset.from_tensors((x,y))
 print(d.output_shapes) # > (TensorShape([4]), TensorShape([4]))
@@ -142,7 +142,7 @@ print(d_sliced.output_shapes) # > (TensorShape([]), TensorShape([]))
 
 虽然我们不会列举所有的情况，但需要记住的是，`tf.data.Dataset`可以从多种输入源进行定义。例如，简单遍历数字的数据集可以通过`.range()`静态方法初始化。数据集也可以基于 Python 生成器使用`.from_generator()`构建。最后，即使元素存储在 SQL 数据库中，TensorFlow 也提供了一些（实验性的）工具来查询数据库，包括以下内容：
 
-```
+```py
 dataset = tf.data.experimental.SqlDataset(
     "sqlite", "/path/to/my_db.sqlite3",
     "SELECT img_filename, label FROM images", (tf.string, tf.int32))
@@ -162,7 +162,7 @@ ETL 管道的第二步是**转换**。转换可以分为两类——那些单独
 
 此外，有许多方法可以应用于解析计算机视觉标签。显然，如果标签也是图像（例如，用于图像分割或编辑），我们刚才列出的那些方法仍然可以重复使用。如果标签存储在文本文件中，可以使用`TextLineDataset`或`FixedLengthRecordDataset`（参见[`www.tensorflow.org/api_docs/python/tf/data`](https://www.tensorflow.org/api_docs/python/tf/data)中的文档）进行迭代处理，并且像`tf.strings`这样的模块可以帮助解析行/记录。例如，假设我们有一个训练数据集，其中包含一个文本文件，每行列出了图像文件名及其类标识符，两者之间由逗号分隔。每对图像/标签可以通过这种方式进行解析：
 
-```
+```py
 def parse_fn(line):
     img_filename, img_label = tf.strings.split(line, sep=',')
     img = tf.io.decode_image(tf.io.read_file(img_filename))[0]
@@ -180,7 +180,7 @@ TFRecord 文件是聚合数据样本（如图像、标签和元数据）的二�
 
 由于它是专为 TensorFlow 开发的，这种文件格式得到了 `tf.data` 的很好支持。为了将 TFRecord 文件作为输入管道的数据源，TensorFlow 用户可以将文件传递给 `tf.data.TFRecordDataset(filenames)`（请参考文档 [`www.tensorflow.org/api_docs/python/tf/data/TFRecordDataset`](https://www.tensorflow.org/api_docs/python/tf/data/TFRecordDataset)），该函数可以遍历其中包含的序列化 `tf.train.Example` 元素。要解析其内容，应执行以下操作：
 
-```
+```py
 dataset = tf.data.TFRecordDataset(['file1.tfrecords','file2.tfrecords'])
 # Dictionary describing the features/tf.trainExample structure:
 feat_dic = {'img': tf.io.FixedLenFeature([], tf.string), # image's bytes
@@ -217,7 +217,7 @@ dataset = dataset.map(parse_fn)
 
 +   `.filter(predicate)`，该方法根据提供的 `predicate` 函数的布尔输出来保留/移除元素。例如，如果我们想过滤一个数据集，移除存储在在线的数据，我们可以如下使用该方法：
 
-```
+```py
 url_regex = "(?i)([a-z][a-z0-9]*)://([^ /]+)(/[^ ]*)?|([^ @]+)@([^ @]+)"
 def is_not_url(filename): #NB: the regex isn't 100% sure/covering all cases
     return ~(tf.strings.regex_full_match(filename, url_regex))
@@ -228,7 +228,7 @@ dataset = dataset.filter(is_not_url)
 
 +   `**.**skip(count)`，该方法返回一个去除了前 `count` 个元素的数据集。这两个方法都可以用来拆分数据集，例如，按如下方式将数据集拆分为训练集和验证集：
 
-```
+```py
 num_training_samples, num_epochs = 10000, 100
 dataset_train = dataset.take(num_training_samples)
 dataset_train = dataset_train.repeat(num_epochs)
@@ -241,7 +241,7 @@ dataset_val   = dataset.skip(num_training_samples)
 
 一些方法也可以用于合并数据集。最简单的两种方法是 `.concatenate(dataset)` 和静态方法 `.zip(datasets)`（请参考文档 [`www.tensorflow.org/api_docs/python/tf/data/Dataset`](https://www.tensorflow.org/api_docs/python/tf/data/Dataset)）。前者*连接*提供的数据集样本与当前数据集样本，而后者则*组合*数据集的元素成元组（类似于 Python 中的 `zip()`），如下所示：
 
-```
+```py
 d1 = tf.data.Dataset.range(3)
 d2 = tf.data.Dataset.from_tensor_slices([[4, 5], [6, 7], [8, 9]])
 d = tf.data.Dataset.zip((d1, d2))
@@ -250,7 +250,7 @@ d = tf.data.Dataset.zip((d1, d2))
 
 另一种常用于合并来自不同来源的数据的方法是 `.interleave(map_func, cycle_length, block_length, ...)`（请参考文档 [`www.tensorflow.org/api_docs/python/tf/data/Dataset#interleave`](https://www.tensorflow.org/api_docs/python/tf/data/Dataset#interleave)）。该方法将 `map_func` 函数应用于数据集的元素，并对结果进行*交错*。现在让我们回到 *解析图像和标签* 部分中展示的示例，图像文件和类名列在一个文本文件中。如果我们有多个这样的文本文件，并希望将它们的所有图像合并成一个数据集，可以按如下方式使用 `.interleave()`：
 
-```
+```py
 filenames = ['/path/to/file1.txt', '/path/to/file2.txt', ...]
 d = tf.data.Dataset.from_tensor_slices(filenames)
 d = d.interleave(lambda f: tf.data.TextLineDataset(f).map(parse_fn), 
@@ -283,7 +283,7 @@ TensorFlow 还提供了 `tf.data.experimental.parallel_interleave()`（请参阅
 
 预取基本上实现了数据准备和训练操作的 *并行化*，以 *生产者-消费者* 的方式进行。因此，通过启用并行调用和预取，可以通过少量更改大大减少训练时间，如下所示：
 
-```
+```py
 dataset = tf.data.TextLineDataset('/path/to/file.txt')
 dataset = dataset.map(parse_fn, num_threads).batch(batch_size).prefetch(1)
 ```
@@ -314,7 +314,7 @@ dataset = dataset.map(parse_fn, num_threads).batch(batch_size).prefetch(1)
 
 当前名为 `.experimental_optimization` 的属性包含一组与数据集操作自动优化相关的*子选项*（请参阅前面的信息框）。例如， `.map_and_batch_fusion` 属性可以设置为 `True`，以使 TensorFlow 自动融合 `.map()` 和 `.batch()` 调用；`.map_parallelization` 可以设置为 `True`，使 TensorFlow 自动并行化某些映射函数，等等，具体如下：
 
-```
+```py
 options = tf.data.Options()
 options.experimental_optimization.map_and_batch_fusion = True
 dataset = dataset.with_options(options)
@@ -336,7 +336,7 @@ TensorFlow 2 的一个新特性是能够聚合有关 `tf.data` 管道的一些�
 
 因此，数据集的统计信息可以聚合并保存（例如，供 TensorBoard 使用），如下所示：
 
-```
+```py
 # Use utility function to tell TF to gather latency stats for this dataset:
 dataset = dataset.apply(tf.data.experimental.latency_stats("data_latency"))
 # Link stats aggregator to dataset through the global options:
@@ -359,7 +359,7 @@ with summary_writer.as_default():
 
 可以通过调用数据集的`.cache(filename)`方法来缓存样本。如果已缓存，数据在下一次迭代时将无需经过相同的转换（即，在接下来的时期）。请注意，缓存数据的内容将取决于该方法应用的时机。请看以下示例：
 
-```
+```py
 dataset = tf.data.TextLineDataset('/path/to/file.txt')
 dataset_v1 = dataset.cache('cached_textlines.temp').map(parse_fn)
 dataset_v2 = dataset.map(parse_fn).cache('cached_images.temp')
@@ -443,7 +443,7 @@ Python 提供了各种各样的框架来处理和转换图像。除了 *OpenCV*�
 
 确保对图像对应用相同几何变换的一个解决方案如下：
 
-```
+```py
 img_dim, img_ch = tf.shape(img)[-3:-1], tf.shape(img)[-1]
 # Stack/concatenate the image pairs along the channel axis:
 stacked_imgs = tf.concat([img, tf.cast(gt_img, img.dtype)], -1)
@@ -620,7 +620,7 @@ img = tf.image.random_brightness(image, max_delta=0.15)
 
 请注意，在 TensorFlow 2 中，操控特定操作的梯度是非常直接的。可以通过应用 `@tf.custom_gradient` 装饰器（参考文档 [`www.tensorflow.org/api_docs/python/tf/custom_gradient`](https://www.tensorflow.org/api_docs/python/tf/custom_gradient)）到函数，并提供自定义的梯度操作来完成此任务。通过这种方式，我们可以为 *DANN* 实现以下操作，操作将在特征提取器后、领域分类层之前调用，以便在反向传播时反转该点的梯度：
 
-```
+```py
 # This decorator specifies the method has a custom gradient. Along with its normal output, the method should return the function to compute its gradient:
 @tf.custom_gradient 
 def reverse_gradient(x): # Flip the gradient's sign.

@@ -30,7 +30,7 @@
 
 一开始，我们将通过自动化脚本从网站上下载所有 209 本书，具体如下：
 
-```
+```py
 url = 'https://www.cs.cmu.edu/~spok/grimmtmp/'
 dir_name = 'data'
 def download_data(url, filename, download_dir):
@@ -93,7 +93,7 @@ print('{} files found.'.format(len(filenames)))
 
 我们将把下载的故事分成三个集合：训练集、验证集和测试集。我们将使用每个集合中文件的内容作为训练、验证和测试数据。我们将使用 scikit-learn 的`train_test_split()`函数来完成这项工作。
 
-```
+```py
 from sklearn.model_selection import train_test_split
 # Fix the random seed so we get the same output everytime
 random_state = 54321
@@ -112,7 +112,7 @@ for subset_id, subset in zip(('train', 'valid', 'test'), (train_filenames, valid
 
 这段代码将输出以下文本：
 
-```
+```py
 Got 167 files in the train dataset (e.g. ['data\\117.txt', 'data\\133.txt', 'data\\069.txt'])
 Got 21 files in the valid dataset (e.g. ['data\\023.txt', 'data\\078.txt', 'data\\176.txt'])
 Got 21 files in the test dataset (e.g. ['data\\129.txt', 'data\\207.txt', 'data\\170.txt']) 
@@ -134,7 +134,7 @@ Got 21 files in the test dataset (e.g. ['data\\129.txt', 'data\\207.txt', 'data\
 
 最后，我们用包含每个故事的字符串中的所有二元组更新`set`对象。通过每次遍历字符串两个字符来获取二元组：
 
-```
+```py
 bigram_set = set()
 # Go through each file in the training set
 for fname in train_filenames:
@@ -156,7 +156,7 @@ print("Found {} unique bigrams".format(n_vocab))
 
 这将打印：
 
-```
+```py
 Found 705 unique bigrams 
 ```
 
@@ -178,7 +178,7 @@ Found 705 unique bigrams
 
 例如，假设`ngram_width`为 2，`batch_size`为 1，`window_size`为 5。此函数将接受字符串“*国王正在森林中打猎*”并输出：
 
-```
+```py
 Batch 1: ["th", "e ", "ki", " ng", " w"] -> ["e ", "ki", "ng", " w", "as"]
 Batch 2: ["as", " h", "un", "ti", "ng"] -> [" h", "un", "ti", "ng", " i"]
 … 
@@ -192,7 +192,7 @@ Batch 2: ["as", " h", "un", "ti", "ng"] -> [" h", "un", "ti", "ng", " i"]
 
 让我们讨论如何使用 TensorFlow 的`tf.data` API 实现管道的具体细节。我们将定义生成数据管道的代码作为可重用的函数：
 
-```
+```py
 def generate_tf_dataset(filenames, ngram_width, window_size, batch_size, shuffle=False):
     """ Generate batched data from a list of files speficied """
     # Read the data found in the documents
@@ -256,7 +256,7 @@ def generate_tf_dataset(filenames, ngram_width, window_size, batch_size, shuffle
 
 现在让我们更详细地讨论上述代码。首先，我们遍历`filenames`变量中的每个文件，并使用以下方法读取每个文件的内容：
 
-```
+```py
 doc = tf.io.read_file(f) 
 ```
 
@@ -270,7 +270,7 @@ doc = tf.io.read_file(f)
 
 每个故事都存储在一个列表对象`(documents)`中。需要注意的是，`tf.strings.ngrams()`会为给定的 n-gram 长度生成所有可能的 n-grams。换句话说，连续的 n-grams 会有重叠。例如，序列“*国王在打猎*”如果 n-gram 长度为 2，将生成`["Th", "he", "e ", " k", …]`。因此，我们稍后需要额外的处理步骤来去除序列中的重叠 n-grams。在所有 n-grams 读取和处理完成后，我们从文档中创建一个`RaggedTensor`对象：
 
-```
+```py
 documents = tf.ragged.constant(documents) 
 ```
 
@@ -280,26 +280,26 @@ documents = tf.ragged.constant(documents)
 
 我们可以通过将包含值的嵌套列表传递给`tf.ragged.constant()`函数来定义一个 ragged tensor：
 
-```
+```py
 a = tf.ragged.constant([[1, 2, 3], [1,2], [1]]) 
 ```
 
 我们还可以定义一个平坦的值序列，并定义在哪里拆分行：
 
-```
+```py
 b = tf.RaggedTensor.from_row_splits([1,2,3,4,5,6,7],
 row_splits=[0, 3, 3, 6, 7]) 
 ```
 
 在这里，`row_splits`参数中的每个值定义了结果张量中后续行的结束位置。例如，第一行将包含从索引 0 到 3 的元素（即 0、1、2）。这将输出：
 
-```
+```py
 <tf.RaggedTensor [[1, 2, 3], [], [4, 5, 6], [7]]> 
 ```
 
 你可以使用`b.shape`获取张量的形状，它将返回：
 
-```
+```py
 [4, None] 
 ```
 
@@ -307,19 +307,19 @@ row_splits=[0, 3, 3, 6, 7])
 
 这个函数简单地生成一个数据集，其中数据集中的单个项将是提供的张量的一行。例如，如果你提供一个形状为`[10, 8, 6]`的标准张量，它将生成 10 个形状为`[8, 6]`的样本：
 
-```
+```py
 doc_dataset = tf.data.Dataset.from_tensor_slices(documents) 
 ```
 
 在这里，我们仅通过每次取序列中的每个*n*^(th)个 n-gram 来去除重叠的 n-grams：
 
-```
+```py
 doc_dataset = doc_dataset.map(lambda x: x[::ngram_width]) 
 ```
 
 然后，我们将使用`tf.data.Dataset.window()`函数从每个故事中创建较短的固定长度窗口序列：
 
-```
+```py
 doc_dataset = doc_dataset.flat_map(
     lambda x: tf.data.Dataset.from_tensor_slices(
         x
@@ -334,20 +334,20 @@ doc_dataset = doc_dataset.flat_map(
 
 从每个窗口中，我们生成输入和目标对，如下所示。我们将所有 n-gram（除了最后一个）作为输入，将所有 n-gram（除了第一个）作为目标。这样，在每个时间步，模型将根据所有先前的 n-gram 预测下一个 n-gram。shift 决定了在每次迭代时窗口的移动量。记录之间的一些重叠可以确保模型不会将故事视为独立的窗口，这可能导致性能差。我们将保持两个连续序列之间大约 25%的重叠：
 
-```
+```py
 doc_dataset = doc_dataset.map(lambda x: (x[:-1], x[1:])) 
 ```
 
 我们使用`tf.data.Dataset.shuffle()`对数据进行洗牌，并按预定义的批量大小对数据进行分批。请注意，我们需要为`shuffle()`函数指定`buffer_size`。`buffer_size`决定了洗牌前获取多少数据。你缓存的数据越多，洗牌效果会越好，但内存消耗也会越高：
 
-```
+```py
 doc_dataset = doc_dataset.shuffle(buffer_size=batch_size*10) if shuffle else doc_dataset
 doc_dataset = doc_dataset.batch(batch_size=batch_size) 
 ```
 
 最后，我们指定必要的超参数，并生成三个数据集：训练集、验证集和测试集：
 
-```
+```py
 ngram_length = 2
 batch_size = 256
 window_size = 128
@@ -358,7 +358,7 @@ test_ds = generate_tf_dataset(test_filenames, ngram_length, window_size, batch_s
 
 让我们生成一些数据，并查看这个函数生成的数据：
 
-```
+```py
 ds = generate_tf_dataset(train_filenames, 2, window_size=10, batch_size=1).take(5)
 for record in ds:
         print(record[0].numpy(), '->', record[1].numpy()) 
@@ -366,7 +366,7 @@ for record in ds:
 
 这将返回：
 
-```
+```py
 [[b'th' b'er' b'e ' b'wa' b's ' b'on' b'ce' b' u' b'po' b'n ']] -> [[b'er' b'e ' b'wa' b's ' b'on' b'ce' b' u' b'po' b'n ' b'a ']]
 [[b' u' b'po' b'n ' b'a ' b'ti' b'me' b' a' b' s' b'he' b'ph']] -> [[b'po' b'n ' b'a ' b'ti' b'me' b' a' b' s' b'he' b'ph' b'er']]
 [[b' s' b'he' b'ph' b'er' b'd ' b'bo' b'y ' b'wh' b'os' b'e ']] -> [[b'he' b'ph' b'er' b'd ' b'bo' b'y ' b'wh' b'os' b'e ' b'fa']]
@@ -389,7 +389,7 @@ for record in ds:
 
 在这里，我们将定义一个`TextVectorization`层，将 n-gram 序列转换为整数 ID 序列：
 
-```
+```py
 import tensorflow.keras.layers as layers
 import tensorflow.keras.models as models
 # The vectorization layer that will convert string bigrams to IDs
@@ -401,25 +401,25 @@ text_vectorizer = tf.keras.layers.TextVectorization(
 
 请注意，我们正在定义几个重要的参数，例如 `max_tokens`（词汇表的大小）、`standardize` 参数（不进行任何文本预处理）、`split` 参数（不进行任何分割），最后是 `input_shape` 参数，用于告知该层输入将是一个由 n-gram 序列组成的批次。通过这些参数，我们需要训练文本向量化层，以识别可用的 n-gram 并将其映射到唯一的 ID。我们可以直接将训练好的 `tf.data` 数据管道传递给该层，让它学习这些 n-gram。
 
-```
+```py
 text_vectorizer.adapt(train_ds) 
 ```
 
 接下来，让我们打印词汇表中的单词，看看这一层学到了什么：
 
-```
+```py
 text_vectorizer.get_vocabulary()[:10] 
 ```
 
 它将输出：
 
-```
+```py
 ['', '[UNK]', 'e ', 'he', ' t', 'th', 'd ', ' a', ', ', ' h'] 
 ```
 
 一旦 `TextVectorization` 层训练完成，我们必须稍微修改我们的训练、验证和测试数据管道。请记住，我们的数据管道将 n-gram 字符串序列作为输入和目标输出。我们需要将目标序列转换为 n-gram ID 序列，以便计算损失。为此，我们只需通过 `text_vectorizer` 层使用 `tf.data.Dataset.map()` 功能将数据集中的目标传递给该层：
 
-```
+```py
 train_ds = train_ds.map(lambda x, y: (x, text_vectorizer(y)))
 valid_ds = valid_ds.map(lambda x, y: (x, text_vectorizer(y))) 
 ```
@@ -442,7 +442,7 @@ valid_ds = valid_ds.map(lambda x, y: (x, text_vectorizer(y)))
 
 由于模型的结构非常简单，层是顺序定义的，因此我们将使用 Sequential API 来定义该模型。
 
-```
+```py
 import tensorflow.keras.backend as K
 K.clear_session()
 lm_model = models.Sequential([
@@ -464,13 +464,13 @@ lm_model = models.Sequential([
 
 你可以通过执行以下命令查看该模型的摘要：
 
-```
+```py
 lm_model.summary() 
 ```
 
 它返回的结果为：
 
-```
+```py
 Model: "sequential"
 _________________________________________________________________
  Layer (type)                Output Shape              Param #   
@@ -519,7 +519,7 @@ _________________________________________________________________
 
 在 TensorFlow 中，我们定义了一个自定义的`tf.keras.metrics.Metric`对象来计算困惑度。我们将使用`tf.keras.metrics.Mean`作为我们的父类，因为它已经知道如何计算和跟踪给定指标的均值：
 
-```
+```py
 class PerplexityMetric(tf.keras.metrics.Mean):
     def __init__(self, name='perplexity', **kwargs):
         super().__init__(name=name, **kwargs)
@@ -550,7 +550,7 @@ class PerplexityMetric(tf.keras.metrics.Mean):
 
 +   使用准确度和困惑度作为我们的指标
 
-```
+```py
 lm_model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy', PerplexityMetric()]) 
 ```
 
@@ -560,19 +560,19 @@ lm_model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metri
 
 现在是训练我们模型的时候了。由于我们已经完成了所有需要的繁重工作（例如读取文件、预处理和转换文本，以及编译模型），我们只需要调用模型的`fit()`函数：
 
-```
+```py
 lm_model.fit(train_ds, validation_data=valid_ds, epochs=60) 
 ```
 
 这里我们将 `train_ds`（训练数据管道）作为第一个参数，将 `valid_ds`（验证数据管道）作为 `validation_data` 参数，并设置训练运行 60 个周期。训练完成后，我们通过简单地调用以下代码来评估模型在测试数据集上的表现：
 
-```
+```py
 lm_model.evaluate(test_ds) 
 ```
 
 这会产生如下输出：
 
-```
+```py
 5/5 [==============================] - 0s 45ms/step - loss: 2.4742 - accuracy: 0.3968 - perplexity: 12.3155 
 ```
 
@@ -592,7 +592,7 @@ lm_model.evaluate(test_ds)
 
 我们的推理模型将会更加复杂，因为我们需要设计一个迭代过程，使用先前的预测作为输入生成文本。因此，我们将使用 Keras 的功能性 API 来实现该模型：
 
-```
+```py
 # Define inputs to the model
 inp = tf.keras.layers.Input(dtype=tf.string, shape=(1,))
 inp_state_c_lstm = tf.keras.layers.Input(shape=(512,))
@@ -627,7 +627,7 @@ infer_model = tf.keras.models.Model(
 
 请注意，我们正在定义 `shape` 参数。这意味着它可以接受任意大小的批量数据（只要它具有一个时间步）。我们还定义了其他几个输入，以维持 LSTM 层的状态。这是因为我们必须显式维护 LSTM 层的状态向量，因为我们正在递归地从模型中生成输出：
 
-```
+```py
 inp = tf.keras.layers.Input(dtype=tf.string, shape=(1,))
 inp_state_c_lstm = tf.keras.layers.Input(shape=(512,))
 inp_state_h_lstm = tf.keras.layers.Input(shape=(512,))
@@ -637,20 +637,20 @@ inp_state_h_lstm_1 = tf.keras.layers.Input(shape=(256,))
 
 接下来，我们检索训练好的模型的 `text_vectorization` 层，并使用它将文本转换为整数 ID：
 
-```
+```py
 text_vectorized_out = lm_model.get_layer('text_vectorization')(inp) 
 ```
 
 然后，我们获取训练模型的嵌入层并使用它来生成嵌入输出：
 
-```
+```py
 emb_layer = lm_model.get_layer('embedding')
 emb_out = emb_layer(text_vectorized_out) 
 ```
 
 我们将创建一个全新的 LSTM 层，代表训练模型中的第一个 LSTM 层。这是因为推理 LSTM 层与训练 LSTM 层之间会有一些细微差异。因此，我们将定义新的层，并稍后将训练好的权重复制过来。我们将 `return_state` 参数设置为 `True`。通过将其设置为 `True`，我们在调用该层时将获得三个输出：最终输出、单元状态和最终状态向量。注意，我们还传递了另一个名为 `initial_state` 的参数。`initial_state` 需要是一个张量列表：按顺序包括单元状态和最终状态向量。我们将输入层作为这些状态并将在运行时相应地填充它们：
 
-```
+```py
 lstm_layer = tf.keras.layers.LSTM(512, return_state=True, return_sequences=True)
 lstm_out, lstm_state_c, lstm_state_h = lstm_layer(emb_out, initial_state=[inp_state_c_lstm, inp_state_h_lstm]) 
 ```
@@ -659,7 +659,7 @@ lstm_out, lstm_state_c, lstm_state_h = lstm_layer(emb_out, initial_state=[inp_st
 
 这是因为在推理时，`softmax`只是额外的开销，因为我们只需要输出具有最高输出分数的类（即不需要是概率分布）：
 
-```
+```py
 # Defining a Dense layer and output
 dense_out = lm_model.get_layer('dense')(lstm_1_out)
 # Defining the final Dense layer and output
@@ -668,14 +668,14 @@ final_out = lm_model.get_layer('dense_1')(dense_out)
 
 不要忘记将训练好的 LSTM 层的权重复制到我们新创建的 LSTM 层：
 
-```
+```py
 lstm_layer.set_weights(lm_model.get_layer('lstm').get_weights())
 lstm_1_layer.set_weights(lm_model.get_layer('lstm_1').get_weights()) 
 ```
 
 最后，我们定义模型：
 
-```
+```py
 infer_model = tf.keras.models.Model(
     inputs=[inp, inp_state_c_lstm, inp_state_h_lstm, 
     inp_state_c_lstm_1, inp_state_h_lstm_1], 
@@ -689,7 +689,7 @@ infer_model = tf.keras.models.Model(
 
 我们将使用新的推理模型生成一个故事。我们将定义一个初始种子，用来生成故事。这里，我们从一个测试文件的第一句话开始。然后我们通过递归使用预测的二元组在时间*t*时作为时间*t*+1 的输入来生成文本。我们将运行 500 步：
 
-```
+```py
 text = ["When adam and eve were driven out of paradise, they were compelled to build a house for themselves on barren ground"]
 seq = [text[0][i:i+2] for i in range(0, len(text[0]), 2)]
 # build up model state using the given string
@@ -753,14 +753,14 @@ print(''.join(text))
 
 注意我们如何递归地使用变量`x`、`state_c`、`state_h`、`state_c_1`和`state_h_1`来生成并分配新值。
 
-```
+```py
  out, state_c, state_h, state_c_1, state_h_1  = 
     infer_model.predict([x, state_c, state_h, state_c_1, state_h_1 ]) 
 ```
 
 此外，我们将使用一个简单的条件来多样化我们生成的输入：
 
-```
+```py
 if word.endswith(' '):
         if np.random.normal()>0.5:
             width = 5
@@ -772,7 +772,7 @@ if word.endswith(' '):
 
 本质上，如果预测的二元组以`' '`字符结尾，我们将随机选择下一个二元组，从前五个二元组中选择。每个二元组将根据其预测的可能性被选中。让我们看看输出文本是什么样的：
 
-```
+```py
 When adam and eve were driven out of paradise, they were compelled to build a house for themselves on barren groundy the king's daughter and said, i will so the king's daughter angry this they were and said, "i will so the king's daughter.  the king's daughter.' they were to the forest of the stork.  then the king's daughters, and they were to the forest of the stork, and, and then they were to the forest.  ... 
 ```
 
@@ -824,7 +824,7 @@ GRU 模型采用了比 LSTM 更简单的门控机制。然而，它仍然能够�
 
 在这里，我们将定义一个基于 GRU 的语言模型：
 
-```
+```py
 text_vectorizer = tf.keras.layers.TextVectorization(
     max_tokens=n_vocab, standardize=None,
     split=None, input_shape=(window_size,)
@@ -862,7 +862,7 @@ lm_gru_model = models.Sequential([
 
 幸运的是，我们已经将此技术作为`tensorflow_addons`中的`RNNCell`对象进行了实现。因此，我们所需要做的就是将这个`PeepholeLSTMCell`对象包装在`layers.RNN`对象中，以生成所需的层。以下是代码实现：
 
-```
+```py
 text_vectorizer = tf.keras.layers.TextVectorization(
     max_tokens=n_vocab, standardize=None,
     split=None, input_shape=(window_size,)
@@ -924,7 +924,7 @@ lm_peephole_model = models.Sequential([
 
 我们将束搜索实现为一个递归函数。但首先，我们将实现一个执行递归函数单步操作的函数，称为 `beam_one_step()`。该函数简单地接受模型、输入和状态（来自 LSTM），并生成输出和新状态。
 
-```
+```py
 def beam_one_step(model, input_, states): 
     """ Perform the model update and output for one step"""
     out = model.predict([input_, *states])
@@ -946,7 +946,7 @@ def beam_one_step(model, input_, states):
 
 现在让我们讨论这个函数：
 
-```
+```py
 def beam_search(model, input_, states, beam_depth=5, beam_width=3):
     """ Defines an outer wrapper for the computational function of 
     beam search """
@@ -1007,7 +1007,7 @@ def beam_search(model, input_, states, beam_depth=5, beam_width=3):
 
 在这里，我们只展示我们如何通过迭代调用 `beam_search()` 来生成新文本的部分。完整的代码请参见 `ch08_lstms_for_text_generation.ipynb`。
 
-```
+```py
 for i in range(50):
     print('.', end='')
     # Get the results from beam search
@@ -1026,13 +1026,13 @@ for i in range(50):
 
 让我们看看 LSTM 在使用束搜索（beam search）时的表现：
 
-```
+```py
 When adam and eve were driven out of paradise, they were compelled to build a house for themselves on barren groundr, said the king's daughter went out of the king's son to the king's daughter, and then the king's daughter went into the world, and asked the hedgehog's daughter that the king was about to the forest, and there was on the window, and said, "if you will give her that you have been and said, i will give him the king's daughter, but when she went to the king's sister, and when she was still before the window, and said to himself, and when he said to her father, and that he had nothing and said to hi 
 ```
 
 这是标准的 LSTM 使用贪婪采样（即一次预测一个词）时的输出：
 
-```
+```py
 When adam and eve were driven out of paradise, they were compelled to build a house for themselves on barren groundr, and then this they were all the third began to be able to the forests, and they were.  the king's daughter was no one was about to the king's daughter to the forest of them to the stone.  then the king's daughter was, and then the king's daughter was nothing-eyes, and the king's daughter was still, and then that had there was about through the third, and the king's daughters was seems to the king's daughter to the forest of them to the stone for them to the forests, and that it was not been to be ables, and the king's daughter wanted to be and said, ... 
 ```
 

@@ -94,20 +94,20 @@ TF.js 为你提供了机器学习项目所需的所有元素。它有专门的�
 
 我们可以根据给定的形状在 TF.js 中创建一个张量，如下所示：
 
-```
+```py
 const shape = [2, 3]; // 2 rows, 3 columns
 const a = tf.tensor([4.0, 2.0, 5.0, 15.0, 19.0, 27.0], shape);
 ```
 
 `a` 是一个已创建的张量，其内容可以使用以下命令打印出来：
 
-```
+```py
 a.print()
 ```
 
 以下输出被打印：
 
-```
+```py
 Output: [[4 , 2 , 5 ],
  [15, 19, 27]]
 ```
@@ -118,7 +118,7 @@ Output: [[4 , 2 , 5 ],
 
 与张量不同，变量在 TF.js 中是可变的。变量在神经网络训练过程中尤为重要，因为它们包含了大量中间数据存储和更新。以下是如何在 TF.js 中使用变量的示例：
 
-```
+```py
 const initialValues = tf.ones([5]);
 const weights = tf.variable(initialValues); // initialize weights
 weights.print(); // output: [1, 1, 1, 1, 1]
@@ -133,7 +133,7 @@ weights.print(); // output: [0, 1, 0, 1, 0]
 
 运算符让你对数据进行数学运算。TF.js 提供了各种用于操作张量的运算符。由于张量本质上是不可变的，运算符不会改变张量中的数据——它们会返回新的张量作为结果。你可以对张量执行二元操作，如加法、乘法和减法。你甚至可以链式调用多个操作。以下示例展示了如何在 TF.js 中使用两个不同的运算符进行链式操作：
 
-```
+```py
 const e = tf.tensor2d([[1.0, 2.0], [3.0, 4.0]]); 
 const f = tf.tensor2d([[3.0, 4.0], [5.0, 6.0]]); 
 const sq_sum = tf.square(tf.add(e, f));
@@ -144,7 +144,7 @@ sq_sum.print();
 
 这会产生以下输出：
 
-```
+```py
 // Output: [[16 , 36],
 // [64, 100]]
 ```
@@ -157,7 +157,7 @@ sq_sum.print();
 
 TF.js 提供了多种专用层类型，用于不同任务的需求——`tf.layers.dense`、`tf.layers.dropout`、`tf.layers.conv1d`、`tf.layers.simpleRNN`、`tf.layers.gru` 和 `tf.layers.lstm`。以下示例通过 `tf.sequential` 和 `tf.layers.dense` 展示了一个简单的神经网络模型：
 
-```
+```py
 const model = tf.sequential();
 model.add(tf.layers.dense({units: 4, inputShape: [4], activation: 'relu'}));
 model.add(tf.layers.dense({units: 1, activation: sigmoid}));
@@ -251,7 +251,7 @@ model.add(tf.layers.dense({units: 1, activation: sigmoid}));
 
 1.  打开终端，并使用以下命令初始化该项目的包管理器：
 
-```
+```py
 npm init -y
 ```
 
@@ -265,7 +265,7 @@ npm init -y
 
 1.  要使用`express`，我们需要将这个模块添加到我们的项目中。为此，请使用以下代码：
 
-```
+```py
 npm install express --save
 ```
 
@@ -273,7 +273,7 @@ npm install express --save
 
 1.  在项目仓库的根目录下创建一个名为`index.js`的文件，并添加以下代码：
 
-```
+```py
 var express = require('express');
 var app = express(); 
 ```
@@ -282,25 +282,25 @@ var app = express();
 
 1.  使用以下命令在终端中安装`TF.js`模块：
 
-```
+```py
 npm install @tensorflow/tfjs --save
 ```
 
 1.  现在我们可以继续将该模块添加到我们的`index.js`文件中了：
 
-```
+```py
 const tf = require('@tensorflow/tfjs');
 ```
 
 1.  我们还需要 Express.js 中的`body-parser`模块来处理来自客户端的查询数据，这些数据将通过 AJAX `POST`请求发送。为此，我们使用以下命令：
 
-```
+```py
 npm install body-parser --save
 ```
 
 1.  我们现在创建一个`body-parser`对象，并使用以下代码将其绑定到应用程序：
 
-```
+```py
 var bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded({ extended: false }));
 ```
@@ -311,7 +311,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 
 请注意，前面的版本可能会发生变化。我们现在可以导入`iris.json`文件，这是我们将要训练的模型数据：
 
-```
+```py
 const iris = require('./iris.json');
 ```
 
@@ -323,7 +323,7 @@ const iris = require('./iris.json');
 
 1.  在你的`index.js`文件中，添加以下代码：
 
-```
+```py
 const trainingData = tf.tensor2d(iris.map(item=> [
     item.sepal_length, item.sepal_width, item.petal_length, item.petal_width
 ]),[144,4])
@@ -333,7 +333,7 @@ const trainingData = tf.tensor2d(iris.map(item=> [
 
 1.  接下来，我们创建一个可能的三种花卉品种的独热编码：
 
-```
+```py
 const outputData = tf.tensor2d(iris.map(item => [
     item.species === 'setosa' ? 1 : 0,
     item.species === 'virginica' ? 1 : 0,
@@ -345,13 +345,13 @@ const outputData = tf.tensor2d(iris.map(item => [
 
 1.  我们首先声明一个顺序的 TensorFlow 模型：
 
-```
+```py
 const model = tf.sequential();
 ```
 
 1.  接下来，让我们为模型添加一层神经元：
 
-```
+```py
 model.add(tf.layers.dense({
     inputShape: 4, 
     activation: 'sigmoid', 
@@ -363,7 +363,7 @@ model.add(tf.layers.dense({
 
 1.  现在让我们添加输出层：
 
-```
+```py
 model.add(tf.layers.dense({
     inputShape: 10, 
     units: 3, 
@@ -379,7 +379,7 @@ model.add(tf.layers.dense({
 
 1.  完成这一切后，我们现在可以准备编译我们的模型。为此，我们使用以下代码：
 
-```
+```py
 model.compile({
     loss: "categoricalCrossentropy",
     optimizer: tf.train.adam()
@@ -390,7 +390,7 @@ model.compile({
 
 1.  我们可以使用以下代码生成模型的摘要：
 
-```
+```py
 model.summary();
 ```
 
@@ -400,7 +400,7 @@ model.summary();
 
 我们现在将编写一个 `async` 函数。这样做的原因是为了让客户端 JavaScript 调用我们的函数时，不会因为等待结果而卡住。我们程序中需要一定时间才能完成的函数是 `train_data()` 函数。该函数负责模型的训练：
 
-```
+```py
 async function train_data(){
     console.log("Training Started");
     for(let i=0;i<50;i++){
@@ -419,7 +419,7 @@ async function train_data(){
 
 `doTrain()` 中间件在其参数中接受对 Node.js 服务器发出的请求、用于响应的变量，以及在执行完中间件中定义的代码块后用来转发程序执行的函数：
 
-```
+```py
 var doTrain = async function (req, res, next) {
     await train_data();
     next();
@@ -428,7 +428,7 @@ var doTrain = async function (req, res, next) {
 
 `doTrain` 中间件调用 `train_data()` 函数并等待其结果。`train_data()` 函数返回一个 *Promise*，以便执行可以继续而不会冻结。`next()` 函数在 `train_data()` 函数完成后立即运行，它只是将程序的执行传递给下一个链式调用的中间件函数，如下所示：
 
-```
+```py
 app.use(doTrain).post('/train', function(req, res) {
     res.send("1");
 });
@@ -440,7 +440,7 @@ app.use(doTrain).post('/train', function(req, res) {
 
 训练完成后，我们还需要创建一个 API 来调用预测函数并返回预测结果。我们将 API 绑定到 `'/predict'` 路由，并使用 `POST` 方法发起对该 API 的请求，如下所示：
 
-```
+```py
 app.post('/predict', function(req, res) {
     var test = tf.tensor2d([parseFloat(req.body.sepLen), parseFloat(req.body.sepWid),                                 parseFloat(req.body.petLen), parseFloat(req.body.petWid)], [1,4]);
     var out = model.predict(test);
@@ -470,20 +470,20 @@ app.post('/predict', function(req, res) {
 
 理解预测 API 的代码非常简单。让我们分部分讨论：
 
-```
+```py
 app.post('/predict', function(req, res) {
 ```
 
 这一行将 `'/predict'` 路由绑定到 `POST` 请求方法，并打开处理请求代码块，处理所有对该路由的请求：
 
-```
+```py
     var test = tf.tensor2d([parseFloat(req.body.sepLen), parseFloat(req.body.sepWid),                                     parseFloat(req.body.petLen), parseFloat(req.body.petWid)], [1,4]);
     var output = model.predict(test);
 ```
 
 这些行创建了一个 TF.js `tensor2d` 对象，数据是从客户端接收到的。接着，它在模型上运行 `predict` 方法，并将结果存储在 output 变量中：
 
-```
+```py
     var maxIndex = 0;
     for (let i=1;i<out.size; i++){
         if (out.buffer().get(0, i) > out.buffer().get(0, maxIndex)){
@@ -496,7 +496,7 @@ app.post('/predict', function(req, res) {
 
 在确定输出的最大索引之后，我们使用一个简单的 switch-case 语句来决定从 API 发送到客户端的输出内容。请求数据也会记录在服务器的控制台中。最后，我们使用以下代码将 Node.js 应用绑定到监听 `3000` 端口：
 
-```
+```py
 app.listen(3000);
 ```
 
@@ -506,7 +506,7 @@ app.listen(3000);
 
 为了处理应用程序中的 `'/'` 路由，我们向 `index.js` 添加以下代码行，它仅渲染一个静态文件 `index.html`，该文件位于 public 文件夹中：
 
-```
+```py
 app.use(express.static('./public')).get('/', function (req, res) {
     res.sendFile('./index.html');
 });
@@ -516,7 +516,7 @@ app.use(express.static('./public')).get('/', function (req, res) {
 
 1.  首先，创建一个文件夹，`public`，并在其中创建 `index.html` 文件。将以下代码添加到 `index.html` 文件中：
 
-```
+```py
 <html>
   <head>
     <title>TF.js Example - Iris Flower Classficiation</title>
@@ -550,7 +550,7 @@ app.use(express.static('./public')).get('/', function (req, res) {
 
 1.  在为客户端设置了一个简单的 UI，调用我们使用 TF.js 创建的 API 后，我们准备好定义功能并从客户端部署它们。请注意，`"/train"` 和 `"/predict"` 两个 API 都将通过 `POST` 请求进行调用：
 
-```
+```py
     <script>
 
       $('#train-btn').click(function(){
@@ -595,7 +595,7 @@ app.use(express.static('./public')).get('/', function (req, res) {
 
 运行以下代码行以启动 Node.js 服务器：
 
-```
+```py
 node index.js
 ```
 

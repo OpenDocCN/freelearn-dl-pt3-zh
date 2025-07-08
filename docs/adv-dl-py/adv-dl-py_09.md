@@ -274,7 +274,7 @@ word2vec 的一个缺点是它只使用词的局部上下文，而没有考虑�
 
 1.  按照惯例，我们将进行导入：
 
-```
+```py
 import logging
 import pprint  # beautify prints
 
@@ -284,13 +284,13 @@ import nltk
 
 1.  然后，我们将设置日志级别为 `INFO`，以便跟踪训练进度：
 
-```
+```py
 logging.basicConfig(level=logging.INFO)
 ```
 
 1.  接下来，我们将实现文本标记化流水线。标记化是指将文本序列分解为若干部分（或 **tokens**），如单词、关键词、短语、符号和其他元素。tokens 可以是单个单词、短语甚至整个句子。我们将实现两级标记化；首先将文本拆分为句子，然后再将每个句子拆分为单独的单词：
 
-```
+```py
 class TokenizedSentences:
     """Split text to sentences and tokenize them"""
 
@@ -317,13 +317,13 @@ class TokenizedSentences:
 
 1.  然后，我们将实例化 `TokenizedSentences`：
 
-```
+```py
 sentences = TokenizedSentences('war_and_peace.txt')
 ```
 
 1.  接下来，我们将实例化 Gensim 的 word2vec 训练模型：
 
-```
+```py
 model = gensim.models.word2vec. \
     Word2Vec(sentences=sentences,
              sg=1,  # 0 for CBOW and 1 for Skip-gram
@@ -340,7 +340,7 @@ model = gensim.models.word2vec. \
 
 1.  `Word2Vec` 构造函数也启动了训练。在短时间内（你不需要 GPU，因为训练数据集很小），生成的嵌入向量会存储在 `model.wv` 对象中。一方面，它像字典一样，你可以通过 `model.wv['WORD_GOES_HERE']` 访问每个词的向量，然而，它也支持一些其他有趣的功能。你可以通过 `model.wv.most_similar` 方法来衡量不同词语之间的相似性。首先，它将每个词向量转换为单位向量（长度为 1 的向量）。然后，它计算目标词的单位向量与所有其他词的单位向量之间的点积。两个向量的点积越大，它们的相似性越高。例如，`pprint.pprint(model.wv.most_similar(positive='mother', topn=5))` 将输出与词语 `'mother'` 最相似的五个词及其点积：
 
-```
+```py
 [('sister', 0.9024157524108887),
  ('daughter', 0.8976515531539917),
  ('brother', 0.8965438008308411),
@@ -352,7 +352,7 @@ model = gensim.models.word2vec. \
 
 我们还可以找到与目标词组合最相似的词。例如，`model.wv.most_similar(positive=['woman', 'king'], topn=5)` 将计算 `'woman'` 和 `'king'` 的词向量的均值，然后找到与这个新均值最相似的词：
 
-```
+```py
 [('heiress', 0.9176832437515259), ('admirable', 0.9104862213134766), ('honorable', 0.9047746658325195), ('creature', 0.9040032625198364), ('depraved', 0.9013445973396301)]
 ```
 
@@ -364,7 +364,7 @@ model = gensim.models.word2vec. \
 
 1.  一如既往，首先是导入。我们还将日志设置为 `INFO` 级别，以便更好地查看：
 
-```
+```py
 import logging
 import pprint  # beautify prints
 
@@ -379,7 +379,7 @@ logging.basicConfig(level=logging.INFO)
 
 1.  接下来，我们将训练 `Word2vec` 模型。这一次，我们将使用 CBOW 来加速训练。我们将通过 `gensim_downloader.load('text8')` 加载数据集：
 
-```
+```py
 model = Word2Vec(
     sentences=gensim_downloader.load('text8'),  # download and load the text8 dataset
     sg=0, size=100, window=5, negative=5, min_count=5, iter=5)
@@ -387,7 +387,7 @@ model = Word2Vec(
 
 1.  为了判断这个模型是否更好，我们可以尝试找到与`'woman'`和`'king'`最相似但与`'man'`最不相似的词。理想情况下，其中一个词应该是`'queen'`。我们可以使用表达式`pprint.pprint(model.wv.most_similar(positive=['woman', 'king'], negative=['man']))`来实现。输出结果如下：
 
-```
+```py
 [('queen', 0.6532326936721802), ('prince', 0.6139929294586182), ('empress', 0.6126195192337036), ('princess', 0.6075714230537415), ('elizabeth', 0.588543176651001), ('throne', 0.5846244692802429), ('daughter', 0.5667101144790649), ('son', 0.5659586191177368), ('isabella', 0.5611927509307861), ('scots', 0.5606790781021118)]
 ```
 
@@ -395,7 +395,7 @@ model = Word2Vec(
 
 1.  接下来，我们将利用 t-SNE 可视化模型，在收集到的词向量上展示这些词在 2D 图中的分布。t-SNE 将每个高维嵌入向量映射到二维或三维空间中的一个点，使得相似的对象被映射到附近的点，不相似的对象则被映射到远离的点，并且这种映射具有较高的概率。我们将从几个`target_words`开始，然后收集与每个目标词最相似的*n*个词（及其词向量）。以下是执行此操作的代码：
 
-```
+```py
 target_words = ['mother', 'car', 'tree', 'science', 'building', 'elephant', 'green']
 word_groups, embedding_groups = list(), list()
 
@@ -418,7 +418,7 @@ for word in target_words:
 
 该模型以`embedding_groups`聚类为输入，输出带有 2D 嵌入向量的`embeddings_2d`数组。以下是实现代码：
 
-```
+```py
 # Train the t-SNE algorithm
 embedding_groups = np.array(embedding_groups)
 m, n, vector_size = embedding_groups.shape
@@ -431,7 +431,7 @@ embeddings_2d = np.array(embeddings_2d).reshape(m, n, 2)
 
 1.  接下来，我们将展示新的 2D 嵌入。为此，我们将初始化图表及其某些属性，以提高可视性：
 
-```
+```py
 # Plot the results
 plt.figure(figsize=(16, 9))
 # Different color and marker for each group of similar words
@@ -441,7 +441,7 @@ markers = ['o', 'v', 's', 'x', 'D', '*', '+']
 
 1.  然后，我们将遍历每个`similar_words`聚类，并将其词语作为点展示在散点图上。每个聚类使用唯一的标记。点将标注对应的词语：
 
-```
+```py
 # Iterate over all groups
 for label, similar_words, emb, color, marker in \
         zip(target_words, word_groups, embeddings_2d, color_map, markers):
@@ -458,7 +458,7 @@ for label, similar_words, emb, color, marker in \
 
 1.  最后，我们将展示图表：
 
-```
+```py
 plt.legend()
 plt.grid(True)
 plt.show()

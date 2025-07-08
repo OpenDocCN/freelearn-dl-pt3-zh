@@ -306,7 +306,7 @@ Firebase 云函数在 Firebase 平台上运行，按您在创建 Dialogflow 代�
 
 在内联编辑器中的`package.json`文件里，我们将添加`request`和`request-promise-native`包到依赖项中，如下所示：
 
-```
+```py
 "dependencies": {
     "actions-on-google": "².2.0",
     "firebase-admin": "⁵.13.1",
@@ -324,7 +324,7 @@ Firebase 云函数在 Firebase 平台上运行，按您在创建 Dialogflow 代�
 
 我们将添加调用订单管理系统 API 所需的代码。将以下函数添加到`dialogflowFirebaseFulfillment`对象定义中：
 
-```
+```py
 function checkOrderStatus(){
     const request = require('request-promise-native');
     var orderId = agent.parameters.OrderId;
@@ -344,7 +344,7 @@ function checkOrderStatus(){
 
 在文件末尾，在`dialogflowFirebaseFulfillment`对象定义结束之前，添加您之前创建的函数与 Dialogflow 代理中匹配的意图之间的映射，然后调用 webhook 来生成响应：
 
-```
+```py
   let intentMap = new Map();
   intentMap.set('Default Welcome Intent', welcome);
   intentMap.set('Default Fallback Intent', fallback);
@@ -400,7 +400,7 @@ function checkOrderStatus(){
 
 最后，使用以下命令开始将所有发送到随机生成的 ngrok URL 的请求转发到`localhost`：
 
-```
+```py
 ngrok http 8000
 ```
 
@@ -420,13 +420,13 @@ ngrok 服务启动后会保持活跃，只要你保持终端开启。你应该�
 
 每个 Django 网站都是一个项目。要创建一个项目，请使用此命令：
 
-```
+```py
 django-admin startproject ordersui
 ```
 
 创建一个名为 `ordersui` 的目录，目录结构如下：
 
-```
+```py
 ordersui/
 | -- ordersui/
 |         __init.py__
@@ -444,13 +444,13 @@ ordersui/
 
 在新的终端或命令提示符中使用 `cd` 命令切换到 `ordersui` 目录。然后，使用以下命令创建一个应用：
 
-```
+```py
 python manage.py startapp apiui
 ```
 
 这将在 `ordersui` Django 项目的应用目录中创建一个目录，结构如下：
 
-```
+```py
 apiui/ 
 | -- __init__.py
 | -- admin.py
@@ -472,7 +472,7 @@ apiui/
 
 在 `INSTALLED_APPS` 列表中，添加 `apiui` 应用，如下所示：
 
-```
+```py
 # Application definition
 
 INSTALLED_APPS = [
@@ -494,7 +494,7 @@ Django 框架只会在运行时包括 `INSTALLED_APPS` 指令中列出的应用�
 
 注释掉 `DATABASES` 字典，如下所示：
 
-```
+```py
 # Database
 # https://docs.djangoproject.com/en/2.2/ref/settings/#databases
 
@@ -512,7 +512,7 @@ Django 框架只会在运行时包括 `INSTALLED_APPS` 指令中列出的应用�
 
 更改 `ordersui/urls.py` 中的代码，添加路径以包含 `apiui` 应用中的路由设置文件。你的文件将包含以下代码：
 
-```
+```py
 from django.contrib import admin
 from django.urls import path, include
 
@@ -527,7 +527,7 @@ urlpatterns = [
 
 现在我们已经将项目配置为使用`apiui` URL 路由，接下来我们需要为这个应用创建所需的文件。在`apiui`目录下创建一个名为`urls.py`的文件，并添加以下内容：
 
-```
+```py
 from django.urls import path
 
 from . import views
@@ -548,7 +548,7 @@ urlpatterns = [
 
 该路由将简单地显示订单管理系统中的已下订单。我们使用以下代码：
 
-```
+```py
 from django.shortcuts import render, redirect
 from django.contrib import messages
 import requests
@@ -566,7 +566,7 @@ def indexView(request):
 
 如果我们将一个订单 ID 作为`/orderId`传递给相同的`/`路由，那么我们应该返回该订单的状态。使用以下代码：
 
-```
+```py
 def viewOrder(request, orderId):
  URL = "https://example.com/api/" + str(orderId)
  r = requests.get(url=URL)
@@ -584,7 +584,7 @@ def viewOrder(request, orderId):
 
 在这个阶段，你将能够启动 Django 项目服务器，并通过以下命令在浏览器中查看网站：
 
-```
+```py
 python manage.py runserver
 ```
 
@@ -610,7 +610,7 @@ python manage.py runserver
 
 我们使用以下代码快速创建一个提问按钮文本，该按钮将位于网站的右下角：
 
-```
+```py
 <div id="customerChatRoot" class="btn btn-warning" style="position: fixed; bottom: 32px; right: 32px;">Ask a question</div>
 ```
 
@@ -620,7 +620,7 @@ python manage.py runserver
 
 当网页加载完成时，我们需要初始化 Web Speech API 对象，并为其设置必要的配置。为此，请使用以下代码：
 
-```
+```py
 $(document).ready(function(){
             window.SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
             var finalTranscript = '';
@@ -646,7 +646,7 @@ $(document).ready(function(){
 
 然而，我们尚未定义在执行语音转文本（STT）后接收到结果时执行的代码。我们通过向 `recognition.onresult` 函数添加代码来实现这一点，如下所示：
 
-```
+```py
               let interimTranscript = '';
               for (let i = event.resultIndex, len = event.results.length; i < len; i++) {
                 let transcript = event.results[i][0].transcript;
@@ -669,7 +669,7 @@ $(document).ready(function(){
 
 一旦我们获取到用户语音查询的文本版本，我们将把它发送到 Dialogflow 代理，如下所示：
 
-```
+```py
 function goDialogFlow(text){
             $.ajax({
                 type: "POST",
@@ -744,7 +744,7 @@ Dialogflow Gateway 促进了你的语音用户界面与 Dialogflow 代理之间�
 
 在 *步骤 2* 中定义的 `ready` 函数内，添加以下 `click` 处理程序代码：
 
-```
+```py
 $('#customerChatRoot').click(function(){
  recognition.start();
  $(this).text('Speak!');

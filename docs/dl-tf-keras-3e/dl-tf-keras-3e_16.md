@@ -30,7 +30,7 @@ Hugging Face 对我们来说并不陌生；*第六章*，*Transformers*，向我
 
 Hugging Face 生态系统的核心是其 transformers 库。Tokenizers 和 Datasets 库支持 transformers 库。要使用这些库，我们需要先安装它们。Transformers 可以通过简单的 `pip install` 命令进行安装：
 
-```
+```py
 pip install transformers 
 ```
 
@@ -88,7 +88,7 @@ OpenAI 将其推出作为一个通用编程模型，并且它已经在公开的 
 
 以下是 Codex 生成的任务和相应代码的一些片段：
 
-```
+```py
 """ Ask the user for their name and say "Hello" in Python """ 
 print("Hello, world!") 
 name = input("Please type your name: ") 
@@ -123,7 +123,7 @@ PyTorch 库由多个模块组成，这些模块作为构建复杂模型的基础
 
 +   **NN 模块**：这是所有层和构建深度学习网络所需函数的基类。下面，你可以看到一个代码片段，展示了如何使用 NN 模块构建网络。然后可以使用语句 `net = My_Net(1,10,5)` 来实例化该网络；这会创建一个具有一个输入通道、10 个输出神经元和 `5x5` 大小卷积核的网络：
 
-    ```
+    ```py
     import torch.nn as nn
     import torch.nn.functional as F
     class My_Net(nn.Module):
@@ -152,7 +152,7 @@ PyTorch 库由多个模块组成，这些模块作为构建复杂模型的基础
 
     这是该网络的概述：
 
-    ```
+    ```py
     My_Net(
         (conv1): Conv2d(1, 6, kernel_size=(5, 5), stride=(1, 1))
         (conv2): Conv2d(6, 16, kernel_size=(5, 5), stride=(1,
@@ -170,7 +170,7 @@ PyTorch 库由多个模块组成，这些模块作为构建复杂模型的基础
 
     然后我们可以利用这个规则来根据学习规则更新变量 `w`：
 
-    ```
+    ```py
     loss = (y_true – y_pred).pow(2).sum()
     loss.backward()
     # Here the autograd is used to compute the backward pass. 
@@ -197,7 +197,7 @@ H2O 包括大量基于统计的机器学习算法，如广义线性模型、朴�
 
 H2O 需要 Java 环境，请确保系统已安装 Java。您可以使用 PyPi 安装 H2O，以便在 Python 中使用，如下所示的代码：
 
-```
+```py
 pip install h2o 
 ```
 
@@ -211,7 +211,7 @@ H2O 最令人兴奋的功能之一是**AutoML**，即自动机器学习。它是
 
 让我们在一个合成创建的数据集上尝试 H2O AutoML。我们使用 scikit-learn 的`make_circles`方法创建数据，并将其保存为 CSV 文件：
 
-```
+```py
 from sklearn.datasets import make_circles
 import pandas as pd
 X, y = make_circles(n_samples=1000, noise=0.2, factor=0.5, random_state=9)
@@ -223,14 +223,14 @@ df.to_csv('circle.csv', index=False, header=True)
 
 在使用 H2O 之前，我们需要初始化其服务器，这通过`init()`函数完成。
 
-```
+```py
 import h2o
 h2o.init() 
 ```
 
 以下显示了在初始化 H2O 服务器后我们将收到的输出：
 
-```
+```py
 Checking whether there is an H2O instance running at http://localhost:54321 ..... not found.
 Attempting to start a local H2O server...
   Java Version: openjdk version "11.0.15" 2022-04-19; OpenJDK Runtime Environment (build 11.0.15+10-Ubuntu-0ubuntu0.18.04.1); OpenJDK 64-Bit Server VM (build 11.0.15+10-Ubuntu-0ubuntu0.18.04.1, mixed mode, sharing)
@@ -259,7 +259,7 @@ Python_version:    3.7.13 final
 
 我们读取之前创建的合成数据文件。由于我们希望将问题视为分类问题，即点是否在圆内，我们将我们的标签`'y'`重新定义为`asfactor()` – 这将告诉 H2O 的 AutoML 模块将变量`y`视为分类变量，从而将问题视为分类问题。数据集按 60:20:20 的比例分为训练、验证和测试数据集：
 
-```
+```py
 class_df = h2o.import_file("circle.csv",\
                            destination_frame="circle_df")
 class_df['y'] = class_df['y'].asfactor()
@@ -269,7 +269,7 @@ train_df,valid_df,test_df = class_df.split_frame(ratios=[0.6, 0.2],\
 
 现在我们从 H2O 调用 AutoML 模块，并在我们的训练数据集上进行训练。AutoML 将搜索最多 10 个模型，但您可以更改参数`max_models`来增加或减少要测试的模型数量：
 
-```
+```py
 from h2o.automl import H2OAutoML as AutoML
 aml = AutoML(max_models = 10, max_runtime_secs=100, seed=2)
 aml.train(training_frame= train_df, \
@@ -285,14 +285,14 @@ aml.train(training_frame= train_df, \
 
 您可以检查 H2O AutoML 评估的所有模型的性能在排行榜上：
 
-```
+```py
 lb = aml.leaderboard
 lb.head() 
 ```
 
 这是排行榜的片段：
 
-```
+```py
 model_id     auc    logloss    aucpr    mean_per_class_error    rmse    mse
 StackedEnsemble_BestOfFamily_1_AutoML_2_20220511_61356    0.937598    0.315269    0.940757    0.117037    0.309796    0.0959735
 StackedEnsemble_AllModels_1_AutoML_2_20220511_61356     0.934905    0.323695    0.932648    0.120348    0.312413    0.0976021
@@ -310,7 +310,7 @@ XGBoost_1_AutoML_2_20220511_61356     0.919142    0.365454    0.928126    0.1302
 
 H2O 提供了一个便捷的包装器，使用单个函数`explain()`结合数据集和模型，支持多种可解释性方法及其可视化。为了获取关于我们用于 AutoML 测试的模型的测试数据可解释性，我们将使用`aml.explain()`。下面，我们使用`explain`模块对`StackedEnsemble_BestOfFamily`模型（排行榜上的最高模型）进行解释（我们继续使用在上一节中创建的数据）：
 
-```
+```py
 exa = aml.leader.explain(test_df) 
 ```
 

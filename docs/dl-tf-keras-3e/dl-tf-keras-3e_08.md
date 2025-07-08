@@ -84,7 +84,7 @@ TensorFlow 提供了一种简单的方法，允许您从零开始或将现有层
 
 使用`tensorflow.keras.layers.Layer`类，我们现在定义编码器和解码器层。首先，从编码器层开始。我们导入`tensorflow.keras`为`K`，并创建一个`Encoder`类。`Encoder`接收输入并生成隐藏层或瓶颈层作为输出：
 
-```
+```py
 class Encoder(K.layers.Layer):
     def __init__(self, hidden_dim):
         super(Encoder, self).__init__()
@@ -96,7 +96,7 @@ class Encoder(K.layers.Layer):
 
 接下来，我们定义`Decoder`类；该类接收来自`Encoder`的输出，并通过一个全连接神经网络传递。目标是能够重建`Encoder`的输入：
 
-```
+```py
 class Decoder(K.layers.Layer):
     def __init__(self, hidden_dim, original_dim):
         super(Decoder, self).__init__()
@@ -108,7 +108,7 @@ class Decoder(K.layers.Layer):
 
 现在我们已经定义了编码器和解码器，我们使用`tensorflow.keras.Model`对象来构建自动编码器模型。你可以在以下代码中看到，在`__init__()`函数中我们实例化了编码器和解码器对象，在`call()`方法中我们定义了信号流。还请注意在`_init__()`中初始化的成员列表`self.loss`：
 
-```
+```py
 class Autoencoder(K.Model):
     def __init__(self, hidden_dim, original_dim):
         super(Autoencoder, self).__init__()
@@ -127,7 +127,7 @@ class Autoencoder(K.Model):
 
 现在我们已经准备好了包含编码器和解码器层的自动编码器模型，让我们尝试重建手写数字。完整的代码可以在本章的 GitHub 仓库中找到，文件名为`VanillaAutoencoder.ipynb`。代码将需要 NumPy、TensorFlow 和 Matplotlib 模块：
 
-```
+```py
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras as K
@@ -136,7 +136,7 @@ import matplotlib.pyplot as plt
 
 在实际实现之前，我们还需要定义一些超参数。如果你尝试调整这些超参数，你会注意到，尽管模型的架构保持不变，但模型性能却有显著变化。超参数调优（有关更多细节，请参阅*第一章*，*使用 TF 的神经网络基础*）是深度学习中的一个重要步骤。为了保证可重复性，我们为随机计算设置了种子：
 
-```
+```py
 np.random.seed(11)
 tf.random.set_seed(11)
 batch_size = 256
@@ -151,7 +151,7 @@ original_dim = 784
 
 我们将张量从 2D 重塑为 1D。我们使用`from_tensor_slices`函数生成一个批量数据集，并沿着第一个维度对训练数据集进行切片（切片的张量）。另外请注意，我们没有使用独热编码标签；这是因为我们并没有使用标签来训练网络，因为自动编码器是通过无监督学习进行学习的：
 
-```
+```py
 (x_train, _), (x_test, _) = K.datasets.mnist.load_data()
 x_train = x_train / 255.
 x_test = x_test / 255.
@@ -164,7 +164,7 @@ training_dataset = tf.data.Dataset.from_tensor_slices(x_train).batch(batch_size)
 
 现在我们实例化我们的自动编码器模型对象，并定义训练时使用的损失函数和优化器。仔细观察损失函数的公式；它仅仅是原始图像与重建图像之间的差异。你可能会发现，*重建损失*这一术语也常在许多书籍和论文中用来描述它：
 
-```
+```py
 autoencoder = Autoencoder(hidden_dim=hidden_dim, original_dim=original_dim)
 opt = tf.keras.optimizers.Adam(learning_rate=1e-2)
 def loss(preds, real):
@@ -173,7 +173,7 @@ def loss(preds, real):
 
 我们的自定义自动编码器模型将定义一个自定义训练过程，而不是使用自动训练循环。我们使用`tf.GradientTape`来记录梯度计算，并隐式地将梯度应用于模型的所有可训练变量：
 
-```
+```py
 def train(loss, model, opt, original):
     with tf.GradientTape() as tape:
         preds = model(original)
@@ -186,7 +186,7 @@ def train(loss, model, opt, original):
 
 上述的`train()`函数将在训练循环中调用，并将数据集以批次的形式输入到模型中：
 
-```
+```py
 def train_loop(model, opt, loss, dataset, epochs=20):
     for epoch in range(epochs):
         epoch_loss = 0
@@ -199,13 +199,13 @@ def train_loop(model, opt, loss, dataset, epochs=20):
 
 现在我们来训练我们的自动编码器：
 
-```
+```py
 train_loop(autoencoder, opt, loss, training_dataset, epochs=max_epochs) 
 ```
 
 并绘制我们的训练图：
 
-```
+```py
 plt.plot(range(max_epochs), autoencoder.loss)
 plt.xlabel('Epochs')
 plt.ylabel('Loss')
@@ -220,7 +220,7 @@ plt.show()
 
 在*图 8.4*中，你可以看到原始图像（上）和重建图像（下）；它们略显模糊，但仍然准确：
 
-```
+```py
 number = 10  # how many digits we will display
 plt.figure(figsize=(20, 4))
 for index in range(number):
@@ -259,7 +259,7 @@ plt.show()
 
 在以下代码中，你可以看到`Encoder`的稠密层现在增加了一个额外的参数`activity_regularizer`：
 
-```
+```py
 class SparseEncoder(K.layers.Layer):
     def __init__(self, hidden_dim):
         # encoder initializer
@@ -313,7 +313,7 @@ class SparseEncoder(K.layers.Layer):
 
 为了实现这一点，我们在测试和训练图像中添加噪声项：
 
-```
+```py
 noise = np.random.normal(loc=0.5, scale=0.5, size=x_train.shape)
 x_train_noisy = x_train + noise
 noise = np.random.normal(loc=0.5, scale=0.5, size=x_test.shape)
@@ -330,7 +330,7 @@ x_test_noisy = np.clip(x_test_noisy, 0., 1.)
 
 1.  我们首先导入所需的模块：
 
-    ```
+    ```py
     import numpy as np
     import tensorflow as tf
     import tensorflow.keras as K
@@ -339,7 +339,7 @@ x_test_noisy = np.clip(x_test_noisy, 0., 1.)
 
 1.  接下来，我们定义模型的超参数：
 
-    ```
+    ```py
     np.random.seed(11)
     tf.random.set_seed(11)
     batch_size = 256
@@ -352,7 +352,7 @@ x_test_noisy = np.clip(x_test_noisy, 0., 1.)
 
 1.  我们读取 MNIST 数据集，对其进行归一化处理，并添加噪声：
 
-    ```
+    ```py
     (x_train, _), (x_test, _) = K.datasets.mnist.load_data()
     x_train = x_train / 255.
     x_test = x_test / 255.
@@ -370,7 +370,7 @@ x_test_noisy = np.clip(x_test_noisy, 0., 1.)
 
 1.  我们使用与*经典自编码器*部分中定义的相同的编码器、解码器和自编码器类：
 
-    ```
+    ```py
     # Encoder
     class Encoder(K.layers.Layer):
         def __init__(self, hidden_dim):
@@ -401,7 +401,7 @@ x_test_noisy = np.clip(x_test_noisy, 0., 1.)
 
 1.  接下来，我们创建模型并定义损失函数和优化器。请注意，这次我们使用的是更简便的 Keras 内建 `compile()` 和 `fit()` 方法，而不是编写自定义训练循环：
 
-    ```
+    ```py
     model = Autoencoder(hidden_dim=hidden_dim, original_dim=original_dim)
     model.compile(loss='mse', optimizer='adam')
     loss = model.fit(x_train_noisy,
@@ -413,7 +413,7 @@ x_test_noisy = np.clip(x_test_noisy, 0., 1.)
 
 1.  现在让我们绘制训练损失图：
 
-    ```
+    ```py
     plt.plot(range(max_epochs), loss.history['loss'])
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
@@ -428,7 +428,7 @@ x_test_noisy = np.clip(x_test_noisy, 0., 1.)
 
 最后，让我们看看我们的模型实际操作：
 
-```
+```py
 number = 10  # how many digits we will display
 plt.figure(figsize=(20, 4))
 for index in range(number):
@@ -463,7 +463,7 @@ plt.show()
 
 1.  我们从`tensorflow.keras.layers`导入所有必需的模块和特定层：
 
-    ```
+    ```py
     import numpy as np
     import tensorflow as tf
     import tensorflow.keras as K
@@ -473,7 +473,7 @@ plt.show()
 
 1.  我们指定了超参数。如果你仔细观察，你会发现这个列表与早期的自编码器实现略有不同；这次我们关注的是卷积层的过滤器，而不是学习率和动量：
 
-    ```
+    ```py
     np.random.seed(11)
     tf.random.set_seed(11)
     batch_size = 128
@@ -483,7 +483,7 @@ plt.show()
 
 1.  在下一步中，我们读取数据并进行预处理。同样，你可能会注意到与之前的代码相比有一些微小的变化，尤其是在添加噪声和将值限制在[0-1]之间的方式上。我们这样做是因为在这种情况下，我们将使用二元交叉熵损失，而不是均方误差损失，并且解码器的最终输出将通过 sigmoid 激活，将其限制在[0-1]之间：
 
-    ```
+    ```py
     (x_train, _), (x_test, _) = K.datasets.mnist.load_data()
     x_train = x_train / 255.
     x_test = x_test / 255.
@@ -501,7 +501,7 @@ plt.show()
 
 1.  现在我们来定义编码器。编码器由三层卷积层组成，每一层后跟一个最大池化层。由于我们使用的是 MNIST 数据集，输入图像的形状为 28 × 28（单通道），而输出图像的大小为 4 × 4（由于最后一层卷积层有 16 个滤波器，图像有 16 个通道）：
 
-    ```
+    ```py
     class Encoder(K.layers.Layer):
         def __init__(self, filters):
             super(Encoder, self).__init__()
@@ -522,7 +522,7 @@ plt.show()
 
 1.  接下来是解码器。它在设计上与编码器完全相反，且我们不使用最大池化，而是使用上采样来恢复尺寸。注意那些被注释掉的`print`语句；你可以通过它们来理解每一步之后形状是如何变化的。（或者，你也可以使用`model.summary`函数来获取完整的模型概述。）另外需要注意的是，编码器和解码器依然是基于 TensorFlow Keras 的`Layers`类，但现在它们内部有多个层。现在你知道如何构建一个复杂的自定义层了：
 
-    ```
+    ```py
     class Decoder(K.layers.Layer):
         def __init__(self, filters):
             super(Decoder, self).__init__()
@@ -545,7 +545,7 @@ plt.show()
 
 1.  我们将编码器和解码器结合起来，构建一个自动编码器模型。这与之前完全相同：
 
-    ```
+    ```py
     class Autoencoder(K.Model):
         def __init__(self, filters):
             super(Autoencoder, self).__init__()
@@ -562,7 +562,7 @@ plt.show()
 
 1.  现在我们实例化我们的模型，然后在`compile()`方法中指定二元交叉熵作为损失函数，Adam 作为优化器。接着，使用训练数据集来训练模型：
 
-    ```
+    ```py
     model = Autoencoder(filters)
     model.compile(loss='binary_crossentropy', optimizer='adam')
     loss = model.fit(x_train_noisy,
@@ -574,7 +574,7 @@ plt.show()
 
 1.  绘制损失曲线：
 
-    ```
+    ```py
     plt.plot(range(max_epochs), loss.history['loss'])
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
@@ -589,7 +589,7 @@ plt.show()
 
 1.  最后，你可以看到从噪声输入图像重建出的精彩图像：
 
-    ```
+    ```py
     number = 10  # how many digits we will display
     plt.figure(figsize=(20, 4))
     for index in range(number):
@@ -620,7 +620,7 @@ plt.show()
 
 首先，我们导入必要的库：
 
-```
+```py
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.layers import Input
@@ -646,21 +646,21 @@ from nltk.corpus import reuters
 
 如果你正在使用 Google 的 Colab 运行代码，还需要通过向代码中添加以下内容来解压 Reuters 语料库：
 
-```
+```py
 %%capture
 !unzip /root/nltk_data/corpora/reuters.zip -d /root/nltk_data/corpora 
 ```
 
 接下来，我们将使用 GloVe 嵌入，因此我们也需要下载它们：
 
-```
+```py
 !wget http://nlp.stanford.edu/data/glove.6B.zip
 !unzip glove*.zip 
 ```
 
 现在所有工具都已准备好，我们将首先将每个文本块（文档）转换为一个句子列表，每行一个句子。同时，每个句子的单词在添加时都会进行规范化处理。规范化过程包括去除所有数字并将其替换为数字`9`，然后将单词转换为小写。同时，我们也在同一段代码中计算单词的频率。结果是单词频率表`word_freqs`：
 
-```
+```py
 def is_number(n):
     temp = re.sub("[.,-/]", "",n)
     return temp.isdigit()
@@ -694,7 +694,7 @@ for i in range(len(documents)):
 
 让我们使用之前生成的数组来获取一些关于语料库的信息，这将帮助我们确定 LSTM 网络的常数值：
 
-```
+```py
 print("Total number of sentences are: {:d} ".format(len(sents)))
 print ("Sentence distribution min {:d}, max {:d} , mean {:3f}, median {:3f}".format(np.min(sent_lens), np.max(sent_lens), np.mean(sent_lens), np.median(sent_lens)))
 print("Vocab size (full) {:d}".format(len(word_freqs))) 
@@ -702,7 +702,7 @@ print("Vocab size (full) {:d}".format(len(word_freqs)))
 
 这为我们提供了关于语料库的以下信息：
 
-```
+```py
 Total number of sentences are: 50470 
 Sentence distribution min 1, max 3688 , mean 167.072657, median 155.000000
 Vocab size (full) 33748 
@@ -710,14 +710,14 @@ Vocab size (full) 33748
 
 基于这些信息，我们为 LSTM 模型设置了以下常数。我们将`VOCAB_SIZE`设为`5000`；也就是说，我们的词汇表覆盖了最常用的 5,000 个单词，涵盖了语料库中超过 93%的单词。其余的单词被视为**词汇表外**（**OOV**）并替换为`UNK`标记。在预测时，任何模型未见过的单词也将被分配`UNK`标记。`SEQUENCE_LEN`大约设为训练集中文本句子的中位数长度的一半。长度小于`SEQUENCE_LEN`的句子将通过特殊的`PAD`字符进行填充，长度超过的句子将被截断以符合限制：
 
-```
+```py
 VOCAB_SIZE = 5000
 SEQUENCE_LEN = 50 
 ```
 
 由于我们的 LSTM 输入是数值型的，因此我们需要构建查找表，以便在单词和单词 ID 之间进行转换。由于我们将词汇表的大小限制为 5,000，并且需要添加两个伪单词`PAD`和`UNK`，因此我们的查找表包含了最常出现的 4,998 个单词以及`PAD`和`UNK`：
 
-```
+```py
 word2id = {}
 word2id["PAD"] = 0
 word2id["UNK"] = 1
@@ -730,7 +730,7 @@ id2word = {v:k for k, v in word2id.items()}
 
 嵌入向量被生成到一个形状为（`VOCAB_SIZE`，`EMBED_SIZE`）的矩阵中，其中每一行表示我们词汇表中某个单词的 GloVe 嵌入向量。`PAD`和`UNK`行（分别为`0`和`1`）分别用零和随机均匀值填充：
 
-```
+```py
 EMBED_SIZE = 50
 def lookup_word2id(word):
     try:
@@ -755,7 +755,7 @@ def load_glove_vectors(glove_file, word2id, embed_size):
 
 接下来，我们使用这些函数生成嵌入向量：
 
-```
+```py
 sent_wids = [[lookup_word2id(w) for w in s.split()] for s in sents]
 sent_wids = sequence.pad_sequences(sent_wids, SEQUENCE_LEN)
 # load glove vectors into weight matrix
@@ -772,7 +772,7 @@ embeddings = load_glove_vectors("glove.6B.{:d}d.txt".format(EMBED_SIZE), word2id
 
 由于输入数据量相当大，我们将使用生成器来生成每一批次的输入。我们的生成器生成形状为（`BATCH_SIZE`，`SEQUENCE_LEN`，`EMBED_SIZE`）的张量批次。这里，`BATCH_SIZE` 是 `64`，并且由于我们使用的是 50 维的 GloVe 向量，所以 `EMBED_SIZE` 是 `50`。我们在每个训练周期开始时对句子进行洗牌，并返回 64 个句子的批次。每个句子都被表示为一个由 GloVe 词向量组成的向量。如果词汇表中的某个单词没有对应的 GloVe 嵌入向量，它将用零向量表示。我们构建了两个生成器实例，一个用于训练数据，一个用于测试数据，分别包含原始数据集的 70%和 30%：
 
-```
+```py
 BATCH_SIZE = 64
 def sentence_generator(X, embeddings, batch_size):
     while True:
@@ -794,7 +794,7 @@ test_gen = sentence_generator(Xtest, embeddings, BATCH_SIZE)
 
 我们使用 Adam 优化器和 MSE 损失函数来编译此模型。之所以使用 MSE，是因为我们希望重建一个意义相似的句子，即在维度为`LATENT_SIZE`的嵌入空间中，尽可能接近原始句子：
 
-```
+```py
 LATENT_SIZE = 512
 EMBED_SIZE = 50
 BATCH_SIZE = 64
@@ -808,13 +808,13 @@ autoencoder = Model(inputs, decoded)
 
 我们将损失函数定义为均方误差，并选择 Adam 优化器：
 
-```
+```py
 autoencoder.compile(optimizer="adam", loss="mse") 
 ```
 
 我们使用以下代码训练自编码器 20 个周期。选择 20 个周期是因为 MSE 损失在此时间内收敛：
 
-```
+```py
 num_train_steps = len(Xtrain) // BATCH_SIZE
 num_test_steps = len(Xtest) // BATCH_SIZE
 steps_per_epoch=num_train_steps,
@@ -840,7 +840,7 @@ history = autoencoder.fit_generator(train_gen,
 
 首先，我们将编码器部分提取为独立的网络：
 
-```
+```py
 encoder = Model(autoencoder.input, autoencoder.get_layer("encoder_lstm").output) 
 ```
 
@@ -848,7 +848,7 @@ encoder = Model(autoencoder.input, autoencoder.get_layer("encoder_lstm").output)
 
 以下代码在 500 个随机测试句子的子集上运行，并生成一些余弦相似度样本值，这些值表示源嵌入生成的句子向量与自编码器生成的目标嵌入之间的相似度：
 
-```
+```py
 def compute_cosine_similarity(x, y):
     return np.dot(x, y) / (np.linalg.norm(x, 2) * np.linalg.norm(y, 2))
 k = 500
@@ -872,7 +872,7 @@ for bid in range(num_test_steps):
 
 以下显示了前 10 个余弦相似度的值。正如我们所见，这些向量似乎非常相似：
 
-```
+```py
 0.9765363335609436
 0.9862152338027954
 0.9831727743148804
@@ -916,7 +916,7 @@ for bid in range(num_test_steps):
 
 本节中的代码改编自[`github.com/dragen1860/TensorFlow-2.x-Tutorials`](https://github.com/dragen1860/TensorFlow-2.x-Tutorials)。作为第一步，我们像往常一样导入所有必要的库：
 
-```
+```py
 import tensorflow as tf
 import numpy as np
 from matplotlib import pyplot as plt 
@@ -924,7 +924,7 @@ from matplotlib import pyplot as plt
 
 让我们固定随机数种子，以确保结果可复现。我们还可以添加一个`assert`语句，以确保我们的代码在 TensorFlow 2.0 或更高版本上运行：
 
-```
+```py
 np.random.seed(333)
 tf.random.set_seed(333)
 assert tf.__version__.startswith('2.'), "TensorFlow Version Below 2.0" 
@@ -932,14 +932,14 @@ assert tf.__version__.startswith('2.'), "TensorFlow Version Below 2.0"
 
 在继续创建 VAE 之前，让我们先稍微了解一下 Fashion-MNIST 数据集。这个数据集可以在 TensorFlow Keras API 中找到：
 
-```
+```py
 (x_train, y_train), (x_test, y_test) = tf.keras.datasets.fashion_mnist.load_data()
 x_train, x_test = x_train.astype(np.float32)/255., x_test.astype(np.float32)/255.
 print(x_train.shape, y_train.shape)
 print(x_test.shape, y_test.shape) 
 ```
 
-```
+```py
 --------------------------------------------------
 (60000, 28, 28) (60000,)
 (10000, 28, 28) (10000,) 
@@ -947,7 +947,7 @@ print(x_test.shape, y_test.shape)
 
 我们看到一些示例图像：
 
-```
+```py
 number = 10  # how many digits we will display
 plt.figure(figsize=(20, 4))
 for index in range(number):
@@ -965,7 +965,7 @@ plt.show()
 
 在开始之前，让我们声明一些超参数，如学习率、隐藏层和潜在空间的维度、批次大小、轮次等：
 
-```
+```py
 image_size = x_train.shape[1]*x_train.shape[2]
 hidden_dim = 512
 latent_dim = 10
@@ -976,7 +976,7 @@ learning_rate = 0.001
 
 我们使用 TensorFlow Keras Model API 来构建 VAE 模型。`__init__()`函数定义了我们将使用的所有层：
 
-```
+```py
 class VAE(tf.keras.Model):
     def __init__(self,dim,**kwargs):
         h_dim = dim[0]
@@ -991,7 +991,7 @@ class VAE(tf.keras.Model):
 
 我们定义了获取编码器输出、解码器输出和重新参数化的函数。编码器和解码器的实现都很直接；然而，我们需要深入探讨一下`reparametrize`函数。正如你所知道的，VAE 从随机节点*z*中采样，这个*z*由真实后验的![](img/B18331_08_027.png)来近似。现在，为了获得参数，我们需要使用反向传播。然而，反向传播无法作用于随机节点。通过重新参数化，我们可以使用一个新参数`eps`，它允许我们以一种能够通过确定性随机节点进行反向传播的方式重新参数化*z* ([`arxiv.org/pdf/1312.6114v10.pdf`](https://arxiv.org/pdf/1312.6114v10.pdf))：
 
-```
+```py
 def encode(self, x):
     h = tf.nn.relu(self.fc1(x))
     return self.fc2(h), self.fc3(h)
@@ -1008,7 +1008,7 @@ def decode(self, z):
 
 最后，我们定义了`call()`函数，它将控制信号如何在 VAE 的不同层之间传播：
 
-```
+```py
 def call(self, inputs, training=None, mask=None):
     mu, log_var = self.encode(inputs)
     z = self.reparameterize(mu, log_var)
@@ -1018,14 +1018,14 @@ def call(self, inputs, training=None, mask=None):
 
 现在，我们创建 VAE 模型并声明其优化器。你可以看到模型的摘要：
 
-```
+```py
 model = VAE([hidden_dim, latent_dim])
 model.build(input_shape=(4, image_size))
 model.summary()
 optimizer = tf.keras.optimizers.Adam(learning_rate) 
 ```
 
-```
+```py
 Model: "vae"
 _________________________________________________________________
  Layer (type)                Output Shape              Param #   
@@ -1049,7 +1049,7 @@ _________________________________________________________________
 
 现在，我们训练模型。我们定义了我们的损失函数，它是重构损失和 KL 散度损失的总和：
 
-```
+```py
 dataset = tf.data.Dataset.from_tensor_slices(x_train)
 dataset = dataset.shuffle(batch_size * 5).batch(batch_size)
 num_batches = x_train.shape[0] // batch_size
@@ -1079,7 +1079,7 @@ for epoch in range(num_epochs):
 
 一旦模型训练完成，它应该能够生成与原始 Fashion-MNIST 图像相似的图像。为此，我们只需要使用解码器网络，并向其传递一个随机生成的*z*输入：
 
-```
+```py
 z = tf.random.normal((batch_size, latent_dim))
 out = model.decode(z)  # decode with sigmoid
 out = tf.reshape(out, [-1, 28, 28]).numpy() * 255

@@ -82,7 +82,7 @@
 
 让我们导入实现所需的必要包：
 
-```
+```py
 %matplotlib inline
 
 import numpy as np
@@ -90,7 +90,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 ```
 
-```
+```py
 
 from tensorflow.examples.tutorials.mnist import input_data
 mnist_dataset = input_data.read_data_sets('MNIST_data', validation_size=0)
@@ -104,13 +104,13 @@ Extracting MNIST_data/t10k-labels-idx1-ubyte.gz
 
 让我们先从绘制一些 MNIST 数据集中的示例开始：
 
-```
+```py
 # Plotting one image from the training set.
 image = mnist_dataset.train.images[2]
 plt.imshow(image.reshape((28, 28)), cmap='Greys_r')
 ```
 
-```
+```py
 Output:
 ```
 
@@ -118,7 +118,7 @@ Output:
 
 图 4：来自 MNIST 数据集的示例图像
 
-```
+```py
 # Plotting one image from the training set.
 image = mnist_dataset.train.images[2]
 plt.imshow(image.reshape((28, 28)), cmap='Greys_r')
@@ -142,7 +142,7 @@ Output:
 
 根据之前的解释，接下来我们将实现这个简单的编码器-解码器架构：
 
-```
+```py
 # The size of the encoding layer or the hidden layer.
 encoding_layer_dim = 32 
 
@@ -179,14 +179,14 @@ model_optimizier = tf.train.AdamOptimizer().minimize(model_cost)
 
 让我们通过创建会话变量来开始本节内容，该变量将负责执行我们之前定义的计算图：
 
-```
+```py
 # creating the session
  sess = tf.Session()
 ```
 
 接下来，让我们启动训练过程：
 
-```
+```py
 num_epochs = 20
 train_batch_size = 200
 
@@ -201,7 +201,7 @@ for e in range(num_epochs):
               "Training loss: {:.3f}".format(input_batch_cost))
 ```
 
-```
+```py
 Output:
 .
 .
@@ -258,7 +258,7 @@ Epoch: 20/20... Training loss: 0.093
 
 让我们通过输入一些来自测试集的图像来测试训练好的模型，看看模型在解码器部分如何重建这些图像：
 
-```
+```py
 fig, axes = plt.subplots(nrows=2, ncols=10, sharex=True, sharey=True, figsize=(20,4))
 
 input_images = mnist_dataset.test.images[:10]
@@ -291,7 +291,7 @@ fig.tight_layout(pad=0.1)
 
 在这个实现中，我们可以使用任何类型的图像数据集，看看卷积版本的自编码器会带来什么变化。我们仍然将使用 MNIST 数据集，因此让我们开始使用 TensorFlow 辅助函数获取数据集：
 
-```
+```py
 %matplotlib inline
 
 import numpy as np
@@ -299,7 +299,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 ```
 
-```
+```py
 from tensorflow.examples.tutorials.mnist import input_data
 mnist_dataset = input_data.read_data_sets('MNIST_data', validation_size=0)
 
@@ -316,7 +316,7 @@ Extracting MNIST_data/t10k-labels-idx1-ubyte.gz
 
 让我们展示数据集中的一个数字：
 
-```
+```py
 # Plotting one image from the training set.
 image = mnist_dataset.train.images[2]
 plt.imshow(image.reshape((28, 28)), cmap='Greys_r')
@@ -334,7 +334,7 @@ plt.imshow(image.reshape((28, 28)), cmap='Greys_r')
 
 所以，让我们继续构建网络的核心部分：
 
-```
+```py
 learning_rate = 0.001
 
 # Define the placeholder variable sfor the input and target values
@@ -403,7 +403,7 @@ model_optimizer = tf.train.AdamOptimizer(learning_rate).minimize(model_cost)
 
 让我们从创建会话变量开始；它将负责执行我们之前定义的计算图：
 
-```
+```py
 sess = tf.Session()
 num_epochs = 20
 train_batch_size = 200
@@ -419,7 +419,7 @@ for e in range(num_epochs):
               "Training loss: {:.3f}".format(input_batch_cost))
 ```
 
-```
+```py
 Output:
 .
 .
@@ -492,7 +492,7 @@ Epoch: 20/20... Training loss: 0.102
 
 在运行前面的代码片段 20 个周期后，我们将得到一个训练好的 CAE，因此我们可以继续通过输入来自 MNIST 数据集的相似图像来测试这个模型：
 
-```
+```py
 fig, axes = plt.subplots(nrows=2, ncols=10, sharex=True, sharey=True, figsize=(20,4))
 input_images = mnist_dataset.test.images[:10]
 reconstructed_images = sess.run(decoded_layer, feed_dict={inputs_values: input_images.reshape((10, 28, 28, 1))})
@@ -534,7 +534,7 @@ Output:
 
 那么，让我们继续构建这个架构：
 
-```
+```py
 learning_rate = 0.001
 
 # Define the placeholder variable sfor the input and target values
@@ -603,13 +603,13 @@ model_optimizer = tf.train.AdamOptimizer(learning_rate).minimize(model_cost)
 
 所以让我们先创建会话变量：
 
-```
+```py
 sess = tf.Session()
 ```
 
 接下来，我们将启动训练过程，但使用更多的训练轮次：
 
-```
+```py
 num_epochs = 100
 train_batch_size = 200
 
@@ -638,7 +638,7 @@ for e in range(num_epochs):
               "Training loss: {:.3f}".format(input_batch_cost))
 ```
 
-```
+```py
 Output:
 .
 .
@@ -695,7 +695,7 @@ Epoch: 100/100... Training loss: 0.101
 
 在这里，我给测试图像加入噪声，并通过自编码器传递它们。即使有时很难分辨原始的数字是什么，模型仍然能够出色地去除噪声：
 
-```
+```py
 #Defining some figures
 fig, axes = plt.subplots(nrows=2, ncols=10, sharex=True, sharey=True, figsize=(20,4))
 
@@ -719,7 +719,7 @@ for imgs, row in zip([noisy_images, reconstructed_images], axes):
 fig.tight_layout(pad=0.1)
 ```
 
-```
+```py
 
 Output:
 ```

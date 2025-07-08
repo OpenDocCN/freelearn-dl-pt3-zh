@@ -104,7 +104,7 @@ CI 可以帮助我们理解涡轮发动机的健康状态和故障状态。然�
 
 为了展示传感器读取值在引擎的物理状态方面的表现（例如，组件的温度、涡轮风扇的转速等），我们决定从第一个数据集中提取一个引擎的所有传感器数据。为此，我们编写了一个脚本（请参见`make_dataset.py`），它会从输入目录获取所有数据文件。然后，解析一组原始数据文件为一个单一的 DataFrame 对象，并返回所有文件的聚合表示，带有适当的列名：
 
-```
+```py
 data_sets = []
     for data_file in glob(file_pattern):
         if label_data:
@@ -131,13 +131,13 @@ data_sets = []
 
 要使用这个脚本，首先复制`data/raw/`目录下的所有文件，然后执行以下命令：
 
-```
+```py
 $python3 make_dataset.py data/raw/ /data/processed/
 ```
 
 该命令将生成三个文件——`train.csv`、`test.csv`和`RUL.csv`——分别对应训练集、测试集和标签。现在我们的数据集已经准备好进行探索性分析，我们可以将每个 CSV 文件作为 pandas DataFrame 读取：
 
-```
+```py
 # load the processed data in CSV format
 train_df = pd.read_csv('train.csv')
 test_df = pd.read_csv('test.csv')
@@ -150,13 +150,13 @@ setting_columns = [col for col in train_df.columns if col.startswith("setting")]
 
 然后，从第一个数据集中提取第一个单元：
 
-```
+```py
 slice = train_df[(train_df.dataset_id == 'FD001') & (train_df.unit_id == 1)]
 ```
 
 接着，我们将其传感器数据随时间变化的轨迹绘制在一个 7 * 3 = 21 个图的网格中，以查看所有传感器通道。我们需要绘制与该位置相对应的通道：
 
-```
+```py
 fig, axes = plt.subplots(7, 3, figsize=(15, 10), sharex=True)
 
 for index, ax in enumerate(axes.ravel()):
@@ -182,7 +182,7 @@ fig.tight_layout();
 
 我们可以看到，每个引擎的生命周期和故障模式略有不同。接下来，我们可以将所有传感器通道的数据与时间进行可视化，选取训练集中的 10 个引擎作为随机样本：
 
-```
+```py
 # randomly select 10 units from dataset 1 to plot
 all_units = train_df[train_df['dataset_id'] == 'FD001']['unit_id'].unique()
 units_to_plot = np.random.choice(all_units, size=10, replace=False)
@@ -232,7 +232,7 @@ fig.tight_layout();
 
 这个数字可以视为每台发动机的倒计时，允许我们将不同发动机的数据对齐到一个共同的结束点：
 
-```
+```py
 # generate the lifetimes series
 lifetimes = train_df.groupby(['dataset_id', 'unit_id'])['cycle'].max()
 
@@ -292,14 +292,14 @@ fig.tight_layout();
 
 让我们考虑一下`FD004`数据集，它包含了最多 249 台发动机（`engine_no`），并在不同时间（`time_in_cycles`）进行监控。每台发动机都有每个周期的`operational_settings`和`sensor_measurements`数据记录：
 
-```
+```py
 data_path = 'train_FD004.txt'
 data = utils.load_data(data_path)
 ```
 
 为了训练一个预测 RUL 的模型，我们可以通过选择引擎寿命中的一个随机点，并只使用该点之前的数据来模拟实际预测。我们可以通过使用截止时间轻松地创建带有此限制的特征：
 
-```
+```py
 def make_cutoff_times(data):
     gb = data.groupby(['unit_id'])
     labels = []
@@ -312,7 +312,7 @@ def make_cutoff_times(data):
 
 上面的函数通过对`cutoff_time`和`label`进行采样来生成截止时间，可以按如下方式调用：
 
-```
+```py
 cutoff_times = utils.make_cutoff_times(data)
 cutoff_times.head()
 ```
@@ -325,7 +325,7 @@ cutoff_times.head()
 
 然后，我们使用**深度特征合成**（**DFS**）生成特征。为此，我们需要为数据建立实体集结构。我们可以通过标准化原始数据中的`engine_no`列来创建引擎实体：
 
-```
+```py
 def make_entityset(data):
     es = ft.EntitySet('Dataset')
     es.entity_from_dataframe(dataframe=data,
@@ -344,7 +344,7 @@ es = make_entityset(data)
 
 上面的代码块将生成实体集的以下统计信息：
 
-```
+```py
 Entityset: Dataset
  Entities:
  recordings [Rows: 20631, Columns: 28]
@@ -357,7 +357,7 @@ Entityset: Dataset
 
 `ft.dfs`函数接受一个实体集，并通过实体之间的原始操作（如`max`、`min`和`last`）进行穷举堆叠：
 
-```
+```py
 fm, features = ft.dfs(entityset=es,
                       target_entity='engines',
                       agg_primitives=['last', 'max', 'min'],
@@ -380,7 +380,7 @@ fm.to_csv('FM.csv')
 
 所以，让我们通过准备单独的训练集和测试集开始：
 
-```
+```py
 fm = pd.read_csv('FM.csv', index_col='engine_no')
 X = fm.copy().fillna(0)
 y = X.pop('RUL')
@@ -395,7 +395,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y)
 
 我们将通过计算绝对误差的平均值，即**平均绝对误差**（**MAE**），来检查这些预测，使用来自 scikit-learn 的`RandomForestRegressor`：
 
-```
+```py
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error
 
@@ -419,7 +419,7 @@ print('Baseline by median life: MAE = {:.2f}'.format(
 
 上面的代码块应产生以下输出，显示基准`MAE`值：
 
-```
+```py
 Baseline by median label: MAE = 66.72
 Baseline by median life: MAE = 59.96
 ```
@@ -428,7 +428,7 @@ Baseline by median life: MAE = 59.96
 
 现在我们可以使用我们创建的特征来拟合`RandomForestRegressor`模型，看看是否能够提高之前的分数：
 
-```
+```py
 rf = RandomForestRegressor() # first we instantiate RandomForestRegressor from scikit-learn
 rf.fit(X_train, y_train) # train the regressor model with traing set
 
@@ -441,7 +441,7 @@ high_imp_feats = utils.feature_importances(X, reg, feats=10) # Printing feature 
 
 上面的代码块应产生以下输出，显示基准 MAE 值和引擎记录周期的统计信息：
 
-```
+```py
 Mean Abs Error: 31.04
  1: LAST(recordings.cycles.LAST(recordings.sensor_measurement_4)) [0.395]
  2: LAST(recordings.sensor_measurement_4) [0.192]
@@ -457,7 +457,7 @@ Mean Abs Error: 31.04
 
 然后，我们需要准备特征和标签，可以使用以下代码完成：
 
-```
+```py
 data2 = utils.load_data('test_FD001.txt')
 es2 = make_entityset(data2)
 fm2 = ft.calculate_feature_matrix(entityset=es2, features=features, verbose=True)
@@ -466,7 +466,7 @@ fm2.head()
 
 加载的数据应包含来自 249 个引擎的 41,214 条记录，其中使用了 21 个传感器测量值，涵盖了三种操作设置。然后，我们需要使用加载的数据准备特征和标签，以下是我们可以使用的代码：
 
-```
+```py
 X = fm2.copy().fillna(0)
 y = pd.read_csv('RUL_FD004.txt', sep=' ', header=-1, names=['RUL'], index_col=False)
 
@@ -485,7 +485,7 @@ print('Baseline by median life: MAE = {:.2f}'.format(
 
 上面的代码块应该生成以下输出，显示预测的 MAE 和基线 MAE 值：
 
-```
+```py
 Mean Abs Error: 40.33
 Baseline by median label: Mean Abs Error = 52.08
 Baseline by median life: Mean Abs Error = 49.55
@@ -497,7 +497,7 @@ Baseline by median life: Mean Abs Error = 49.55
 
 我们将使用基于 Keras 的 LSTM 网络来预测剩余使用寿命（RUL）。不过，为此，我们首先需要将数据转换成 LSTM 模型可以使用的三维格式：
 
-```
+```py
 #Prepare data for Keras based LSTM model
 def prepareData(X, y):
     X_train, X_test, y_train, y_test = train_test_split(X, y)
@@ -514,7 +514,7 @@ def prepareData(X, y):
 
 现在我们拥有适合 LSTM 模型的数据，我们可以构建 LSTM 网络。为此，我们有一个简化的 LSTM 网络，只有一个 LSTM 层，接着是一个全连接层，在应用掉出层以进行更好的正则化之后。然后，我们再加一个全连接层，最后通过线性激活函数将这个全连接层的输出投射到激活层，以便输出实值结果。然后，我们使用 SGD 版本的`RMSProp`，它尝试优化**均方误差**（**MSE**）：
 
-```
+```py
 #Create LSTM model
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation
@@ -535,7 +535,7 @@ def createLSTMModel(X_train, hidden_neurons):
 
 然后，我们使用训练集来训练 LSTM 模型：
 
-```
+```py
 X_train, X_test, y_train, y_test = prepareData(X, y)
 hidden_neurons = 128
 model = createLSTMModel(X_train, hidden_neurons)
@@ -544,7 +544,7 @@ history = model.fit(X_train, y_train, batch_size=32, nb_epoch=5000, validation_s
 
 上面的代码行应该生成一些日志，帮助我们了解训练和验证损失是否在迭代过程中减少：
 
-```
+```py
 Train on 60 samples, validate on 15 samples
  Epoch 1/5000
  60/60 [==============================] - ETA: 0s - loss: 7996.37 - 1s 11ms/step - loss: 7795.0232 - val_loss: 8052.6118
@@ -558,7 +558,7 @@ Train on 60 samples, validate on 15 samples
 
 现在训练已经完成，我们可以绘制训练和验证损失图：
 
-```
+```py
 # plot history
 plt.plot(history.history['loss'], label='Training')
 plt.plot(history.history['val_loss'], label='Validation')
@@ -572,7 +572,7 @@ plt.show()
 
 该模型可能存在过拟合训练数据的情况。在训练过程中测量并绘制 MAE 可能会对此提供更多的线索。让我们来看一下测试集上的 MAE：
 
-```
+```py
 predicted = model.predict(X_test)
 rmse = np.sqrt(((predicted - y_test) ** 2).mean(axis=0))
 print('Mean Abs Error: {:.2f}'.format(mean_absolute_error(predicted, y_test)))
@@ -580,7 +580,7 @@ print('Mean Abs Error: {:.2f}'.format(mean_absolute_error(predicted, y_test)))
 
 我们应该得到一个 MAE 为 38.32，这意味着 MAE 误差有所降低（而 RF 模型的 MAE 为 40.33），但仍然不令人信服。造成这种较高 MAE 的原因可能有多个。例如，我们可能没有足够的训练数据；其次，我们在生成实体集时使用了一种低效的方法。对于第一个问题，我们可以使用整个数据集来训练模型。我们还可以使用其他正则化技术，如高斯噪声层，并指定噪声阈值：
 
-```
+```py
 def createLSTMModel(X_train, hidden_neurons):
     model = Sequential()
     model.add(LSTM(hidden_neurons, input_shape=(X_train.shape[1], X_train.shape[2])))
@@ -606,7 +606,7 @@ def createLSTMModel(X_train, hidden_neurons):
 
 我们将看到实体集结构如何有助于提高预测准确性。我们将使用`tsfresh`库中的时间序列函数构建自定义原始功能。在此之前，我们将通过从每个引擎的生命周期中随机选择一个来制定截止时间。我们将制定五组截止时间用于交叉验证：
 
-```
+```py
 from tqdm import tqdm
 splits = 10
 cutoff_time_list = []
@@ -621,7 +621,7 @@ cutoff_time_list[0].head()
 
 然后，我们将使用一种无监督的方式生成实体集。正如我们所见，操作设置`1`—`3`的值是连续的，但它们在不同引擎之间创建了隐含的关系。因此，如果两个引擎具有相似的操作设置，则传感器测量结果会给出相似的值。这个想法是通过 k-means 技术将这些设置进行聚类。然后，我们从具有相似值的簇中创建一个新的实体：
 
-```
+```py
 from sklearn.cluster import KMeans
 nclusters = 50
 def make_entityset(data, nclusters, kmeans=None):
@@ -648,7 +648,7 @@ es, kmeans = make_entityset(data, nclusters)
 
 前面的代码段生成一个实体集，显示以下关系：
 
-```
+```py
 Entityset: Dataset
  Entities:
  settings_clusters [Rows: 50, Columns: 2]
@@ -661,7 +661,7 @@ Entityset: Dataset
 
 除了改变我们的实体集结构外，我们还将使用`tsfresh`包中的复杂时间序列原始功能。任何接收 Pandas 系列并输出浮点数的函数都可以使用`make_agg_primitive`函数转换为聚合原始功能，如下所示：
 
-```
+```py
 from featuretools.primitives import make_agg_primitive
 import featuretools.variable_types as vtypes
 from tsfresh.feature_extraction.feature_calculators import (number_peaks, mean_abs_change, 
@@ -684,7 +684,7 @@ fm.head()
 
 使用这种方法，我们成功生成了额外的 12 个特征（之前有 290 个）。然后，我们用相同的特征集构建了另外四个特征矩阵，但使用了不同的截止时间。这使我们能够在将其用于测试数据之前多次测试管道：
 
-```
+```py
 fm_list = [fm]
 for i in tqdm(range(1, splits)):
     fm = ft.calculate_feature_matrix(entityset=make_entityset(data, nclusters, kmeans=kmeans)[0], 
@@ -694,7 +694,7 @@ for i in tqdm(range(1, splits)):
 
 然后，使用递归特征消除，我们再次对 RF 回归器建模，以便模型仅选择重要特征，从而进行更好的预测：
 
-```
+```py
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error
@@ -732,7 +732,7 @@ most_imp_feats = utils.feature_importances(fm_list[0], regs[0])
 
 前面的代码块应生成以下输出，显示每次迭代中的预测 MAE 及其平均值。此外，它显示了基线 MAE 值和有关引擎记录周期的统计信息：
 
-```
+```py
 [33.9, 34.5, 36.0, 32.1, 36.4, 30.1, 37.2, 34.7,38.6, 34.4]
  Average MAE: 33.1, Std: 4.63
  1: MAX(recordings.settings_clusters.LAST(recordings.sensor_measurement_13)) [0.055]
@@ -744,7 +744,7 @@ most_imp_feats = utils.feature_importances(fm_list[0], regs[0])
 
 现在让我们再次尝试使用 LSTM，看看是否可以减少 MAE 误差：
 
-```
+```py
 X = fm.copy().fillna(0)
 y = X.pop('RUL')
 X_train, X_test, y_train, y_test = prepareData(X, y)
@@ -766,7 +766,7 @@ plt.show()
 
 最后，我们可以根据 MAE 评估模型的表现：
 
-```
+```py
 predicted = model.predict(X_test)
 print('Mean Abs Error: {:.2f}'.format(mean_absolute_error(predicted, y_test)))
 ```

@@ -120,7 +120,7 @@ Adam 优化是 SGD 的一个变体，我们在每个参数（权重）上维护�
 
 1.  第一步是从评论中获取词元/单词列表。去除任何标点符号，并确保所有词元都是小写字母：
 
-```
+```py
 def get_processed_tokens(text):
 '''
 Gets Token List from a Review
@@ -135,7 +135,7 @@ return filtered_text
 
 1.  创建一个`token_idx`字典，将词汇映射到整数，以创建嵌入。请注意，字典中可能包含非常多的独特词汇（tokens），因此我们必须过滤掉在训练集中出现次数少于阈值的词汇（代码中默认值为`5`）。这是因为学习电影情感和在数据集中出现频率较低的词汇之间的关系非常困难：
 
-```
+```py
 def tokenize_text(data_text, min_frequency =5):
     '''
     Tokenizes the reviews in the dataset. Filters non frequent tokens
@@ -155,7 +155,7 @@ def tokenize_text(data_text, min_frequency =5):
 
 1.  将数据集中的每个评论映射到一个整数序列（基于我们在上一步创建的`token_idx`字典）。但是，在执行此操作之前，首先找到具有最多词汇的评论：
 
-```
+```py
 def get_max(data):
     '''
     Get max length of the token
@@ -166,7 +166,7 @@ def get_max(data):
 
 1.  为了创建输入模型学习嵌入的序列，我们必须为数据集中的每个评论创建一个固定长度的`(max_tokens)`序列。如果评论的长度小于最大长度，我们将用零进行前填充，以确保所有序列的长度一致。与后填充相比，前填充被认为能帮助获得更准确的结果：
 
-```
+```py
 
 def create_sequences(data_text,token_idx,max_tokens):
     '''
@@ -189,7 +189,7 @@ def create_sequences(data_text,token_idx,max_tokens):
 
 1.  模型使用以下参数定义：
 
-```
+```py
 def define_model(num_tokens,max_tokens):
     '''
     Defines the model definition based on input parameters
@@ -222,7 +222,7 @@ def define_model(num_tokens,max_tokens):
 
     +   嵌入大小 = 8
 
-```
+```py
 def train_model(model,input_sequences,y_train):
     '''
     Train the model based on input parameters
@@ -255,13 +255,13 @@ def train_model(model,input_sequences,y_train):
 
 1.  安装 TensorFlow.js，它将帮助我们按照浏览器可使用的格式来转换训练好的模型：
 
-```
+```py
 pip install tensorflowjs
 ```
 
 1.  将模型保存为 TensorFlow.js 格式：
 
-```
+```py
 import tensorflowjs as tfjs 
 tfjs.converters.save_keras_model(model, OUTPUT_DIR)
 ```
@@ -274,13 +274,13 @@ tfjs.converters.save_keras_model(model, OUTPUT_DIR)
 
 1.  通过脚本标签将 TensorFlow.js 集成到你的 JavaScript 中：
 
-```
+```py
 <script src="img/tfjs@0.8.0"></script>
 ```
 
 1.  加载模型和我们的`token_idx`字典。这将帮助我们在处理任何来自浏览器的评论之前，加载相关数据：
 
-```
+```py
 async function createModel()
 {
 const model = await
@@ -325,7 +325,7 @@ async function init()
 
 1.  添加一些辅助函数来处理浏览器中的评论输入。这包括处理文本、将单词映射到`token_idx`，并为模型预测创建序列：
 
-```
+```py
 function process(txt)
 {
  out = txt.replace(/[^a-zA-Z0-9\s]/, '')
@@ -354,7 +354,7 @@ function create_sequences(txt)
 
 1.  集成预测函数，处理输入句子并使用模型的预测函数返回一个包含预测得分的张量，正如上一节所示：
 
-```
+```py
 async function predict()
 {
  txt = document.getElementById("userInput").value

@@ -54,7 +54,7 @@
 
 要完成此任务，您需要激活`tf2rl-cookbook` Python/conda 虚拟环境，并运行`pip install -r requirements.txt`。如果以下导入语句运行没有问题，那么您可以开始了：
 
-```
+```py
 import gym
 import numpy as np
 ```
@@ -69,7 +69,7 @@ import numpy as np
 
 1.  我们将首先定义 MazeEnv 类和迷宫环境的地图：
 
-    ```
+    ```py
     class MazeEnv(gym.Env):
         def __init__(self, stochastic=True):
             """Stochastic Maze environment with coins,\
@@ -81,7 +81,7 @@ import numpy as np
 
 1.  接下来，将障碍物/墙壁放置在环境地图的适当位置：
 
-    ```
+    ```py
             self.dim = (4, 5)
             self.img_map = np.ones(self.dim)
             self.obstacles = [(0, 1), (0, 3), (2, 0), 
@@ -92,7 +92,7 @@ import numpy as np
 
 1.  让我们定义顺时针方向的滑动映射动作：
 
-    ```
+    ```py
     self.slip_action_map = {
                 0: 3,
                 1: 2,
@@ -103,7 +103,7 @@ import numpy as np
 
 1.  现在，让我们定义一个字典形式的查找表，将索引映射到迷宫环境中的单元格：
 
-    ```
+    ```py
     self.index_to_coordinate_map = {
                 0: (0, 0),
                 1: (1, 0),
@@ -124,7 +124,7 @@ import numpy as np
 
 1.  接下来，让我们定义反向查找，以便在给定索引时找到一个单元格：
 
-    ```
+    ```py
     	self.coordinate_to_index_map = dict((val, key) for \
             key, val in self.index_to_coordinate_map.items())
     ```
@@ -133,7 +133,7 @@ import numpy as np
 
 1.  现在，让我们定义一个方法来处理迷宫中的硬币及其状态，其中 0 表示硬币未被智能体收集，1 表示硬币已被智能体收集：
 
-    ```
+    ```py
     	def num2coin(self, n: int):
             coinlist = [
                 (0, 0, 0),
@@ -150,7 +150,7 @@ import numpy as np
 
 1.  现在，让我们定义一个快速方法来执行与查找硬币的数字状态/值相反的操作：
 
-    ```
+    ```py
     	   def coin2num(self, v: List):
             if sum(v) < 2:
                 return np.inner(v, [1, 2, 3])
@@ -160,7 +160,7 @@ import numpy as np
 
 1.  接下来，我们将定义一个设置函数来设置环境的状态。对于值迭代等算法，这非常有用，因为每个状态都需要在环境中被访问，以便算法计算值：
 
-    ```
+    ```py
     def set_state(self, state: int) -> None:
             """Set the current state of the environment. 
                Useful for value iteration
@@ -173,7 +173,7 @@ import numpy as np
 
 1.  现在，是时候实现`step`方法了。我们将首先实现`step`方法，并根据`slip_probability`应用滑动动作：
 
-    ```
+    ```py
     def step(self, action, slip=True):
             """Run one step into the Maze env
             Args:
@@ -196,7 +196,7 @@ import numpy as np
 
 1.  继续实现`step`函数时，我们将根据执行的动作更新迷宫的状态：
 
-    ```
+    ```py
     cell = self.index_to_coordinate_map[int(self.state / 8)]
             if action == 0:
                 c_next = cell[1]
@@ -216,7 +216,7 @@ import numpy as np
 
 1.  接下来，我们将判断智能体是否已达到目标：
 
-    ```
+    ```py
     if (r_next == self.goal_pos[0]) and (
                 c_next == self.goal_pos[1]
             ):  # Check if goal reached
@@ -232,7 +232,7 @@ import numpy as np
 
 1.  接下来，我们将处理当动作导致碰到障碍物/墙壁的情况：
 
-    ```
+    ```py
      else:
         if (r_next, c_next) in self.obstacles:  # obstacle 
         # tuple list
@@ -241,7 +241,7 @@ import numpy as np
 
 1.  您需要处理的最后一个情况是判断动作是否导致收集硬币：
 
-    ```
+    ```py
     else:  # Coin locations
                     v_coin = self.num2coin(self.state % 8)
                     if (r_next, c_next) == (0, 2):
@@ -260,7 +260,7 @@ import numpy as np
 
 1.  为了以一种对人类友好的方式可视化 Gridworld 的状态，让我们实现一个渲染函数，该函数将打印出迷宫环境当前状态的文本版本：
 
-    ```
+    ```py
     def render(self):
             cell = self.index_to_coordinate_map[int(
                                              self.state / 8)]
@@ -277,7 +277,7 @@ import numpy as np
 
 1.  为了测试环境是否按预期工作， let’s 添加一个`__main__`函数，当环境脚本直接运行时会执行：
 
-    ```
+    ```py
     if __name__ == "__main__":
         env = MazeEnv()
         obs = env.reset()
@@ -328,7 +328,7 @@ import numpy as np
 
 要完成此配方，您需要激活`tf2rl-cookbook` Python/conda 虚拟环境并运行`pip install numpy gym`。如果以下导入语句运行没有问题，您就可以开始了：
 
-```
+```py
 import numpy as np
 ```
 
@@ -342,13 +342,13 @@ import numpy as np
 
 1.  从`envs.maze`导入迷宫学习环境：
 
-    ```
+    ```py
     from envs.maze import MazeEnv
     ```
 
 1.  创建`MazeEnv`实例并打印观察空间和动作空间：
 
-    ```
+    ```py
     env = MazeEnv()
     print(f"Observation space: {env.observation_space}")
     print(f"Action space: {env.action_space}")
@@ -356,7 +356,7 @@ import numpy as np
 
 1.  让我们定义状态维度，以便初始化`state-values`、`state-action values`和我们的策略：
 
-    ```
+    ```py
     state_dim = env.distinct_states
     state_values = np.zeros(state_dim)
     q_values = np.zeros((state_dim, env.action_space.n))
@@ -365,7 +365,7 @@ import numpy as np
 
 1.  现在，我们准备实现一个函数，当给定环境中的状态和一个动作时，能够计算状态/动作值。我们将从声明`calculate_values`函数开始；我们将在接下来的步骤中完成实现：
 
-    ```
+    ```py
     def calculate_values(state, action):
         """Evaluate Value function for given state and action
         Args:
@@ -380,13 +380,13 @@ import numpy as np
 
 1.  下一步，我们将生成`slip_action`，这是一个基于学习环境随机性的随机动作：
 
-    ```
+    ```py
         slip_action = env.slip_action_map[action]
     ```
 
 1.  在计算给定状态-动作对的值时，能够在执行动作前设置环境状态，以便观察奖励/结果是很重要的。迷宫环境提供了一个方便的`set_state`方法来设置当前的环境状态。让我们利用它，按所需的（输入）动作一步步执行环境：
 
-    ```
+    ```py
         env.set_state(state)
         slip_next_state, slip_reward, _ = \
                             env.step(slip_action, slip=False)
@@ -394,14 +394,14 @@ import numpy as np
 
 1.  我们需要一个环境中的转换列表，以便根据贝尔曼方程计算奖励。让我们创建一个`transitions`列表，并附加新获得的环境转换信息：
 
-    ```
+    ```py
         transitions = []    transitions.append((slip_reward, slip_next_state,
                             env.slip))
     ```
 
 1.  让我们通过状态和动作获取另一个转换，这一次不考虑随机性。我们可以通过不使用`slip_action`并将`slip=False`来在迷宫环境中执行：
 
-    ```
+    ```py
         env.set_state(state)
         next_state, reward, _ = env.step(action, slip=False)
         transitions.append((reward, next_state,
@@ -410,7 +410,7 @@ import numpy as np
 
 1.  只需再执行一步，即可完成`calculate_values`函数，那就是计算值：
 
-    ```
+    ```py
         for reward, next_state, pi in transitions:
             v_sum += pi * (reward + discount * \
                            state_values[next_state])
@@ -419,7 +419,7 @@ import numpy as np
 
 1.  现在，我们可以开始实现状态/动作值学习了。我们将从定义`max_iteration`超参数开始：
 
-    ```
+    ```py
     # Define the maximum number of iterations per learning 
     # step
     max_iteration = 1000
@@ -427,7 +427,7 @@ import numpy as np
 
 1.  让我们使用价值迭代来实现`state-value`函数学习循环：
 
-    ```
+    ```py
     for i in range(iters):
         v_s = np.zeros(state_dim)
         for state in range(state_dim):
@@ -444,7 +444,7 @@ import numpy as np
 
 1.  现在我们已经实现了`state-value`函数学习循环，接下来让我们继续实现`action-value`函数：
 
-    ```
+    ```py
     for state in range(state_dim):
         for action in range(env.action_space.n):
             q_values[state, action] = calculate_values(state,
@@ -453,14 +453,14 @@ import numpy as np
 
 1.  计算出`action-value`函数后，我们离获得最优策略只差一步了。让我们去实现它吧！
 
-    ```
+    ```py
     for state in range(state_dim):
         policy[state] = np.argmax(q_values[state, :])
     ```
 
 1.  我们可以使用以下代码行打印 Q 值（`state-action` 值）和策略：
 
-    ```
+    ```py
     print(f"Q-values: {q_values}")
     print("Action mapping:0 - UP; 1 - DOWN; 2 - LEFT; \
            3 - RIGHT")
@@ -469,7 +469,7 @@ import numpy as np
 
 1.  最后一步，让我们可视化价值函数的学习和策略更新：
 
-    ```
+    ```py
     from value_function_utils import viusalize_maze_values
     viusalize_maze_values(q_values, env)
     ```
@@ -500,7 +500,7 @@ import numpy as np
 
 要完成本食谱，你需要激活`tf2rl-cookbook` Python/conda 虚拟环境，并运行`pip install numpy gym`。如果以下导入语句没有问题，则可以开始了：
 
-```
+```py
 import gym
 import matplotlib.pyplot as plt
 import numpy as np
@@ -514,7 +514,7 @@ import numpy as np
 
 1.  我们将首先实现 GridworldV2，然后定义`GridworldV2Eng`类：
 
-    ```
+    ```py
     class GridworldV2Env(gym.Env):
         def __init__(self, step_cost=-0.2, max_ep_length=500,
         explore_start=False):
@@ -539,7 +539,7 @@ import numpy as np
 
 1.  在此步骤中，你将继续实现`__init__`方法，并定义必要的值，这些值将定义 Gridworld 的大小、目标位置、墙壁位置以及炸弹的位置等：
 
-    ```
+    ```py
     self.map = np.zeros((3, 4))
             self.observation_space = gym.spaces.Discrete(1)
             self.distinct_states = [str(i) for i in \
@@ -572,7 +572,7 @@ import numpy as np
 
 1.  现在，我们可以继续定义`reset()`方法，该方法将在每个回合开始时调用，包括第一个回合：
 
-    ```
+    ```py
     def reset(self):
             self.done = False
             self.steps = 0
@@ -593,7 +593,7 @@ import numpy as np
 
 1.  让我们实现一个`get_next_state`方法，这样我们就可以方便地获取下一个状态：
 
-    ```
+    ```py
     def get_next_state(self, current_position, action):
             next_state = self.index_to_coordinate_map[
                                 str(current_position)].copy()
@@ -621,7 +621,7 @@ import numpy as np
 
 1.  这样，我们就可以准备实现`GridworldV2`环境的主要`step`方法：
 
-    ```
+    ```py
     def step(self, action):
             assert action in self.possible_actions, \
             f"Invalid action:{action}"
@@ -645,7 +645,7 @@ import numpy as np
 
 1.  现在，我们可以继续实现时序差分学习算法。我们首先通过初始化一个二维`numpy`数组来设置网格的状态值，然后设置目标位置和炸弹状态的值：
 
-    ```
+    ```py
     def temporal_difference_learning(env, max_episodes):
         grid_state_values = np.zeros((len(
                                    env.distinct_states), 1))
@@ -655,7 +655,7 @@ import numpy as np
 
 1.  接下来，让我们定义折扣因子`gamma`、学习率`alpha`，并将`done`初始化为`False`：
 
-    ```
+    ```py
         # v: state-value function
         v = grid_state_values
         gamma = 0.99  # Discount factor
@@ -665,14 +665,14 @@ import numpy as np
 
 1.  现在，我们可以定义主要的外部循环，使其运行`max_episodes`次，在每个回合开始时重置环境的状态到初始状态：
 
-    ```
+    ```py
     for episode in range(max_episodes):
             state = env.reset()
     ```
 
 1.  现在，是时候实现带有时序差分学习更新的内部循环一行代码了：
 
-    ```
+    ```py
     while not done:
                 action = env.action_space.sample()  
                   # random policy
@@ -685,13 +685,13 @@ import numpy as np
 
 1.  一旦学习已经收敛，我们希望能够可视化 GridwordV2 环境中每个状态的状态值。为此，我们可以利用`value_function_utils`中的`visualize_grid_state_values`函数：
 
-    ```
+    ```py
     visualize_grid_state_values(grid_state_values.reshape((3, 4)))
     ```
 
 1.  我们现在准备从主函数中运行`temporal_difference_learning`函数：
 
-    ```
+    ```py
     if __name__ == "__main__":
         max_episodes = 4000
         env = GridworldV2Env(step_cost=-0.1, 
@@ -733,7 +733,7 @@ import numpy as np
 
 要完成这个步骤，你需要激活 `tf2rl-cookbook` Python/conda 虚拟环境，并运行 `pip install -r requirements.txt`。如果以下导入语句能够顺利运行，那么你就可以开始了：
 
-```
+```py
 import numpy as np
 ```
 
@@ -747,7 +747,7 @@ import numpy as np
 
 1.  让我们从导入语句开始，并导入必要的 Python 模块：
 
-    ```
+    ```py
     import numpy as np
     from envs.gridworldv2 import GridworldV2Env
     from value_function_utils import (
@@ -758,7 +758,7 @@ import numpy as np
 
 1.  下一步是定义 `monte_carlo_prediction` 函数，并初始化所需的对象，如下所示：
 
-    ```
+    ```py
     def monte_carlo_prediction(env, max_episodes):
         returns = {state: [] for state in \
                    env.distinct_states}
@@ -771,7 +771,7 @@ import numpy as np
 
 1.  现在，让我们实现外层循环。外层循环在所有强化学习智能体训练代码中都很常见：
 
-    ```
+    ```py
     for episode in range(max_episodes):
             g_t = 0
             state = env.reset()
@@ -781,7 +781,7 @@ import numpy as np
 
 1.  接下来是内层循环：
 
-    ```
+    ```py
             while not done:
                 action = env.action_space.sample()  
                     # random policy
@@ -792,7 +792,7 @@ import numpy as np
 
 1.  我们现在拥有计算网格中状态值所需的所有信息：
 
-    ```
+    ```py
     for idx, (state, reward) in enumerate(trajectory[::-1]):
                 g_t = gamma * g_t + reward
                 # first visit Monte-Carlo prediction
@@ -806,7 +806,7 @@ import numpy as np
 
 1.  现在，是时候运行我们的蒙特卡洛预测器了：
 
-    ```
+    ```py
     if __name__ == "__main__":
         max_episodes = 4000
         env = GridworldV2Env(step_cost=-0.1, 
@@ -821,7 +821,7 @@ import numpy as np
 
 1.  让我们实现一个 epsilon-贪婪策略的函数：
 
-    ```
+    ```py
     def epsilon_greedy_policy(action_logits, epsilon=0.2):
         idx = np.argmax(action_logits)
         probs = []
@@ -843,7 +843,7 @@ import numpy as np
 
 1.  现在，让我们进入 **蒙特卡洛控制** 算法的实现，用于强化学习。我们将从定义函数并为状态-动作值初始化初始值开始：
 
-    ```
+    ```py
     def monte_carlo_control(env, max_episodes):
         grid_state_action_values = np.zeros((12, 4))
         grid_state_action_values[3] = 1
@@ -852,7 +852,7 @@ import numpy as np
 
 1.  让我们继续实现蒙特卡洛控制函数，通过初始化所有可能的状态-动作对的回报值：
 
-    ```
+    ```py
         possible_states = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"]
         possible_actions = ["0", "1", "2", "3"]
         returns = {}
@@ -863,7 +863,7 @@ import numpy as np
 
 1.  作为下一步，让我们为每个回合定义外层循环，然后为回合中的每个步骤定义内层循环。通过这样做，我们可以收集经验轨迹，直到回合结束：
 
-    ```
+    ```py
     gamma = 0.99
         for episode in range(max_episodes):
             g_t = 0
@@ -884,7 +884,7 @@ import numpy as np
 
 1.  现在我们有了一个完整的内循环轨迹，我们可以实施蒙特卡洛控制更新，以更新状态-行动值：
 
-    ```
+    ```py
             for step in reversed(trajectory):
                 g_t = gamma * g_t + step[2]
                 Returns[str(step[0]) + ", " + \
@@ -898,13 +898,13 @@ import numpy as np
 
 1.  外部循环完成后，我们可以使用`value_function_utils`脚本中的`visualize_grid_action_values`辅助函数来可视化状态-行动值：
 
-    ```
+    ```py
     visualize_grid_action_values(grid_state_action_values
     ```
 
 1.  最后，让我们运行`monte_carlo_control`函数来学习 GridworldV2 环境中的`状态-行动`值，并展示学习到的值：
 
-    ```
+    ```py
     if __name__ == "__main__":
         max_episodes = 4000
         env = GridworldV2Env(step_cost=-0.1, \
@@ -953,7 +953,7 @@ import numpy as np
 
 要完成此实例，你需要激活 `tf2rl-cookbook` Python/conda 虚拟环境，并运行 `pip install -r requirements.txt`。如果以下导入语句没有问题，就可以开始了：
 
-```
+```py
 import numpy as np
 import random
 ```
@@ -968,7 +968,7 @@ import random
 
 1.  首先，让我们定义一个函数来实现 SARSA 算法，并用零初始化状态-动作值：
 
-    ```
+    ```py
     def sarsa(env, max_episodes):
         grid_action_values = np.zeros((len(
                    env.distinct_states), env.action_space.n))
@@ -976,14 +976,14 @@ import random
 
 1.  现在，我们可以根据环境的配置更新目标状态和炸弹状态的值：
 
-    ```
+    ```py
         grid_action_values[env.goal_state] = 1
         grid_action_values[env.bomb_state] = -1
     ```
 
 1.  让我们定义折扣因子 `gamma` 和学习率超参数 `alpha`。同时，为了方便起见，我们将 `grid_action_values` 创建一个别名，命名为 `q`：
 
-    ```
+    ```py
         gamma = 0.99  # discounting factor
         alpha = 0.01  # learning rate
         # q: state-action-value function
@@ -992,7 +992,7 @@ import random
 
 1.  让我们开始一步一步地实现外循环：
 
-    ```
+    ```py
     for episode in range(max_episodes):
             step_num = 1
             done = False
@@ -1002,7 +1002,7 @@ import random
 
 1.  现在，是时候实现 SARSA 学习更新步骤中的内循环了：
 
-    ```
+    ```py
     while not done:
                 next_state, reward, done = env.step(action)
                 step_num += 1
@@ -1020,13 +1020,13 @@ import random
 
 1.  作为 `sarsa` 函数的最后一步，让我们可视化状态-动作值函数：
 
-    ```
+    ```py
     visualize_grid_action_values(grid_action_values)
     ```
 
 1.  现在，我们将实现智能体将使用的 epsilon-greedy 策略：
 
-    ```
+    ```py
     def greedy_policy(q_values, epsilon):
         """Epsilon-greedy policy """
         if random.random() >= epsilon:
@@ -1037,7 +1037,7 @@ import random
 
 1.  最后，我们必须实现主函数并运行 SARSA 算法：
 
-    ```
+    ```py
     if __name__ == "__main__":
         max_episodes = 4000
         env = GridworldV2Env(step_cost=-0.1, \
@@ -1075,7 +1075,7 @@ SARSA 是一种基于策略的时序差分学习控制算法。本实例使用 S
 
 要完成此配方，您需要激活 `tf2rl-cookbook` Python/conda 虚拟环境，并运行 `pip install -r requirements.txt`。如果以下导入语句没有问题，您就可以开始了：
 
-```
+```py
 import numpy as np
 import random
 ```
@@ -1090,7 +1090,7 @@ import random
 
 1.  首先，让我们定义一个函数来实现 Q 学习算法，并将状态-动作值初始化为零：
 
-    ```
+    ```py
     def q_learning(env, max_episodes):
         grid_action_values = np.zeros((len(\
             env.distinct_states), env.action_space.n))
@@ -1098,14 +1098,14 @@ import random
 
 1.  现在我们可以根据环境配置更新目标状态和炸弹状态的值：
 
-    ```
+    ```py
         grid_action_values[env.goal_state] = 1
         grid_action_values[env.bomb_state] = -1
     ```
 
 1.  让我们定义折扣因子 `gamma` 和学习率超参数 `alpha`。同时，让我们为 `grid_action_values` 创建一个方便的别名，称其为 `q`：
 
-    ```
+    ```py
         gamma = 0.99  # discounting factor
         alpha = 0.01  # learning rate
         # q: state-action-value function
@@ -1114,7 +1114,7 @@ import random
 
 1.  让我们开始实现外部循环：
 
-    ```
+    ```py
     for episode in range(max_episodes):
             step_num = 1
             done = False
@@ -1123,7 +1123,7 @@ import random
 
 1.  下一步，让我们实现带有 Q 学习更新的内部循环。同时，我们还将衰减在 epsilon-greedy 策略中使用的 epsilon：
 
-    ```
+    ```py
             while not done:
                 decayed_epsilon = 1 * gamma ** step_num  
                 # Doesn't have to be gamma
@@ -1141,13 +1141,13 @@ import random
 
 1.  在 `q_learning` 函数的最后一步，让我们可视化状态-动作值函数：
 
-    ```
+    ```py
     visualize_grid_action_values(grid_action_values)
     ```
 
 1.  接下来，我们将实现代理将使用的 epsilon-greedy 策略：
 
-    ```
+    ```py
     def greedy_policy(q_values, epsilon):
         """Epsilon-greedy policy """
         if random.random() >= epsilon:
@@ -1158,7 +1158,7 @@ import random
 
 1.  最后，我们将实现主函数并运行 SARSA 算法：
 
-    ```
+    ```py
     if __name__ == "__main__":
         max_episodes = 4000
         env = GridworldV2Env(step_cost=-0.1, 
@@ -1208,7 +1208,7 @@ Q 学习算法涉及 Q 值更新，可以通过以下方程式总结：
 
 要完成这个教程，你需要激活`tf2rl-cookbook` Python/conda 虚拟环境并运行`pip install -r requirements.txt`。如果以下导入语句没有问题，那么你就准备好开始了：
 
-```
+```py
 import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow import keras
@@ -1227,7 +1227,7 @@ import gym
 
 1.  第一步是定义`PolicyNet`类。我们将定义模型，使其具有三层全连接或**密集**的神经网络层：
 
-    ```
+    ```py
     class PolicyNet(keras.Model):
         def __init__(self, action_dim=1):
             super(PolicyNet, self).__init__()
@@ -1239,7 +1239,7 @@ import gym
 
 1.  接下来，我们将实现`call`函数，它将被调用来处理模型的输入：
 
-    ```
+    ```py
         def call(self, x):
             x = self.fc1(x)
             x = self.fc2(x)
@@ -1249,7 +1249,7 @@ import gym
 
 1.  让我们还定义一个`process`函数，我们可以使用它来处理一批观测数据，并由模型进行处理：
 
-    ```
+    ```py
     def process(self, observations):
             # Process batch observations using `call(x)`
             # behind-the-scenes
@@ -1260,7 +1260,7 @@ import gym
 
 1.  定义好策略网络后，我们可以实现`Agent`类，它利用该策略网络，并使用优化器来训练模型：
 
-    ```
+    ```py
     class Agent(object):
         def __init__(self, action_dim=1):
             """Agent with a neural-network brain powered 
@@ -1277,7 +1277,7 @@ import gym
 
 1.  现在，让我们定义一个策略辅助函数，它接受一个观测作为输入，通过策略网络处理后返回动作作为输出：
 
-    ```
+    ```py
         def policy(self, observation):
             observation = observation.reshape(1, -1)
             observation = tf.convert_to_tensor(observation,
@@ -1290,7 +1290,7 @@ import gym
 
 1.  让我们定义另一个辅助函数来从代理那里获取动作：
 
-    ```
+    ```py
         def get_action(self, observation):
             action = self.policy(observation).numpy()
             return action.squeeze()
@@ -1298,7 +1298,7 @@ import gym
 
 1.  现在，是时候定义策略梯度算法的学习更新了。让我们初始化`learn`函数，并为折扣奖励创建一个空列表：
 
-    ```
+    ```py
         def learn(self, states, rewards, actions):
             discounted_reward = 0
             discounted_rewards = []
@@ -1307,7 +1307,7 @@ import gym
 
 1.  这是计算折扣奖励的正确位置，同时使用回合奖励作为输入：
 
-    ```
+    ```py
             for r in rewards:
                 discounted_reward = r + self.gamma * \
                                         discounted_reward
@@ -1317,7 +1317,7 @@ import gym
 
 1.  现在，让我们实现计算策略梯度的关键步骤，并使用优化器更新神经网络策略的参数：
 
-    ```
+    ```py
             for state, reward, action in zip(states, 
             discounted_rewards, actions):
                 with tf.GradientTape() as tape:
@@ -1336,7 +1336,7 @@ import gym
 
 1.  让我们实现前一步中提到的损失函数，以计算策略参数更新：
 
-    ```
+    ```py
         def loss(self, action_probabilities, action, reward):
             dist = tfp.distributions.Categorical(
                 probs=action_probabilities, dtype=tf.float32
@@ -1348,7 +1348,7 @@ import gym
 
 1.  代理类完全实现后，我们可以继续实现代理训练函数。让我们从函数定义开始：
 
-    ```
+    ```py
     def train(agent: Agent, env: gym.Env, episodes: int, render=True):
         """Train `agent` in `env` for `episodes`
         Args:
@@ -1362,7 +1362,7 @@ import gym
 
 1.  现在，让我们开始实现代理训练函数的外部循环：
 
-    ```
+    ```py
     for episode in range(episodes):
             done = False
             state = env.reset()
@@ -1374,7 +1374,7 @@ import gym
 
 1.  让我们继续实现内部循环，完成 `train` 函数：
 
-    ```
+    ```py
             while not done:
                 action = agent.get_action(state)
                 next_state, reward, done, _ = \
@@ -1395,7 +1395,7 @@ import gym
 
 1.  最后，我们需要实现主函数：
 
-    ```
+    ```py
     if __name__ == "__main__":
         agent = Agent()
         episodes = 5000
@@ -1430,7 +1430,7 @@ import gym
 
 为了完成这个过程，你需要激活`tf2rl-cookbook`的 Python/conda 虚拟环境，并运行`pip install -r requirements.txt`。如果以下的导入语句没有问题，那么你就可以开始了：
 
-```
+```py
 import numpy as np
 import tensorflow as tf
 import gym
@@ -1447,7 +1447,7 @@ import tensorflow_probability as tfp
 
 1.  让我们从实现`ActorCritic`类开始：
 
-    ```
+    ```py
     class ActorCritic(tf.keras.Model):
         def __init__(self, action_dim):
             super().__init__()
@@ -1463,7 +1463,7 @@ import tensorflow_probability as tfp
 
 1.  在`ActorCritic`类中，我们需要做的最后一件事是实现`call`函数，它执行神经网络模型的前向传递：
 
-    ```
+    ```py
         def call(self, input_data):
             x = self.fc1(input_data)
             x1 = self.fc2(x)
@@ -1474,7 +1474,7 @@ import tensorflow_probability as tfp
 
 1.  定义了`ActorCritic`类后，我们可以继续实现`Agent`类，并初始化一个`ActorCritic`模型，连同一个优化器，用来更新 actor-critic 模型的参数：
 
-    ```
+    ```py
     class Agent:
         def __init__(self, action_dim=4, gamma=0.99):
             """Agent with a neural-network brain powered 
@@ -1491,7 +1491,7 @@ import tensorflow_probability as tfp
 
 1.  接下来，我们必须实现智能体的`get_action`方法：
 
-    ```
+    ```py
         def get_action(self, state):
             _, action_probabilities = \
                          self.actor_critic(np.array([state]))
@@ -1508,7 +1508,7 @@ import tensorflow_probability as tfp
 
 1.  现在，让我们实现一个函数，根据 actor-critic 算法计算 actor 的损失。这将推动 actor-critic 网络的参数更新，并使智能体不断改进：
 
-    ```
+    ```py
         def actor_loss(self, prob, action, td):
             prob = tf.nn.softmax(prob)
             dist = tfp.distributions.Categorical(probs=prob,
@@ -1520,7 +1520,7 @@ import tensorflow_probability as tfp
 
 1.  现在我们准备好实现 actor-critic 智能体的学习功能了：
 
-    ```
+    ```py
     def learn(self, state, action, reward, next_state, done):
             state = np.array([state])
             next_state = np.array([next_state])
@@ -1544,7 +1544,7 @@ import tensorflow_probability as tfp
 
 1.  现在，让我们定义训练函数，用于在给定的 RL 环境中训练智能体：
 
-    ```
+    ```py
     def train(agent, env, episodes, render=True):
         """Train `agent` in `env` for `episodes`
         Args:
@@ -1579,7 +1579,7 @@ import tensorflow_probability as tfp
 
 1.  最后一步是实现主函数，该函数将调用训练器来训练智能体，直到指定的训练轮次完成：
 
-    ```
+    ```py
     if __name__ == "__main__":
         env = gym.make("CartPole-v0")
         agent = Agent(env.action_space.n)

@@ -232,7 +232,7 @@ DP 使用**自举**，意味着它通过使用后续状态的期望值来改进�
 
 伪代码如下：
 
-```
+```py
 Initialize ![](img/296b08e4-1bbe-4a7d-b82f-348344424f0b.png) and ![](img/569f8ffb-0948-4e8c-93a3-7fe12df6abc8.png) for every state 
 
 while ![](img/9a940658-b350-4def-a52e-d8c73338da96.png) is not stable:
@@ -262,7 +262,7 @@ while ![](img/9a940658-b350-4def-a52e-d8c73338da96.png) is not stable:
 
 首先，我们需要创建环境，初始化价值函数和策略：
 
-```
+```py
 env = gym.make('FrozenLake-v0')
 env = env.unwrapped
 nA = env.action_space.n
@@ -274,7 +274,7 @@ policy = np.zeros(nS)
 
 然后，我们需要创建一个主循环，执行一次策略评估和一次策略改进。该循环会在策略稳定时结束。为此，请使用以下代码：
 
-```
+```py
 policy_stable = False
 it = 0
 while not policy_stable:
@@ -285,7 +285,7 @@ while not policy_stable:
 
 最后，我们可以打印出完成的迭代次数、价值函数、策略以及通过运行一些测试游戏所达到的得分：
 
-```
+```py
 print('Converged after %i policy iterations'%(it))
 run_episodes(env, V, policy)
 print(V.reshape((4,4)))
@@ -294,7 +294,7 @@ print(policy.reshape((4,4)))
 
 现在，在定义`policy_evaluation`之前，我们可以创建一个函数来评估预期的动作值，这个函数也将被用于`policy_improvement`：
 
-```
+```py
 def eval_state_action(V, s, a, gamma=0.99):
     return np.sum([p * (rew + gamma*V[next_s]) for p, next_s, rew, _ in env.P[s][a]])
 ```
@@ -305,7 +305,7 @@ def eval_state_action(V, s, a, gamma=0.99):
 
 接下来，我们可以定义`policy_evaluation`函数。`policy_evaluation`需要根据当前策略计算公式（8），并对每个状态进行计算，直到达到稳定值。因为策略是确定性的，所以我们只需要评估一个动作：
 
-```
+```py
 def policy_evaluation(V, policy, eps=0.0001):
     while True:
         delta = 0
@@ -322,7 +322,7 @@ def policy_evaluation(V, policy, eps=0.0001):
 
 `policy_improvement` 接收值函数和策略，并对所有状态进行迭代，基于新的值函数更新策略：
 
-```
+```py
 def policy_improvement(V, policy):
     policy_stable = True
     for s in range(nS):
@@ -337,7 +337,7 @@ def policy_improvement(V, policy):
 
 最后一段代码运行一些游戏来测试新策略，并打印赢得的游戏次数：
 
-```
+```py
 def run_episodes(env, V, policy, num_games=100):
     tot_rew = 0
     state = env.reset()
@@ -370,7 +370,7 @@ def run_episodes(env, V, policy, num_games=100):
 
 值迭代的代码比策略迭代的代码更简单，以下是总结的伪代码：
 
-```
+```py
 Initialize  for every state 
 
 while  is not stable:
@@ -391,14 +391,14 @@ while  is not stable:
 
 我们像之前一样定义`eval_state_action`，用来估算状态-动作对的动作状态值：
 
-```
+```py
 def eval_state_action(V, s, a, gamma=0.99):
     return np.sum([p * (rew + gamma*V[next_s]) for p, next_s, rew, _ in env.P[s][a]])
 ```
 
 接下来，我们创建值迭代算法的主体部分：
 
-```
+```py
 def value_iteration(eps=0.0001):
     V = np.zeros(nS)
     it = 0
@@ -422,7 +422,7 @@ def value_iteration(eps=0.0001):
 
 至于策略迭代，`run_episodes`执行一些游戏来测试策略。唯一的不同之处在于，在这种情况下，策略是在执行`run_episodes`时同时确定的（对于策略迭代，我们提前为每个状态定义了动作）：
 
-```
+```py
 def run_episodes(env, V, num_games=100):
     tot_rew = 0
     state = env.reset()
@@ -444,7 +444,7 @@ def run_episodes(env, V, num_games=100):
 
 最后，我们可以创建环境，解开它，运行值迭代，并执行一些测试游戏：
 
-```
+```py
 env = gym.make('FrozenLake-v0')
 env = env.unwrapped
 
@@ -458,7 +458,7 @@ print(V.reshape((4,4)))
 
 输出结果将类似于以下内容：
 
-```
+```py
 Iter: 0 delta: 0.33333
 Iter: 1 delta: 0.1463
 Iter: 2 delta: 0.10854

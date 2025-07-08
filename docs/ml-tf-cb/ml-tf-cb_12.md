@@ -32,7 +32,7 @@
 
 1.  首先，我们将加载脚本所需的库：
 
-    ```
+    ```py
     import tensorflow as tf
     import numpy as np
     import datetime 
@@ -40,7 +40,7 @@
 
 1.  现在我们将重新实现 MNIST 模型：
 
-    ```
+    ```py
     (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
     x_train = x_train.reshape(-1, 28, 28, 1)
     x_test = x_test.reshape(-1, 28, 28, 1)
@@ -107,7 +107,7 @@
 
 1.  接下来，我们将使用稀疏类别交叉熵损失和 Adam 优化器编译模型。然后，我们将展示总结：
 
-    ```
+    ```py
     model.compile(
         optimizer="adam", 
         loss="sparse_categorical_crossentropy",
@@ -118,13 +118,13 @@
 
 1.  我们将为每次运行创建一个带时间戳的子目录。总结写入器将把`TensorBoard`日志写入这个文件夹：
 
-    ```
+    ```py
     log_dir="logs/experiment-" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") 
     ```
 
 1.  接下来，我们将实例化一个`TensorBoard`回调并将其传递给`fit`方法。训练阶段的所有日志将存储在此目录中，并可以立即在`TensorBoard`中查看：
 
-    ```
+    ```py
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, 
                                                           write_images=True,
                                                           histogram_freq=1 )
@@ -137,7 +137,7 @@
 
 1.  然后我们通过运行以下命令启动`TensorBoard`应用程序：
 
-    ```
+    ```py
     $ tensorboard --logdir="logs" 
     ```
 
@@ -161,7 +161,7 @@
 
 1.  通过添加 TensorBoard 回调，我们可以可视化损失、度量、模型权重作为图像等内容。但我们也可以使用 `tf.summary` 模块来写入可以在 TensorFlow 中可视化的摘要数据。首先，我们需要创建一个 `FileWriter`，然后就可以写入直方图、标量、文本、音频或图像摘要。在这里，我们将使用图像摘要 API 来写入图像，并在 TensorBoard 中进行可视化：
 
-    ```
+    ```py
     # Create a FileWriter for the timestamped log directory.
     file_writer = tf.summary.create_file_writer(log_dir)
     with file_writer.as_default():
@@ -206,7 +206,7 @@ TensorBoard.dev 是 Google 提供的免费托管服务。其目的是轻松托�
 
 1.  首先，我们将加载脚本所需的库：
 
-    ```
+    ```py
     import tensorflow as tf
     from tensorboard.plugins.hparams import api as hp
     import numpy as np
@@ -215,7 +215,7 @@ TensorBoard.dev 是 Google 提供的免费托管服务。其目的是轻松托�
 
 1.  接下来，我们将加载并准备 MNIST 数据集：
 
-    ```
+    ```py
     (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
     # Normalize
     x_train = x_train / 255
@@ -228,7 +228,7 @@ TensorBoard.dev 是 Google 提供的免费托管服务。其目的是轻松托�
 
 1.  然后，对于每个超参数，我们将定义要测试的值列表或区间。在这一部分，我们将介绍三个超参数：每层单元数、Dropout 率和优化器：
 
-    ```
+    ```py
     HP_ARCHITECTURE_NN = hp.HParam('archi_nn', 
     hp.Discrete(['128,64','256,128']))
     HP_DROPOUT = hp.HParam('dropout', hp.RealInterval(0.0, 0.1))
@@ -237,7 +237,7 @@ TensorBoard.dev 是 Google 提供的免费托管服务。其目的是轻松托�
 
 1.  该模型将是一个顺序模型，包含五层：一个展平层，接着是一个全连接层，一个 Dropout 层，再是另一个全连接层，最后是一个具有 10 个单元的输出层。训练函数将接收一个包含超参数组合的 HParams 字典作为参数。由于我们使用的是 Keras 模型，我们在 fit 方法中添加了 HParams Keras 回调来监控每次实验。对于每次实验，插件将记录超参数组合、损失值和指标。如果需要监控其他信息，我们还可以添加一个 Summary File Writer：
 
-    ```
+    ```py
     def train_model(hparams, experiment_run_log_dir):
 
         nb_units = list(map(int, hparams[HP_ARCHITECTURE_NN].split(",")))
@@ -269,7 +269,7 @@ TensorBoard.dev 是 Google 提供的免费托管服务。其目的是轻松托�
 
 1.  接下来，我们将对所有超参数进行迭代：
 
-    ```
+    ```py
     for archi_nn in HP_ARCHITECTURE_NN.domain.values:
         for optimizer in HP_OPTIMIZER.domain.values:
             for dropout_rate in (HP_DROPOUT.domain.min_value, HP_DROPOUT.domain.max_value):
@@ -286,7 +286,7 @@ TensorBoard.dev 是 Google 提供的免费托管服务。其目的是轻松托�
 
 1.  然后，我们通过运行此命令启动 TensorBoard 应用程序：
 
-    ```
+    ```py
     $ tensorboard --logdir="logs" 
     ```
 
@@ -318,14 +318,14 @@ TensorBoard.dev 是 Google 提供的免费托管服务。其目的是轻松托�
 
 1.  首先，我们需要加载必要的库，如下所示：
 
-    ```
+    ```py
     import tensorflow as tf
     import numpy as np 
     ```
 
 1.  然后，我们需要声明我们的自定义门控函数，应用`f(x) = a1 * x + b1`：
 
-    ```
+    ```py
     class MyCustomGate(tf.keras.layers.Layer):
 
         def __init__(self, units, a1, b1):
@@ -340,7 +340,7 @@ TensorBoard.dev 是 Google 提供的免费托管服务。其目的是轻松托�
 
 1.  接下来，我们创建一个继承自`tf.test.TestCase`类的单元测试类。`setup`方法是一个`hook`方法，在每个`test`方法之前被调用。`assertAllEqual`方法检查预期输出和计算输出是否相等：
 
-    ```
+    ```py
     class MyCustomGateTest(tf.test.TestCase):
         def setUp(self):
             super(MyCustomGateTest, self).setUp()
@@ -356,13 +356,13 @@ TensorBoard.dev 是 Google 提供的免费托管服务。其目的是轻松托�
 
 1.  现在我们需要在脚本中加入一个`main()`函数，用于运行所有单元测试：
 
-    ```
+    ```py
     tf.test.main() 
     ```
 
 1.  从终端运行以下命令。我们应该会得到如下输出：
 
-    ```
+    ```py
     $ python3 01_implementing_unit_tests.py
     ...
     [       OK ] MyCustomGateTest.testMyCustomGateOutput
@@ -401,7 +401,7 @@ TensorBoard.dev 是 Google 提供的免费托管服务。其目的是轻松托�
 
 1.  为了查找 TensorFlow 为哪些操作使用了哪些设备，我们将通过设置`tf.debugging.set_log_device_placement`为`True`来激活设备分配日志。如果 TensorFlow 操作同时支持 CPU 和 GPU 设备，该操作将在默认情况下执行在 GPU 设备上（如果 GPU 可用）：
 
-    ```
+    ```py
     tf.debugging.set_log_device_placement(True)
     a = tf.constant([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], shape=[2, 3], name='a')
     b = tf.constant([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], shape=[3, 2], name='b')
@@ -413,7 +413,7 @@ TensorBoard.dev 是 Google 提供的免费托管服务。其目的是轻松托�
 
 1.  我们还可以使用张量设备属性来返回该张量将分配到的设备名称：
 
-    ```
+    ```py
     a = tf.constant([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], shape=[2, 3], name='a')
     print(a.device)
     b = tf.constant([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], shape=[3, 2], name='b')
@@ -424,7 +424,7 @@ TensorBoard.dev 是 Google 提供的免费托管服务。其目的是轻松托�
 
 1.  默认情况下，TensorFlow 会自动决定如何在计算设备（CPU 和 GPU）之间分配计算，有时我们需要通过创建`tf.device`函数的设备上下文来选择要使用的设备。在此上下文中执行的每个操作都会使用所选设备：
 
-    ```
+    ```py
     tf.debugging.set_log_device_placement(True)
     with tf.device('/device:CPU:0'):
         a = tf.constant([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], shape=[2, 3], name='a')
@@ -437,7 +437,7 @@ TensorBoard.dev 是 Google 提供的免费托管服务。其目的是轻松托�
 
 1.  如果我们将`matmul`操作移出上下文，如果有可用的 GPU 设备，则该操作将在 GPU 设备上执行：
 
-    ```
+    ```py
     tf.debugging.set_log_device_placement(True)
     with tf.device('/device:CPU:0'):
         a = tf.constant([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], shape=[2, 3], name='a')
@@ -450,7 +450,7 @@ TensorBoard.dev 是 Google 提供的免费托管服务。其目的是轻松托�
 
 1.  在使用 GPU 时，TensorFlow 会自动占用 GPU 内存的大部分。虽然这通常是期望的行为，但我们可以采取措施更加谨慎地分配 GPU 内存。虽然 TensorFlow 永远不会释放 GPU 内存，但我们可以通过设置 GPU 内存增长选项，逐步增加其分配，直到达到最大限制（仅在需要时）。注意，物理设备初始化后不能修改：
 
-    ```
+    ```py
     gpu_devices = tf.config.list_physical_devices('GPU')
     if gpu_devices:
         try:
@@ -462,7 +462,7 @@ TensorBoard.dev 是 Google 提供的免费托管服务。其目的是轻松托�
 
 1.  如果我们想要对 TensorFlow 使用的 GPU 内存设置硬性限制，我们还可以创建一个虚拟 GPU 设备并设置分配到该虚拟 GPU 的最大内存限制（单位：MB）。注意，虚拟设备初始化后不能修改：
 
-    ```
+    ```py
     gpu_devices = tf.config.list_physical_devices('GPU')
     if gpu_devices:
         try:
@@ -475,7 +475,7 @@ TensorBoard.dev 是 Google 提供的免费托管服务。其目的是轻松托�
 
 1.  我们还可以通过单个物理 GPU 来模拟虚拟 GPU 设备。通过以下代码可以实现：
 
-    ```
+    ```py
     gpu_devices = tf.config.list_physical_devices('GPU')
     if gpu_devices:
         try:
@@ -489,14 +489,14 @@ TensorBoard.dev 是 Google 提供的免费托管服务。其目的是轻松托�
 
 1.  有时我们可能需要编写稳健的代码来判断是否有可用的 GPU。TensorFlow 有一个内置函数，可以测试 GPU 是否可用。当我们希望在 GPU 可用时利用它并将特定操作分配给它时，这非常有帮助。通过以下代码可以实现：
 
-    ```
+    ```py
     if tf.test.is_built_with_cuda(): 
         <Run GPU specific code here> 
     ```
 
 1.  如果我们需要将特定操作分配给 GPU，可以输入以下代码。这将执行简单的计算，并将操作分配给主 CPU 和两个辅助 GPU：
 
-    ```
+    ```py
     if tf.test.is_built_with_cuda():
         with tf.device('/cpu:0'):
             a = tf.constant([1.0, 3.0, 5.0], shape=[1, 3])
@@ -554,14 +554,14 @@ TensorFlow 分布式 API 允许我们通过将模型复制到不同节点并在�
 
 1.  首先，我们将加载该食谱所需的库，如下所示：
 
-    ```
+    ```py
     import tensorflow as tf
     import tensorflow_datasets as tfds 
     ```
 
 1.  我们将创建两个虚拟 GPU：
 
-    ```
+    ```py
     # Create two virtual GPUs
     gpu_devices = tf.config.list_physical_devices('GPU')
     if gpu_devices:
@@ -576,14 +576,14 @@ TensorFlow 分布式 API 允许我们通过将模型复制到不同节点并在�
 
 1.  接下来，我们将通过`tensorflow_datasets` API 加载 MNIST 数据集，如下所示：
 
-    ```
+    ```py
     datasets, info = tfds.load('mnist', with_info=True, as_supervised=True)
     mnist_train, mnist_test = datasets['train'], datasets['test'] 
     ```
 
 1.  然后，我们将准备数据：
 
-    ```
+    ```py
     def normalize_img(image, label):
       """Normalizes images: `uint8` -> `float32`."""
       return tf.cast(image, tf.float32) / 255., label
@@ -600,19 +600,19 @@ TensorFlow 分布式 API 允许我们通过将模型复制到不同节点并在�
 
 1.  我们现在准备应用镜像策略。这个策略的目标是在同一台机器上的所有 GPU 上复制模型。每个模型在不同的批次数据上进行训练，并应用同步训练策略：
 
-    ```
+    ```py
     mirrored_strategy = tf.distribute.MirroredStrategy() 
     ```
 
 1.  接下来，我们检查是否有两个设备对应于在本示例开始时创建的两个虚拟 GPU，如下所示：
 
-    ```
+    ```py
     print('Number of devices: {}'.format(mirrored_strategy.num_replicas_in_sync)) 
     ```
 
 1.  然后，我们将定义批量大小的值。给数据集的批量大小就是全局批量大小。全局批量大小是每个副本的所有批量大小的总和。所以，我们需要使用副本的数量来计算全局批量大小：
 
-    ```
+    ```py
     BATCH_SIZE_PER_REPLICA = 128
     BATCH_SIZE = BATCH_SIZE_PER_REPLICA * mirrored_strategy.num_replicas_in_sync
     mnist_train = mnist_train.batch(BATCH_SIZE)
@@ -621,7 +621,7 @@ TensorFlow 分布式 API 允许我们通过将模型复制到不同节点并在�
 
 1.  接下来，我们将使用镜像策略作用域定义并编译我们的模型。请注意，所有在作用域内创建的变量都会在所有副本之间镜像：
 
-    ```
+    ```py
     with mirrored_strategy.scope():
         model = tf.keras.Sequential()
         model.add(tf.keras.layers.Flatten(name="FLATTEN"))
@@ -638,7 +638,7 @@ TensorFlow 分布式 API 允许我们通过将模型复制到不同节点并在�
 
 1.  一旦编译完成，我们就可以像平常一样拟合之前的模型：
 
-    ```
+    ```py
     model.fit(mnist_train, 
               epochs=10,
               validation_data= mnist_test
@@ -687,13 +687,13 @@ TensorFlow 分布式 API 允许我们通过将模型复制到不同节点并在�
 
 1.  我们首先加载必要的库：
 
-    ```
+    ```py
     import tensorflow as tf 
     ```
 
 1.  接下来，我们将使用 Keras Sequential API 构建一个 MNIST 模型：
 
-    ```
+    ```py
     (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
     # Normalize
     x_train = x_train / 255
@@ -717,13 +717,13 @@ TensorFlow 分布式 API 允许我们通过将模型复制到不同节点并在�
 
 1.  然后，我们将使用推荐的格式保存整个模型为磁盘上的 SavedModel 格式。此格式保存模型图和变量：
 
-    ```
+    ```py
     model.save("SavedModel") 
     ```
 
 1.  在磁盘上创建一个名为 `SavedModel` 的目录。它包含一个 TensorFlow 程序，`saved_model.pb` 文件；`variables` 目录，包含所有参数的确切值；以及 `assets` 目录，包含 TensorFlow 图使用的文件：
 
-    ```
+    ```py
     SavedModel
     |_ assets
     |_ variables
@@ -734,20 +734,20 @@ TensorFlow 分布式 API 允许我们通过将模型复制到不同节点并在�
 
 1.  接下来，我们将恢复我们保存的模型：
 
-    ```
+    ```py
     model2 = tf.keras.models.load_model("SavedModel") 
     ```
 
 1.  如果我们更倾向于将模型保存为 H5 格式，我们可以传递一个以 `.h5` 结尾的文件名，或者添加 `save_format="h5"` 参数：
 
-    ```
+    ```py
     model.save("SavedModel.h5")
     model.save("model_save", save_format="h5") 
     ```
 
 1.  我们还可以使用 `ModelCheckpoint` 回调来将整个模型或仅仅是权重保存到检查点结构中，间隔一定的训练周期。这个回调会被添加到 `fit` 方法中的 `callback` 参数中。在下面的配置中，模型的权重会在每个 epoch 后被保存：
 
-    ```
+    ```py
     checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath="./checkpoint",save_weights_only=True, save_freq='epoch')
     model.fit(x=x_train, 
               y=y_train, 
@@ -759,7 +759,7 @@ TensorFlow 分布式 API 允许我们通过将模型复制到不同节点并在�
 
 1.  我们稍后可以加载整个模型或仅加载权重，以便继续训练。在这里，我们将重新加载权重：
 
-    ```
+    ```py
     model.load_weights("./checkpoint") 
     ```
 
@@ -795,7 +795,7 @@ TensorFlow 分布式 API 允许我们通过将模型复制到不同节点并在�
 
 1.  在这里，我们将像之前一样开始，先加载必要的库：
 
-    ```
+    ```py
     import tensorflow as tf
     import numpy as np
     import requests
@@ -805,7 +805,7 @@ TensorFlow 分布式 API 允许我们通过将模型复制到不同节点并在�
 
 1.  我们将使用 Keras 的 Sequential API 构建一个 MNIST 模型：
 
-    ```
+    ```py
     (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
     # Normalize
     x_train = x_train / 255
@@ -839,13 +839,13 @@ TensorFlow 分布式 API 允许我们通过将模型复制到不同节点并在�
 
     第一步是拉取最新的 TensorFlow Serving Docker 镜像：
 
-    ```
+    ```py
     $ docker pull tensorflow/serving 
     ```
 
 1.  现在，我们将启动一个 Docker 容器：将 REST API 端口 8501 映射到主机的 8501 端口，使用之前创建的模型`my_mnist_model`，将其绑定到模型的基本路径`/models/my_mnist_model`，并将环境变量`MODEL_NAME`设置为`my_mnist_model`：
 
-    ```
+    ```py
     $ docker run -p 8501:8501 \
       --mount type=bind,source="$(pwd)/my_mnist_model/",target=/models/my_mnist_model \
       -e MODEL_NAME=my_mnist_model -t tensorflow/serving 
@@ -853,7 +853,7 @@ TensorFlow 分布式 API 允许我们通过将模型复制到不同节点并在�
 
 1.  然后，我们将显示图像进行预测：
 
-    ```
+    ```py
     num_rows = 4
     num_cols = 3
     plt.figure(figsize=(2*2*num_cols, 2*num_rows))
@@ -876,7 +876,7 @@ TensorFlow 分布式 API 允许我们通过将模型复制到不同节点并在�
 
     在这里，我们将向我们的服务器发送 POST 预测请求并传递图像。服务器将返回每个图像对应的 10 个概率，表示每个数字（从`0`到`9`）的概率：
 
-    ```
+    ```py
     json_request = '{{ "instances" : {} }}'.format(x_test[0:12].tolist())
     resp = requests.post('http://localhost:8501/v1/models/my_mnist_model:predict', data=json_request, headers = {"content-type": "application/json"})
     print('response.status_code: {}'.format(resp.status_code))     
@@ -886,7 +886,7 @@ TensorFlow 分布式 API 允许我们通过将模型复制到不同节点并在�
 
 1.  接下来，我们将展示我们图像的预测结果：
 
-    ```
+    ```py
     num_rows = 4
     num_cols = 3
     plt.figure(figsize=(2*2*num_cols, 2*num_rows))

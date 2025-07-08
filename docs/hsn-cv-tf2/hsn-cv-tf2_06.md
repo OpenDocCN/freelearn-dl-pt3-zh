@@ -122,7 +122,7 @@ Simonyan 和 Zisserman 还引入了一种他们称之为**数据增强**的机�
 
 Keras API 提供了这些架构的官方实现，可以通过其`tf.keras.applications`包访问（请参见文档：[`www.tensorflow.org/api_docs/python/tf/keras/applications`](https://www.tensorflow.org/api_docs/python/tf/keras/applications)）。该包包含了其他几个著名的模型，并为每个模型提供了*预训练*参数（即从先前在特定数据集上训练中保存的参数）。例如，你可以使用以下命令实例化一个 VGG 网络：
 
-```
+```py
 vgg_net = tf.keras.applications.VGG16(
     include_top=True, weights='imagenet', input_tensor=None, 
     input_shape=None, pooling=None, classes=1000)
@@ -222,7 +222,7 @@ GoogLeNet 中的最后一层全连接层（FC 层）具有*1,024* × *1,000* = *
 
 到目前为止，我们主要使用的是 Keras Sequential API，而它并不太适合多路径架构（正如其名字所暗示的那样）。Keras Functional API 更接近 TensorFlow 的范式，通过将每一层的 Python 变量作为参数传递给下一层来构建图形。以下代码展示了使用这两种 API 实现的一个简化模型：
 
-```
+```py
 from keras.models import Sequential, Model
 from keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Input
 
@@ -243,7 +243,7 @@ model = Model(inputs=inputs, outputs=predictions)
 
 使用功能性 API，可以轻松地将一个层传递给多个其他层，这正是我们需要用于 Inception 模块的并行块。它们的结果可以通过 `concatenate` 层合并在一起（参见文档 [`keras.io/layers/merge/#concatenate_1`](https://keras.io/layers/merge/#concatenate_1)）。因此，*图 4.4* 中展示的简单 Inception 块可以按如下方式实现：
 
-```
+```py
 from keras.layers import Conv2D, MaxPooling2D, concatenate
 
 def naive_inception_block(previous_layer, filters=[64, 128, 32]):
@@ -266,7 +266,7 @@ Google 提供了几种脚本和教程，解释如何直接使用其 Inception �
 
 TensorFlow Hub 是一个预训练模型的仓库。类似于 Docker 允许人们轻松共享和重用软件包，避免重新配置分发，TensorFlow Hub 提供了访问预训练模型的功能，让人们无需花时间和资源去重新实现和重新训练模型。它结合了一个网站（[`tfhub.dev`](https://tfhub.dev)），用户可以在其中搜索特定的模型（例如，基于目标识别任务），以及一个 Python 包来轻松下载和开始使用这些模型。例如，我们可以按如下方式获取并设置 Inception V3 网络：
 
-```
+```py
 import tensorflow as tf
 import tensorflow_hub as hub
 
@@ -381,7 +381,7 @@ Inception 网络证明，增加网络规模是图像分类以及其他识别任�
 
 最后，将两条路径的结果相加，并对和应用*ReLU*函数。总的来说，一个基本的残差块可以如下实现：
 
-```
+```py
 from tf.keras.layers import Activation, Conv2D, BatchNormalization, add
 
 def residual_block_basic(x, filters, kernel_size=3, strides=1):
@@ -512,14 +512,14 @@ CNN 的迁移学习主要是通过重用在丰富数据集上训练的高性能�
 
 第一项任务是删除预训练模型的最终层，将其转换为特征提取器。像往常一样，Keras 使这个操作非常简单。对于`Sequential`模型，层的列表可以通过`model.layers`属性访问。这个结构有一个`pop()`方法，可以删除模型的最后一层。因此，如果我们知道需要删除的最终层的数量以将网络转换为特定的特征提取器（例如，标准 ResNet 模型的两层），可以像下面这样做：
 
-```
+```py
 for i in range(num_layers_to_remove):
     model.layers.pop()
 ```
 
 在纯 TensorFlow 中，编辑支持模型的操作图既不简单也不推荐。然而，我们必须记住，在运行时未使用的图操作不会被执行。因此，即使在编译图中保留旧层，也不会影响新模型的计算性能，只要它们不再被调用。因此，我们只需确定我们想保留的先前模型的最后一层/操作，而不是删除层。如果我们不知道其对应的 Python 对象，但知道其名称（例如，通过 TensorBoard 检查图表），则可以通过循环遍历模型的层并检查它们的名称来恢复其代表张量：
 
-```
+```py
 for layer in model.layers:
     if layer.name == name_of_last_layer_to_keep:
         bottleneck_feats = layer.output
@@ -528,7 +528,7 @@ for layer in model.layers:
 
 然而，Keras 提供了额外的方法来简化这个过程。知道要保留的最后一层的名称（例如，在使用`model.summary()`打印名称后），可以在几行代码中构建一个特征提取器模型：
 
-```
+```py
 bottleneck_feats = model.get_layer(last_layer_name).output
 feature_extractor = Model(inputs=model.input, outputs=bottleneck_feats)
 ```
@@ -539,7 +539,7 @@ feature_extractor = Model(inputs=model.input, outputs=bottleneck_feats)
 
 在特征提取器之上添加新的预测层相对简单（与以前的 TensorFlow Hub 示例相比），因为只需在相应模型的顶部添加新层。例如，可以使用 Keras API 如下完成这项工作：
 
-```
+```py
 dense1 = Dense(...)(feature_extractor.output) # ...
 new_model = Model(model.input, dense1)
 ```
@@ -554,7 +554,7 @@ new_model = Model(model.input, dense1)
 
 TensorFlow 有一些实用函数可以为估算器进行热启动；即初始化其中一些层的预训练权重。以下代码片段告诉 TensorFlow 使用预训练估算器的保存参数来为具有相同名称的层的新估算器初始化：
 
-```
+```py
 def model_function():
     # ... define new model, reusing pretrained one as feature extractor.
 
@@ -567,7 +567,7 @@ estimator = tf.estimator.Estimator(model_fn, warm_start_from=ws)
 
 使用 Keras，我们可以在为新任务进行转换之前简单地恢复预训练模型：
 
-```
+```py
 # Assuming the pretrained model was saved with `model.save()`:
 model = tf.keras.models.load_model('/path/to/pretrained/model.h5')
 # ... then pop/add layers to obtain the new model.
@@ -579,7 +579,7 @@ model = tf.keras.models.load_model('/path/to/pretrained/model.h5')
 
 在 TensorFlow 中，冻结层的最通用方法是从传递给优化器的变量列表中删除它们的 `tf.Variable` 属性：
 
-```
+```py
 # For instance, we want to freeze the model's layers with "conv" in their name:
 vars_to_train = model.trainable_variables
 vars_to_train = [v for v in vars_to_train if "conv" in v.name]
@@ -590,7 +590,7 @@ optimizer.apply_gradients(zip(gradient, vars_to_train))
 
 在 Keras 中，层具有 `.trainable` 属性，只需将其设置为 `False` 即可冻结它们：
 
-```
+```py
 for layer in feature_extractor_model.layers:
     layer.trainable = False  # freezing the complete extractor
 ```

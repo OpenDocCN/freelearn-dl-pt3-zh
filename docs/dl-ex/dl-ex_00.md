@@ -84,7 +84,7 @@
 
 代码块如下所示：
 
-```
+```py
 html, body, #map {
  height: 100%; 
  margin: 0;
@@ -94,7 +94,7 @@ html, body, #map {
 
 当我们希望你注意代码块中特定部分时，相关的行或项会以粗体显示：
 
-```
+```py
 [default]
 exten => s,1,Dial(Zap/1|30)
 exten => s,2,Voicemail(u100)
@@ -104,7 +104,7 @@ exten => i,1,Voicemail(s0)
 
 任何命令行输入或输出如下所示：
 
-```
+```py
 $ mkdir css
 $ cd css
 ```

@@ -88,7 +88,7 @@ TensorFlow 是一个流行的库，用于实现基于机器学习的解决方案
 
 常量值张量是通过`tf.constant()`函数创建的，具有以下定义：
 
-```
+```py
 tf.constant(
   value,
   dtype=None,
@@ -100,7 +100,7 @@ tf.constant(
 
 让我们用以下代码创建一些常量：
 
-```
+```py
 const1=tf.constant(34,name='x1')
 const2=tf.constant(59.0,name='y1')
 const3=tf.constant(32.0,dtype=tf.float16,name='z1')
@@ -116,7 +116,7 @@ const3=tf.constant(32.0,dtype=tf.float16,name='z1')
 
 让我们打印常量`const1`、`const2`和`const3`：
 
-```
+```py
 print('const1 (x): ',const1)
 print('const2 (y): ',const2)
 print('const3 (z): ',const3)
@@ -124,7 +124,7 @@ print('const3 (z): ',const3)
 
 当我们打印这些常量时，我们将得到以下输出：
 
-```
+```py
 const1 (x):  Tensor("x:0", shape=(), dtype=int32)
 const2 (y):  Tensor("y:0", shape=(), dtype=float32)
 const3 (z):  Tensor("z:0", shape=(), dtype=float16)
@@ -134,13 +134,13 @@ const3 (z):  Tensor("z:0", shape=(), dtype=float16)
 
 要打印这些常量的值，我们可以在 TensorFlow 会话中执行它们，使用`tfs.run()`命令：
 
-```
+```py
 print('run([const1,const2,c3]) : ',tfs.run([const1,const2,const3]))
 ```
 
 我们将看到以下输出：
 
-```
+```py
 run([const1,const2,const3]) : [34, 59.0, 32.0]
 ```
 
@@ -148,35 +148,35 @@ run([const1,const2,const3]) : [34, 59.0, 32.0]
 
 TensorFlow 库包含几个内置的操作，可以应用于张量。操作节点可以通过传递输入值并将输出保存在另一个张量中来定义。为了更好地理解这一点，我们来定义两个操作，`op1`和`op2`：
 
-```
+```py
 op1 = tf.add(const2, const3)
 op2 = tf.multiply(const2, const3)
 ```
 
 让我们打印 `op1` 和 `op2`：
 
-```
+```py
 print('op1 : ', op1)
 print('op2 : ', op2)
 ```
 
 输出如下，显示 `op1` 和 `op2` 被定义为张量：
 
-```
+```py
 op1 :  Tensor("Add:0", shape=(), dtype=float32)
 op2 :  Tensor("Mul:0", shape=(), dtype=float32)
 ```
 
 要打印执行这些操作后的输出，必须在 TensorFlow 会话中执行 `op1` 和 `op2` 张量：
 
-```
+```py
 print('run(op1) : ', tfs.run(op1))
 print('run(op2) : ', tfs.run(op2))
 ```
 
 输出如下：
 
-```
+```py
 run(op1) :  91.0
 run(op2) :  1888.0
 ```
@@ -187,7 +187,7 @@ TensorFlow 的一些内置操作包括算术运算、数学函数和复数运算
 
 虽然常量在定义张量时存储值，占位符允许你创建空张量，以便在运行时提供值。TensorFlow 库提供了一个名为 `tf.placeholder()` 的函数，以下是它的签名，用于创建占位符：
 
-```
+```py
 tf.placeholder(
   dtype,
   shape=None,
@@ -197,7 +197,7 @@ tf.placeholder(
 
 作为一个示例，我们来创建两个占位符并打印它们：
 
-```
+```py
 p1 = tf.placeholder(tf.float32)
 p2 = tf.placeholder(tf.float32)
 print('p1 : ', p1)
@@ -206,20 +206,20 @@ print('p2 : ', p2)
 
 以下输出显示每个占位符已被创建为一个张量：
 
-```
+```py
 p1 :  Tensor("Placeholder:0", dtype=float32)
 p2 :  Tensor("Placeholder_1:0", dtype=float32)
 ```
 
 让我们使用这些占位符定义一个操作：
 
-```
+```py
 mult_op = p1 * p2
 ```
 
 在 TensorFlow 中，可以使用简写符号进行各种操作。在前面的代码中，`p1 * p2` 是 `tf.multiply(p1, p2)` 的简写：
 
-```
+```py
 print('run(mult_op,{p1:13.4, p2:61.7}) : ',tfs.run(mult_op,{p1:13.4, p2:61.7}))
 ```
 
@@ -227,13 +227,13 @@ print('run(mult_op,{p1:13.4, p2:61.7}) : ',tfs.run(mult_op,{p1:13.4, p2:61.7}))
 
 输出如下：
 
-```
+```py
 run(mult_op,{p1:13.4, p2:61.7}) :  826.77997
 ```
 
 我们还可以通过在 `run()` 操作中使用 `feed_dict` 参数来指定值字典：
 
-```
+```py
 feed_dict={p1: 15.4, p2: 19.5}
 print('run(mult_op,feed_dict = {p1:15.4, p2:19.5}) : ',
       tfs.run(mult_op, feed_dict=feed_dict))
@@ -241,13 +241,13 @@ print('run(mult_op,feed_dict = {p1:15.4, p2:19.5}) : ',
 
 输出如下：
 
-```
+```py
 run(mult_op,feed_dict = {p1:15.4, p2:19.5}) :  300.3
 ```
 
 让我们看一个最终的示例，展示一个向量被传递到同一个操作中的情况：
 
-```
+```py
 feed_dict={p1: [2.0, 3.0, 4.0], p2: [3.0, 4.0, 5.0]}
 print('run(mult_op,feed_dict={p1:[2.0,3.0,4.0], p2:[3.0,4.0,5.0]}):',
       tfs.run(mult_op, feed_dict=feed_dict))
@@ -255,7 +255,7 @@ print('run(mult_op,feed_dict={p1:[2.0,3.0,4.0], p2:[3.0,4.0,5.0]}):',
 
 输出如下：
 
-```
+```py
 run(mult_op,feed_dict={p1:[2.0,3.0,4.0],p2:[3.0,4.0,5.0]}):[  6\.  12\.  20.]
 ```
 
@@ -265,7 +265,7 @@ run(mult_op,feed_dict={p1:[2.0,3.0,4.0],p2:[3.0,4.0,5.0]}):[  6\.  12\.  20.]
 
 张量可以通过 Python 对象（如列表、NumPy 数组和 pandas DataFrame）创建。要从 Python 对象创建张量，请使用 `tf.convert_to_tensor()` 函数，以下是它的定义：
 
-```
+```py
 tf.convert_to_tensor(
   value,
   dtype=None,
@@ -278,7 +278,7 @@ tf.convert_to_tensor(
 
 1.  定义一个零维张量：
 
-```
+```py
 tf_t=tf.convert_to_tensor(5.0,dtype=tf.float64)
 
 print('tf_t : ',tf_t)
@@ -287,14 +287,14 @@ print('run(tf_t) : ',tfs.run(tf_t))
 
 输出如下：
 
-```
+```py
 tf_t : Tensor("Const_1:0", shape=(), dtype=float64)
 run(tf_t) : 5.0
 ```
 
 1.  定义一个一维张量：
 
-```
+```py
 a1dim = np.array([1,2,3,4,5.99])
 print("a1dim Shape : ",a1dim.shape)
 
@@ -308,7 +308,7 @@ print('run(tf_t) : \n',tfs.run(tf_t))
 
 输出如下：
 
-```
+```py
 a1dim Shape :  (5,)
 tf_t :  Tensor("Const_2:0", shape=(5,), dtype=float64)
 tf_t[0] :  Tensor("strided_slice:0", shape=(), dtype=float64)
@@ -319,7 +319,7 @@ run(tf_t) :
 
 1.  定义一个二维张量：
 
-```
+```py
 a2dim = np.array([(1,2,3,4,5.99),
                   (2,3,4,5,6.99),
                   (3,4,5,6,7.99)
@@ -336,7 +336,7 @@ print('run(tf_t) : \n',tfs.run(tf_t))
 
 输出如下：
 
-```
+```py
 a2dim Shape :  (3, 5)
 tf_t :  Tensor("Const_3:0", shape=(3, 5), dtype=float64)
 tf_t[0][0] :  Tensor("strided_slice_3:0", shape=(), dtype=float64)
@@ -349,7 +349,7 @@ run(tf_t) :
 
 1.  定义一个三维张量：
 
-```
+```py
 a3dim = np.array([[[1,2],[3,4]],
                   [[5,6],[7,8]]
                  ])
@@ -365,7 +365,7 @@ print('run(tf_t) : \n',tfs.run(tf_t))
 
 输出如下：
 
-```
+```py
 a3dim Shape :  (2, 2, 2)
 tf_t :  Tensor("Const_4:0", shape=(2, 2, 2), dtype=float64)
 tf_t[0][0][0] :  Tensor("strided_slice_8:0", shape=(), dtype=float64)
@@ -394,21 +394,21 @@ run(tf_t) :
 
 1.  将模型参数`w`和`b`定义为变量，初始值分别为`[.3]`和`[-0.3]`：
 
-```
+```py
 w = tf.Variable([.3], tf.float32)
 b = tf.Variable([-.3], tf.float32)
 ```
 
 1.  定义输入占位符`x`和输出操作节点`y`：
 
-```
+```py
 x = tf.placeholder(tf.float32)
 y = w * x + b
 ```
 
 1.  打印变量和占位符`w`、`v`、`x`和`y`：
 
-```
+```py
 print("w:",w)
 print("x:",x)
 print("b:",b)
@@ -417,7 +417,7 @@ print("y:",y)
 
 输出描绘了节点的类型，如`Variable`、`Placeholder`或操作节点，如下所示：
 
-```
+```py
 w: <tf.Variable 'Variable:0' shape=(1,) dtype=float32_ref>
 x: Tensor("Placeholder_2:0", dtype=float32)
 b: <tf.Variable 'Variable_1:0' shape=(1,) dtype=float32_ref>
@@ -430,13 +430,13 @@ y: Tensor("add:0", dtype=float32)
 
 例如，要初始化`w`变量，可以使用以下代码：
 
-```
+```py
 tfs.run(w.initializer)
 ```
 
 TensorFlow 提供了一个方便的函数，可以初始化所有变量：
 
-```
+```py
 tfs.run(tf.global_variables_initializer())
 ```
 
@@ -444,19 +444,19 @@ TensorFlow 还提供了`tf.variables_initializer()`函数，可以初始化一�
 
 初始化这些变量的全局便利函数可以以另一种方式执行。与在会话对象的`run()`函数内部执行不同，可以直接执行由初始化函数返回的对象的运行函数：
 
-```
+```py
 tf.global_variables_initializer().run()
 ```
 
 在变量初始化后，执行模型以获取输入值`x = [1,2,3,4]`的输出：
 
-```
+```py
 print('run(y,{x:[1,2,3,4]}) : ',tfs.run(y,{x:[1,2,3,4]}))
 ```
 
 输出如下：
 
-```
+```py
 run(y,{x:[1,2,3,4]}) :  [ 0\.          0.30000001  0.60000002  0.90000004]
 ```
 
@@ -466,7 +466,7 @@ TensorFlow 提供了各种函数来生成具有预填充值的张量。这些函
 
 作为示例，生成一个预先填充了`100`个零的 1 维张量：
 
-```
+```py
 a=tf.zeros((100,))
 print(tfs.run(a))
 ```
@@ -485,7 +485,7 @@ TensorFlow 库中的一些函数会在定义时用不同的值填充这些张量
 
 请考虑以下示例：
 
-```
+```py
 w = tf.get_variable(name='w',shape=[1],dtype=tf.float32,initializer=[.3])
 b = tf.get_variable(name='b',shape=[1],dtype=tf.float32,initializer=[-.3])
 ```
@@ -528,7 +528,7 @@ TensorFlow 中的模型包含计算图。首先，您必须创建包含表示变
 
 一个 TensorFlow 程序在默认图中开始执行。除非显式指定另一个图，否则新节点会隐式地添加到默认图中。可以使用以下命令显式访问默认图：
 
-```
+```py
 graph = tf.get_default_graph()
 ```
 
@@ -542,7 +542,7 @@ graph = tf.get_default_graph()
 
 让我们定义并执行一个计算图来计算 ![](img/b44e70e9-36d0-4a12-9e1d-42496c5e860d.png)，就像我们在前面的示例中看到的那样：
 
-```
+```py
 # Linear Model y = w * x + b
 # Define the model parameters
 w = tf.Variable([.3], tf.float32)
@@ -567,7 +567,7 @@ print('output : ',output)
 
 通常，需要控制计算图中节点的执行顺序。这可以通过 `tf.Graph.control_dependencies()` 函数来完成。例如，如果图中有节点 `l`、`m`、`n` 和 `o`，并且我们希望在执行 `l` 和 `m` 之前执行 `n` 和 `o`，那么我们可以使用以下代码：
 
-```
+```py
 with graph_variable.control_dependencies([n,o]):
   # other statements here
 ```
@@ -578,14 +578,14 @@ with graph_variable.control_dependencies([n,o]):
 
 图可以被划分为几个部分，每个部分可以在不同的设备上进行放置和执行，例如 CPU 或 GPU。所有可用于图执行的设备可以通过以下命令列出：
 
-```
+```py
 from tensorflow.python.client import device_lib
 print(device_lib.list_local_devices())
 ```
 
 输出如下所示（由于依赖于您系统中可用的计算设备，您的机器输出将有所不同）：
 
-```
+```py
 [name: "/device:CPU:0"
 device_type: "CPU"
 memory_limit: 268435456
@@ -611,7 +611,7 @@ TensorFlow 中的设备通过字符串 `/device:<device_type>:<device_idx>` 来�
 
 通过定义一个配置对象来启用变量放置的日志记录，将`log_device_placement`属性设置为`true`，然后将这个`config`对象传递给会话，如下所示：
 
-```
+```py
 tf.reset_default_graph()
 
 # Define model parameters
@@ -632,7 +632,7 @@ with tf.Session(config=config) as tfs:
 
 Jupyter Notebook 控制台窗口的输出如下所示：
 
-```
+```py
 b: (VariableV2): /job:localhost/replica:0/task:0/device:GPU:0
 b/read: (Identity): /job:localhost/replica:0/task:0/device:GPU:0
 b/Assign: (Assign): /job:localhost/replica:0/task:0/device:GPU:0
@@ -651,7 +651,7 @@ Const: (Const): /job:localhost/replica:0/task:0/device:GPU:0
 
 因此，默认情况下，TensorFlow 会在一个设备上创建变量和操作节点，以便获得最高的性能。这些变量和操作可以通过使用`tf.device()`函数将其放置在特定设备上。我们来将图放置在 CPU 上：
 
-```
+```py
 tf.reset_default_graph()
 
 with tf.device('/device:CPU:0'):
@@ -673,7 +673,7 @@ with tf.Session(config=config) as tfs:
 
 在 Jupyter 控制台中，我们可以看到变量已被放置在 CPU 上，并且执行也发生在 CPU 上：
 
-```
+```py
 b: (VariableV2): /job:localhost/replica:0/task:0/device:CPU:0
 b/read: (Identity): /job:localhost/replica:0/task:0/device:CPU:0
 b/Assign: (Assign): /job:localhost/replica:0/task:0/device:CPU:0
@@ -694,7 +694,7 @@ Const: (Const): /job:localhost/replica:0/task:0/device:CPU:0
 
 TensorFlow 遵循以下规则来将变量放置在设备上：
 
-```
+```py
 If the graph was previously run, 
     then the node is left on the device where it was placed earlier
 Else If the tf.device() block is used,
@@ -713,7 +713,7 @@ Else If the GPU is not present
 
 如果一个 TensorFlow 操作被放置在 GPU 上，那么执行引擎必须具有该操作的 GPU 实现，这被称为**内核**。如果内核不存在，那么放置将导致运行时错误。此外，如果请求的 GPU 设备不存在，则会引发运行时错误。处理此类错误的最佳方法是允许操作在 GPU 设备请求失败时放置到 CPU 上。这可以通过设置以下`config`值来实现：
 
-```
+```py
 config.allow_soft_placement = True
 ```
 
@@ -723,7 +723,7 @@ config.allow_soft_placement = True
 
 +   对于多 GPU 系统，设置环境变量`CUDA_VISIBLE_DEVICES=<device idx 列表>`：
 
-```
+```py
 os.environ['CUDA_VISIBLE_DEVICES']='0'
 ```
 
@@ -731,7 +731,7 @@ os.environ['CUDA_VISIBLE_DEVICES']='0'
 
 +   要让会话只抓取 GPU 的一部分内存，请使用配置选项`per_process_gpu_memory_fraction`来分配内存的百分比：
 
-```
+```py
 config.gpu_options.per_process_gpu_memory_fraction = 0.5
 ```
 
@@ -741,7 +741,7 @@ config.gpu_options.per_process_gpu_memory_fraction = 0.5
 
 +   限制 TensorFlow 进程仅抓取启动时所需的最小内存。随着进程的进一步执行，可以设置配置选项，允许内存逐步增长：
 
-```
+```py
 config.gpu_options.allow_growth = True
 ```
 
@@ -759,7 +759,7 @@ config.gpu_options.allow_growth = True
 
 因此，推荐的方法是在一个图中使用多个子图。如果我们希望使用自己的图而不是默认图，可以使用`tf.graph()`命令来实现。在下面的示例中，我们创建了自己的图`g`，并将其作为默认图执行：
 
-```
+```py
 g = tf.Graph()
 output = 0
 
@@ -889,7 +889,7 @@ softmax 函数为每个类别生成概率，使得概率向量的和为 *1*。�
 
 1.  首先，我们必须导入 `datasetslib`，这是我们编写的一个库，用来帮助书中的示例（可以作为本书 GitHub 仓库的子模块获取）：
 
-```
+```py
 DSLIB_HOME = '../datasetslib'
 import sys
 if not DSLIB_HOME in sys.path:
@@ -905,14 +905,14 @@ from datasetslib.mnist import MNIST
 
 1.  设置我们主目录中 `datasets` 文件夹的路径，这是我们希望存储所有 `datasets` 的地方：
 
-```
+```py
 import os
 datasets_root = os.path.join(os.path.expanduser('~'),'datasets')
 ```
 
 1.  使用我们的 `datasetslib` 获取 MNIST 数据，并打印数据形状以确保数据已正确加载：
 
-```
+```py
 mnist=MNIST()
 
 x_train,y_train,x_test,y_test=mnist.load_data()
@@ -929,7 +929,7 @@ print('Test: x:{}, y:{}'.format(x_test.shape,y_test.shape))
 
 1.  定义训练模型的超参数：
 
-```
+```py
 learning_rate = 0.001
 n_epochs = 5
 mnist.batch_size = 100
@@ -937,7 +937,7 @@ mnist.batch_size = 100
 
 1.  为我们的简单模型定义占位符和参数：
 
-```
+```py
 # define input images
 x = tf.placeholder(dtype=tf.float32, shape=[None, mnist.n_features])
 # define output labels
@@ -950,14 +950,14 @@ b = tf.Variable(tf.zeros([mnist.n_classes]))
 
 1.  使用 `logits` 和 `y_hat` 来定义模型：
 
-```
+```py
 logits = tf.add(tf.matmul(x, w), b)
 y_hat = tf.nn.softmax(logits)
 ```
 
 1.  定义 `loss` 函数：
 
-```
+```py
 epsilon = tf.keras.backend.epsilon()
 y_hat_clipped = tf.clip_by_value(y_hat, epsilon, 1 - epsilon)
 y_hat_log = tf.log(y_hat_clipped)
@@ -967,21 +967,21 @@ loss_f = tf.reduce_mean(cross_entropy)
 
 1.  定义 `optimizer` 函数：
 
-```
+```py
 optimizer = tf.train.GradientDescentOptimizer
 optimizer_f = optimizer(learning_rate=learning_rate).minimize(loss_f)
 ```
 
 1.  定义一个函数来检查训练模型的准确率：
 
-```
+```py
 predictions_check = tf.equal(tf.argmax(y_hat, 1), tf.argmax(y, 1))
 accuracy_f = tf.reduce_mean(tf.cast(predictions_check, tf.float32))
 ```
 
 1.  在 TensorFlow 会话中为每个 epoch 运行 `training` 循环：
 
-```
+```py
 n_batches = int(60000/mnist.batch_size)
 
 with tf.Session() as tfs:
@@ -998,7 +998,7 @@ with tf.Session() as tfs:
 
 1.  在之前创建的 TensorFlow 会话中，针对每个 epoch 使用测试数据运行评估函数：
 
-```
+```py
 feed_dict = {x: x_test, y: y_test}
 accuracy_score = tfs.run(accuracy_f, feed_dict=feed_dict)
 print('epoch {0:04d}  accuracy={1:.8f}'
@@ -1007,7 +1007,7 @@ print('epoch {0:04d}  accuracy={1:.8f}'
 
 我们得到以下输出：
 
-```
+```py
 epoch 0000 accuracy=0.73280001 epoch 0001 accuracy=0.72869998 epoch 0002 accuracy=0.74550003 epoch 0003 accuracy=0.75260001 epoch 0004 accuracy=0.74299997
 ```
 
@@ -1021,7 +1021,7 @@ epoch 0000 accuracy=0.73280001 epoch 0001 accuracy=0.72869998 epoch 0002 accurac
 
 1.  Keras 以不同的格式接收数据，因此我们必须首先使用 `datasetslib` 重新格式化数据：
 
-```
+```py
 x_train_im = mnist.load_images(x_train)
 
 x_train_im, x_test_im = x_train_im / 255.0, x_test / 255.0
@@ -1031,7 +1031,7 @@ x_train_im, x_test_im = x_train_im / 255.0, x_test / 255.0
 
 1.  然后，我们构建模型：
 
-```
+```py
 model = tf.keras.models.Sequential([
     tf.keras.layers.Flatten(),
     tf.keras.layers.Dense(10, activation=tf.nn.softmax)
@@ -1040,7 +1040,7 @@ model = tf.keras.models.Sequential([
 
 1.  使用 `sgd` 优化器编译模型。将分类熵作为 `loss` 函数，准确率作为测试模型的指标：
 
-```
+```py
 model.compile(optimizer='sgd',
               loss='sparse_categorical_crossentropy',
               metrics=['accuracy'])
@@ -1048,7 +1048,7 @@ model.compile(optimizer='sgd',
 
 1.  使用训练集图像和标签训练模型 `5` 个周期：
 
-```
+```py
 model.fit(x_train_im, y_train, epochs=5)
 
 Epoch 1/5
@@ -1066,13 +1066,13 @@ Epoch 5/5
 
 1.  使用测试数据评估模型：
 
-```
+```py
 model.evaluate(x_test_im, nputil.argmax(y_test))
 ```
 
 我们得到以下评估分数作为输出：
 
-```
+```py
 [0.33530342621803283, 0.9097]
 ```
 

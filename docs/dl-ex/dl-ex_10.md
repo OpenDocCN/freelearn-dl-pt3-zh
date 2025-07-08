@@ -168,7 +168,7 @@ LSTM 架构中的下一步是决定哪些信息值得保留/持久化并存储�
 
 让我们首先导入实现字符级别操作所需的库：
 
-```
+```py
 import numpy as np
 import tensorflow as tf
 
@@ -177,7 +177,7 @@ from collections import namedtuple
 
 首先，我们需要通过加载数据集并将其转换为整数来准备数据集。因此，我们将字符转换为整数，然后将其编码为整数，这使得它可以作为模型的输入变量，直观且易于使用：
 
-```
+```py
 #reading the Anna Karenina novel text file
 with open('Anna_Karenina.txt', 'r') as f:
     textlines=f.read()
@@ -191,7 +191,7 @@ encoded_vocab = np.array([vocab_to_integer[char] for char in textlines], dtype=n
 
 让我们看一下《安娜·卡列尼娜》文本中的前 200 个字符：
 
-```
+```py
 textlines[:200]
 Output:
 "Chapter 1\n\n\nHappy families are all alike; every unhappy family is unhappy in its own\nway.\n\nEverything was in confusion in the Oblonskys' house. The wife had\ndiscovered that the husband was carrying on"
@@ -199,7 +199,7 @@ Output:
 
 我们还将字符转换为适合网络使用的便捷形式，即整数。因此，让我们来看一下这些字符的编码版本：
 
-```
+```py
 encoded_vocab[:200]
 Output:
 array([70, 34, 54, 29, 24, 19, 76, 45, 2, 79, 79, 79, 69, 54, 29, 29, 49,
@@ -220,7 +220,7 @@ array([70, 34, 54, 29, 24, 19, 76, 45, 2, 79, 79, 79, 69, 54, 29, 29, 49,
 
 因此，我们将一次喂给模型一个字符，模型将通过对可能出现的下一个字符（词汇表中的字符）的概率分布进行预测，从而预测下一个字符，这相当于网络需要从中选择的多个类别：
 
-```
+```py
 len(language_vocab)
 Output:
 83
@@ -250,7 +250,7 @@ Output:
 
 我喜欢通过使用 range 函数来做这个窗口，步长为 `num_steps`，从 0 到 `arr.shape[1]`，也就是每个序列的总步数。这样，你从 range 函数得到的整数始终指向一个批次的开始，每个窗口宽度为 `num_steps`：
 
-```
+```py
 def generate_character_batches(data, num_seq, num_steps):
     '''Create a function that returns batches of size
        num_seq x num_steps from data.
@@ -278,7 +278,7 @@ def generate_character_batches(data, num_seq, num_steps):
 
 所以，让我们使用这个函数来演示，通过生成一个包含 15 个序列和 50 个序列步骤的批次：
 
-```
+```py
 generated_batches = generate_character_batches(encoded_vocab, 15, 50)
 input_x, output_y = next(generated_batches)
 print('input\n', input_x[:10, :10])
@@ -346,7 +346,7 @@ target
 
 现在，让我们开始定义模型输入作为占位符。模型的输入将是训练数据和目标。我们还将使用一个叫做`keep_probability`的参数用于 dropout 层，帮助模型避免过拟合：
 
-```
+```py
 def build_model_inputs(batch_size, num_steps):
 
     # Declare placeholders for the input and output variables
@@ -365,31 +365,31 @@ def build_model_inputs(batch_size, num_steps):
 
 我们调用以下代码行来创建一个 LSTM 单元，参数`num_units`表示隐藏层中的单元数：
 
-```
+```py
 lstm_cell = tf.contrib.rnn.BasicLSTMCell(num_units)
 ```
 
 为了防止过拟合，我们可以使用一种叫做**dropout**的技术，它通过减少模型的复杂度来防止模型过拟合数据：
 
-```
+```py
 tf.contrib.rnn.DropoutWrapper(lstm, output_keep_prob=keep_probability)
 ```
 
 正如我们之前提到的，我们将使用堆叠 LSTM 架构；它将帮助我们从不同角度查看数据，并且在实践中已被证明能表现得更好。为了在 TensorFlow 中定义堆叠 LSTM，我们可以使用`tf.contrib.rnn.MultiRNNCell`函数（链接：[`www.tensorflow.org/versions/r1.0/api_docs/python/tf/contrib/rnn/MultiRNNCell`](https://www.tensorflow.org/versions/r1.0/api_docs/python/tf/contrib/rnn/MultiRNNCell)）：
 
-```
+```py
 tf.contrib.rnn.MultiRNNCell([cell]*num_layers)
 ```
 
 初始时，对于第一个单元，没有前一个信息，因此我们需要将单元状态初始化为零。我们可以使用以下函数来实现：
 
-```
+```py
 initial_state = cell.zero_state(batch_size, tf.float32)
 ```
 
 那么，让我们把所有部分结合起来，创建我们的 LSTM 单元：
 
-```
+```py
 def build_lstm_cell(size, num_layers, batch_size, keep_probability):
 
     ### Building the LSTM Cell using the tensorflow function
@@ -417,7 +417,7 @@ def build_lstm_cell(size, num_layers, batch_size, keep_probability):
 
 在解释了输出的形状以及如何重新调整形状后，为了简化操作，我们继续编写这个 `build_model_output` 函数：
 
-```
+```py
 def build_model_output(output, input_size, output_size):
 
     # Reshaping output of the model to become a bunch of rows, where each row correspond for each step in the seq
@@ -445,7 +445,7 @@ def build_model_output(output, input_size, output_size):
 
 然后，我们将 `logits` 和 `targets` 输入到 `tf.nn.softmax_cross_entropy_with_logits` 中，并计算其均值以获得损失：
 
-```
+```py
 def model_loss(logits, targets, lstm_size, num_classes):
 
     # convert the targets to one-hot encoded and reshape them to match the logits, one row per batch_size per step
@@ -464,7 +464,7 @@ def model_loss(logits, targets, lstm_size, num_classes):
 
 所以，让我们通过使用 Adam 优化器来定义我们的优化器，用于学习过程：
 
-```
+```py
 def build_model_optimizer(model_loss, learning_rate, grad_clip):
 
     # define optimizer for training, using gradient clipping to avoid the exploding of the gradients
@@ -482,7 +482,7 @@ def build_model_optimizer(model_loss, learning_rate, grad_clip):
 
 现在，我们可以将所有部分组合起来，构建一个网络的类。为了真正将数据传递到 LSTM 单元，我们将使用`tf.nn.dynamic_rnn`（链接：[`www.tensorflow.org/versions/r1.0/api_docs/python/tf/nn/dynamic_rnn`](https://www.tensorflow.org/versions/r1.0/api_docs/python/tf/nn/dynamic_rnn)）。这个函数会适当地传递隐藏状态和单元状态给 LSTM 单元。它返回每个序列中每个 LSTM 单元在每个步骤的输出。它还会给我们最终的 LSTM 状态。我们希望将这个状态保存为`final_state`，以便在下一次 mini-batch 运行时将其传递给第一个 LSTM 单元。对于`tf.nn.dynamic_rnn`，我们传入从`build_lstm`获得的单元和初始状态，以及我们的输入序列。此外，我们需要对输入进行 one-hot 编码，然后才能进入 RNN：
 
-```
+```py
 class CharLSTM:
 
     def __init__(self, num_classes, batch_size=64, num_steps=50, 
@@ -542,7 +542,7 @@ class CharLSTM:
 
 让我们为超参数提供初始值（你可以在之后根据训练该架构使用的数据集调整这些值）：
 
-```
+```py
 
 batch_size = 100        # Sequences per batch
 num_steps = 100         # Number of sequence steps per batch
@@ -552,7 +552,7 @@ learning_rate = 0.001   # Learning rate
 keep_probability = 0.5  # Dropout keep probability
 ```
 
-```
+```py
 epochs = 5
 
 # Save a checkpoint N iterations
@@ -599,7 +599,7 @@ with tf.Session() as sess:
 
 在训练过程的最后，你应该得到一个接近以下的错误：
 
-```
+```py
 .
 .
 .
@@ -622,11 +622,11 @@ Epoch number: 5/5...  Step: 990...  loss: 1.7144...  0.051 sec/batch
 
 现在，让我们加载检查点。关于保存和加载检查点的更多信息，你可以查看 TensorFlow 文档（[`www.tensorflow.org/programmers_guide/variables`](https://www.tensorflow.org/programmers_guide/variables)）：
 
-```
+```py
 tf.train.get_checkpoint_state('checkpoints')
 ```
 
-```
+```py
 Output:
 model_checkpoint_path: "checkpoints/i990_l512.ckpt"
 all_model_checkpoint_paths: "checkpoints/i100_l512.ckpt"
@@ -649,7 +649,7 @@ all_model_checkpoint_paths: "checkpoints/i990_l512.ckpt"
 
 网络为我们提供了词汇中每个字符的预测或概率。为了减少噪声并只使用网络更加自信的字符，我们将只从输出中选择前*N*个最可能的字符：
 
-```
+```py
 def choose_top_n_characters(preds, vocab_size, top_n_chars=4):
     p = np.squeeze(preds)
     p[np.argsort(p)[:-top_n_chars]] = 0
@@ -658,7 +658,7 @@ def choose_top_n_characters(preds, vocab_size, top_n_chars=4):
     return c
 ```
 
-```
+```py
 def sample_from_LSTM_output(checkpoint, n_samples, lstm_size, vocab_size, prime="The "):
     samples = [char for char in prime]
     LSTM_model = CharLSTM(len(language_vocab), lstm_size=lstm_size, sampling=True)
@@ -694,29 +694,29 @@ def sample_from_LSTM_output(checkpoint, n_samples, lstm_size, vocab_size, prime=
 
 让我们开始使用保存的最新检查点进行采样过程：
 
-```
+```py
 tf.train.latest_checkpoint('checkpoints')
 ```
 
-```
+```py
 Output:
 'checkpoints/i990_l512.ckpt'
 ```
 
 现在，使用这个最新的检查点进行采样的时间到了：
 
-```
+```py
 checkpoint = tf.train.latest_checkpoint('checkpoints')
 sampled_text = sample_from_LSTM_output(checkpoint, 1000, lstm_size, len(language_vocab), prime="Far")
 print(sampled_text)
 ```
 
-```
+```py
 Output:
 INFO:tensorflow:Restoring parameters from checkpoints/i990_l512.ckpt
 ```
 
-```
+```py
 Farcial the
 confiring to the mone of the correm and thinds. She
 she saw the

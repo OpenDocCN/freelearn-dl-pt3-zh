@@ -142,7 +142,7 @@ Google 的语音命令数据集包含 65,000 条一秒钟长的 30 个简短单�
 
 **第一部分**：导入所需的 Python 模块以进行音频文件抓取：
 
-```
+```py
 # Import the required modules
 import urllib
 from bs4 import BeautifulSoup
@@ -156,7 +156,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 **第二部分**：准备要下载的音频书籍链接。请注意，这些链接可能包含重复的读者，将对其进行清理，以生成一个非重复的读者/发言人/家庭成员数据集：
 
-```
+```py
 # Create links book for the audio data to be downloaded: this may include repeated readers
 book_links = []
 browser = webdriver.PhantomJS(executable_path = '/usr/local/bin/phantomjs')
@@ -183,7 +183,7 @@ browser.quit()
 
 **第三部分**：从列出的书籍下载音频文件，并形成一个非重复读者/发言人的数据集：
 
-```
+```py
 #  List of Links or pages for the audio books to be downloaded
 f = open('audiodownload_links.txt', 'w')
 simplejson.dump(download_links, f)
@@ -256,7 +256,7 @@ if num < 200:
 
 由于实现基于卷积神经网络（CNN），我们需要将 WAV 音频文件转换为图像。音频文件转换为图像的过程根据输入数据格式的不同而有所变化。我们可以使用`convert_wav2spect.sh`（可在第四章，*音频/语音/物联网中的语音识别*代码文件夹中找到）将 WAV 文件转换为固定大小（503 x 800）的频谱图颜色图像：
 
-```
+```py
 #!/bin/bash
 #for file in test/*/*.wav
 for file in train/*/*.wav
@@ -282,7 +282,7 @@ done
 
 我们还可以对数据进行分组探索，为此我们可以在想要探索的数据集上运行`image_explorer.py`，如下所示：
 
-```
+```py
 python image_explorer.py
 ```
 
@@ -324,7 +324,7 @@ python image_explorer.py
 
 下面是运行 Mobilnet V1 模型重新训练的命令：
 
-```
+```py
 python retrain.py \
 --output_graph=trained_model_mobilenetv1/retrained_graph.pb \
 --output_labels=trained_model_mobilenetv1/retrained_labels.txt   \
@@ -334,7 +334,7 @@ python retrain.py \
 
 一旦我们运行上述命令，它们将在给定目录中生成重新训练模型（`retrained_graph.pb`）和标签文本（`retrained_labels.txt`），而摘要目录包含了模型的训练和验证摘要信息。摘要信息（`--summaries_dir`参数默认值为`retrain_logs`）可以被 TensorBoard 用来可视化模型的不同方面，包括网络和性能图表。如果我们在终端或命令提示符中输入以下命令，将会运行`tensorboard`：
 
-```
+```py
 tensorboard --logdir retrain_logs
 ```
 

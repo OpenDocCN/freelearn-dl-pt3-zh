@@ -536,20 +536,20 @@
 
 首先，让我们导入必要的库：
 
-```
+```py
 import gym
 import numpy as np 
 ```
 
 现在，让我们使用 Gym 创建 Frozen Lake 环境：
 
-```
+```py
 env = gym.make('FrozenLake-v0') 
 ```
 
 让我们使用 `render` 函数查看 Frozen Lake 环境：
 
-```
+```py
 env.render() 
 ```
 
@@ -575,43 +575,43 @@ env.render()
 
 定义 `value_iteration` 函数，它以环境作为参数：
 
-```
+```py
 def value_iteration(env): 
 ```
 
 设置迭代次数：
 
-```
+```py
  num_iterations = 1000 
 ```
 
 设置用于检查值函数收敛的阈值：
 
-```
+```py
  threshold = 1e-20 
 ```
 
 我们还将折扣因子 ![](img/B15558_03_035.png) 设置为 1：
 
-```
+```py
  gamma = 1.0 
 ```
 
 现在，我们将通过将所有状态的值初始化为零来初始化值表：
 
-```
+```py
  value_table = np.zeros(env.observation_space.n) 
 ```
 
 对于每次迭代：
 
-```
+```py
  for i in range(num_iterations): 
 ```
 
 更新值表，也就是说，我们在每次迭代时使用上一迭代中的更新值表（状态值）：
 
-```
+```py
  updated_value_table = np.copy(value_table) 
 ```
 
@@ -623,13 +623,13 @@ def value_iteration(env):
 
 因此，对于每个状态，我们计算该状态下所有动作的 Q 值，然后将状态的值更新为具有最大 Q 值的值：
 
-```
+```py
  for s in range(env.observation_space.n): 
 ```
 
 计算所有动作的 Q 值，![](img/B15558_03_123.png)：
 
-```
+```py
  Q_values = [sum([prob*(r + gamma * updated_value_table[s_])
                              for prob, s_, r, _ in env.P[s][a]]) 
                                    for a in range(env.action_space.n)] 
@@ -637,13 +637,13 @@ def value_iteration(env):
 
 将状态的值更新为最大 Q 值，![](img/B15558_03_088.png)：
 
-```
+```py
  value_table[s] = max(Q_values) 
 ```
 
 计算完值表，也就是所有状态的值后，我们检查当前迭代中获得的值表与前一次迭代中的值表之间的差异是否小于或等于阈值。如果差异小于阈值，我们就跳出循环并返回值表作为我们的最优值函数，如下代码所示：
 
-```
+```py
  if (np.sum(np.fabs(updated_value_table - value_table)) <= threshold):
              break
 
@@ -651,7 +651,7 @@ def value_iteration(env):
 value_iteration function is shown to provide more clarity:
 ```
 
-```
+```py
 def value_iteration(env):
 
     num_iterations = 1000
@@ -685,19 +685,19 @@ def value_iteration(env):
 
 首先，我们定义一个名为`extract_policy`的函数，接收`value_table`作为参数：
 
-```
+```py
 def extract_policy(value_table): 
 ```
 
 将折扣因子 ![](img/B15558_03_005.png) 设置为 1：
 
-```
+```py
  gamma = 1.0 
 ```
 
 首先，我们将策略初始化为零，也就是将所有状态的动作都设置为零：
 
-```
+```py
  policy = np.zeros(env.observation_space.n) 
 ```
 
@@ -713,13 +713,13 @@ def extract_policy(value_table):
 
 对于每个状态：
 
-```
+```py
  for s in range(env.observation_space.n): 
 ```
 
 计算该状态下所有动作的 Q 值，![](img/B15558_03_123.png)：
 
-```
+```py
  Q_values = [sum([prob*(r + gamma * value_table[s_])
                              for prob, s_, r, _ in env.P[s][a]])
                                    for a in range(env.action_space.n)] 
@@ -727,14 +727,14 @@ def extract_policy(value_table):
 
 通过选择具有最大 Q 值的动作来提取策略，![](img/B15558_03_124.png)：
 
-```
+```py
  policy[s] = np.argmax(np.array(Q_values))
 
     return policy 
 extract_policy function is shown here to give us more clarity: 
 ```
 
-```
+```py
 def extract_policy(value_table):
     gamma = 1.0
 
@@ -759,25 +759,25 @@ def extract_policy(value_table):
 
 首先，我们通过传递我们的 Frozen Lake 环境作为参数，使用我们的`value_iteration`函数计算最优值函数：
 
-```
+```py
 optimal_value_function = value_iteration(env) 
 ```
 
 接下来，我们使用我们的`extract_policy`函数从最优值函数中提取最优策略：
 
-```
+```py
 optimal_policy = extract_policy(optimal_value_function) 
 ```
 
 我们可以打印出获得的最优策略：
 
-```
+```py
 print(optimal_policy) 
 ```
 
 上述代码将打印出以下内容。正如我们所观察到的，我们的最优策略告诉我们在每个状态下执行正确的动作：
 
-```
+```py
 [0\. 3\. 3\. 3\. 0\. 0\. 0\. 0\. 3\. 1\. 0\. 0\. 0\. 2\. 1\. 0.] 
 ```
 
@@ -821,7 +821,7 @@ print(optimal_policy)
 
 为了更好地理解策略迭代是如何工作的，让我们通过以下伪代码步骤进行分析。在第一次迭代中，我们将初始化一个随机策略并用它来计算价值函数：
 
-```
+```py
 policy = random_policy
 value_function = compute_value_function(policy) 
 ```
@@ -830,20 +830,20 @@ value_function = compute_value_function(policy)
 
 因此，我们从使用随机策略计算得到的价值函数中提取出一个新的策略：
 
-```
+```py
 new_policy = extract_policy(value_function) 
 ```
 
 现在，我们将使用这个新策略来计算新的价值函数：
 
-```
+```py
 policy = new_policy 
 value_function = compute_value_function(policy) 
 ```
 
 如果新的价值函数是最优的，我们就停止，否则我们将重复前面的步骤多次，直到找到最优价值函数。以下伪代码可以帮助我们更好地理解：
 
-```
+```py
 policy = random_policy
 for i in range(num_iterations): 
     value_function = compute_value_function(policy)
@@ -860,7 +860,7 @@ for i in range(num_iterations):
 
 因此，在一系列迭代中，当策略和新策略变得相同时，我们可以说我们已经得到了最优的价值函数。以下是为了清晰起见给出的最终伪代码：
 
-```
+```py
 policy = random_policy
 for i in range(num_iterations): 
     value_function = compute_value_function(policy)
@@ -1033,14 +1033,14 @@ for i in range(num_iterations):
 
 首先，让我们导入必要的库：
 
-```
+```py
 import gym
 import numpy as np 
 ```
 
 现在，让我们使用 Gym 创建 Frozen Lake 环境：
 
-```
+```py
 env = gym.make('FrozenLake-v0') 
 ```
 
@@ -1054,43 +1054,43 @@ env = gym.make('FrozenLake-v0')
 
 让我们定义一个名为 `compute_value_function` 的函数，它将策略作为参数：
 
-```
+```py
 def compute_value_function(policy): 
 ```
 
 现在，让我们定义迭代次数：
 
-```
+```py
  num_iterations = 1000 
 ```
 
 定义阈值：
 
-```
+```py
  threshold = 1e-20 
 ```
 
 将折扣因子 ![](img/B15558_03_190.png) 的值设置为 1.0：
 
-```
+```py
  gamma = 1.0 
 ```
 
 现在，我们将通过将所有状态值初始化为零来初始化价值表：
 
-```
+```py
  value_table = np.zeros(env.observation_space.n) 
 ```
 
 对于每次迭代：
 
-```
+```py
  for i in range(num_iterations): 
 ```
 
 更新价值表；也就是说，我们学到了在每次迭代中，我们使用来自前一次迭代的更新后的价值表（状态值）：
 
-```
+```py
  updated_value_table = np.copy(value_table) 
 ```
 
@@ -1102,19 +1102,19 @@ def compute_value_function(policy):
 
 对于每个状态：
 
-```
+```py
  for s in range(env.observation_space.n): 
 ```
 
 根据策略在状态中选择动作：
 
-```
+```py
  a = policy[s] 
 ```
 
 使用选择的动作计算状态的值，![](img/B15558_03_192.png)：
 
-```
+```py
  value_table[s] = sum(
                 [prob * (r + gamma * updated_value_table[s_])
                     for prob, s_, r, _ in env.P[s][a]]) 
@@ -1122,7 +1122,7 @@ def compute_value_function(policy):
 
 在计算完价值表，也就是所有状态的值后，我们检查当前迭代中获得的价值表与前一次迭代之间的差值是否小于或等于阈值。如果小于或等于，我们就结束循环，并将价值表作为给定策略的准确价值函数返回：
 
-```
+```py
  if (np.sum(np.fabs(updated_value_table - value_table)) <= threshold):
              break
 
@@ -1135,7 +1135,7 @@ def compute_value_function(policy):
 
 这一步与在值迭代方法中从值函数中提取策略的方式完全相同。因此，类似于我们在值迭代方法中学到的那样，我们定义一个叫做`extract_policy`的函数，给定值函数来提取策略：
 
-```
+```py
 def extract_policy(value_table):
 
     gamma = 1.0
@@ -1155,50 +1155,50 @@ def extract_policy(value_table):
 
 首先，让我们定义一个叫做`policy_iteration`的函数，该函数将环境作为参数：
 
-```
+```py
 def policy_iteration(env): 
 ```
 
 设置迭代次数：
 
-```
+```py
  num_iterations = 1000 
 ```
 
 我们了解到，在策略迭代方法中，我们从初始化一个随机策略开始。所以，我们将初始化一个随机策略，在所有状态下选择动作 0：
 
-```
+```py
  policy = np.zeros(env.observation_space.n) 
 ```
 
 每次迭代：
 
-```
+```py
  for i in range(num_iterations): 
 ```
 
 使用策略计算值函数：
 
-```
+```py
  value_function = compute_value_function(policy) 
 ```
 
 从计算得到的值函数中提取新的策略：
 
-```
+```py
  new_policy = extract_policy(value_function) 
 ```
 
 如果`policy`和`new_policy`相同，则退出循环：
 
-```
+```py
  if (np.all(policy == new_policy)):
             break 
 ```
 
 否则将当前的`policy`更新为`new_policy`
 
-```
+```py
  policy = new_policy
 
     return policy 
@@ -1206,19 +1206,19 @@ def policy_iteration(env):
 
 现在，让我们学习如何在 Frozen Lake 环境中执行策略迭代并找到最优策略。所以，我们只需将 Frozen Lake 环境传递给我们的`policy_iteration`函数，如下所示，并获得最优策略：
 
-```
+```py
 optimal_policy = policy_iteration(env) 
 ```
 
 我们可以打印出最优策略：
 
-```
+```py
 print(optimal_policy) 
 ```
 
 上面的代码将输出以下内容：
 
-```
+```py
 array([0., 3., 3., 3., 0., 0., 0., 0., 3., 1., 0., 0., 0., 2., 1., 0.]) 
 ```
 

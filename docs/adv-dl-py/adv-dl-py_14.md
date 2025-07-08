@@ -156,7 +156,7 @@
 
 1.  我们将从导入语句开始：
 
-```
+```py
 import random
 
 import numpy as np
@@ -165,7 +165,7 @@ import tensorflow as tf
 
 1.  接下来，我们将实现 `create_pairs` 函数来创建训练/测试数据集（用于训练和测试）：
 
-```
+```py
 def create_pairs(inputs: np.ndarray, labels: np.ndarray):
     num_classes = 10
 
@@ -190,7 +190,7 @@ def create_pairs(inputs: np.ndarray, labels: np.ndarray):
 
 1.  接下来，让我们实现 `create_base_network` 函数，它定义了孪生网络的一个分支：
 
-```
+```py
 def create_base_network():
     return tf.keras.models.Sequential([
         tf.keras.layers.Flatten(),
@@ -206,7 +206,7 @@ def create_base_network():
 
 1.  接下来，让我们从 MNIST 数据集开始，构建整个训练系统：
 
-```
+```py
 (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
 x_train = x_train.astype(np.float32)
 x_test = x_test.astype(np.float32)
@@ -217,14 +217,14 @@ input_shape = x_train.shape[1:]
 
 1.  我们将使用原始数据集来创建实际的训练和测试验证数据集：
 
-```
+```py
 train_pairs, tr_labels = create_pairs(x_train, y_train)
 test_pairs, test_labels = create_pairs(x_test, y_test)
 ```
 
 1.  然后，我们将构建孪生网络的基础部分：
 
-```
+```py
 base_network = create_base_network()
 ```
 
@@ -232,7 +232,7 @@ base_network = create_base_network()
 
 1.  接下来，让我们创建两个分支：
 
-```
+```py
 # Create first half of the siamese system
 input_a = tf.keras.layers.Input(shape=input_shape)
 
@@ -246,7 +246,7 @@ encoder_b = base_network(input_b)
 
 1.  接下来，我们将创建 L1 距离，它使用 `encoder_a` 和 `encoder_b` 的输出。它作为 `tf.keras.layers.Lambda` 层实现：
 
-```
+```py
 l1_dist = tf.keras.layers.Lambda(
     lambda embeddings: tf.keras.backend.abs(embeddings[0] - embeddings[1])) \
     ([encoder_a, encoder_b])
@@ -254,14 +254,14 @@ l1_dist = tf.keras.layers.Lambda(
 
 1.  然后，我们将创建最终的全连接层，该层接受距离的输出并将其压缩为一个单一的 sigmoid 输出：
 
-```
+```py
 flattened_weighted_distance = tf.keras.layers.Dense(1, activation='sigmoid') \
     (l1_dist)
 ```
 
 1.  最后，我们可以构建模型并开始训练 20 个周期：
 
-```
+```py
 # Build the model
 model = tf.keras.models.Model([input_a, input_b], flattened_weighted_distance)
 

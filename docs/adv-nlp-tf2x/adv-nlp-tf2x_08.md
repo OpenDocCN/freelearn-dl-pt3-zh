@@ -40,7 +40,7 @@
 
 一个简单的启发式函数示例用于将评论标记为具有积极情感的伪代码如下所示：
 
-```
+```py
 if movie.review has "amazing acting" in it:
 then sentiment is positive 
 ```
@@ -103,7 +103,7 @@ then sentiment is positive
 
 数据集包含在一个压缩档案中，可以通过如下方式下载并解压，如`snorkel-labeling.ipynb`所示：
 
-```
+```py
 (tf24nlp) $ wget https://ai.stanford.edu/~amaas/data/sentiment/aclImdb_v1.tar.gz
 (tf24nlp) $ tar xvzf aclImdb_v1.tar.gz 
 ```
@@ -120,7 +120,7 @@ then sentiment is positive
 
 我们将数据加载到`pandas` DataFrame 中，方便处理。定义了一个便捷函数，将子目录中的评论加载到 DataFrame 中：
 
-```
+```py
 def load_reviews(path, columns=["filename", 'review']):
     assert len(columns) == 2
     l = list()
@@ -134,7 +134,7 @@ def load_reviews(path, columns=["filename", 'review']):
 
 上述方法将数据加载到两列中——一列为文件名，另一列为文件的文本。使用这种方法，加载了无监督数据集：
 
-```
+```py
 unsup_df = load_reviews("./aclImdb/train/unsup/*.txt")
 unsup_df.describe() 
 ```
@@ -142,13 +142,13 @@ unsup_df.describe()
 |  |
 | --- |
 
-```
+```py
 filename 
 ```
 
 |
 
-```
+```py
 review 
 ```
 
@@ -159,19 +159,19 @@ review
 
 |
 
-```
+```py
 count 
 ```
 
 |
 
-```
+```py
 50000 
 ```
 
 |
 
-```
+```py
 50000 
 ```
 
@@ -179,19 +179,19 @@ count
 
 |
 
-```
+```py
 unique 
 ```
 
 |
 
-```
+```py
 50000 
 ```
 
 |
 
-```
+```py
 49507 
 ```
 
@@ -199,19 +199,19 @@ unique
 
 |
 
-```
+```py
 top 
 ```
 
 |
 
-```
+```py
 ./aclImdb/train/unsup/24211_0.txt 
 ```
 
 |
 
-```
+```py
 Am not from America, I usually watch this show... 
 ```
 
@@ -219,19 +219,19 @@ Am not from America, I usually watch this show...
 
 |
 
-```
+```py
 freq 
 ```
 
 |
 
-```
+```py
 1 
 ```
 
 |
 
-```
+```py
 5 
 ```
 
@@ -239,7 +239,7 @@ freq
 
 训练和测试数据集使用略有不同的方法：
 
-```
+```py
 def load_labelled_data(path, neg='/neg/', 
                        pos='/pos/', shuffle=True):
     neg_df = load_reviews(path + neg + "*.txt")
@@ -256,7 +256,7 @@ def load_labelled_data(path, neg='/neg/',
 
 现在可以像这样加载训练数据集：
 
-```
+```py
 train_df = load_labelled_data("./aclImdb/train/")
 train_df.head() 
 ```
@@ -264,19 +264,19 @@ train_df.head()
 |  |
 | --- |
 
-```
+```py
 filename 
 ```
 
 |
 
-```
+```py
 review 
 ```
 
 |
 
-```
+```py
 sentiment 
 ```
 
@@ -287,25 +287,25 @@ sentiment
 
 |
 
-```
+```py
 6868 
 ```
 
 |
 
-```
+```py
 ./aclImdb/train//neg/6326_4.txt 
 ```
 
 |
 
-```
+```py
 If you're in the mood for some dopey light ent... 
 ```
 
 |
 
-```
+```py
 0 
 ```
 
@@ -313,25 +313,25 @@ If you're in the mood for some dopey light ent...
 
 |
 
-```
+```py
 11516 
 ```
 
 |
 
-```
+```py
 ./aclImdb/train//pos/11177_8.txt 
 ```
 
 |
 
-```
+```py
 *****Spoilers herein*****<br /><br />What real... 
 ```
 
 |
 
-```
+```py
 1 
 ```
 
@@ -339,25 +339,25 @@ If you're in the mood for some dopey light ent...
 
 |
 
-```
+```py
 9668 
 ```
 
 |
 
-```
+```py
 ./aclImdb/train//neg/2172_2.txt 
 ```
 
 |
 
-```
+```py
 Bottom of the barrel, unimaginative, and pract... 
 ```
 
 |
 
-```
+```py
 0 
 ```
 
@@ -365,25 +365,25 @@ Bottom of the barrel, unimaginative, and pract...
 
 |
 
-```
+```py
 1140 
 ```
 
 |
 
-```
+```py
 ./aclImdb/train//pos/2065_7.txt 
 ```
 
 |
 
-```
+```py
 Fearful Symmetry is a pleasant episode with a ... 
 ```
 
 |
 
-```
+```py
 1 
 ```
 
@@ -391,25 +391,25 @@ Fearful Symmetry is a pleasant episode with a ...
 
 |
 
-```
+```py
 1518 
 ```
 
 |
 
-```
+```py
 ./aclImdb/train//pos/7147_10.txt 
 ```
 
 |
 
-```
+```py
 I found the storyline in this movie to be very... 
 ```
 
 |
 
-```
+```py
 1 
 ```
 
@@ -417,7 +417,7 @@ I found the storyline in this movie to be very...
 
 虽然我们没有使用原始分数进行情感分析，但这是一个很好的练习，你可以尝试预测分数而不是情感。为了帮助处理原始文件中的分数，可以使用以下代码，该代码从文件名中提取分数：
 
-```
+```py
 def fn_to_score(f):
     scr = f.split("/")[-1]  # get file name
     scr = scr.split(".")[0] # remove extension
@@ -430,7 +430,7 @@ train_df['score'] = train_df.filename.apply(fn_to_score)
 
 测试数据可以通过传递不同的起始数据目录，使用相同的便捷函数加载。
 
-```
+```py
 test_df = load_labelled_data("./aclImdb/test/") 
 ```
 
@@ -440,19 +440,19 @@ test_df = load_labelled_data("./aclImdb/test/")
 
 可以使用`tensorflow_datasets`包学习子词分词器。请注意，我们希望在学习此分词器时传递所有训练数据和无监督评论。
 
-```
+```py
 text = unsup_df.review.to_list() + train_df.review.to_list() 
 ```
 
 这一步创建了一个包含 75,000 项的列表。如果检查评论文本，可以发现评论中包含一些 HTML 标签，因为这些评论是从 IMDb 网站抓取的。我们使用 Beautiful Soup 包来清理这些标签。
 
-```
+```py
 txt = [ BeautifulSoup(x).text for x in text ] 
 ```
 
 然后，我们学习了包含 8,266 个条目的词汇表。
 
-```
+```py
 encoder = tfds.features.text.SubwordTextEncoder.\
                 build_from_corpus(txt, target_vocab_size=2**13)
 encoder.save_to_file("imdb") 
@@ -470,7 +470,7 @@ encoder.save_to_file("imdb")
 
 Snorkel 在训练数据大小是原始数据的 10 倍到 50 倍时效果最佳。IMDb 提供了 50,000 条未标注的示例。如果所有这些都被标注，那么训练数据将是原始数据的 3 倍，这不足以展示 Snorkel 的价值。因此，我们通过将训练数据限制为仅 2,000 条记录，模拟了大约 18 倍的比例。其余的训练记录被视为未标注数据，Snorkel 用来提供噪声标签。为了防止标签泄露，我们将训练数据进行拆分，并存储为两个独立的数据框。拆分的代码可以在 `snorkel-labeling.ipynb` 笔记本中找到。用于生成拆分的代码片段如下所示：
 
-```
+```py
 from sklearn.model_selection import train_test_split
 # Randomly split training into 2k / 23k sets
 train_2k, train_23k = train_test_split(train_df, test_size=23000, 
@@ -485,7 +485,7 @@ train_2k.to_pickle("train_2k.df")
 
 我们对训练集中的所有评论进行分词，并将其截断/填充为最多 150 个词元。评论通过 Beautiful Soup 处理，去除任何 HTML 标记。所有与此部分相关的代码都可以在 `imdb-with-snorkel-labels.ipynb` 文件中的 *Training Data Vectorization* 部分找到。这里仅为简便起见展示了部分代码：
 
-```
+```py
 # we need a sample of 2000 reviews for training
 num_recs = 2000
 train_small = pd.read_pickle("train_2k.df")
@@ -501,7 +501,7 @@ train = tf.data.Dataset.from_tensor_slices(
 
 分词和向量化通过辅助函数进行，并应用于整个数据集：
 
-```
+```py
 # transformation functions to be used with the dataset
 from tensorflow.keras. pre-processing import sequence
 def encode_pad_transform(sample):
@@ -521,7 +521,7 @@ encoded_train = train.map(encode_tf_fn,
 
 测试数据也以类似的方式进行处理：
 
-```
+```py
 # remove markup
 cleaned_reviews = test_df.review.apply(
 lambda x: BeautifulSoup(x).text)
@@ -538,7 +538,7 @@ encoded_test = test.map(encode_tf_fn,
 
 创建和训练基准模型的代码位于笔记本的 *Baseline Model* 部分。创建了一个适中的模型，重点展示了无监督标注带来的提升，而非模型复杂性。此外，较小的模型训练速度更快，且能进行更多迭代：
 
-```
+```py
 # Length of the vocabulary 
 vocab_size = imdb_encoder.vocab_size 
 # Number of RNN units
@@ -551,7 +551,7 @@ BATCH_SIZE=100
 
 该模型使用一个小的 64 维嵌入和 RNN 单元。创建模型的函数如下：
 
-```
+```py
 from tensorflow.keras.layers import Embedding, LSTM, \
                                     Bidirectional, Dense,\
                                     Dropout
@@ -572,7 +572,7 @@ def build_model_bilstm(vocab_size, embedding_dim, rnn_units, batch_size, dropout
 
 添加适量的 dropout，以使模型具有更好的泛化能力。该模型大约有 70 万个参数。
 
-```
+```py
 bilstm = build_model_bilstm(
   vocab_size = vocab_size,
   embedding_dim=embedding_dim,
@@ -581,7 +581,7 @@ bilstm = build_model_bilstm(
 bilstm.summary() 
 ```
 
-```
+```py
 Model: "sequential"
 _________________________________________________________________
 Layer (type)                 Output Shape              Param #   
@@ -606,7 +606,7 @@ _________________________________________________________________
 
 该模型使用二元交叉熵损失函数和 ADAM 优化器进行编译，并跟踪准确率、精确度和召回率指标。该模型训练了 15 个周期，可以看出模型已达到饱和：
 
-```
+```py
 bilstm.compile(loss='binary_crossentropy', 
              optimizer='adam', 
              metrics=['accuracy', 'Precision', 'Recall'])
@@ -615,7 +615,7 @@ encoded_train_batched = encoded_train.shuffle(num_recs, seed=42).\
 bilstm.fit(encoded_train_batched, epochs=15) 
 ```
 
-```
+```py
 Train for 15 steps
 Epoch 1/15
 20/20 [==============================] - 16s 793ms/step - loss: 0.6943 - accuracy: 0.4795 - Precision: 0.4833 - Recall: 0.5940
@@ -632,11 +632,11 @@ Epoch 15/15
 
 让我们看看这个模型在测试数据上的表现：
 
-```
+```py
 bilstm.evaluate(encoded_test.batch(BATCH_SIZE)) 
 ```
 
-```
+```py
 250/250 [==============================] - 33s 134ms/step - loss: 2.1440 - accuracy: 0.7591 - precision: 0.7455 - recall: 0.7866 
 ```
 
@@ -646,7 +646,7 @@ bilstm.evaluate(encoded_test.batch(BATCH_SIZE))
 
 IMDb 数据集包含 50,000 条未标记的评论。这是训练集大小的两倍，训练集有 25,000 条已标记的评论。如前一部分所述，我们从训练数据中预留了 23,000 条记录，除了用于弱监督标注的无监督集。Snorkel 中的标注是通过标注函数来完成的。每个标注函数可以返回可能的标签之一，或者选择不进行标注。由于这是一个二分类问题，因此定义了相应的常量。还展示了一个示例标注函数。此部分的所有代码可以在名为 `snorkel-labeling.ipynb` 的笔记本中找到：
 
-```
+```py
 POSITIVE = 1
 NEGATIVE = 0
 ABSTAIN = -1
@@ -664,7 +664,7 @@ def time_waste(x):
 
 标注函数由 Snorkel 提供的 `labeling_function()` 注解。请注意，需要安装 Snorkel 库。详细的安装说明可以在 GitHub 上本章的子目录中找到。简而言之，Snorkel 可以通过以下方式安装：
 
-```
+```py
 (tf24nlp) $ pip install snorkel==0.9.5 
 ```
 
@@ -674,7 +674,7 @@ def time_waste(x):
 
 回到标签函数，以上的函数期望来自 DataFrame 的一行数据。它期望该行数据包含“review”这一文本列。该函数尝试检查评论是否表示电影或节目是浪费时间。如果是，它返回负面标签；否则，它不会对该行数据进行标记。请注意，我们正在尝试使用这些标签函数在短时间内标记数千行数据。实现这一目标的最佳方法是打印一些随机的正面和负面评论样本，并使用文本中的某些词汇作为标签函数。这里的核心思想是创建多个函数，它们能对子集行数据有较好的准确性。让我们检查训练集中一些负面评论，看看可以创建哪些标签函数：
 
-```
+```py
 neg = train_df[train_df.sentiment==0].sample(n=5, random_state=42)
 for x in neg.review.tolist():
     print(x) 
@@ -682,7 +682,7 @@ for x in neg.review.tolist():
 
 其中一条评论开头是“一个非常俗气且乏味的公路电影”，这为标签函数提供了一个想法：
 
-```
+```py
 @labeling_function()
 def cheesy_dull(x):
     if not isinstance(x.review, str):
@@ -696,7 +696,7 @@ def cheesy_dull(x):
 
 负面评论中出现了许多不同的词汇。这是负面标签函数的一个子集，完整列表请参见笔记本：
 
-```
+```py
 @labeling_function()
 def garbage(x):
     if not isinstance(x.review, str):
@@ -725,7 +725,7 @@ def unsatisfied(x):
 
 所有负面标签函数都添加到一个列表中：
 
-```
+```py
 neg_lfs = [atrocious, terrible, piece_of, woefully_miscast, 
            bad_acting, cheesy_dull, disappoint, crap, garbage, 
            unsatisfied, ridiculous] 
@@ -733,7 +733,7 @@ neg_lfs = [atrocious, terrible, piece_of, woefully_miscast,
 
 检查负面评论的样本可以给我们很多想法。通常，领域专家的一点小小努力就能产生多个易于实现的标签函数。如果你曾经看过电影，那么对于这个数据集来说，你就是专家。检查正面评论的样本会导致更多的标签函数。以下是识别评论中正面情感的标签函数示例：
 
-```
+```py
 import re
 @labeling_function()
 def classic(x):
@@ -763,7 +763,7 @@ def great_story(x):
 
 所有正面标签函数可以在笔记本中看到。与负面函数类似，定义了正面标签函数的列表：
 
-```
+```py
 pos_lfs = [classic, must_watch, oscar, love, great_entertainment,
            very_entertaining, amazing, brilliant, fantastic, 
            awesome, great_acting, great_direction, great_story,
@@ -782,7 +782,7 @@ lfs = neg_lfs + pos_lfs
 
 一旦定义了一组标注函数，它们就可以应用于 pandas DataFrame，并且可以训练一个模型来计算在计算标签时分配给各个标注函数的权重。Snorkel 提供了帮助执行这些任务的函数。首先，让我们应用这些标注函数来计算一个矩阵。这个矩阵的列数等于每一行数据的标注函数数量：
 
-```
+```py
 # let's take a sample of 100 records from training set
 lf_train = train_df.sample(n=1000, random_state=42)
 from snorkel.labeling.model import LabelModel
@@ -794,7 +794,7 @@ L_train = applier.apply(lf_train)
 
 在上述代码中，从训练数据中提取了 1000 行数据样本。然后，将之前创建的所有标注函数列表传递给 Snorkel，并应用于这个训练数据的样本。如果我们创建了 25 个标注函数，那么 `L_train` 的形状将会是 (1000, 25)。每一列代表一个标注函数的输出。现在可以在这个标签矩阵上训练一个生成模型：
 
-```
+```py
 # Train the label model and compute the training labels
 label_model = LabelModel(cardinality=2, verbose=True)
 label_model.fit(L_train, n_epochs=500, log_freq=50, seed=123)
@@ -806,7 +806,7 @@ lf_train["snorkel"] = label_model.predict(L=L_train,
 
 由于选择了放弃策略，可能并没有对所有的 1000 行进行标注：
 
-```
+```py
 pred_lfs = lf_train[lf_train.snorkel > -1]
 pred_lfs.describe() 
 ```
@@ -814,19 +814,19 @@ pred_lfs.describe()
 |  |
 | --- |
 
-```
+```py
 sentiment 
 ```
 
 |
 
-```
+```py
 score 
 ```
 
 |
 
-```
+```py
 snorkel 
 ```
 
@@ -837,25 +837,25 @@ snorkel
 
 |
 
-```
+```py
 count 
 ```
 
 |
 
-```
+```py
 598.000000 
 ```
 
 |
 
-```
+```py
 598.000000 
 ```
 
 |
 
-```
+```py
 598.000000 
 ```
 
@@ -863,7 +863,7 @@ count
 
 在 1000 条记录中，只有 458 条被标记。让我们检查其中有多少条标记错误的。
 
-```
+```py
 pred_mistake = pred_lfs[pred_lfs.sentiment != pred_lfs.snorkel]
 pred_mistake.describe() 
 ```
@@ -871,19 +871,19 @@ pred_mistake.describe()
 |  |
 | --- |
 
-```
+```py
 sentiment 
 ```
 
 |
 
-```
+```py
 score 
 ```
 
 |
 
-```
+```py
 snorkel 
 ```
 
@@ -894,25 +894,25 @@ snorkel
 
 |
 
-```
+```py
 count 
 ```
 
 |
 
-```
+```py
 164.000000 
 ```
 
 |
 
-```
+```py
 164.000000 
 ```
 
 |
 
-```
+```py
 164.000000 
 ```
 
@@ -932,7 +932,7 @@ count
 
 词云有助于整体理解正面和负面评论的文本。请注意，前 2000 个词的向量化方案需要计数器。定义了一个方便的函数，它清理 HTML 文本，并删除停用词，将其余部分进行分词，代码如下：
 
-```
+```py
 en_stopw = set(stopwords.words("english"))
 def get_words(review, words, stopw=en_stopw):
     review = BeautifulSoup(review).text        # remove HTML tags
@@ -945,7 +945,7 @@ def get_words(review, words, stopw=en_stopw):
 
 然后，正面评价被分离出来，并生成一个词云以便于可视化：
 
-```
+```py
 pos_rev = train_df[train_df.sentiment == 1]
 pos_words = []
 pos_rev.review.apply(get_words, args=(pos_words,))
@@ -974,7 +974,7 @@ plt.show()
 
 这些可视化结果很有趣；然而，训练模型后会得到更清晰的画面。只需要前 2000 个单词就可以训练模型：
 
-```
+```py
 from collections import Counter
 pos = Counter(pos_words)
 neg = Counter(neg_words)
@@ -983,7 +983,7 @@ tot_words = pos + neg
 tot_words.most_common(10) 
 ```
 
-```
+```py
 [('movie', 44031),
  ('film', 40147),
  ('one', 26788),
@@ -998,13 +998,13 @@ tot_words.most_common(10)
 
 合并计数器显示了所有评论中最常出现的前 10 个单词。这些被提取到一个列表中：
 
-```
+```py
 top2k = [x for (x, y) in tot_words.most_common(2000)] 
 ```
 
 每个评论的向量化相当简单——每个 2000 个单词中的一个都会成为给定评论的一个列。如果该列所表示的单词出现在评论中，则该列的值标记为 1，否则为 0。所以，每个评论由一个由 0 和 1 组成的序列表示，表示该评论包含了哪些前 2000 个单词。下面的代码展示了这一转换：
 
-```
+```py
 def featurize(review, topk=top2k, stopw=en_stopw):
     review = BeautifulSoup(review).text        # remove HTML tags
     review = re.sub('[^A-Za-z]', ' ', review)  # remove nonletters
@@ -1023,13 +1023,13 @@ train = [(featurize(rev), senti) for (rev, senti) in
 
 NLTK 还提供了一种检查最具信息性特征的方法：
 
-```
+```py
 classifier = nltk.NaiveBayesClassifier.train(train)
 # 0: negative sentiment, 1: positive sentiment
 classifier.show_most_informative_features(20) 
 ```
 
-```
+```py
 Most Informative Features
        contains(unfunny) = True      0 : 1      =     14.1 : 1.0
          contains(waste) = True      0 : 1      =     12.7 : 1.0
@@ -1062,7 +1062,7 @@ Most Informative Features
 
 在分析`snorkel-labeling.ipynb`中标签函数分配的标签后，可以看到负面评论比正面评论标注得更多。因此，标签函数为正面标签使用的单词列表比负面标签使用的单词列表要大。请注意，数据集不平衡会影响整体训练准确性，特别是召回率。以下代码片段展示了使用上述通过朴素贝叶斯发现的关键词来增强标签函数：
 
-```
+```py
 # Some positive high prob words - arbitrary cutoff of 4.5x
 '''
    contains(wonderfully) = True       1 : 0      =      7.6 : 1.0
@@ -1104,7 +1104,7 @@ def superlatives(x):
 
 由于基于关键字的标签函数非常常见，Snorkel 提供了一种简单的方法来定义这样的函数。以下代码片段使用两种编程方式将单词列表转换为标签函数集合：
 
-```
+```py
 # Utilities for defining keywords based functions
 def keyword_lookup(x, keywords, label):
     if any(word in x.review.lower() for word in keywords):
@@ -1126,7 +1126,7 @@ def make_keyword_lf(keywords, label):
 
 我们应用标签函数并在整个训练数据集上训练一个模型，只是为了评估该模型的质量：
 
-```
+```py
 L_train_full = applier.apply(train_df)
 label_model = LabelModel(cardinality=2, verbose=True)
 label_model.fit(L_train_full, n_epochs=500, log_freq=50, seed=123)
@@ -1138,19 +1138,19 @@ metrics = label_model.score(L=L_train_full, Y=train_df.sentiment,
 print("All Metrics: ", metrics) 
 ```
 
-```
+```py
 Label Model Accuracy:     78.5%
 All Metrics:  {**'accuracy': 0.7854110013835218, 'coverage': 0.83844**, 'precision': 0.8564883605745418, 'recall': 0.6744344773790951, 'f1': 0.7546367008509709} 
 ```
 
 我们的标签函数集覆盖了 25,000 条训练记录中的 83.4%，其中 85.6%是正确标签。Snorkel 提供了分析每个标签函数表现的能力：
 
-```
+```py
 from snorkel.labeling import LFAnalysis
 LFAnalysis(L=L_train_full, lfs=lfs).lf_summary() 
 ```
 
-```
+```py
  j Polarity  Coverage  Overlaps  Conflicts
 atrocious             0      [0]   0.00816   0.00768    0.00328
 terrible              1      [0]   0.05356   0.05356    0.02696
@@ -1190,7 +1190,7 @@ Snorkel 提供了几种超参数调优的选项，以进一步提高标签的质
 
 超参数调优通过选择不同的学习率、L2 正则化、训练轮数和使用的优化器来进行。最后，通过设定阈值来决定哪些标签函数应该保留用于实际的标签任务：
 
-```
+```py
 # Grid Search
 from itertools import product
 lrs = [1e-1, 1e-2, 1e-3]
@@ -1231,7 +1231,7 @@ print("best = ", lma_best, " params ", params_best)
 
 Snorkel 可能会打印出一个警告，提示指标仅在非弃权标签上进行计算。这是设计使然，因为我们关注的是高置信度的标签。如果标签函数之间存在冲突，我们的模型会选择放弃为其提供标签。打印出的最佳参数是：
 
-```
+```py
 best =  0.8399649430324277  params  (0.001, 0.1, 200, 'adam', 0.9) 
 ```
 
@@ -1239,7 +1239,7 @@ best =  0.8399649430324277  params  (0.001, 0.1, 200, 'adam', 0.9)
 
 使用这些参数，我们标注了来自训练集的 23k 条记录和来自无监督集的 50k 条记录。对于第一部分，我们标注了所有 25k 条训练记录，并将其分成两组。这个特定的分割部分在上面的基准模型部分中提到过：
 
-```
+```py
 train_df["snorkel"] = label_model.predict(L=L_filtered, 
                                tie_break_policy="abstain")
 from sklearn.model_selection import train_test_split
@@ -1259,7 +1259,7 @@ train_23k.sentiment.hist()
 
 当 Snorkel 模型放弃标签时，它会为标签分配-1。我们看到模型能够标注更多的负面评论，而不是正面标签。我们过滤掉 Snorkel 放弃标注的行并保存记录：
 
-```
+```py
 lbl_train = train_23k[train_23k.snorkel > -1]
 lbl_train = lbl_train.drop(columns=["sentiment"])
 p_sup = lbl_train.rename(columns={"snorkel": "sentiment"})
@@ -1274,7 +1274,7 @@ p_sup.to_pickle("snorkel_train_labeled.df")
 
 正如我们在上一部分看到的，我们对训练数据集进行了标注，运行模型在数据集的未标注评论上也非常简单：
 
-```
+```py
 # Now apply this to all the unsupervised reviews
 # Apply the LFs to the unlabeled training data
 applier = PandasLFApplier(lfs)
@@ -1304,7 +1304,7 @@ p2.to_pickle("snorkel-unsup-nbs.df")
 
 该数据集已保存到磁盘，以便在训练过程中使用：
 
-```
+```py
 p3 = pred_unsup_lfs2.rename(columns={"snorkel2": "sentiment"})
 print(p3.info())
 p3.to_pickle("snorkel-unsup-nbs-v2.df") 
@@ -1314,7 +1314,7 @@ p3.to_pickle("snorkel-unsup-nbs-v2.df")
 
 我们将重点重新放回到`imdb-with-snorkel-labels.ipynb`笔记本，该笔记本包含用于训练的模型。该部分的代码从*使用 Snorkel 标注数据*部分开始。新标注的记录需要从磁盘加载、清理、向量化并填充，才能进行训练。我们提取标注的记录并去除 HTML 标记，如下所示：
 
-```
+```py
 # labelled version of training data split
 p1 = pd.read_pickle("snorkel_train_labeled.df")
 p2 = pd.read_pickle("snorkel-unsup-nbs-v2.df")
@@ -1340,7 +1340,7 @@ p3.sentiment.hist()
 
 如上图*Figure 8.8*所示，蓝色的记录被丢弃以平衡数据集。接下来，数据需要使用子词词汇进行清洗和向量化：
 
-```
+```py
 # remove markup
 cleaned_unsup_reviews = p3.review.apply(
                              lambda x: BeautifulSoup(x).text)
@@ -1350,7 +1350,7 @@ snorkel_labels = pd.concat((train_small.sentiment, p3.sentiment))
 
 最后，我们将 pandas DataFrame 转换为 TensorFlow 数据集，并进行向量化和填充：
 
-```
+```py
 # convert pandas DF in to tf.Dataset
 snorkel_train = tf.data.Dataset.from_tensor_slices((
                                    snorkel_reviews.values,
@@ -1367,7 +1367,7 @@ encoded_snorkel_train = snorkel_train.map(encode_tf_fn,
 
 这是一个重要的概念。深度模型基于假设损失是一个凸面，梯度沿着这个凸面下降到底部。实际上，这个面有很多局部最小值或鞍点。如果模型在一个小批次中陷入局部最小值，由于跨越多个周期时，模型不断接收到相同的数据点，它将很难从局部最小值中跳出来。通过打乱数据，改变数据集及其顺序，模型可以更好地学习，从而更快地跳出这些局部最小值。此部分的代码位于`imdb-with-snorkel-labels.ipynb`文件中：
 
-```
+```py
 shuffle_size = snorkel_reviews.shape[0] // BATCH_SIZE * BATCH_SIZE
 encoded_snorkel_batched = encoded_snorkel_train.shuffle( 
                                   buffer_size=shuffle_size,
@@ -1377,11 +1377,11 @@ encoded_snorkel_batched = encoded_snorkel_train.shuffle(
 
 请注意，我们缓存了所有将成为批次一部分的记录，以便实现完美的缓冲。这会带来训练速度略微变慢和内存使用量增加的代价。同时，由于我们的批量大小是 100，数据集有 35,914 条记录，我们丢弃了剩余的记录。我们训练模型 20 个周期，略多于基准模型。基准模型在 15 个周期时就发生了过拟合，因此再训练也没有意义。这个模型有更多的数据可以训练，因此需要更多的周期来学习：
 
-```
+```py
 bilstm2.fit(encoded_snorkel_batched, epochs=20) 
 ```
 
-```
+```py
 Train for 359 steps
 Epoch 1/20
 359/359 [==============================] - 92s 257ms/step - loss: 0.4399 - accuracy: 0.7860 - Precision: 0.7900 - Recall: 0.7793
@@ -1392,11 +1392,11 @@ Epoch 20/20
 
 该模型达到了 98.9%的准确率。精确度和召回率的数值非常接近。在测试数据上评估基线模型时，得到了 76.23%的准确率，这明显证明它对训练数据发生了过拟合。当评估使用弱监督标签训练的模型时，得到以下结果：
 
-```
+```py
 bilstm2.evaluate(encoded_test.batch(BATCH_SIZE)) 
 ```
 
-```
+```py
 250/250 [==============================] - 35s 139ms/step - loss: 1.9134 - accuracy: 0.7658 - precision: 0.7812 - recall: 0.7386 
 ```
 

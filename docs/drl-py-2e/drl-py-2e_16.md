@@ -34,19 +34,19 @@ Stable Baselines 是 OpenAI Baselines 的改进版。Stable Baselines 更易于�
 
 首先，让我们安装所需的依赖项：
 
-```
+```py
 sudo apt-get update && sudo apt-get install cmake libopenmpi-dev zlib1g-dev 
 ```
 
 一些深度 RL 算法需要 MPI 才能运行，因此，让我们安装 MPI：
 
-```
+```py
 sudo pip install mpi4py 
 ```
 
 现在，我们可以通过`pip`安装 Stable Baselines：
 
-```
+```py
 pip install stable-baselines[mpi] 
 ```
 
@@ -60,26 +60,26 @@ pip install stable-baselines[mpi]
 
 首先，我们从`stable_baselines`导入`gym`和`DQN`：
 
-```
+```py
 import gym
 from stable_baselines import DQN 
 ```
 
 创建一个山地汽车环境：
 
-```
+```py
 env = gym.make('MountainCar-v0') 
 ```
 
 现在，让我们实例化我们的代理。正如我们在下面的代码中看到的，我们传递了`MlpPolicy`，这意味着我们的网络是一个多层感知机：
 
-```
+```py
 agent = DQN('MlpPolicy', env, learning_rate=1e-3) 
 ```
 
 现在，让我们通过指定训练的时间步数来训练代理：
 
-```
+```py
 agent.learn(total_timesteps=25000) 
 ```
 
@@ -89,13 +89,13 @@ agent.learn(total_timesteps=25000)
 
 我们还可以通过使用`evaluate_policy`来评估训练后的代理，查看平均奖励：
 
-```
+```py
 from stable_baselines.common.evaluation import evaluate_policy 
 ```
 
 在下面的代码中，`agent`是训练好的代理，`agent.get_env()`获取我们训练代理的环境，`n_eval_episodes`表示我们需要评估代理的集数：
 
-```
+```py
 mean_reward, n_steps = evaluate_policy(agent, agent.get_env(), n_eval_episodes=10) 
 ```
 
@@ -105,13 +105,13 @@ mean_reward, n_steps = evaluate_policy(agent, agent.get_env(), n_eval_episodes=1
 
 我们可以如下保存代理：
 
-```
+```py
 agent.save("DQN_mountain_car_agent") 
 ```
 
 保存之后，我们可以如下加载代理：
 
-```
+```py
 agent = DQN.load("DQN_mountain_car_agent") 
 ```
 
@@ -121,37 +121,37 @@ agent = DQN.load("DQN_mountain_car_agent")
 
 初始化状态：
 
-```
+```py
 state = env.reset() 
 ```
 
 对于 5000 步：
 
-```
+```py
 for t in range(5000): 
 ```
 
 使用我们训练好的代理预测在给定状态下执行的动作：
 
-```
+```py
  action, _ = agent.predict(state) 
 ```
 
 执行预测的动作：
 
-```
+```py
  next_state, reward, done, info = env.step(action) 
 ```
 
 将`state`更新为当前状态：
 
-```
+```py
  state = next_state 
 ```
 
 渲染环境：
 
-```
+```py
  env.render() 
 ```
 
@@ -165,7 +165,7 @@ for t in range(5000):
 
 现在，让我们看一下结合我们迄今为止学到的所有内容的最终代码：
 
-```
+```py
 #import the libraries
 import gym
 from stable_baselines import DQN
@@ -211,14 +211,14 @@ Stable Baselines 提供了两种类型的向量化环境：
 
 首先，让我们导入`SubprocVecEnv`：
 
-```
+```py
 from stable_baselines.common.vec_env import SubprocVecEnv
 from stable_baselines.common import set_global_seeds 
 ```
 
 接下来，我们创建一个名为`make_env`的函数，用于初始化我们的环境：
 
-```
+```py
 def make_env(env_name, rank, seed=0):
     def _init():
         env = gym.make(env_name)
@@ -230,7 +230,7 @@ def make_env(env_name, rank, seed=0):
 
 然后，我们可以如下创建子进程向量化环境：
 
-```
+```py
 env_name = 'Pendulum-v0'
 num_process = 2
 env = SubprocVecEnv([make_env(env_name, i) for i in range(num_process)]) 
@@ -242,13 +242,13 @@ env = SubprocVecEnv([make_env(env_name, i) for i in range(num_process)])
 
 首先，让我们导入`DummyVecEnv`：
 
-```
+```py
 from stable_baselines.common.vec_env import DummyVecEnv 
 ```
 
 接下来，我们可以如下创建虚拟向量化环境：
 
-```
+```py
 env_name = 'Pendulum-v0'
 env = DummyVecEnv([lambda: gym.make(env_name)]) 
 ```
@@ -261,13 +261,13 @@ env = DummyVecEnv([lambda: gym.make(env_name)])
 
 假设我们自定义环境的名称是`CustomEnv`。首先，我们按如下方式实例化自定义环境：
 
-```
+```py
 env = CustomEnv() 
 ```
 
 接下来，我们可以像往常一样在自定义环境中训练我们的智能体：
 
-```
+```py
 agent = DQN('MlpPolicy', env, learning_rate=1e-3)
 agent.learn(total_timesteps=25000) 
 ```
@@ -278,43 +278,43 @@ agent.learn(total_timesteps=25000)
 
 现在，让我们学习如何创建一个 DQN 来玩 Atari 游戏，使用 Stable Baselines。首先，让我们导入必要的模块：
 
-```
+```py
 from stable_baselines import DQN 
 ```
 
 由于我们处理的是 Atari 游戏，我们可以使用卷积神经网络（CNN）而不是普通的神经网络。所以，我们使用`CnnPolicy`：
 
-```
+```py
 from stable_baselines.deepq.policies import CnnPolicy 
 ```
 
 我们了解到，在将游戏画面输入智能体之前，我们需要对其进行预处理。使用 Stable Baselines 时，我们不需要手动预处理；相反，我们可以使用`make_atari`模块，它会负责预处理游戏画面：
 
-```
+```py
 from stable_baselines.common.atari_wrappers import make_atari 
 ```
 
 现在，让我们创建一个 Atari 游戏环境。我们先创建冰球游戏环境：
 
-```
+```py
 env = make_atari('IceHockeyNoFrameskip-v4') 
 ```
 
 实例化智能体：
 
-```
+```py
 agent = DQN(CnnPolicy, env, verbose=1) 
 ```
 
 训练智能体：
 
-```
+```py
 agent.learn(total_timesteps=25000) 
 ```
 
 在训练完智能体之后，我们可以查看训练后的智能体在环境中的表现：
 
-```
+```py
 state = env.reset()
 while True:
     action, _ = agent.predict(state)
@@ -335,19 +335,19 @@ while True:
 
 首先，我们定义我们的关键字参数如下：
 
-```
+```py
 kwargs = {"double_q": True, "prioritized_replay": True, "policy_kwargs": dict(dueling=True)} 
 ```
 
 现在，在实例化智能体时，我们只需要传递关键字参数：
 
-```
+```py
 agent = DQN(CnnPolicy, env, verbose=1, **kwargs) 
 ```
 
 然后，我们可以像往常一样训练智能体：
 
-```
+```py
 agent.learn(total_timesteps=25000) 
 ```
 
@@ -359,7 +359,7 @@ agent.learn(total_timesteps=25000)
 
 首先，让我们导入必要的库：
 
-```
+```py
 import gym
 from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.common.vec_env import DummyVecEnv
@@ -369,37 +369,37 @@ from stable_baselines import A2C
 
 使用 Gym 创建月球着陆环境：
 
-```
+```py
 env = gym.make('LunarLander-v2') 
 ```
 
 让我们使用虚拟向量化环境。我们知道，在虚拟向量化环境中，我们在同一个进程中运行每个环境：
 
-```
+```py
 env = DummyVecEnv([lambda: env]) 
 ```
 
 创建智能体：
 
-```
+```py
 agent = A2C(MlpPolicy, env, ent_coef=0.1, verbose=0) 
 ```
 
 训练智能体：
 
-```
+```py
 agent.learn(total_timesteps=25000) 
 ```
 
 训练结束后，我们可以通过查看平均奖励来评估我们的智能体：
 
-```
+```py
 mean_reward, n_steps = evaluate_policy(agent, agent.get_env(), n_eval_episodes=10) 
 ```
 
 我们还可以看看训练后的智能体在环境中的表现：
 
-```
+```py
 state = env.reset()
 while True:
     action, _states = agent.predict(state)
@@ -420,12 +420,12 @@ while True:
 
 首先，让我们导入前馈策略（前馈网络）：
 
-```
+```py
 from stable_baselines.common.policies import FeedForwardPolicy 
 net_arch=[dict(pi=[128, 128, 128], vf=[128, 128, 128])], which specifies our network architecture. pi represents the architecture of the policy network and vf represents the architecture of value network: 
 ```
 
-```
+```py
 class CustomPolicy(FeedForwardPolicy):
     def __init__(self, *args, **kargs):
         super(CustomPolicy, self).__init__(*args, **kargs,
@@ -434,13 +434,13 @@ class CustomPolicy(FeedForwardPolicy):
 
 我们可以通过以下方式使用自定义策略来实例化智能体：
 
-```
+```py
 agent = A2C(CustomPolicy, 'LunarLander-v2', verbose=1) 
 ```
 
 现在，我们可以像往常一样训练智能体：
 
-```
+```py
 agent.learn(total_timesteps=25000) 
 ```
 
@@ -450,7 +450,7 @@ agent.learn(total_timesteps=25000)
 
 让我们学习如何使用 Stable Baselines 实现倒立摆摆动任务的 DDPG。首先，让我们导入必要的库：
 
-```
+```py
 import gym
 import numpy as np
 from stable_baselines.ddpg.policies import MlpPolicy
@@ -460,31 +460,31 @@ from stable_baselines import DDPG
 
 使用 Gym 创建倒立摆环境：
 
-```
+```py
 env = gym.make('Pendulum-v0') 
 ```
 
 获取动作的数量：
 
-```
+```py
 n_actions = env.action_space.shape[-1] 
 ```
 
 我们知道，在 DDPG 中，我们不是直接选择动作，而是使用 Ornstein-Uhlenbeck 过程添加一些噪声，以确保探索。因此，我们创建动作噪声如下：
 
-```
+```py
 action_noise = OrnsteinUhlenbeckActionNoise(mean=np.zeros(n_actions), sigma=float(0.5) * np.ones(n_actions)) 
 ```
 
 实例化智能体：
 
-```
+```py
 agent = DDPG(MlpPolicy, env, verbose=1, param_noise=None, action_noise=action_noise) 
 ```
 
 训练智能体：
 
-```
+```py
 agent.learn(total_timesteps=25000) 
 ```
 
@@ -494,19 +494,19 @@ agent.learn(total_timesteps=25000)
 
 使用 Stable Baselines，我们可以更轻松地在 TensorBoard 中查看模型的计算图。为了做到这一点，我们只需要在实例化智能体时传递将存储日志文件的目录，如下所示：
 
-```
+```py
 agent = DDPG(MlpPolicy, env, verbose=1, param_noise=None, action_noise=action_noise, tensorboard_log="logs") 
 ```
 
 然后，我们可以训练智能体：
 
-```
+```py
 agent.learn(total_timesteps=25000) 
 ```
 
 训练结束后，打开终端并输入以下命令来运行 TensorBoard：
 
-```
+```py
 tensorboard --logdir logs 
 ```
 
@@ -560,13 +560,13 @@ tensorboard --logdir logs
 
 下载 `getid_linux` 文件后，在终端中运行以下命令：
 
-```
+```py
 chmod +x getid_linux 
 ```
 
 然后，运行以下命令：
 
-```
+```py
 ./getid_linux 
 ```
 
@@ -580,56 +580,56 @@ chmod +x getid_linux
 
 接下来，打开终端并运行以下命令来编辑 `bashrc` 文件：
 
-```
+```py
 nano ~/.bashrc 
 ```
 
 将以下行复制到 `bashrc` 文件中，并确保将用户名文本替换为您自己的用户名：
 
-```
+```py
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/username/.mujoco/mujoco200/bin 
 ```
 
 接下来，保存文件并退出 nano 编辑器。现在，在终端运行以下命令：
 
-```
+```py
 source ~/.bashrc 
 ```
 
 做得好！我们快完成了。现在，克隆 MuJoCo 的 GitHub 仓库：
 
-```
+```py
 git clone https://github.com/openai/mujoco-py.git 
 ```
 
 进入`mujoco-py`文件夹：
 
-```
+```py
 cd mujoco-py 
 ```
 
 更新软件包：
 
-```
+```py
 sudo apt-get update 
 ```
 
 安装依赖项：
 
-```
+```py
 sudo apt-get install libgl1-mesa-dev libgl1-mesa-glx libosmesa6-dev python3-pip python3-numpy python3-scipy 
 ```
 
 最后，安装 MuJoCo：
 
-```
+```py
 pip3 install -r requirements.txt
 sudo python3 setup.py install 
 ```
 
 为了测试 MuJoCo 是否安装成功，让我们通过在环境中采取随机行动来运行一个 Humanoid 智能体。所以，创建一个名为`mujoco_test.py`的 Python 文件，内容如下：
 
-```
+```py
 import gym
 env = gym.make('Humanoid-v2')
 env.reset()
@@ -641,7 +641,7 @@ env.close()
 
 接下来，打开终端并运行 Python 文件：
 
-```
+```py
 python mujoco_test.py 
 ```
 
@@ -657,7 +657,7 @@ python mujoco_test.py
 
 导入必要的库：
 
-```
+```py
 import gym
 from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.common.vec_env import DummyVecEnv, VecNormalize
@@ -667,32 +667,32 @@ from stable_baselines.common.vec_env import VecVideoRecorder
 
 使用`DummyVecEnv`创建一个向量化的`Humanoid`环境：
 
-```
+```py
 env = DummyVecEnv([lambda: gym.make("Humanoid-v2")]) 
 ```
 
 对状态（观测值）进行归一化：
 
-```
+```py
 env = VecNormalize(env, norm_obs=True, norm_reward=False,
                    clip_obs=10.) 
 ```
 
 实例化智能体：
 
-```
+```py
 agent = TRPO(MlpPolicy, env) 
 ```
 
 训练智能体：
 
-```
+```py
 agent.learn(total_timesteps=250000) 
 ```
 
 在训练完智能体后，我们可以通过渲染环境来看我们的训练智能体是如何学会走路的：
 
-```
+```py
 state = env.reset()
 while True:
     action, _ = agent.predict(state)
@@ -703,7 +703,7 @@ while True:
 
 将本节中使用的整个代码保存到一个名为`trpo.py`的 Python 文件中，然后打开终端并运行该文件：
 
-```
+```py
 python trpo.py 
 ```
 
@@ -723,7 +723,7 @@ python trpo.py
 
 请注意，要录制视频，我们需要在机器上安装`ffmpeg`包。如果没有安装，可以使用以下命令集进行安装：
 
-```
+```py
 sudo add-apt-repository ppa:mc3man/trusty-media
 sudo apt-get update
 sudo apt-get dist-upgrade
@@ -732,32 +732,32 @@ sudo apt-get install ffmpeg
 
 现在，让我们导入`VecVideoRecorder`模块：
 
-```
+```py
 from stable_baselines.common.vec_env import VecVideoRecorder 
 ```
 
 定义一个名为`record_video`的函数来录制视频：
 
-```
+```py
 def record_video(env_name, agent, video_length=500, prefix='', video_folder='videos/'): 
 ```
 
 创建环境：
 
-```
+```py
  env = DummyVecEnv([lambda: gym.make(env_name)]) 
 ```
 
 实例化视频录制器：
 
-```
+```py
  env = VecVideoRecorder(env, video_folder=video_folder,
         record_video_trigger=lambda step: step == 0, video_length=video_length, name_prefix=prefix) 
 ```
 
 在环境中选择动作时，我们的训练智能体会将时间步数设置为视频长度：
 
-```
+```py
  state = env.reset()
     for t in range(video_length):
         action, _ = agent.predict(state)
@@ -768,7 +768,7 @@ def record_video(env_name, agent, video_length=500, prefix='', video_folder='vid
 
 就这样！现在，让我们调用我们的`record_video`函数。请注意，我们传递了环境名称、我们训练的智能体、视频时长和视频文件的名称：
 
-```
+```py
 record_video('Humanoid-v2', agent, video_length=500, prefix='Humanoid_walk_TRPO') 
 ```
 
@@ -784,7 +784,7 @@ record_video('Humanoid-v2', agent, video_length=500, prefix='Humanoid_walk_TRPO'
 
 在本节中，我们将学习如何使用**近端策略优化**（**PPO**）训练 2D 猎豹机器人跑步。首先，导入必要的库：
 
-```
+```py
 import gym
 from stable_baselines.common.policies import MlpPolicy
 from stable_baselines.common.vec_env import DummyVecEnv, VecNormalize
@@ -793,31 +793,31 @@ from stable_baselines import PPO2
 
 使用`DummyVecEnv`创建一个向量化环境：
 
-```
+```py
 env = DummyVecEnv([lambda: gym.make("HalfCheetah-v2")]) 
 ```
 
 对状态进行归一化：
 
-```
+```py
 env = VecNormalize(env,norm_obs=True) 
 ```
 
 实例化代理：
 
-```
+```py
 agent = PPO2(MlpPolicy, env) 
 ```
 
 训练代理：
 
-```
+```py
 agent.learn(total_timesteps=250000) 
 ```
 
 训练完成后，我们可以通过渲染环境看到我们训练的猎豹机器人是如何学会奔跑的：
 
-```
+```py
 state = env.reset()
 while True:
     action, _ = agent.predict(state)
@@ -828,7 +828,7 @@ while True:
 
 将本节中使用的整个代码保存在名为`ppo.py`的 Python 文件中，然后打开终端并运行该文件：
 
-```
+```py
 python ppo.py 
 ```
 
@@ -844,32 +844,32 @@ python ppo.py
 
 首先，导入必要的库：
 
-```
+```py
 import imageio
 import numpy as np 
 ```
 
 初始化用于存储图像的列表：
 
-```
+```py
 images = [] 
 ```
 
 通过重置环境来初始化状态，其中`agent`是我们在前一节中训练的代理：
 
-```
+```py
 state = agent.env.reset() 
 ```
 
 渲染环境并获取图像：
 
-```
+```py
 img = agent.env.render(mode='rgb_array') 
 ```
 
 对环境中的每一步，保存图像：
 
-```
+```py
 for i in range(500):
     images.append(img)
     action, _ = agent.predict(state)
@@ -880,7 +880,7 @@ for i in range(500):
 
 按如下方式创建 GIF 文件：
 
-```
+```py
 imageio.mimsave('HalfCheetah.gif', [np.array(img) for i, img in enumerate(images) if i%2 == 0], fps=29) 
 ```
 
@@ -900,7 +900,7 @@ imageio.mimsave('HalfCheetah.gif', [np.array(img) for i, img in enumerate(images
 
 首先，让我们导入必要的库：
 
-```
+```py
 import gym
 from stable_baselines import GAIL, TD3
 from stable_baselines.gail import ExpertDataset, generate_expert_traj 
@@ -908,31 +908,31 @@ from stable_baselines.gail import ExpertDataset, generate_expert_traj
 
 实例化 TD3 代理：
 
-```
+```py
 agent = TD3('MlpPolicy', 'MountainCarContinuous-v0', verbose=1) 
 ```
 
 生成专家轨迹：
 
-```
+```py
 generate_expert_traj(agent, 'expert_traj', n_timesteps=100, n_episodes=20) 
 ```
 
 使用专家轨迹创建专家数据集：
 
-```
+```py
 dataset = ExpertDataset(expert_path='expert_traj.npz', traj_limitation=10, verbose=1) 
 ```
 
 使用专家数据集（专家轨迹）实例化 GAIL 代理：
 
-```
+```py
 agent = GAIL('MlpPolicy', 'MountainCarContinuous-v0', dataset, verbose=1) 
 ```
 
 训练 GAIL 代理：
 
-```
+```py
 agent.learn(total_timesteps=25000) 
 ```
 

@@ -156,7 +156,7 @@ Google 的第四代 TPU ASIC 的矩阵乘法 TFLOPs 是 TPU v3 的两倍多，�
 
 首先，让我们通过使用这个简单的代码片段来检查是否有可用的 TPU，它会返回分配给 TPU 的 IP 地址。CPU 与 TPU 之间的通信是通过**gRPC**（**gRPC 远程过程调用**）进行的，gRPC 是一个现代的、开源的高性能**远程过程调用**（**RPC**）框架，可以在任何环境中运行：
 
-```
+```py
 %tensorflow_version 2.x
 import tensorflow as tf
 print("Tensorflow version " + tf.__version__)
@@ -172,7 +172,7 @@ tpu_strategy = tf.distribute.experimental.TPUStrategy(tpu)
 
 你应该会看到如下内容：
 
-```
+```py
 Tensorflow version 2.8.0
 Running on TPU  ['10.36.66.50:8470']
 INFO:tensorflow:Deallocate tpu buffers before initializing tpu system.
@@ -198,7 +198,7 @@ INFO:tensorflow:*** Num TPU Cores Per Worker: 8
 
 参考 Google Research Colab 上提供的笔记本（参见 [`colab.research.google.com/github/GoogleCloudPlatform/training-data-analyst/blob/master/courses/fast-and-lean-data-science/01_MNIST_TPU_Keras.ipynb#scrollTo=Hd5zB1G7Y9-7`](https://colab.research.google.com/github/GoogleCloudPlatform/training-data-analyst/blob/master/courses/fast-and-lean-data-science/01_MNIST_TPU_Keras.ipynb#scrollTo=Hd5zB1G7Y9-7)），我们可以查看如何使用这个代码片段检测 TPU 或 GPU，它会使用 TPU 或 GPU 作为回退：
 
-```
+```py
 try: # detect TPUs
     tpu = tf.distribute.cluster_resolver.TPUClusterResolver.connect() # TPU detection
     strategy = tf.distribute.TPUStrategy(tpu)

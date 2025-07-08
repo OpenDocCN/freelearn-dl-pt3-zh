@@ -176,7 +176,7 @@ MobileNet V2 是 MobileNet V1 的更新版，并且在多个方面有了显著�
 
 在将深度学习算法应用于数据之前，探索数据集是非常必要的。在探索过程中，我们可以通过运行`image_explorer.py`来探索数据集，如下所示：
 
-```
+```py
 python image_explorer.py datset_original
 ```
 
@@ -212,7 +212,7 @@ python image_explorer.py datset_original
 
     +   现在进入 JavaScript 控制台，并将以下 JavaScript 代码复制并粘贴到控制台中：
 
-```
+```py
 // Get the jquery into the JavaScript console
 var scriptJs = document.createElement('scriptJs');
 scriptJs.src = "https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js";
@@ -221,14 +221,14 @@ document.getElementsByTagName('head')[0].appendChild(scriptJs)
 
 1.  +   前一行代码将加载 jQuery JavaScript 库。现在，你可以使用 CSS 选择器通过以下代码行收集网址列表：
 
-```
+```py
 // Collect the selected URLs
 var urls_images = $('.rg_di .rg_meta').map(function() { return JSON.parse($(this).text()).ou; });
 ```
 
 1.  最后，使用以下代码行将网址写入文件（每行一个网址）：
 
-```
+```py
 // write the URls to a file 
 var text_url_Save = urls_images.toArray().join('\n');
 var hiddenComponents = document.createElement('a');
@@ -242,7 +242,7 @@ hiddenComponents.click();
 
 1.  **下载图片**：现在你可以准备下载运行图片`download_images.py`（在章节的代码文件夹中可找到），并使用先前下载的`imageurls.txt`：
 
-```
+```py
 python download_images.py  imageurls.txt
 ```
 
@@ -280,7 +280,7 @@ python download_images.py  imageurls.txt
 
 下面，我们提供两个命令示例：一个用于重新训练 Incentive V3 模型，另一个用于在修改后的数据集（dataset-modified）上重新训练 Mobilenet V1。为了重新训练 Incentive V3，我们没有传递架构参数值，因为它是 `retrain.py` 中包含的默认架构。对于其余的参数，包括训练、验证和测试之间的数据划分比例，我们使用了默认值。在这个使用案例中，我们使用了数据拆分规则，将 80% 的图像放入主训练集，保留 10% 作为训练过程中的验证集，剩余的 10% 作为测试集。测试集用于测试分类器的真实世界分类性能：
 
-```
+```py
 python retrain.py \
 --output_graph=trained_model_incentive-modified-dataset/retrained_graph.pb \
 --output_labels=trained_model_incentive-modified-dataset/retrained_labels.txt \
@@ -289,7 +289,7 @@ python retrain.py \
 
 要运行 Mobilenet V1 模型的训练和验证，请使用以下命令：
 
-```
+```py
 python retrain.py \
 --output_graph=trained_model_mobilenetv1-modified-dataset/retrained_graph.pb \
 --output_labels=trained_model_mobilenetv1-modified-dataset/retrained_labels.txt \
@@ -299,7 +299,7 @@ python retrain.py \
 
 一旦运行上述命令，它将生成重新训练的模型（`retrained_graph.pb`）、标签文本（`retrained_labels.txt`）以及包含训练和验证摘要信息的目录。`(--summaries_dir` 参数，默认值为 `retrain_logs`)，TensorBoard 可以使用这些摘要信息来可视化模型的不同方面，包括网络结构和性能图表。如果我们在终端或命令提示符中输入以下命令，它将启动 TensorBoard：
 
-```
+```py
 tensorboard --logdir retrain_logs
 
 ```
@@ -310,7 +310,7 @@ tensorboard --logdir retrain_logs
 
 在第二种使用情况下，我们只在固体废物数据集上重新训练了 Mobilenet V1。你可以通过仅提供图像或数据集目录来重新训练模型，如下所示：
 
-```
+```py
 --image_dir=dataset-solidwaste
 ```
 

@@ -144,7 +144,7 @@ k-NN 算法是一种非参数方法，可以使用来自物联网设备的指纹
 
 我们将使用 Keras 来实现这一概念。首先，让我们导入必要的包和库，如下所示：
 
-```
+```py
 import pandas as pd
 import numpy as np
 import tensorflow as tf
@@ -170,19 +170,19 @@ import pandas_profiling
 
 使用**Python pandas**库进行数据探索性分析提供了许多强大的功能——毫无疑问。然而，使用`df.describe()`、`df.dtypes`，或者使用`df.isnull().sum()`并分别绘制这些图表总是非常耗时。有时，你甚至无法以一种高级的方式获取所需的信息。实际上，你必须编写额外的代码行将它们转换成可展示的格式。然而，为了让你的工作更轻松，现在你可以开始使用`pandas_profiling`库（请参阅[`github.com/pandas-profiling/pandas-profiling`](https://github.com/pandas-profiling/pandas-profiling)）。只需一行代码，就能提供你所需要的信息：
 
-```
+```py
 pandas_profiling.ProfileReport(df)
 ```
 
 当然，使用`pandas_profiling`来快速了解你的数据是非常值得的。让我们试试看！首先，我们通过显式传递`header=0`来读取训练数据，以便能够替换现有的列名：
 
-```
+```py
 trainDF = pd.read_csv("trainingData.csv",header = 0)
 ```
 
 要获取由于高度相关性而被拒绝的变量列表，可以使用以下命令：
 
-```
+```py
 profile = pandas_profiling.ProfileReport(trainDF) 
 ```
 
@@ -192,13 +192,13 @@ profile = pandas_profiling.ProfileReport(trainDF)
 
 让我们来看一下报告的前几行。正如我们所看到的，数据中没有任何空值，所有变量都是数值型的，这非常好。然而，有些特征意义较小，因为它们与其他变量高度相关（例如，74 个变量被拒绝），还有一些变量分布非常偏斜，给出了非常宽广的分布。甚至我们的训练数据集也有 637 行重复数据。被拒绝的变量不会对模型的学习产生帮助。因此，这些可以从训练数据中删除（不过这一步是可选的）。这些被拒绝的变量列表可以通过以下`get_rejected_variables`方法来获取：
 
-```
+```py
 rejected_variables = profile.get_rejected_variables(threshold=0.9)
 ```
 
 如果你想生成 HTML 报告文件，可以将分析结果保存到一个对象中，并使用`to_file`函数，如下所示：
 
-```
+```py
 profile.to_file(outputfile="Report.html")
 ```
 
@@ -208,7 +208,7 @@ profile.to_file(outputfile="Report.html")
 
 首先，我们将数据进行标准化，中心化到均值。然后，我们对每个分量进行单位方差缩放。这将有助于我们的模型更快地收敛：
 
-```
+```py
 featureDF = np.asarray(trainDF.iloc[:,0:520]) # First 520 features 
 featureDF[featureDF == 100] = -110
 featureDF = (featureDF - featureDF.mean()) / featureDF.var()
@@ -216,14 +216,14 @@ featureDF = (featureDF - featureDF.mean()) / featureDF.var()
 
 然后，我们构建真实标签。我们将所有的建筑物 ID 和楼层 ID 转换为字符串：
 
-```
+```py
 labelDF = np.asarray(trainDF["BUILDINGID"].map(str) + trainDF["FLOOR"].map(str)) 
 labelDF = np.asarray(pd.get_dummies(labelDF))
 ```
 
 然后，让我们尝试创建两个变量：`train_x`和`train_y`。这将有助于在训练评估过程中避免混淆：
 
-```
+```py
 train_x = featureDF
 train_y = labelDF
 print(train_x.shape)
@@ -232,7 +232,7 @@ print(train_x.shape[1])
 
 现在，与训练集类似，我们也准备好测试集：
 
-```
+```py
 testDF = pd.read_csv("validationData.csv",header = 0)
 test_featureDF = np.asarray(testDF.iloc[:,0:520])
 test_featureDF[test_featureDF == 100] = -110
@@ -249,7 +249,7 @@ print(test_y.shape[1])
 
 让我们创建独立的编码器和解码器函数，因为你稍后会使用编码器权重进行分类。首先，我们定义一些参数，比如 epoch 数量和批量大小。此外，我们计算输入数据的形状和构建与训练 AE 所需的类别数：
 
-```
+```py
 number_epochs = 100
 batch_size = 32
 input_size = train_x.shape[1] # 520
@@ -258,7 +258,7 @@ num_classes = train_y.shape[1] # 13
 
 然后，我们创建 AE 的编码器部分，它有三个隐藏层：
 
-```
+```py
 def encoder():
     model = Sequential()
     model.add(Dense(256, input_dim=input_size, activation='relu', use_bias=True))
@@ -269,7 +269,7 @@ def encoder():
 
 接下来，我们创建 AE 的解码器部分，它有三个隐藏层，接着是 `compile()` 方法：
 
-```
+```py
 def decoder(encoder):   
     encoder.add(Dense(128, input_dim=64, activation='relu', use_bias=True))
     encoder.add(Dense(256, activation='relu', use_bias=True))
@@ -280,7 +280,7 @@ def decoder(encoder):
 
 然后，我们将它们堆叠在一起以构建 AE：
 
-```
+```py
 encoderModel = encoder() # Encoder
 auto_encoder = decoder(encoderModel) # The autoencoder 
 auto_encoder.summary()
@@ -292,14 +292,14 @@ auto_encoder.summary()
 
 然后，我们可以使用训练数据训练 AE 100 次，其中 10% 的训练数据将用于验证：
 
-```
+```py
 auto_encoder.fit(train_x, train_x, epochs = 100, batch_size = batch_size, 
                  validation_split=0.1, verbose = 1)
 ```
 
 由于我们在前面的代码块中设置了 `verbose =1`，因此在训练过程中，你将看到以下日志：
 
-```
+```py
 Train on 17943 samples, validate on 1994 samples
 Epoch 1/100
 17943/17943 [==============================] - 5s 269us/step - loss: 0.0109 - val_loss: 0.0071
@@ -320,7 +320,7 @@ Epoch 100/100
 
 然后，我们将编码器网络的输出作为训练集和测试集的潜在特征：
 
-```
+```py
 X_train_re = encoderModel.predict(train_x)
 X_test_re = encoderModel.predict(test_x)
 ```
@@ -329,21 +329,21 @@ X_test_re = encoderModel.predict(test_x)
 
 接下来，我们将通过将前三层的训练状态设置为 `True` 来重新训练 `auto_encoder` 模型，而不是将它们保持为 `False`：
 
-```
+```py
 for layer in auto_encoder.layers[0:3]:
     layer.trainable = True  
 ```
 
 或者，我们也可以通过以下方式删除前三层：
 
-```
+```py
 for i in range(number_of_layers_to_remove):
     auto_encoder.pop()
 ```
 
 然后，我们在前面添加全连接层，`BatchNormalization` 层紧随其后，接着是第一个密集层。接着，我们添加另一个密集层，再后面是 `BatchNormalization` 和 `Dropout` 层。然后，我们放置另一个密集层，接着是 `GaussionNoise` 层和一个 `Dropout` 层，最后是 softmax 层：
 
-```
+```py
 auto_encoder.add(Dense(128, input_dim=64, activation='relu', use_bias=True)) 
 auto_encoder.add(BatchNormalization())                     
 auto_encoder.add(Dense(64, activation='relu', kernel_initializer = 'he_normal', use_bias=True)) 
@@ -357,13 +357,13 @@ auto_encoder.add(Dense(num_classes, activation = 'softmax', use_bias=True))
 
 最后，我们得到了完整的 AE 分类器：
 
-```
+```py
 full_model = autoEncoderClassifier(auto_encoder)
 ```
 
 完整的代码如下：
 
-```
+```py
 def autoEncoderClassifier(auto_encoder):
     for layer in auto_encoder.layers[0:3]:
         layer.trainable = True        
@@ -384,19 +384,19 @@ full_model = autoEncoderClassifier(auto_encoder)
 
 然后，我们在开始训练之前编译模型：
 
-```
+```py
 full_model.compile(loss = 'categorical_crossentropy', optimizer = optimizers.adam(lr = 0.001), metrics = ['accuracy'])
 ```
 
 现在，我们开始以监督方式微调网络：
 
-```
+```py
 history = full_model.fit(X_train_re, train_y, epochs = 50, batch_size = 200, validation_split = 0.2, verbose = 1)
 ```
 
 由于我们在前面的代码块中设置了`verbose =1`，因此在训练过程中，你会看到以下日志：
 
-```
+```py
 Train on 15949 samples, validate on 3988 samples
 Epoch 1/50
 15949/15949 [==============================] - 10s 651us/step - loss: 0.9263 - acc: 0.7086 - val_loss: 1.4313 - val_acc: 0.5747
@@ -413,7 +413,7 @@ Epoch 50/50
 
 现在让我们看看训练损失与验证损失的对比，这将帮助我们理解训练过程。这也将帮助我们判断我们的神经网络是否存在过拟合和欠拟合等问题：
 
-```
+```py
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -437,7 +437,7 @@ plt.show()
 
 现在我们已经完全训练好了 AE 分类器，可以保存它，以便稍后从磁盘恢复：
 
-```
+```py
 import os
 from pickle import load
 from keras.models import load_model
@@ -457,21 +457,21 @@ model = load_model('model.h5')
 
 现在我们的模型已经完全训练好了，可以在未见过的数据上评估其性能：
 
-```
+```py
 results = full_model.evaluate(X_test_re, test_y)
 print('Test accuracy: ', results[1])
 ```
 
 上述代码行将显示准确度得分，类似如下：
 
-```
+```py
 1111/1111 [==============================] - 0s 142us/step
 Test accuracy: 0.8874887488748875
 ```
 
 然后，让我们计算性能指标：
 
-```
+```py
 predicted_classes = full_model.predict(test_x)
 pred_y = np.argmax(np.round(predicted_classes),axis=1)
 y = np.argmax(np.round(test_y),axis=1)
@@ -483,7 +483,7 @@ print("F1-score: " + str(f1*100) + "%")
 
 上述代码块将显示以下输出，F1-score 大约为 88%：
 
-```
+```py
 Precision: 90.29611866225324%
 Recall: 88.11881188118812%
 F1-score: 88.17976604784566%
@@ -491,7 +491,7 @@ F1-score: 88.17976604784566%
 
 此外，我们可以打印分类报告以了解类特定的定位情况：
 
-```
+```py
 print(classification_report(y, pred_y))
 ```
 
@@ -501,7 +501,7 @@ print(classification_report(y, pred_y))
 
 此外，我们将绘制混淆矩阵：
 
-```
+```py
 print(confusion_matrix(y, pred_y))
 ```
 

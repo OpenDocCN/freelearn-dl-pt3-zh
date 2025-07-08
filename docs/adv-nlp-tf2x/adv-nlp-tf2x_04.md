@@ -104,7 +104,7 @@
 
 TensorFlow Datasets 或`tfds`包将被用于加载数据：
 
-```
+```py
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import numpy as np
@@ -118,7 +118,7 @@ imdb_test = tfds.load(name="imdb_reviews", split="test",
 
 注意，额外的 50,000 条未标注的评论在本练习中被忽略。训练集和测试集加载完毕后，评论内容需要进行分词和编码：
 
-```
+```py
 # Use the default tokenizer settings
 tokenizer = tfds.features.text.Tokenizer()
 vocabulary_set = set()
@@ -132,7 +132,7 @@ for example, label in imdb_train:
 
 上面显示的代码对评论文本进行了分词，并构建了一个词汇表。这个词汇表用于构建分词器：
 
-```
+```py
 imdb_encoder = tfds.features.text.TokenTextEncoder(vocabulary_set,
                                                    **lowercase=****True**,
                                                    tokenizer=tokenizer)
@@ -140,7 +140,7 @@ vocab_size = imdb_encoder.vocab_size
 print(vocab_size, MAX_TOKENS) 
 ```
 
-```
+```py
 93931 2525 
 ```
 
@@ -148,7 +148,7 @@ print(vocab_size, MAX_TOKENS)
 
 现在分词器已准备好，数据需要进行分词，并将序列填充到最大长度。由于我们希望与*第二章*《使用 BiLSTM 理解自然语言中的情感》中训练的模型进行性能比较，因此可以使用相同的设置，即最多采样 150 个评论词汇。以下便捷方法有助于执行此任务：
 
-```
+```py
 # transformation functions to be used with the dataset
 from tensorflow.keras.preprocessing import sequence
 def encode_pad_transform(sample):
@@ -167,7 +167,7 @@ def encode_tf_fn(sample, label):
 
 最后，数据使用上面提到的便捷函数进行编码，如下所示：
 
-```
+```py
 encoded_train = imdb_train.map(encode_tf_fn,
                       num_parallel_calls=tf.data.experimental.AUTOTUNE)
 encoded_test = imdb_test.map(encode_tf_fn,
@@ -184,7 +184,7 @@ encoded_test = imdb_test.map(encode_tf_fn,
 
 首先，需要下载并解压预训练的嵌入：
 
-```
+```py
 # Download the GloVe embeddings
 !wget http://nlp.stanford.edu/data/glove.6B.zip
 !unzip glove.6B.zip
@@ -199,7 +199,7 @@ Archive:  glove.6B.zip
 
 在上一章中，模型使用了 64 的嵌入维度。最近的 GloVe 维度是 50，所以我们将使用该维度。文件格式非常简单。每一行文本有多个由空格分隔的值。每行的第一个项目是单词，其余项目是每个维度的向量值。因此，在 50 维的文件中，每一行将有 51 列。这些向量需要加载到内存中：
 
-```
+```py
 dict_w2v = {}
 with open('glove.6B.50d.txt', "r") as file:
     for line in file:
@@ -214,7 +214,7 @@ with open('glove.6B.50d.txt', "r") as file:
 print("Dictionary Size: ", len(dict_w2v)) 
 ```
 
-```
+```py
 Dictionary Size:  400000 
 ```
 
@@ -224,7 +224,7 @@ Dictionary Size:  400000
 
 到目前为止，我们已经有了数据集、它的词汇表以及 GloVe 单词及其对应向量的字典。然而，这两个词汇表之间没有关联。将它们连接起来的方式是通过创建一个嵌入矩阵。首先，我们来初始化一个全零的嵌入矩阵：
 
-```
+```py
 embedding_dim = 50
 embedding_matrix = np.zeros((imdb_encoder.vocab_size, embedding_dim)) 
 ```
@@ -235,7 +235,7 @@ embedding_matrix = np.zeros((imdb_encoder.vocab_size, embedding_dim))
 
 单词的 ID 是通过编码器获取的，然后将与该条目对应的嵌入矩阵条目设置为获取到的向量：
 
-```
+```py
 unk_cnt = 0
 unk_set = set()
 for word in imdb_encoder.tokens:
@@ -250,7 +250,7 @@ for word in imdb_encoder.tokens:
 print("Total unknown words: ", unk_cnt) 
 ```
 
-```
+```py
 Total unknown words:  14553 
 ```
 
@@ -268,7 +268,7 @@ Total unknown words:  14553
 
 现在，让我们构建模型，并将上面生成的嵌入矩阵插入到模型中。需要设置一些基本参数：
 
-```
+```py
 # Length of the vocabulary in chars
 vocab_size = imdb_encoder.vocab_size # len(chars)
 # Number of RNN units
@@ -279,7 +279,7 @@ BATCH_SIZE=100
 
 设置一个便捷的函数可以实现快速切换。这个方法使得可以使用相同的架构但不同的超参数来构建模型：
 
-```
+```py
 from tensorflow.keras.layers import Embedding, LSTM, \
                                     Bidirectional, Dense
 
@@ -298,7 +298,7 @@ def build_model_bilstm(vocab_size, embedding_dim,
 
 该模型与上一章中使用的模型完全相同，唯一不同的是上述的高亮代码片段。首先，现在可以传递一个标志来指定是否进一步训练词嵌入或冻结它们。此参数默认设置为 false。第二个变化出现在`Embedding`层的定义中。一个新参数`weights`用于将嵌入矩阵作为层的权重加载。在这个参数之后，传递了一个布尔参数`trainable`，该参数决定在训练过程中该层的权重是否应更新。现在可以像这样创建基于特征提取的模型：
 
-```
+```py
 model_fe = build_model_bilstm(
   vocab_size = vocab_size,
   embedding_dim=embedding_dim,
@@ -307,7 +307,7 @@ model_fe = build_model_bilstm(
 model_fe.summary() 
 ```
 
-```
+```py
 Model: "sequential_5"
 _________________________________________________________________
 Layer (type)                 Output Shape              Param #   
@@ -336,7 +336,7 @@ _________________________________________________________________
 
 将观察到的指标与之前相同，包括准确率、精确率和召回率：
 
-```
+```py
 model_fe.compile(loss='binary_crossentropy', 
              optimizer='adam', 
              metrics=['accuracy', 'Precision', 'Recall']) 
@@ -344,13 +344,13 @@ model_fe.compile(loss='binary_crossentropy',
 
 在设置好预加载批次后，模型准备进行训练。与之前相似，模型将训练 10 个周期：
 
-```
+```py
 # Prefetch for performance
 encoded_train_batched = encoded_train.batch(BATCH_SIZE).prefetch(100)
 model_fe.fit(encoded_train_batched, epochs=10) 
 ```
 
-```
+```py
 Epoch 1/10
 250/250 [==============================] - 28s 113ms/step - loss: 0.5896 - accuracy: 0.6841 - Precision: 0.6831 - Recall: 0.6870
 Epoch 2/10
@@ -368,11 +368,11 @@ Epoch 10/10
 
 现在，让我们理解这个模型的实用性。为了评估该模型的质量，应该在测试集上评估其表现：
 
-```
+```py
 model_fe.evaluate(encoded_test.batch(BATCH_SIZE)) 
 ```
 
-```
+```py
 250/Unknown - 21s 85ms/step - loss: 0.3999 - accuracy: 0.8282 - Precision: 0.7845 - Recall: 0.9050 
 ```
 
@@ -382,7 +382,7 @@ model_fe.evaluate(encoded_test.batch(BATCH_SIZE))
 
 使用便捷函数创建微调模型非常简单。只需要将`train_emb`参数设置为 true 即可：
 
-```
+```py
 model_ft = build_model_bilstm(
   vocab_size=vocab_size,
   embedding_dim=embedding_dim,
@@ -394,14 +394,14 @@ model_ft.summary()
 
 该模型的大小与特征提取模型相同。然而，由于嵌入向量将会被微调，训练预计会稍微耗时一些。现在可以更新几千个零嵌入。最终的准确率预计会比之前的模型好得多。该模型使用相同的损失函数、优化器和指标进行编译，并训练了 10 个周期：
 
-```
+```py
 model_ft.compile(loss='binary_crossentropy', 
              optimizer='adam', 
              metrics=['accuracy', 'Precision', 'Recall'])
 model_ft.fit(encoded_train_batched, epochs=10) 
 ```
 
-```
+```py
 Epoch 1/10
 250/250 [==============================] - 35s 139ms/step - loss: 0.5432 - accuracy: 0.7140 - Precision: 0.7153 - Recall: 0.7111
 Epoch 2/10
@@ -415,11 +415,11 @@ Epoch 10/10
 
 这个准确率非常令人印象深刻，但需要在测试集上验证：
 
-```
+```py
 model_ft.evaluate(encoded_test.batch(BATCH_SIZE)) 
 ```
 
-```
+```py
 250/Unknown - 22s 87ms/step - loss: 0.4624 - accuracy: 0.8710 - Precision: 0.8789 - Recall: 0.8605 
 ```
 
@@ -533,13 +533,13 @@ WordPiece 的目标包括通过考虑被合并标记的频率以及合并后的�
 
 以 IMDB 数据集为例，以下是一个示例句子：
 
-```
+```py
 This was an absolutely terrible movie. Don't be `lured` in by Christopher Walken or Michael Ironside. 
 ```
 
 使用 BERT 进行标记化后，它看起来像这样：
 
-```
+```py
 [CLS] This was an absolutely terrible movie . Don' t be `lure ##d` in by Christopher Walk ##en or Michael Iron ##side . [SEP] 
 ```
 
@@ -561,13 +561,13 @@ This was an absolutely terrible movie. Don't be `lured` in by Christopher Walken
 
 这些步骤每个都不会超过几行代码。所以让我们开始吧。第一步是安装 Hugging Face 库：
 
-```
+```py
 !pip install transformers==3.0.2 
 ```
 
 分词器是第一步——在使用之前需要导入它：
 
-```
+```py
 from transformers import BertTokenizer
 bert_name = 'bert-base-cased'
 tokenizer = BertTokenizer.from_pretrained(bert_name, 
@@ -608,7 +608,7 @@ tokenizer = BertTokenizer.from_pretrained(bert_name,
 
 如果输入序列是 *Don't be lured*，那么上图显示了如何使用 WordPiece 分词器对其进行分词，并添加了特殊标记。上述示例设置了最大序列长度为九个标记。只提供了一个序列，因此令牌类型 ID 或段 ID 都具有相同的值。注意力掩码设置为 1，其中对应的令牌条目是真实令牌。以下代码用于生成这些编码：
 
-```
+```py
 tokenizer.encode_plus(" Don't be lured", add_special_tokens=True, 
                       max_length=9,
                       pad_to_max_length=True, 
@@ -616,13 +616,13 @@ tokenizer.encode_plus(" Don't be lured", add_special_tokens=True,
                       return_token_type_ids=True) 
 ```
 
-```
+```py
 {'input_ids': [101, 1790, 112, 189, 1129, 19615, 1181, 102, 0], 'token_type_ids': [0, 0, 0, 0, 0, 0, 0, 0, 0], 'attention_mask': [1, 1, 1, 1, 1, 1, 1, 1, 0]} 
 ```
 
 即使在本章中我们不会使用一对序列，了解当传入一对序列时，编码的样子也是很有用的。如果传入两个字符串，它们将被视为一对。这在下面的代码中有展示：
 
-```
+```py
 tokenizer.encode_plus(" Don't be"," lured", add_special_tokens=True, 
                       max_length=10,
                       pad_to_max_length=True, 
@@ -630,7 +630,7 @@ tokenizer.encode_plus(" Don't be"," lured", add_special_tokens=True,
                       return_token_type_ids=True) 
 ```
 
-```
+```py
 {'input_ids': [101, 1790, 112, 189, 1129, **102**, 19615, 1181, **102**, 0], 'token_type_ids': [0, 0, 0, 0, 0, 0, **1, 1, 1**, 0], 'attention_mask': [1, 1, 1, 1, 1, 1, 1, 1, 1, 0]} 
 ```
 
@@ -638,7 +638,7 @@ tokenizer.encode_plus(" Don't be"," lured", add_special_tokens=True,
 
 为了对所有 IMDb 评论的输入进行编码，定义了一个辅助函数，如下所示：
 
-```
+```py
 def bert_encoder(review):
     txt = review.numpy().decode('utf-8')
     encoded = tokenizer.encode_plus(txt, add_special_tokens=True, 
@@ -656,7 +656,7 @@ def bert_encoder(review):
 
 现在，这需要应用于训练数据中的每一条评论：
 
-```
+```py
 bert_train = [bert_encoder(r) for r, l in imdb_train]
 bert_lbl = [l for r, l in imdb_train]
 bert_train = np.array(bert_train)
@@ -665,7 +665,7 @@ bert_lbl = tf.keras.utils.to_categorical(bert_lbl, num_classes=2)
 
 评论的标签也被转换为分类值。使用 `sklearn` 包，训练数据被拆分为训练集和验证集：
 
-```
+```py
 # create training and validation splits
 from sklearn.model_selection import train_test_split
 x_train, x_val, y_train, y_val = train_test_split(bert_train, 
@@ -675,13 +675,13 @@ x_train, x_val, y_train, y_val = train_test_split(bert_train,
 print(x_train.shape, y_train.shape) 
 ```
 
-```
+```py
 (20000, 3, 150) (20000, 2) 
 ```
 
 需要做一些额外的数据处理，将输入转换成三个输入字典，并在 `tf.DataSet` 中使用，以便在训练中轻松使用：
 
-```
+```py
 tr_reviews, tr_segments, tr_masks = np.split(x_train, 3, axis=1)
 val_reviews, val_segments, val_masks = np.split(x_val, 3, axis=1)
 tr_reviews = tr_reviews.squeeze()
@@ -694,7 +694,7 @@ val_masks = val_masks.squeeze()
 
 这些训练和验证序列被转换成数据集，如下所示：
 
-```
+```py
 def example_to_features(input_ids,attention_masks,token_type_ids,y):
   return {"input_ids": input_ids,
           "attention_mask": attention_masks,
@@ -713,14 +713,14 @@ val_masks, val_segments, y_val)).\
 
 Hugging Face 库通过提供一个类，使得使用预构建的 BERT 模型进行分类变得非常简单：
 
-```
+```py
 from transformers import TFBertForSequenceClassification
 bert_model = TFBertForSequenceClassification.from_pretrained(bert_name) 
 ```
 
 这相当简单，不是吗？请注意，模型的实例化将需要从云端下载模型。然而，如果代码是在本地或专用机器上运行的，这些模型会被缓存到本地机器上。在 Google Colab 环境中，每次初始化 Colab 实例时都会执行此下载。要使用此模型，我们只需提供优化器和损失函数并编译模型：
 
-```
+```py
 optimizer = tf.keras.optimizers.Aadam(learning_rate=2e-5)
 loss = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 bert_model.compile(optimizer=optimizer, loss=loss, metrics=['accuracy']) 
@@ -728,11 +728,11 @@ bert_model.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
 
 这个模型实际上在结构上相当简单，正如其摘要所示：
 
-```
+```py
 bert_model.summary() 
 ```
 
-```
+```py
 Model: "tf_bert_for_sequence_classification_7"
 _________________________________________________________________
 Layer (type)                 Output Shape              Param #   
@@ -755,13 +755,13 @@ BERT 论文建议了一些微调设置。它们建议批次大小为 16 或 32�
 
 在上一节中，我们将数据分批为 16 个一组。这里，Adam 优化器配置为使用 2e-5 的学习率。我们将训练此模型 3 个周期。请注意，训练将会非常慢：
 
-```
+```py
 print("Fine-tuning BERT on IMDB")
 bert_history = bert_model.fit(train_ds, epochs=3, 
                               validation_data=valid_ds) 
 ```
 
-```
+```py
 Fine-tuning BERT on IMDB
 Train for 1250 steps, validate for 313 steps
 Epoch 1/3
@@ -774,7 +774,7 @@ Epoch 3/3
 
 如果在测试集上能够保持这个验证准确度，那么我们所做的工作就相当值得称赞。接下来需要进行这一验证。使用上一节中的便捷方法，测试数据将被标记化并编码为正确的格式：
 
-```
+```py
 # prep data for testing
 bert_test = [bert_encoder(r) for r,l in imdb_test]
 bert_tst_lbl = [l for r, l in imdb_test]
@@ -791,11 +791,11 @@ test_ds = tf.data.Dataset.from_tensor_slices((ts_reviews,
 
 在测试数据集上评估该模型的表现，得到如下结果：
 
-```
+```py
 bert_model.evaluate(test_ds) 
 ```
 
-```
+```py
 1563/1563 [==============================] - 202s 129ms/step - loss: 0.3647 - accuracy: 0.8799
 [0.3646871318983454, 0.8799] 
 ```
@@ -812,14 +812,14 @@ BERT 模型为所有输入的标记输出上下文嵌入。通常，`[CLS]`标�
 
 本次探索的起点是基础的`TFBertModel`。可以这样导入并实例化：
 
-```
+```py
 from transformers import TFBertModel
 bert_name = 'bert-base-cased'
 bert = TFBertModel.from_pretrained(bert_name) 
 bert.summary() 
 ```
 
-```
+```py
 Model: "tf_bert_model"
 _________________________________________________________________
 Layer (type)                 Output Shape              Param #   
@@ -836,7 +836,7 @@ _________________________________________________________________
 
 现在，需要定义自定义模型。该模型的第一层是 BERT 层。此层将接受三个输入，分别是输入标记、注意力掩码和标记类型 ID：
 
-```
+```py
 max_seq_len = 150
 inp_ids = tf.keras.layers.Input((max_seq_len,), dtype=tf.int64, name="input_ids")
 att_mask = tf.keras.layers.Input((max_seq_len,), dtype=tf.int64, name="attention_mask")
@@ -845,11 +845,11 @@ seg_ids = tf.keras.layers.Input((max_seq_len,), dtype=tf.int64, name="token_type
 
 这些名称需要与训练和测试数据集中定义的字典匹配。可以通过打印数据集的规范来检查这一点：
 
-```
+```py
 train_ds.element_spec 
 ```
 
-```
+```py
 ({'input_ids': TensorSpec(shape=(None, 150), dtype=tf.int64, name=None),
   'attention_mask': TensorSpec(shape=(None, 150), dtype=tf.int64, name=None),
   'token_type_ids': TensorSpec(shape=(None, 150), dtype=tf.int64, name=None)},
@@ -858,7 +858,7 @@ train_ds.element_spec
 
 BERT 模型期望这些输入以字典形式传递。它也可以接受作为命名参数的输入，但这种方式更加清晰，并且有助于追踪输入。一旦输入映射完成，就可以计算 BERT 模型的输出：
 
-```
+```py
 inp_dict = {"input_ids": inp_ids,
             "attention_mask": att_mask,
             "token_type_ids": seg_ids}
@@ -867,14 +867,14 @@ outputs = bert(inp_dict)
 outputs 
 ```
 
-```
+```py
 (<tf.Tensor 'tf_bert_model_3/Identity:0' shape=(None, 150, 768) dtype=float32>,
  <tf.Tensor 'tf_bert_model_3/Identity_1:0' shape=(None, 768) dtype=float32>) 
 ```
 
 第一个输出包含每个输入标记的嵌入，包括特殊标记 `[CLS]` 和 `[SEP]`。第二个输出对应于 `[CLS]` 标记的输出。该输出将在模型中进一步使用：
 
-```
+```py
 x = tf.keras.layers.Dropout(0.2)(outputs[1])
 x = tf.keras.layers.Dense(200, activation='relu')(x)
 x = tf.keras.layers.Dropout(0.2)(x)
@@ -884,7 +884,7 @@ custom_model = tf.keras.models.Model(inputs=inp_dict, outputs=x)
 
 上述模型仅用于演示这项技术。我们在输出层之前添加了一个密集层和几个丢弃层。现在，客户模型已经准备好进行训练。该模型需要用优化器、损失函数和指标来编译：
 
-```
+```py
 optimizer = tf.keras.optimizers.Adam(learning_rate=2e-5)
 loss = tf.keras.losses.BinaryCrossentropy(from_logits=True)
 custom_model.compile(optimizer=optimizer, loss=loss, metrics=['accuracy']) 
@@ -892,7 +892,7 @@ custom_model.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
 
 这是这个模型的样子：
 
-```
+```py
 custom_model.summary() 
 ```
 
@@ -900,13 +900,13 @@ custom_model.summary()
 
 这个自定义模型在 BERT 参数基础上增加了 154,202 个可训练参数。该模型已经准备好进行训练。我们将使用与之前 BERT 部分相同的设置，并将模型训练 3 个周期：
 
-```
+```py
 print("Custom Model: Fine-tuning BERT on IMDB")
 custom_history = custom_model.fit(train_ds, epochs=3, 
                                   validation_data=valid_ds) 
 ```
 
-```
+```py
 Custom Model: Fine-tuning BERT on IMDB
 Train for 1250 steps, validate for 313 steps
 Epoch 1/3
@@ -919,17 +919,17 @@ Epoch 3/3
 
 在测试集上评估得到 86.29% 的准确率。请注意，这里使用的预训练 BERT 模型部分中的测试数据编码步骤也在此处使用：
 
-```
+```py
 custom_model.evaluate(test_ds) 
 ```
 
-```
+```py
 1563/1563 [==============================] - 201s 128ms/step - loss: 0.5667 - accuracy: 0.8629 
 ```
 
 BERT 的微调通常在较少的周期内进行，并使用较小的 Adam 学习率。如果进行大量微调，则存在 BERT 忘记其预训练参数的风险。在构建自定义模型时，这可能会成为一个限制，因为几个周期可能不足以训练添加的层。在这种情况下，可以冻结 BERT 模型层，并继续进一步训练。冻结 BERT 层相对简单，但需要重新编译模型：
 
-```
+```py
 bert.trainable = False                  # don't train BERT any more
 optimizer = tf.keras.optimizers.Adam()  # standard learning rate
 custom_model.compile(optimizer=optimizer, loss=loss, metrics=['accuracy']) 
@@ -937,7 +937,7 @@ custom_model.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
 
 我们可以检查模型摘要，以验证可训练参数的数量已经改变，以反映 BERT 层被冻结：
 
-```
+```py
 custom_model.summary() 
 ```
 
@@ -951,7 +951,7 @@ custom_model.summary()
 
 现在，可以像这样继续训练多个周期：
 
-```
+```py
 print("Custom Model: Keep training custom model on IMDB")
 custom_history = custom_model.fit(train_ds, epochs=10, 
                                   validation_data=valid_ds) 
@@ -959,11 +959,11 @@ custom_history = custom_model.fit(train_ds, epochs=10,
 
 为了简洁起见，未显示训练输出。对测试集进行检查时，模型准确率为 86.96%：
 
-```
+```py
 custom_model.evaluate(test_ds) 
 ```
 
-```
+```py
 1563/1563 [==============================] - 195s 125ms/step - loss: 0.5657 - accuracy: 0.8696 
 ```
 

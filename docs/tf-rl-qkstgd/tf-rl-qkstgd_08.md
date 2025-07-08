@@ -116,7 +116,7 @@
 
 这些文件包含在本章的代码文件中（[`github.com/PacktPublishing/TensorFlow-Reinforcement-Learning-Quick-Start-Guide`](https://github.com/PacktPublishing/TensorFlow-Reinforcement-Learning-Quick-Start-Guide)），但也可以通过 Google 搜索获取。在`gym_torcs.py`的第~130-160 行中，设置了奖励函数。你可以看到以下行，这些行将原始的模拟器状态转换为 NumPy 数组：
 
-```
+```py
 # Reward setting Here #######################################
 # direction-dependent positive reward
 track = np.array(obs['track'])
@@ -128,14 +128,14 @@ rpm = np.array(obs['rpm'])
 
 然后，奖励函数被设置如下。请注意，我们根据沿轨道的纵向速度（角度项的余弦值）给予奖励，并惩罚横向速度（角度项的正弦值）。轨道位置也会被惩罚。理想情况下，如果这是零，我们将处于轨道的中心，而*+1*或*-1*的值表示我们在轨道的边缘，这是不希望发生的，因此会受到惩罚：
 
-```
+```py
 progress = sp*np.cos(obs['angle']) - np.abs(sp*np.sin(obs['angle'])) - sp * np.abs(obs['trackPos'])
 reward = progress
 ```
 
 如果汽车偏离轨道或智能体的进度卡住，我们使用以下代码终止该回合：
 
-```
+```py
 if (abs(track.any()) > 1 or abs(trackPos) > 1): # Episode is terminated if the car is out of track
     print("Out of track ")
     reward = -100 #-200
@@ -160,7 +160,7 @@ if self.terminal_judge_start < self.time_step: # Episode terminates if the progr
 
 我们的 TORCS 状态维度是`29`，动作维度是`3`；这些在`ddpg.py`中设置，如下所示：
 
-```
+```py
 state_dim = 29
 action_dim = 3
 action_bound = 1.0
@@ -170,7 +170,7 @@ action_bound = 1.0
 
 actor 和 critic 文件`AandC.py`也需要进行修改。特别地，`ActorNetwork`类中的`create_actor_network`被修改为拥有两个隐藏层，分别包含`400`和`300`个神经元。此外，输出由三个动作组成：`steering`（转向）、`acceleration`（加速）和`brake`（刹车）。由于转向在[*-1,1*]范围内，因此使用`tanh`激活函数；加速和刹车在[*0,1*]范围内，因此使用`sigmoid`激活函数。然后，我们在轴维度`1`上将它们`concat`（连接），这就是我们 actor 策略的输出：
 
-```
+```py
    def create_actor_network(self, scope):
        with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
           state = tf.placeholder(name='a_states', dtype=tf.float32, shape=[None, self.s_dim])
@@ -192,7 +192,7 @@ actor 和 critic 文件`AandC.py`也需要进行修改。特别地，`ActorNetwo
 
 同样，`CriticNetwork`类的`create_critic_network()`函数被修改为拥有两个隐藏层，分别包含`400`和`300`个神经元。这在以下代码中显示：
 
-```
+```py
     def create_critic_network(self, scope):
         with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
            state = tf.placeholder(name='c_states', dtype=tf.float32, shape=[None, self.s_dim]) 
@@ -218,20 +218,20 @@ actor 和 critic 文件`AandC.py`也需要进行修改。特别地，`ActorNetwo
 
 1.  **导入 TORCS**：从`gym_torcs`导入 TORCS 环境，代码如下：
 
-```
+```py
 from gym_torcs import TorcsEnv
 ```
 
 1.  **`env`变量**：使用以下命令创建 TORCS 环境变量：
 
-```
+```py
     # Generate a Torcs environment
     env = TorcsEnv(vision=False, throttle=True, gear_change=False)
 ```
 
 1.  **重新启动 TORCS**：由于 TORCS 已知存在内存泄漏错误，每`100`个回合后使用`relaunch=True`重新启动环境；否则，可以按如下方式在不带参数的情况下重置环境：
 
-```
+```py
 if np.mod(i, 100) == 0:
     ob = env.reset(relaunch=True) #relaunch TORCS every N episodes  due to a memory leak error
 else:
@@ -240,7 +240,7 @@ else:
 
 1.  **堆叠状态空间**：使用以下命令堆叠 29 维的状态空间：
 
-```
+```py
 s = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm))
 ```
 
@@ -250,7 +250,7 @@ s = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ,
 
 选择每回合的时间步数，如下所示：
 
-```
+```py
 msteps = max_steps
 if (i < 100):
     msteps = 100
@@ -263,7 +263,7 @@ else:
 
 1.  **全速前进**：在前`10`个回合中，我们施加全速前进以预热神经网络参数。只有在此之后，我们才开始使用演员的策略。需要注意的是，TORCS 通常在大约 1,500 到 2,000 个回合后学习完成，所以前`10`个回合对后期的学习影响不大。通过以下方式应用全速前进来预热神经网络参数：
 
-```
+```py
 # first few episodes step on gas! 
 if (i < 10):
     a[0][0] = 0.0
@@ -273,7 +273,7 @@ if (i < 10):
 
 这就是为了让 DDPG 代理在 TORCS 中玩的代码需要做的更改。其余的代码与第五章中讲解的*深度确定性策略梯度（DDPG）*相同。我们可以使用以下命令来训练代理：
 
-```
+```py
 python ddpg.py
 ```
 

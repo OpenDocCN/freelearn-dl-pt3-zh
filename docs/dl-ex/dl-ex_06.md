@@ -56,7 +56,7 @@ MNIST 是一个广泛使用的数据集，用于基准测试机器学习技术�
 
 MNIST 数据托管在 Yann LeCun 的网站上 ([`yann.lecun.com/exdb/mnist/`](http://yann.lecun.com/exdb/mnist/))。幸运的是，TensorFlow 提供了一些辅助函数来下载数据集，所以让我们先用以下两行代码下载数据集：
 
-```
+```py
 from tensorflow.examples.tutorials.mnist import input_data
 mnist_dataset = input_data.read_data_sets("MNIST_data/", one_hot=True)
 ```
@@ -157,7 +157,7 @@ Softmax 回归有两个步骤：首先我们将输入属于某些类别的证据
 
 那么，让我们开始实现我们的分类器。我们首先导入实现所需的包：
 
-```
+```py
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
@@ -166,7 +166,7 @@ import random as ran
 
 接下来，我们将定义一些辅助函数，以便从我们下载的原始数据集中进行子集选择：
 
-```
+```py
 #Define some helper functions 
 # to assign the size of training and test data we will take from MNIST dataset
 def train_size(size):
@@ -190,7 +190,7 @@ def test_size(size):
 
 此外，我们还将定义两个辅助函数，用于显示数据集中的特定数字，或者甚至显示某个图像子集的平铺版本：
 
-```
+```py
 #Define a couple of helper functions for digit images visualization
 def visualize_digit(ind):
     print(target_values_train[ind])
@@ -212,7 +212,7 @@ def visualize_mult_imgs_flat(start, stop):
 
 现在，我们将开始构建和训练我们的模型。首先，我们定义变量，指定我们希望加载的训练和测试示例的数量。目前，我们将加载所有数据，但稍后会更改这个值以节省资源：
 
-```
+```py
 input_values_train, target_values_train = train_size(55000)
 
 Output:
@@ -232,7 +232,7 @@ target_values_train Samples Loaded = (55000, 10)
 
 所以让我们从数据集中随机选择一张图片并看看它是什么样子的，我们将使用之前的辅助函数来显示数据集中的随机数字：
 
-```
+```py
 visualize_digit(ran.randint(0, input_values_train.shape[0]))
 
 Output:
@@ -244,7 +244,7 @@ Output:
 
 我们还可以使用之前定义的辅助函数来可视化一堆展平后的图片。展平向量中的每个值代表一个像素的强度，因此可视化这些像素将是这样的：
 
-```
+```py
 visualize_mult_imgs_flat(0,400)
 ```
 
@@ -256,13 +256,13 @@ visualize_mult_imgs_flat(0,400)
 
 到目前为止，我们还没有开始为这个分类器构建计算图。让我们先创建一个会负责执行我们将要构建的计算图的会话变量：
 
-```
+```py
 sess = tf.Session()
 ```
 
 接下来，我们将定义我们模型的占位符，这些占位符将用于将数据传递到计算图中：
 
-```
+```py
 input_values = tf.placeholder(tf.float32, shape=[None, 784]
 ```
 
@@ -270,13 +270,13 @@ input_values = tf.placeholder(tf.float32, shape=[None, 784]
 
 现在，我们需要定义另一个占位符来传入图片标签。我们将在之后使用这个占位符来将模型的预测与图像的实际标签进行比较：
 
-```
+```py
 output_values = tf.placeholder(tf.float32, shape=[None, 10])
 ```
 
 接下来，我们将定义`weights`和`biases`。这两个变量将成为我们网络的可训练参数，它们将是进行未知数据预测时所需的唯一两个变量：
 
-```
+```py
 weights = tf.Variable(tf.zeros([784,10]))
 biases = tf.Variable(tf.zeros([10]))
 ```
@@ -285,7 +285,7 @@ biases = tf.Variable(tf.zeros([10]))
 
 现在我们将定义我们的 softmax 回归，它是我们的分类器函数。这个特殊的分类器叫做**多项式逻辑回归**，我们通过将数字的展平版本与权重相乘然后加上偏差来做出预测：
 
-```
+```py
 softmax_layer = tf.nn.softmax(tf.matmul(input_values,weights) + biases)
 ```
 
@@ -301,7 +301,7 @@ softmax_layer = tf.nn.softmax(tf.matmul(input_values,weights) + biases)
 
 你可以通过评估`softmax_layer`来确认这一点：
 
-```
+```py
 print(softmax_layer)
 Output:
 Tensor("Softmax:0", shape=(?, 10), dtype=float32)
@@ -311,7 +311,7 @@ Tensor("Softmax:0", shape=(?, 10), dtype=float32)
 
 现在，我们仅向计算图输入三个样本进行实验：
 
-```
+```py
 input_values_train, target_values_train = train_size(3)
 sess.run(tf.global_variables_initializer())
 #If using TensorFlow prior to 0.12 use:
@@ -319,7 +319,7 @@ sess.run(tf.global_variables_initializer())
 print(sess.run(softmax_layer, feed_dict={input_values: input_values_train}))
 ```
 
-```
+```py
 Output:
 
 [[ 0.1  0.1  0.1  0.1  0.1  0.1  0.1  0.1  0.1  0.1]
@@ -333,7 +333,7 @@ Output:
 
 让我们稍微实验一下 TensorFlow 的 softmax 函数：
 
-```
+```py
 sess.run(tf.nn.softmax(tf.zeros([4])))
 sess.run(tf.nn.softmax(tf.constant([0.1, 0.005, 2])))
 
@@ -359,7 +359,7 @@ array([0.11634309, 0.10579926, 0.7778576 ], dtype=float32)
 
 我们可以实现交叉熵函数：
 
-```
+```py
 model_cross_entropy = tf.reduce_mean(-tf.reduce_sum(output_values * tf.log(softmax_layer), reduction_indices=[1]))
 ```
 
@@ -373,26 +373,26 @@ model_cross_entropy = tf.reduce_mean(-tf.reduce_sum(output_values * tf.log(softm
 
 这里是一个简单的 Python 示例，展示了一个对数字为 3 的预测非常自信的 softmax 预测：
 
-```
+```py
 j = [0.03, 0.03, 0.01, 0.9, 0.01, 0.01, 0.0025,0.0025, 0.0025, 0.0025]
 ```
 
 让我们创建一个值为 3 的数组标签作为真实值，以便与 softmax 函数进行比较：
 
-```
+```py
 k = [0,0,0,1,0,0,0,0,0,0]
 ```
 
 你能猜到我们的损失函数给出的值是什么吗？你能看到 `j` 的对数如何用一个大的负数惩罚错误答案吗？试试这个来理解：
 
-```
+```py
 -np.log(j)
 -np.multiply(np.log(j),k)
 ```
 
 当它们全部加起来时，这将返回九个零和 0.1053 的值；我们可以认为这是一个很好的预测。注意当我们对实际上是 2 的预测做出同样的预测时会发生什么：
 
-```
+```py
 k = [0,0,1,0,0,0,0,0,0,0]
 np.sum(-np.multiply(np.log(j),k))
 ```
@@ -403,7 +403,7 @@ np.sum(-np.multiply(np.log(j),k))
 
 现在，如果我们希望，我们可以为训练分配自定义变量。以下所有大写的值都可以更改和搞砸。事实上，我鼓励这样做！首先，使用这些值，然后注意当您使用太少的训练示例或学习率过高或过低时会发生什么：
 
-```
+```py
 input_values_train, target_values_train = train_size(5500)
 input_values_test, target_values_test = test_size(10000)
 learning_rate = 0.1
@@ -412,7 +412,7 @@ num_iterations = 2500
 
 现在，我们可以初始化所有变量，以便它们可以被我们的 TensorFlow 图使用：
 
-```
+```py
 init = tf.global_variables_initializer()
 #If using TensorFlow prior to 0.12 use:
 #init = tf.initialize_all_variables()
@@ -421,7 +421,7 @@ sess.run(init)
 
 接下来，我们需要使用梯度下降算法训练分类器。因此，我们首先定义我们的训练方法和一些用于测量模型准确性的变量。变量`train`将执行梯度下降优化器，选择一个学习率来最小化模型损失函数`model_cross_entropy`：
 
-```
+```py
 train = tf.train.GradientDescentOptimizer(learning_rate).minimize(model_cross_entropy)
 model_correct_prediction = tf.equal(tf.argmax(softmax_layer,1), tf.argmax(output_values,1))
 model_accuracy = tf.reduce_mean(tf.cast(model_correct_prediction, tf.float32))
@@ -433,7 +433,7 @@ model_accuracy = tf.reduce_mean(tf.cast(model_correct_prediction, tf.float32))
 
 为了计算准确性，它将测试模型对`input_values_test`中的未见数据的表现：
 
-```
+```py
 for i in range(num_iterations+1):
     sess.run(train, feed_dict={input_values: input_values_train, output_values: target_values_train})
     if i%100 == 0:
@@ -474,7 +474,7 @@ Training Step:2500 Accuracy = 0.9067 Loss = 0.23929419
 
 这是有趣的部分。现在我们已经计算出了我们的权重备忘单，我们可以用以下代码创建一个图表：
 
-```
+```py
 for i in range(10):
     plt.subplot(2, 5, i+1)
     weight = sess.run(weights)[:,i]
@@ -495,7 +495,7 @@ for i in range(10):
 
 现在，让我们使用备忘单，看看我们的模型在其上的表现：
 
-```
+```py
 input_values_train, target_values_train = train_size(1)
 visualize_digit(0)
 
@@ -511,21 +511,21 @@ target_values_train Samples Loaded = (1, 10)
 
 让我们看看我们的 softmax 预测器：
 
-```
+```py
 answer = sess.run(softmax_layer, feed_dict={input_values: input_values_train})
 print(answer)
 ```
 
 上述代码会给我们一个 10 维向量，每一列包含一个概率：
 
-```
+```py
 [[2.1248012e-05 1.1646927e-05 8.9631692e-02 1.9201526e-02 8.2086492e-04
   1.2516821e-05 3.8538201e-05 8.5374612e-01 6.9188857e-03 2.9596921e-02]]
 ```
 
 我们可以使用`argmax`函数来找出最有可能的数字作为我们输入图像的正确分类：
 
-```
+```py
 answer.argmax()
 
 Output:
@@ -536,7 +536,7 @@ Output:
 
 让我们运用我们的知识定义一个辅助函数，能够从数据集中随机选择一张图像，并将模型应用于其上进行测试：
 
-```
+```py
 def display_result(ind):
 
     # Loading a training sample
@@ -555,7 +555,7 @@ def display_result(ind):
 
 现在，试试看：
 
-```
+```py
 display_result(ran.randint(0, 55000))
 
 Output:

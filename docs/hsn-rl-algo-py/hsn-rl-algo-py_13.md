@@ -30,14 +30,14 @@
 
 +   在 Ubuntu 中，步骤如下：
 
-```
+```py
 $ sudo apt-get install git python3-dev python3-numpy libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev libsmpeg-dev libsdl1.2-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev libfreetype6-dev
 $ sudo pip install pygame
 ```
 
 +   如果你是 Mac 用户，可以通过以下命令安装库：
 
-```
+```py
 $ brew install sdl sdl_ttf sdl_image sdl_mixer portmidi 
 $ pip install -c https://conda.binstar.org/quasiben pygame
 ```
@@ -46,7 +46,7 @@ $ pip install -c https://conda.binstar.org/quasiben pygame
 
 1.  首先，你需要克隆 PLE。克隆可以通过以下代码行完成：
 
-```
+```py
 git clone https://github.com/ntasfi/PyGame-Learning-Environment
 ```
 
@@ -54,13 +54,13 @@ PLE 是一套环境，也包括 Flappy Bird。因此，通过安装 PLE，你将
 
 1.  然后，你需要进入 `PyGame-Learning-Environment` 文件夹：
 
-```
+```py
 cd PyGame-Learning-Environment
 ```
 
 1.  最后，通过以下命令运行安装：
 
-```
+```py
 sudo pip install -e .
 ```
 
@@ -170,14 +170,14 @@ Flappy Bird 的目标是让小鸟飞过垂直的管道而不撞到它们。它�
 
 1.  为了在 Python 脚本中使用 Flappy Bird，首先，我们需要导入 PLE 和 Flappy Bird：
 
-```
+```py
 from ple.games.flappybird import FlappyBird
 from ple import PLE
 ```
 
 1.  然后，我们实例化一个`FlappyBird`对象，并将其传递给`PLE`，并传递一些参数：
 
-```
+```py
 game = FlappyBird()
 p = PLE(game, fps=30, display_screen=False)
 ```
@@ -186,7 +186,7 @@ p = PLE(game, fps=30, display_screen=False)
 
 1.  通过调用`init()`方法初始化环境：
 
-```
+```py
 p.init()
 ```
 
@@ -202,7 +202,7 @@ p.init()
 
 1.  将所有内容整合在一起，一个简单的脚本可以设计成如下代码片段，用于让 Flappy Bird 玩五局。请注意，为了使其工作，您仍然需要定义返回给定状态下动作的`get_action(state)`函数：
 
-```
+```py
 from ple.games.flappybird import FlappyBird
 from ple import PLE
 
@@ -247,7 +247,7 @@ DAgger 通过反复迭代从学习者中采样的新数据聚合管道，来处�
 
 算法的伪代码可以进一步澄清这一点：
 
-```
+```py
 Initialize 
 Initialize  ( is the expert policy)
 
@@ -283,7 +283,7 @@ for i :
 
 以下代码行总结了整个过程：
 
-```
+```py
 def expert():
     graph = tf.get_default_graph()
     sess_expert = tf.Session(graph=graph)
@@ -297,7 +297,7 @@ def expert():
 
 然后，因为我们只关心一个简单的函数，它会根据状态返回专家动作，我们可以设计 `expert` 函数，使其返回该函数。因此，在 `expert()` 内部，我们定义一个名为 `expert_policy(state)` 的内部函数，并将其作为 `expert()` 的输出返回：
 
-```
+```py
     def expert_policy(state):
         act = sess_expert.run(p_argmax, feed_dict={obs_ph:[state]})
         return np.squeeze(act)
@@ -325,7 +325,7 @@ def expert():
 
 这五个步骤在接下来的代码行中实现。
 
-```
+```py
     obs_ph = tf.placeholder(shape=(None, obs_dim), dtype=tf.float32, name='obs')
     act_ph = tf.placeholder(shape=(None,), dtype=tf.int32, name='act')
 
@@ -339,7 +339,7 @@ def expert():
 
 然后，我们可以初始化会话、全局变量，并定义一个函数 `learner_policy(state)`。该函数根据给定状态返回学习者选择的具有更高概率的动作（这与我们为专家所做的相同）：
 
-```
+```py
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
 
@@ -354,7 +354,7 @@ def expert():
 
 1.  初始化由两个列表组成的数据集，`X` 和 `y`，其中存储访问过的状态和专家的目标动作。我们还初始化环境：
 
-```
+```py
     X = []
     y = []
 
@@ -365,7 +365,7 @@ def expert():
 
 1.  遍历所有 DAgger 迭代。在每次 DAgger 迭代的开始，我们必须重新初始化学习者的计算图（因为我们在每次迭代时都会在新的数据集上重新训练学习者），重置环境，并执行一系列随机动作。在每个游戏开始时，我们执行一些随机动作，以向确定性环境中添加随机成分。结果将是一个更强健的策略：
 
-```
+```py
     for it in range(dagger_iterations):
         sess.run(tf.global_variables_initializer())
         env.reset_game()
@@ -377,7 +377,7 @@ def expert():
 
 1.  通过与环境互动收集新数据。正如我们之前所说，第一次迭代中包含了专家，专家必须通过调用`expert_policy`来选择动作，但在后续迭代中，学习者会逐渐接管控制权。学习到的策略由`learner_policy`函数执行。数据集通过将当前游戏状态附加到`X`（输入变量），并将专家在该状态下会采取的动作附加到`y`（输出变量）来收集。当游戏结束时，游戏将重置，并将`game_rew`设置为`0`。代码如下：
 
-```
+```py
         for _ in range(step_iterations):
             state = flappy_game_state(env)
 
@@ -407,7 +407,7 @@ def expert():
 
 1.  在汇总数据集上训练新策略。该流程是标准的。数据集被打乱并分成`batch_size`长度的小批次。然后，通过在每个小批次上运行`p_opt`进行多个训练周期（等于`train_epochs`），重复优化过程。以下是代码：
 
-```
+```py
         n_batches = int(np.floor(len(X)/batch_size))
 
         shuffle = np.arange(len(X))

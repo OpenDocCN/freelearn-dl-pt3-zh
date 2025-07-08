@@ -68,7 +68,7 @@ LunarLander，顾名思义，涉及着陆器在月球表面着陆。例如，当
 
 1.  首先，我们导入相关包：
 
-```
+```py
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -87,7 +87,7 @@ from utils import *
 
 1.  接下来，我们设置问题的参数。我们只需训练 `200` 个回合（没错，CartPole 是个简单问题！）。我们将折扣因子 gamma 设置为 `0.99`。CartPole 的状态和动作维度分别为 `4` 和 `2`。如果你想加载一个预训练的模型并继续训练，请将 `load_model` 设置为 `True`；如果从头开始训练，请将其设置为 `False`。我们还将设置 `model_path`：
 
-```
+```py
 max_episode_steps = 200
 gamma = 0.99
 s_size = 4 
@@ -98,7 +98,7 @@ model_path = './model'
 
 1.  我们重置 TensorFlow 图，并创建一个用于存储模型的目录。我们将主处理器称为 CPU 0，工作线程的 CPU 编号为非零值。主处理器将执行以下任务：首先，它将创建一个 `global_episodes` 对象，用于计算全局变量的数量。工作线程的总数将存储在 `num_workers` 中，我们可以通过调用 Python 的 multiprocessing 库中的 `cpu_count()` 来获取系统中可用的处理器数量。我们将使用 Adam 优化器，并将其存储在名为 `trainer` 的对象中，同时设定适当的学习率。接着，我们将定义一个名为 `AC` 的演员-评论家类，因此我们必须首先创建一个 `AC` 类型的主网络对象，命名为 `master_network`，并传递适当的参数给该类的构造函数。然后，对于每个工作线程，我们将创建一个独立的 CartPole 环境实例和一个 `Worker` 类实例（稍后定义）。最后，为了保存模型，我们还将创建一个 TensorFlow saver：
 
-```
+```py
 tf.reset_default_graph()
 
 if not os.path.exists(model_path):
@@ -129,7 +129,7 @@ with tf.device("/cpu:0"):
 
 1.  然后，我们启动 TensorFlow 会话。在会话中，我们为不同的工作线程创建一个 TensorFlow 协调器。接着，我们要么加载或恢复一个预训练的模型，要么运行 `tf.global_variables_initializer()` 来为所有权重和偏差分配初始值：
 
-```
+```py
 with tf.Session() as sess:
 
     # tf coordinator for threads
@@ -145,7 +145,7 @@ with tf.Session() as sess:
 
 1.  然后，我们启动 `worker_threads`。具体来说，我们调用 `work()` 函数，它是 `Worker()` 类的一部分（稍后定义）。`threading.Thread()` 将为每个 `worker` 分配一个线程。通过调用 `start()`，我们启动了 `worker` 线程。最后，我们需要合并这些线程，确保它们在所有线程完成之前不会终止：
 
-```
+```py
     # start the worker threads
     worker_threads = []
     for worker in workers:
@@ -172,7 +172,7 @@ with tf.Session() as sess:
 
 首先，我们需要导入必要的包：
 
-```
+```py
 import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -190,7 +190,7 @@ from utils import *
 
 然后，我们需要为权重和偏差设置初始化器；具体来说，我们使用 Xavier 初始化器来初始化权重，并使用零初始化偏差。对于网络的最后输出层，权重是指定范围内的均匀随机数：
 
-```
+```py
 xavier = tf.contrib.layers.xavier_initializer()
 bias_const = tf.constant_initializer(0.05)
 rand_unif = tf.keras.initializers.RandomUniform(minval=-3e-3,maxval=3e-3)
@@ -201,7 +201,7 @@ regularizer = tf.contrib.layers.l2_regularizer(scale=5e-4)
 
 现在我们将描述 `AC` 类，它也是 `a3c.py` 的一部分。我们为 `AC` 类定义了构造函数，包含一个输入占位符，以及两个全连接的隐藏层，分别有 `256` 和 `128` 个神经元，并使用 `elu` 激活函数。接着是策略网络，使用 `softmax` 激活函数，因为我们在 CartPole 中的动作是离散的。此外，我们还有一个没有激活函数的值网络。请注意，我们对策略和价值网络共享相同的隐藏层，这与过去的示例不同：
 
-```
+```py
 class AC():
     def __init__(self,s_size,a_size,scope,trainer):
         with tf.variable_scope(scope):
@@ -221,7 +221,7 @@ class AC():
 
 对于`worker`线程，我们需要定义`loss`函数。因此，当 TensorFlow 作用域不是`global`时，我们定义一个动作占位符，以及其独热表示；我们还为`target`值和`advantage`函数定义占位符。然后，我们计算策略分布和独热动作的乘积，将它们相加，并将它们存储在`policy_times_a`对象中。然后，我们组合这些项来构建`loss`函数，正如我们之前提到的。我们计算值的 L2 损失的批次总和；策略分布乘以其对数的香农熵，带有一个负号；作为策略分布对数的乘积的`loss`函数；以及批次样本上`advantage`函数的总和。最后，我们使用适当的权重结合这些损失来计算总损失，存储在`self.loss`中：
 
-```
+```py
 # only workers need tf operations for loss functions and gradient updating
             if scope != 'global':
                 self.actions = tf.placeholder(shape=[None],dtype=tf.int32)
@@ -240,7 +240,7 @@ class AC():
 
 正如您在上一章中看到的，我们使用`tf.gradients()`来计算策略梯度；具体来说，我们计算`loss`函数相对于本地网络变量的梯度，后者从`tf.get_collection()`中获得。为了减少梯度爆炸问题，我们使用 TensorFlow 的`tf.clip_by_global_norm()`函数将梯度裁剪为`40.0`的大小。然后，我们可以使用`tf.get_collection()`来收集全局网络的网络参数，作用于 Adam 优化器中的梯度，使用`apply_gradients()`。这将计算策略梯度：
 
-```
+```py
 # get gradients from local networks using local losses; clip them to avoid exploding gradients
 local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
 self.gradients = tf.gradients(self.loss,local_vars)
@@ -256,7 +256,7 @@ self.apply_grads = trainer.apply_gradients(zip(grads,global_vars))
 
 现在我们将描述`Worker()`类，每个工作线程都会使用。首先，我们为该类定义`__init__()`构造函数。在其中，我们定义工作人员的名称、编号、模型路径、Adam 优化器、全局剧集计数以及增加它的操作符：
 
-```
+```py
 class Worker():
     def __init__(self,env,name,s_size,a_size,trainer,model_path,global_episodes):
         self.name = "worker_" + str(name)
@@ -269,7 +269,7 @@ class Worker():
 
 我们还创建了`AC`类的本地实例，并传入适当的参数。然后，我们创建一个 TensorFlow 操作，将全局模型参数复制到本地。我们还创建了一个在对角线上具有一的 NumPy 单位矩阵，以及一个环境对象：
 
-```
+```py
 # local copy of the AC network 
 self.local_AC = AC(s_size,a_size,self.name,trainer)
 
@@ -282,7 +282,7 @@ self.env = env
 
 接下来，我们创建了`train()`函数，这是`Worker`类中最重要的部分。状态、动作、奖励、下一个状态或观察值和价值是从作为参数传递给函数的经验列表中获取的。我们使用一个名为`discount()`的实用函数计算了奖励的折现总和，很快我们将定义它。类似地，`advantage`函数也被折现了：
 
-```
+```py
 # train function
     def train(self,experience,sess,gamma,bootstrap_value):
         experience = np.array(experience)
@@ -306,7 +306,7 @@ self.env = env
 
 然后，我们通过调用之前定义的 TensorFlow 操作来更新全局网络参数，并传入通过 TensorFlow 的 `feed_dict` 函数传递给占位符的所需输入。请注意，由于我们有多个工作线程在执行这个更新操作，因此需要避免冲突。换句话说，在任意时间点，只有一个线程可以更新主网络参数；两个或更多线程同时执行更新操作时，更新不会按顺序进行，这可能会导致问题。如果一个线程在另一个线程更新全局参数时也在进行更新，那么前一个线程的更新会被后一个线程覆盖，这是我们不希望发生的情况。这是通过 Python 的 threading 库中的 `Lock()` 函数实现的。我们创建一个 `Lock()` 实例，命名为 `lock`。`lock.acquire()` 只会授予当前线程访问权限，当前线程会执行更新操作，完成后通过 `lock.release()` 释放锁。最后，我们从函数中返回损失值：
 
-```
+```py
 # lock for updating global params
 lock = Lock()
 lock.acquire() 
@@ -325,7 +325,7 @@ return value_loss / len(experience), policy_loss / len(experience), entropy / le
 
 经验存储在本地缓冲区中，称为 `episode_buffer`。我们还将奖励添加到 `episode_reward` 中，并增加 `total_steps` 计数以及 `episode_step_count`：
 
-```
+```py
 # worker's work function
 def work(self,max_episode_steps, gamma, sess, coord, saver):
     episode_count = sess.run(self.global_episodes)
@@ -383,7 +383,7 @@ def work(self,max_episode_steps, gamma, sess, coord, saver):
 
 如果缓冲区中有 `25` 个条目，说明是时候进行更新了。首先，计算并将值存储在 `v1` 中，然后将其传递给 `train()` 函数，该函数将输出三个损失值：价值、策略和熵。之后，重置 `episode_buffer`。如果 episode 已结束，我们就跳出循环。最后，我们在屏幕上打印出 episode 计数和奖励。请注意，我们使用了 `25` 个条目作为进行更新的时机。可以随意调整这个值，看看该超参数如何影响训练过程：
 
-```
+```py
 # if buffer has 25 entries, time for an update 
 if len(episode_buffer) == 25 and d != True and episode_step_count != max_episode_steps - 1:
     v1 = sess.run(self.local_AC.value, feed_dict={self.local_AC.inputs:[s]})[0,0]
@@ -404,7 +404,7 @@ print("episode: ", episode_count, "| worker: ", self.name, "| episode reward: ",
 
 在退出 episode 循环后，我们使用缓冲区中的剩余样本来训练网络。`worker_0` 包含全局或主网络，我们可以通过 `saver.save` 保存它。我们还可以调用 `self.increment` 操作，将全局 episode 计数加一：
 
-```
+```py
 # Update the network using the episode buffer at the end of the episode
 if len(episode_buffer) != 0:
     value_loss, policy_loss, entropy = self.train(episode_buffer,sess,gamma,0.0)
@@ -432,7 +432,7 @@ episode_count += 1
 
 最后，我们将编写`utils.py`中的`utility`函数。我们将导入所需的包，并且还将定义之前使用的`update_target_graph()`函数。它以源和目标参数的作用域作为参数，并将源中的参数复制到目标中：
 
-```
+```py
 import numpy as np
 import tensorflow as tf
 from random import choice
@@ -450,7 +450,7 @@ def update_target_graph(from_scope,to_scope):
 
 另一个我们需要的工具函数是`discount()`函数。它会将输入列表`x`倒序运行，并按折扣因子`gamma`的权重进行求和。然后返回折扣后的值：
 
-```
+```py
 
 # Discounting function used to calculate discounted returns.
 def discount(x, gamma):
@@ -466,7 +466,7 @@ def discount(x, gamma):
 
 `cartpole.py`的代码可以使用以下命令运行：
 
-```
+```py
 python cartpole.py
 ```
 
@@ -482,7 +482,7 @@ python cartpole.py
 
 我们将扩展相同的代码来训练一个智能体解决 LunarLander 问题，该问题比 CartPole 更具挑战性。大部分代码与之前相同，因此我们只会描述需要对前面的代码进行的更改。首先，LunarLander 问题的奖励塑形不同。因此，我们将在`a3c.py`文件中包含一个名为`reward_shaping()`的函数。它将检查着陆器是否已撞击月球表面；如果是，回合将被终止，并会受到`-1.0`的惩罚。如果着陆器未移动，回合将被终止，并支付`-0.5`的惩罚：
 
-```
+```py
 def reward_shaping(r, s, s1):
      # check if y-coord < 0; implies lander crashed
      if (s1[1] < 0.0):
@@ -503,7 +503,7 @@ def reward_shaping(r, s, s1):
 
 我们将在`env.step()`之后调用此函数：
 
-```
+```py
 # reward shaping for lunar lander
 r, d = reward_shaping(r, s, s1)
 ```
@@ -512,7 +512,7 @@ r, d = reward_shaping(r, s, s1)
 
 之前练习中的`cartpole.py`文件已重命名为`lunar.py`。所做的更改如下。首先，我们将每个回合的最大时间步数设置为`1000`，折扣因子设置为`gamma = 0.999`，状态和动作维度分别设置为`8`和`4`：
 
-```
+```py
 max_episode_steps = 1000
 gamma = 0.999
 s_size = 8 
@@ -521,7 +521,7 @@ a_size = 4
 
 环境设置为`LunarLander-v2`：
 
-```
+```py
 env = gym.make('LunarLander-v2')
 ```
 
@@ -531,7 +531,7 @@ env = gym.make('LunarLander-v2')
 
 你可以通过以下命令开始训练：
 
-```
+```py
 python lunar.py
 ```
 

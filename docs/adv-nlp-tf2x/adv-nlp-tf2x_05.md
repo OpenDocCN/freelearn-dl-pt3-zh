@@ -50,7 +50,7 @@
 
 回到数据格式，加载数据所需做的只是解压准备好的标题文件。导航到从 GitHub 下载的 ZIP 文件所在的文件夹。可以解压并检查该压缩文件中的标题：
 
-```
+```py
 $ unzip news-headlines.tsv.zip
 Archive:  news-headlines.tsv.zip
   inflating: news-headlines.tsv 
@@ -58,7 +58,7 @@ Archive:  news-headlines.tsv.zip
 
 让我们检查一下文件的内容，以便了解数据的概况：
 
-```
+```py
 $ head -3 news-headlines.tsv
 There Were 2 Mass Shootings In Texas Last Week, But Only 1 On TV there were 2 mass shootings in texas last week, but only 1 on tv
 Will Smith Joins Diplo And Nicky Jam For The 2018 World Cup's Official Song will smith joins diplo and nicky jam for the 2018 world cup's official song
@@ -83,7 +83,7 @@ GPU 对于深度学习工程师和研究人员来说是一个极好的投资。G
 
 数据归一化和标记化的代码位于该文件的第 32 行到第 90 行之间。首先，需要设置标记化函数：
 
-```
+```py
 chars = sorted(set("abcdefghijklmnopqrstuvwxyz0123456789 -,;.!?:'''/\|_@#$%ˆ&*˜'+-=()[]{}' ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
 chars = list(chars)
 EOS = '<EOS>'
@@ -96,7 +96,7 @@ chars.insert(0, PAD)  # now padding should get index of 0
 
 一旦令牌列表准备好，就需要定义方法将字符转换为令牌，反之亦然。创建映射相对简单：
 
-```
+```py
 # Creating a mapping from unique characters to indices
 char2idx = {u:i for i, u in enumerate(chars)}
 idx2char = np.array(chars)
@@ -111,7 +111,7 @@ def char_idx(c):
 
 现在，数据需要从 TSV 文件中读取。对于标题，使用 75 个字符的最大长度。如果标题短于此长度，会进行填充。任何超过 75 个字符的标题都会被截断。`<EOS>` 标记会被附加到每个标题的末尾。我们来设置这个：
 
-```
+```py
 data = []     # load into this list of lists 
 MAX_LEN = 75  # maximum length of a headline 
 with open("news-headlines.tsv", "r") as file:
@@ -135,7 +135,7 @@ print("**** Data file loaded ****")
 
 所有数据都已通过上述代码加载到列表中。你可能会想，训练的地面真实值是什么，因为我们只有一行文本。由于我们希望这个模型能够生成文本，目标可以简化为根据一组字符预测下一个字符。因此，采用一种技巧来构造真实值——我们只需将输入序列向右移动一个字符，并将其设置为期望输出。这个转换通过 `numpy` 很容易做到：
 
-```
+```py
 # now convert to numpy array
 np_data = np.array(data)
 # for training, we use one character shifted data
@@ -145,7 +145,7 @@ np_data_out = np_data[:, 1:]
 
 通过这个巧妙的技巧，我们准备好了输入和期望的输出用于训练。最后一步是将其转换为 `tf.Data.DataSet`，以便于批处理和洗牌：
 
-```
+```py
 # Create TF dataset
 x = tf.data.Dataset.from_tensor_slices((np_data_in, np_data_out)) 
 ```
@@ -156,7 +156,7 @@ x = tf.data.Dataset.from_tensor_slices((np_data_in, np_data_out))
 
 模型训练的代码从 `rnn-train.py` 文件的第 90 行开始。该模型非常简单，包含一个嵌入层、一个 GRU 层和一个全连接层。词汇表的大小、RNN 单元的数量以及嵌入的大小已经设置好：
 
-```
+```py
 # Length of the vocabulary in chars
 vocab_size = len(chars)
 # The embedding dimension
@@ -169,14 +169,14 @@ BATCH_SIZE=256
 
 定义了批处理大小后，训练数据可以进行批处理，并准备好供模型使用：
 
-```
+```py
 # create tf.DataSet
 x_train = x.shuffle(100000, reshuffle_each_iteration=True).batch(BATCH_SIZE, drop_remainder=True) 
 ```
 
 与前几章中的代码类似，定义了一个方便的方法来构建模型，如下所示：
 
-```
+```py
 # define the model
 def build_model(vocab_size, embedding_dim, rnn_units, batch_size):
   model = tf.keras.Sequential([
@@ -195,7 +195,7 @@ def build_model(vocab_size, embedding_dim, rnn_units, batch_size):
 
 可以使用此方法实例化模型：
 
-```
+```py
 model = build_model(
                   vocab_size = vocab_size,
                   embedding_dim=embedding_dim,
@@ -205,7 +205,7 @@ print("**** Model Instantiated ****")
 print(model.summary()) 
 ```
 
-```
+```py
 **** Model Instantiated ****
 Model: "sequential"
 _________________________________________________________________
@@ -227,14 +227,14 @@ _________________________________________________________________
 
 该模型有超过 400 万个可训练参数。训练该模型时使用了带稀疏分类损失函数的 Adam 优化器：
 
-```
+```py
 loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 model.compile(optimizer = 'adam', loss = loss) 
 ```
 
 由于训练可能会耗费很长时间，我们需要在训练过程中设置检查点。如果训练过程中出现问题且训练停止，这些检查点可以用来从最后保存的检查点重新开始训练。通过当前的时间戳创建一个目录，用于保存这些检查点：
 
-```
+```py
 # Setup checkpoints 
 # dynamically build folder names
 dt = datetime.datetime.today().strftime("%Y-%b-%d-%H-%M-%S")
@@ -249,7 +249,7 @@ checkpoint_callback=tf.keras.callbacks.ModelCheckpoint(
 
 上面代码中的最后一行定义了一个在训练过程中保存检查点的自定义回调。这个回调会传递给 `model.fit()` 函数，以便在每个训练周期结束时调用。启动训练循环非常简单：
 
-```
+```py
 print("**** Start Training ****")
 EPOCHS=25
 start = time.time()
@@ -261,7 +261,7 @@ print("Training time: ", time.time()- start)
 
 模型将训练 25 个周期。训练所需的时间也会在上面的代码中记录。最后一段代码使用训练历史来绘制损失曲线，并将其保存为 PNG 文件，保存在同一目录下：
 
-```
+```py
 # Plot accuracies
 lossplot = "loss-" + dt + ".png"
 plt.plot(history.history['loss'])
@@ -274,7 +274,7 @@ print("Saved loss to: ", lossplot)
 
 开始训练的最佳方式是启动 Python 进程，使其能够在后台运行，而无需终端或命令行。在 Unix 系统上，可以使用 `nohup` 命令来实现：
 
-```
+```py
 $ nohup python rnn-train.py > training.log & 
 ```
 
@@ -292,7 +292,7 @@ $ nohup python rnn-train.py > training.log &
 
 在 TensorFlow 中有两种实现学习率衰减的方法。第一种方法是使用 `tf.keras.optimizers.schedulers` 包中预构建的调度器之一，并将配置好的实例与优化器一起使用。一个预构建的调度器实例是 `InverseTimeDecay`，可以按照如下方式进行设置：
 
-```
+```py
 lr_schedule = tf.keras.optimizers.schedules.InverseTimeDecay(
   0.001,
   decay_steps=STEPS_PER_EPOCH*(EPOCHS/10),
@@ -306,7 +306,7 @@ lr_schedule = tf.keras.optimizers.schedules.InverseTimeDecay(
 
 设置完成后，该函数所需的仅是用于计算新学习率的步数。一旦设置好学习计划，它就可以传递给优化器：
 
-```
+```py
 optimizer = tf.keras.optimizers.Adam(lr_schedule) 
 ```
 
@@ -330,7 +330,7 @@ TensorFlow 中的自定义回调函数可以在训练和推理的不同阶段执
 
 首先，创建一个包含定义函数的子类。将其放置在`rnn_train.py`中最好的位置是在检查点回调附近，训练开始之前。该类定义如下所示：
 
-```
+```py
 class LearningRateScheduler(tf.keras.callbacks.Callback):
   """Learning rate scheduler which decays the learning rate"""
   def __init__(self, init_lr, decay, steps, start_epoch):
@@ -365,7 +365,7 @@ class LearningRateScheduler(tf.keras.callbacks.Callback):
 
 训练循环已更新，包含回调函数，如下所示：
 
-```
+```py
 print("**** Start Training ****")
 EPOCHS=150
 lr_decay = LearningRateScheduler(0.001, 4., EPOCHS, 10)
@@ -385,7 +385,7 @@ print("Checkpoint directory: ", checkpoint_dir)
 
 在上图中，损失在前几个纪元中下降得非常快，然后在第 10 个纪元附近趋于平稳。此时，学习率衰减开始起作用，损失再次开始下降。这可以从日志文件中的一段代码中验证：
 
-```
+```py
 ...
 Epoch 8/150
 2434/2434 [==================] - 249s 102ms/step - loss: 0.9055
@@ -421,7 +421,7 @@ Saved loss to:  loss-2021-Jan-01-09-55-03.png
 
 笔记本的*加载模型*部分包含定义模型的代码。由于检查点仅存储了层的权重，因此定义模型结构至关重要。与训练网络的主要区别在于批量大小。我们希望一次生成一句话，因此将批量大小设置为 1：
 
-```
+```py
 # Length of the vocabulary in chars
 vocab_size = len(chars)
 # The embedding dimension
@@ -434,7 +434,7 @@ BATCH_SIZE=1
 
 定义模型结构的便利函数如下所示：
 
-```
+```py
 # this one is without padding masking or dropout layer
 def build_gen_model(vocab_size, embedding_dim, rnn_units, batch_size):
   model = tf.keras.Sequential([
@@ -453,7 +453,7 @@ gen_model = build_gen_model(vocab_size, embedding_dim, rnn_units,
 
 注意，嵌入层不使用掩码，因为在文本生成中，我们不是传递整个序列，而只是需要完成的序列的一部分。现在模型已经定义好，可以从检查点中加载层的权重。请记住将检查点目录替换为包含训练检查点的本地目录：
 
-```
+```py
 checkpoint_dir = './training_checkpoints/**<YOUR-CHECKPOINT-DIR>'** 
 gen_model.load_weights(tf.train.latest_checkpoint(checkpoint_dir))
 gen_model.build(tf.TensorShape([1, None])) 
@@ -461,7 +461,7 @@ gen_model.build(tf.TensorShape([1, None]))
 
 第二个主要步骤是逐个字符生成文本。生成文本需要一个种子或几个起始字母，这些字母由模型完成成一个句子。生成过程封装在下面的函数中：
 
-```
+```py
 def generate_text(model, start_string, temperature=0.7, num_generate=75):
   # Low temperatures results in more predictable text.
   # Higher temperatures results in more surprising text.
@@ -498,11 +498,11 @@ def generate_text(model, start_string, temperature=0.7, num_generate=75):
 
 生成文本所需的全部代码只需一行：
 
-```
+```py
 print(generate_text(gen_model, start_string=u"Google")) 
 ```
 
-```
+```py
 Google plans to release the Xbox One vs. Samsung Galaxy Gea<EOS><PAD>ote on Mother's Day 
 ```
 
@@ -530,12 +530,12 @@ Google plans to release the Xbox One vs. Samsung Galaxy Gea<EOS><PAD>ote on Moth
 
 下表展示了一些实验，尝试完成文本片段的下 10 个字符。这些完成是通过以下方式生成的：
 
-```
+```py
 print(generate_text(gen_model, start_string=u"Lets meet tom", 
                     temperature=0.7, num_generate=10)) 
 ```
 
-```
+```py
 Lets meet tomorrow to t 
 ```
 
@@ -644,7 +644,7 @@ GPT-2 中的分词器还有一个特点，它将所有文本转换为小写字�
 
 Hugging Face 的 transformers 库简化了使用 GPT-2 生成文本的过程。类似于前一章所示的预训练 BERT 模型，Hugging Face 提供了预训练的 GPT 和 GPT-2 模型。这些预训练模型将在本章的其余部分中使用。此代码和本章其余部分的代码可以在名为`text-generation-with-GPT-2.ipynb`的 IPython 笔记本中找到。运行设置后，转到*使用 GPT-2 生成文本*部分。还提供了一个展示如何使用 GPT 生成文本的部分作为参考。生成文本的第一步是下载预训练模型及其相应的 tokenizer：
 
-```
+```py
 from transformers import TFGPT2LMHeadModel, GPT2Tokenizer
 gpt2tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 # add the EOS token as PAD token to avoid warnings
@@ -654,7 +654,7 @@ gpt2 = TFGPT2LMHeadModel.from_pretrained("gpt2",
 
 这可能需要几分钟时间，因为模型需要下载。如果在您的环境中没有找到 spaCy 和`ftfy`，您可能会看到警告。这两个库对于文本生成并不是强制性的。以下代码可以使用贪婪搜索算法来生成文本：
 
-```
+```py
 # encode context the generation is conditioned on
 input_ids = gpt2tokenizer.encode('Robotics is the domain of ', return_tensors='tf')
 # generate text until the output length 
@@ -664,7 +664,7 @@ print("Output:\n" + 50 * '-')
 print(gpt2tokenizer.decode(greedy_output[0], skip_special_tokens=True)) 
 ```
 
-```
+```py
 Output:
 -----------------------------------------------------------
 Robotics is the domain of the United States Government.
@@ -680,7 +680,7 @@ The United States Government is the primary source of information on the use of 
 
 使用束搜索生成文本是很简单的：
 
-```
+```py
 # BEAM SEARCH
 # activate beam search and early_stopping
 beam_output = gpt2.generate(
@@ -693,7 +693,7 @@ print("Output:\n" + 50 * '-')
 print(gpt2tokenizer.decode(beam_output[0], skip_special_tokens=True)) 
 ```
 
-```
+```py
 Output:
 --------------------------------------------------
 Robotics is the domain of science and technology. It is the domain of science and technology. It is the domain of science and technology. It is the domain of science and technology. It is the domain of science and technology. It is the domain 
@@ -701,7 +701,7 @@ Robotics is the domain of science and technology. It is the domain of science an
 
 从质量上讲，第一句比贪婪搜索生成的句子更有意义。`early_stopping`参数会在所有束到达 EOS 标记时指示停止生成。然而，仍然存在很多重复的情况。控制重复的一个参数是通过设置限制，防止 n-grams 重复：
 
-```
+```py
 # set no_repeat_ngram_size to 2
 beam_output = gpt2.generate(
     input_ids, 
@@ -714,7 +714,7 @@ print("Output:\n" + 50 * '-')
 print(gpt2tokenizer.decode(beam_output[0], skip_special_tokens=True)) 
 ```
 
-```
+```py
 Output:
 --------------------------------------------------
 Robotics is the domain of science and technology.
@@ -727,7 +727,7 @@ In this article, we will look at some of the most important aspects of robotics 
 
 当生成的序列长度受到限制时，束搜索效果很好。随着序列长度的增加，需要维护和计算的束数量显著增加。因此，束搜索适用于像总结和翻译这样的任务，但在开放式文本生成中表现较差。此外，束搜索通过尝试最大化累积概率，生成了更多可预测的文本。这使得文本感觉不太自然。以下代码可以用来感受生成的不同束。确保束的数量大于或等于返回的序列数：
 
-```
+```py
 # Returning multiple beams
 beam_outputs = gpt2.generate(
     input_ids, 
@@ -745,7 +745,7 @@ for i, beam_output in enumerate(beam_outputs):
                           skip_special_tokens=True))) 
 ```
 
-```
+```py
 Output:
 --------------------------------------------------
 0: Robotics is the domain of the U.S. Department of Homeland Security. The agency is responsible for the security of the United States and its allies, including the United Kingdom, Canada, Australia, New Zealand, and the European Union.
@@ -756,7 +756,7 @@ The text generated is very similar but differs near the end. Also, note that tem
 
 还有一种方法可以提高生成文本的连贯性和创造性，这种方法叫做 Top-K 采样。这是 GPT-2 中首选的方法，在 GPT-2 生成故事的成功中起着至关重要的作用。在解释这个方法如何工作之前，我们先试试看，并看看生成的输出：
 
-```
+```py
 # Top-K sampling
 tf.random.set_seed(42)  # for reproducible results
 beam_output = gpt2.generate(
@@ -770,7 +770,7 @@ print("Output:\n" + 50 * '-')
 print(gpt2tokenizer.decode(beam_output[0], skip_special_tokens=True)) 
 ```
 
-```
+```py
 Output:
 --------------------------------------------------
 Robotics is the domain of people with multiple careers working with robotics systems. The purpose of Robotics & Machine Learning in Science and engineering research is not necessarily different for any given research type because the results would be much more diverse.

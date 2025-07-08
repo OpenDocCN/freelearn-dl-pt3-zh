@@ -212,7 +212,7 @@ DRL 模型在 DeepMind 创建了 AlphaGo（一个比职业玩家更擅长围棋�
 
 1.  使用您的终端，导航到 `Chapter02/Exercise2.01` 目录。激活在上一章创建的环境，并执行以下命令以启动 Jupyter Notebook 实例：
 
-    ```
+    ```py
     $ jupyter notebook
     ```
 
@@ -244,7 +244,7 @@ DRL 模型在 DeepMind 创建了 AlphaGo（一个比职业玩家更擅长围棋�
 
 1.  数据集加载到内存后，转到`探索`部分。你会找到一段代码，可以生成`close`变量的时间序列图：
 
-    ```
+    ```py
     bitcoin.set_index('date')['close'].plot(linewidth=2, \
                                             figsize=(14, 4),\
                                             color='#d35400')
@@ -259,7 +259,7 @@ DRL 模型在 DeepMind 创建了 AlphaGo（一个比职业玩家更擅长围棋�
 
 1.  在下面的一个新单元格中，使用`volume`变量重新生成该图。你肯定已经注意到，比特币价格变量在 2017 年暴涨，随后开始下跌：
 
-    ```
+    ```py
     bitcoin.set_index('date')['volume'].plot(linewidth=2, \
                                              figsize=(14, 4), \
                                              color='#d35400')
@@ -279,7 +279,7 @@ DRL 模型在 DeepMind 创建了 AlphaGo（一个比职业玩家更擅长围棋�
 
 1.  提取最新数据并将其保存到一个变量中：
 
-    ```
+    ```py
     bitcoin_recent = bitcoin[bitcoin['date'] >= '2016-01-04']
     ```
 
@@ -293,7 +293,7 @@ DRL 模型在 DeepMind 创建了 AlphaGo（一个比职业玩家更擅长围棋�
 
 1.  导航到`Preparing Dataset for a Model`部分。现在，使用`iso_week`变量，利用 pandas 的`groupby()`方法将每日观测按周分组。我们现在可以直接对该周的数据系列应用归一化函数`normalizations.point_relative_normalization()`。我们可以使用以下代码将归一化后的输出作为新变量存储在同一个 pandas DataFrame 中：
 
-    ```
+    ```py
     bitcoin_recent['close_point_relative_normalization'] = \
     bitcoin_recent.groupby('iso_week')['close']\
     .apply(lambda x: normalizations.point_relative_normalization(x))
@@ -301,7 +301,7 @@ DRL 模型在 DeepMind 创建了 AlphaGo（一个比职业玩家更擅长围棋�
 
 1.  `close_point_relative_normalization`变量现在包含了`close`变量的归一化数据：
 
-    ```
+    ```py
     bitcoin_recent.set_index('date')\
     ['close_point_relative_normalization'].plot(linewidth=2, \
                                                 figsize=(14,4), \
@@ -316,7 +316,7 @@ DRL 模型在 DeepMind 创建了 AlphaGo（一个比职业玩家更擅长围棋�
 
 1.  对`volume`变量（`volume_point_relative_normalization`）执行相同操作。归一化后的`close`变量每周都包含一个有趣的方差模式。我们将使用这个变量来训练我们的 LSTM 模型：
 
-    ```
+    ```py
     bitcoin_recent.set_index('date')\
                             ['volume_point_relative_normalization'].\
                             plot(linewidth=2, \
@@ -332,7 +332,7 @@ DRL 模型在 DeepMind 创建了 AlphaGo（一个比职业玩家更擅长围棋�
 
 1.  为了评估模型的表现，你需要测试其与其他数据的准确性。通过创建两个数据集来实现这一点：一个训练集和一个测试集。你将使用数据集的 90％来训练 LSTM 模型，10％来评估模型的表现。由于数据是连续的并且以时间序列的形式存在，因此使用最后 10％的可用周作为测试集，前 90％作为训练集：
 
-    ```
+    ```py
     boundary = int(0.9 * bitcoin_recent['iso_week'].nunique())
     train_set_weeks = bitcoin_recent['iso_week'].unique()[0:boundary]
     test_set_weeks = bitcoin_recent[~bitcoin_recent['iso_week']\
@@ -353,7 +353,7 @@ DRL 模型在 DeepMind 创建了 AlphaGo（一个比职业玩家更擅长围棋�
 
 1.  为每个操作创建单独的数据集：
 
-    ```
+    ```py
     train_dataset = bitcoin_recent[bitcoin_recent['iso_week']\
                                                  .isin(train_set_weeks)]
     test_dataset = bitcoin_recent[bitcoin_recent['iso_week'].\
@@ -362,7 +362,7 @@ DRL 模型在 DeepMind 创建了 AlphaGo（一个比职业玩家更擅长围棋�
 
 1.  最后，导航到`Storing Output`部分，并将筛选后的变量保存到磁盘，如下所示：
 
-    ```
+    ```py
     test_dataset.to_csv('data/test_dataset.csv', index=False)
     train_dataset.to_csv('data/train_dataset.csv', index=False)
     bitcoin_recent.to_csv('data/bitcoin_recent.csv', index=False)
@@ -404,7 +404,7 @@ Keras 的 `keras.models.Sequential()` 组件表示一个完整的顺序神经网
 
 我们之所以对构建 LSTM 网络感兴趣，是因为这些网络在处理序列数据时表现优异，而时间序列正是一种序列数据。使用 Keras，完整的 LSTM 网络将如下实现：
 
-```
+```py
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM
 from tensorflow.keras.layers import Dense, Activation
@@ -423,14 +423,14 @@ Keras 抽象使你能够专注于让深度学习系统更高效的关键元素�
 
 在网络构建完成后，我们使用 `model.fit()` 方法来训练网络。这将生成一个经过训练的模型，可以用于进行预测：
 
-```
+```py
 model.fit(X_train, Y_train,
           batch_size=32, epochs=epochs)
 ```
 
 `X_train` 和 `Y_train` 变量分别是用于训练的集合和用于评估损失函数（即测试网络预测数据的准确性）的小集合。最后，我们可以使用 `model.predict()` 方法进行预测：
 
-```
+```py
 model.predict(x=X_train)
 ```
 
@@ -458,7 +458,7 @@ Keras 在这些步骤中提供了更大的控制权。然而，它的重点是�
 
 1.  打开一个新的 Jupyter Notebook，并导入以下库：
 
-    ```
+    ```py
     import warnings
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     import tensorflow as tf
@@ -470,7 +470,7 @@ Keras 在这些步骤中提供了更大的控制权。然而，它的重点是�
 
 1.  我们的数据集包含每日的观测值，每个观测值会影响未来的观测值。此外，我们的目标是预测未来一周——即 7 天——的比特币价格：
 
-    ```
+    ```py
     period_length = 7
     number_of_periods = 208 - 21 - 1
     number_of_periods
@@ -478,13 +478,13 @@ Keras 在这些步骤中提供了更大的控制权。然而，它的重点是�
 
     我们已根据数据集中可用的周数计算了`number_of_observations`。由于我们将在每个 epoch 使用上周的数据来测试 LSTM 网络，因此我们将使用 208 – 21 – 1。你将得到：
 
-    ```
+    ```py
     186
     ```
 
 1.  使用 Keras 构建 LSTM 模型。我们将批处理大小设为 1，因为我们将整个数据一次性传递。如果数据量很大，我们可以通过多个批次来传递数据，这就是为什么我们使用`batch_input_shape`的原因：
 
-    ```
+    ```py
     def build_model(period_length, number_of_periods, batch_size=1):
         model = Sequential()
         model.add(LSTM(units=period_length,\
@@ -504,7 +504,7 @@ Keras 在这些步骤中提供了更大的控制权。然而，它的重点是�
 
 1.  让我们将模型存储到模型输出的磁盘上：
 
-    ```
+    ```py
     model = build_model(period_length=period_length, \
                         number_of_periods=number_of_periods)
     model.save('bitcoin_lstm_v0.h5')
@@ -512,7 +512,7 @@ Keras 在这些步骤中提供了更大的控制权。然而，它的重点是�
 
     请注意，`bitcoin_lstm_v0.h5`模型尚未训练。当保存一个未经训练的模型时，你实际上只保存了模型的架构。该模型稍后可以通过使用 Keras 的`load_model()`函数加载，如下所示：
 
-    ```
+    ```py
     model = keras.models.load_model('bitcoin_lstm_v0.h5')
     ```
 
@@ -560,7 +560,7 @@ Keras 可以配置为使用 TensorFlow 以外的其他后端（即 Theano）。�
 
 我们将使用`pandas`库将该数据集加载到内存中，以便轻松探索：
 
-```
+```py
 import pandas as pd
 train = pd.read_csv('data/train_dataset.csv')
 ```
@@ -619,7 +619,7 @@ LSTM 网络处理三维张量。每一个维度代表了网络的一个重要特
 
 为了调整数据以匹配这些维度，我们将使用基本的 Python 属性和 `numpy` 库中的 `reshape()` 方法的组合。首先，我们使用纯 Python 创建 186 个包含 7 天的不同周组：
 
-```
+```py
 group_size = 7
 samples = list()
 for i in range(0, len(data), group_size):
@@ -638,14 +638,14 @@ data = np.array(samples)
 
 Keras LSTM 层期望这些维度按特定顺序组织：特征数、观察数和周期长度。将数据集重塑为匹配该格式：
 
-```
+```py
 X_train = data[:-1,:].reshape(1, 186, 7)
 Y_validation = data[-1].reshape(1, 7)
 ```
 
 上面的代码片段还选择了我们数据集中最后一周作为验证集（通过 `data[-1]`）。我们将尝试使用前 76 周的数据预测数据集中的最后一周。下一步是使用这些变量来拟合我们的模型：
 
-```
+```py
 model.fit(x=X_train, y=Y_validation, epochs=100)
 ```
 
@@ -667,7 +667,7 @@ LSTM 是计算量大的模型。在现代计算机上，它们可能需要多达
 
 一旦我们使用 `model.fit()` 方法训练了我们的模型，进行预测就很简单了：
 
-```
+```py
 model.predict(x=X_train)
 ```
 

@@ -72,19 +72,19 @@
 
 一段代码如下所示：
 
-```
+```py
 attn = tf.matmul(theta, phi, transpose_b=True)attn = tf.nn.softmax(attn)
 ```
 
 当我们希望引起你对代码块中特定部分的注意时，相关的行或项会以粗体显示：
 
-```
+```py
 self.conv_theta = Conv2D(c//8, 1, padding='same',              	                   kernel_constraint=SpectralNorm(),  	 	                   name='Conv_Theta')
 ```
 
 任何命令行输入或输出都以以下方式书写：
 
-```
+```py
 $ mkdir css
 $ cd css
 ```

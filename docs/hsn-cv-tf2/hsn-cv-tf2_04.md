@@ -166,7 +166,7 @@ TensorFlow 还提供了其他几个低级别的卷积方法，例如 `tf.nn.conv
 
 到目前为止，我们只展示了使用固定滤波器的卷积。对于卷积神经网络（CNN），我们必须使滤波器可训练。卷积层还会在将结果传递给激活函数之前应用一个学习到的偏置。因此，这一系列操作可以如下实现：
 
-```
+```py
 # Initializing the trainable variables (for instance, the filters with values from a Glorot distribution, and the bias with zeros):
 kernels_shape = [k, k, D, N]
 glorot_uni_initializer = tf.initializers.GlorotUniform()
@@ -185,7 +185,7 @@ def conv_layer(x, kernels, bias, s):
 
 这个前馈函数可以进一步封装成一个`Layer`对象，类似于我们在第一章中实现的全连接层，*计算机视觉与神经网络*，是围绕矩阵操作构建的。通过 Keras API，TensorFlow 2 提供了自己的`tf.keras.layers.Layer`类，我们可以对其进行扩展（参见[`www.tensorflow.org/api_docs/python/tf/keras/layers/Layer`](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Layer)的文档）。以下代码块演示了如何基于此构建一个简单的卷积层：
 
-```
+```py
 class SimpleConvolutionLayer(tf.keras.layers.Layer):
     def __init__(self, num_kernels=32, kernel_size=(3, 3), stride=1):
         """ Initialize the layer.
@@ -225,7 +225,7 @@ TensorFlow 的大多数数学操作（例如`tf.math`和`tf.nn`中的操作）�
 
 尽管这个实现的优点是显式的，但 Keras API 也封装了常见层的初始化（如第二章中介绍的，*TensorFlow 基础与模型训练*），从而加速了开发过程。通过`tf.keras.layers`模块，我们可以通过一次调用实例化一个类似的卷积层，如下所示：
 
-```
+```py
 conv = tf.keras.layers.Conv2D(filters=N, kernel_size=(k, k), strides=s,
                               padding='valid', activation='relu')
 ```
@@ -282,7 +282,7 @@ conv = tf.keras.layers.Conv2D(filters=N, kernel_size=(k, k), strides=s,
 
 在这里，我们仍然可以使用更高级的 API，使得实例化过程更加简洁：
 
-```
+```py
 avg_pool = tf.keras.layers.AvgPool2D(pool_size=k, strides=[s, s], padding='valid')
 max_pool = tf.keras.layers.MaxPool2D(pool_size=k, strides=[s, s], padding='valid')
 ```
@@ -307,7 +307,7 @@ max_pool = tf.keras.layers.MaxPool2D(pool_size=k, strides=[s, s], padding='valid
 
 尽管我们在上一章中已经使用了 TensorFlow 的全连接层，但我们没有停下来关注它们的参数和属性。再次提醒，`tf.keras.layers.Dense()`的签名（请参考[`www.tensorflow.org/api_docs/python/tf/keras/layers/Dense`](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Dense)的文档）与之前介绍的层类似，不同之处在于它们不接受任何`strides`或`padding`参数，而是使用`units`来表示神经元/输出大小，具体如下：
 
-```
+```py
 fc = tf.keras.layers.Dense(units=output_size, activation='relu')
 ```
 
@@ -369,7 +369,7 @@ fc = tf.keras.layers.Dense(units=output_size, activation='relu')
 
 我们手头有了实现此网络的所有工具。在查看 TensorFlow 和 Keras 提供的实现之前，建议你自己尝试实现。使用 第二章，*TensorFlow 基础与模型训练* 中的符号和变量，使用 Keras Sequential API 实现的 LeNet-5 网络如下：
 
-```
+```py
 from tensorflow.keras.model import Model, Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
 
@@ -390,7 +390,7 @@ model.add(Dense(num_classes, activation='softmax'))
 
 该模型通过逐一实例化并添加层，*按顺序*创建。如同在 第二章，*TensorFlow 基础与模型训练* 中提到的，Keras 还提供了 **功能性 API**。该 API 使得用更面向对象的方式定义模型成为可能（如以下代码所示），尽管也可以直接通过层操作实例化 `tf.keras.Model`（如在我们的某些 Jupyter 笔记本中所示）：
 
-```
+```py
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
 
@@ -421,7 +421,7 @@ Keras 层确实可以像函数一样，对输入数据进行处理并进行链�
 
 我们现在可以编译并训练我们的数字分类模型。通过 Keras API（并重用上一章中准备的 MNIST 数据变量），我们实例化优化器（一个简单的**随机梯度下降**（**SGD**）优化器），并在启动训练之前定义损失函数（类别交叉熵），如下所示：
 
-```
+```py
 model.compile(optimizer='sgd', loss='sparse_categorical_crossentropy',
               metrics=['accuracy'])
 # We also instantiate some Keras callbacks, that is, utility functions automatically called at some points during training to monitor it:
@@ -501,7 +501,7 @@ model.fit(x_train, y_train, batch_size=32, epochs=80,
 
 在`tf.optimizers`（也可以通过`tf.keras.optimizers`访问）中，动量被定义为 SGD 的一个可选参数（参见[`www.tensorflow.org/api_docs/python/tf/keras/optimizers/SGD`](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/SGD)）如下所示：
 
-```
+```py
 optimizer = tf.optimizers.SGD(lr=0.01, momentum=0.9, # `momentum` = "mu"
                               decay=0.0, nesterov=False)
 ```
@@ -510,7 +510,7 @@ optimizer = tf.optimizers.SGD(lr=0.01, momentum=0.9, # `momentum` = "mu"
 
 然后，可以直接将此优化器实例作为参数传递给`model.fit()`，通过 Keras API 启动训练。对于更复杂的训练场景（例如，当训练互依网络时），优化器也可以被调用，并提供损失梯度和模型的可训练参数。以下是一个简单的训练步骤示例，手动实现：
 
-```
+```py
 @tf.function
 def train_step(batch_images, batch_gts): # typical training step
     with tf.GradientTape() as grad_tape: # Tell TF to tape the gradients
@@ -583,7 +583,7 @@ L1 和 L2 正则化的相应项如下：
 
 可以通过`tf.keras.layers.Layer`和`tf.keras.Model`实例的`.add_loss(losses, ...)`方法将附加的损失添加到网络中，其中`losses`是返回损失值的张量或无参可调用对象。一旦正确地添加到层（参见以下代码），这些损失将在每次调用层/模型时计算。附加到`Layer`或`Model`实例的所有损失，以及附加到其子层的损失，将会计算，并且在调用`.losses`属性时返回损失值列表。为了更好地理解这一概念，我们将扩展之前实现的简单卷积层，向其参数添加可选的正则化：
 
-```
+```py
 from functools import partial
 
 def l2_reg(coef=1e-2): # reimplementation of tf.keras.regularizers.l2()
@@ -611,7 +611,7 @@ class ConvWithRegularizers(SimpleConvolutionLayer):
 
 在每次训练迭代中，对于由这些层组成的网络，正则化损失可以被计算、列出并加入到主损失中，具体如下：
 
-```
+```py
 # We create a NN containing layers with regularization/additional losses:
 model = Sequential()
 model.add(ConvWithRegularizers(6, (5, 5), kernel_regularizer=l2_reg())
@@ -634,7 +634,7 @@ for epoch in range(epochs):
 
 在使用预定义的 Keras 层时，我们无需扩展类来添加正则化项。这些层可以通过参数接收正则化器。Keras 甚至在其`tf.keras.regularizers`模块中显式定义了一些正则化器可调用函数。最后，在使用 Keras 训练操作（如`model.fit(...)`）时，Keras 会自动考虑额外的`model.losses`（即正则化项和其他可能的特定层损失），如下所示：
 
-```
+```py
 # We instantiate a regularizer (L1 for example):
 l1_reg = tf.keras.regularizers.l1(0.01)
 # We can then pass it as a parameter to the target model's layers:
@@ -668,7 +668,7 @@ model.fit(...) # training automatically taking into account the reg. terms.
 
 丢弃层应该直接添加到我们希望防止过拟合的层后面（因为丢弃层会随机丢弃前一层返回的值，迫使其进行适应）。例如，你可以在 Keras 中对全连接层应用丢弃法（例如，使用一个比率，![](img/0d8d3c23-bc8e-4837-b207-6ab366cf4c6d.png)），如下面的代码块所示：
 
-```
+```py
 model = Sequential([ # ...
     Dense(120, activation='relu'),
     Dropout(0.2),    # ...

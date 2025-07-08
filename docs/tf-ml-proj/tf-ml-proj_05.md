@@ -135,13 +135,13 @@ DNN 模块是使用卷积神经网络（CNN）架构实现的。代码实现了�
 
 1.  移动到从仓库克隆代码的文件夹，并使用以下命令训练模型：
 
-```
+```py
 python tensorflow/examples/speech_commands/train.py
 ```
 
 你将开始看到训练的输出，如下所示：
 
-```
+```py
 I tensorflow/core/platform/cpu_feature_guard.cc:141] Your CPU supports instructions that this TensorFlow binary was not compiled to use: SSE4.1 SSE4.2 AVX AVX2 FMA
 I tensorflow/stream_executor/cuda/cuda_gpu_executor.cc:897] successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero
 I tensorflow/core/common_runtime/gpu/gpu_device.cc:1405] Found device 0 with properties:
@@ -157,7 +157,7 @@ I tensorflow/core/common_runtime/gpu/gpu_device.cc:1097] Created TensorFlow devi
 
 1.  一旦训练迭代开始，代码会打印出学习率、训练集的准确率以及交叉熵损失，如下所示：
 
-```
+```py
 INFO:tensorflow:Training from step: 1
 INFO:tensorflow:Step #1: rate 0.001000, accuracy 12.0%, cross entropy 2.662751
 INFO:tensorflow:Step #2: rate 0.001000, accuracy 6.0%, cross entropy 2.572391
@@ -168,13 +168,13 @@ INFO:tensorflow:Step #5: rate 0.001000, accuracy 5.0%, cross entropy 2.592372
 
 1.  代码还会每 100 步保存一次模型，因此如果训练中断，可以从最近的检查点重新开始：
 
-```
+```py
 INFO:tensorflow:Saving to "/tmp/speech_commands_train/conv.ckpt-100"
 ```
 
 训练运行了几个小时，共 18,000 步，最终会打印出最终的训练学习率、准确度、损失和混淆矩阵，如下所示：
 
-```
+```py
 INFO:tensorflow:Step #18000: rate 0.000100, accuracy 90.0%, cross entropy 0.420554
 INFO:tensorflow:Confusion Matrix:
  [[368 2 0 0 1 0 0 0 0 0 0 0]
@@ -195,7 +195,7 @@ INFO:tensorflow:Confusion Matrix:
 
 代码还会打印验证集的准确度和混淆矩阵，如下所示：
 
-```
+```py
 INFO:tensorflow:Step 18000: Validation accuracy = 88.5% (N=4445)
 INFO:tensorflow:Saving to "/tmp/speech_commands_train/conv.ckpt-18000"
 INFO:tensorflow:set_size=4890
@@ -216,7 +216,7 @@ INFO:tensorflow:Confusion Matrix:
 
 1.  最后，代码打印出测试集的准确度，如下所示：
 
-```
+```py
 INFO:tensorflow:Final test accuracy = 87.7% (N=4890)
 ```
 

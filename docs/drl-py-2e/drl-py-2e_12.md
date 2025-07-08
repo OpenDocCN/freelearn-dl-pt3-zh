@@ -326,7 +326,7 @@ DDPG 算法如下所示：
 
 首先，让我们导入所需的库：
 
-```
+```py
 import warnings
 warnings.filterwarnings('ignore')
 import tensorflow as tf
@@ -339,25 +339,25 @@ import gym
 
 让我们使用 Gym 创建一个摆锤环境：
 
-```
+```py
 env = gym.make("Pendulum-v0").unwrapped 
 ```
 
 获取环境的状态形状：
 
-```
+```py
 state_shape = env.observation_space.shape[0] 
 ```
 
 获取环境的动作形状：
 
-```
+```py
 action_shape = env.action_space.shape[0] 
 ```
 
 请注意，摆锤是一个连续环境，因此我们的动作空间由连续值组成。因此，我们获取动作空间的边界：
 
-```
+```py
 action_bound = [env.action_space.low, env.action_space.high] 
 ```
 
@@ -367,25 +367,25 @@ action_bound = [env.action_space.low, env.action_space.high]
 
 设置折扣因子![](img/B15558_05_056.png)：
 
-```
+```py
 gamma = 0.9 
 ```
 
 设置![](img/B15558_12_056.png)的值，用于软替代：
 
-```
+```py
 tau = 0.001 
 ```
 
 设置我们的重放缓冲区的大小：
 
-```
+```py
 replay_buffer = 10000 
 ```
 
 设置批量大小：
 
-```
+```py
 batch_size = 32 
 ```
 
@@ -393,7 +393,7 @@ batch_size = 32
 
 让我们定义一个名为`DDPG`的类，在其中实现 DDPG 算法。为了便于理解，让我们逐行查看代码。你也可以通过本书的 GitHub 仓库访问完整代码：
 
-```
+```py
 class DDPG(object): 
 ```
 
@@ -401,121 +401,121 @@ class DDPG(object):
 
 首先，让我们定义`init`方法：
 
-```
+```py
  def __init__(self, state_shape, action_shape, high_action_value,): 
 ```
 
 定义重放缓冲区，用于存储转移：
 
-```
+```py
  self.replay_buffer = np.zeros((replay_buffer, state_shape * 2 + action_shape + 1), dtype=np.float32) 
 ```
 
 将`num_transitions`初始化为`0`，这意味着我们的重放缓冲区中的转移数为零：
 
-```
+```py
  self.num_transitions = 0 
 ```
 
 启动 TensorFlow 会话：
 
-```
+```py
  self.sess = tf.Session() 
 ```
 
 我们了解到，在 DDPG 中，为了确保探索，而不是直接选择动作*a*，我们通过使用奥恩斯坦-乌伦贝克过程添加了一些噪声![](img/B15558_12_060.png)。因此，我们首先初始化噪声：
 
-```
+```py
  self.noise = 3.0 
 ```
 
 然后，初始化状态形状、动作形状和高动作值：
 
-```
+```py
  self.state_shape, self.action_shape, self.high_action_value = state_shape, action_shape, high_action_value 
 ```
 
 定义状态的占位符：
 
-```
+```py
  self.state = tf.placeholder(tf.float32, [None, state_shape], 'state') 
 ```
 
 定义下一个状态的占位符：
 
-```
+```py
  self.next_state = tf.placeholder(tf.float32, [None, state_shape], 'next_state') 
 ```
 
 定义奖励的占位符：
 
-```
+```py
  self.reward = tf.placeholder(tf.float32, [None, 1], 'reward') 
 ```
 
 在演员变量作用域内：
 
-```
+```py
  with tf.variable_scope('Actor'): 
 ```
 
 定义主演员网络，该网络由![](img/B15558_11_043.png)进行参数化。演员网络以状态为输入，并返回在该状态下执行的动作：
 
-```
+```py
  self.actor = self.build_actor_network(self.state, scope='main', trainable=True) 
 ```
 
 定义目标演员网络，该网络由![](img/B15558_12_042.png)进行参数化。目标演员网络以下一个状态为输入，并返回在该状态下执行的动作：
 
-```
+```py
  target_actor = self.build_actor_network(self.next_state, scope='target', trainable=False) 
 ```
 
 在评论变量作用域内：
 
-```
+```py
  with tf.variable_scope('Critic'): 
 ```
 
 定义主评论网络，该网络由![](img/B15558_12_006.png)进行参数化。评论网络以状态和演员在该状态下产生的动作作为输入，并返回 Q 值：
 
-```
+```py
  critic = self.build_critic_network(self.state, self.actor, scope='main', trainable=True) 
 ```
 
 定义目标评论网络，该网络由![](img/B15558_12_025.png)进行参数化。目标评论网络以下一个状态和目标演员网络在该下一个状态下产生的动作作为输入，并返回 Q 值：
 
-```
+```py
  target_critic = self.build_critic_network(self.next_state, target_actor, scope='target', trainable=False) 
 ```
 
 获取主演员网络的参数![](img/B15558_11_043.png)：
 
-```
+```py
  self.main_actor_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='Actor/main') 
 ```
 
 获取目标演员网络的参数![](img/B15558_12_042.png)：
 
-```
+```py
  self.target_actor_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='Actor/target') 
 ```
 
 获取主评论网络的参数![](img/B15558_12_006.png)：
 
-```
+```py
  self.main_critic_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='Critic/main') 
 ```
 
 获取目标评论家网络的参数 ![](img/B15558_12_025.png)：
 
-```
+```py
  self.target_critic_params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='Critic/target') 
 ```
 
 执行软替换，更新目标演员网络的参数为 ![](img/B15558_12_107.png)，并更新目标评论家网络的参数为 ![](img/B15558_12_127.png)：
 
-```
+```py
  self.soft_replacement = [
             [tf.assign(phi_, tau*phi + (1-tau)*phi_), tf.assign(theta_, tau*theta + (1-tau)*theta_)]
             for phi, phi_, theta, theta_ in zip(self.main_actor_params, self.target_actor_params, self.main_critic_params, self.target_critic_params)
@@ -524,7 +524,7 @@ class DDPG(object):
 
 计算目标 Q 值。我们了解到目标 Q 值可以通过将奖励与下一个状态-动作对的折扣 Q 值相加来计算，![](img/B15558_12_095.png)：
 
-```
+```py
  y = self.reward + gamma * target_critic 
 ```
 
@@ -534,13 +534,13 @@ class DDPG(object):
 
 因此，我们可以定义均方误差为：
 
-```
+```py
  MSE = tf.losses.mean_squared_error(labels=y, predictions=critic) 
 ```
 
 通过使用 Adam 优化器最小化均方误差来训练评论家网络：
 
-```
+```py
  self.train_critic = tf.train.AdamOptimizer(0.01).minimize(MSE, name="adam-ink", var_list = self.main_critic_params) 
 ```
 
@@ -554,19 +554,19 @@ class DDPG(object):
 
 现在，我们可以通过计算梯度并执行梯度下降来最小化演员网络目标。因此，我们可以写出：
 
-```
+```py
  actor_loss = -tf.reduce_mean(critic) 
 ```
 
 通过使用 Adam 优化器最小化损失来训练演员网络：
 
-```
+```py
  self.train_actor = tf.train.AdamOptimizer(0.001).minimize(actor_loss, var_list=self.main_actor_params) 
 ```
 
 初始化所有的 TensorFlow 变量：
 
-```
+```py
  self.sess.run(tf.global_variables_initializer()) 
 ```
 
@@ -574,25 +574,25 @@ class DDPG(object):
 
 让我们定义一个叫做`select_action`的函数，通过加入噪声来选择动作，以确保探索：
 
-```
+```py
  def select_action(self, state): 
 ```
 
 运行演员网络并获取动作：
 
-```
+```py
  action = self.sess.run(self.actor, {self.state: state[np.newaxis, :]})[0] 
 ```
 
 现在，我们生成一个均值为动作、标准差为噪声的正态分布，并从该正态分布中随机选择一个动作：
 
-```
+```py
  action = np.random.normal(action, self.noise) 
 ```
 
 我们需要确保我们的动作不会超出动作的边界。所以，我们将动作裁剪到动作边界内，然后返回这个动作：
 
-```
+```py
  action = np.clip(action, action_bound[0],action_bound[1])
 
         return action 
@@ -602,31 +602,31 @@ class DDPG(object):
 
 现在，让我们定义训练函数：
 
-```
+```py
  def train(self): 
 ```
 
 执行软替换：
 
-```
+```py
  self.sess.run(self.soft_replacement) 
 ```
 
 从回放缓冲区中随机选择给定批次大小的索引：
 
-```
+```py
  indices = np.random.choice(replay_buffer, size=batch_size) 
 ```
 
 从回放缓冲区中选择具有选定索引的状态转移批次：
 
-```
+```py
  batch_transition = self.replay_buffer[indices, :] 
 ```
 
 获取状态、动作、奖励和下一个状态的批次：
 
-```
+```py
  batch_states = batch_transition[:, :self.state_shape]
         batch_actions = batch_transition[:, self.state_shape: self.state_shape + self.action_shape]
         batch_rewards = batch_transition[:, -self.state_shape - 1: -self.state_shape]
@@ -635,13 +635,13 @@ class DDPG(object):
 
 训练演员网络：
 
-```
+```py
  self.sess.run(self.train_actor, {self.state: batch_states}) 
 ```
 
 训练评论家网络：
 
-```
+```py
  self.sess.run(self.train_critic, {self.state: batch_states, self.actor: batch_actions, self.reward: batch_rewards, self.next_state: batch_next_state}) 
 ```
 
@@ -649,37 +649,37 @@ class DDPG(object):
 
 现在，让我们将状态转移存储到回放缓冲区中：
 
-```
+```py
  def store_transition(self, state, actor, reward, next_state): 
 ```
 
 首先，将状态、动作、奖励和下一个状态堆叠起来：
 
-```
+```py
  trans = np.hstack((state,actor,[reward],next_state)) 
 ```
 
 获取索引：
 
-```
+```py
  index = self.num_transitions % replay_buffer 
 ```
 
 存储状态转移：
 
-```
+```py
  self.replay_buffer[index, :] = trans 
 ```
 
 更新状态转移的数量：
 
-```
+```py
  self.num_transitions += 1 
 ```
 
 如果状态转移的数量大于回放缓冲区，则训练网络：
 
-```
+```py
  if self.num_transitions > replay_buffer:
             self.noise *= 0.99995
             self.train() 
@@ -689,7 +689,7 @@ class DDPG(object):
 
 我们定义一个叫做`build_actor_network`的函数来构建演员网络。演员网络接收状态并返回在该状态下执行的动作：
 
-```
+```py
  def build_actor_network(self, state, scope, trainable):
         with tf.variable_scope(scope):
             layer_1 = tf.layers.dense(state, 30, activation = tf.nn.tanh, name = 'layer_1', trainable = trainable)
@@ -701,7 +701,7 @@ class DDPG(object):
 
 我们定义了一个名为`build_critic_network`的函数来构建评论员网络。评论员网络接收状态和由演员在该状态下产生的动作，并返回 Q 值：
 
-```
+```py
  def build_critic_network(self, state, actor, scope, trainable):
         with tf.variable_scope(scope):
             w1_s = tf.get_variable('w1_s', [self.state_shape, 30], trainable = trainable)
@@ -716,92 +716,92 @@ class DDPG(object):
 
 现在，让我们开始训练网络。首先，我们创建一个 DDPG 类的对象：
 
-```
+```py
 ddpg = DDPG(state_shape, action_shape, action_bound[1]) 
 ```
 
 设置回合数：
 
-```
+```py
 num_episodes = 300 
 ```
 
 设置每个回合的时间步数：
 
-```
+```py
 num_timesteps = 500 
 ```
 
 对于每个回合：
 
-```
+```py
 for i in range(num_episodes): 
 ```
 
 通过重置环境初始化状态：
 
-```
+```py
  state = env.reset() 
 ```
 
 初始化返回值：
 
-```
+```py
  Return = 0 
 ```
 
 每一步：
 
-```
+```py
  for t in range(num_timesteps): 
 ```
 
 渲染环境：
 
-```
+```py
  env.render() 
 ```
 
 选择动作：
 
-```
+```py
  action = ddpg.select_action(state) 
 ```
 
 执行选定的动作：
 
-```
+```py
  next_state, reward, done, info = env.step(action) 
 ```
 
 将过渡存储在回放缓冲区中：
 
-```
+```py
  ddpg.store_transition(state, action, reward, next_state) 
 ```
 
 更新返回值：
 
-```
+```py
  Return += reward 
 ```
 
 如果状态是终止状态，则中断：
 
-```
+```py
  if done:
             break 
 ```
 
 将状态更新到下一个状态：
 
-```
+```py
  state = next_state 
 ```
 
 打印每 10 个回合的返回值：
 
-```
+```py
  if i %10 ==0:
          print("Episode:{}, Return: {}".format(i,Return)) 
 ```

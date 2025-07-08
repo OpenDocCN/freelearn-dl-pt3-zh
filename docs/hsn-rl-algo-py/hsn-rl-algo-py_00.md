@@ -80,7 +80,7 @@
 
 一段代码块的格式如下：
 
-```
+```py
 import gym
 
 # create the environment 
@@ -101,7 +101,7 @@ env.close()
 
 所有命令行输入或输出如下所示：
 
-```
+```py
 $ git clone https://github.com/pybox2d/pybox2d [](https://github.com/pybox2d/pybox2d) $ cd pybox2d
 $ pip install -e .
 ```

@@ -32,13 +32,13 @@
 
 如果你还没有安装 TensorFlow，可以通过他们的网站安装，或者在终端窗口中输入以下命令：
 
-```
+```py
 $ pip install tensorflow
 ```
 
 或者，如果你的机器有 GPU，你可以输入以下命令：
 
-```
+```py
 $ pip install tensorflow-gpu
 ```
 
@@ -54,25 +54,25 @@ OpenAI Gym 提供了一个通用接口以及多种不同的环境。
 
 在 OSX 上，我们可以使用以下命令：
 
-```
+```py
 $ brew install cmake boost boost-python sdl2 swig wget
 ```
 
 在 Ubuntu 16.04 上，我们将使用以下命令：
 
-```
+```py
 $ apt-get install -y python-pyglet python3-opengl zlib1g-dev libjpeg-dev patchelf cmake swig libboost-all-dev libsdl2-dev libosmesa6-dev xvfb ffmpeg
 ```
 
 在 Ubuntu 18.04 上，我们将使用以下命令：
 
-```
+```py
 $ sudo apt install -y python3-dev zlib1g-dev libjpeg-dev cmake swig python-pyglet python3-opengl libboost-all-dev libsdl2-dev libosmesa6-dev patchelf ffmpeg xvfb 
 ```
 
 在运行完前面的命令之后，针对你的操作系统，可以使用以下命令：
 
-```
+```py
 $ git clone https://github.com/openai/gym.git 
 $ cd gym
 $ pip install -e '.[all]'
@@ -80,7 +80,7 @@ $ pip install -e '.[all]'
 
 某些 Gym 环境还需要安装`pybox2d`：
 
-```
+```py
 $ git clone https://github.com/pybox2d/pybox2d [](https://github.com/pybox2d/pybox2d) $ cd pybox2d
 $ pip install -e .
 ```
@@ -89,7 +89,7 @@ $ pip install -e .
 
 我们感兴趣的最终环境是 Roboschool，它是一个机器人模拟器。它容易安装，但如果遇到任何错误，可以查看其 GitHub 仓库：[`github.com/Roboschool/roboschool`](https://github.com/Roboschool/roboschool)
 
-```
+```py
 $ pip install roboschool
 ```
 
@@ -103,7 +103,7 @@ OpenAI Gym 是一个开源工具包，用于开发和研究 RL 算法，旨在�
 
 以下代码块展示了一个基本的 RL 循环。这本质上让 RL 模型进行 10 步操作，并在每一步渲染游戏：
 
-```
+```py
 import gym
 
 # create the environment 
@@ -149,7 +149,7 @@ env.close()
 
 我们现在可以创建一个更完整的算法，使用以下代码来进行 10 局游戏，并打印每局游戏的累积奖励：
 
-```
+```py
 import gym
 
 # create and initialize the environment
@@ -177,7 +177,7 @@ for i in range(10):
 
 输出将类似于以下内容：
 
-```
+```py
 Episode: 0, Reward:13
 Episode: 1, Reward:16
 Episode: 2, Reward:23
@@ -208,7 +208,7 @@ Episode: 9, Reward:16
 
 在 OpenAI Gym 中，动作和观察大多是 `Discrete` 或 `Box` 类的实例。这两个类表示不同的空间。`Box` 代表一个 *n* 维数组，而 `Discrete` 是一个允许固定范围非负数的空间。在前面的表格中，我们已经看到，CartPole 的观察由四个浮动数值编码，意味着它是 `Box` 类的一个实例。可以通过打印 `env.observation_space` 变量来检查观察空间的类型和维度：
 
-```
+```py
 import gym
 
 env = gym.make('CartPole-v1')
@@ -218,7 +218,7 @@ print(env.observation_space)
 
 确实，正如我们预期的那样，输出如下：
 
-```
+```py
 >>  Box(4,)
 ```
 
@@ -226,19 +226,19 @@ print(env.observation_space)
 
 同样，可以检查动作空间的维度：
 
-```
+```py
 print(env.action_space)
 ```
 
 这将产生以下输出：
 
-```
+```py
 >> Discrete(2)
 ```
 
 特别地，`Discrete(2)`意味着动作的值可以是`0`或`1`。实际上，如果我们使用前面示例中的采样函数，我们将获得`0`或`1`（在 CartPole 中，这意味着向左或向右*）*：
 
-```
+```py
 print(env.action_space.sample())
 >> 0
 print(env.action_space.sample())
@@ -247,7 +247,7 @@ print(env.action_space.sample())
 
 `low`和`high`实例属性返回`Box`空间允许的最小值和最大值：
 
-```
+```py
 print(env.observation_space.low)
 >> [-4.8000002e+00 -3.4028235e+38 -4.1887903e-01 -3.4028235e+38]
 print(env.observation_space.high)
@@ -262,7 +262,7 @@ TensorFlow，为了便于机器学习模型的开发和部署，提供了许多�
 
 现在，让我们立即使用**TensorFlow**编写代码。以下代码行执行了常量`a`和`b`的加法，`a`和`b`是使用`tf.constant()`创建的：
 
-```
+```py
 import tensorflow as tf
 
 # create two constants: a and b
@@ -281,7 +281,7 @@ print(res)
 
 TensorFlow 的一个特点是，它将所有计算表达为一个计算图，首先需要定义该图，之后才能执行。只有在执行后，结果才会可用。在以下示例中，在操作`c = a + b`之后，`c`并不持有最终值。实际上，如果你在创建会话之前打印`c`，你将获得以下内容：
 
-```
+```py
 >> Tensor("add:0", shape=(), dtype=int32)
 ```
 
@@ -289,7 +289,7 @@ TensorFlow 的一个特点是，它将所有计算表达为一个计算图，首
 
 此外，执行必须在通过`tf.Session()`实例化的会话内进行。然后，为了执行计算，操作必须作为输入传递给刚创建的会话的`run`函数。因此，为了实际计算图并最终求和`a`和`b`，我们需要创建一个会话，并将`c`作为输入传递给`session.run`：
 
-```
+```py
 session = tf.Session()
 res = session.run(c)
 print(res)
@@ -305,7 +305,7 @@ TensorFlow 中的变量表示为张量，是任何维度数组。张量有三种
 
 要检查张量的形状，我们将使用以下代码：
 
-```
+```py
 # constant
 a = tf.constant(1)
 print(a.shape)
@@ -319,7 +319,7 @@ print(b.shape)
 
 张量的元素非常容易访问，机制与 Python 中使用的类似：
 
-```
+```py
 a = tf.constant([1,2,3,4,5])
 first_three_elem = a[:3]
 fourth_elem = a[3]
@@ -338,7 +338,7 @@ print(sess.run(fourth_elem))
 
 如我们已经看到的，常量是不可变的张量类型，可以使用`tf.constant`轻松创建：
 
-```
+```py
 a = tf.constant([1.0, 1.1, 2.1, 3.1], dtype=tf.float32, name='a_const')
 print(a)
 
@@ -349,7 +349,7 @@ print(a)
 
 占位符是一个张量，在运行时被提供输入。通常，占位符作为模型的输入。在运行时传递给计算图的每个输入都通过`feed_dict`进行传递。`feed_dict`是一个可选参数，允许调用者覆盖图中张量的值。在以下代码片段中，`a`占位符的值被`[[0.1,0.2,0.3]]`覆盖：
 
-```
+```py
 import tensorflow as tf
 
 a = tf.placeholder(shape=(1,3), dtype=tf.float32)
@@ -366,7 +366,7 @@ print(res)
 
 如果输入的第一维的大小在创建图时尚不确定，TensorFlow 可以处理它。只需将其设置为`None`：
 
-```
+```py
 import tensorflow as tf
 import numpy as np
 
@@ -400,7 +400,7 @@ print(sess.run(c, feed_dict={a:v_a, b:v_b}))
 
 现在，我们将创建两个变量，一个使用均匀初始化，另一个使用常数值初始化：
 
-```
+```py
 import tensorflow as tf
 import numpy as np
 
@@ -429,13 +429,13 @@ print(sess.run(var2))
 
 通过这种方式创建的所有变量都会被设置为`可训练`，意味着图可以修改它们，例如，在优化操作之后。也可以将变量设置为不可训练，如下所示：
 
-```
+```py
 var2 = tf.get_variable("variable", shape=[1,2], trainable=False, dtype=tf.int32)
 ```
 
 访问所有变量的简便方法如下：
 
-```
+```py
 print(tf.global_variables())
 
 >> [<tf.Variable 'first_variable:0' shape=(1, 3) dtype=float32_ref>, <tf.Variable 'second_variable:0' shape=(1, 2) dtype=int32_ref>]
@@ -449,7 +449,7 @@ TensorFlow 中图的构建、计算和优化方式支持高度的并行性、分
 
 为了让你了解 TensorFlow 内部生成的计算图的结构，以下程序将生成如下图所示的计算图：
 
-```
+```py
 import tensorflow as tf
 import numpy as np
 
@@ -477,7 +477,7 @@ sess.run(op3)
 
 为了更好地理解所有概念，我们现在创建一个简单的线性回归模型。首先，我们必须导入所有库并设置随机种子，这对于 NumPy 和 TensorFlow 都是必要的（这样我们得到的结果都是相同的）：
 
-```
+```py
 import tensorflow as tf
 import numpy as np
 from datetime import datetime
@@ -494,7 +494,7 @@ tf.set_random_seed(10)
 
 因为这是一个线性回归示例，*y = W * X + b*，其中*W*和*b*是任意值。在这个示例中，我们设置`W` = `0.5`和`b` = `1.4`。此外，我们还加入了一些正态随机噪声：
 
-```
+```py
 W, b = 0.5, 1.4
 # create a dataset of 100 examples
 X = np.linspace(0,100, num=100)
@@ -504,7 +504,7 @@ y = np.random.normal(loc=W * X + b, scale=2.0, size=len(X))
 
 下一步是创建输入和输出的占位符，以及线性模型的权重和偏置变量。在训练过程中，这两个变量将被优化，使其尽可能与数据集的权重和偏置相似：
 
-```
+```py
 # create the placeholders
 x_ph = tf.placeholder(shape=[None,], dtype=tf.float32)
 y_ph = tf.placeholder(shape=[None,], dtype=tf.float32)
@@ -516,7 +516,7 @@ v_bias = tf.get_variable("bias", shape=[1], dtype=tf.float32)
 
 然后，我们构建了定义线性操作和 **均方误差** (**MSE**) 损失的计算图：
 
-```
+```py
 # linear computation
 out = v_weight * x_ph + v_bias
 
@@ -526,20 +526,20 @@ loss = tf.reduce_mean((out - y_ph)**2)
 
 现在，我们可以实例化优化器并调用 `minimize()` 来最小化 MSE 损失。`minimize()` 首先计算变量（`v_weight` 和 `v_bias`）的梯度，然后应用梯度更新变量：
 
-```
+```py
 opt = tf.train.AdamOptimizer(0.4).minimize(loss)
 ```
 
 现在，让我们创建一个会话并初始化所有变量：
 
-```
+```py
 session = tf.Session()
 session.run(tf.global_variables_initializer())
 ```
 
 训练通过多次运行优化器并将数据集输入图表来完成。为了跟踪模型的状态，MSE 损失和模型变量（权重和偏差）每 40 个 epochs 打印一次：
 
-```
+```py
 # loop to train the parameters
 for ep in range(210):
     # run the optimizer and get the loss
@@ -552,13 +552,13 @@ for ep in range(210):
 
 最后，我们可以打印变量的最终值：
 
-```
+```py
 print('Final weight: %.3f, bias: %.3f' % (session.run(v_weight), session.run(v_bias)))
 ```
 
 输出将类似于以下内容：
 
-```
+```py
 >>  Epoch: 0, MSE: 4617.4390, weight: 1.295, bias: -0.407
  Epoch: 40, MSE: 5.3334, weight: 0.496, bias: -0.727
  Epoch: 80, MSE: 4.5894, weight: 0.529, bias: -0.012
@@ -590,7 +590,7 @@ TensorBoard 是一套可视化工具，能够用于绘制指标、可视化 Tens
 
 TensorBoard 与 TensorFlow 代码的集成非常简单，只需对代码做少量调整。特别是，为了使用 TensorBoard 可视化 MSE 损失随时间变化，并监控线性回归模型的权重和偏差，首先需要将损失张量附加到 `tf.summary.scalar()`，并将模型的参数附加到 `tf.summary.histogram()`*。以下代码片段应添加在优化器调用之后：
 
-```
+```py
 tf.summary.scalar('MSEloss', loss)
 tf.summary.histogram('model_weight', v_weight)
 tf.summary.histogram('model_bias', v_bias)
@@ -598,13 +598,13 @@ tf.summary.histogram('model_bias', v_bias)
 
 然后，为了简化过程并将其作为一个总结处理，我们可以将它们合并：
 
-```
+```py
 all_summary = tf.summary.merge_all()
 ```
 
 此时，我们需要实例化一个`FileWriter`实例，它将把所有摘要信息记录到文件中：
 
-```
+```py
 now = datetime.now()
 clock_time = "{}_{}.{}.{}".format(now.day, now.hour, now.minute, now.second)
 file_writer = tf.summary.FileWriter('log_dir/'+clock_time, tf.get_default_graph())
@@ -614,7 +614,7 @@ file_writer = tf.summary.FileWriter('log_dir/'+clock_time, tf.get_default_graph(
 
 最后的修改是在训练循环中进行的，通过将之前的行`train_loss, _ = session.run(..)`替换为以下内容：
 
-```
+```py
 train_loss, _, train_summary = session.run([loss, opt, all_summary], feed_dict={x_ph:X, y_ph:y})
 file_writer.add_summary(train_summary, ep)
 ```
@@ -623,13 +623,13 @@ file_writer.add_summary(train_summary, ep)
 
 记得在结束时关闭`file_writer`，如下所示：
 
-```
+```py
 file_writer.close()
 ```
 
 最后，我们可以通过进入工作目录并在终端中输入以下命令来打开 TensorBoard：
 
-```
+```py
 $ tensorboard --logdir=log_dir
 ```
 

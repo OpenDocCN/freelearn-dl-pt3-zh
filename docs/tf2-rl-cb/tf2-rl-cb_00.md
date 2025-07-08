@@ -80,7 +80,7 @@
 
 一段代码设置如下：
 
-```
+```py
 def save(self, model_dir: str, version: int = 1):
     actor_model_save_dir = os.path.join(model_dir, "actor", str(version), "model.savedmodel")
     self.model.save(actor_model_save_dir, save_format="tf")
@@ -89,7 +89,7 @@ def save(self, model_dir: str, version: int = 1):
 
 当我们希望引起您对代码块中特定部分的注意时，相关行或项将设置为粗体：
 
-```
+```py
 if args.agent != "SAC":
     print(f"Unsupported Agent: {args.agent}. Using SAC Agent")
     args.agent = "SAC"
@@ -99,7 +99,7 @@ if args.agent != "SAC":
 
 任何命令行输入或输出如下所示：
 
-```
+```py
 (tfrl-cookbook)praveen@desktop:~/tensorflow2-reinforcement-learning-cookbook/src/ch7-cloud-deploy-deep-rl-agents$ python 3_training_rl_agents_using_remote_sims.py 
 ```
 

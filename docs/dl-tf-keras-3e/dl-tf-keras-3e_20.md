@@ -134,7 +134,7 @@ TensorFlow Hub（可访问 [`www.tensorflow.org/hub`](https://www.tensorflow.org
 
 让我们看一个使用 `TF.Hub` 的示例。在这个例子中，我们有一个使用 MobileNetv2 的简单图像分类器：
 
-```
+```py
 import matplotlib.pylab as plt
 import tensorflow as tf
 import tensorflow_hub as hub
@@ -170,7 +170,7 @@ print (predicted_class)
 
 如果你想开始玩 VQA，首先需要获取适当的训练数据集，如 VQA 数据集、CLEVR 数据集（可在[`cs.stanford.edu/people/jcjohns/clevr/`](https://cs.stanford.edu/people/jcjohns/clevr/)获取）或 FigureQA 数据集（可在[`datasets.maluuba.com/FigureQA`](https://datasets.maluuba.com/FigureQA)获取）；或者，你可以参与 Kaggle 的 VQA 挑战（可在[`www.kaggle.com/c/visual-question-answering`](https://www.kaggle.com/c/visual-question-answering)参与）。然后，你可以构建一个结合 CNN 和 RNN 的模型并开始实验。例如，CNN 可以是这样的代码片段，它接受一个具有三个通道（224 x 224）的图像作为输入，并为图像生成一个特征向量：
 
-```
+```py
 import tensorflow as tf
 from tensorflow.keras import layers, models
 # IMAGE
@@ -197,7 +197,7 @@ visual_model = cnn_model(image_input)
 
 文本可以通过 RNN 进行编码；目前，可以将其视为一个黑盒，它接受一个文本片段（问题）作为输入，并为文本生成一个特征向量：
 
-```
+```py
 # TEXT
 #
 #define the RNN model for text processing
@@ -209,7 +209,7 @@ encoded_question = layers.LSTM(256)(emdedding)
 
 然后，将两个特征向量（一个是图像的，另一个是文本的）合并为一个联合向量，该向量作为输入提供给密集网络，以生成组合网络：
 
-```
+```py
 # combine the encoded question and visual model
 merged = layers.concatenate([encoded_question, visual_model])
 #attach a dense network at the end
@@ -235,7 +235,7 @@ Google 发布了 DeepDream 的开源代码（可在[`github.com/google/deepdream
 
 让我们从一些图像预处理开始：
 
-```
+```py
 # Download an image and read it into a NumPy array, 
 def download(url):
   name = url.split("/")[-1]
@@ -267,7 +267,7 @@ show(deprocess(img))
 
 现在让我们使用预训练的 Inception 网络来提取特征。我们使用多个层，目标是最大化它们的激活值。`tf.keras`函数式 API 在这里对我们非常有用：
 
-```
+```py
 # We'll maximize the activations of these layers
 names = ['mixed2', 'mixed3', 'mixed4', 'mixed5']
 layers = [inception_v3.get_layer(name).output for name in names]
@@ -285,7 +285,7 @@ def forward(img):
 
 损失函数是所有激活层的平均值，通过该层自身单元的数量进行归一化：
 
-```
+```py
 def calc_loss(layer_activations):
 
   total_loss = 0
@@ -303,7 +303,7 @@ def calc_loss(layer_activations):
 
 现在让我们运行梯度上升：
 
-```
+```py
 img = tf.Variable(img)
 steps = 400
 for step in range(steps):
@@ -389,7 +389,7 @@ show(deprocess(img.numpy()))
 
 让我们来看一下代码。首先，我们使用`tensorflow_datasets`加载数据集。在这个例子中，我们使用 IMDB，它是一个电影评论的集合：
 
-```
+```py
 import tensorflow as tf
 from tensorflow.keras import datasets, layers, models, preprocessing
 import tensorflow_datasets as tfds
@@ -409,7 +409,7 @@ def load_data():
 
 然后，我们构建一个合适的 CNN 模型。我们使用词嵌入（参见*第四章*，*词嵌入*）将文档中通常观察到的稀疏词汇映射到一个密集的特征空间，维度为`dim_embedding`。然后，我们使用`Conv1D`，接着是`GlobalMaxPooling1D`进行平均，再加上两个`Dense`层——最后一个只有一个神经元，用于输出二元选择（正面或负面评论）：
 
-```
+```py
 def build_model():
     model = models.Sequential()
     #Input - Embedding Layer
@@ -435,7 +435,7 @@ model.summary()
 
 该模型有超过 2,700,000 个参数，概述如下：
 
-```
+```py
 _________________________________________________________________
  Layer (type)                Output Shape              Param #   
 =================================================================
@@ -462,7 +462,7 @@ Non-trainable params: 0
 
 然后，我们使用 Adam 优化器和二元交叉熵损失函数来编译并拟合模型：
 
-```
+```py
 model.compile(optimizer = "adam", loss = "binary_crossentropy",
   metrics = ["accuracy"]
 )
@@ -478,7 +478,7 @@ print('Test accuracy:', score[1])
 
 最终准确率为 88.21%，这表明成功使用卷积神经网络（CNN）进行文本处理是可能的：
 
-```
+```py
 Epoch 19/20
 25000/25000 [==============================] - 135s 5ms/sample - loss: 7.5276e-04 - accuracy: 1.0000 - val_loss: 0.5753 - val_accuracy: 0.8818
 Epoch 20/20

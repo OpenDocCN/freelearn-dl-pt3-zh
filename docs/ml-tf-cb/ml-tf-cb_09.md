@@ -32,7 +32,7 @@
 
 和往常一样，首先我们导入必要的包。
 
-```
+```py
 import tensorflow as tf
 from tensorflow import keras 
 # keras module for building LSTM 
@@ -46,7 +46,7 @@ import keras.utils as ku
 
 我们希望确保我们的结果是可复现的——由于 Python 深度学习生态系统内的相互依赖关系，我们需要初始化多个随机机制。
 
-```
+```py
 import pandas as pd
 import string, os 
 import warnings
@@ -56,7 +56,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 下一步是从 Keras 本身导入必要的功能：
 
-```
+```py
 from keras.preprocessing.sequence import pad_sequences
 from keras.layers import Embedding, LSTM, Dense
 from keras.preprocessing.text import Tokenizer
@@ -67,7 +67,7 @@ import keras.utils as ku
 
 最后，通常来说，定制化代码执行过程中显示的警告级别是方便的——尽管这未必总是符合纯粹主义者的最佳实践标准——这主要是为了处理围绕给 DataFrame 子集分配值的普遍警告：在当前环境下，清晰展示代码比遵守生产环境中的编码标准更为重要：
 
-```
+```py
 import warnings
 warnings.filterwarnings("ignore")
 warnings.simplefilter(action='ignore', category=FutureWarning) 
@@ -75,7 +75,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 我们将定义一些函数，以便后续简化代码。首先，让我们清理文本：
 
-```
+```py
 def clean_text(txt):
     txt = "".join(v for v in txt if v not in string.punctuation).lower()
     txt = txt.encode("utf8").decode("ascii",'ignore')
@@ -84,7 +84,7 @@ def clean_text(txt):
 
 我们将使用一个封装器，围绕内置的 TensorFlow 分词器，操作如下：
 
-```
+```py
 def get_sequence_of_tokens(corpus):
     ## tokenization
     tokenizer.fit_on_texts(corpus)
@@ -102,7 +102,7 @@ def get_sequence_of_tokens(corpus):
 
 一个常用的步骤是将模型构建步骤封装到函数中：
 
-```
+```py
 def create_model(max_sequence_len, total_words):
     input_len = max_sequence_len - 1
     model = Sequential()
@@ -117,7 +117,7 @@ def create_model(max_sequence_len, total_words):
 
 以下是对序列进行填充的一些模板代码（在实际应用中，这部分的作用会变得更加清晰）：
 
-```
+```py
 def generate_padded_sequences(input_sequences):
     max_sequence_len = max([len(x) for x in input_sequences])
     input_sequences = np.array(pad_sequences(input_sequences,                       maxlen=max_sequence_len, padding='pre'))
@@ -129,7 +129,7 @@ def generate_padded_sequences(input_sequences):
 
 最后，我们创建一个函数，用来从已拟合的模型生成文本：
 
-```
+```py
 def generate_text(seed_text, next_words, model, max_sequence_len):
     for _ in range(next_words):
         token_list = tokenizer.texts_to_sequences([seed_text])[0]
@@ -147,7 +147,7 @@ def generate_text(seed_text, next_words, model, max_sequence_len):
 
 下一步是加载我们的数据集（`break` 子句作为快速方法，只选择文章数据集，而不包括评论数据集）：
 
-```
+```py
 curr_dir = '../input/'
 all_headlines = []
 for filename in os.listdir(curr_dir):
@@ -160,7 +160,7 @@ all_headlines[:10]
 
 我们可以按如下方式检查前几个元素：
 
-```
+```py
 ['The Opioid Crisis Foretold',
  'The Business Deals That Could Imperil Trump',
  'Adapting to American Decline',
@@ -175,13 +175,13 @@ all_headlines[:10]
 
 正如现实中大多数文本数据的情况一样，我们需要清理输入文本。为了简单起见，我们仅进行基础的预处理：去除标点符号并将所有单词转换为小写：
 
-```
+```py
 corpus = [clean_text(x) for x in all_headlines] 
 ```
 
 清理操作后，前 10 行的数据如下所示：
 
-```
+```py
 corpus[:10]
 ['the opioid crisis foretold',
  'the business deals that could imperil trump',
@@ -199,7 +199,7 @@ corpus[:10]
 
 清理后，我们对输入文本进行分词：这是从语料库中提取单独词元（单词或术语）的过程。我们利用内置的分词器来提取词元及其相应的索引。每个文档都会转化为一系列词元：
 
-```
+```py
 tokenizer = Tokenizer()
 inp_sequences, total_words = get_sequence_of_tokens(corpus)
 inp_sequences[:10]
@@ -219,7 +219,7 @@ inp_sequences[:10]
 
 我们已经将数据集转化为由词元序列组成的格式——这些序列的长度可能不同。有两种选择：使用 RaggedTensors（这在用法上稍微复杂一些）或者将序列长度统一，以符合大多数 RNN 模型的标准要求。为了简化展示，我们选择后者方案：使用 `pad_sequence` 函数填充短于阈值的序列。这一步与将数据格式化为预测值和标签的步骤容易结合：
 
-```
+```py
 predictors, label, max_sequence_len =                              generate_padded_sequences(inp_sequences) 
 ```
 
@@ -233,7 +233,7 @@ predictors, label, max_sequence_len =                              generate_padd
 
 1.  输出层：生成最可能的输出标记：
 
-    ```
+    ```py
     model = create_model(max_sequence_len, total_words)
     model.summary()
     _________________________________________________________________
@@ -253,13 +253,13 @@ predictors, label, max_sequence_len =                              generate_padd
 
 现在我们可以使用标准的 Keras 语法训练我们的模型：
 
-```
+```py
 model.fit(predictors, label, epochs=100, verbose=2) 
 ```
 
 现在我们有了一个拟合的模型，我们可以检查其性能：基于种子文本，我们的 LSTM 生成的标题有多好？我们通过对种子文本进行分词、填充序列，并将其传入模型来获得预测结果：
 
-```
+```py
 print (generate_text("united states", 5, model, max_sequence_len))
 United States Shouldnt Sit Still An Atlantic
 print (generate_text("president trump", 5, model, max_sequence_len))
@@ -296,7 +296,7 @@ European Union Infuses The Constitution Invaded
 
 +   `-o` 指定输出文件：
 
-```
+```py
 iconv -f LATIN1 -t UTF8 training.1600000.processed.noemoticon.csv -o training_cleaned.csv 
 ```
 
@@ -304,7 +304,7 @@ iconv -f LATIN1 -t UTF8 training.1600000.processed.noemoticon.csv -o training_cl
 
 我们首先按如下方式导入必要的包：
 
-```
+```py
 import json
 import tensorflow as tf
 import csv
@@ -330,7 +330,7 @@ from tensorflow.keras import regularizers
 
 +   `dropout_val`和`nof_units`是模型的超参数：
 
-```
+```py
 embedding_dim = 100
 max_length = 16
 trunc_type='post'
@@ -345,7 +345,7 @@ nof_units = 64
 
 让我们将模型创建步骤封装成一个函数。我们为我们的分类任务定义了一个相当简单的模型——一个嵌入层，后接正则化、卷积、池化，再加上 RNN 层：
 
-```
+```py
 def create_model(dropout_val, nof_units):
 
     model = tf.keras.Sequential([
@@ -362,7 +362,7 @@ def create_model(dropout_val, nof_units):
 
 收集我们将用于训练的语料库内容：
 
-```
+```py
 num_sentences = 0
 with open("../input/twitter-sentiment-clean-dataset/training_cleaned.csv") as csvfile:
     reader = csv.reader(csvfile, delimiter=',')
@@ -380,7 +380,7 @@ with open("../input/twitter-sentiment-clean-dataset/training_cleaned.csv") as cs
 
 转换为句子格式：
 
-```
+```py
 sentences=[]
 labels=[]
 random.shuffle(corpus)
@@ -397,13 +397,13 @@ sequences = tokenizer.texts_to_sequences(sentences)
 
 使用填充规范化句子长度（见前一节）：
 
-```
+```py
 padded = pad_sequences(sequences, maxlen=max_length, padding=padding_type, truncating=trunc_type) 
 ```
 
 将数据集划分为训练集和保留集：
 
-```
+```py
 split = int(test_portion * training_size)
 test_sequences = padded[0:split]
 training_sequences = padded[split:training_size]
@@ -413,7 +413,7 @@ training_labels = labels[split:training_size]
 
 在使用基于 RNN 的模型进行 NLP 应用时，一个关键步骤是`embeddings`矩阵：
 
-```
+```py
 embeddings_index = {};
 with open('../input/glove6b/glove.6B.100d.txt') as f:
     for line in f:
@@ -430,7 +430,7 @@ for word, i in word_index.items():
 
 在所有准备工作完成后，我们可以设置模型：
 
-```
+```py
 model = create_model(dropout_val, nof_units)
 model.summary()
 Model: "sequential"
@@ -457,7 +457,7 @@ _________________________________________________________________
 
 训练按常规方式进行：
 
-```
+```py
 num_epochs = 50
 history = model.fit(training_sequences, training_labels, epochs=num_epochs, validation_data=(test_sequences, test_labels), verbose=2)
 Train on 144000 samples, validate on 16000 samples
@@ -477,7 +477,7 @@ Epoch 6/50
 
 我们还可以通过可视化来评估模型的质量：
 
-```
+```py
 acc = history.history['acc']
 val_acc = history.history['val_acc']
 loss = history.history['loss']
@@ -525,7 +525,7 @@ plt.show()
 
 我们首先导入必要的包：
 
-```
+```py
 import numpy as np 
 import pandas as pd 
 from matplotlib import pyplot as plt
@@ -537,14 +537,14 @@ from sklearn.preprocessing import MinMaxScaler
 
 我们任务的通用参数是预测的未来范围和网络的超参数：
 
-```
+```py
 prediction_days = 30
 nof_units =4 
 ```
 
 如前所述，我们将把模型创建步骤封装到一个函数中。它接受一个参数`units`，该参数是 LSTM 内单元的维度：
 
-```
+```py
 def create_model(nunits):
     # Initialising the RNN
     regressor = Sequential()
@@ -560,7 +560,7 @@ def create_model(nunits):
 
 现在我们可以开始加载数据，并采用常见的时间戳格式。为了演示的目的，我们将预测每日平均价格——因此需要进行分组操作：
 
-```
+```py
 # Import the dataset and encode the date
 df = pd.read_csv("../input/bitcoin-historical-data/bitstampUSD_1-min_data_2012-01-01_to_2020-09-14.csv")
 df['date'] = pd.to_datetime(df['Timestamp'],unit='s').dt.date
@@ -570,14 +570,14 @@ Real_Price = group['Weighted_Price'].mean()
 
 下一步是将数据分为训练期和测试期：
 
-```
+```py
 df_train= Real_Price[:len(Real_Price)-prediction_days]
 df_test= Real_Price[len(Real_Price)-prediction_days:] 
 ```
 
 理论上可以避免预处理，但在实践中它有助于加速收敛：
 
-```
+```py
 training_set = df_train.values
 training_set = np.reshape(training_set, (len(training_set), 1))
 sc = MinMaxScaler()
@@ -589,7 +589,7 @@ X_train = np.reshape(X_train, (len(X_train), 1, 1))
 
 拟合模型非常简单：
 
-```
+```py
 regressor = create_model(nunits = nof_unit)
 regressor.fit(X_train, y_train, batch_size = 5, epochs = 100)
 Epoch 1/100
@@ -611,7 +611,7 @@ Epoch 8/100
 
 通过拟合模型，我们可以在预测范围内生成一个预测，记得要反转我们的标准化处理，以便将值还原到原始尺度：
 
-```
+```py
 test_set = df_test.values
 inputs = np.reshape(test_set, (len(test_set), 1))
 inputs = sc.transform(inputs)
@@ -622,7 +622,7 @@ predicted_BTC_price = sc.inverse_transform(predicted_BTC_price)
 
 这是我们预测结果的样子：
 
-```
+```py
 plt.figure(figsize=(25,15), dpi=80, facecolor='w', edgecolor='k')
 ax = plt.gca()  
 plt.plot(test_set, color = 'red', label = 'Real BTC Price')
@@ -666,7 +666,7 @@ plt.show()
 
 正如往常一样，我们首先加载必要的包。这次我们使用 fasttext 嵌入来表示（可以从[`fasttext.cc/`](https://fasttext.cc/)获取）。其他流行的选择包括 GloVe（在情感分析部分使用）和 ELMo（[`allennlp.org/elmo`](https://allennlp.org/elmo)）。在 NLP 任务的性能方面没有明显的优劣之分，所以我们会根据需要切换选择，以展示不同的可能性：
 
-```
+```py
 import os
 import json
 import gc
@@ -685,13 +685,13 @@ from tensorflow.keras.models import load_model
 
 一般设置如下：
 
-```
+```py
 embedding_path = '/kaggle/input/fasttext-crawl-300d-2m-with-subword/crawl-300d-2m-subword/crawl-300d-2M-subword.bin' 
 ```
 
 我们的下一步是添加一些样板代码，以便之后简化代码流。由于当前任务比之前的任务稍微复杂一些（或不太直观），我们将更多的准备工作封装在数据集构建函数中。由于数据集的大小，我们仅加载训练数据的一个子集，并从中采样带有负标签的数据：
 
-```
+```py
 def build_train(train_path, n_rows=200000, sampling_rate=15):
     with open(train_path) as f:
         processed_rows = []
@@ -741,7 +741,7 @@ def build_test(test_path):
 
 使用下一个函数，我们训练一个 Keras tokenizer，将文本和问题编码成整数列表（分词），然后将它们填充到固定长度，形成一个用于文本的单一 NumPy 数组，另一个用于问题：
 
-```
+```py
 def compute_text_and_questions(train, test, tokenizer):
     train_text = tokenizer.texts_to_sequences(train.text.values)
     train_questions = tokenizer.texts_to_sequences(train.question.values)
@@ -758,7 +758,7 @@ def compute_text_and_questions(train, test, tokenizer):
 
 与基于 RNN 的 NLP 模型一样，我们需要一个嵌入矩阵：
 
-```
+```py
 def build_embedding_matrix(tokenizer, path):
     embedding_matrix = np.zeros((tokenizer.num_words + 1, 300))
     ft_model = fasttext.load_model(path)
@@ -778,7 +778,7 @@ def build_embedding_matrix(tokenizer, path):
 
 1.  我们在输出上使用 sigmoid：
 
-```
+```py
 def build_model(embedding_matrix):
     embedding = Embedding(
         *embedding_matrix.shape, 
@@ -814,7 +814,7 @@ def build_model(embedding_matrix):
 
 使用我们定义的工具包，我们可以构建数据集，具体如下：
 
-```
+```py
 directory = '../input/tensorflow2-question-answering/'
 train_path = directory + 'simplified-nq-train.jsonl'
 test_path = directory + 'simplified-nq-test.jsonl'
@@ -824,13 +824,13 @@ test = build_test(test_path)
 
 这就是数据集的样子：
 
-```
+```py
 train.head() 
 ```
 
 ![Obraz zawierający stół  Opis wygenerowany automatycznie](img/B16254_09_04.png)
 
-```
+```py
 tokenizer = text.Tokenizer(lower=False, num_words=80000)
 for text in tqdm([train.text, test.text, train.question, test.question]):
     tokenizer.fit_on_texts(text.values)
@@ -841,7 +841,7 @@ del train
 
 现在我们可以构建模型本身：
 
-```
+```py
 embedding_matrix = build_embedding_matrix(tokenizer, embedding_path)
 model = build_model(embedding_matrix)
 model.summary()
@@ -889,7 +889,7 @@ ________________________________________________________________________________
 
 接下来的步骤是拟合，按照通常的方式进行：
 
-```
+```py
 train_history = model.fit(
     [train_text, train_questions], 
     train_target,
@@ -901,7 +901,7 @@ train_history = model.fit(
 
 现在，我们可以构建一个测试集，来查看我们生成的答案：
 
-```
+```py
 directory = '/kaggle/input/tensorflow2-question-answering/'
 test_path = directory + 'simplified-nq-test.jsonl'
 test = build_test(test_path)
@@ -911,7 +911,7 @@ test_text, test_questions = compute_text_and_questions(test, tokenizer)
 
 我们生成实际的预测：
 
-```
+```py
 test_target = model.predict([test_text, test_questions], batch_size=512)
 test['target'] = test_target
 result = (

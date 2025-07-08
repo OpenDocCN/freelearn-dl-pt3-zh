@@ -56,7 +56,7 @@
 
 按照构建、编译和拟合的标准三步法，我们将构建一个**卷积神经网络**（**CNN**）模型，该模型包括两个 Conv2D 和池化层，并配有一个具有 1,050 个神经元的全连接层。输出层由四个神经元组成，表示我们数据集中的四个类别。然后，我们使用训练数据将模型编译并拟合 20 个周期：
 
-```
+```py
 #Build
 model_1 = tf.keras.models.Sequential([
     tf.keras.layers.Conv2D(filters=16,
@@ -112,7 +112,7 @@ history_1 = model_1.fit(train_data,
 
 让我们重新创建相同的基准模型，但这次我们将应用一个内置回调，在验证精度未能提高时停止训练。我们将使用与第一个模型相同的构建和编译步骤，然后在拟合模型时添加回调：
 
-```
+```py
 #Fit the model
 # Add an early stopping callback
 callbacks = [tf.keras.callbacks.EarlyStopping(
@@ -126,7 +126,7 @@ history_2 = model_2.fit(train_data,
 
 在这里，我们将周期数指定为`20`，并添加了验证集来监控模型在训练过程中的表现。之后，我们使用`callbacks`参数指定了一个回调函数来实现早停。我们使用了一个早停回调，在验证集的精度未能提高时，训练将在三轮后停止。通过将`patience`参数设置为`3`来实现这一点。这意味着如果验证精度连续三轮没有进展，早停回调将停止训练。我们还将`restore_best_weights`参数设置为`True`；这将在训练结束时恢复训练过程中最好的模型权重。`fit`函数的信息存储在`history_2`变量中：
 
-```
+```py
 Epoch 8/20
 25/25 [==============================] - 8s 318ms/step - loss: 0.0685 - accuracy: 0.9810 - val_loss: 0.3937 - val_accuracy: 0.8827
 Epoch 9/20
@@ -141,7 +141,7 @@ Epoch 12/20
 
 从训练过程来看，我们可以看到模型在第九个周期达到了`0.9218`的最高验证精度，之后训练继续进行了三轮才停止。由于验证精度没有进一步提升，训练被停止，并保存了最佳权重。现在，让我们在测试数据上评估`model_2`：
 
-```
+```py
 model_2.evaluate(test_data)
 ```
 
@@ -163,7 +163,7 @@ model_2.evaluate(test_data)
 
 模型简化可以通过多种方式实现——例如，我们可以用更小的滤波器替换大量的滤波器，或者我们还可以减少第一个 `Dense` 层中的神经元数量。在我们的架构中，你可以看到第一个全连接层有 `1050` 个神经元。作为模型简化实验的初步步骤，让我们将神经元数量减少到 `500`：
 
-```
+```py
     tf.keras.layers.Flatten(),
     tf.keras.layers.Dense(500, activation="relu"),
     tf.keras.layers.Dense(4, activation="softmax")
@@ -172,7 +172,7 @@ model_2.evaluate(test_data)
 
 当我们编译并拟合模型时，我们的模型在验证集上达到了 `0.9162` 的最高准确率：
 
-```
+```py
 Epoch 5/50
 25/25 [==============================] - 8s 300ms/step - loss: 0.1284 - accuracy: 0.9482 - val_loss: 0.4489 - val_accuracy: 0.8771
 Epoch 6/50
@@ -197,7 +197,7 @@ Epoch 9/50
 
 当处理具有大量无关特征的数据时，L1 正则化非常有用。L1 中的惩罚项会导致一些系数变为零，从而减少在建模过程中使用的特征数量；这反过来减少了过拟合的风险，因为模型将基于较少的噪声数据进行训练。相反，当目标是创建具有小权重和良好泛化能力的模型时，L2 是一个非常好的选择。L2 中的惩罚项减少了系数的大小，防止它们变得过大，从而导致过拟合：
 
-```
+```py
     tf.keras.layers.Flatten(),
     tf.keras.layers.Dense(1050, activation="relu",
         kernel_regularizer=regularizers.l2(0.01)),
@@ -218,7 +218,7 @@ Epoch 9/50
 
 当我们应用 dropout 技术时，模型被迫学习更鲁棒的特征，因为我们打破了神经元之间的共依赖性。然而，值得注意的是，当我们应用 dropout 时，训练过程可能需要更多的迭代才能达到收敛。让我们将 dropout 应用到我们的基础模型上，观察它的效果：
 
-```
+```py
     tf.keras.layers.Flatten(),
     tf.keras.layers.Dense(1050, activation="relu"),
     tf.keras.layers.Dropout(0.6), # added dropout layer
@@ -227,7 +227,7 @@ Epoch 9/50
 
 要在代码中实现 dropout，我们使用 `tf.keras.layers.Dropout(0.6)` 函数来指定 dropout 层。这会创建一个 dropout 层，dropout 率为 `0.6` —— 即在训练过程中我们会关闭 60% 的神经元。值得注意的是，我们可以将 dropout 值设置在 0 和 1 之间：
 
-```
+```py
 25/25 [==============================] - 8s 333ms/step - loss: 0.3069 - accuracy: 0.8913 - val_loss: 0.2227 - val_accuracy: 0.9330
 Epoch 6/10
 25/25 [==============================] - 8s 317ms/step - loss: 0.3206 - accuracy: 0.8824 - val_loss: 0.1797 - val_accuracy: 0.9441
@@ -245,7 +245,7 @@ Epoch 9/10
 
 在 *第六章*《*提高模型*》中，我们讨论了学习率以及寻找最优学习率的重要性。在这个实验中，我们使用 `0.0001` 的学习率，这是通过尝试不同的学习率得到的一个良好结果，类似于我们在 *第六章*《*提高模型*》中做的实验。在 *第十三章*《*使用 TensorFlow 进行时间序列、序列和预测*》中，我们将研究如何应用自定义和内建的学习率调度器。这里，我们还应用了早停回调，以确保当模型无法再提高时，训练能够终止。让我们编译我们的模型：
 
-```
+```py
 # Compile the model
 model_7.compile(loss="CategoricalCrossentropy",
     optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
@@ -254,7 +254,7 @@ model_7.compile(loss="CategoricalCrossentropy",
 
 我们将拟合模型并运行它。在七个 epoch 后，我们的模型训练停止，达到了验证集上的最佳性能 `0.9274`：
 
-```
+```py
 Epoch 3/10
 25/25 [==============================] - 8s 321ms/step - loss: 0.4608 - accuracy: 0.8508 - val_loss: 0.2776 - val_accuracy: 0.8994
 Epoch 4/10
@@ -291,7 +291,7 @@ Epoch 7/10
 
 要实现数据增强，您可以使用 `tf.keras.preprocessing.image` 模块中的 `ImageDataGenerator` 类。这个类允许您指定一系列的变换，这些变换只应应用于训练集中的图像，并且它会在训练过程中实时生成合成图像。例如，您可以使用 `ImageDataGenerator` 类对训练图像应用旋转、翻转和缩放变换，方法如下：
 
-```
+```py
 train_datagen = ImageDataGenerator(rescale=1./255,
     rotation_range=25, zoom_range=0.3)
 valid_datagen = ImageDataGenerator(rescale=1./255)
@@ -318,7 +318,7 @@ test_data = valid_datagen.flow_from_directory(
 
 接下来，我们将构建、编译并拟合我们的基准模型，并应用早停技术，在增强数据上进行训练：
 
-```
+```py
 Epoch 4/20
 25/25 [==============================] - 8s 308ms/step - loss: 0.2888 - accuracy: 0.9014 - val_loss: 0.3256 - val_accuracy: 0.8715
 Epoch 5/20

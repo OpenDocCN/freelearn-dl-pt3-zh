@@ -24,7 +24,7 @@
 
 你可以在命令终端使用`git`命令克隆它：
 
-```
+```py
 git clone https://github.com/PacktPublishing/learn-tensorflow-enterprise.git
 ```
 
@@ -56,7 +56,7 @@ git clone https://github.com/PacktPublishing/learn-tensorflow-enterprise.git
 
 1.  我们通过一个`import`语句开始这个训练脚本，导入我们所需的所有库：
 
-    ```
+    ```py
     import tensorflow as tf
     import tensorflow_hub as hub
     import tensorflow_datasets as tfds
@@ -72,7 +72,7 @@ git clone https://github.com/PacktPublishing/learn-tensorflow-enterprise.git
 
 1.  配备了`flags` API 的`import`语句后，我们将为`flags.FLAGS`定义一个简短的别名，并定义一系列我们将传递给脚本的用户输入。这是通过`tf.compat.v1.flags` API 实现的。请注意，我们可以为用户输入定义数据类型，并提供默认值，以便用户无需指定每个输入：
 
-    ```
+    ```py
     FLAGS = flags.FLAGS
     # flag name, default value, explanation/help.
     tf.compat.v1.flags.DEFINE_string('model_dir', 'default_model_dir', 'Directory or bucket for storing checkpoint model.')
@@ -90,7 +90,7 @@ git clone https://github.com/PacktPublishing/learn-tensorflow-enterprise.git
 
 1.  我们可能会在以下函数中封装模型架构和编译过程：
 
-    ```
+    ```py
     def model_default():
         flags_obj = flags.FLAGS
         os.environ['TFHUB_CACHE_DIR'] = flags_obj.cache_dir
@@ -119,7 +119,7 @@ git clone https://github.com/PacktPublishing/learn-tensorflow-enterprise.git
 
 1.  至于图像数据的输入管道，这个管道需要处理数据解析。可以通过以下函数来实现：
 
-    ```
+    ```py
     def decode_and_resize(serialized_example):
         # resized image should be [224, 224, 3] and normalized to value range [0, 255] 
         # label is integer index of class.
@@ -152,7 +152,7 @@ git clone https://github.com/PacktPublishing/learn-tensorflow-enterprise.git
 
 1.  我们还需要将图像像素值归一化到[0, 1.0]的范围内。可以通过以下函数来实现：
 
-    ```
+    ```py
     def normalize(image, label):
         #Convert `image` from [0, 255] -> [0, 1.0] floats 
         image = tf.cast(image, tf.float32) / 255.
@@ -163,7 +163,7 @@ git clone https://github.com/PacktPublishing/learn-tensorflow-enterprise.git
 
 1.  然后我们在以下函数中对训练数据应用洗牌和批处理操作：
 
-    ```
+    ```py
     def prepare_for_training(ds, cache=True, shuffle_buffer_size=1000):
         # This is a small dataset, only load it once, and keep it in memory.
         # use `.cache(filename)` to cache preprocessing work for datasets that don't
@@ -189,7 +189,7 @@ git clone https://github.com/PacktPublishing/learn-tensorflow-enterprise.git
 
 1.  现在我们来到了这段代码的主要驱动部分：
 
-    ```
+    ```py
     def main(_):
         flags_obj = flags.FLAGS
            if flags_obj.distribution_strategy == 'tpu':
@@ -215,7 +215,7 @@ git clone https://github.com/PacktPublishing/learn-tensorflow-enterprise.git
 
 1.  接着在`main()`中，数据路径通过`tf.data` API 进行识别和处理：
 
-    ```
+    ```py
         ## identify data paths and sources
         root_dir = flags_obj.data_dir # this is gs://<bucket>/folder or file path where tfrecord is found
         file_pattern = '{}/image_classification_builder-train*.tfrecord*'.format(root_dir)
@@ -236,7 +236,7 @@ git clone https://github.com/PacktPublishing/learn-tensorflow-enterprise.git
 
 1.  继续在`main()`函数中，现在我们需要对训练和验证数据集中的每个样本应用特征工程和归一化函数。通过`map`函数来完成：
 
-    ```
+    ```py
         # perform data engineering 
         dataset = train_all_ds.map(decode_and_resize)
         val_dataset = val_all_ds.map(decode_and_resize)
@@ -257,7 +257,7 @@ git clone https://github.com/PacktPublishing/learn-tensorflow-enterprise.git
 
 1.  现在我们需要为训练和验证设置一些参数：
 
-    ```
+    ```py
         NUM_CLASSES = 5
         IMAGE_SIZE = (224, 224)
             train_sample_size=0
@@ -278,7 +278,7 @@ git clone https://github.com/PacktPublishing/learn-tensorflow-enterprise.git
 
 1.  继续使用`main()`，我们现在可以通过调用`model_default`函数来创建模型：
 
-    ```
+    ```py
         model = model_default()
         checkpoint_prefix = os.path.join(flags_obj.model_dir, 
                                         'train_ckpt_{epoch}')
@@ -293,7 +293,7 @@ git clone https://github.com/PacktPublishing/learn-tensorflow-enterprise.git
 
 1.  继续使用`main()`，我们现在可以启动训练过程：
 
-    ```
+    ```py
          model.fit(
             train_ds,
             epochs=flags_obj.train_epochs, 
@@ -307,7 +307,7 @@ git clone https://github.com/PacktPublishing/learn-tensorflow-enterprise.git
 
 1.  继续使用`main()`，我们可以在执行此脚本的终端中将输出记录为`STDOUT`：
 
-    ```
+    ```py
         logging.info('INSIDE MAIN FUNCTION user input model_dir %s', flags_obj.model_dir)
             timestr = time.strftime('%Y%m%d-%H%M%S')
         output_folder = flags_obj.model_dir + '-' + timestr
@@ -327,35 +327,35 @@ git clone https://github.com/PacktPublishing/learn-tensorflow-enterprise.git
 
 这标志着`main()`的结束。模型保存在`model_save_dir`中。要调用此脚本，你只需在你的 Python 环境中运行以下命令：
 
-```
+```py
 python3 default_trainer.py \
 ```
 
-```
+```py
 --distribution_strategy=default \
 ```
 
-```
+```py
 --fine_tuning_choice=False \
 ```
 
-```
+```py
 --train_batch_size=32 \
 ```
 
-```
+```py
 --validation_batch_size=40 \
 ```
 
-```
+```py
 --train_epochs=5 \
 ```
 
-```
+```py
 --data_dir=tf_datasets/flower_photos \
 ```
 
-```
+```py
 --model_dir=trained_resnet_vector
 ```
 
@@ -371,65 +371,65 @@ python3 default_trainer.py \
 
 对于原始模型，它以`savedModel` Protobuf 格式存储。我们需要按照以下方式加载它：
 
-```
+```py
 import tensorflow as tf
 ```
 
-```
+```py
 import numpy as np
 ```
 
-```
+```py
 import matplotlib.pyplot as plt
 ```
 
-```
+```py
 from PIL import Image, ImageOps
 ```
 
-```
+```py
 import IPython.display as display
 ```
 
-```
+```py
 path_saved_model = 'trained_resnet_vector-unquantized/save_model'
 ```
 
-```
+```py
 trained_model = tf.saved_model.load(path_saved_model)
 ```
 
 我们刚刚训练的完整模型现在已加载到 Jupyter 笔记本的运行时中，命名为`trained_model`。对于评分，还需要做一些额外的步骤。我们必须找到用于预测的模型签名：
 
-```
+```py
 signature_list = list(trained_model.signatures.keys())
 ```
 
-```
+```py
 signature_list
 ```
 
 它显示此列表中只有一个签名：
 
-```
+```py
 ['serving_default']
 ```
 
 我们将创建一个`infer`包装函数并将签名传递给它：
 
-```
+```py
 infer = trained_model.signatures[signature_list[0]]
 ```
 
 这里，`signature_list[0]`等同于`serving_default`。现在让我们打印输出：
 
-```
+```py
 print(infer.structured_outputs)
 ```
 
 让我们看看前面函数的输出：
 
-```
+```py
 {'custom_class': TensorSpec(shape=(None, 5), dtype=tf.float32, name='custom_class')}
 ```
 
@@ -445,47 +445,47 @@ print(infer.structured_outputs)
 
 让我们从加载 TFRecord 数据开始：
 
-```
+```py
 root_dir = ' tf_datasets/flower_photos'
 ```
 
-```
+```py
 test_pattern = '{}/image_classification_builder-test.tfrecord*'.format(root_dir)
 ```
 
-```
+```py
 test_all_files = tf.data.Dataset.list_files( tf.io.gfile.glob(test_pattern))
 ```
 
-```
+```py
 test_all_ds = tf.data.TFRecordDataset(test_all_files,
 ```
 
-```
+```py
 num_parallel_reads=tf.data.experimental.AUTOTUNE)
 ```
 
 我们将使用以下代码检查图像的样本大小：
 
-```
+```py
 sample_size = 0
 ```
 
-```
+```py
 for raw_record in test_all_ds:
 ```
 
-```
+```py
     sample_size += 1
 ```
 
-```
+```py
 print('Sample size: ', sample_size)
 ```
 
 这是输出结果：
 
-```
+```py
 Sample size:  50
 ```
 
@@ -493,107 +493,107 @@ Sample size:  50
 
 这个测试数据集中有 `50` 张图像。我们将重用来自*第六章*的辅助函数，*超参数调优*，来解码 TFRecord 及其中的元数据，然后对像素值进行归一化处理：
 
-```
+```py
 def decode_and_resize(serialized_example):
 ```
 
-```
+```py
     # resized image should be [224, 224, 3] and normalized to value range [0, 255] 
 ```
 
-```
+```py
     # label is integer index of class.
 ```
 
-```
+```py
         parsed_features = tf.io.parse_single_example(
 ```
 
-```
+```py
     serialized_example,
 ```
 
-```
+```py
     features = {
 ```
 
-```
+```py
     'image/channels' :  tf.io.FixedLenFeature([], tf.int64),
 ```
 
-```
+```py
     'image/class/label' :  tf.io.FixedLenFeature([], tf.int64),
 ```
 
-```
+```py
     'image/class/text' : tf.io.FixedLenFeature([], tf.string),
 ```
 
-```
+```py
     'image/colorspace' : tf.io.FixedLenFeature([], tf.string),
 ```
 
-```
+```py
     'image/encoded' : tf.io.FixedLenFeature([], tf.string),
 ```
 
-```
+```py
     'image/filename' : tf.io.FixedLenFeature([], tf.string),
 ```
 
-```
+```py
     'image/format' : tf.io.FixedLenFeature([], tf.string),
 ```
 
-```
+```py
     'image/height' : tf.io.FixedLenFeature([], tf.int64),
 ```
 
-```
+```py
     'image/width' : tf.io.FixedLenFeature([], tf.int64)
 ```
 
-```
+```py
     })
 ```
 
-```
+```py
     image = tf.io.decode_jpeg(parsed_features['image/encoded'], 	                                                    channels=3)
 ```
 
-```
+```py
     label = tf.cast(parsed_features['image/class/label'],         	                                                      tf.int32)
 ```
 
-```
+```py
     label_txt = tf.cast(parsed_features['image/class/text'], 	                                                     tf.string)
 ```
 
-```
+```py
     label_one_hot = tf.one_hot(label, depth = 5)
 ```
 
-```
+```py
     resized_image = tf.image.resize(image, [224, 224],  	     	                                              method='nearest')
 ```
 
-```
+```py
     return resized_image, label_one_hot
 ```
 
-```
+```py
 def normalize(image, label):
 ```
 
-```
+```py
     #Convert `image` from [0, 255] -> [0, 1.0] floats 
 ```
 
-```
+```py
     image = tf.cast(image, tf.float32) / 255\. 
 ```
 
-```
+```py
    return image, label
 ```
 
@@ -603,45 +603,45 @@ def normalize(image, label):
 
 现在我们可以应用前述的辅助函数来解码、标准化和归一化 TFRecord 数据集中的图像：
 
-```
+```py
 decoded = test_all_ds.map(decode_and_resize)
 ```
 
-```
+```py
 normed = decoded.map(normalize)
 ```
 
 请注意，我们通过 `np.expand_dims` 在第一个维度引入了一个额外的维度。这个额外的维度是为了变量批大小的需要：
 
-```
+```py
 np_img_holder = np.empty((0, 224, 224,3), float)
 ```
 
-```
+```py
 np_lbl_holder = np.empty((0, 5), int)
 ```
 
-```
+```py
 for img, lbl in normed:
 ```
 
-```
+```py
     r = img.numpy() # image value extracted
 ```
 
-```
+```py
     rx = np.expand_dims(r, axis=0) 
 ```
 
-```
+```py
     lx = np.expand_dims(lbl, axis=0) 
 ```
 
-```
+```py
     np_img_holder = np.append(np_img_holder, rx, axis=0) 
 ```
 
-```
+```py
 np_lbl_holder = np.append(np_lbl_holder, lx, axis=0) 
 ```
 
@@ -649,27 +649,27 @@ np_lbl_holder = np.append(np_lbl_holder, lx, axis=0)
 
 我们现在将检查这些图像。为此，我们可以使用以下代码，在图 7.1 中将 NumPy 数组 `np_img_holder` 作为图像显示：
 
-```
+```py
 %matplotlib inline
 ```
 
-```
+```py
 plt.figure()
 ```
 
-```
+```py
 for i in range(len(np_img_holder)):
 ```
 
-```
+```py
     plt.subplot(10, 5, i+1)
 ```
 
-```
+```py
     plt.axis('off')
 ```
 
-```
+```py
 plt.imshow(np.asarray(np_img_holder[i]))
 ```
 
@@ -685,7 +685,7 @@ plt.imshow(np.asarray(np_img_holder[i]))
 
 1.  我们将首先使用一张图像测试我们的评分流程。就像我们通过在第一维添加一个新维度来创建图像批次一样，我们也将通过相同的方式创建一个样本大小为`1`的图像批次：
 
-    ```
+    ```py
     x = np.expand_dims(np_img_holder[0], axis=0)
     x.shape
     (1, 224, 224, 3)
@@ -693,13 +693,13 @@ plt.imshow(np.asarray(np_img_holder[i]))
 
 1.  现在维度是正确的，这是一个包含一张图像的批次。我们将其转换为`float32`类型的张量：
 
-    ```
+    ```py
     xf = tf.dtypes.cast(x, tf.float32)
     ```
 
     然后，将此传递给`infer`函数进行评分：
 
-    ```
+    ```py
     prediction = infer(xf)
     ```
 
@@ -707,13 +707,13 @@ plt.imshow(np.asarray(np_img_holder[i]))
 
 1.  现在我们将检查预测的内容：
 
-    ```
+    ```py
     prediction.get('custom_class')
     ```
 
     输出结果应类似于以下内容：
 
-    ```
+    ```py
     <tf.Tensor: shape=(1, 5), dtype=float32, numpy=
     array([[1.5271275e-04, 2.0515859e-05, 1.0230409e-06, 2.9591745e-06, 9.9982280e-01]], dtype=float32)>
     ```
@@ -722,7 +722,7 @@ plt.imshow(np.asarray(np_img_holder[i]))
 
     现在我们将其转换为 NumPy 数组，以便我们可以找到预测最大概率的位置：
 
-    ```
+    ```py
     predicted_prob_array = prediction.get('custom_class').numpy()
     idx = np.argmax(predicted_prob_array)
     print(idx)
@@ -730,7 +730,7 @@ plt.imshow(np.asarray(np_img_holder[i]))
 
 1.  第四个位置的索引是预测最大概率的位置。现在我们需要通过将此索引映射到标签来了解它代表的是什么。我们需要创建一个反向查找字典，将概率映射回标签。我们刚刚找到了最大概率所在的索引。接下来的步骤是将`idx`映射到正确的花卉类型。为此，我们需要从 TFRecord 中提取该信息：
 
-    ```
+    ```py
     feature_description = {
         'image/channels' :  tf.io.FixedLenFeature([], 	 	                                                tf.int64),
         'image/class/label' :  tf.io.FixedLenFeature([], 	 	                                                tf.int64),
@@ -760,25 +760,25 @@ plt.imshow(np.asarray(np_img_holder[i]))
 
 1.  我们简单地创建一个字典，其中键是`label_idx`，值是`label_str`。结果是`val_label_map`。如果我们按如下方式检查它：
 
-    ```
+    ```py
     val_label_map
     ```
 
     输出结果如下：
 
-    ```
+    ```py
     {4: 'tulips', 3: 'dandelion', 1: 'sunflowers', 2: 'daisy', 0: 'roses'}
     ```
 
     然后我们评估`idx`：
 
-    ```
+    ```py
     print(val_label_map.get(idx))
     ```
 
     这是输出结果：
 
-    ```
+    ```py
     tulip
     ```
 
@@ -790,14 +790,14 @@ plt.imshow(np.asarray(np_img_holder[i]))
 
 1.  在上一节中，我们创建了正确形状的图像批次，形状为`[50, 224, 224, 3]`。现在可以进行评分了：
 
-    ```
+    ```py
     batched_input = tf.dtypes.cast(np_img_holder, tf.float32)
     batch_predicted_prob_array = infer(batched_input)
     ```
 
     让我们创建一个函数，帮助在给定 NumPy 数组和查找字典时查找标签名称：
 
-    ```
+    ```py
     def lookup(np_entry, dictionary):
       	class_key = np.argmax(np_entry)
     	return dictionary.get(class_key)
@@ -807,7 +807,7 @@ plt.imshow(np.asarray(np_img_holder[i]))
 
 1.  这是一个包含我们真实标签的列表，如`np_lbl_holder`所示：
 
-    ```
+    ```py
     actual = []
     for i in range(len(np_lbl_holder)):
         plain_text_label = lookup(np_lbl_holder[i], 
@@ -819,7 +819,7 @@ plt.imshow(np.asarray(np_img_holder[i]))
 
 1.  这是我们如何获得包含预测标签的列表：
 
-    ```
+    ```py
     predicted_label = []
     for i in range(sample_size):
     batch_prediction = batch_predicted_prob_array.get('custom_class').numpy()
@@ -832,7 +832,7 @@ plt.imshow(np.asarray(np_img_holder[i]))
 
 1.  我们将比较`predicted_label`和`actual`来计算模型的准确率：
 
-    ```
+    ```py
     from sklearn.metrics import accuracy_score
     accuracy=accuracy_score(actual, predicted_label)
     print(accuracy)
@@ -851,7 +851,7 @@ plt.imshow(np.asarray(np_img_holder[i]))
 
 1.  让我们首先加载训练好的模型：
 
-    ```
+    ```py
     import tensorflow as tf
     import pathlib
     import os
@@ -868,13 +868,13 @@ plt.imshow(np.asarray(np_img_holder[i]))
 
 1.  然后，我们将创建一个`converter`对象，使用以下代码来引用`savedModel`目录：
 
-    ```
+    ```py
     converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
     ```
 
     对于`converter`对象，我们将选择`DEFAULT`优化策略，以最佳方式提高模型的大小和延迟：
 
-    ```
+    ```py
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
     ```
 
@@ -882,14 +882,14 @@ plt.imshow(np.asarray(np_img_holder[i]))
 
 1.  接下来，我们将设置`float16`作为模型参数的目标类型，并开始转换过程：
 
-    ```
+    ```py
     converter.target_spec.supported_types = [tf.float16]
     tflite_model = converter.convert()
     ```
 
     我们将使用以下代码设置目录路径来保存量化后的模型：
 
-    ```
+    ```py
     root_dir = ''
     tflite_model_dir = trained_resnet_vector-unquantized
     to_save_tflite_model_dir = os.path.join(root_dir, 
@@ -898,33 +898,33 @@ plt.imshow(np.asarray(np_img_holder[i]))
 
 1.  现在，我们将创建一个`pathlib`对象来表示我们想要保存量化模型的目录：
 
-    ```
+    ```py
     saved_tflite_model_dir = pathlib.Path(
                                     to_save_tflite_model_dir)
     ```
 
     让我们创建一个目录来保存量化后的模型：
 
-    ```
+    ```py
     saved_tflite_model_dir.mkdir(exist_ok=True, parents=True) 
     ```
 
 1.  我们现在将创建一个`pathlib`对象`tgt`来表示量化模型文件：
 
-    ```
+    ```py
     tgt = pathlib.Path(tflite_models_dir, 
                             'converted_model_reduced.tflite')
     ```
 
     我们现在将使用`pathlib`对象`tgt`来写入量化后的模型：
 
-    ```
+    ```py
     tgt.write_bytes(tflite_model)
     ```
 
     这将显示以字节为单位写入的输出大小：
 
-    ```
+    ```py
     47487392
     ```
 
@@ -944,21 +944,21 @@ plt.imshow(np.asarray(np_img_holder[i]))
 
 1.  我们将从由`tflite_models_dir`表示的文件路径加载量化模型。在上一节中，我们创建了一个`pathlib`对象` tgt` 来表示量化模型文件：
 
-    ```
+    ```py
     tgt = pathlib.Path(tflite_models_dir, 
                             'converted_model_reduced.tflite')
     ```
 
 1.  接着我们需要获取`input_details`和`output_details`张量：
 
-    ```
+    ```py
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
     ```
 
 1.  从这些张量中，我们将检查输入和输出中 NumPy 数组的形状：
 
-    ```
+    ```py
     input_details[0]['shape']
     array([  1, 224, 224,   3], dtype=int32)
     output_details[0]['shape']
@@ -971,41 +971,41 @@ plt.imshow(np.asarray(np_img_holder[i]))
 
 现在我们可以开始使用 TFLite 量化模型进行评分。在接下来的步骤中，我们首先扩展样本，包含一个批量维度，将输入数据传递给解释器，进行输入数据的评分，然后获取预测结果的输出：
 
-```
+```py
 input_data = np.array(np.expand_dims(np_img_holder[0], axis=0), dtype=np.float32)
 ```
 
-```
+```py
 interpreter.set_tensor(input_details[0]['index'], input_data)
 ```
 
-```
+```py
 interpreter.invoke()
 ```
 
-```
+```py
 output_data = interpreter.get_tensor(output_details[0]['index'])
 ```
 
-```
+```py
 print(output_data)
 ```
 
 输出如下：
 
-```
+```py
 [[1.5181543e-04 2.0090181e-05 1.0022727e-06 2.8991076e-06 9.9982423e-01]]
 ```
 
 要将`output_data`映射回原始标签，请执行以下命令：
 
-```
+```py
 lookup(output_data, val_label_map)
 ```
 
 输出如下：
 
-```
+```py
 'tulips'
 ```
 
@@ -1015,7 +1015,7 @@ lookup(output_data, val_label_map)
 
 1.  这是一个处理批量评分的函数：
 
-    ```
+    ```py
     def batch_predict(input_raw, input_tensor, output_tensor, dictionary):
         input_data = np.array(np.expand_dims(input_raw, 
                                    axis=0), dtype=np.float32)
@@ -1033,7 +1033,7 @@ lookup(output_data, val_label_map)
 
 1.  接下来，我们将遍历测试数据，调用`batch_predict`：
 
-    ```
+    ```py
     batch_quantized_prediction = []
     for i in range(sample_size):
         plain_text_label = batch_predict(np_img_holder[i], input_details, output_details, val_label_map)
@@ -1044,14 +1044,14 @@ lookup(output_data, val_label_map)
 
 1.  就像我们衡量原始模型预测准确性一样，我们也可以使用`accuracy_score`来获取 TFLite 量化模型的准确性：
 
-    ```
+    ```py
     quantized_accuracy = accuracy_score(actual, batched_quantized_prediiction)
     print(quantized_accuracy)
     ```
 
     输出如下：
 
-    ```
+    ```py
     0.82
     ```
 
@@ -1071,25 +1071,25 @@ lookup(output_data, val_label_map)
 
 对于混合量化，我们需要做一个小的修改。只有一行的区别，如下所述。在上一部分中，这是我们如何将完整模型量化为一个减少的`float16` TFLite 模型：
 
-```
+```py
 converter.optimizations = [tf.lite.Optimize.DEFAULT]
 ```
 
-```
+```py
 converter.target_spec.supported_types = [tf.float16]
 ```
 
-```
+```py
 tflite_model = converter.convert()
 ```
 
 对于混合量化，我们只需删除关于`supported_types`的中间一行：
 
-```
+```py
 converter.optimizations = [tf.lite.Optimize.DEFAULT]
 ```
 
-```
+```py
 tflite_model = converter.convert()
 ```
 
@@ -1097,7 +1097,7 @@ tflite_model = converter.convert()
 
 1.  和往常一样，我们将指定必要的库和模型路径：
 
-    ```
+    ```py
     import tensorflow as tf
     import pathlib
     import os
@@ -1113,7 +1113,7 @@ tflite_model = converter.convert()
 
 1.  然后我们为`saved_model_dir`创建一个`converter`对象，并用它来转换我们的模型：
 
-    ```
+    ```py
     converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
     tflite_model = converter.convert()
@@ -1123,7 +1123,7 @@ tflite_model = converter.convert()
 
 1.  现在我们将保存我们的混合量化模型：
 
-    ```
+    ```py
     root_dir = ''
     tflite_models_dir = 'trained_resnet_vector-unquantized/tflite_hybrid_model'
     to_save_tflite_model_dir = os.path.join(root_dir,           tflite_models_dir)
@@ -1135,7 +1135,7 @@ tflite_model = converter.convert()
 
     输出显示模型的大小，以字节为单位：
 
-    ```
+    ```py
     24050608
     ```
 
@@ -1147,7 +1147,7 @@ tflite_model = converter.convert()
 
 1.  我们可以加载 TFRecord 数据，就像我们之前做的那样：
 
-    ```
+    ```py
     root_dir = '../train_base_model/tf_datasets/flower_photos'
     test_pattern = '{}/image_classification_builder-test.tfrecord*'.format(root_dir)
     test_all_files = tf.data.Dataset.list_files( tf.io.gfile.glob(test_pattern))
@@ -1158,7 +1158,7 @@ tflite_model = converter.convert()
 
 1.  我们可以通过遍历数据集并跟踪样本数量来确定样本大小：
 
-    ```
+    ```py
     sample_size = 0
     for raw_record in test_all_ds:
         sample_size += 1
@@ -1169,7 +1169,7 @@ tflite_model = converter.convert()
 
 1.  我们使用在简化的 `float16` 模型部分中看到的相同辅助函数来标准化图像大小和像素值：
 
-    ```
+    ```py
     def decode_and_resize(serialized_example):
         # resized image should be [224, 224, 3] and normalized to value range [0, 255] 
         # label is integer index of class.
@@ -1208,14 +1208,14 @@ tflite_model = converter.convert()
 
 1.  接下来，我们将使用以下辅助函数应用转换：
 
-    ```
+    ```py
     decoded = test_all_ds.map(decode_and_resize)
     normed = decoded.map(normalize)
     ```
 
 1.  让我们将 TFRecord 转换为 NumPy 数组进行评分：
 
-    ```
+    ```py
     np_img_holder = np.empty((0, 224, 224,3), float)
     np_lbl_holder = np.empty((0, 5), int)
     for img, lbl in normed:
@@ -1230,7 +1230,7 @@ tflite_model = converter.convert()
 
 1.  我们现在需要提取真实标签，以便我们能够衡量预测的准确性：
 
-    ```
+    ```py
     actual = []
     for i in range(len(np_lbl_holder)):
         class_key = np.argmax(np_lbl_holder[i])
@@ -1241,7 +1241,7 @@ tflite_model = converter.convert()
 
 1.  我们可以使用以下代码检查 NumPy 数组 `np_img_holder` 中的图像，产生如 *图 7.1* 中所示的图像：
 
-    ```
+    ```py
     %matplotlib inline
     plt.figure()
     for i in range(len(np_img_holder)):
@@ -1260,91 +1260,91 @@ tflite_model = converter.convert()
 
 为了创建查找字典，我们将解析带有特征描述的 TFRecord 文件，提取标签索引和名称，如下代码所示：
 
-```
+```py
 feature_description = {
 ```
 
-```
+```py
     'image/channels' :  tf.io.FixedLenFeature([], tf.int64),
 ```
 
-```
+```py
     'image/class/label' :  tf.io.FixedLenFeature([], tf.int64),
 ```
 
-```
+```py
     'image/class/text' : tf.io.FixedLenFeature([], tf.string),
 ```
 
-```
+```py
     'image/colorspace' : tf.io.FixedLenFeature([], tf.string),
 ```
 
-```
+```py
     'image/encoded' : tf.io.FixedLenFeature([], tf.string),
 ```
 
-```
+```py
     'image/filename' : tf.io.FixedLenFeature([], tf.string),
 ```
 
-```
+```py
     'image/format' : tf.io.FixedLenFeature([], tf.string),
 ```
 
-```
+```py
     'image/height' : tf.io.FixedLenFeature([], tf.int64),
 ```
 
-```
+```py
     'image/width' : tf.io.FixedLenFeature([], tf.int64)
 ```
 
-```
+```py
 }
 ```
 
-```
+```py
 def _parse_function(example_proto):
 ```
 
-```
+```py
   return tf.io.parse_single_example(example_proto, 
 ```
 
-```
+```py
                                            feature_description)
 ```
 
-```
+```py
 parsd_ds = test_all_ds.map(_parse_function)
 ```
 
-```
+```py
 val_label_map = {}
 ```
 
-```
+```py
 # getting label mapping
 ```
 
-```
+```py
 for image_features in parsd_ds.take(50):
 ```
 
-```
+```py
     label_idx = image_features['image/class/label'].numpy()
 ```
 
-```
+```py
     label_str = image_features['image/class/text'].numpy().decode()
 ```
 
-```
+```py
     if label_idx not in val_label_map:
 ```
 
-```
+```py
         val_label_map[label_idx] = label_str
 ```
 
@@ -1352,7 +1352,7 @@ for image_features in parsd_ds.take(50):
 
 我们还可以检查 `val_label_map`：
 
-```
+```py
 {4: 'tulips', 3: 'dandelion', 1: 'sunflowers', 2: 'daisy', 0: 'roses'}
 ```
 
@@ -1364,7 +1364,7 @@ for image_features in parsd_ds.take(50):
 
 1.  我们将按常规步骤加载模型并分配张量，代码如下：
 
-    ```
+    ```py
     interpreter = tf.lite.Interpreter(model_path=str(tgt))
     interpreter.allocate_tensors()
     ```
@@ -1373,7 +1373,7 @@ for image_features in parsd_ds.take(50):
 
 1.  为了确定模型操作的张量的输入和输出形状，我们可以通过以下方式获取输入和输出张量：
 
-    ```
+    ```py
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
     ```
@@ -1386,7 +1386,7 @@ for image_features in parsd_ds.take(50):
 
 1.  我们可以开始处理图像数组，并扩展其维度以形成批次：
 
-    ```
+    ```py
     input_data = np.array(np.expand_dims(np_img_holder[0], axis=0), dtype=np.float32)
     interpreter.set_tensor(input_details[0]['index'], input_data)
     interpreter.invoke()
@@ -1396,7 +1396,7 @@ for image_features in parsd_ds.take(50):
 
     前面的代码将图像扩展为批次维度，然后将其传递给解释器进行预测。前面代码的输出如下：
 
-    ```
+    ```py
     [[1.1874483e-04 1.3445899e-05 8.4869811e-07 2.8064751e-06 9.9986410e-01]]
     ```
 
@@ -1404,7 +1404,7 @@ for image_features in parsd_ds.take(50):
 
 1.  我们使用一个辅助函数（`lookup`）将概率转换为最可能的类别名称：
 
-    ```
+    ```py
     def lookup(np_entry, dictionary):
         class_key = np.argmax(np_entry)
         return dictionary.get(class_key)
@@ -1413,7 +1413,7 @@ for image_features in parsd_ds.take(50):
 
     输出如下：
 
-    ```
+    ```py
     'tulips'
     ```
 
@@ -1425,7 +1425,7 @@ for image_features in parsd_ds.take(50):
 
 1.  我们将通过以下代码迭代整个数据集来评分批次：
 
-    ```
+    ```py
     def batch_predict(input_raw, input_tensor, output_tensor, dictionary):
         input_data = np.array(np.expand_dims(input_raw, 	  	                               axis=0), dtype=np.float32)
         interpreter.set_tensor(input_tensor[0]['index'], 	 	                                              input_data)
@@ -1440,7 +1440,7 @@ for image_features in parsd_ds.take(50):
 
 1.  然后，我们需要迭代我们的测试数据，以调用`batch_predict`：
 
-    ```
+    ```py
     batch_quantized_prediction = []
     for i in range(sample_size):
         plain_text_label = batch_predict(np_img_holder[i], input_details, output_details, val_label_map)
@@ -1449,14 +1449,14 @@ for image_features in parsd_ds.take(50):
 
     我们可以使用`accuracy_score`函数在 sklearn 库中评估模型的准确性：
 
-    ```
+    ```py
     accuracy=accuracy_score(actual, batch_quantized_prediction)
     print(accuracy)
     ```
 
     它的输出如下：
 
-    ```
+    ```py
     0.82
     ```
 
@@ -1488,7 +1488,7 @@ for image_features in parsd_ds.take(50):
 
 1.  和往常一样，我们首先导入库并加载数据集：
 
-    ```
+    ```py
     import tensorflow as tf
     import tensorflow_hub as hub
     import numpy as np
@@ -1509,7 +1509,7 @@ for image_features in parsd_ds.take(50):
 
 1.  然后我们将需要以下辅助函数来解码和标准化图像，规范化像素值，并设置训练数据集：
 
-    ```
+    ```py
     def decode_and_resize(serialized_example):
         # resized image should be [224, 224, 3] and normalized to value range [0, 255] 
         # label is integer index of class.
@@ -1546,7 +1546,7 @@ for image_features in parsd_ds.take(50):
 
 1.  现在我们需要定义一个函数来打乱和获取训练数据集。以下是实现此功能的函数：
 
-    ```
+    ```py
     def prepare_for_training(ds, cache=True, shuffle_buffer_size=1000):
         # This is a small dataset, only load it once, and
         # keep it in memory.
@@ -1572,7 +1572,7 @@ for image_features in parsd_ds.take(50):
 
 1.  现在我们可以对训练数据集中的每个元素应用以下步骤：
 
-    ```
+    ```py
     # perform data engineering 
     dataset = train_all_ds.map(decode_and_resize)
     val_dataset = val_all_ds.map(decode_and_resize)
@@ -1582,7 +1582,7 @@ for image_features in parsd_ds.take(50):
 
 1.  我们还需要对验证数据集进行标准化，并最终确定训练数据集，以便进行训练过程：
 
-    ```
+    ```py
     # Create dataset for training run
     BATCH_SIZE = 32
     VALIDATION_BATCH_SIZE = 40
@@ -1599,7 +1599,7 @@ for image_features in parsd_ds.take(50):
 
 1.  现在我们将设置交叉验证的参数：
 
-    ```
+    ```py
     NUM_CLASSES = 5
     IMAGE_SIZE = (224, 224)
         train_sample_size=0
@@ -1620,7 +1620,7 @@ for image_features in parsd_ds.take(50):
 
     输出应如下所示：
 
-    ```
+    ```py
     TRAIN_SAMPLE_SIZE =  3540
     VALIDATION_SAMPLE_SIZE =  80
     ```
@@ -1629,7 +1629,7 @@ for image_features in parsd_ds.take(50):
 
 1.  现在我们将使用以下代码构建模型：
 
-    ```
+    ```py
     model = tf.keras.Sequential([
         tf.keras.layers.InputLayer(input_shape=IMAGE_SIZE + (3,)),
         hub.KerasLayer(
@@ -1660,7 +1660,7 @@ for image_features in parsd_ds.take(50):
 
 1.  模型的权重和偏置结果保存在 `checkpoint_prefix` 目录中。这是我们开始训练模型以识别五种不同花卉图像的方式：
 
-    ```
+    ```py
     checkpoint_prefix = os.path.join('trained_resnet_vector', 'train_ckpt_{epoch}')
     callbacks = [
         tf.keras.callbacks.ModelCheckpoint(
@@ -1679,27 +1679,27 @@ for image_features in parsd_ds.take(50):
 
 1.  接下来，我们将使用以下代码行来保存模型：
 
-    ```
+    ```py
     saved_model_path = os.path.join(root_dir, 'custom_cnn/full_resnet_vector_saved_model')
     tf.saved_model.save(model, saved_model_path)
     ```
 
     我们可以使用以下命令检查权重矩阵文件，以了解模型的大小：
 
-    ```
+    ```py
     SavedModel format. In order to properly quantize the input and output layers, we need to provide some typical data. We will use the validation data, which contains 80 samples of 5 classes of flower images: 
     ```
 
 1.  让我们对验证图像进行标准化和归一化处理：
 
-    ```
+    ```py
     decoded = val_all_ds.map(decode_and_resize)
     normed = decoded.map(normalize)
     ```
 
 1.  接下来，我们通过一个维度扩展来批处理图像。这个额外的维度是为可变批次大小设计的：
 
-    ```
+    ```py
     np_img_holder = np.empty((0, 224, 224,3), float)
     np_lbl_holder = np.empty((0, 5), int)
     for img, lbl in normed:
@@ -1714,7 +1714,7 @@ for image_features in parsd_ds.take(50):
 
 1.  现在我们已经将图像转化为 NumPy 数组，接下来我们需要构建一个生成器，将这些代表性数据输入到转换过程中：
 
-    ```
+    ```py
     def data_generator():
       for input_tensor in tf.data.Dataset.from_tensor_slices(np_img_holder.astype(np.float32)).batch(1).take(sample_size):
         yield [input_tensor]
@@ -1724,7 +1724,7 @@ for image_features in parsd_ds.take(50):
 
 1.  让我们确认我们的样本大小：
 
-    ```
+    ```py
     sample_size = 0
     for raw_record in val_all_ds:
         sample_size += 1
@@ -1733,7 +1733,7 @@ for image_features in parsd_ds.take(50):
 
     上面 `print` 语句的输出如下：
 
-    ```
+    ```py
     Sample size:  80
     ```
 
@@ -1741,7 +1741,7 @@ for image_features in parsd_ds.take(50):
 
 1.  现在我们可以开始转换过程了：
 
-    ```
+    ```py
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
     converter.representative_dataset = data_generator
@@ -1751,7 +1751,7 @@ for image_features in parsd_ds.take(50):
 
 1.  如果有任何操作未能量化，我们还希望抛出错误标志：
 
-    ```
+    ```py
     converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
     ```
 
@@ -1759,7 +1759,7 @@ for image_features in parsd_ds.take(50):
 
 1.  现在，我们指定输入和输出张量的数据类型为 `INT8`：
 
-    ```
+    ```py
     converter.inference_input_type = tf.uint8
     converter.inference_output_type = tf.uint8
     tflite_model_quant = converter.convert()
@@ -1769,7 +1769,7 @@ for image_features in parsd_ds.take(50):
 
 1.  一旦前面的代码执行完毕，我们可以检查并验证现在与输入和输出层关联的数据类型，应该为无符号 `INT8`：
 
-    ```
+    ```py
     interpreter = tf.lite.Interpreter(model_content=tflite_model_quant)
     input_type = interpreter.get_input_details()[0]['dtype']
     print('input: ', input_type)
@@ -1781,7 +1781,7 @@ for image_features in parsd_ds.take(50):
 
     以下是前面代码的输出：
 
-    ```
+    ```py
     input:  <class 'numpy.uint8'>
     output:  <class 'numpy.uint8'>
     ```
@@ -1790,7 +1790,7 @@ for image_features in parsd_ds.take(50):
 
 1.  现在我们可以保存量化后的模型：
 
-    ```
+    ```py
     tflite_models_dir = 'quantized_resnet_vector/tflite_int8_model'
     to_save_tflite_model_dir = os.path.join(root_dir, tflite_models_dir)
     saved_tflite_models_dir = pathlib.Path(to_save_tflite_model_dir) 
@@ -1803,7 +1803,7 @@ for image_features in parsd_ds.take(50):
 
     这显示模型的大小如下：
 
-    ```
+    ```py
     44526000
     ```
 
@@ -1821,7 +1821,7 @@ for image_features in parsd_ds.take(50):
 
 1.  我们将通过加载 TFRecord 测试数据集来进行：
 
-    ```
+    ```py
     test_pattern = '{}/image_classification_builder-test.tfrecord*'.format(root_dir)
     test_all_files = tf.data.Dataset.list_files( tf.io.gfile.glob(test_pattern))
     test_all_ds = tf.data.TFRecordDataset(test_all_files, num_parallel_reads=tf.data.experimental.AUTOTUNE)
@@ -1831,7 +1831,7 @@ for image_features in parsd_ds.take(50):
 
 1.  接下来，我们可以验证样本大小：
 
-    ```
+    ```py
     sample_size = 0
     for raw_record in test_all_ds:
         sample_size += 1
@@ -1842,7 +1842,7 @@ for image_features in parsd_ds.take(50):
 
 1.  由于我们的模型已经量化为处理整数运算，我们不希望将像素值标准化为浮点数值。我们只需要标准化图像的大小：
 
-    ```
+    ```py
     decoded = test_all_ds.map(decode_and_resize)
     ```
 
@@ -1850,7 +1850,7 @@ for image_features in parsd_ds.take(50):
 
 1.  我们还需要扩展数据的维度，以处理图像的批量数据：
 
-    ```
+    ```py
     np_img_holder = np.empty((0, 224, 224,3), float)
     np_lbl_holder = np.empty((0, 5), int)
     for img, lbl in decoded:
@@ -1865,7 +1865,7 @@ for image_features in parsd_ds.take(50):
 
 1.  为了创建一个查找字典，将标签索引映射到类别名称，我们可以遍历 TFRecord 数据集来创建一个字典`val_label_map`，但首先，我们需要了解如何解析 TFRecord 数据集。这意味着我们需要正确捕捉 TFRecord 数据集中的张量。因此，我们需要使用以下的`feature_description`：
 
-    ```
+    ```py
     feature_description = {
         'image/channels' :  tf.io.FixedLenFeature([], 	 	                                                tf.int64),
         'image/class/label' :  tf.io.FixedLenFeature([], 	 	                                                tf.int64),
@@ -1881,7 +1881,7 @@ for image_features in parsd_ds.take(50):
 
     `The` `feature_description` 在前面的代码中是一个键值对集合。每一对键值对定义了一段表示为张量的元数据：
 
-    ```
+    ```py
     def _parse_function(example_proto):
       return tf.io.parse_single_example(example_proto, 
                                          feature_description)
@@ -1890,7 +1890,7 @@ for image_features in parsd_ds.take(50):
 
     前面的代码展示了如何使用提供的`feature_description`解析`test_all_ds`。结果是一个已解析的数据集（`parsd_ds`），其中包含所有定义和解析的必要张量：
 
-    ```
+    ```py
     val_label_map = {}
     # getting label mapping
     for image_features in parsd_ds.take(30):
@@ -1906,13 +1906,13 @@ for image_features in parsd_ds.take(50):
 
 1.  我们可以通过在笔记本单元中输入`val_label_map`来检查字典：
 
-    ```
+    ```py
     val_label_map
     ```
 
     你可能会发现`val_label_map`是一个类似于以下内容的字典：
 
-    ```
+    ```py
     {0: 'roses', 1: 'sunflowers', 2: 'daisy', 3: 'dandelion', 4: 'tulips'}
     ```
 
@@ -1920,7 +1920,7 @@ for image_features in parsd_ds.take(50):
 
 1.  我们将创建一个帮助函数来处理查找：
 
-    ```
+    ```py
     def lookup(np_entry, dictionary):
         class_key = np.argmax(np_entry)
         return dictionary.get(class_key)
@@ -1930,7 +1930,7 @@ for image_features in parsd_ds.take(50):
 
 1.  接下来，我们创建一个包含真实花卉类别名称的列表：
 
-    ```
+    ```py
     actual = []
     for i in range(len(np_lbl_holder)):
         class_key = np.argmax(np_lbl_holder[i])
@@ -1945,7 +1945,7 @@ for image_features in parsd_ds.take(50):
 
 1.  这是一个将输入 NumPy 数组视为无符号 8 位整数（`uint8`）的 `batch_predict` 函数：
 
-    ```
+    ```py
     def batch_predict(input_raw, input_tensor, output_tensor, dictionary):
         input_data = np.array(np.expand_dims(input_raw, 	
                                      axis=0), dtype=np.uint8)
@@ -1963,7 +1963,7 @@ for image_features in parsd_ds.take(50):
 
 1.  现在让我们加载整数量化模型，并设置输入和输出张量：
 
-    ```
+    ```py
     interpreter = tf.lite.Interpreter(model_path=str(tgt))
     interpreter.allocate_tensors()
     # Get input and output tensors.
@@ -1975,7 +1975,7 @@ for image_features in parsd_ds.take(50):
 
 1.  然后，我们可以进行批量预测：
 
-    ```
+    ```py
     batch_quantized_prediction = []
     for i in range(sample_size):
         plain_text_label = batch_predict(np_img_holder[i], 
@@ -1987,7 +1987,7 @@ for image_features in parsd_ds.take(50):
 
 1.  我们可以使用 `sklearn` 的 `accuracy_score` 来计算准确度：
 
-    ```
+    ```py
     from sklearn.metrics import accuracy_score
     accuracy_score(actual, batch_quantized_prediction)
     ```
@@ -1996,7 +1996,7 @@ for image_features in parsd_ds.take(50):
 
     在这个特定情况下，准确度如下：
 
-    ```
+    ```py
     0.86
     ```
 

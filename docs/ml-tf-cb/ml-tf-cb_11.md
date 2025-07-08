@@ -40,7 +40,7 @@ TF-Agents 是一个用于 **强化学习**（**RL**）的 **TensorFlow**（**TF*
 
 和往常一样，我们首先加载必要的库：
 
-```
+```py
 import tensorflow as tf
 import numpy as np
 from tf_agents.environments import py_environment, tf_environment, tf_py_environment, utils, wrappers, suite_gym
@@ -62,7 +62,7 @@ TF-Agents 是一个积极开发中的库，因此尽管我们尽力保持代码�
 
 一个关键步骤是定义智能体将要操作的环境。通过继承`PyEnvironment`类，我们指定`init`方法（动作和观察定义）、重置/终止状态的条件以及移动机制：
 
-```
+```py
 class GridWorldEnv(py_environment.PyEnvironment):
 # the _init_ contains the specifications for action and observation
     def __init__(self):
@@ -137,7 +137,7 @@ def collect_step(environment, policy):
 
 我们有以下初步设置：
 
-```
+```py
 # parameter settings
 num_iterations = 10000  
 initial_collect_steps = 1000  
@@ -153,7 +153,7 @@ eval_interval = 1000
 
 我们首先创建环境并将其封装，以确保它们在 100 步后终止：
 
-```
+```py
 train_py_env = wrappers.TimeLimit(GridWorldEnv(), duration=100)
 eval_py_env = wrappers.TimeLimit(GridWorldEnv(), duration=100)
 train_env = tf_py_environment.TFPyEnvironment(train_py_env)
@@ -162,7 +162,7 @@ eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
 
 对于这个任务，我们将使用**深度 Q 网络**（**DQN**）智能体。这意味着我们需要首先定义网络及其关联的优化器：
 
-```
+```py
 q_net = q_network.QNetwork(
         train_env.observation_spec(),
         train_env.action_spec(),
@@ -172,13 +172,13 @@ optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate)
 
 如上所示，TF-Agents 库正在积极开发中。目前版本适用于 TF > 2.3，但它最初是为 TensorFlow 1.x 编写的。此改编中使用的代码是基于先前版本开发的，因此为了兼容性，我们需要使用一些不太优雅的解决方法，例如以下代码：
 
-```
+```py
 train_step_counter = tf.compat.v2.Variable(0) 
 ```
 
 定义智能体：
 
-```
+```py
 tf_agent = dqn_agent.DqnAgent(
         train_env.time_step_spec(),
         train_env.action_spec(),
@@ -193,7 +193,7 @@ collect_policy = tf_agent.collect_policy
 
 接下来的步骤是创建回放缓冲区和回放观察者。前者用于存储训练用的（动作，观察）对：
 
-```
+```py
 replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
         data_spec = tf_agent.collect_data_spec,
         batch_size = train_env.batch_size,
@@ -210,7 +210,7 @@ train_metrics = [
 
 然后我们从回放缓冲区创建数据集，以便可以进行迭代：
 
-```
+```py
 dataset = replay_buffer.as_dataset(
             num_parallel_calls=3,
             sample_batch_size=batch_size,
@@ -219,7 +219,7 @@ dataset = replay_buffer.as_dataset(
 
 最后的准备工作是创建一个驱动程序，模拟游戏中的智能体，并将（状态，动作，奖励）元组存储在回放缓冲区中，同时还需要存储若干个度量：
 
-```
+```py
 driver = dynamic_step_driver.DynamicStepDriver(
             train_env,
             collect_policy,
@@ -234,7 +234,7 @@ final_time_step, policy_state = driver.run()
 
 完成准备工作后，我们可以运行驱动程序，从数据集中获取经验，并用它来训练智能体。为了监控/记录，我们会在特定间隔打印损失和平均回报：
 
-```
+```py
 episode_len = []
 step_len = []
 for i in range(num_iterations):
@@ -254,14 +254,14 @@ for i in range(num_iterations):
 
 一旦代码成功执行，你应该看到类似以下的输出：
 
-```
+```py
 step = 200: loss = 0.27092617750167847 Average episode length: 96.5999984741211 step = 400: loss = 0.08925052732229233 Average episode length: 96.5999984741211 step = 600: loss = 0.04888586699962616 Average episode length: 96.5999984741211 step = 800: loss = 0.04527277499437332 Average episode length: 96.5999984741211 step = 1000: loss = 0.04451741278171539 Average episode length: 97.5999984741211 step = 1000: Average Return = 0.0 step = 1200: loss = 0.02019939199090004 Average episode length: 97.5999984741211 step = 1400: loss = 0.02462056837975979 Average episode length: 97.5999984741211 step = 1600: loss = 0.013112186454236507 Average episode length: 97.5999984741211 step = 1800: loss = 0.004257255233824253 Average episode length: 97.5999984741211 step = 2000: loss = 78.85380554199219 Average episode length: 100.0 step = 2000:
 Average Return = 0.0 step = 2200: loss = 0.010012316517531872 Average episode length: 100.0 step = 2400: loss = 0.009675763547420502 Average episode length: 100.0 step = 2600: loss = 0.00445540901273489 Average episode length: 100.0 step = 2800: loss = 0.0006154756410978734 
 ```
 
 尽管训练过程的输出很详细，但并不适合人类阅读。不过，我们可以通过可视化来观察智能体的进展：
 
-```
+```py
 plt.plot(step_len, episode_len)
 plt.xlabel('Episodes')
 plt.ylabel('Average Episode Length (Steps)')
@@ -296,7 +296,7 @@ plt.show()
 
 我们首先安装一些前提条件并导入必要的库。安装部分主要是为了确保我们能够生成训练智能体表现的可视化效果：
 
-```
+```py
 !sudo apt-get install -y xvfb ffmpeg
 !pip install gym
 !pip install 'imageio==2.4.0'
@@ -332,7 +332,7 @@ display = pyvirtualdisplay.Display(visible=0, size=(1400, 900)).start()
 
 和之前一样，我们定义了一些我们玩具问题的超参数：
 
-```
+```py
 num_iterations = 20000 
 initial_collect_steps = 100  
 collect_steps_per_iteration = 1  
@@ -347,7 +347,7 @@ eval_interval = 1000
 
 接下来，我们继续定义我们问题的函数。首先计算一个策略在环境中固定时间段内的平均回报（以回合数为衡量标准）：
 
-```
+```py
 def compute_avg_return(environment, policy, num_episodes=10):
   total_return = 0.0
   for _ in range(num_episodes):
@@ -364,7 +364,7 @@ def compute_avg_return(environment, policy, num_episodes=10):
 
 收集单个步骤及相关数据聚合的样板代码如下：
 
-```
+```py
 def collect_step(environment, policy, buffer):
   time_step = environment.current_time_step()
   action_step = policy.action(time_step)
@@ -379,7 +379,7 @@ def collect_data(env, policy, buffer, steps):
 
 如果一张图片值千言万语，那么视频一定更好。为了可视化我们智能体的表现，我们需要一个渲染实际动画的函数：
 
-```
+```py
 def embed_mp4(filename):
   """Embeds an mp4 file in the notebook."""
   video = open(filename,'rb').read()
@@ -405,7 +405,7 @@ def create_policy_eval_video(policy, filename, num_episodes=5, fps=30):
 
 在初步工作完成后，我们可以开始真正地设置我们的环境：
 
-```
+```py
 env_name = 'CartPole-v0'
 env = suite_gym.load(env_name)
 env.reset() 
@@ -429,7 +429,7 @@ env.reset()
 
 和之前一样，分开训练和评估环境，并应用包装器：
 
-```
+```py
 train_py_env = suite_gym.load(env_name)
 eval_py_env = suite_gym.load(env_name)
 train_env = tf_py_environment.TFPyEnvironment(train_py_env)
@@ -438,7 +438,7 @@ eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
 
 定义构成我们智能体学习算法基础的网络：一个神经网络，根据环境的观察作为输入，预测所有动作的预期回报（通常在强化学习文献中称为 Q 值）：
 
-```
+```py
 fc_layer_params = (100,)
 q_net = q_network.QNetwork(
     train_env.observation_spec(),
@@ -450,7 +450,7 @@ train_step_counter = tf.Variable(0)
 
 有了这个，我们可以实例化一个 DQN 智能体：
 
-```
+```py
 agent = dqn_agent.DqnAgent(
     train_env.time_step_spec(),
     train_env.action_spec(),
@@ -463,14 +463,14 @@ agent.initialize()
 
 设置策略——主要用于评估和部署的策略，以及用于数据收集的次要策略：
 
-```
+```py
 eval_policy = agent.policy
 collect_policy = agent.collect_policy 
 ```
 
 为了进行一个不算很复杂的比较，我们还将创建一个随机策略（顾名思义，它是随机执行的）。然而，这展示了一个重要的观点：策略可以独立于智能体创建：
 
-```
+```py
 random_policy = random_tf_policy.RandomTFPolicy(train_env.time_step_spec(), train_env.action_spec()) 
 ```
 
@@ -482,7 +482,7 @@ random_policy = random_tf_policy.RandomTFPolicy(train_env.time_step_spec(), trai
 
 +   **信息**：辅助数据，例如动作的对数概率：
 
-```
+```py
 example_environment = tf_py_environment.TFPyEnvironment(
     suite_gym.load('CartPole-v0'))
 time_step = example_environment.reset() 
@@ -490,7 +490,7 @@ time_step = example_environment.reset()
 
 重放缓冲区跟踪从环境中收集的数据，这些数据用于训练：
 
-```
+```py
 replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
     data_spec=agent.collect_data_spec,
     batch_size=train_env.batch_size,
@@ -501,13 +501,13 @@ replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
 
 我们现在利用随机策略来探索环境：
 
-```
+```py
 collect_data(train_env, random_policy, replay_buffer, initial_collect_steps) 
 ```
 
 现在，代理可以通过管道访问重放缓冲区。由于我们的 DQN 代理需要当前观察和下一次观察来计算损失，因此管道一次会采样两行相邻数据（`num_steps = 2`）：
 
-```
+```py
 dataset = replay_buffer.as_dataset(
     num_parallel_calls=3, 
     sample_batch_size=batch_size, 
@@ -517,7 +517,7 @@ iterator = iter(dataset)
 
 在训练部分，我们在两个步骤之间切换：从环境中收集数据并用它来训练 DQN：
 
-```
+```py
 agent.train = common.function(agent.train)
 # Reset the train step
 agent.train_step_counter.assign(0)
@@ -541,7 +541,7 @@ for _ in range(num_iterations):
 
 代码块的（部分）输出如下。快速回顾一下，`step` 是训练过程中的迭代次数，`loss` 是深度网络中驱动代理逻辑的损失函数值，`Average Return` 是当前运行结束时的奖励：
 
-```
+```py
 step = 200: loss = 4.396056175231934
 step = 400: loss = 7.12950325012207
 step = 600: loss = 19.0213623046875
@@ -566,13 +566,13 @@ step = 2000: Average Return = 21.799999237060547
 
 我们还可以通过视频观察代理的表现。关于随机策略，您可以尝试以下操作：
 
-```
+```py
 create_policy_eval_video(random_policy, "random-agent") 
 ```
 
 而关于已经训练的策略，您可以尝试以下操作：
 
-```
+```py
 create_policy_eval_video(agent.policy, "trained-agent") 
 ```
 
@@ -604,7 +604,7 @@ MAB 是一个简化的强化学习问题：代理采取的动作不会影响环�
 
 像往常一样，我们首先加载必要的包：
 
-```
+```py
 !pip install tf-agents
 import abc
 import numpy as np
@@ -634,7 +634,7 @@ import matplotlib.pyplot as plt
 
 我们接下来定义一些超参数，这些参数将在后续使用：
 
-```
+```py
 batch_size = 2
 num_iterations = 100 
 steps_per_loop = 1 
@@ -642,7 +642,7 @@ steps_per_loop = 1
 
 我们需要的第一个函数是一个上下文采样器，用于生成来自环境的观察值。由于我们有两个用户和一天中的两个时间段，实际上是生成两元素二进制向量：
 
-```
+```py
 def context_sampling_fn(batch_size):
   def _context_sampling_fn():
     return np.random.randint(0, 2, [batch_size, 2]).astype(np.float32)
@@ -651,7 +651,7 @@ def context_sampling_fn(batch_size):
 
 接下来，我们定义一个通用函数来计算每个臂的奖励：
 
-```
+```py
 class CalculateReward(object):
 
     """A class that acts as linear reward function when called."""
@@ -666,7 +666,7 @@ class CalculateReward(object):
 
 我们可以使用该函数来定义每个臂的奖励。这些奖励反映了在本食谱开头描述的偏好集：
 
-```
+```py
 arm0_param = [2, -1]
 arm1_param = [1, -1] 
 arm2_param = [-1, 1] 
@@ -679,7 +679,7 @@ arm3_reward_fn = CalculateReward(arm3_param, 1)
 
 我们函数设置的最后一部分涉及计算给定上下文的最优奖励：
 
-```
+```py
 def compute_optimal_reward(observation):
     expected_reward_for_arms = [
       tf.linalg.matvec(observation, tf.cast(arm0_param, dtype=tf.float32)),
@@ -694,7 +694,7 @@ def compute_optimal_reward(observation):
 
 为了本示例的目的，我们假设环境是静态的；换句话说，偏好在时间上没有变化（这在实际场景中不一定成立，取决于你关注的时间范围）：
 
-```
+```py
 environment = tf_py_environment.TFPyEnvironment(
     sspe.StationaryStochasticPyEnvironment(
         context_sampling_fn(batch_size),
@@ -704,7 +704,7 @@ environment = tf_py_environment.TFPyEnvironment(
 
 我们现在准备实例化一个实现赌博机算法的代理。我们使用预定义的`LinUCB`类；像往常一样，我们定义观察值（两个元素，表示用户和时间），时间步长和动作规范（四种可能内容类型之一）：
 
-```
+```py
 observation_spec = tensor_spec.TensorSpec([2], tf.float32)
 time_step_spec = ts.time_step_spec(observation_spec)
 action_spec = tensor_spec.BoundedTensorSpec(
@@ -715,13 +715,13 @@ agent = lin_ucb_agent.LinearUCBAgent(time_step_spec=time_step_spec,
 
 多臂赌博机（MAB）设置的一个关键组成部分是遗憾，它被定义为代理实际获得的奖励与**oracle 策略**的期望奖励之间的差异：
 
-```
+```py
 regret_metric = tf_metrics.RegretMetric(compute_optimal_reward) 
 ```
 
 我们现在可以开始训练我们的代理。我们运行训练循环`num_iterations`次，每次执行`steps_per_loop`步。找到这些参数的合适值通常是要在更新的时效性和训练效率之间找到平衡：
 
-```
+```py
 replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
     data_spec=agent.policy.trajectory_spec,
     batch_size=batch_size,
@@ -742,7 +742,7 @@ for _ in range(num_iterations):
 
 我们可以通过绘制后续迭代中的遗憾（负奖励）来可视化实验结果：
 
-```
+```py
 plt.plot(regret_values)
 plt.ylabel('Average Regret')
 plt.xlabel('Number of Iterations') 

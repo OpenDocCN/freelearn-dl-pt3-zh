@@ -234,7 +234,7 @@ AI 计算代价高昂，显而易见，这对于一个旨在尽快为客户提�
 
 我们首先导入所需的 Python 模块到项目中：
 
-```
+```py
 import numpy as np
 import pandas as pd
 import nltk
@@ -255,7 +255,7 @@ nltk.download('stopwords')
 
 我们将使用`ISO-8859-1`编码读取 Amazon Fine Food Reviews 数据集。这样做是为了确保我们不会丢失评论文本中使用的任何特殊符号：
 
-```
+```py
 df = pd.read_csv('Reviews.csv', encoding = "ISO-8859-1")
 df = df.head(10000)
 ```
@@ -264,7 +264,7 @@ df = df.head(10000)
 
 我们需要从文本中去除停用词，并过滤掉如括号等不属于自然书面文本的符号。我们将创建一个名为`cleanText()`的函数，执行过滤和去除停用词的操作：
 
-```
+```py
 import string
 import re
 
@@ -288,7 +288,7 @@ def cleanText(line):
 
 数据集包含的数据比我们当前演示所需的更多。我们将提取`ProductId`、`UserId`、`Score`和`Text`列，以准备我们的演示。产品名称出于隐私原因进行了加密，就像用户名称也被加密一样：
 
-```
+```py
 data = df[['ProductId', 'UserId', 'Score', 'Text']]
 ```
 
@@ -298,7 +298,7 @@ data = df[['ProductId', 'UserId', 'Score', 'Text']]
 
 我们现在将应用文本过滤和停用词移除函数来清理数据集中的文本：
 
-```
+```py
 %%time
 data['Text'] = data['Text'].apply(cleanText)
 ```
@@ -311,7 +311,7 @@ data['Text'] = data['Text'].apply(cleanText)
 
 由于我们有一个单一的数据集，我们将其分成两部分，特征和标签部分分开：
 
-```
+```py
 X_train, X_valid, y_train, y_valid = train_test_split(data['Text'], df['ProductId'], test_size = 0.2) 
 ```
 
@@ -321,7 +321,7 @@ X_train, X_valid, y_train, y_valid = train_test_split(data['Text'], df['ProductI
 
 我们现在将按用户和产品 ID 聚合数据集中的评论。我们需要每个产品的评论，以确定该产品适合什么样的用户：
 
-```
+```py
 user_df = data[['UserId','Text']]
 product_df = data[['ProductId', 'Text']]
 user_df = user_df.groupby('UserId').agg({'Text': ' '.join})
@@ -334,7 +334,7 @@ product_df = product_df.groupby('ProductId').agg({'Text': ' '.join})
 
 我们现在将创建两个不同的向量化器，一个是用于用户，另一个是用于产品。我们需要这些向量化器来确定用户需求与产品评论之间的相似性。首先，我们将为用户创建向量化器并显示其形状：
 
-```
+```py
 user_vectorizer = TfidfVectorizer(tokenizer = WordPunctTokenizer().tokenize, max_features=1000)
 user_vectors = user_vectorizer.fit_transform(user_df['Text'])
 user_vectors.shape
@@ -342,7 +342,7 @@ user_vectors.shape
 
 然后，我们将为产品创建向量化器：
 
-```
+```py
 product_vectorizer = TfidfVectorizer(tokenizer = WordPunctTokenizer().tokenize, max_features=1000)
 product_vectors = product_vectorizer.fit_transform(product_df['Text'])
 product_vectors.shape
@@ -354,14 +354,14 @@ product_vectors.shape
 
 我们使用 `pandas` 模块的 `pivot_table` 方法，创建用户对产品的评分矩阵。我们将使用这个矩阵进行矩阵分解，以确定用户喜欢的产品：
 
-```
+```py
 userRatings = pd.pivot_table(data, values='Score', index=['UserId'], columns=['ProductId'])
 userRatings.shape
 ```
 
 我们还将把用户和产品的 `TfidfVectorizer` 向量转换成适用于矩阵分解的矩阵：
 
-```
+```py
 P = pd.DataFrame(user_vectors.toarray(), index=user_df.index, columns=user_vectorizer.get_feature_names())
 Q = pd.DataFrame(product_vectors.toarray(), index=product_df.index, columns=product_vectorizer.get_feature_names())
 ```
@@ -372,7 +372,7 @@ Q = pd.DataFrame(product_vectors.toarray(), index=product_df.index, columns=prod
 
 我们现在将创建一个函数来执行矩阵分解。矩阵分解在 2006 年的 Netflix 奖挑战赛中成为推荐系统算法的热门方法。它是一类算法，将用户-项目矩阵分解成两个较低维度的矩阵，这两个矩阵可以相乘以恢复原始的高阶矩阵：
 
-```
+```py
 def matrix_factorization(R, P, Q, steps=1, gamma=0.001,lamda=0.02):
     for step in range(steps):
         for i in R.index:
@@ -394,7 +394,7 @@ def matrix_factorization(R, P, Q, steps=1, gamma=0.001,lamda=0.02):
 
 然后，我们执行矩阵分解并记录所花费的时间：
 
-```
+```py
 %%time
 P, Q = matrix_factorization(userRatings, P, Q, steps=1, gamma=0.001,lamda=0.02)
 ```
@@ -405,7 +405,7 @@ P, Q = matrix_factorization(userRatings, P, Q, steps=1, gamma=0.001,lamda=0.02)
 
 现在，在项目的 `root` 目录下创建一个名为 `api` 的文件夹。然后，保存经过训练的模型，即在用户-产品评分矩阵分解后得到的低阶矩阵：
 
-```
+```py
 import pickle
 output = open('api/model.pkl', 'wb')
 pickle.dump(P,output)
@@ -428,7 +428,7 @@ output.close()
 
 1.  我们将从导入 API 所需的模块开始。我们在前一节中讨论了这些导入的模块：
 
-```
+```py
 import numpy as np
 import pandas as pd
 from nltk.corpus import stopwords
@@ -448,7 +448,7 @@ from flask_jsonpify import jsonpify
 
 1.  我们还将导入`Flask`模块，创建一个快速的 HTTP 服务器，可以在定义的路由上以 API 的形式提供服务。我们将按如下所示实例化`Flask`应用对象：
 
-```
+```py
 DEBUG = True
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'abcdefgh'
@@ -459,14 +459,14 @@ api = Api(app)
 
 1.  然后，我们将创建一个`class`函数来处理我们收到的以搜索查询形式的文本输入：
 
-```
+```py
 class TextFieldForm(FlaskForm):
     text = StringField('Document Content', validators=[validators.data_required()])
 ```
 
 1.  为了封装 API 方法，我们将它们包装在`Flask_Work`类中：
 
-```
+```py
 class Flask_Work(Resource):
     def __init__(self):
         self.stopwordSet = set(stopwords.words("english"))
@@ -475,7 +475,7 @@ class Flask_Work(Resource):
 
 1.  我们在模型创建过程中使用的`cleanText()`方法再次被需要。它将用于清理并过滤用户输入的搜索查询：
 
-```
+```py
     def cleanText(self, line): 
         line = line.translate(string.punctuation)
         line = line.lower().split()
@@ -488,7 +488,7 @@ class Flask_Work(Resource):
 
 1.  我们为应用程序定义了一个主页，该主页将从稍后在模板中创建的`index.html`文件加载：
 
-```
+```py
     def get(self):
         headers = {'Content-Type': 'text/html'}
         return make_response(render_template('index.html'), 200, headers)
@@ -496,7 +496,7 @@ class Flask_Work(Resource):
 
 1.  我们创建了基于`post`方法的预测路由，在接收到用户的搜索查询后，将返回产品建议：
 
-```
+```py
     def post(self):
         f = open('model.pkl', 'rb')
         P, Q, userid_vectorizer = pickle.load(f), pickle.load(f), pickle.load(f)
@@ -516,7 +516,7 @@ class Flask_Work(Resource):
 
 1.  我们将`Flask_Work`类附加到`Flask`服务器。这完成了运行时的脚本。我们已经设置了一个 API，根据用户的搜索查询建议产品：
 
-```
+```py
 api.add_resource(Flask_Work, '/')
 
 if __name__ == '__main__':
@@ -527,7 +527,7 @@ if __name__ == '__main__':
 
 1.  在本地计算机上执行此操作，请在终端中运行以下命令：
 
-```
+```py
 python main.py
 ```
 

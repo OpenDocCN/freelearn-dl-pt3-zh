@@ -24,7 +24,7 @@
 
 1.  组织原始图像。让我们首先设置我们的图像集合。为了方便起见，我们将直接使用 `tf.keras` API 提供的花卉图像：
 
-    ```
+    ```py
     import tensorflow as tf
     import tensorflow_hub as hub
     data_dir = tf.keras.utils.get_file(
@@ -42,7 +42,7 @@
 
     c. 前述设置传递给生成器实例。然后，我们将这些设置传递给 `ImageDataGenerator` 和 `flow_from_directory`：
 
-    ```
+    ```py
     pixels =224
     BATCH_SIZE = 32 
     IMAGE_SIZE = (pixels, pixels)
@@ -64,7 +64,7 @@
 
 1.  检索标签映射。由于我们使用 `ImageDataGenerator` 创建训练数据管道，我们也可以使用它来检索图像标签：
 
-    ```
+    ```py
     labels_idx = (train_generator.class_indices)
     idx_labels = dict((v,k) for k,v in labels_idx.items())
     print(idx_labels)
@@ -72,7 +72,7 @@
 
     在前面的代码中，`idx_labels` 是一个字典，将分类模型的输出（即索引）映射到 `flower` 类。以下是 `idx_labels`：
 
-    ```
+    ```py
     {0: 'daisy', 1: 'dandelion', 2: 'roses', 3: 'sunflowers', 4: 'tulips'}
     ```
 
@@ -80,7 +80,7 @@
 
 1.  构建并训练模型。这个步骤与我们在前一章*第七章*中执行的相同，*模型优化*，在其中我们将通过迁移学习构建一个模型。选择的模型是 ResNet 特征向量，最终的分类层是一个包含五个节点的密集层（`NUM_CLASSES`定义为`5`，如*步骤 2*所示），这五个节点输出每个类别的概率：
 
-    ```
+    ```py
     mdl = tf.keras.Sequential([
         tf.keras.layers.InputLayer(input_shape=IMAGE_SIZE + (3,)),
     hub.KerasLayer("https://tfhub.dev/google/imagenet/resnet_v1_101/feature_vector/4", trainable=False),
@@ -114,31 +114,31 @@
 
 我们将从已经准备好的 TFRecord 数据集开始。它包含了与前一节中看到的相同的花卉图像和类别。此外，这个 TFRecord 数据集已被划分为训练、验证和测试数据集。该 TFRecord 数据集可以在本书的 GitHub 仓库中找到。你可以使用以下命令克隆该仓库：
 
-```
+```py
 git clone https://github.com/PacktPublishing/learn-tensorflow-enterprise.git
 ```
 
 一旦该命令完成，请进入以下路径：
 
-```
+```py
  learn-tensorflow-enterprise/tree/master/chapter_07/train_base_model/tf_datasets/flower_photos
 ```
 
 你将看到以下 TFRecord 数据集：
 
-```
+```py
 image_classification_builder-train.tfrecord-00000-of-00002
 ```
 
-```
+```py
 image_classification_builder-train.tfrecord-00001-of-00002
 ```
 
-```
+```py
 image_classification_builder-validation.tfrecord-00000-of-00001
 ```
 
-```
+```py
 image_classification_builder-test.tfrecord-00000-of-00001
 ```
 
@@ -150,7 +150,7 @@ image_classification_builder-test.tfrecord-00000-of-00001
 
 1.  识别并编码文件名约定。我们希望拥有一个能够处理数据导入过程的管道。因此，我们必须创建变量来保存文件路径和命名约定：
 
-    ```
+    ```py
     import tensorflow as tf
     import tensorflow_hub as hub
     import tensorflow_datasets as tfds
@@ -164,7 +164,7 @@ image_classification_builder-test.tfrecord-00000-of-00001
 
 1.  创建文件列表。为了创建一个能够处理多个部分 TFRecord 文件的对象，我们将使用`list_files`来跟踪这些文件：
 
-    ```
+    ```py
     train_all_files = tf.data.Dataset.list_files( tf.io.gfile.glob(train_file_pattern))
     val_all_files = tf.data.Dataset.list_files( tf.io.gfile.glob(val_file_pattern))
     test_all_files = tf.data.Dataset.list_files( tf.io.gfile.glob(test_file_pattern))
@@ -174,7 +174,7 @@ image_classification_builder-test.tfrecord-00000-of-00001
 
 1.  创建数据集对象。我们将使用`TFRecordDataset`从训练、验证和测试列表对象创建数据集对象：
 
-    ```
+    ```py
     train_all_ds = tf.data.TFRecordDataset(train_all_files, num_parallel_reads = AUTOTUNE)
     val_all_ds = tf.data.TFRecordDataset(val_all_files, num_parallel_reads = AUTOTUNE)
     test_all_ds = tf.data.TFRecordDataset(test_all_files, num_parallel_reads = AUTOTUNE)
@@ -184,7 +184,7 @@ image_classification_builder-test.tfrecord-00000-of-00001
 
 1.  检查样本大小。到目前为止，尚无快速方法来确定每个 TFRecord 中的样本大小。唯一的方法是通过迭代它：
 
-    ```
+    ```py
     print("Sample size for training: {0}".format(sum(1 for _ in tf.data.TFRecordDataset(train_all_files)))
          ,'\n', "Sample size for validation: {0}".format(sum(1 for _ in tf.data.TFRecordDataset(val_all_files)))
          ,'\n', "Sample size for test: {0}".format(sum(1 for _ in tf.data.TFRecordDataset(test_all_files)))) 
@@ -194,7 +194,7 @@ image_classification_builder-test.tfrecord-00000-of-00001
 
     输出应如下所示：
 
-    ```
+    ```py
     Sample size for training: 3540 
     Sample size for validation: 80 
     Sample size for test: 50
@@ -206,47 +206,47 @@ image_classification_builder-test.tfrecord-00000-of-00001
 
 当我们使用生成器作为数据导入管道时，生成器在训练过程中会负责批处理和数据与标签的匹配。然而，与生成器不同，为了使用 TFRecord 数据集，我们必须自己解析它并执行一些必要的特征工程任务，例如归一化和标准化。TFRecord 的创建者必须提供一个特征描述字典作为**模板**来解析样本。在这种情况下，提供了以下特征字典：
 
-```
+```py
 features = {
 ```
 
-```
+```py
     'image/channels' :  tf.io.FixedLenFeature([], tf.int64),
 ```
 
-```
+```py
     'image/class/label' :  tf.io.FixedLenFeature([], tf.int64),
 ```
 
-```
+```py
     'image/class/text' : tf.io.FixedLenFeature([], tf.string),
 ```
 
-```
+```py
     'image/colorspace' : tf.io.FixedLenFeature([], tf.string),
 ```
 
-```
+```py
     'image/encoded' : tf.io.FixedLenFeature([], tf.string),
 ```
 
-```
+```py
     'image/filename' : tf.io.FixedLenFeature([], tf.string),
 ```
 
-```
+```py
     'image/format' : tf.io.FixedLenFeature([], tf.string),
 ```
 
-```
+```py
     'image/height' : tf.io.FixedLenFeature([], tf.int64),
 ```
 
-```
+```py
     'image/width' : tf.io.FixedLenFeature([], tf.int64)
 ```
 
-```
+```py
     })
 ```
 
@@ -254,7 +254,7 @@ features = {
 
 1.  解析 TFRecord 并调整图像大小。我们将使用前面的字典来解析 TFRecord，以提取单张图像作为 NumPy 数组及其对应的标签。我们将定义一个`decode_and_resize`函数来执行此操作：
 
-    ```
+    ```py
     def decode_and_resize(serialized_example):
         # resized image should be [224, 224, 3] and 	 	    # normalized to value range [0, 255]
         # label is integer index of class.
@@ -290,7 +290,7 @@ features = {
 
 1.  标准化像素值。我们还需要将像素值标准化到[`0`, `255`]范围内。这里，我们定义了一个`normalize`函数来实现这一目标：
 
-    ```
+    ```py
     def normalize(image, label):
         #Convert `image` from [0, 255] -> [0, 1.0] floats 
         image = tf.cast(image, tf.float32) / 255.
@@ -301,7 +301,7 @@ features = {
 
 1.  执行这些函数。这些函数（`decode_and_resize`和`normalize`）被设计为应用于 TFRecord 中的每个样本。我们使用`map`来完成这一任务：
 
-    ```
+    ```py
     resized_train_ds = train_all_ds.map(decode_and_resize, num_parallel_calls=AUTOTUNE)
     resized_val_ds = val_all_ds.map(decode_and_resize, num_parallel_calls=AUTOTUNE)
     resized_test_ds = test_all_ds.map(decode_and_resize, num_parallel_calls=AUTOTUNE)
@@ -314,7 +314,7 @@ features = {
 
 1.  批量处理用于训练过程的数据集。对 TFRecord 数据集执行的最后一步是批量处理。我们将为此定义一些变量，并定义一个函数`prepare_for_model`来进行批量处理：
 
-    ```
+    ```py
     pixels =224
     IMAGE_SIZE = (pixels, pixels)
     TRAIN_BATCH_SIZE = 32
@@ -342,7 +342,7 @@ features = {
 
 1.  执行批量处理。使用`map`函数来应用`batching`函数：
 
-    ```
+    ```py
     NUM_EPOCHS = 5
     SHUFFLE_BUFFER_SIZE = 1000
     prepped_test_ds = prepare_for_model(resized_normalized_test_ds, TEST_BATCH_SIZE, False, False)
@@ -358,7 +358,7 @@ features = {
 
 1.  构建和训练模型。这部分与前面的部分没有区别。我们将构建并训练一个与生成器中看到的架构相同的模型：
 
-    ```
+    ```py
     FINE_TUNING_CHOICE = False
     NUM_CLASSES = 5
     IMAGE_SIZE = (224, 224)
@@ -427,91 +427,91 @@ TFRecord 的好处在于，如果您有大型数据集，那么将其分成多�
 
 现在我们将看看如何实现其中一些参数。例如，我们将利用前一节中构建的模型架构，即 ResNet 特征向量层，后跟密集层作为分类头部：
 
-```
+```py
 KERNEL_REGULARIZER = tf.keras.regularizers.l2(l=0.1)
 ```
 
-```
+```py
 ACTIVITY_REGULARIZER = tf.keras.regularizers.L1L2(l1=0.1,l2=0.1)
 ```
 
-```
+```py
 mdl = tf.keras.Sequential([
 ```
 
-```
+```py
     tf.keras.layers.InputLayer(input_shape=IMAGE_SIZE + (3,)),
 ```
 
-```
+```py
     hub.KerasLayer("https://tfhub.dev/google/imagenet/resnet_v2_50/feature_vector/4",trainable=FINE_TUNING_CHOICE), 
 ```
 
-```
+```py
     tf.keras.layers.Dense(NUM_CLASSES 
 ```
 
-```
+```py
                          ,activation='softmax'
 ```
 
-```
+```py
                          ,kernel_regularizer=KERNEL_REGULARIZER
 ```
 
-```
+```py
                           ,activity_regularizer = 
 ```
 
-```
+```py
                           ACTIVITY_REGULARIZER
 ```
 
-```
+```py
                           ,name = 'custom_class')
 ```
 
-```
+```py
 ])
 ```
 
-```
+```py
 mdl.build([None, 224, 224, 3])
 ```
 
 请注意，我们使用别名来定义我们感兴趣的正则化器。这将使我们能够调整决定正则化项如何惩罚潜在过度拟合的超参数（`l1`，`l2`）：
 
-```
+```py
 KERNEL_REGULARIZER = tf.keras.regularizers.l2(l=0.1)
 ```
 
-```
+```py
 ACTIVITY_REGULARIZER = tf.keras.regularizers.L1L2(l1=0.1,l2=0.1)
 ```
 
 然后在密集层定义中添加这些`regularizer`定义：
 
-```
+```py
 tf.keras.layers.Dense(NUM_CLASSES 
 ```
 
-```
+```py
                       ,activation='softmax'
 ```
 
-```
+```py
                       ,kernel_regularizer=KERNEL_REGULARIZER
 ```
 
-```
+```py
                       ,activity_regularizer = 
 ```
 
-```
+```py
                                            ACTIVITY_REGULARIZER
 ```
 
-```
+```py
                       ,name = 'custom_class')
 ```
 
@@ -525,7 +525,7 @@ TensorFlow 的`AdversarialRegularization` API 旨在补充`tf.keras` API 并简�
 
 1.  下载并解压训练数据（如果您在本章开头没有这样做）。您需要下载 flower_tfrecords.zip，即我们将从 Harvard Dataverse 使用的 TFRecord 数据集（[`dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/1ECTVN`](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/1ECTVN)）。将其放置在您打算使用的计算节点上。它可以是您的本地计算环境或云计算环境，如 Google AI 平台的 JupyterLab 或 Google Colab。下载后解压文件，并记下其路径。我们将称此路径为`<PATH_TO_TFRECORD>`。在此路径中，您将看到这些 TFRecord 数据集：
 
-    ```
+    ```py
     image_classification_builder-train.tfrecord-00000-of-00002
     image_classification_builder-train.tfrecord-00001-of-00002
     image_classification_builder-validation.tfrecord-00000-of-00001
@@ -534,13 +534,13 @@ TensorFlow 的`AdversarialRegularization` API 旨在补充`tf.keras` API 并简�
 
 1.  安装库。我们需要确保神经结构化学习模块在我们的环境中可用。如果您还没有这样做，应使用以下`pip`命令安装此模块：
 
-    ```
+    ```py
     !pip install --quiet neural-structured-learning
     ```
 
 1.  为数据管道创建文件模式对象。有多个文件（两个）。因此，在数据摄取过程中，我们可以利用文件命名约定和通配符`*`限定符：
 
-    ```
+    ```py
     import tensorflow as tf
     import neural_structured_learning as nsl
     import tensorflow_hub as hub
@@ -556,7 +556,7 @@ TensorFlow 的`AdversarialRegularization` API 旨在补充`tf.keras` API 并简�
 
 1.  清点所有文件名。我们可以使用`glob` API 创建一个数据集对象，用于追踪文件的所有部分：
 
-    ```
+    ```py
     train_all_files = tf.data.Dataset.list_files( tf.io.gfile.glob(train_file_pattern))
     val_all_files = tf.data.Dataset.list_files( tf.io.gfile.glob(val_file_pattern))
     test_all_files = tf.data.Dataset.list_files( tf.io.gfile.glob(test_file_pattern))
@@ -566,7 +566,7 @@ TensorFlow 的`AdversarialRegularization` API 旨在补充`tf.keras` API 并简�
 
 1.  建立加载管道。现在我们可以通过`TFRecordDataset`建立与数据源的引用：
 
-    ```
+    ```py
     train_all_ds = tf.data.TFRecordDataset(train_all_files, num_parallel_reads = AUTOTUNE)
     val_all_ds = tf.data.TFRecordDataset(val_all_files, num_parallel_reads = AUTOTUNE)
     test_all_ds = tf.data.TFRecordDataset(test_all_files, num_parallel_reads = AUTOTUNE)
@@ -576,7 +576,7 @@ TensorFlow 的`AdversarialRegularization` API 旨在补充`tf.keras` API 并简�
 
 1.  为了检查我们是否完全看到了数据，我们将统计每个数据集中的样本大小：
 
-    ```
+    ```py
     train_sample_size = sum(1 for _ in tf.data.TFRecordDataset(train_all_files))
     validation_sample_size = sum(1 for _ in tf.data.TFRecordDataset(val_all_files))
     test_sample_size = sum(1 for _ in tf.data.TFRecordDataset(test_all_files))
@@ -587,7 +587,7 @@ TensorFlow 的`AdversarialRegularization` API 旨在补充`tf.keras` API 并简�
 
     目前，了解 TFRecord 文件中有多少样本的方法是通过遍历文件。在代码中：
 
-    ```
+    ```py
     sum(1 for _ in tf.data.TFRecordDataset(train_all_files))
     ```
 
@@ -595,7 +595,7 @@ TensorFlow 的`AdversarialRegularization` API 旨在补充`tf.keras` API 并简�
 
     上述代码的输出将如下所示：
 
-    ```
+    ```py
     Sample size for training: 3540 
     Sample size for validation: 80 
     Sample size for test: 50
@@ -603,7 +603,7 @@ TensorFlow 的`AdversarialRegularization` API 旨在补充`tf.keras` API 并简�
 
 1.  关于数据转换，我们需要将所有图像转换为相同的大小，即高度为`224`像素，宽度为`224`像素。每个像素的强度值应在[`0`，`1`]的范围内。因此，我们需要将每个像素的值除以`255`。我们需要以下两个函数来进行这些转换操作：
 
-    ```
+    ```py
     def decode_and_resize(serialized_example):
         # resized image should be [224, 224, 3] and 	 	    # normalized to value range [0, 255]
         # label is integer index of class.
@@ -637,7 +637,7 @@ TensorFlow 的`AdversarialRegularization` API 旨在补充`tf.keras` API 并简�
 
 1.  最后，函数返回调整大小后的图像及其对应的独热标签。
 
-    ```
+    ```py
     def normalize(image, label):
         #Convert `image` from [0, 255] -> [0, 1.0] floats 
         image = tf.cast(image, tf.float32) / 255.
@@ -648,7 +648,7 @@ TensorFlow 的`AdversarialRegularization` API 旨在补充`tf.keras` API 并简�
 
 1.  执行数据转换。我们将使用`map`函数将之前的转换操作应用到数据集中的每个元素：
 
-    ```
+    ```py
     resized_train_ds = train_all_ds.map(decode_and_resize, num_parallel_calls=AUTOTUNE)
     resized_val_ds = val_all_ds.map(decode_and_resize, num_parallel_calls=AUTOTUNE)
     resized_test_ds = test_all_ds.map(decode_and_resize, num_parallel_calls=AUTOTUNE)
@@ -661,7 +661,7 @@ TensorFlow 的`AdversarialRegularization` API 旨在补充`tf.keras` API 并简�
 
 1.  定义训练参数。我们需要指定数据集的批量大小，以及定义周期的参数：
 
-    ```
+    ```py
     pixels =224
     IMAGE_SIZE = (pixels, pixels)
     TRAIN_BATCH_SIZE = 32
@@ -686,7 +686,7 @@ TensorFlow 的`AdversarialRegularization` API 旨在补充`tf.keras` API 并简�
 
 1.  构建你的模型。我们将使用 ResNet 特征向量来构建一个图像分类模型：
 
-    ```
+    ```py
     mdl = tf.keras.Sequential([
         tf.keras.layers.InputLayer(input_shape=IMAGE_SIZE + (3,)),
         hub.KerasLayer("https://tfhub.dev/google/imagenet/resnet_v2_50/feature_vector/4",trainable=FINE_TUNING_CHOICE), 
@@ -701,7 +701,7 @@ TensorFlow 的`AdversarialRegularization` API 旨在补充`tf.keras` API 并简�
 
 1.  将训练样本转换为字典。对抗正则化的一个特殊要求是将训练数据和标签合并为一个字典，并将其流式传输到训练过程中。这可以通过以下函数轻松实现：
 
-    ```
+    ```py
     def examples_to_dict(image, label):
       return {'image_input': image, 'label_output': label}
     ```
@@ -710,7 +710,7 @@ TensorFlow 的`AdversarialRegularization` API 旨在补充`tf.keras` API 并简�
 
 1.  将数据和标签集合转换为字典。对于批量数据集，我们可以再次使用`map`函数，将`examples_to_dict`应用于数据集中的每个元素：
 
-    ```
+    ```py
     train_set_for_adv_model = prepped_train_ds.map(examples_to_dict)
     val_set_for_adv_model = prepped_val_ds.map(examples_to_dict)
     test_set_for_adv_model = prepped_test_ds.map(examples_to_dict)
@@ -720,7 +720,7 @@ TensorFlow 的`AdversarialRegularization` API 旨在补充`tf.keras` API 并简�
 
 1.  创建对抗正则化对象。现在我们准备创建一个指定对抗配置的`adv_config`对象。然后我们将前一步创建的`mdl`基础模型与`adv_config`进行包装：
 
-    ```
+    ```py
     adv_config = nsl.configs.make_adv_reg_config()
     adv_mdl = nsl.keras.AdversarialRegularization(mdl,
     label_keys=['label_output'],
@@ -731,7 +731,7 @@ TensorFlow 的`AdversarialRegularization` API 旨在补充`tf.keras` API 并简�
 
 1.  编译并训练模型。这部分与之前我们做的类似，训练基础模型时也是如此，唯一的不同在于输入数据集：
 
-    ```
+    ```py
     adv_mdl.compile(optimizer=tf.keras.optimizers.SGD(lr=0.005, momentum=0.9), 
         loss=tf.keras.losses.CategoricalCrossentropy(
                       from_logits=True, label_smoothing=0.1),

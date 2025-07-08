@@ -166,19 +166,19 @@ GAN 的神经网络的激活函数，由`build_generator()`和`build_discriminat
 
 我们将通过利用`random`库中的`normal()`函数来使用样本噪声作为生成器输入，如下所示：
 
-```
+```py
 noise = np.random.normal(0, 1, (half_batch, self.latent_dim))
 ```
 
 两个神经网络的训练阶段通过`train()`方法实现：
 
-```
+```py
 train(self, n_epochs, batch_size=128, save_interval=50)
 ```
 
 最后，在`train()`方法中，两个神经网络之间的联系非常明显：
 
-```
+```py
 # The generator wants the discriminator to label the generated samples as valid
 
 valid = np.concatenate((np.ones((batch_size, 1)), np.zeros((batch_size, 1))), axis=1)
@@ -193,7 +193,7 @@ g_loss, g_acc = self.combined.train_on_batch(noise, valid)
 
 以下是代码示例，改编自原始代码，原始代码可在[`github.com/eriklindernoren/ML-From-Scratch/blob/master/mlfromscratch/unsupervised_learning/generative_adversarial_network.py`](https://github.com/eriklindernoren/ML-From-Scratch/blob/master/mlfromscratch/unsupervised_learning/generative_adversarial_network.py)找到（根据 MIT 许可证发布，详情见[`github.com/eriklindernoren/ML-From-Scratch/blob/master/LICENSE`](https://github.com/eriklindernoren/ML-From-Scratch/blob/master/LICENSE)）：
 
-```
+```py
 from __future__ import print_function, division
 from sklearn import datasets
 import math
@@ -213,7 +213,7 @@ from mlfromscratch.deep_learning import NeuralNetwork
 
 在导入必要的库之后，我们现在可以着手定义`GAN`类，该类实现了我们的生成对抗网络（GAN），并以生成器和判别器组件的形式部署了深度全连接神经网络，这些组件在类构造函数（`__init__()`方法）中实例化：
 
-```
+```py
 class GAN():
 
     def __init__(self):
@@ -244,7 +244,7 @@ class GAN():
 
 生成器和判别器组件分别在`build_generator()`和`build_discriminator()`类方法中定义：
 
-```
+```py
     def build_generator(self, optimizer, loss_function):
 
         model = NeuralNetwork(optimizer=optimizer, loss=loss_function)
@@ -281,7 +281,7 @@ class GAN():
 
 为了训练 GAN，我们定义了`train()`类方法，负责训练生成器和判别器组件：
 
-```
+```py
     def train(self, n_epochs, batch_size=128, save_interval=50):  
 
         X, y = loadlocal_mnist(images_path='./MNIST/train-images.idx3-ubyte', labels_path='./MNIST/train-labels.idx1-ubyte')  
@@ -345,7 +345,7 @@ class GAN():
 
 在训练完 GAN 后，我们可以通过`save_imgs()`类方法保存新创建的对抗样本图像，该方法定义如下：
 
-```
+```py
     def save_imgs(self, epoch):
         r, c = 5, 5 # Grid size
         noise = np.random.normal(0, 1, (r * c, self.latent_dim))
@@ -370,7 +370,7 @@ class GAN():
 
 要启动脚本，我们只需如下定义`__main__`入口点：
 
-```
+```py
 if __name__ == '__main__':
 
     gan = GAN()
@@ -460,7 +460,7 @@ CleverHans 库可以在[`github.com/tensorflow/cleverhans`](https://github.com/t
 
 安装 TensorFlow 后，我们可以使用常规命令安装 CleverHans：
 
-```
+```py
 pip install cleverhans
 ```
 
@@ -496,13 +496,13 @@ EvadeML-Zoo 库提供了一系列工具和模型，包括以下内容：
 
 下载完包后，你可以使用以下命令在只使用 CPU 的机器上安装 EvadeML-Zoo 库：
 
-```
+```py
 pip install -r requirements_cpu.txt
 ```
 
 此外，如果你有兼容的 GPU 可用，可以执行以下命令：
 
-```
+```py
 pip install -r requirements_gpu.txt
 ```
 
@@ -510,7 +510,7 @@ pip install -r requirements_gpu.txt
 
 要下载预训练模型，请运行以下命令：
 
-```
+```py
 mkdir downloads; curl -sL https://github.com/mzweilin/EvadeML-Zoo/releases/download/v0.1/downloads.tar.gz | tar xzv -C downloads
 ```
 
@@ -518,7 +518,7 @@ EvadeML-Zoo 库的另一个有趣特点是，它可以通过运行 `main.py` 工
 
 在以下代码块中，你可以看到 `main.py` 的使用菜单，并附带了工具执行的示例：
 
-```
+```py
 usage: python main.py [-h] [--dataset_name DATASET_NAME] [--model_name MODEL_NAME]
  [--select [SELECT]] [--noselect] [--nb_examples NB_EXAMPLES]
  [--balance_sampling [BALANCE_SAMPLING]] [--nobalance_sampling]
@@ -572,7 +572,7 @@ usage: python main.py [-h] [--dataset_name DATASET_NAME] [--model_name MODEL_NAM
 
 EvadeML-Zoo 库使用 Carlini 模型和对 MNIST 数据集的 FGSM 对抗性攻击进行执行，具体如下：
 
-```
+```py
 python main.py --dataset_name MNIST --model_name carlini \
  --nb_examples 2000 --balance_sampling \
  --attacks "FGSM?eps=0.1;" \
@@ -600,19 +600,19 @@ Defense-GAN 库是根据 Apache 2.0 许可证发布的 ([`github.com/kabkabm/def
 
 下载库后，您可以通过启动以下命令来安装它：
 
-```
+```py
 pip install -r requirements.txt
 ```
 
 要下载数据集并准备数据目录，请使用以下命令启动 `download_dataset.py` Python 脚本：
 
-```
+```py
 python download_dataset.py [mnist|f-mnist|celeba]
 ```
 
 通过启动 `train.py` 脚本来训练 GAN 模型：
 
-```
+```py
 python train.py --cfg  --is_train
 
  --cfg This can be set to either a .yml configuration file like the ones in experiments/cfgs, or an output directory path.
@@ -633,7 +633,7 @@ Defense-GAN 库还提供了一些工具，您可以用来实验不同的攻击�
 
 要执行黑盒攻击，我们可以启动 `blackbox.py` 工具：
 
-```
+```py
 python blackbox.py --cfg  \
      --results_dir  \
      --bb_model {A, B, C, D, E} \
@@ -673,7 +673,7 @@ python blackbox.py --cfg  \
 
 带参数的`blackbox.py`执行示例如下：
 
-```
+```py
 python blackbox.py --cfg output/gans/mnist \
  --results_dir defensegan \
  --bb_model A \
@@ -684,7 +684,7 @@ python blackbox.py --cfg output/gans/mnist \
 
 我们当然可以通过启动`whitebox.py`工具，测试 Defense-GAN 对抗白盒攻击：
 
-```
+```py
 python whitebox.py --cfg  \
         --results_dir  \
         --attack_type {fgsm, rand_fgsm, cw} \
@@ -696,7 +696,7 @@ python whitebox.py --cfg  \
 
 带参数的`whitebox.py`执行示例如下：
 
-```
+```py
 python whitebox.py --cfg  \
         --results_dir whitebox \
         --attack_type fgsm \
@@ -760,7 +760,7 @@ python whitebox.py --cfg  \
 
 以下是主 MalGAN 类（版本 2）的代码：
 
-```
+```py
 """
  MalGAN v2 Class definition
  https://github.com/yanminglai/Malware-GAN/blob/master/MalGAN_v2.py
@@ -783,7 +783,7 @@ python whitebox.py --cfg  \
 
 在导入必要的库之后，让我们先看看`MalGAN()`类的定义，从其构造函数（`__init__()`方法）开始：
 
-```
+```py
  class MalGAN():
      def __init__(self):
          self.apifeature_dims = 74
@@ -825,7 +825,7 @@ python whitebox.py --cfg  \
 
 `MalGAN`类提供了构建生成器组件和替代检测器的方法，以及`blackbox_detector`：
 
-```
+```py
      def build_blackbox_detector(self):
 
          if self.blackbox is 'RF':
@@ -859,7 +859,7 @@ python whitebox.py --cfg  \
 
 生成器组件的训练以及`blackbox`和替代检测器的训练在`train()`方法中实现：
 
-```
+```py
      def train(self, epochs, batch_size=32):
 
          # Load the dataset
@@ -903,7 +903,7 @@ python whitebox.py --cfg  \
 
 我们将按如下方式训练生成器：
 
-```
+```py
 
                  idx = np.random.randint(0, xtrain_mal.shape[0], batch_size)
                  xmal_batch = xtrain_mal[idx]
@@ -932,7 +932,7 @@ python whitebox.py --cfg  \
 
 要启动脚本，我们只需定义`__main__`入口点：
 
-```
+```py
  if __name__ == '__main__':
      malgan = MalGAN()
      malgan.train(epochs=50, batch_size=64)
@@ -1085,7 +1085,7 @@ IDSGAN 提供的主要功能如下：
 
 以下是对 FaceNet 库实现的面部识别模型进行对抗攻击的示例代码：
 
-```
+```py
 """
  Script name: facenet_fgsm.py  
  https://github.com/tensorflow/cleverhans/blob/master/examples/facenet_adversarial_faces/facenet_fgsm.py
@@ -1105,7 +1105,7 @@ IDSGAN 提供的主要功能如下：
 
 在加载必要的库之后，我们可以深入了解 `InceptionResnetV1Model` 类的定义，它为我们提供了执行针对 FaceNet 库的对抗攻击所需的所有方法：
 
-```
+```py
  class InceptionResnetV1Model(Model):
    model_path = "models/facenet/20170512-110547/20170512-110547.pb"
 
@@ -1153,7 +1153,7 @@ IDSGAN 提供的主要功能如下：
 
 我们现在准备好利用 FGSM 方法执行我们的攻击：
 
-```
+```py
 
  with tf.Graph().as_default():
    with tf.Session() as sess:
@@ -1212,13 +1212,13 @@ IDSGAN 提供的主要功能如下：
 
 1.  编辑示例代码中的以下行，确保 `.pb` 文件的名称和路径与之前下载的 FaceNet 模型的路径和文件名匹配：
 
-```
+```py
 model_path = "models/facenet/20170512-110547/20170512-110547.pb"
 ```
 
 1.  使用以下命令启动 Python 脚本：
 
-```
+```py
 python facenet_fgsm.py
 ```
 

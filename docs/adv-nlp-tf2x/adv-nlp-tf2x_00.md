@@ -74,7 +74,7 @@
 
 代码块如下所示：
 
-```
+```py
 en = snlp.Pipeline(lang='en')
 def word_counts(x, pipeline=en):
   doc = pipeline(x)
@@ -84,7 +84,7 @@ def word_counts(x, pipeline=en):
 
 当我们希望引起你对代码块中特定部分的注意时，相关的行或项将以粗体显示：
 
-```
+```py
 en = snlp.Pipeline(lang='en')
 def word_counts(x, pipeline=en):
   **doc = pipeline(x)**
@@ -94,7 +94,7 @@ def word_counts(x, pipeline=en):
 
 任何命令行输入或输出都将如下所示：
 
-```
+```py
 !pip install gensim 
 ```
 

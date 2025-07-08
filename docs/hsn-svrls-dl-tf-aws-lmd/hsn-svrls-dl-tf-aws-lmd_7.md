@@ -146,7 +146,7 @@ Step Functions 的主要优势之一是按需付费系统。非常简单，每 1
 
 1.  首先，我们将添加几个函数，这些函数将在步进函数的不同状态下使用：
 
-```
+```py
 function:
     branch:
         handler: index.handlerBranch
@@ -158,14 +158,14 @@ function:
 
 1.  接下来，我们将添加一些插件，这是与步进函数一起工作的必要条件：
 
-```
+```py
 plugins:    - serverless-step-functions
     - serverless-pseudo-parameters
 ```
 
 1.  现在让我们看一下`index.py`文件，在那里你可以看到到目前为止讨论的所有部分：
 
-```
+```py
 def handlerMap(event,context):
     return event
 
@@ -180,7 +180,7 @@ def handlerBranch(event,context):
 
 现在，让我们通过执行以下命令来部署我们的服务：
 
-```
+```py
 serverless deploy
 ```
 
@@ -194,7 +194,7 @@ serverless deploy
 
 现在让我们在命令行中测试这个 URL：
 
-```
+```py
 curl https://dns1519ilj.execute-api.us-east-1.amazonaws.com/dev/startFunction
 ```
 
@@ -228,7 +228,7 @@ curl https://dns1519ilj.execute-api.us-east-1.amazonaws.com/dev/startFunction
 
 1.  让我们来看看配置文件。你可以看到我们需要定义的所有主要部分和角色，以便访问模型：
 
-```
+```py
 provider:
   name: aws
   region: us-east-1
@@ -250,7 +250,7 @@ provider:
 
 1.  这里是我们将在步骤函数的不同状态下使用的函数：
 
-```
+```py
 functions:
   main:
     handler: index.handler
@@ -262,7 +262,7 @@ functions:
 
 1.  `map` 将启用将传入的事件映射到不同的 Lambda，range 将使得每个链接可以并行地单独处理，而 `reduce` 则有助于将它们合并成一个响应。我们有状态机定义，它与之前讨论的非常相似：
 
-```
+```py
 stepFunctions:
   stateMachines:
     DeepLearningWorkflow:
@@ -314,7 +314,7 @@ stepFunctions:
 
 1.  这里是我们所需的插件，以便使函数正常工作：
 
-```
+```py
 plugins:
   - serverless-step-functions
   - serverless-pseudo-parameters
@@ -322,7 +322,7 @@ plugins:
 
 1.  我们的索引文件与上一节的主要区别是，我们添加了 MapReduce 逻辑。这将使得每个 URL 可以单独处理：
 
-```
+```py
 def map(event, context):
     dictMap = {}
     dictMap['branch1'] = {'url':event[0]}
@@ -341,7 +341,7 @@ def reduce(event, context):
 
 1.  现在我们的模型已经准备好，接下来使用以下命令部署服务：
 
-```
+```py
 serverless deploy
 ```
 

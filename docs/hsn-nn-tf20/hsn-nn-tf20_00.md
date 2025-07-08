@@ -78,7 +78,7 @@
 
 一块代码如下所示：
 
-```
+```py
 writer = tf.summary.FileWriter("log/two_graphs/g1", g1)
 writer = tf.summary.FileWriter("log/two_graphs/g2", g2)
 writer.close()
@@ -86,7 +86,7 @@ writer.close()
 
 任何命令行输入或输出均按如下格式书写：
 
-```
+```py
 # create the virtualenv in the current folder (tf2)
 pipenv --python 3.7
 # run a new shell that uses the just created virtualenv

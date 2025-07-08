@@ -122,7 +122,7 @@ TensorFlow Enterprise 仅在由 Google Cloud 托管的 JupyterLab 环境中提�
 
 1.  假设 Docker 守护进程正在运行，我们将执行以下命令来运行 TensorFlow Enterprise 容器：
 
-    ```
+    ```py
     docker run -d -p <LOCAL_PORT>:8080 -v <LOCAL_DIR>:/home <CONTAINER_REGISTRY>
     ```
 
@@ -144,7 +144,7 @@ TensorFlow Enterprise 仅在由 Google Cloud 托管的 JupyterLab 环境中提�
 
 1.  将这些组合在一起形成一个命令，并从本地计算机的终端（如 Windows 命令提示符）运行：
 
-    ```
+    ```py
     8080 inside the Docker image. Notice that the preceding command maps local port 8080 to the Docker image's port 8080. The first 8080 is your local port, the second 8080 is the port number used by JupyterLab inside the Docker image environment. Again, the local port number doesn't have to be 8080.
     ```
 
@@ -168,7 +168,7 @@ TensorFlow Enterprise 仅在由 Google Cloud 托管的 JupyterLab 环境中提�
 
 1.  你还可以将数据写入本地目录：![图 2.18 – Docker 镜像中的 JupyterLab 写入本地数据    ](img/Figure_2.18.jpg)
 
-    ```
+    ```py
     iris.to_csv('/home/iris-write-from-docker.csv', index=False)
     ```
 
@@ -180,20 +180,20 @@ TensorFlow Enterprise 仅在由 Google Cloud 托管的 JupyterLab 环境中提�
 
 1.  完成后，为了关闭 Docker 镜像，你需要知道本地 Docker 守护进程为此实例分配的容器 ID。命令如下：
 
-    ```
+    ```py
     docker ps
     ```
 
     它将返回类似于以下的输出：
 
-    ```
+    ```py
     CONTAINER ID        IMAGE                                              COMMAND                  CREATED             STATUS              PORTS                    NAMES
     553cfd198067        gcr.io/deeplearning-platform-release/tf2-cpu.2-1   '/entrypoint.sh /run…'   44 minutes ago      Up 44 minutes       0.0.0.0:8080->8080/tcp   intelligent_goldwasser
     ```
 
 1.  记下`CONTAINER ID`的值。然后使用以下命令来关闭它：
 
-    ```
+    ```py
     docker stop 553cfd198067
     ```
 
@@ -233,14 +233,14 @@ TensorFlow Enterprise 仅在由 Google Cloud 托管的 JupyterLab 环境中提�
 
 1.  定义一组 JSON 兼容格式的参数，即键值对，如同 Python 字典：
 
-    ```
+    ```py
     params = {'min_death': 1000,
              		'topn': 10}
     ```
 
 1.  构建查询并通过名称将其分配给 DataFrame。注意查询中每个参数键如何通过前缀`@`来引用：
 
-    ```
+    ```py
     %%bigquery myderiveddata  --params $params
     SELECT country_region,  MAX(confirmed) as total_confirmed, MAX(deaths) AS total_deaths 
     FROM `bigquery-public-data.covid19_jhu_csse.summary`
@@ -252,7 +252,7 @@ TensorFlow Enterprise 仅在由 Google Cloud 托管的 JupyterLab 环境中提�
 
 1.  检查数据：
 
-    ```
+    ```py
     myderiveddata
     ```
 
@@ -264,7 +264,7 @@ TensorFlow Enterprise 仅在由 Google Cloud 托管的 JupyterLab 环境中提�
 
 我们可以使用 Python 的`type`命令来确认数据对象的结构：
 
-```
+```py
 type(myderiveddata) 
 ```
 
@@ -288,43 +288,43 @@ DataFrame 可以被序列化为 pickle 文件以供未来使用。一旦转换�
 
 以下是我们刚刚处理的快速示例的完整代码片段：
 
-```
+```py
 params = {'min_death': 1000,
 ```
 
-```
+```py
           'topn': 10}
 ```
 
-```
+```py
 %%bigquery myderiveddata --params $params
 ```
 
-```
+```py
 SELECT country_region,  MAX(confirmed) as total_confirmed, MAX(deaths) AS total_deaths 
 ```
 
-```
+```py
 FROM `bigquery-public-data.covid19_jhu_csse.summary`
 ```
 
-```
+```py
 GROUP BY country_region 
 ```
 
-```
+```py
 HAVING (total_deaths > @min_death) 
 ```
 
-```
+```py
 ORDER BY total_deaths DESC 
 ```
 
-```
+```py
 LIMIT @topn
 ```
 
-```
+```py
 print(myderiveddata)
 ```
 

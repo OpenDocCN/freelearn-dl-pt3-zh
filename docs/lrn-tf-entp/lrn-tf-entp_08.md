@@ -28,7 +28,7 @@ TensorFlow 已经为分布式训练开发了一个高级 API。此外，这个 A
 
 如果你还没有这样做，请立即克隆这个仓库：
 
-```
+```py
 git clone **https://github.com/PacktPublishing/learn-tensorflow-enterprise.git**
 ```
 
@@ -50,7 +50,7 @@ TPU 是根据 Google 的规格和设计定制的 ASIC 加速器。它是专门�
 
 要在客户端节点上安装 Cloud SDK，请下载并安装 Google Cloud SDK。Google Cloud SDK 提供了关于如何在不同操作系统（如 Mac、Linux 或 Windows）上安装的详细说明页面。强烈建议你按照此链接中的说明安装 Google Cloud SDK：[`cloud.google.com/sdk/docs#install_the_latest_cloud_sdk_version`](https://cloud.google.com/sdk/docs#install_the_latest_cloud_sdk_version)。安装完成后，你可以使用以下命令进行验证：
 
-```
+```py
 gcloud --help
 ```
 
@@ -68,7 +68,7 @@ gcloud --help
 
 1.  在此步骤中，我们将根据我们的项目 ID 检索云 TPU 服务账户名称。可以使用以下命令：
 
-    ```
+    ```py
     curl -H 'Authorization: Bearer $(gcloud auth print-access-token)'  \  https://ml.googleapis.com/v1/projects/<your-project-id>:getConfig
     ```
 
@@ -82,7 +82,7 @@ gcloud --help
 
 1.  一旦我们知道 TPU 服务账户的信息，我们需要根据以下命令进行初始化：
 
-    ```
+    ```py
     curl -H 'Authorization: Bearer $(gcloud auth print-access-token)'  \  -H 'Content-Type: application/json' -d '{}'  \  https://serviceusage.googleapis.com/v1beta1/projects/<serviceAccountProject>/services/tpu.googleapis.com:generateServiceIdentity
     ```
 
@@ -144,13 +144,13 @@ AI 平台还提供作为服务的模型训练功能。它允许用户从本地�
 
 1.  在你的工作目录中的命令终端（对于 Mac OS X 或 Linux）中，输入以下内容：
 
-    ```
+    ```py
     setup.py. In install_requires, you will see a Python list that contains TensorFlow datasets or tensorflow_hub. This is where dependencies are added to the runtime in Google Cloud AI Platform.
     ```
 
 1.  现在我们准备设置用于 Cloud TPU 的分布式训练命令，让我们首先看看命令及执行格式。回想一下，我们之前提到过，这个任务将在客户端运行的 Cloud SDK 中执行。一般来说，客户端节点将使用输入标志发出 `gcloud` 命令，格式如下：
 
-    ```
+    ```py
     gcloud ai-platform jobs submit training cloudtpu \
     --staging-bucket=gs://ai-tpu-experiment \
     --package-path=python \
@@ -180,35 +180,35 @@ AI 平台还提供作为服务的模型训练功能。它允许用户从本地�
 
 让我们看看这个示例命令。这个示例命令可以基于`-- \`分为两部分。命令的第一部分包括以下内容：
 
-```
+```py
 gcloud ai-platform jobs submit training cloudtpu \
 ```
 
-```
+```py
 --staging-bucket=gs://ai-tpu-experiment \
 ```
 
-```
+```py
 --package-path=python \
 ```
 
-```
+```py
 --module-name=python.ScriptProject.traincloudtpu_resnet_cache \
 ```
 
-```
+```py
 --runtime-version=2.1 \
 ```
 
-```
+```py
 --python-version=3.7 \
 ```
 
-```
+```py
 --scale-tier=BASIC_TPU \
 ```
 
-```
+```py
 --region=us-central1 \
 ```
 
@@ -216,7 +216,7 @@ gcloud ai-platform jobs submit training cloudtpu \
 
 `package-path`是组织项目的文件夹。在这种情况下，在此包中，我们有兴趣执行一个训练脚本，`traincloudtpu_resnet_cache.py`。为了让`gcloud`运行时找到它，我们需要指定以下内容：
 
-```
+```py
 module-name=python.ScriptProject.traincloudtpu_resnet_cache
 ```
 
@@ -226,15 +226,15 @@ module-name=python.ScriptProject.traincloudtpu_resnet_cache
 
 现在，让我们来看看这个命令的后半部分，其中包含用户定义的标志：
 
-```
+```py
 --distribution_strategy=tpu \
 ```
 
-```
+```py
 --model_dir=gs://ai-tpu-experiment/traincloudtpu_tfkd_resnet_cache \
 ```
 
-```
+```py
 --train_epochs=10 \--data_dir=gs://ai-tpu-experiment/tfrecord-flowers
 ```
 
@@ -244,71 +244,71 @@ module-name=python.ScriptProject.traincloudtpu_resnet_cache
 
 本示例的训练脚本的一般结构采用了极简风格。在实践中，将 Python 代码组织到多个文件和模块中是很常见的。因此，我们将所有需要的内容放在一个 Python 脚本 `train.py` 中。其伪代码如下：
 
-```
+```py
 def run( input parameters ):
 ```
 
-```
+```py
 	# specify distribute strategy (https://cloud.google.com/
 ```
 
-```
+```py
 	ai-platform/training/docs/using-tpus)
 ```
 
-```
+```py
 	import tensorflow as tf
 ```
 
-```
+```py
 	if distribution_strategy==TPU: 
 ```
 
-```
+```py
 		resolver = tf.distribute.cluster_resolver.				TPUClusterResolver()
 ```
 
-```
+```py
 	tf.config.experimental_connect_to_cluster(resolver)
 ```
 
-```
+```py
 	tf.tpu.experimental.initialize_tpu_system(resolver)
 ```
 
-```
+```py
 	strategy = tf.distribute.experimental.TPUStrategy(resolver)
 ```
 
-```
+```py
 	# build data streaming pipeline with tf.io and tf.data.TFRecordDataset
 ```
 
-```
+```py
 	# build model
 ```
 
-```
+```py
 	# train model
 ```
 
-```
+```py
 	# save results
 ```
 
-```
+```py
 def main():
 ```
 
-```
+```py
 run(input parameters)
 ```
 
-```
+```py
 if __name__ == '__main__'
 ```
 
-```
+```py
 app.run(main)
 ```
 
@@ -328,7 +328,7 @@ app.run(main)
 
 1.  在我们训练脚本的 `run` 函数中，我们需要指定训练数据的云存储路径。我们可以利用 `tf.io.gfile` 对多个部分的文件名模式进行编码。接着，我们使用 `tf.data.TFRecordDataset` 实例化一个数据集对象：
 
-    ```
+    ```py
     root_dir = flags_obj.data_dir # this is gs://<bucket>/folder where tfrecord are stored
     train_file_pattern = '{}/image_classification_builder-train*.tfrecord*'.format(root_dir)
     val_file_pattern = '{}/image_classification_builder-validation*.tfrecord*'.format(root_dir)
@@ -344,7 +344,7 @@ app.run(main)
 
 1.  我们必须通过编写自己的函数来处理图像标准化（调整为不同的高度和宽度）。以下是一个在`TFRecordDataset`上执行这些操作的函数：
 
-    ```
+    ```py
         def decode_and_resize(serialized_example):
             # resized image should be [224, 224, 3] and have 	          value range [0, 255] 
             # label is integer index of class.
@@ -377,7 +377,7 @@ app.run(main)
 
     这个`decode_and_resize`函数解析数据集中的 JPEG 图像，并调整相应的颜色值范围，然后解析标签，对图像进行一热编码，并使用最近邻方法对图像进行调整大小，以将其标准化为 224×224 像素，适应我们选择的模型（ResNet）。该函数还提供了不同的方式返回标签，无论是纯文本还是整数。如果需要，你可以通过将感兴趣的标注添加到`return`元组中，返回不同格式和风格的标签：
 
-    ```
+    ```py
       return resized_image, label_one_hot, label_txt, label
     ```
 
@@ -385,14 +385,14 @@ app.run(main)
 
 1.  既然我们已经准备好了`decode_and_resize`函数，接下来就是如何将它应用到`dataset`对象中的每个元素：
 
-    ```
+    ```py
         dataset = train_all_ds.map(decode_and_resize)
     val_dataset = val_all_ds.map(decode_and_resize)
     ```
 
 1.  然后，我们将每张图像的像素值重新缩放或归一化到`[0, 1]`范围内，以便所有图像的像素值范围一致，适合进行训练。让我们来创建一个`normalize`函数：
 
-    ```
+    ```py
     def normalize(image, label):
             #Convert `image` from [0, 255] -> [0, 1.0] floats 
             image = tf.cast(image, tf.float32) / 255\. + 0.5
@@ -401,7 +401,7 @@ app.run(main)
 
     我们需要通过应用批处理操作来准备训练数据。我们使用以下函数来实现这一点：
 
-    ```
+    ```py
     def prepare_for_training(ds, cache=True, shuffle_buffer_size=1000):
             if cache:
                 if isinstance(cache, str):
@@ -420,7 +420,7 @@ app.run(main)
 
     我们再次使用`map`方法，将`normalize`操作应用到我们的训练集和验证集：
 
-    ```
+    ```py
     AUTOTUNE = tf.data.experimental.AUTOTUNE
     BATCH_SIZE = flags_obj.train_batch_size
     VALIDATION_BATCH_SIZE = flags_obj.validation_batch_size
@@ -434,7 +434,7 @@ app.run(main)
 
 1.  接下来，我们将设置模型并进行训练。我们将利用流行的迁移学习技术，在我们的训练数据集上应用并训练一个预构建的模型。这里感兴趣的预构建模型是 ResNet-50 图像分类模型。记得我们之前已经为训练指定了基于 TPU 的分布式策略吗？我们可以在这里简单地将模型定义和优化器选择与该策略结合：
 
-    ```
+    ```py
     with strategy.scope():
       base_model = tf.keras.applications.ResNet50(
           input_shape=(224,224,3), include_top=False, 	   	      weights='imagenet')
@@ -460,7 +460,7 @@ app.run(main)
 
 1.  然后，我们通过以下代码来设置检查点和回调函数：
 
-    ```
+    ```py
     checkpoint_prefix = os.path.join(flags_obj.model_dir, 	                                          'ckpt_{epoch}')
         callbacks = [
         tf.keras.callbacks.ModelCheckpoint
@@ -472,7 +472,7 @@ app.run(main)
 
 1.  接下来，我们需要在每个 epoch 设置训练和交叉验证的样本大小：
 
-    ```
+    ```py
     train_sample_size=0
         for raw_record in train_all_ds:
             train_sample_size += 1
@@ -489,7 +489,7 @@ app.run(main)
 
 1.  最后，这里是训练过程的代码：
 
-    ```
+    ```py
     hist = model.fit(
             train_ds,
             epochs=flags_obj.train_epochs, 
@@ -512,79 +512,79 @@ app.run(main)
 
 以下是命令和终端输出：
 
-```
+```py
 vs_code % gcloud ai-platform jobs submit training traincloudtpu_tfk_resnet50 \
 ```
 
-```
+```py
 --staging-bucket=gs://ai-tpu-experiment \
 ```
 
-```
+```py
 --package-path=python \
 ```
 
-```
+```py
 --module-name=python.ScriptProject.trainer \
 ```
 
-```
+```py
 --runtime-version=2.2 \
 ```
 
-```
+```py
 --python-version=3.7 \
 ```
 
-```
+```py
 --scale-tier=BASIC_TPU \
 ```
 
-```
+```py
 --region=us-central1 \
 ```
 
-```
+```py
 -- \
 ```
 
-```
+```py
 --distribution_strategy=tpu \
 ```
 
-```
+```py
 --model_dir=gs://ai-tpu-experiment/traincloudtpu_tfk_resnet50 \
 ```
 
-```
+```py
 --train_epochs=10 \
 ```
 
-```
+```py
 --data_dir=gs://ai-tpu-experiment/tfrecord-flowers
 ```
 
-```
+```py
 Job [traincloudtpu_tfk_resnet50] submitted successfully.
 ```
 
 您的作业仍然处于活动状态。您可以使用以下命令查看作业的状态：
 
-```
+```py
   $ gcloud ai-platform jobs describe traincloudtpu_tfk_resnet50
 ```
 
 或者，您可以使用以下命令继续流式传输日志：
 
-```
+```py
   $ gcloud ai-platform jobs stream-logs traincloudtpu_tfk_resnet50
 ```
 
-```
+```py
 jobId: traincloudtpu_tfk_resnet50
 ```
 
-```
+```py
 state: QUEUED
 ```
 
@@ -592,97 +592,97 @@ state: QUEUED
 
 我们还必须指定以下参数，这些参数在 `trainer.py` 中使用（[`github.com/PacktPublishing/learn-tensorflow-enterprise/blob/master/chapter_05/cnn_on_tpu/custom_model_on_tpu/trainer.py`](https://github.com/PacktPublishing/learn-tensorflow-enterprise/blob/master/chapter_05/cnn_on_tpu/custom_model_on_tpu/trainer.py)）：
 
-```
+```py
 Job name: traincloudtpu_tfk_resnet50
 ```
 
-```
+```py
 Staging bucket is gs://ai-tpu-experiment
 ```
 
-```
+```py
 Bucket to save the model is gs://ai-tpu-experiment/traincloudtpu_tfk_resnet50
 ```
 
-```
+```py
 Training data is in gs://tfrecord-dataset/flowers
 ```
 
 一旦我们提交前面的命令，它将进入您的 Cloud AI Platform 实例队列中等待执行。要查看我们可以在哪里监控训练过程，可以运行`gcloud ai-platform` `jobs describe traincloudtpu_tfk_resnet50` 来获取正在运行日志的 URL：
 
-```
+```py
 vs_code % gcloud ai-platform jobs describe traincloudtpu_tfk_resnet50
 ```
 
-```
+```py
 createTime: ‚2020-08-09T20:59:16Z'
 ```
 
-```
+```py
 etag: QMhh5Jz_KMU=
 ```
 
-```
+```py
 jobId: traincloudtpu_tfk_resnet50
 ```
 
-```
+```py
 state: PREPARING
 ```
 
-```
+```py
 trainingInput:
 ```
 
-```
+```py
   args:
 ```
 
-```
+```py
   - --distribution_strategy=tpu
 ```
 
-```
+```py
   - --model_dir=gs://ai-tpu-experiment/traincloudtpu_tfk_resnet50
 ```
 
-```
+```py
   - --train_epochs=10
 ```
 
-```
+```py
   - --data_dir=gs://ai-tpu-experiment/tfrecord-flowers
 ```
 
-```
+```py
   packageUris:
 ```
 
-```
+```py
   - gs://ai-tpu-experiment/traincloudtpu_tfk_resnet50/XXXXXX/official-0.0.0.tar.gz
 ```
 
-```
+```py
   pythonModule: python.ScriptProject.trainer
 ```
 
-```
+```py
   pythonVersion: '3.7'
 ```
 
-```
+```py
   region: us-central1
 ```
 
-```
+```py
   runtimeVersion: '2.2'
 ```
 
-```
+```py
   scaleTier: BASIC_TPU
 ```
 
-```
+```py
 trainingOutput: {}
 ```
 
@@ -722,23 +722,23 @@ trainingOutput: {}
 
 TensorFlow Hub 托管了大量预训练模型。然而，要使用这些模型，用户或客户端代码必须能够连接到 Hub 并通过 RESTful API 下载模型到客户端的 TensorFlow 运行时。目前，TPU 无法直接进行此操作。因此，我们必须先从 TensorFlow Hub 下载我们感兴趣的模型到本地计算机，然后将其上传到云存储，以便 TPU 可以访问。通常情况下，以下是使用 `tf.keras` API 从 TensorFlow Hub 实现预训练模型的步骤：
 
-```
+```py
 m = tf.keras.Sequential([
 ```
 
-```
+```py
     hub.KerasLayer('https://tfhub.dev/google/imagenet/resnet_v2_50/feature_vector/4', trainable=False),  
 ```
 
-```
+```py
     tf.keras.layers.Dense(num_classes, activation='softmax')
 ```
 
-```
+```py
 ])
 ```
 
-```
+```py
 m.build([None, 224, 224, 3])  # Batch input shape.
 ```
 
@@ -764,119 +764,119 @@ m.build([None, 224, 224, 3])  # Batch input shape.
 
 然后，在 `run` 函数内部，我们需要利用环境变量来告诉 TPU 在哪里找到这个模型：
 
-```
+```py
 os.environ['TFHUB_CACHE_DIR'] = 'gs://ai-tpu-experiment/model-cache-dir/imagenet_resnet_v2_50_feature_vector_4'
 ```
 
 这行代码可以插入到 `run` 函数中的模型定义之前。在模型定义中，我们将像往常一样使用 `hub.KerasLayer` 来指定模型架构：
 
-```
+```py
 with strategy.scope():
 ```
 
-```
+```py
   model = tf.keras.Sequential([
 ```
 
-```
+```py
      tf.keras.layers.InputLayer(input_shape=IMAGE_SIZE + (3,)),
 ```
 
-```
+```py
      hub.KerasLayer('https://tfhub.dev/google/imagenet/resnet_v2_50/feature_vector/4',
 ```
 
-```
+```py
                    trainable=flags_obj.fine_tuning_choice),
 ```
 
-```
+```py
             tf.keras.layers.Dense(5, activation='softmax', 
 ```
 
-```
+```py
                                          name = 'custom_class')
 ```
 
-```
+```py
         ])
 ```
 
 由于我们已经在环境变量中定义了`TFHUB_CACHE_DIR`，并指定了云存储名称和路径，因此当 TPU 执行模型架构代码中的`hub.KerasLayer`部分时，TPU 运行时会首先从`TFHUB_CACHE_DIR`查找模型，而不是尝试通过 RESTful API 调用来获取模型。对训练脚本进行这些小的修改后，我们可以将其重命名为`trainer_hub.py`。训练工作可以通过类似的调用方式启动：
 
-```
+```py
 vs_code % gcloud ai-platform jobs submit training traincloudtpu_tfhub_resnet50 \
 ```
 
-```
+```py
 --staging-bucket=gs://ai-tpu-experiment \
 ```
 
-```
+```py
 --package-path=python \
 ```
 
-```
+```py
 --module-name=python.ScriptProject.trainer_hub \
 ```
 
-```
+```py
 --runtime-version=2.2 \
 ```
 
-```
+```py
 --python-version=3.7 \
 ```
 
-```
+```py
 --scale-tier=BASIC_TPU \
 ```
 
-```
+```py
 --region=us-central1 \
 ```
 
-```
+```py
 -- \
 ```
 
-```
+```py
 --distribution_strategy=tpu \
 ```
 
-```
+```py
 --model_dir=gs://ai-tpu-experiment/traincloudtpu_tfhub_resnet50 \
 ```
 
-```
+```py
 --train_epochs=10 \
 ```
 
-```
+```py
 --data_dir=gs://ai-tpu-experiment/tfrecord-flowers
 ```
 
-```
+```py
 Job [traincloudtpu_tfhub_resnet50] submitted successfully.
 ```
 
 您的任务仍在进行中。您可以使用以下命令查看任务的状态
 
-```
+```py
   $ gcloud ai-platform jobs describe traincloudtpu_tfhub_resnet50
 ```
 
 或继续使用命令流式传输日志
 
-```
+```py
   $ gcloud ai-platform jobs stream-logs traincloudtpu_tfhub_resnet50
 ```
 
-```
+```py
 jobId: traincloudtpu_tfhub_resnet50
 ```
 
-```
+```py
 state: QUEUED
 ```
 
@@ -892,7 +892,7 @@ state: QUEUED
 
 1.  我们可以从对上一节使用的 TPU 训练脚本进行小的修改开始。让我们实现一个条件，根据选择 TPU 或 GPU 来选择分布式策略：
 
-    ```
+    ```py
         if flags_obj.distribution_strategy == 'tpu':
             resolver = tf.distribute.cluster_resolver.TPUClusterResolver()
             tf.config.experimental_connect_to_cluster(resolver)
@@ -910,7 +910,7 @@ state: QUEUED
 
     对于`MirroredStrategy`，我们将`scale-tier`设置为`BASIC_GPU`。这将为我们提供一个包含一块 NVIDIA Tesla K80 GPU 的单个工作实例。使用`trainer_hub_gpu.py`启动训练的命令如下：
 
-    ```
+    ```py
     vs_code % gcloud ai-platform jobs submit training traincloudgpu_tfhub_resnet_gpu_1 \
     --staging-bucket=gs://ai-tpu-experiment \
     --package-path=python \
@@ -929,21 +929,21 @@ state: QUEUED
 
 您的工作仍在进行中。您可以使用命令查看工作状态
 
-```
+```py
   $ gcloud ai-platform jobs describe traincloudgpu_tfhub_resnet_gpu_1
 ```
 
 或者使用命令继续流式传输日志
 
-```
+```py
   $ gcloud ai-platform jobs stream-logs traincloudtpu_tfhub_resnet_gpu_1
 ```
 
-```
+```py
 jobId: traincloudgpu_tfhub_resnet_gpu_1
 ```
 
-```
+```py
 state: QUEUED
 ```
 

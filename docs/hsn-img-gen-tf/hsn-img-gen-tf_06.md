@@ -64,7 +64,7 @@
 
 第一步是对类别标签进行独热编码。由于`tf.one_hot`([1], 10)将生成形状为（1, 10）的张量，我们需要将其重塑为形状为（10）的 1D 向量，以便与潜在向量`z`进行连接：
 
-```
+```py
 input_label = layers.Input(shape=1, dtype=tf.int32, 	 	 	                           name='ClassLabel')        
         one_hot_label = tf.one_hot(input_label, 			                                   self.num_classes)
         one_hot_label = layers.Reshape((self.num_classes,))	                                       (one_hot_label)
@@ -72,7 +72,7 @@ input_label = layers.Input(shape=1, dtype=tf.int32, 	 	 	           �
 
 下一步是通过使用`Concatenate`层将向量连接在一起。默认情况下，连接发生在最后一个维度（axis=-1）。因此，将形状为（`batch_size`, 100）的潜在变量与形状为（`batch_size`, 10）的独热标签连接，会生成形状为（`batch_size`, 110）的张量。代码如下：
 
-```
+```py
         input_z = layers.Input(shape=self.z_dim, 	 	      	                               name='LatentVector')
         generator_input = layers.Concatenate()([input_z, 
                                                 one_hot_label])
@@ -96,19 +96,19 @@ input_label = layers.Input(shape=1, dtype=tf.int32, 	 	 	           �
 
 正如我们所见，对网络所做的唯一更改是增加了另一个路径，该路径接受类别标签作为输入。在开始模型训练之前，最后剩下的工作是将附加的标签类别添加到模型的输入中。为了创建具有多个输入的模型，我们按照以下方式传递输入层列表：
 
-```
+```py
 discriminator = Model([input_image, input_label], output]
 ```
 
 类似地，我们在执行前向传播时，以相同顺序传递`images`和`labels`列表：
 
-```
+```py
 pred_real = discriminator([real_images, class_labels])
 ```
 
 在训练过程中，我们为生成器创建随机标签，如下所示：
 
-```
+```py
 fake_class_labels = tf.random.uniform((batch_size), 						minval=0, maxval=10, 						dtype=tf.dtypes.int32)
 fake_images = generator.predict([latent_vector, 						fake_class_labels])
 ```
@@ -135,7 +135,7 @@ fake_images = generator.predict([latent_vector, 						fake_class_labels])
 
 一种常见的实现方法是用 `embedding` 层替代一热编码和密集层。嵌入层接受类别值作为输入，输出是一个向量，类似于密集层。换句话说，它具有与 `label->one-hot-encoding->dense` 块相同的输入和输出形状。代码片段如下：
 
-```
+```py
 encoded_label = tf.one_hot(input_label, self.num_classes)
 embedding = layers.Dense(32 * 32 * 1, activation=None)\ 				  (encoded_label) 
 embedding = layers.Embedding(self.num_classes, 					  32*32*1)(input_label)
@@ -147,7 +147,7 @@ embedding = layers.Embedding(self.num_classes, 					  32*32*1)(input_label)
 
 将潜在向量与输入图像拼接会增加网络的维度以及第一层的大小。我们也可以选择将标签嵌入与原始网络输入进行元素级乘法操作，而不是拼接，从而保持原始输入形状。这种方法的起源不明确。然而，一些行业专家在**自然语言处理**任务中进行实验，发现这种方法比一热编码方法效果更好。执行图像与嵌入之间元素级乘法的代码片段如下：
 
-```
+```py
 x = layers.Multiply()([input_image, embedding])
 ```
 
@@ -199,7 +199,7 @@ Pix2pix 来源于一篇名为*条件对抗网络的图像到图像翻译*的研�
 
 为了简化生成器的构建，我们首先编写一个函数，创建一个默认步幅为 `2` 的下采样块。它由卷积层和可选的归一化、`激活` 和 `dropout` 层组成，具体如下：
 
-```
+```py
 def downsample(self, channels, kernels, strides=2, 		    norm=True, activation=True, dropout=False):
     initializer = tf.random_normal_initializer(0., 0.02)
     block = tf.keras.Sequential()
@@ -215,7 +215,7 @@ def downsample(self, channels, kernels, strides=2, 		    norm=True, activati
 
 `upsample` 块类似，但在 `Conv2D` 之前添加了一个 `UpSampling2D` 层，并且步幅为 `1`，如下所示：
 
-```
+```py
 def upsample(self, channels, kernels, strides=1,  		  norm=True, activation=True, dropout=False):
     initializer = tf.random_normal_initializer(0., 0.02)
     block = tf.keras.Sequential()
@@ -232,7 +232,7 @@ def upsample(self, channels, kernels, strides=1,  		  norm=True, activation=Tr
 
 我们首先构建下采样路径，在每个下采样块之后，特征图的尺寸会减半，如下所示。需要注意的是输出形状，因为我们需要将其与上采样路径的跳跃连接进行匹配，如下所示：
 
-```
+```py
 input_image = layers.Input(shape=image_shape)
 down1 = self.downsample(DIM, 4, norm=False)(input_image) # 128
 down2 = self.downsample(2*DIM, 4)(down1) # 64
@@ -245,7 +245,7 @@ down7 = self.downsample(4*DIM, 4)(down6) # 2
 
 在上采样路径中，我们将前一层的输出与来自下采样路径的跳跃连接进行拼接，以形成 `upsample` 块的输入。我们在前三层使用了 `dropout`，如下所示：
 
-```
+```py
 up6 = self.upsample(4*DIM, 4, dropout=True)(down7) # 4,4*DIM
 concat6 = layers.Concatenate()([up6, down6])   
 up5 = self.upsample(4*DIM, 4, dropout=True)(concat6) 
@@ -267,7 +267,7 @@ output_image = tanh(self.upsample(3, 4, norm=False, 				activation=None)(concat1
 
 Pix2pix 使用标准的 GAN 损失函数（二元交叉熵）来训练生成器和判别器，就像 DCGAN 一样。既然我们有了目标图像可以生成，那么我们就可以为生成器添加 L1 重建损失。在论文中，重建损失与二元交叉熵的比例设定为 100:1。以下代码片段展示了如何编译结合生成器和判别器的损失函数：
 
-```
+```py
 LAMBDA = 100
 self.model.compile(loss = ['bce','mae'],
                    optimizer = Adam(2e-4, 0.5, 0.9999),
@@ -288,7 +288,7 @@ self.model.compile(loss = ['bce','mae'],
 
 PatchGAN 本质上是一个卷积神经网络（CNN），可以通过几个下采样块来实现，如以下代码所示。我们将使用符号 A 来表示输入（源）图像，B 来表示输出（目标）图像。与 cGAN 类似，判别器需要两个输入——条件图像 A 和输出图像 B，后者可以是真实的（来自数据集的）图像，也可以是生成的假图像。我们在判别器的输入端将这两张图像拼接在一起，因此 PatchGAN 会同时查看图像 A（条件图像）和图像 B（输出图像或假图像），以决定它们是真实的还是假的。代码如下：
 
-```
+```py
 def build_discriminator(self):
     DIM = 64
     model = tf.keras.Sequential(name='discriminators') 
@@ -311,7 +311,7 @@ def build_discriminator(self):
 
 请注意，输出层的形状是 (*29, 29, 1)*。因此，我们将创建与其输出形状匹配的标签，如下所示：
 
-```
+```py
 real_labels = tf.ones((batch_size, self.patch_size, 				 self.patch_size, 1))
 fake_labels = tf.zeros((batch_size, self.patch_size, 				  self.patch_size, 1))
 fake_images = self.generator.predict(real_images_A)
@@ -327,7 +327,7 @@ pred_real = self.discriminator([real_images_A, 						real_images_B])
 
 因此，为了获得良好的结果，我们可以选择使用批量大小为 `1` 的批量归一化，或者用实例归一化来替代。写本文时，实例归一化并未作为标准的 Keras 层提供，可能是因为它在图像生成之外尚未得到广泛应用。不过，实例归一化可以从 `tensorflow_addons` 模块中找到。在从该模块导入后，它可以直接替代批量归一化：
 
-```
+```py
 from tensorflow_addons.layers import InstanceNormalization
 ```
 
@@ -377,7 +377,7 @@ CycleGAN 还使用了所谓的 **身份损失**，它等同于 pix2pix 的重建
 
 其次，输出层去掉了 sigmoid。这是因为 CycleGAN 使用了不同的对抗损失函数，称为**最小二乘损失**。我们在本书中没有介绍 LSGAN，但足够知道这种损失比**对数损失**更稳定，并且我们可以使用 Keras 的**均方误差**（**MSE**）函数来实现它。我们按以下步骤训练判别器：
 
-```
+```py
 def build_discriminator(self):
     DIM = 64
     input_image = layers.Input(shape=image_shape)
@@ -392,7 +392,7 @@ def build_discriminator(self):
 
 现在，让我们实例化两对生成器和判别器：
 
-```
+```py
 self.discriminator_B = self.build_discriminator()
 self.discriminator_A = self.build_discriminator()
 self.generator_AB = self.build_generator()
@@ -401,7 +401,7 @@ self.generator_BA = self.build_generator()
 
 这就是 CycleGAN 的核心，实现在组合模型中训练生成器。我们只需要按照架构图中的箭头将输入传递给生成器，生成一个假图像，然后送入判别器，并按以下方式循环返回：
 
-```
+```py
 image_A = layers.Input(shape=input_shape)
 image_B = layers.Input(shape=input_shape)
 # forward
@@ -419,7 +419,7 @@ identity_A = self.generator_BA(image_B)
 
 最后一步是使用这些输入和输出创建模型：
 
-```
+```py
 self.model = Model(inputs=[image_A, image_B],
                    outputs=[discriminator_B_output,  
                             discriminator_A_output,
@@ -431,7 +431,7 @@ self.model = Model(inputs=[image_A, image_B],
 
 然后，我们需要为它们分配正确的损失和权重。如前所述，我们使用`mae`（L1 损失）作为循环一致性损失，使用`mse`（均方误差）作为对抗损失，如下所示：
 
-```
+```py
 self.LAMBDA = 10
 self.LAMBDA_ID = 5
 self.model.compile(loss = ['mse','mse', 'mae','mae',                           'mae','mae'],
@@ -443,7 +443,7 @@ self.model.compile(loss = ['mse','mse', 'mae','mae',              
 
 在每个训练步骤中，我们首先训练两个方向的判别器，分别是从 A 到 B 和从 B 到 A。`train_discriminator()`函数包括使用假图像和真实图像进行训练，如下所示：
 
-```
+```py
 # train discriminator
 d_loss_AB = self.train_discriminator(“AB”, real_images_A, 							real_images_B)
 d_loss_BA = self.train_discriminator(“BA”, real_images_B, 							real_images_A)    
@@ -451,7 +451,7 @@ d_loss_BA = self.train_discriminator(“BA”, real_images_B, 							real_images
 
 接下来是训练生成器。输入是来自 A 和 B 的真实图像。关于标签，第一个对是真实/假标签，第二个对是循环重建图像，最后一对是身份损失：
 
-```
+```py
 # train generator
 combined_loss = self.model.train_on_batch(
                    [real_images_A, real_images_B], 
@@ -559,7 +559,7 @@ BicycleGAN 的主要概念是找到潜在代码*z*与目标图像**B**之间的�
 
 让我们使用一个具体的例子。在 BicycleGAN 中，潜在编码的长度是 8。我们从噪声分布中抽取 8 个样本，每个样本被重复 H×W 次，形成一个形状为(H, W, 8)的张量。换句话说，在每个 8 个通道中，其(H, W)特征图由该通道中的相同重复数值构成。以下是`build_generator()`的代码片段，展示了潜在编码的平铺和拼接。其余代码与 pix2pix 生成器相同：
 
-```
+```py
 input_image = layers.Input(shape=image_shape, 					name='input_image')
 input_z = layers.Input(shape=(self.z_dim,), name='z') 
 z = layers.Reshape((1,1, self.z_dim))(input_z)
@@ -573,7 +573,7 @@ x = layers.Concatenate()([input_image, z_tiles])
 
 下面是创建 cVAE-GAN 模型的代码。这是前向传播的实现，正如前面提到的：
 
-```
+```py
 images_A_1 = layers.Input(shape=input_shape,  				     name='ImageA_1')
 images_B_1 = layers.Input(shape=input_shape, 					name='ImageB_1') 
 z_encode, self.mean_encode, self.logvar_encode = \ 						self.encoder(images_B_1)
@@ -593,7 +593,7 @@ self.cvae_gan = Model(inputs=[images_A_1, images_B_1],
 
 下面是 cLR-GAN 的实现。需要注意的是，这与 cVAE-GAN 有不同的输入，它们分别对应于图像 A 和 B：
 
-```
+```py
 images_A_2 = layers.Input(shape=input_shape, 					name='ImageA_2')
 images_B_2 = layers.Input(shape=input_shape, 					name='ImageB_2')
 z_random = layers.Input(shape=(self.z_dim,), name='z') 
@@ -611,7 +611,7 @@ self.clr_gan = Model(inputs=[images_A_2, images_B_2, 					  z_random],
 
 两个模型在一步训练中一起训练，但使用不同的图像对。因此，在每个训练步骤中，我们需要获取两次数据，每次对应一个模型。有些方法是创建数据流水线，加载两倍批量大小，然后将其拆分为两部分，代码示例如下：
 
-```
+```py
 images_A_1, images_B_1 = next(data_generator)
 images_A_2, images_B_2 = next(data_generator)
 self.train_step(images_A_1, images_B_1, images_A_2, 			images_B_2)
@@ -623,7 +623,7 @@ self.train_step(images_A_1, images_B_1, images_A_2, 			images_B_2)
 
 1.  第一步是执行前向传播并收集两个模型的输出：
 
-    ```
+    ```py
     def train_step(self, images_A_1, images_B_1, 			     images_A_2, images_B_2):
         z = tf.random.normal((self.batch_size,  				    self.z_dim))    
         real_labels = tf.ones((self.batch_size, 					self.patch_size, 					self.patch_size, 1))
@@ -635,7 +635,7 @@ self.train_step(images_A_1, images_B_1, images_A_2, 			images_B_2)
 
 1.  接下来，我们进行反向传播并更新判别器：
 
-    ```
+    ```py
     self.d1_loss = self.mse(real_labels, encode_real) + \ 		    self.mse(fake_labels, encode_fake) 
     gradients_d1 = tape_d1.gradient(self.d1_loss, 		 self.discriminator_1.trainable_variables)
     self.optimizer_d1.apply_gradients(zip(gradients_d1, 		self.discriminator_1.trainable_variables))
@@ -646,7 +646,7 @@ self.train_step(images_A_1, images_B_1, images_A_2, 			images_B_2)
 
 1.  然后我们计算模型输出的损失。类似于 CycleGAN，BicycleGAN 也使用 LSGAN 损失函数，即均方误差：
 
-    ```
+    ```py
     self.LAMBDA_IMAGE = 10
     self.LAMBDA_LATENT = 0.5
     self.LAMBDA_KL = 0.01
@@ -659,7 +659,7 @@ self.train_step(images_A_1, images_B_1, images_A_2, 			images_B_2)
 
 1.  最后是生成器和编码器的权重更新。L1 潜在编码损失只用于更新生成器，而不更新编码器。研究发现，如果同时优化它们的损失，会促使它们隐藏与潜在编码相关的信息，从而无法学习到有意义的模式。因此，我们为生成器和编码器计算了独立的损失，并相应地更新了权重：
 
-    ```
+    ```py
     encoder_loss = self.gan_1_loss + self.gan_2_loss +\ 			self.image_loss + self.kl_loss
     generator_loss = encoder_loss + self.latent_loss
     gradients_generator = tape_g.gradient(generator_loss, 	 	 	 self.generator.trainable_variables)

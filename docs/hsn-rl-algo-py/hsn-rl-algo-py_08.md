@@ -90,7 +90,7 @@ PG 方法属于更广泛的基于策略的方法类，其中包括进化策略�
 
 以下代码片段是计算公式 (6.5) 中近似值所需步骤的示例，使用的是`env.action_space.n`维度的离散动作空间策略：
 
-```
+```py
 pi = policy(states) # actions probability for each action
 onehot_action = tf.one_hot(actions, depth=env.action_space.n) 
 pi_log = tf.reduce_sum(onehot_action * tf.math.log(pi), axis=1)
@@ -132,7 +132,7 @@ softmax 值被归一化以使其总和为 1，从而产生一个概率分布，�
 
 为了在由参数化策略返回的动作值上使用 softmax 分布，我们可以使用*计算梯度*部分给出的代码，只需做一个改动，以下代码片段中已做突出显示：
 
-```
+```py
 pi = policy(states) # actions probability for each action
 onehot_action = tf.one_hot(actions, depth=env.action_space.n) 
 
@@ -182,7 +182,7 @@ gradients = tf.gradient(pi_loss, variables)
 
 该函数可以按相反的顺序实现，从最后一个回报开始，如下所示：
 
-```
+```py
 def discounted_rewards(rews, gamma):
     rtg = np.zeros_like(rews, dtype=np.float32)
     rtg[-1] = rews[-1]
@@ -195,7 +195,7 @@ def discounted_rewards(rews, gamma):
 
 REINFORCE 算法的主要循环包括运行几个周期，直到收集到足够的经验，并优化策略参数。为了有效，算法必须在执行更新步骤之前完成至少一个周期（它需要至少一个完整轨迹来计算回报函数（![](img/ce76b287-a263-4070-81d0-e973431e5bbd.png)））。REINFORCE 的伪代码总结如下：
 
-```
+```py
 Initialize  with random weight
 
 for episode 1..M do
@@ -236,13 +236,13 @@ for episode 1..M do
 
 `REINFORCE` 函数以 `env_name` 环境的名称作为输入参数，包含隐藏层大小的列表—`hidden_sizes`，学习率—`lr`，训练周期数—`num_epochs`，折扣因子—`gamma`，以及每个周期的最小步骤数—`steps_per_epoch`。正式地，`REINFORCE` 的函数头如下：
 
-```
+```py
 def REINFORCE(env_name, hidden_sizes=[32], lr=5e-3, num_epochs=50, gamma=0.99, steps_per_epoch=100):
 ```
 
 在 `REINFORCE(..)` 开始时，TensorFlow 默认图被重置，环境被创建，占位符被初始化，策略被创建。策略是一个全连接的多层感知器，每个动作对应一个输出，且每一层的激活函数为 `tanh`。多层感知器的输出是未归一化的动作值，称为 logits。所有这些操作都在以下代码片段中完成：
 
-```
+```py
 def REINFORCE(env_name, hidden_sizes=[32], lr=5e-3, num_epochs=50, gamma=0.99, steps_per_epoch=100):
 
     tf.reset_default_graph()
@@ -262,7 +262,7 @@ def REINFORCE(env_name, hidden_sizes=[32], lr=5e-3, num_epochs=50, gamma=0.99, s
 
 以下代码片段是 REINFORCE 更新的实现：
 
-```
+```py
  act_multn = tf.squeeze(tf.random.multinomial(p_logits, 1))
  actions_mask = tf.one_hot(act_ph, depth=act_dim)
  p_log = tf.reduce_sum(actions_mask * tf.nn.log_softmax(p_logits), axis=1)
@@ -274,7 +274,7 @@ def REINFORCE(env_name, hidden_sizes=[32], lr=5e-3, num_epochs=50, gamma=0.99, s
 
 我们现在准备开始一个会话，重置计算图的全局变量，并初始化一些稍后会用到的变量：
 
-```
+```py
     sess = tf.Session()
     sess.run(tf.global_variables_initializer())
     step_count = 0
@@ -284,7 +284,7 @@ def REINFORCE(env_name, hidden_sizes=[32], lr=5e-3, num_epochs=50, gamma=0.99, s
 
 然后，我们创建两个内部循环，这些循环将与环境交互以收集经验并优化策略，并打印一些统计数据：
 
-```
+```py
     for ep in range(num_epochs):
         obs = env.reset()
         buffer = Buffer(gamma)
@@ -328,7 +328,7 @@ def REINFORCE(env_name, hidden_sizes=[32], lr=5e-3, num_epochs=50, gamma=0.99, s
 
 现在我们可以实现一个`Buffer`类，用于包含轨迹数据：
 
-```
+```py
 class Buffer():
     def __init__(self, gamma=0.99):
         self.gamma = gamma
@@ -353,7 +353,7 @@ class Buffer():
 
 最后，我们可以实现一个函数，创建一个具有任意数量隐藏层的神经网络：
 
-```
+```py
 def mlp(x, hidden_layers, output_size, activation=tf.nn.relu, last_activation=None):
 for l in hidden_layers:
     x = tf.layers.dense(x, units=l, activation=activation)
@@ -378,7 +378,7 @@ for l in hidden_layers:
 
 通过调用带有以下超参数的函数来运行 REINFORCE：
 
-```
+```py
 REINFORCE('LunarLander-v2', hidden_sizes=[64], lr=8e-3, gamma=0.99, num_epochs=1000, steps_per_epoch=1000)
 ```
 
@@ -416,7 +416,7 @@ REINFORCE 具有一个很好的特性，即由于 MC 回报，它是无偏的，
 
 如果你想在 REINFORCE 代码中实现这一点，唯一需要更改的是`Buffer`类中的`get_batch()`函数：
 
-```
+```py
     def get_batch(self):
         b_ret = self.ret - np.mean(self.ret)
         return self.obs, self.act, b_ret
@@ -450,7 +450,7 @@ REINFORCE 具有一个很好的特性，即由于 MC 回报，它是无偏的，
 
 1.  将神经网络、计算 MSE 损失函数的操作和优化过程添加到计算图中：
 
-```
+```py
     ...
     # placeholder that will contain the reward to go values (i.e. the y values)
     rtg_ph = tf.placeholder(shape=(None,), dtype=tf.float32, name='rtg')
@@ -468,7 +468,7 @@ REINFORCE 具有一个很好的特性，即由于 MC 回报，它是无偏的，
 
 1.  运行`s_values`，并存储！[](img/0037c50a-75e4-49bb-b6b0-ab2095b92691.png)预测值，因为稍后我们需要计算！[](img/8df6a5dd-8373-4462-961f-805dc3f8eba3.png)。此操作可以在最内层的循环中完成（与 REINFORCE 代码的不同之处用粗体显示）：
 
-```
+```py
             ...
             # besides act_multn, run also s_values
             act, val = sess.run([act_multn, s_values], feed_dict={obs_ph:[obs]})
@@ -482,14 +482,14 @@ REINFORCE 具有一个很好的特性，即由于 MC 回报，它是无偏的，
 
 1.  检索`rtg_batch`，它包含来自缓冲区的“目标”值，并优化价值函数：
 
-```
+```py
         obs_batch, act_batch, ret_batch, rtg_batch = buffer.get_batch() 
         sess.run([p_opt, v_opt], feed_dict={obs_ph:obs_batch, act_ph:act_batch, ret_ph:ret_batch, rtg_ph:rtg_batch})
 ```
 
 1.  计算奖励目标（![](img/f0dd0b06-c9c8-43ee-940e-8e21ac00b4ac.png)）和目标值！[](img/de87b8d5-2dfe-4c84-b1f7-af49aba9e641.png)。此更改在`Buffer`类中完成。我们需要在该类的初始化方法中创建一个新的空`self.rtg`列表，并修改`store`和`get_batch`函数，具体如下：
 
-```
+```py
     def store(self, temp_traj):
         if len(temp_traj) > 0:
             self.obs.extend(temp_traj[:,0])
@@ -561,7 +561,7 @@ AC 算法是基于策略的，因此，就性能提升而言，可以使用任�
 
 总体而言，正如我们到目前为止所看到的，AC 算法与 REINFORCE 算法非常相似，状态函数作为基准。但为了回顾一下，算法总结如下：
 
-```
+```py
 Initialize  with random weight
 Initialize environment 
 for episode 1..M do
@@ -589,7 +589,7 @@ for episode 1..M do
 
 让我们首先看一下折扣奖励的新实现。与之前不同，最后一个`last_sv`状态的估计值现在传递给输入，并用于引导，如以下实现所示：
 
-```
+```py
 def discounted_rewards(rews, last_sv, gamma):
     rtg = np.zeros_like(rews, dtype=np.float32)
     rtg[-1] = rews[-1] + gamma*last_sv    # Bootstrap with the estimate next state value 
@@ -608,7 +608,7 @@ def discounted_rewards(rews, last_sv, gamma):
 
 第二个变化涉及行动价值函数的引导方式，以及如何计算未来的回报。记住，对于每个状态-动作对，除非 ![](img/3657e493-86d3-42ff-9550-ed4ec30b965f.png) 是最终状态，否则 ![](img/6cb365a1-c652-4002-8935-7a268cd532e6.png)。在这种情况下，![](img/f60da65c-1493-4b3b-917d-714c659448a8.png)。因此，我们必须在最后状态时使用`0`进行引导，并在其他情况下使用 ![](img/057c60da-c9c2-4750-993b-8af4fd807af8.png) 进行引导。根据这些更改，代码如下：
 
-```
+```py
     obs = env.reset()
     ep_rews = []
 
@@ -647,7 +647,7 @@ def discounted_rewards(rews, last_sv, gamma):
 
 第三个变化发生在`Buffer`类的`store`方法中。实际上，现在我们还需要处理不完整的轨迹。在之前的代码片段中，我们看到估计的 ![](img/057c60da-c9c2-4750-993b-8af4fd807af8.png) 状态值作为第三个参数传递给`store`函数。事实上，我们使用这些状态值进行引导，并计算"未来回报"。在新版本的`store`中，我们将与状态值相关的变量命名为`last_sv`，并将其作为输入传递给`discounted_reward`函数，代码如下：
 
-```
+```py
     def store(self, temp_traj, last_sv):
         if len(temp_traj) > 0:
             self.obs.extend(temp_traj[:,0])
@@ -663,7 +663,7 @@ def discounted_rewards(rews, last_sv, gamma):
 
 我们调用`AC`函数时使用以下超参数：
 
-```
+```py
 AC('LunarLander-v2', hidden_sizes=[64], ac_lr=4e-3, cr_lr=1.5e-2, gamma=0.99, steps_per_epoch=100, num_epochs=8000)
 ```
 

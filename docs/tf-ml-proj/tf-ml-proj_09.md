@@ -201,7 +201,7 @@ GANs 的一些应用包括将单色或黑白图像转换为彩色图像、在图
 
 1.  首先，调整和裁剪此数据集中的图像，以获取手袋和鞋子图像：
 
-```
+```py
 def extract_files(*data_dir*,*type* = 'bags'):
    '''
  :param data_dir: Input directory
@@ -230,7 +230,7 @@ def extract_files(*data_dir*,*type* = 'bags'):
 
 1.  实现`generator`函数，包含 4 个卷积层，后跟 4 个卷积转置（或反卷积）层。该场景中使用的卷积核大小为 4，而卷积层和反卷积层的`stride`分别为`2`和`1`。所有层的激活函数均使用 Leaky Relu。该函数的代码如下：
 
-```
+```py
 def generator(x, initializer, s*cope_name* = 'generator',*reuse*=*False*):
    *with* tf.variable_scope(*scope_name*) *as* scope:
        *if* *reuse*:
@@ -276,7 +276,7 @@ def generator(x, initializer, s*cope_name* = 'generator',*reuse*=*False*):
 
 1.  使用我们在*DiscoGAN 的基本单元*部分之前提到的参数定义判别器：
 
-```
+```py
 def discriminator(*x*,*initializer*, *scope_name* ='discriminator',  *reuse*=*False*):
    *with* tf.variable_scope(*scope_name*) *as* scope:
        *if* *reuse*:
@@ -307,7 +307,7 @@ def discriminator(*x*,*initializer*, *scope_name* ='discriminator',  *reuse*=*Fa
 
 1.  使用以下`define_network`函数，该函数为每个领域定义了两个生成器和两个判别器。在该函数中，`generator`和`discriminator`的定义与我们在前一步使用函数时定义的一样。然而，对于 DiscoGAN，函数定义了一个`generator`，它生成另一个领域的假图像，一个`generator`负责重建。另外，`discriminators`为每个领域中的真实图像和假图像定义。该函数的代码如下：
 
-```
+```py
 def define_network(self):
    # generators
    # This one is used to generate fake data
@@ -327,7 +327,7 @@ def define_network(self):
 
 1.  让我们定义我们在*DiscoGAN 建模*部分之前定义的`loss`函数。以下`define_loss`函数定义了基于重建图像和原始图像之间欧几里得距离的重建损失。为了生成 GAN 和判别器损失，该函数使用交叉熵函数：
 
-```
+```py
 def define_loss(self):
    # Reconstruction loss for generators
    self.const_loss_s = tf.reduce_mean(tf.losses.mean_squared_error(self.gen_recon_s, self.X_shoes))
@@ -358,7 +358,7 @@ def define_loss(self):
 
 1.  使用在第三章《使用 TensorFlow.js 在浏览器中进行情感分析》中定义的`AdamOptimizer`，并实现以下`define_optimizer`函数：
 
-```
+```py
 *def* define_optimizer(self):
    self.disc_optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(self.disc_loss, var_list=self.disc_params)
    self.gen_optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(self.gen_loss, var_list=self.gen_params)
@@ -366,7 +366,7 @@ def define_loss(self):
 
 1.  为了调试，将摘要写入日志文件。虽然你可以在摘要中添加任何内容，但下面的`summary_`函数仅添加所有的损失，以便观察各种损失随时间变化的曲线。该函数的代码如下：
 
-```
+```py
 *def* summary_(self):
    # Store the losses
    tf.summary.scalar("gen_loss", self.gen_loss)
@@ -405,7 +405,7 @@ def define_loss(self):
 
     1.  此外，每 1000 个 epoch，它会保存模型，这对于你想在某个时刻恢复训练非常有用。
 
-```
+```py
 print ("Starting Training")
 *for* global_step *in* range(start_epoch,EPOCHS):
    shoe_batch = get_next_batch(BATCH_SIZE,"shoes")

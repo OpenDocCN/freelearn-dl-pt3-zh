@@ -136,7 +136,7 @@
 
 请注意，我们使用 32 x 32 作为训练图像的形状，因为它足够大，可以保留图像的细微差别用于检测，同时又足够小，可以更快地训练模型。
 
-```
+```py
 def normalize_and_reshape_img(img):
 # Histogram normalization in v channel
 hsv = color.rgb2hsv(img)
@@ -156,7 +156,7 @@ return
 
 1.  创建包含标签和图像信息的字典，并将其存储为 pickle 文件，这样我们就不必每次运行模型时都重新执行预处理代码。这意味着我们实际上是在预处理已转换的数据，以创建训练和测试数据集：
 
-```
+```py
 def preprocess_and_save_data(data_type ='train'):
 '''
 Preprocesses image data and saves the image features and labels as pickle files to be used for the model
@@ -203,7 +203,7 @@ return test_data
 
 1.  使用 Keras 中的 LeNet 架构定义模型。最后，我们将 LeNet 模型输出的 43 维向量分配给 TensorFlow 概率中的分类分布函数（`tfd.categorical`）。这将帮助我们在后续生成预测的不确定性：
 
-```
+```py
 with tf.name_scope("BNN", values=[images]):
 model = tf.keras.Sequential([
 tfp.layers.Convolution2DFlipout(10,
@@ -238,7 +238,7 @@ targets_distribution = tfd.Categorical(logits=logits)
 
 1.  我们定义损失以最小化 KL 散度直至 ELBO。计算本章《理解 TensorFlow 概率、变分推理和蒙特卡洛方法》部分中定义的 ELBO 损失。如您所见，我们使用`model.losses`属性来计算 KL 散度。这是因为 TensorFlow Keras Layer 的`losses`属性表示诸如正则化惩罚之类的副作用计算。与特定 TensorFlow 变量上的正则化惩罚不同，`losses`在这里表示 KL 散度的计算：
 
-```
+```py
 # Compute the -ELBO as the loss, averaged over the batch size.
 neg_log_likelihood = -
   tf.reduce_mean(targets_distribution.log_prob(targets))
@@ -248,7 +248,7 @@ kl = sum(model.losses) / X_train.shape[0]
 
 1.  使用 Adam 优化器，如第三章《使用 TensorFlow.js 在浏览器中进行情感分析》中所定义的，来优化 ELBO 损失：
 
-```
+```py
 with tf.name_scope("train"):
 optimizer = tf.train.AdamOptimizer(learning_rate=LEARNING_RATE)
 train_op = optimizer.minimize(elbo_loss)
@@ -264,7 +264,7 @@ train_op = optimizer.minimize(elbo_loss)
 
     +   学习率 = 0.001：
 
-```
+```py
 with tf.Session() as sess:
 sess.run(init_op)
 # Run the training loop.
@@ -282,7 +282,7 @@ step, loss_value, accuracy_value))
 
 1.  一旦模型训练完成，贝叶斯神经网络中的每个权重将具有分布而不是固定值。对每个权重进行多次采样（代码中为 50 次），并为每个样本获得不同的预测。尽管采样有用，但代价高昂。因此，我们应该仅在需要对预测结果的不确定性进行某种衡量时，才使用贝叶斯神经网络。以下是蒙特卡洛采样的代码：
 
-```
+```py
 #Sampling from the posterior and obtaining mean probability for held out dataset
 probs = np.asarray([sess.run((targets_distribution.probs),
         feed_dict={iter_handle: test_handle})
@@ -295,7 +295,7 @@ for _ in range(NUM_MONTE_CARLO)])
 
     下面是获取平均准确度的代码：
 
-```
+```py
 mean_probs = np.mean(probs, axis=0)
 # Get the average accuracy
 Y_pred = np.argmax(mean_probs, axis=1)
@@ -304,7 +304,7 @@ print("Overall Accuracy in predicting the test data = percent", round((Y_pred ==
 
 1.  下一步是计算每个测试图像的每个蒙特卡洛样本的准确度分布。为此，计算预测类别并与测试标签进行比较。预测类别可以通过将标签分配给具有最大概率的类别来获得，这基于给定网络参数的样本。这样，您可以获得准确度范围，并且还可以将这些准确度绘制在直方图上。以下是获取准确度并生成直方图的代码：
 
-```
+```py
 test_acc_dist = []
 for prob in probs:
 y_test_pred = np.argmax(prob, axis=1).astype(np.float32)
@@ -328,7 +328,7 @@ plt.savefig(os.path.join(save_dir, "Test_Dataset_Prediction_Accuracy.png"))
 
 1.  从测试数据集中选取一些图像，并查看它们在蒙特卡洛方法中的不同样本预测。使用以下函数`plot_heldout_prediction`来生成来自不同样本的预测直方图：
 
-```
+```py
 def plot_heldout_prediction(input_vals, probs , fname, title=""):
 save_dir = os.path.join(DATA_DIR, "..", "Plots")
 fig = figure.Figure(figsize=(1, 1))

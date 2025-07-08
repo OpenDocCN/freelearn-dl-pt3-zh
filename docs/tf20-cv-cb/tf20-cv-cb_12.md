@@ -42,7 +42,7 @@
 
 本方法依赖于`Pillow`和`tensorflow_docs`，可以通过以下方式轻松安装：
 
-```
+```py
 $> pip install Pillow git+https://github.com/tensorflow/docs
 ```
 
@@ -64,7 +64,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  导入所有必需的模块：
 
-    ```
+    ```py
     import os
     import pathlib
     from glob import glob
@@ -79,7 +79,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  定义`load_images_and_labels()`函数，读取`Caltech 101`数据集中的图像和类别，并将它们作为 NumPy 数组返回：
 
-    ```
+    ```py
     def load_images_and_labels(image_paths, 
                                target_size=(64, 64)):
         images = []
@@ -96,7 +96,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  定义`build_model()`函数，负责构建一个类似 VGG 的卷积神经网络：
 
-    ```
+    ```py
     def build_network(width, height, depth, classes):
         input_layer = Input(shape=(width, height, depth))
         x = Conv2D(filters=32,
@@ -127,7 +127,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
     现在，构建网络的全连接部分：
 
-    ```
+    ```py
         x = Flatten()(x)
         x = Dense(units=512)(x)
         x = ReLU()(x)
@@ -140,7 +140,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  定义`plot_model_history()`函数，我们将用它来绘制集成中各个网络的训练和验证曲线：
 
-    ```
+    ```py
     def plot_model_history(model_history, metric, 
                            plot_name):
         plt.style.use('seaborn-darkgrid')
@@ -155,14 +155,14 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  为了提高可复现性，设置一个随机种子：
 
-    ```
+    ```py
     SEED = 999
     np.random.seed(SEED)
     ```
 
 1.  编译`Caltech 101`图像的路径以及类别：
 
-    ```
+    ```py
     base_path = (pathlib.Path.home() / '.keras' / 
                   'datasets' /
                  '101_ObjectCategories')
@@ -175,7 +175,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  加载图像和标签，同时对图像进行归一化，并对标签进行独热编码：
 
-    ```
+    ```py
     X, y = load_images_and_labels(image_paths)
     X = X.astype('float') / 255.0
     y = LabelBinarizer().fit_transform(y)
@@ -183,7 +183,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  保留 20%的数据用于测试，其余用于训练模型：
 
-    ```
+    ```py
     (X_train, X_test,
      y_train, y_test) = train_test_split(X, y,
                                          test_size=0.2,
@@ -192,7 +192,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  定义批次大小、训练轮次以及每个轮次的批次数：
 
-    ```
+    ```py
     BATCH_SIZE = 64
     STEPS_PER_EPOCH = len(X_train) // BATCH_SIZE
     EPOCHS = 40
@@ -200,7 +200,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  我们将在这里使用数据增强，执行一系列随机变换，如水平翻转、旋转和缩放：
 
-    ```
+    ```py
     augmenter = ImageDataGenerator(horizontal_flip=True,
                                    rotation_range=30,
                                    width_shift_range=0.1,
@@ -212,14 +212,14 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  我们的集成将包含`5`个模型。我们会将每个网络在集成中的预测保存到`ensemble_preds`列表中：
 
-    ```
+    ```py
     NUM_MODELS = 5
     ensemble_preds = []
     ```
 
 1.  我们将以类似的方式训练每个模型。首先创建并编译网络本身：
 
-    ```
+    ```py
     for n in range(NUM_MODELS):
         print(f'Training model {n + 1}/{NUM_MODELS}')
         model = build_network(64, 64, 3, len(CLASSES))
@@ -230,7 +230,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  然后，我们将使用数据增强来拟合模型：
 
-    ```
+    ```py
         train_generator = augmenter.flow(X_train, y_train,
                                          BATCH_SIZE)
         hist = model.fit(train_generator,
@@ -242,7 +242,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  计算模型在测试集上的准确率，绘制训练和验证准确率曲线，并将其预测结果存储在`ensemble_preds`中：
 
-    ```
+    ```py
         predictions = model.predict(X_test, 
                                    batch_size=BATCH_SIZE)
         accuracy = accuracy_score(y_test.argmax(axis=1),
@@ -254,7 +254,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 1.  最后一步是对每个集成成员的预测进行平均，从而有效地为整个元分类器产生联合预测，然后计算测试集上的准确率：
 
-    ```
+    ```py
     ensemble_preds = np.average(ensemble_preds, axis=0)
     ensemble_acc = accuracy_score(y_test.argmax(axis=1),
                              ensemble_preds.argmax(axis=1))
@@ -263,7 +263,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
     因为我们训练的是五个网络，所以这个程序可能需要一段时间才能完成。完成后，你应该能看到每个集成网络成员的准确率类似于以下内容：
 
-    ```
+    ```py
     Test accuracy (Model #1): 0.6658986175115207
     Test accuracy (Model #2): 0.6751152073732719
     Test accuracy (Model #3): 0.673963133640553
@@ -281,7 +281,7 @@ $> pip install Pillow git+https://github.com/tensorflow/docs
 
 然而，最有趣的结果是集成模型的准确性，这是通过平均每个模型的预测结果得出的：
 
-```
+```py
 Test accuracy (ensemble): 0.7223502304147466
 ```
 
@@ -315,7 +315,7 @@ Test accuracy (ensemble): 0.7223502304147466
 
 为了加载数据集中的图像，我们需要`Pillow`。可以使用以下命令安装：
 
-```
+```py
 $> pip install Pillow
 ```
 
@@ -337,7 +337,7 @@ $> pip install Pillow
 
 1.  导入我们需要的依赖项：
 
-    ```
+    ```py
     import os
     import pathlib
     from glob import glob
@@ -352,7 +352,7 @@ $> pip install Pillow
 
 1.  定义`load_images_and_labels()`函数，以便从`Caltech 101`（NumPy 格式）中读取数据：
 
-    ```
+    ```py
     def load_images_and_labels(image_paths, 
                                target_size=(64, 64)):
         images = []
@@ -369,7 +369,7 @@ $> pip install Pillow
 
 1.  定义`build_model()`函数，该函数基于著名的**VGG**架构返回一个网络：
 
-    ```
+    ```py
     def build_network(width, height, depth, classes):
         input_layer = Input(shape=(width, height, depth))
         x = Conv2D(filters=32,
@@ -400,7 +400,7 @@ $> pip install Pillow
 
     现在，构建网络的全连接部分：
 
-    ```
+    ```py
         x = Flatten()(x)
         x = Dense(units=512)(x)
         x = ReLU()(x)
@@ -413,7 +413,7 @@ $> pip install Pillow
 
 1.  `flip_augment()`函数是我们**TTA**方案的基础。它接收一张图像，并生成其副本，这些副本可以随机水平翻转（50%的概率）：
 
-    ```
+    ```py
     def flip_augment(image, num_test=10):
         augmented = []
         for i in range(num_test):
@@ -428,14 +428,14 @@ $> pip install Pillow
 
 1.  为了确保可重复性，请设置随机种子：
 
-    ```
+    ```py
     SEED = 84
     np.random.seed(SEED)
     ```
 
 1.  编译`Caltech 101`图像的路径及其类别：
 
-    ```
+    ```py
     base_path = (pathlib.Path.home() / '.keras' / 
                  'datasets' /'101_ObjectCategories')
     images_pattern = str(base_path / '*' / '*.jpg')
@@ -449,7 +449,7 @@ $> pip install Pillow
 
 1.  加载图像和标签，同时对图像进行标准化，并对标签进行独热编码：
 
-    ```
+    ```py
     X, y = load_images_and_labels(image_paths)
     X = X.astype('float') / 255.0
     y = LabelBinarizer().fit_transform(y)
@@ -457,7 +457,7 @@ $> pip install Pillow
 
 1.  使用 20%的数据进行测试，剩余部分用于训练模型：
 
-    ```
+    ```py
     (X_train, X_test,
      y_train, y_test) = train_test_split(X, y, test_size=0.2,
                                       random_state=SEED)
@@ -465,20 +465,20 @@ $> pip install Pillow
 
 1.  定义批次大小和周期数：
 
-    ```
+    ```py
     BATCH_SIZE = 64
     EPOCHS = 40
     ```
 
 1.  我们将随机地水平翻转训练集中的图像：
 
-    ```
+    ```py
     augmenter = ImageDataGenerator(horizontal_flip=True)
     ```
 
 1.  构建并编译网络：
 
-    ```
+    ```py
     model = build_network(64, 64, 3, len(CLASSES))
     model.compile(loss='categorical_crossentropy',
                   optimizer='adam',
@@ -487,7 +487,7 @@ $> pip install Pillow
 
 1.  拟合模型：
 
-    ```
+    ```py
     train_generator = augmenter.flow(X_train, y_train,
                                      BATCH_SIZE)
     model.fit(train_generator,
@@ -499,7 +499,7 @@ $> pip install Pillow
 
 1.  对测试集进行预测，并利用预测结果计算模型的准确性：
 
-    ```
+    ```py
     predictions = model.predict(X_test,
                                 batch_size=BATCH_SIZE)
     accuracy = accuracy_score(y_test.argmax(axis=1), 
@@ -509,14 +509,14 @@ $> pip install Pillow
 
 1.  现在，我们将在测试集上使用**TTA**。我们将把每个图像副本的预测结果存储在预测列表中。我们将创建每个图像的 10 个副本：
 
-    ```
+    ```py
     predictions = []
     NUM_TEST = 10
     ```
 
 1.  接下来，我们将对测试集中的每个图像进行迭代，创建其副本的批次，并将其传递通过模型：
 
-    ```
+    ```py
     for index in range(len(X_test)):
         batch = flip_augment(X_test[index], NUM_TEST)
         sample_predictions = model.predict(batch)
@@ -524,7 +524,7 @@ $> pip install Pillow
 
 1.  每张图像的最终预测将是该批次中预测最多的类别：
 
-    ```
+    ```py
         sample_predictions = np.argmax(
             np.sum(sample_predictions, axis=0))
         predictions.append(sample_predictions)
@@ -532,7 +532,7 @@ $> pip install Pillow
 
 1.  最后，我们将使用 TTA 计算模型预测的准确性：
 
-    ```
+    ```py
     accuracy = accuracy_score(y_test.argmax(axis=1), 
                               predictions)
     print(f'Accuracy with TTA: {accuracy}')
@@ -540,7 +540,7 @@ $> pip install Pillow
 
     稍等片刻，我们将看到类似于这些的结果：
 
-    ```
+    ```py
     Accuracy, without TTA: 0.6440092165898618
     Accuracy with TTA: 0.6532258064516129
     ```
@@ -573,7 +573,7 @@ $> pip install Pillow
 
 安装 `Pillow`：
 
-```
+```py
 $> pip install Pillow
 ```
 
@@ -593,7 +593,7 @@ $> pip install Pillow
 
 1.  导入必要的模块：
 
-    ```
+    ```py
     import os
     import pathlib
     from glob import glob
@@ -608,7 +608,7 @@ $> pip install Pillow
 
 1.  定义 `load_images_and_labels()` 函数，用于从 `Caltech 101` 读取数据：
 
-    ```
+    ```py
     def load_images_and_labels(image_paths, 
                                target_size=(64, 64)):
         images = []
@@ -625,7 +625,7 @@ $> pip install Pillow
 
 1.  定义 `build_model()` 函数，创建一个 **VGG** 风格的网络：
 
-    ```
+    ```py
     def build_network(width, height, depth, classes):
         input_layer = Input(shape=(width, height, depth))
         x = Conv2D(filters=32,
@@ -656,7 +656,7 @@ $> pip install Pillow
 
     现在，构建网络的全连接部分：
 
-    ```
+    ```py
         x = Flatten()(x)
         x = Dense(units=512)(x)
         x = ReLU()(x)
@@ -669,7 +669,7 @@ $> pip install Pillow
 
 1.  定义 `rank_n()` 函数，它根据预测结果和真实标签计算 **rank-N 准确度**。请注意，它会输出一个介于 0 和 1 之间的值，当真实标签出现在模型输出的前 N 个最可能的类别中时，才会算作“命中”或正确预测：
 
-    ```
+    ```py
     def rank_n(predictions, labels, n):
         score = 0.0
         for prediction, actual in zip(predictions, labels):
@@ -681,14 +681,14 @@ $> pip install Pillow
 
 1.  为了可复现性，设置随机种子：
 
-    ```
+    ```py
     SEED = 42
     np.random.seed(SEED)
     ```
 
 1.  编译 `Caltech 101` 的图像路径，以及它的类别：
 
-    ```
+    ```py
     base_path = (pathlib.Path.home() / '.keras' / 'datasets' /
                  '101_ObjectCategories')
     images_pattern = str(base_path / '*' / '*.jpg')
@@ -700,7 +700,7 @@ $> pip install Pillow
 
 1.  加载图像和标签，同时对图像进行归一化处理并对标签进行独热编码：
 
-    ```
+    ```py
     X, y = load_images_and_labels(image_paths)
     X = X.astype('float') / 255.0
     y = LabelBinarizer().fit_transform(y)
@@ -708,7 +708,7 @@ $> pip install Pillow
 
 1.  将 20%的数据用于测试，剩下的用于训练模型：
 
-    ```
+    ```py
     (X_train, X_test,
      y_train, y_test) = train_test_split(X, y,
                                          test_size=0.2,
@@ -717,14 +717,14 @@ $> pip install Pillow
 
 1.  定义批次大小和训练轮数：
 
-    ```
+    ```py
     BATCH_SIZE = 64
     EPOCHS = 40
     ```
 
 1.  定义一个`ImageDataGenerator()`，以随机翻转、旋转和其他转换来增强训练集中的图像：
 
-    ```
+    ```py
     augmenter = ImageDataGenerator(horizontal_flip=True,
                                    rotation_range=30,
                                    width_shift_range=0.1,
@@ -736,7 +736,7 @@ $> pip install Pillow
 
 1.  构建并编译网络：
 
-    ```
+    ```py
     model = build_network(64, 64, 3, len(CLASSES))
     model.compile(loss='categorical_crossentropy',
                   optimizer='adam',
@@ -745,7 +745,7 @@ $> pip install Pillow
 
 1.  拟合模型：
 
-    ```
+    ```py
     train_generator = augmenter.flow(X_train, y_train,
                                      BATCH_SIZE)
     model.fit(train_generator,
@@ -757,14 +757,14 @@ $> pip install Pillow
 
 1.  在测试集上进行预测：
 
-    ```
+    ```py
     predictions = model.predict(X_test, 
                                 batch_size=BATCH_SIZE)
     ```
 
 1.  计算排名-1（常规准确率）、排名-3、排名-5 和排名-10 的准确率：
 
-    ```
+    ```py
     y_test = y_test.argmax(axis=1)
     for n in [1, 3, 5, 10]:
         rank_n_accuracy = rank_n(predictions, y_test, n=n) * 100
@@ -773,7 +773,7 @@ $> pip install Pillow
 
     以下是结果：
 
-    ```
+    ```py
     Rank-1: 64.29%
     Rank-3: 78.05%
     Rank-5: 83.01%
@@ -812,7 +812,7 @@ $> pip install Pillow
 
 安装`Pillow`，我们需要它来处理数据集中的图像：
 
-```
+```py
 $> pip install Pillow
 ```
 
@@ -832,7 +832,7 @@ $> pip install Pillow
 
 1.  导入必要的依赖项：
 
-    ```
+    ```py
     import os
     import pathlib
     from glob import glob
@@ -848,7 +848,7 @@ $> pip install Pillow
 
 1.  创建`load_images_and_labels()`函数，用来从`Caltech 101`读取数据：
 
-    ```
+    ```py
     def load_images_and_labels(image_paths, 
                                target_size=(64, 64)):
         images = []
@@ -865,7 +865,7 @@ $> pip install Pillow
 
 1.  实现`build_model()`函数，创建一个基于**VGG**的网络：
 
-    ```
+    ```py
     def build_network(width, height, depth, classes):
         input_layer = Input(shape=(width, height, depth))
         x = Conv2D(filters=32,
@@ -896,7 +896,7 @@ $> pip install Pillow
 
     现在，构建网络的全连接部分：
 
-    ```
+    ```py
         x = Flatten()(x)
         x = Dense(units=512)(x)
         x = ReLU()(x)
@@ -909,14 +909,14 @@ $> pip install Pillow
 
 1.  设置一个随机种子以增强可复现性：
 
-    ```
+    ```py
     SEED = 9
     np.random.seed(SEED)
     ```
 
 1.  编译`Caltech 101`的图像路径以及其类别：
 
-    ```
+    ```py
     base_path = (pathlib.Path.home() / '.keras' / 'datasets'         
                   /'101_ObjectCategories')
     images_pattern = str(base_path / '*' / '*.jpg')
@@ -928,7 +928,7 @@ $> pip install Pillow
 
 1.  加载图像和标签，同时对图像进行归一化，并对标签进行独热编码：
 
-    ```
+    ```py
     X, y = load_images_and_labels(image_paths)
     X = X.astype('float') / 255.0
     y = LabelBinarizer().fit_transform(y)
@@ -936,7 +936,7 @@ $> pip install Pillow
 
 1.  使用 20%的数据作为测试数据，其余数据用于训练模型：
 
-    ```
+    ```py
     (X_train, X_test,
      y_train, y_test) = train_test_split(X, y,
                                          test_size=0.2,
@@ -945,14 +945,14 @@ $> pip install Pillow
 
 1.  定义批次大小和训练轮次：
 
-    ```
+    ```py
     BATCH_SIZE = 128
     EPOCHS = 40
     ```
 
 1.  定义一个`ImageDataGenerator()`来通过随机翻转、旋转和其他变换增强训练集中的图像：
 
-    ```
+    ```py
     augmenter = ImageDataGenerator(horizontal_flip=True,
                                    rotation_range=30,
                                    width_shift_range=0.1,
@@ -964,14 +964,14 @@ $> pip install Pillow
 
 1.  我们将训练两个模型：一个使用**标签平滑**，另一个不使用。这将让我们比较它们的表现，评估**标签平滑**是否对性能有影响。两个案例的逻辑几乎相同，从模型创建过程开始：
 
-    ```
+    ```py
     for with_label_smoothing in [False, True]:
         model = build_network(64, 64, 3, len(CLASSES))
     ```
 
 1.  如果`with_label_smoothing`为`True`，则我们将平滑因子设置为 0.1。否则，平滑因子为 0，这意味着我们将使用常规的独热编码：
 
-    ```
+    ```py
         if with_label_smoothing:
             factor = 0.1
         else:
@@ -980,13 +980,13 @@ $> pip install Pillow
 
 1.  我们应用`损失`函数——在这种情况下是`CategoricalCrossentropy()`：
 
-    ```
+    ```py
         loss = CategoricalCrossentropy(label_smoothing=factor)
     ```
 
 1.  编译并训练模型：
 
-    ```
+    ```py
         model.compile(loss=loss,
                       optimizer='rmsprop',
                       metrics=['accuracy'])
@@ -1002,7 +1002,7 @@ $> pip install Pillow
 
 1.  在测试集上进行预测并计算准确率：
 
-    ```
+    ```py
         predictions = model.predict(X_test, 
                                    batch_size=BATCH_SIZE)
         accuracy = accuracy_score(y_test.argmax(axis=1),
@@ -1015,7 +1015,7 @@ $> pip install Pillow
 
     脚本将训练两个模型：一个不使用`损失`函数。以下是结果：
 
-    ```
+    ```py
     Test accuracy without label smoothing: 65.09%
     Test accuracy with label smoothing: 65.78%
     ```
@@ -1046,7 +1046,7 @@ $> pip install Pillow
 
 1.  导入我们将使用的模块：
 
-    ```
+    ```py
     import numpy as np
     import tensorflow as tf
     from sklearn.model_selection import train_test_split
@@ -1059,7 +1059,7 @@ $> pip install Pillow
 
 1.  定义一个函数，将`Fashion-MNIST`加载到`tf.data.Datasets`中：
 
-    ```
+    ```py
     def load_dataset():
         (X_train, y_train), (X_test, y_test) = fm.load_data()
         X_train = X_train.astype('float32') / 255.0
@@ -1073,7 +1073,7 @@ $> pip install Pillow
 
 1.  使用 20% 的训练数据来验证数据集：
 
-    ```
+    ```py
         (X_train, X_val,
          y_train, y_val) = train_test_split(X_train, y_train,
                                             train_size=0.8)
@@ -1081,7 +1081,7 @@ $> pip install Pillow
 
 1.  将训练集、测试集和验证集转换为`tf.data.Datasets`：
 
-    ```
+    ```py
         train_ds = (tf.data.Dataset
                     .from_tensor_slices((X_train, 
                                          y_train)))
@@ -1101,7 +1101,7 @@ $> pip install Pillow
 
 1.  定义`build_network()`方法，顾名思义，它创建我们将在`Fashion-MNIST`上训练的模型：
 
-    ```
+    ```py
     def build_network():
         input_layer = Input(shape=(28, 28, 1))
         x = Conv2D(filters=20,
@@ -1126,7 +1126,7 @@ $> pip install Pillow
 
     现在，构建网络的全连接部分：
 
-    ```
+    ```py
         x = Flatten()(x)
         x = Dense(units=500)(x)
         x = ELU()(x)
@@ -1138,7 +1138,7 @@ $> pip install Pillow
 
 1.  定义`train_and_checkpoint()`函数，它加载数据集，然后根据`checkpointer`参数中设定的逻辑构建、编译并训练网络，同时保存检查点。
 
-    ```
+    ```py
     def train_and_checkpoint(checkpointer):
         train_dataset, val_dataset, test_dataset = load_dataset()
 
@@ -1154,7 +1154,7 @@ $> pip install Pillow
 
 1.  定义批量大小、训练模型的轮次数以及每个数据子集的缓冲区大小：
 
-    ```
+    ```py
     BATCH_SIZE = 256
     BUFFER_SIZE = 1024
     EPOCHS = 100
@@ -1162,7 +1162,7 @@ $> pip install Pillow
 
 1.  生成检查点的第一种方式是每次迭代后保存一个不同的模型。为此，我们必须将`save_best_only=False`传递给`ModelCheckpoint()`：
 
-    ```
+    ```py
     checkpoint_pattern = (
         'save_all/model-ep{epoch:03d}-loss{loss:.3f}'
         '-val_loss{val_loss:.3f}.h5')
@@ -1178,7 +1178,7 @@ $> pip install Pillow
 
 1.  一种更高效的检查点方式是仅保存迄今为止最好的模型。我们可以通过在`ModelCheckpoint()`中将`save_best_only`设置为`True`来实现：
 
-    ```
+    ```py
     checkpoint_pattern = (
         'best_only/model-ep{epoch:03d}-loss{loss:.3f}'
         '-val_loss{val_loss:.3f}.h5')
@@ -1194,7 +1194,7 @@ $> pip install Pillow
 
 1.  一种更简洁的生成检查点的方式是只保存一个与当前最佳模型相对应的检查点，而不是存储每个逐步改进的模型。为了实现这一点，我们可以从检查点名称中删除任何参数：
 
-    ```
+    ```py
     checkpoint_pattern = 'overwrite/model.h5'
     checkpoint = ModelCheckpoint(checkpoint_pattern,
                                  monitor='val_loss',
@@ -1248,7 +1248,7 @@ TensorFlow 的最大竞争对手之一是另一个著名框架：PyTorch。直�
 
 1.  导入我们将使用的模块：
 
-    ```
+    ```py
     import time
     import numpy as np
     import tensorflow as tf
@@ -1262,7 +1262,7 @@ TensorFlow 的最大竞争对手之一是另一个著名框架：PyTorch。直�
 
 1.  定义一个函数来加载和准备`Fashion-MNIST`：
 
-    ```
+    ```py
     def load_dataset():
         (X_train, y_train), (X_test, y_test) = fm.load_data()
         X_train = X_train.astype('float32') / 255.0
@@ -1277,7 +1277,7 @@ TensorFlow 的最大竞争对手之一是另一个著名框架：PyTorch。直�
 
 1.  定义`build_network()`方法，顾名思义，它创建我们将在`Fashion-MNIST`上训练的模型：
 
-    ```
+    ```py
     def build_network():
         input_layer = Input(shape=(28, 28, 1))
         x = Conv2D(filters=20,
@@ -1302,7 +1302,7 @@ TensorFlow 的最大竞争对手之一是另一个著名框架：PyTorch。直�
 
     现在，构建网络的全连接部分：
 
-    ```
+    ```py
         x = Flatten()(x)
         x = Dense(units=500)(x)
         x = ELU()(x)
@@ -1314,7 +1314,7 @@ TensorFlow 的最大竞争对手之一是另一个著名框架：PyTorch。直�
 
 1.  为了演示如何使用`tf.GradientTape`，我们将实现`training_step()`函数，该函数获取一批数据的梯度，然后通过优化器进行反向传播：
 
-    ```
+    ```py
     def training_step(X, y, model, optimizer):
         with tf.GradientTape() as tape:
             predictions = model(X)
@@ -1327,27 +1327,27 @@ TensorFlow 的最大竞争对手之一是另一个著名框架：PyTorch。直�
 
 1.  定义批次大小和训练模型的轮次：
 
-    ```
+    ```py
     BATCH_SIZE = 256
     EPOCHS = 100
     ```
 
 1.  加载数据集：
 
-    ```
+    ```py
     (X_train, y_train), (X_test, y_test) = load_dataset()
     ```
 
 1.  创建优化器和网络：
 
-    ```
+    ```py
     optimizer = RMSprop()
     model = build_network()
     ```
 
 1.  现在，我们将创建自定义训练循环。首先，我们将遍历每个轮次，衡量完成的时间：
 
-    ```
+    ```py
     for epoch in range(EPOCHS):
         print(f'Epoch {epoch + 1}/{EPOCHS}')
         start = time.time()
@@ -1355,7 +1355,7 @@ TensorFlow 的最大竞争对手之一是另一个著名框架：PyTorch。直�
 
 1.  现在，我们将遍历每个数据批次，并将它们与网络和优化器一起传递给`training_step()`函数：
 
-    ```
+    ```py
         for i in range(int(len(X_train) / BATCH_SIZE)):
             X_batch = X_train[i * BATCH_SIZE:
                               i * BATCH_SIZE + BATCH_SIZE]
@@ -1367,14 +1367,14 @@ TensorFlow 的最大竞争对手之一是另一个著名框架：PyTorch。直�
 
 1.  然后，我们将打印当前轮次的时间：
 
-    ```
+    ```py
         elapsed = time.time() - start
         print(f'\tElapsed time: {elapsed:.2f} seconds.')
     ```
 
 1.  最后，在测试集上评估网络，确保它没有出现任何问题：
 
-    ```
+    ```py
     model.compile(loss=categorical_crossentropy,
                   optimizer=optimizer,
                   metrics=['accuracy'])
@@ -1384,7 +1384,7 @@ TensorFlow 的最大竞争对手之一是另一个著名框架：PyTorch。直�
 
     以下是结果：
 
-    ```
+    ```py
     Loss: 1.7750033140182495, Accuracy: 0.9083999991416931
     ```
 
@@ -1420,7 +1420,7 @@ TensorFlow 的最大竞争对手之一是另一个著名框架：PyTorch。直�
 
 对于这个配方，我们需要`OpenCV`、`Pillow`和`imutils`。你可以像这样一次性安装它们：
 
-```
+```py
 $> pip install Pillow opencv-python imutils
 ```
 
@@ -1432,7 +1432,7 @@ $> pip install Pillow opencv-python imutils
 
 1.  导入我们将要使用的模块：
 
-    ```
+    ```py
     import cv2
     import imutils 
     import numpy as np
@@ -1444,7 +1444,7 @@ $> pip install Pillow opencv-python imutils
 
 1.  定义`GradCAM`类，它将封装**Grad-CAM**算法，使我们能够生成给定层的激活图热力图。让我们从定义构造函数开始：
 
-    ```
+    ```py
     class GradGAM(object):
         def __init__(self, model, class_index, 
                      layer_name=None):
@@ -1462,7 +1462,7 @@ $> pip install Pillow opencv-python imutils
 
 1.  在这里，我们接收的是我们想要检查的类的`class_index`，以及我们希望可视化其激活的层的`layer_name`。如果我们没有接收到`layer_name`，我们将默认使用模型的最外层输出层。最后，我们通过调用这里定义的`_create_grad_model()`方法创建`grad_model`：
 
-    ```
+    ```py
         def _create_grad_model(self, model, layer_name):
             return Model(inputs=[model.inputs],
                          outputs=[
@@ -1474,7 +1474,7 @@ $> pip install Pillow opencv-python imutils
 
 1.  接下来，我们必须定义`compute_heatmap()`方法。首先，我们需要将输入图像传递给`grad_model`，以获取兴趣层的激活图和预测：
 
-    ```
+    ```py
         def compute_heatmap(self, image, epsilon=1e-8):
             with tf.GradientTape() as tape:
                 inputs = tf.cast(image, tf.float32)
@@ -1484,13 +1484,13 @@ $> pip install Pillow opencv-python imutils
 
 1.  我们可以根据与`class_index`对应的损失来计算梯度：
 
-    ```
+    ```py
     grads = tape.gradient(loss, conv_outputs)
     ```
 
 1.  我们可以通过基本上在`float_conv_outputs`和`float_grads`中找到正值并将其与梯度相乘来计算引导梯度，这样我们就可以可视化哪些神经元正在激活：
 
-    ```
+    ```py
             guided_grads = (tf.cast(conv_outputs > 0, 
                           'float32') *
                             tf.cast(grads > 0, 'float32') *
@@ -1499,7 +1499,7 @@ $> pip install Pillow opencv-python imutils
 
 1.  现在，我们可以通过平均引导梯度来计算梯度权重，然后使用这些权重将加权映射添加到我们的**Grad-CAM**可视化中：
 
-    ```
+    ```py
             conv_outputs = conv_outputs[0]
             guided_grads = guided_grads[0]
             weights = tf.reduce_mean(guided_grads, 
@@ -1511,7 +1511,7 @@ $> pip install Pillow opencv-python imutils
 
 1.  然后，我们将**Grad-CAM**可视化结果调整为输入图像的尺寸，进行最小-最大归一化后再返回：
 
-    ```
+    ```py
             height, width = image.shape[1:3]
             heatmap = cv2.resize(cam.numpy(), (width, 
                                   height))
@@ -1525,7 +1525,7 @@ $> pip install Pillow opencv-python imutils
 
 1.  `GradCAM`类的最后一个方法将热力图叠加到原始图像上。这使我们能够更好地了解网络在做出预测时注视的视觉线索：
 
-    ```
+    ```py
         def overlay_heatmap(self,
                             heatmap,
                             image, alpha=0.5,
@@ -1541,13 +1541,13 @@ $> pip install Pillow opencv-python imutils
 
 1.  让我们实例化一个在 ImageNet 上训练过的**ResNet50**模型：
 
-    ```
+    ```py
     model = ResNet50(weights='imagenet')
     ```
 
 1.  加载输入图像，将其调整为 ResNet50 所期望的尺寸，将其转换为 NumPy 数组，并进行预处理：
 
-    ```
+    ```py
     image = load_img('dog.jpg', target_size=(224, 224))
     image = img_to_array(image)
     image = np.expand_dims(image, axis=0)
@@ -1556,21 +1556,21 @@ $> pip install Pillow opencv-python imutils
 
 1.  将图像通过模型并提取最可能类别的索引：
 
-    ```
+    ```py
     predictions = model.predict(image)
     i = np.argmax(predictions[0])
     ```
 
 1.  实例化一个**GradCAM**对象并计算热力图：
 
-    ```
+    ```py
     cam = GradGAM(model, i)
     heatmap = cam.compute_heatmap(image)
     ```
 
 1.  将热力图叠加在原始图像上：
 
-    ```
+    ```py
     original_image = cv2.imread('dog.jpg')
     heatmap = cv2.resize(heatmap, (original_image.shape[1],
                                    original_image.shape[0]))
@@ -1581,14 +1581,14 @@ $> pip install Pillow opencv-python imutils
 
 1.  解码预测结果，使其可供人类读取：
 
-    ```
+    ```py
     decoded = imagenet_utils.decode_predictions(predictions)
     _, label, probability = decoded[0][0]
     ```
 
 1.  用类别及其关联的概率标注覆盖的热力图：
 
-    ```
+    ```py
     cv2.rectangle(output, (0, 0), (340, 40), (0, 0, 0), -1)
     cv2.putText(output, f'{label}: {probability * 100:.2f}%',
                 (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.8,
@@ -1597,7 +1597,7 @@ $> pip install Pillow opencv-python imutils
 
 1.  最后，将原始图像、热力图和标注覆盖层合并为一张图像并保存到磁盘：
 
-    ```
+    ```py
     output = np.hstack([original_image, heatmap, output])
     output = imutils.resize(output, height=700)
     cv2.imwrite('output.jpg', output)

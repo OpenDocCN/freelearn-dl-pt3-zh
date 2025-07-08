@@ -86,7 +86,7 @@ RNN 通过顺序处理单词来保持词序。这种方法的优点是简单，�
 
 Transformer 使用一种简单的替代顺序表示方法，称为位置编码，将每个单词与表示其在文本中位置的数字关联。例如：
 
-```
+```py
 [("Transformers", 1), ("took", 2), ("NLP", 3), ("by", 4), ("storm", 5)] 
 ```
 
@@ -730,7 +730,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  首先，让我们安装数据集并导入正确的库。请注意，在线的 Colab 似乎缺少`import tensorflow_text`这一行，但在这里已添加：
 
-    ```
+    ```py
     !pip install tensorflow_datasets
     !pip install -U 'tensorflow-text==2.8.*'
     import logging
@@ -745,7 +745,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  然后，加载葡萄牙语到英语的数据集：
 
-    ```
+    ```py
     examples, metadata = tfds.load('ted_hrlr_translate/pt_to_en', with_info=True,
                                    as_supervised=True)
     train_examples, val_examples = examples['train'], examples['validation'] 
@@ -753,7 +753,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  现在，让我们将文本转换为标记 ID 的序列，这些标记 ID 用作嵌入的索引：
 
-    ```
+    ```py
     model_name = 'ted_hrlr_translate_pt_en_converter'
     tf.keras.utils.get_file(
         f'{model_name}.zip',
@@ -765,38 +765,38 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  让我们看一下标记化的 ID 和标记化的单词：
 
-    ```
+    ```py
     for pt_examples, en_examples in train_examples.batch(3).take(1):
       print('> Examples in Portuguese:')
     for en in en_examples.numpy():
       print(en.decode('utf-8')) 
     ```
 
-    ```
+    ```py
     and when you improve searchability , you actually take away the one advantage of print , which is serendipity .
     but what if it were active ?
     but they did n't test for curiosity . 
     ```
 
-    ```
+    ```py
     encoded = tokenizers.en.tokenize(en_examples)
     for row in encoded.to_list():
       print(row) 
     ```
 
-    ```
+    ```py
     [2, 72, 117, 79, 1259, 1491, 2362, 13, 79, 150, 184, 311, 71, 103, 2308, 74, 2679, 13, 148, 80, 55, 4840, 1434, 2423, 540, 15, 3]
     [2, 87, 90, 107, 76, 129, 1852, 30, 3]
     [2, 87, 83, 149, 50, 9, 56, 664, 85, 2512, 15, 3] 
     ```
 
-    ```
+    ```py
     round_trip = tokenizers.en.detokenize(encoded)
     for line in round_trip.numpy():
       print(line.decode('utf-8')) 
     ```
 
-    ```
+    ```py
     and when you improve searchability , you actually take away the one advantage of print , which is serendipity .
     but what if it were active ?
     but they did n ' t test for curiosity . 
@@ -804,7 +804,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  现在让我们创建一个输入管道。首先，我们定义一个函数来丢弃超过 `MAX_TOKENS` 长度的示例。其次，我们定义一个函数来对原始文本的批次进行标记化。第三，我们创建批次：
 
-    ```
+    ```py
     MAX_TOKENS=128
     def filter_max_tokens(pt, en):
       num_tokens = tf.maximum(tf.shape(pt)[1],tf.shape(en)[1])
@@ -834,7 +834,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  现在我们添加位置编码，强制根据词汇的含义相似度和它们在句子中的位置，使得令牌彼此更接近，位于 d 维嵌入空间中：
 
-    ```
+    ```py
     def get_angles(pos, i, d_model):
       angle_rates = 1 / np.power(10000, (2 * (i//2)) / np.float32(d_model))
       return pos * angle_rates
@@ -852,7 +852,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  现在，让我们集中关注掩码过程。前瞻掩码用于掩蔽序列中的未来令牌，掩码指示哪些条目不应被使用。例如，为了预测第三个令牌，只会使用第一个和第二个令牌，而为了预测第四个令牌，只会使用第一个、第二个和第三个令牌，依此类推：
 
-    ```
+    ```py
     def create_padding_mask(seq):
       seq = tf.cast(tf.math.equal(seq, 0), tf.float32)
       # add extra dimensions to add the padding
@@ -865,7 +865,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  我们离变换器的本质越来越近。让我们将注意力函数定义为一个缩放的点积：
 
-    ```
+    ```py
     def scaled_dot_product_attention(q, k, v, mask):
       """Calculate the attention weights.
       q, k, v must have matching leading dimensions.
@@ -899,7 +899,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
     图 6.14：多头注意力
 
-    ```
+    ```py
     class MultiHeadAttention(tf.keras.layers.Layer):
       def __init__(self,*, d_model, num_heads):
         super(MultiHeadAttention, self).__init__()
@@ -938,7 +938,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  现在，我们可以定义一个逐点前馈网络，它由两个完全连接的层组成，中间有一个 ReLU 激活函数：
 
-    ```
+    ```py
     def point_wise_feed_forward_network(d_model, dff):
      return tf.keras.Sequential([
          tf.keras.layers.Dense(dff, activation='relu'),  # (batch_size, seq_len, dff)
@@ -948,7 +948,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  我们现在可以集中精力定义如 *图 6.15* 所示的编码器和解码器部分。记住，传统的变换器通过 *N* 个编码器层处理输入句子，而解码器使用编码器输出和它自己的输入（自注意力）来预测下一个词。每个编码器层都有由多头注意力（带填充掩码）和逐点前馈网络组成的子层。每个子层使用残差连接来解决梯度消失问题，并且有一个归一化层：
 
-    ```
+    ```py
     class EncoderLayer(tf.keras.layers.Layer):
       def __init__(self,*, d_model, num_heads, dff, rate=0.1):
         super(EncoderLayer, self).__init__()
@@ -970,7 +970,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  每个解码器层由多个子层组成。首先是一个带掩蔽的多头注意力（带前瞻掩码和填充掩码）。然后是一个多头注意力（带填充掩码），V（值）和 K（键）接收编码器输出作为输入。Q（查询）接收来自掩蔽多头注意力子层的输出，最后是逐点前馈网络：
 
-    ```
+    ```py
     class DecoderLayer(tf.keras.layers.Layer):
       def __init__(self,*, d_model, num_heads, dff, rate=0.1):
         super(DecoderLayer, self).__init__()
@@ -1001,7 +1001,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  现在我们已经定义了编码器层，可以用它来定义合适的编码器。编码器由三个阶段组成：输入嵌入、位置编码和 *N* 个编码器层：
 
-    ```
+    ```py
     class Encoder(tf.keras.layers.Layer):
       def __init__(self,*, num_layers, d_model, num_heads, dff, input_vocab_size,
                    rate=0.1):
@@ -1028,7 +1028,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  我们现在可以专注于解码器本身。解码器由输出嵌入、位置编码和 *N* 个解码器层组成：
 
-    ```
+    ```py
     class Decoder(tf.keras.layers.Layer):
       def __init__(self,*, num_layers, d_model, num_heads, dff, target_vocab_size,
                    rate=0.1):
@@ -1059,7 +1059,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  现在我们已经定义了编码器和解码器，我们可以把注意力转向变换器本身，它由编码器、解码器和最终的线性层组成（见 *图 6.15*）：
 
-    ```
+    ```py
     class Transformer(tf.keras.Model):
       def __init__(self,*, num_layers, d_model, num_heads, dff, input_vocab_size,
                    target_vocab_size, rate=0.1):
@@ -1102,7 +1102,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  我们快完成了。我们只需要定义超参数和优化器，使用与开创性论文中完全相同的设置，并定义损失函数：
 
-    ```
+    ```py
     num_layers = 4
     d_model = 128
     dff = 512
@@ -1140,7 +1140,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  现在是定义变换器的时候了。让我们看看代码：
 
-    ```
+    ```py
     transformer = Transformer(
         num_layers=num_layers,
         d_model=d_model,
@@ -1153,7 +1153,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  让我们也用以下代码定义检查点：
 
-    ```
+    ```py
     checkpoint_path = './checkpoints/train'
     ckpt = tf.train.Checkpoint(transformer=transformer,
                                optimizer=optimizer)
@@ -1166,7 +1166,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  记住，变换器是自回归的。当前的输出被用来预测接下来会发生什么。我们使用前瞻掩码，以防止模型看到预期的输出。我们现在准备定义 `train_step`：
 
-    ```
+    ```py
     train_step_signature = [
         tf.TensorSpec(shape=(None, None), dtype=tf.int64),
         tf.TensorSpec(shape=(None, None), dtype=tf.int64),
@@ -1202,7 +1202,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
     在 Colab 中运行训练步骤后，我们得到了以下情况：
 
-    ```
+    ```py
     Epoch 20 Loss 1.5030 Accuracy 0.6720
     Time taken for 1 epoch: 169.01 secs 
     ```
@@ -1219,7 +1219,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
     1.  将预测的 token 拼接到解码器输入中，并传递给解码器：
 
-    ```
+    ```py
     class Translator(tf.Module):
       def __init__(self, tokenizers, transformer):
         self.tokenizers = tokenizers
@@ -1264,7 +1264,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  让我们用以下代码片段对示例句子调用翻译器：
 
-    ```
+    ```py
     translator = Translator(tokenizers, transformer)
     def print_translation(sentence, tokens, ground_truth):
       print(f'{"Input:":15s}: {sentence}')
@@ -1279,7 +1279,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
     得到的结果是：
 
-    ```
+    ```py
     Input:         : os meus vizinhos ouviram sobre esta ideia.
     Prediction     : my neighbors have heard about this idea .
     Ground truth   : and my neighboring homes heard about this idea . 
@@ -1309,7 +1309,7 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  第一步是创建一个专门的虚拟环境，在其中安装 transformer 库。在我的例子中，我使用的是 TensorFlow 2.0 的库：
 
-    ```
+    ```py
     python -m venv .env
     source .env/bin/activate
     pip install transformers[tf-cpu] 
@@ -1317,26 +1317,26 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  然后让我们通过下载一个用于情感分析的预训练模型来验证一切是否正常工作：
 
-    ```
+    ```py
     python -c "from transformers import pipeline; print(pipeline('sentiment-analysis')('we love you'))" 
     ```
 
     由于期望的情感应该是非常积极的，我们将看到如下的内容：
 
-    ```
+    ```py
     [{'label': 'POSITIVE', 'score': 0.9998704791069031}] 
     ```
 
 1.  现在，让我们专注于使用 GPT-2 生成文本：
 
-    ```
+    ```py
     from transformers import pipeline
     generator = pipeline(task="text-generation") 
     ```
 
     你应该看到如下的内容：
 
-    ```
+    ```py
     No model was supplied, defaulted to gpt2 (https://huggingface.co/gpt2)
     Downloading: 100%|██████████████████████████████| 665/665 [00:00<00:00, 167kB/s]
     Downloading: 100%|███████████████████████████| 475M/475M [03:24<00:00, 2.44MB/s 
@@ -1344,29 +1344,29 @@ Google Research 宣布了 Pathways（[`blog.google/technology/ai/introducing-pat
 
 1.  让我们给生成器传递一些文本，看看结果如何。第一句话来自托尔金的作品，第二句来自爱因斯坦的理论，第三句来自《哈利·波特》：
 
-    ```
+    ```py
     generator("Three Rings for the Elven-kings under the sky, Seven for the Dwarf-lords in their halls of stone") 
     ```
 
-    ```
+    ```py
     Setting 'pad_token_id' to 50256 (first 'eos_token_id') to generate sequence
     [{'generated_text': 'Three Rings for the Elven-kings under the sky, Seven for the Dwarf-lords in their halls of stone and Eight for the Dwarves in their halls of rock! Three new Rings of the Elven-kings under the sky, Seven for'}] 
     ```
 
-    ```
+    ```py
     generator ("The original theory of relativity is based upon the premise that all coordinate systems in relative uniform translatory motion to each other are equally valid and equivalent ") 
     ```
 
-    ```
+    ```py
     Setting 'pad_token_id' to 50256 (first 'eos_token_id') to generate sequence
     [{'generated_text': 'The original theory of relativity is based upon the premise that all coordinate systems in relative uniform translatory motion to each other are equally valid and equivalent \xa0to one another. In other words, they can all converge, and therefore all the laws are valid'}] 
     ```
 
-    ```
+    ```py
     generator ("It takes a great deal of bravery to stand up to our enemies") 
     ```
 
-    ```
+    ```py
     Setting 'pad_token_id' to 50256 (first 'eos_token_id') to generate sequence
     [{'generated_text': 'It takes a great deal of bravery to stand up to our enemies that day. She still has a lot to learn from it, or it could take decades to do.\n\nWhile some braver men struggle, many are not as lucky'}] 
     ```
@@ -1379,12 +1379,12 @@ Hugging Face 在帮助开发者自动化尽可能多的步骤方面做得非常�
 
 1.  你可以轻松地从几十种可用的预训练模型中导入一个。所有可用模型的完整列表在这里：[`huggingface.co/docs/transformers/model_doc/auto`](https://huggingface.co/docs/transformers/model_doc/auto)：
 
-    ```
+    ```py
     from transformers import TFAutoModelForSequenceClassification
     model = TFAutoModelForSequenceClassification.from_pretrained("distilbert-base-uncased") 
     ```
 
-    ```
+    ```py
     Downloading: 100%|█████████████████████████████| 483/483 [00:00<00:00, 68.9kB/s]
     Downloading: 100%|███████████████████████████| 347M/347M [01:05<00:00, 5.59MB/s]
     … 
@@ -1394,14 +1394,14 @@ Hugging Face 在帮助开发者自动化尽可能多的步骤方面做得非常�
 
 1.  你可以使用`AutoTokenizer`将单词转换为模型使用的标记：
 
-    ```
+    ```py
     from transformers import AutoTokenizer
     tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
     sequence = "The original theory of relativity is based upon the premise that all coordinate systems"
     print(tokenizer(sequence)) 
     ```
 
-    ```
+    ```py
     {'input_ids': [101, 1996, 2434, 3399, 1997, 20805, 2003, 2241, 2588, 1996, 18458, 2008, 2035, 13530, 3001, 102], 'token_type_ids': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'attention_mask': [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]} 
     ```
 
@@ -1413,7 +1413,7 @@ Hugging Face 在帮助开发者自动化尽可能多的步骤方面做得非常�
 
 1.  首先，让我们创建一个 NER 流水线：
 
-    ```
+    ```py
     from transformers import pipeline
     ner_pipe = pipeline("ner")
     sequence = """Mr. and Mrs. Dursley, of number four, Privet Drive, were proud to say that they were perfectly normal, thank you very much."""
@@ -1423,7 +1423,7 @@ Hugging Face 在帮助开发者自动化尽可能多的步骤方面做得非常�
 
 1.  你将能够看到如下的内容，其中实体已被识别：
 
-    ```
+    ```py
     {'entity': 'I-PER', 'score': 0.99908304, 'index': 6, 'word': 'Du', 'start': 13, 'end': 15}
     {'entity': 'I-PER', 'score': 0.9869529, 'index': 7, 'word': '##rs', 'start': 15, 'end': 17}
     {'entity': 'I-PER', 'score': 0.9784202, 'index': 8, 'word': '##ley', 'start': 17, 'end': 20}
@@ -1461,7 +1461,7 @@ Hugging Face 在帮助开发者自动化尽可能多的步骤方面做得非常�
 
 1.  首先，让我们使用默认的 T5 small 模型创建一个摘要管道：
 
-    ```
+    ```py
     from transformers import pipeline
     summarizer = pipeline("summarization")
     ARTICLE = """
@@ -1489,7 +1489,7 @@ Hugging Face 在帮助开发者自动化尽可能多的步骤方面做得非常�
 
 1.  结果，我们将看到类似以下内容：
 
-    ```
+    ```py
     No model was supplied, defaulted to t5-small (https://huggingface.co/t5-small)
     Downloading: 100%|██████████████████████████| 1.17k/1.17k [00:00<00:00, 300kB/s]
     Downloading: 100%|███████████████████████████| 231M/231M [01:29<00:00, 2.71MB/s]
@@ -1498,13 +1498,13 @@ Hugging Face 在帮助开发者自动化尽可能多的步骤方面做得非常�
 
 1.  假设你想换一个不同的模型。其实这非常简单，你只需要更改一个参数：
 
-    ```
+    ```py
     summarizer = pipeline("summarization", model='t5-base') 
     ```
 
 1.  结果，我们可以看到类似以下内容：
 
-    ```
+    ```py
     Downloading: 100%|████████████████████████████████████████████████████████████| 773k/773k [00:00<00:00, 1.28MB/s]
     Downloading: 100%|██████████████████████████████████████████████████████████| 1.32M/1.32M [00:00<00:00, 1.93MB/s]
     [{'summary_text': "bob greene says he and his wife were perfectly normal . he says they were the last people you'd expect to be involved in anything strange or mysterious . greene: they were a big, beefy man with hardly any neck, but had a very large mustache ."}] 
@@ -1516,7 +1516,7 @@ Hugging Face 在帮助开发者自动化尽可能多的步骤方面做得非常�
 
 1.  首先，让我们加载并标记化 Yelp 数据集：
 
-    ```
+    ```py
     from datasets import load_dataset
     dataset = load_dataset("yelp_review_full")
     from transformers import AutoTokenizer
@@ -1530,7 +1530,7 @@ Hugging Face 在帮助开发者自动化尽可能多的步骤方面做得非常�
 
 1.  然后，我们将其转换为 TF 格式的数据集：
 
-    ```
+    ```py
     from transformers import DefaultDataCollator
     data_collator = DefaultDataCollator(return_tensors="tf")
     # convert the tokenized datasets to TensorFlow datasets
@@ -1552,7 +1552,7 @@ Hugging Face 在帮助开发者自动化尽可能多的步骤方面做得非常�
 
 1.  现在，我们可以使用 `TFAutoModelForSequenceClassification`，并特别选择 `bert-base-cased`：
 
-    ```
+    ```py
     import tensorflow as tf
     from transformers import TFAutoModelForSequenceClassification
     model = TFAutoModelForSequenceClassification.from_pretrained("bert-base-cased", num_labels=5) 
@@ -1560,7 +1560,7 @@ Hugging Face 在帮助开发者自动化尽可能多的步骤方面做得非常�
 
 1.  最后，微调就是使用 Keras/TF 2.0 中标准的训练模型方法，通过编译模型，然后使用 `fit` 进行训练：
 
-    ```
+    ```py
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=5e-5),
         loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
@@ -1583,7 +1583,7 @@ Hugging Face 在帮助开发者自动化尽可能多的步骤方面做得非常�
 
 使用 TFHub 就像写几行代码一样简单。让我们来看一个简单的例子，其中我们加载一个预训练模型来计算嵌入。在这个例子中，我们使用`nnlm-en-dim128`，这是一个基于标记的文本嵌入模型，经过英语 Google News 200B 语料库的训练：
 
-```
+```py
 !pip install --upgrade tensorflow_hub
 import tensorflow_hub as hub
 model = hub.KerasLayer("https://tfhub.dev/google/nnlm-en-dim128/2")
@@ -1596,7 +1596,7 @@ print(embeddings.shape)  #(4,128)
 
 1.  让我们设置环境并导入一些有用的模块：
 
-    ```
+    ```py
     !pip install seaborn
     !pip install sklearn
     !pip install tensorflow_hub
@@ -1610,7 +1610,7 @@ print(embeddings.shape)  #(4,128)
 
 1.  让我们定义几个句子，用于比较它们之间的相似度：
 
-    ```
+    ```py
     sentences = [
         "Do not pity the dead, Harry. Pity the living, and, above all those who live without love.",
         "It is impossible to manufacture or imitate love",
@@ -1624,7 +1624,7 @@ print(embeddings.shape)  #(4,128)
 
 1.  然后，让我们使用 TFHub 上的预训练 BERT 模型来计算输入句子的嵌入。BERT 的输出就是这些嵌入本身：
 
-    ```
+    ```py
     #@title Configure the model { run: "auto" }
     BERT_MODEL = "https://tfhub.dev/google/experts/bert/wiki_books/2" # @param {type: "string"} ["https://tfhub.dev/google/experts/bert/wiki_books/2", "https://tfhub.dev/google/experts/bert/wiki_books/mnli/2", "https://tfhub.dev/google/experts/bert/wiki_books/qnli/2", "https://tfhub.dev/google/experts/bert/wiki_books/qqp/2", "https://tfhub.dev/google/experts/bert/wiki_books/squad2/2", "https://tfhub.dev/google/experts/bert/wiki_books/sst2/2",  "https://tfhub.dev/google/experts/bert/pubmed/2", "https://tfhub.dev/google/experts/bert/pubmed/squad2/2"]
     # Preprocessing must match the model, but all the above use the same.
@@ -1637,7 +1637,7 @@ print(embeddings.shape)  #(4,128)
 
 1.  现在让我们定义一些辅助函数，通过`pairwise.cosine_similarity`来展示嵌入之间的相似度：
 
-    ```
+    ```py
     def plot_similarity(features, labels):
       """Plot a similarity matrix of the embeddings."""
       cos_sim = pairwise.cosine_similarity(features)
@@ -1756,7 +1756,7 @@ NLP-progress 是一个仓库，用于跟踪自然语言处理（NLP）领域的�
 
 在过去几年里，我们看到了许多蒸馏后的变换器。例如，DistilBERT 是一个基于 BERT 架构的小型、快速、便宜且轻量的变换器模型。知识蒸馏在预训练阶段进行，以减少 BERT 模型的大小 40%。Hugging Face 提供了一些现成的 Python 脚本，用于蒸馏 seq2seq T5 模型，脚本可在[`github.com/huggingface/transformers/tree/master/examples/research_projects/seq2seq-distillation`](https://github.com/huggingface/transformers/tree/master/examples/research_projects/seq2seq-distillation)找到。使用该脚本非常直观：
 
-```
+```py
 python distillation.py --teacher t5-small --data_dir cnn_dm \
 --student_decoder_layers 3 --student_encoder_layers 6 --tokenizer_name t5-small \
 --learning_rate=3e-4 --freeze_encoder --no_teacher --freeze_embeds \

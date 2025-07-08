@@ -34,7 +34,7 @@
 
 要完成这个食谱，你首先需要激活 `tf2rl-cookbook` Python/Conda 虚拟环境并运行 `pip install numpy gym`。如果以下导入语句没有问题，那么你可以开始了！
 
-```
+```py
 import copy
 import sys
 import gym
@@ -51,7 +51,7 @@ import numpy as np
 
 1.  我们首先定义不同单元格状态与其颜色代码之间的映射关系，以便在 Gridworld 环境中使用：
 
-    ```
+    ```py
     EMPTY = BLACK = 0
     WALL = GRAY = 1
     AGENT = BLUE = 2
@@ -62,7 +62,7 @@ import numpy as np
 
 1.  接下来，使用 RGB 强度值生成颜色映射：
 
-    ```
+    ```py
     COLOR_MAP = {
         BLACK: [0.0, 0.0, 0.0],
         GRAY: [0.5, 0.5, 0.5],
@@ -75,7 +75,7 @@ import numpy as np
 
 1.  现在让我们定义动作映射关系：
 
-    ```
+    ```py
     NOOP = 0
     DOWN = 1
     UP = 2
@@ -85,7 +85,7 @@ import numpy as np
 
 1.  然后，我们创建一个`GridworldEnv`类，并定义一个`__init__`函数来定义必要的类变量，包括观察空间和动作空间：
 
-    ```
+    ```py
     class GridworldEnv():
     	def __init__(self):
     ```
@@ -94,7 +94,7 @@ import numpy as np
 
 1.  在这一步中，让我们使用网格单元格状态映射来定义 Gridworld 环境的布局：
 
-    ```
+    ```py
     	self.grid_layout = """
             1 1 1 1 1 1 1 1
             1 2 0 0 0 0 0 1
@@ -111,7 +111,7 @@ import numpy as np
 
 1.  现在，我们准备定义 Gridworld RL 环境的观察空间：
 
-    ```
+    ```py
     	self.initial_grid_state = np.fromstring(
                         self.grid_layout, dtype=int, sep=" ")
     	self.initial_grid_state = \
@@ -127,7 +127,7 @@ import numpy as np
 
 1.  让我们定义动作空间，以及动作与智能体在网格中移动之间的映射关系：
 
-    ```
+    ```py
     	   self.action_space = gym.spaces.Discrete(5)
             self.actions = [NOOP, UP, DOWN, LEFT, RIGHT]
             self.action_pos_dict = {
@@ -141,14 +141,14 @@ import numpy as np
 
 1.  现在让我们通过使用`get_state()`方法初始化智能体的起始状态和目标状态来完成`__init__`函数（我们将在下一步实现该方法）：
 
-    ```
+    ```py
     (self.agent_start_state, self.agent_goal_state,) = \
                                              self.get_state()
     ```
 
 1.  现在我们需要实现`get_state()`方法，该方法返回 Gridworld 环境的起始状态和目标状态：
 
-    ```
+    ```py
     def get_state(self):
             start_state = np.where(self.grid_state == AGENT)
             goal_state = np.where(self.grid_state == GOAL)
@@ -168,7 +168,7 @@ import numpy as np
 
 1.  在这一步中，我们将实现`step(action)`方法来执行动作并获取下一个状态/观察、相关奖励以及是否结束回合：
 
-    ```
+    ```py
     def step(self, action):
             """return next observation, reward, done, info"""
             action = int(action)
@@ -185,7 +185,7 @@ import numpy as np
 
 1.  接下来，指定奖励，最后返回`grid_state`、`reward`、`done`和`info`：
 
-    ```
+    ```py
      # Determine the reward
             if action == NOOP:
                 return self.grid_state, reward, False, info
@@ -220,7 +220,7 @@ import numpy as np
 
 1.  接下来是`reset()`方法，它会在一个回合完成时（或者在请求重置环境时）重置 Gridworld 环境：
 
-    ```
+    ```py
     def reset(self):
             self.grid_state = copy.deepcopy(
                                      self.initial_grid_state)
@@ -231,7 +231,7 @@ import numpy as np
 
 1.  为了以更易于人类理解的方式可视化 Gridworld 环境的状态，让我们实现一个渲染函数，将我们在第五步中定义的`grid_layout`转换为图像并显示它。至此，Gridworld 环境的实现将完成！
 
-    ```
+    ```py
     def gridarray_to_image(self, img_shape=None):
             if img_shape is None:
                 img_shape = self.img_shape
@@ -271,7 +271,7 @@ import numpy as np
 
 1.  为了测试环境是否按预期工作，让我们添加一个`__main__`函数，该函数将在直接运行环境脚本时执行：
 
-    ```
+    ```py
     if __name__ == "__main__":
     	env = GridworldEnv()
     	obs = env.reset()
@@ -285,7 +285,7 @@ import numpy as np
 
 1.  一切就绪！Gridworld 环境已经准备好，我们可以通过运行脚本（`python envs/gridworld.py`）来快速测试它。将显示类似如下的输出：
 
-    ```
+    ```py
     reward:0.0 done:False info:{'success': True}
     ```
 
@@ -313,7 +313,7 @@ import numpy as np
 
 激活`tf2rl-cookbook` Python 虚拟环境，并运行以下命令来安装和导入相关包：
 
-```
+```py
 pip install --upgrade numpy tensorflow tensorflow_probability seaborn 
 import seaborn as sns
 import tensorflow as tf
@@ -330,7 +330,7 @@ import tensorflow_probability as tfp
 
 1.  我们首先在 TensorFlow 2.x 中使用`tensorflow_probability`库创建一个二元策略分布：
 
-    ```
+    ```py
     binary_policy = tfp.distributions.Bernoulli(probs=0.5)
     for i in range(5):
         action = binary_policy.sample(1)
@@ -339,7 +339,7 @@ import tensorflow_probability as tfp
 
     前面的代码应输出如下内容：
 
-    ```
+    ```py
     Action: tf.Tensor([0], shape=(1,), dtype=int32)
     Action: tf.Tensor([1], shape=(1,), dtype=int32)
     Action: tf.Tensor([0], shape=(1,), dtype=int32)
@@ -353,7 +353,7 @@ import tensorflow_probability as tfp
 
 1.  让我们快速可视化二元策略分布：
 
-    ```
+    ```py
     # Sample 500 actions from the binary policy distribution
     sample_actions = binary_policy.sample(500)
     sns.distplot(sample_actions)
@@ -367,7 +367,7 @@ import tensorflow_probability as tfp
 
 1.  在这一阶段，我们将实现一个离散的策略分布。一个单一离散变量的类别分布，具有*k*个有限类别，被称为**多项分布**。多项分布的推广是多次试验的多项分布，我们将使用它来表示离散策略分布：
 
-    ```
+    ```py
     action_dim = 4  # Dimension of the discrete action space
     action_probabilities = [0.25, 0.25, 0.25, 0.25]
     discrete_policy = tfp.distributions.Multinomial(probs=action_probabilities, total_count=1)
@@ -378,7 +378,7 @@ import tensorflow_probability as tfp
 
     前面的代码应输出类似以下内容：
 
-    ```
+    ```py
     tf.Tensor([[0\. 0\. 0\. 1.]], shape=(1, 4), dtype=float32)
     tf.Tensor([[0\. 0\. 1\. 0.]], shape=(1, 4), dtype=float32)
     tf.Tensor([[0\. 0\. 1\. 0.]], shape=(1, 4), dtype=float32)
@@ -388,7 +388,7 @@ import tensorflow_probability as tfp
 
 1.  接下来，我们将可视化离散的概率分布：
 
-    ```
+    ```py
     sns.distplot(discrete_policy.sample(1))
     ```
 
@@ -400,7 +400,7 @@ import tensorflow_probability as tfp
 
 1.  然后，计算离散策略的熵：
 
-    ```
+    ```py
     def entropy(action_probs):
         return -tf.reduce_sum(action_probs * \
                           tf.math.log(action_probs), axis=-1)
@@ -410,7 +410,7 @@ import tensorflow_probability as tfp
 
 1.  同时，实现一个离散策略类：
 
-    ```
+    ```py
     class DiscretePolicy(object):
         def __init__(self, num_actions):
             self.action_dim = num_actions
@@ -427,7 +427,7 @@ import tensorflow_probability as tfp
 
 1.  现在我们实现一个辅助方法，用于在给定环境中评估智能体：
 
-    ```
+    ```py
     def evaluate(agent, env, render=True):
         obs, episode_reward, done, step_num = env.reset(), 
                                               0.0, False, 0
@@ -443,7 +443,7 @@ import tensorflow_probability as tfp
 
 1.  现在，让我们使用 TensorFlow 2.x 实现一个神经网络大脑类：
 
-    ```
+    ```py
     class Brain(keras.Model):
         def __init__(self, action_dim=5, 
                      input_shape=(1, 8 * 8)):
@@ -469,7 +469,7 @@ import tensorflow_probability as tfp
 
 1.  现在，让我们实现一个简单的智能体类，使用`DiscretePolicy`对象在离散环境中进行操作：
 
-    ```
+    ```py
     class Agent(object):
         def __init__(self, action_dim=5, 
                      input_dim=(1, 8 * 8)):
@@ -484,7 +484,7 @@ import tensorflow_probability as tfp
 
 1.  现在，让我们在`GridworldEnv`中测试智能体：
 
-    ```
+    ```py
     from envs.gridworld import GridworldEnv
     env = GridworldEnv()
     agent = Agent(env.action_space.n, 
@@ -524,7 +524,7 @@ RL 智能体的核心组件之一是策略函数，它将观察与动作之间�
 
 激活`tf2rl-cookbook` Conda Python 环境，并运行以下命令来安装和导入本食谱所需的 Python 包：
 
-```
+```py
 pip install --upgrade tensorflow_probability
 import tensorflow_probability as tfp
 import seaborn as sns
@@ -538,14 +538,14 @@ import seaborn as sns
 
 1.  我们使用`tensorflow_probability`库在 TensorFlow 2.x 中创建一个连续的策略分布。我们将使用高斯/正态分布来创建一个在连续值上的策略分布：
 
-    ```
+    ```py
     sample_actions = continuous_policy.sample(500)
     sns.distplot(sample_actions)
     ```
 
 1.  接下来，我们可视化一个连续的策略分布：
 
-    ```
+    ```py
     sample_actions = continuous_policy.sample(500)
     sns.distplot(sample_actions)
     ```
@@ -558,7 +558,7 @@ import seaborn as sns
 
 1.  现在，让我们使用高斯/正态分布实现一个连续策略分布：
 
-    ```
+    ```py
     mu = 0.0  # Mean = 0.0
     sigma = 1.0  # Std deviation = 1.0
     continuous_policy = tfp.distributions.Normal(loc=mu,
@@ -571,7 +571,7 @@ import seaborn as sns
 
     前面的代码应当打印出类似于以下代码块中的内容：
 
-    ```
+    ```py
     tf.Tensor([-0.2527136], shape=(1,), dtype=float32)
     tf.Tensor([1.3262751], shape=(1,), dtype=float32)
     tf.Tensor([0.81889665], shape=(1,), dtype=float32)
@@ -590,7 +590,7 @@ import seaborn as sns
 
 1.  现在，让我们更进一步，实施一个多维连续策略。**多元高斯分布**可以用来表示多维连续策略。此类策略对于在具有多维、连续且实数值动作空间的环境中行动的智能体非常有用：
 
-    ```
+    ```py
     mu = [0.0, 0.0]
     covariance_diag = [3.0, 3.0]
     continuous_multidim_policy = tfp.distributions.MultivariateNormalDiag(loc=mu, scale_diag=covariance_diag)
@@ -602,7 +602,7 @@ import seaborn as sns
 
     前面的代码应当打印出类似以下内容：
 
-    ```
+    ```py
      tf.Tensor([[ 1.7003113 -2.5801306]], shape=(1, 2), dtype=float32)
     tf.Tensor([[ 2.744986  -0.5607129]], shape=(1, 2), dtype=float32)
     tf.Tensor([[ 6.696332  -3.3528223]], shape=(1, 2), dtype=float32)
@@ -617,7 +617,7 @@ import seaborn as sns
 
 1.  在继续之前，让我们可视化多维连续策略：
 
-    ```
+    ```py
     sample_actions = continuous_multidim_policy.sample(500)
     sns.jointplot(sample_actions[:, 0], sample_actions[:, 1], kind='scatter')
     ```
@@ -630,7 +630,7 @@ import seaborn as sns
 
 1.  现在，我们准备实现连续策略类：
 
-    ```
+    ```py
     class ContinuousPolicy(object):
         def __init__(self, action_dim):
             self.action_dim = action_dim
@@ -645,7 +645,7 @@ import seaborn as sns
 
 1.  下一步，让我们实现一个多维连续策略类：
 
-    ```
+    ```py
     import tensorflow_probability as tfp
     import numpy as np
     class ContinuousMultiDimensionalPolicy(object):
@@ -663,7 +663,7 @@ import seaborn as sns
 
 1.  现在，让我们实现一个函数，在具有连续动作空间的环境中评估智能体，以评估每一回合的表现：
 
-    ```
+    ```py
     def evaluate(agent, env, render=True):
         obs, episode_reward, done, step_num = env.reset(),
                                               0.0, False, 0
@@ -679,7 +679,7 @@ import seaborn as sns
 
 1.  我们现在准备在一个连续动作环境中测试智能体：
 
-    ```
+    ```py
     from neural_agent import Brain
     import gym
     env = gym.make("MountainCarContinuous-v0")Implementing a Neural-network Brain class using TensorFlow 2.x. 
@@ -709,7 +709,7 @@ import seaborn as sns
 
 1.  让我们实现一个简单的智能体类，利用`ContinuousPolicy`对象在连续动作空间环境中进行操作：
 
-    ```
+    ```py
     class Agent(object):
         def __init__(self, action_dim=5, 
                      input_dim=(1, 8 * 8)):
@@ -724,7 +724,7 @@ import seaborn as sns
 
 1.  最后一步，我们将在一个连续动作空间环境中测试智能体的性能：
 
-    ```
+    ```py
     from neural_agent import Brain
     import gym
     env = gym.make("MountainCarContinuous-v0") 
@@ -762,7 +762,7 @@ import seaborn as sns
 
 至少，你应该执行以下命令：
 
-```
+```py
 pip install gym[atari]
 ```
 
@@ -774,7 +774,7 @@ pip install gym[atari]
 
 1.  让我们首先探索 Gym 中的环境列表：
 
-    ```
+    ```py
     #!/usr/bin/env python
     from gym import envs
     env_names = [spec.id for spec in envs.registry.all()]
@@ -790,7 +790,7 @@ pip install gym[atari]
 
 1.  以下脚本将让你探索任何可用的 Gym 环境：
 
-    ```
+    ```py
     #!/usr/bin/env python
     import gym
     import sys
@@ -808,7 +808,7 @@ pip install gym[atari]
 
 1.  你可以将前面的脚本保存为`run_gym_env.py`，然后像这样运行脚本：
 
-    ```
+    ```py
     Alien-v4 environment, which should look like the following screenshot:
     ```
 
@@ -844,13 +844,13 @@ pip install gym[atari]
 
 让我们开始通过激活`tf2rl-cookbook`的 Conda Python 环境，并运行以下代码来安装和导入必要的 Python 模块：
 
-```
+```py
 pip install tensorflow gym tqdm  # Run this line in a terminal
 ```
 
 import tensorflow as tf
 
-```
+```py
 from tensorflow import keras
 from tensorflow.keras import layers
 import gym
@@ -864,7 +864,7 @@ from tqdm import tqdm
 
 1.  让我们首先使用 TensorFlow 2.x 和 Keras 函数 API 初始化一个神经脑模型：
 
-    ```
+    ```py
     class Brain(keras.Model):
         def __init__(self, action_dim=5, 
                        input_shape=(1, 8 * 8)):
@@ -880,7 +880,7 @@ from tqdm import tqdm
 
 1.  接下来，我们实现`Brain`类的`call(…)`方法：
 
-    ```
+    ```py
     def call(self, inputs):
             x = tf.convert_to_tensor(inputs)
             if len(x.shape) >= 2 and x.shape[0] != 1:
@@ -890,7 +890,7 @@ from tqdm import tqdm
 
 1.  现在我们需要实现 Brain 类的`process()`方法，方便地对一批输入/观测进行预测：
 
-    ```
+    ```py
     def process(self, observations):
             # Process batch observations using `call(inputs)`
             # behind-the-scenes
@@ -901,7 +901,7 @@ from tqdm import tqdm
 
 1.  现在让我们实现代理类的 init 函数：
 
-    ```
+    ```py
     class Agent(object):
         def __init__(self, action_dim=5, 
                      input_shape=(1, 8 * 8)):
@@ -917,7 +917,7 @@ from tqdm import tqdm
 
 1.  现在让我们为代理定义一个简单的策略函数：
 
-    ```
+    ```py
     def policy_mlp(self, observations):
             observations = observations.reshape(1, -1)
             # action_logits = self.brain(observations)
@@ -929,14 +929,14 @@ from tqdm import tqdm
 
 1.  然后，让我们为代理实现一个方便的`get_action`方法：
 
-    ```
+    ```py
     def get_action(self, observations):
             return self.policy(observations)
     ```
 
 1.  现在让我们创建一个`learn()`的占位函数，将作为未来教程中 RL 算法实现的一部分：
 
-    ```
+    ```py
     def learn(self, samples):
             raise NotImplementedError
     ```
@@ -945,7 +945,7 @@ from tqdm import tqdm
 
 1.  现在让我们在给定环境中为代理评估一个 episode：
 
-    ```
+    ```py
     def evaluate(agent, env, render=True):
         obs, episode_reward, done, step_num = env.reset(),
                                               0.0, False, 0
@@ -961,7 +961,7 @@ from tqdm import tqdm
 
 1.  最后，让我们实现主函数：
 
-    ```
+    ```py
     if __name__ == "__main__":
         env = gym.make("Gridworld-v0")
         agent = Agent(env.action_space.n, 
@@ -976,7 +976,7 @@ from tqdm import tqdm
 
 1.  按以下方式执行脚本：
 
-    ```
+    ```py
     python neural_agent.py
     ```
 
@@ -998,7 +998,7 @@ from tqdm import tqdm
 
 然后，我们实现了`Agent`类，并在智能体初始化函数中通过定义以下内容创建了一个`Brain`类的对象实例：
 
-```
+```py
 self.brain = Brain(action_dim, input_shape)
 ```
 
@@ -1020,7 +1020,7 @@ self.brain = Brain(action_dim, input_shape)
 
 激活 `tf2rl-cookbook` Python 环境并导入以下运行此食谱所需的包：
 
-```
+```py
 from collections import namedtuple
 import gym
 import matplotlib.pyplot as plt
@@ -1040,14 +1040,14 @@ import envs
 
 1.  让我们从 `neural_agent.py` 导入基本的神经代理和 Brain 类：
 
-    ```
+    ```py
     from neural_agent import Agent, Brain
     from envs.gridworld import GridworldEnv
     ```
 
 1.  接下来，让我们实现一个方法，在给定的环境中滚动代理进行一轮，并返回 `obs_batch`、`actions_batch` 和 `episode_reward`：
 
-    ```
+    ```py
     def rollout(agent, env, render=False):
         obs, episode_reward, done, step_num = env.reset(),
     							 0.0, False, 0
@@ -1071,7 +1071,7 @@ import envs
 
 1.  现在让我们测试轨迹滚动方法：
 
-    ```
+    ```py
     env = GridworldEnv()
     # input_shape = (env.observation_space.shape[0] * \
                      env.observation_space.shape[1], )
@@ -1083,13 +1083,13 @@ import envs
 
 1.  现在，是时候验证使用滚动操作生成的经验数据是否一致了：
 
-    ```
+    ```py
     assert len(obs_batch) == len(actions_batch)
     ```
 
 1.  现在让我们滚动多个完整的轨迹以收集经验数据：
 
-    ```
+    ```py
     # Trajectory: (obs_batch, actions_batch, episode_reward)
     # Rollout 100 episodes; Maximum possible steps = 100 * 100 = 10e4
     trajectories = [rollout(agent, env, render=True) \
@@ -1098,7 +1098,7 @@ import envs
 
 1.  然后我们可以从经验数据样本中可视化奖励分布。我们还将在收集的经验数据中的期望奖励值的第 50 百分位处绘制一条红色竖线：
 
-    ```
+    ```py
     from tqdm.auto import tqdm
     import matplotlib.pyplot as plt
     %matplotlib inline
@@ -1115,7 +1115,7 @@ import envs
 
 1.  现在让我们创建一个用于存储轨迹的容器：
 
-    ```
+    ```py
     from collections import namedtuple
     Trajectory = namedtuple("Trajectory", ["obs", "actions",
                                            "reward"])
@@ -1135,7 +1135,7 @@ import envs
 
 1.  现在是时候为进化过程选择精英经验了：
 
-    ```
+    ```py
     def gather_elite_xp(trajectories, elitism_criterion):
         """Gather elite trajectories from the batch of 
            trajectories
@@ -1170,13 +1170,13 @@ import envs
 
 1.  现在让我们测试精英经验收集例程：
 
-    ```
+    ```py
     elite_obs, elite_actions, reward_threshold = gather_elite_xp(trajectories, elitism_criterion=75)
     ```
 
 1.  现在让我们看一下如何实现一个帮助方法，将离散的动作索引转换为 one-hot 编码向量或动作概率分布：
 
-    ```
+    ```py
     def gen_action_distribution(action_index, action_dim=5):
         action_distribution = np.zeros(action_dim).\
                                    astype(type(action_index))
@@ -1188,27 +1188,27 @@ import envs
 
 1.  现在是测试动作分布生成函数的时候了：
 
-    ```
+    ```py
     elite_action_distributions = np.array([gen_action_distribution(a.item()) for a in elite_actions])
     ```
 
 1.  现在，让我们使用 Keras 函数式 API 在 TensorFlow 2.x 中创建并编译神经网络大脑：
 
-    ```
+    ```py
     brain = Brain(env.action_space.n)
     brain.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
     ```
 
 1.  你现在可以按如下方式测试大脑训练循环：
 
-    ```
+    ```py
     elite_obs, elite_action_distributions = elite_obs.astype("float16"), elite_action_distributions.astype("float16")
     brain.fit(elite_obs, elite_action_distributions, batch_size=128, epochs=1);
     ```
 
     这应该会产生以下输出：
 
-    ```
+    ```py
     1/1 [==============================] - 0s 960us/step - loss: 0.8060 - accuracy: 0.4900
     ```
 
@@ -1218,7 +1218,7 @@ import envs
 
 1.  下一大步是实现一个代理类，可以通过大脑初始化并在环境中行动：
 
-    ```
+    ```py
     class Agent(object):
         def __init__(self, brain):
             """Agent with a neural-network brain powered 
@@ -1241,7 +1241,7 @@ import envs
 
 1.  接下来，我们将实现一个帮助函数，用于评估给定环境中的代理：
 
-    ```
+    ```py
     def evaluate(agent, env, render=True):
         obs, episode_reward, done, step_num = env.reset(),
                                               0.0, False, 0
@@ -1257,7 +1257,7 @@ import envs
 
 1.  现在让我们测试代理评估循环：
 
-    ```
+    ```py
     env = GridworldEnv()
     agent = Agent(brain)
     for episode in tqdm(range(10)):
@@ -1268,7 +1268,7 @@ import envs
 
 1.  下一步，让我们定义训练循环的参数：
 
-    ```
+    ```py
     total_trajectory_rollouts = 70
     elitism_criterion = 70  # percentile
     num_epochs = 200
@@ -1278,7 +1278,7 @@ import envs
 
 1.  现在让我们创建 `environment`、`brain` 和 `agent` 对象：
 
-    ```
+    ```py
     env = GridworldEnv()
     input_shape = (env.observation_space.shape[0] * \
                    env.observation_space.shape[1], )
