@@ -1,4 +1,4 @@
-# 6
+
 
 # 使用 Seq2seq 注意力机制和 Transformer 网络进行文本摘要
 

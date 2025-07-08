@@ -1,4 +1,4 @@
-# 7
+
 
 # 多模态网络与图像描述生成，使用 ResNet 和 Transformer 网络
 
