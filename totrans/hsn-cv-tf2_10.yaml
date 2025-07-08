@@ -842,6 +842,8 @@
   id: totrans-108
   prefs: []
   type: TYPE_NORMAL
+  zh: '`tf.data` 的另一个与性能相关的特性是能够 *预取* 数据样本。通过数据集的 `.prefetch(buffer_size)` 方法应用时，该特性允许输入管道在当前样本被消费的同时开始准备下一个样本，而不是等待下一个数据集调用。具体而言，这使得
+    TensorFlow 能够在当前批次被 GPU 上的模型使用时，在 CPU 上开始准备下一个训练批次。'
 - en: 'Prefetching basically enables the *parallelization of the data preparation
     and training operations* in a *producer-consumer* fashion. Enabling parallel calls
     and prefetching can thus be done with minor changes, while greatly reducing the
@@ -849,6 +851,7 @@
   id: totrans-109
   prefs: []
   type: TYPE_NORMAL
+  zh: 预取基本上实现了数据准备和训练操作的 *并行化*，以 *生产者-消费者* 的方式进行。因此，通过启用并行调用和预取，可以通过少量更改大大减少训练时间，如下所示：
 - en: '[PRE12]'
   id: totrans-110
   prefs: []
@@ -859,37 +862,47 @@
   id: totrans-111
   prefs: []
   type: TYPE_NORMAL
+  zh: 受 TensorFlow 官方指南的启发（[https://www.tensorflow.org/guide/performance/datasets](https://www.tensorflow.org/guide/performance/datasets)），*图
+    7-2* 展示了这些最佳实践所带来的性能提升：
 - en: '![](img/2fb1ae26-bf70-4028-9b91-08c69ac59a8d.png)'
   id: totrans-112
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/2fb1ae26-bf70-4028-9b91-08c69ac59a8d.png)'
 - en: 'Figure 7-2: Visual representation of the performance gain obtained from parallelizing
     and prefetching'
   id: totrans-113
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 7-2：展示并行化和预取操作带来的性能提升
 - en: By combining these different optimizations, CPU/GPU idle time can be reduced
     further. The performance gain in terms of preprocessing time can become really
     significant, as demonstrated in one of the Jupyter notebooks for this chapter.
   id: totrans-114
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过结合这些不同的优化方法，CPU/GPU 的空闲时间可以进一步减少。在预处理时间方面的性能提升可能会非常显著，正如本章中的一个 Jupyter Notebook
+    所展示的那样。
 - en: Fusing operations
   id: totrans-115
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 融合操作
 - en: It is also useful to know that `tf.data` offers functions that combine some
     key operations for greater performance or more reliable results.
   id: totrans-116
   prefs: []
   type: TYPE_NORMAL
+  zh: 还需要了解的是，`tf.data` 提供了一些函数，将一些关键操作进行组合，以提高性能或获得更可靠的结果。
 - en: For example, `tf.data.experimental.shuffle_and_repeat(buffer_size, count, seed)`
     fuses together the shuffling and repeating operations, making it easy to have
     datasets shuffled differently at each epoch (refer to the documentation at [https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/shuffle_and_repeat](https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/shuffle_and_repeat)).
   id: totrans-117
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，`tf.data.experimental.shuffle_and_repeat(buffer_size, count, seed)` 将打乱和重复操作融合在一起，使得每个训练周期（epoch）都能以不同的方式打乱数据集（详细信息请参见文档
+    [https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/shuffle_and_repeat](https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/shuffle_and_repeat)）。
 - en: Back to optimization matters, `tf.data.experimental.map_and_batch(map_func,
     batch_size, num_parallel_batches, ...)` (refer to the documentation at [https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/map_and_batch](https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/map_and_batch))
     applies the `map_func` function and then batches the results together. By fusing
@@ -898,6 +911,8 @@
   id: totrans-118
   prefs: []
   type: TYPE_NORMAL
+  zh: 回到优化问题，`tf.data.experimental.map_and_batch(map_func, batch_size, num_parallel_batches,
+    ...)`（详细信息请参见文档 [https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/map_and_batch](https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/map_and_batch)）首先应用`map_func`函数，然后将结果批处理在一起。通过融合这两项操作，该方案避免了一些计算开销，因此应该优先采用。
 - en: '`map_and_batch()` is meant to disappear, as TensorFlow 2 is implementing several
     tools to automatically optimize the `tf.data` operations, for instance, grouping
     multiple `.map()` calls together, vectorizing the `.map()` operations and fusing
@@ -908,11 +923,15 @@
   id: totrans-119
   prefs: []
   type: TYPE_NORMAL
+  zh: '`map_and_batch()` 将被淘汰，因为 TensorFlow 2 正在实现多个工具来自动优化 `tf.data` 操作，例如将多个 `.map()`
+    调用组合在一起、对 `.map()` 操作进行向量化并与 `.batch()` 直接融合、融合 `.map()` 和 `.filter()` 等。一旦这种自动优化被完全实现并经过
+    TensorFlow 社区验证，就不再需要 `map_and_batch()`（再强调一次，到你阅读这一章节时，这可能已经是事实）。'
 - en: Passing options to ensure global properties
   id: totrans-120
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 传递选项以确保全局属性
 - en: In TensorFlow 2, it is also possible to configure datasets by *setting global
     options,* which will affect all their operations. `tf.data.Options` is a structure
     that can be passed to datasets through their `.with_options(options)` method and
@@ -921,12 +940,16 @@
   id: totrans-121
   prefs: []
   type: TYPE_NORMAL
+  zh: 在 TensorFlow 2 中，还可以通过*设置全局选项*来配置数据集，这将影响它们的所有操作。`tf.data.Options` 是一种可以通过 `.with_options(options)`
+    方法传递给数据集的结构，它有多个属性用于参数化数据集（请参阅文档 [https://www.tensorflow.org/api_docs/python/tf/data/Options](https://www.tensorflow.org/api_docs/python/tf/data/Options)）。
 - en: For instance, if the `.experimental_autotune` Boolean attribute is set to `True`,
     TensorFlow will automatically tune the values of `num_parallel_calls` for all
     the dataset's operations, according to the capacity of the target machine(s).
   id: totrans-122
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，如果将 `.experimental_autotune` 布尔属性设置为 `True`，TensorFlow 将根据目标机器的容量自动调整所有数据集操作的
+    `num_parallel_calls` 值。
 - en: 'The attribute currently named `.experimental_optimization` contains a set of
     *sub-options* related to the automatic optimization of the dataset''s operations
     (refer to the previous information box). For example, its own `.map_and_batch_fusion`
@@ -936,6 +959,9 @@
   id: totrans-123
   prefs: []
   type: TYPE_NORMAL
+  zh: 当前名为 `.experimental_optimization` 的属性包含一组与数据集操作自动优化相关的*子选项*（请参阅前面的信息框）。例如， `.map_and_batch_fusion`
+    属性可以设置为 `True`，以使 TensorFlow 自动融合 `.map()` 和 `.batch()` 调用；`.map_parallelization`
+    可以设置为 `True`，使 TensorFlow 自动并行化某些映射函数，等等，具体如下：
 - en: '[PRE13]'
   id: totrans-124
   prefs: []
@@ -947,11 +973,13 @@
   id: totrans-125
   prefs: []
   type: TYPE_NORMAL
+  zh: 还有许多其他选项可供选择（可能还会有更多）。我们邀请读者查看文档，特别是当输入管道的性能对他们来说至关重要时。
 - en: Monitoring and reusing datasets
   id: totrans-126
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 监控和重用数据集
 - en: We presented multiple tools to optimize `tf.data` pipelines, but how can we
     make sure they positively affect the performance? Are there other tools to figure
     out which operations may be slowing down the data flow? In the following paragraphs,
@@ -960,17 +988,20 @@
   id: totrans-127
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们介绍了多个优化 `tf.data` 管道的工具，但我们如何确保它们能对性能产生积极影响呢？是否还有其他工具可以帮助我们找出可能导致数据流缓慢的操作？在接下来的段落中，我们将通过演示如何监控输入管道以及如何缓存和恢复它们以供后续使用来回答这些问题。
 - en: Aggregating performance statistics
   id: totrans-128
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 聚合性能统计
 - en: One of the novelties of TensorFlow 2 is the possibility to aggregate some statistics
     regarding `tf.data` pipelines, such as their latency (for the whole process and/or
     for each operation) or the number of bytes produced by each of their elements.
   id: totrans-129
   prefs: []
   type: TYPE_NORMAL
+  zh: TensorFlow 2 的一个新特性是能够聚合有关 `tf.data` 管道的一些统计信息，例如它们的延迟（整个过程的延迟和/或每个操作的延迟）或每个元素产生的字节数。
 - en: TensorFlow can be notified to gather these metric values for a dataset *through
     its global options* (refer to previous paragraphs). The `tf.data.Options` instances
     have a `.experimental_stats` field from the `tf.data.experimental.StatsOption`
@@ -985,6 +1016,7 @@
   id: totrans-130
   prefs: []
   type: TYPE_NORMAL
+  zh: 可以通过TensorFlow的全局选项来通知收集这些数据集的指标值*（参见前面的段落）*。`tf.data.Options`实例具有`.experimental_stats`字段，该字段来自`tf.data.experimental.StatsOption`类（请参考文档：[https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/StatsOptions](https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/StatsOptions)）。此类定义了与上述数据集指标相关的几个选项（例如，将`.latency_all_edges`设置为`True`以测量延迟）。它还具有`.aggregator`属性，可以接收`tf.data.experimental.StatsAggregator`的实例（请参考文档：[https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/StatsAggregator](https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/StatsAggregator)）。顾名思义，该对象将附加到数据集并汇总请求的统计数据，提供可以记录并在TensorBoard中可视化的摘要，如以下代码示例所示。
 - en: At the time of writing this book, these features are still highly experimental
     and are not fully implemented yet. For example, there is no easy way to log the
     summaries containing the aggregated statistics. Given how important monitoring
@@ -993,11 +1025,13 @@
   id: totrans-131
   prefs: []
   type: TYPE_NORMAL
+  zh: 在编写本书时，这些功能仍然处于高度实验阶段，尚未完全实现。例如，目前没有简单的方法来记录包含聚合统计信息的摘要。鉴于监控工具的重要性，我们仍然涵盖了这些功能，认为它们很快会完全可用。
 - en: 'Dataset statistics can, therefore, be aggregated and saved (for instance, for
     TensorBoard) as follows:'
   id: totrans-132
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，数据集的统计信息可以聚合并保存（例如，供TensorBoard使用），如下所示：
 - en: '[PRE14]'
   id: totrans-133
   prefs: []
@@ -1008,16 +1042,19 @@
   id: totrans-134
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，不仅可以获取整个输入管道的统计信息，还可以获取其每个内部操作的统计数据。
 - en: Caching and reusing datasets
   id: totrans-135
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 缓存和重用数据集
 - en: Finally, TensorFlow offers several functions to *cache* generated samples or
     to save `tf.data` pipeline states.
   id: totrans-136
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，TensorFlow提供了多个函数来*缓存*生成的样本或保存`tf.data`管道的状态。
 - en: 'Samples can be cached by calling the dataset''s `.cache(filename)` method.
     If cached, data will not have to undergo the same transformations when iterated
     over again (that is, for the next epochs). Note that the content of the cached
@@ -1026,6 +1063,7 @@
   id: totrans-137
   prefs: []
   type: TYPE_NORMAL
+  zh: 可以通过调用数据集的`.cache(filename)`方法来缓存样本。如果已缓存，数据在下一次迭代时将无需经过相同的转换（即，在接下来的时期）。请注意，缓存数据的内容将取决于该方法应用的时机。请看以下示例：
 - en: '[PRE15]'
   id: totrans-138
   prefs: []
@@ -1042,6 +1080,7 @@
   id: totrans-139
   prefs: []
   type: TYPE_NORMAL
+  zh: 第一个数据集将缓存`TextLineDataset`返回的样本，即文本行（缓存的数据存储在指定的文件`cached_textlines.temp`中）。`parse_fn`所做的转换（例如，为每个文本行打开并解码相应的图像文件）必须在每个时期重复进行。另一方面，第二个数据集则缓存了`parse_fn`返回的样本，即图像。虽然这可以为下一轮的训练节省宝贵的计算时间，但这也意味着需要缓存所有生成的图像，这可能会导致内存效率低下。因此，缓存需要仔细考虑。
 - en: Finally, it is also possible to *save the state of a dataset*, for instance,
     so that if the training is somehow stopped, it can be resumed without re-iterating
     over the precedent input batches. As mentioned in the documentation, this feature
@@ -1052,6 +1091,8 @@
   id: totrans-140
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，*保存数据集的状态*也是可能的，例如，当训练被意外中断时，可以在不重新迭代先前输入批次的情况下恢复训练。如文档中所提到的，这个功能对在少量不同批次上训练的模型（因此存在过拟合风险）有积极影响。对于估算器，一个保存数据集迭代器状态的解决方案是设置以下钩子——`tf.data.experimental.CheckpointInputPipelineHook`（请参考文档
+    [https://www.tensorflow.org/api_docs/python/tf/data/experimental/CheckpointInputPipelineHook](https://www.tensorflow.org/api_docs/python/tf/data/experimental/CheckpointInputPipelineHook)）。
 - en: Aware of how important a configurable and optimized data flow is to machine
     learning applications, TensorFlow developers are continuously providing new features
     to refine the `tf.data` API. As covered in this past section and illustrated in
@@ -1060,11 +1101,14 @@
   id: totrans-141
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于深知可配置和优化的数据流对机器学习应用的重要性，TensorFlow 开发者持续提供新特性来完善 `tf.data` API。正如在上一部分中提到并在相关的
+    Jupyter Notebook 中展示的那样，利用这些特性——即使是实验性的——可以大大减少实现开销和训练时间。
 - en: How to deal with data scarcity
   id: totrans-142
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 如何应对数据稀缺
 - en: Being able to efficiently extract and transform data for the training of complex
     applications is primordial, but this is assuming that *enough data* is available
     for such tasks in the first place. After all, NNs are *data-hungry* methods and
@@ -1079,6 +1123,7 @@
   id: totrans-143
   prefs: []
   type: TYPE_NORMAL
+  zh: 能够高效地提取和转化数据以训练复杂的应用程序至关重要，但这假设首先有*足够的数据*可供此类任务使用。毕竟，神经网络是*数据饥渴型*方法，即使我们身处大数据时代，足够大的数据集仍然很难收集，且更难以标注。标注一张图像可能需要几分钟（例如，为语义分割模型创建地面真值标签图），某些标注可能还需要专家验证/修正（例如，在标注医学图片时）。在某些情况下，图像本身可能不容易获得。例如，在为工业厂房构建自动化模型时，拍摄每个制造物品及其组件的照片既耗时又费钱。
 - en: '**Data scarcity** is, therefore, a common problem in computer vision, and much
     effort has been expended trying to train robust models despite the lack of training
     images or rigorous annotations. In this section, we will cover several solutions
@@ -1087,11 +1132,13 @@
   id: totrans-144
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，**数据稀缺**是计算机视觉中的一个常见问题，尽管缺乏训练图像或严格标注，仍有很多努力尝试训练出鲁棒的模型。在本节中，我们将介绍多年来提出的几种解决方案，并展示它们在不同任务中的优缺点。
 - en: Augmenting datasets
   id: totrans-145
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 增强数据集
 - en: We have been mentioning this first approach since [Chapter 4](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml),
     *Influential Classification Tools*, and we have already put it into use for some
     applications in previous notebooks. This is finally the opportunity for us to
@@ -1100,22 +1147,27 @@
   id: totrans-146
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们从[第 4 章](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml)《影响力分类工具》开始就提到了这一第一种方法，并且我们在之前的笔记本中已将其应用于某些应用程序。这终于是我们正确介绍**数据增强**的机会，并展示如何在
+    TensorFlow 2 中应用它。
 - en: Overview
   id: totrans-147
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 概述
 - en: As indicated before, *augmenting* datasets means applying random transformations
     to their content in order to obtain different-looking versions for each. We will
     present the benefits of this procedure, as well as some related best practices.
   id: totrans-148
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如之前所指出的，*增广* 数据集意味着对它们的内容应用随机转换，以获取每个内容的不同版本。我们将介绍这一过程的好处，以及一些相关的最佳实践。
 - en: Why augment datasets?
   id: totrans-149
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 为什么要增广数据集？
 - en: Data augmentation is probably the most common and simple method to deal with
     overly small training sets. It can virtually multiply their number of images by
     providing different looking versions of each. These various versions are obtained
@@ -1126,6 +1178,7 @@
   id: totrans-150
   prefs: []
   type: TYPE_NORMAL
+  zh: 数据增广可能是处理过小的训练集最常见和简单的方法。它可以通过提供每个图像的不同外观版本来几乎使它们的图像数量倍增。这些不同的版本是通过应用随机转换的组合获得的，例如尺度抖动、随机翻转、旋转和色彩偏移。数据增广可以意外地帮助*防止过拟合*，这在用小样本集训练大模型时通常会发生。
 - en: 'But even when enough training images are available, this procedure should still
     be considered. Indeed, data augmentation has other benefits. Even large datasets
     can suffer from *biases*, and data augmentation can compensate for some of them.
@@ -1143,15 +1196,20 @@
   id: totrans-151
   prefs: []
   type: TYPE_NORMAL
+  zh: 但即使有足够的训练图像可用，仍应考虑这一过程。事实上，数据增广还有其他好处。即使是大型数据集也可能存在*偏差*，而数据增广可以部分补偿其中的一些偏差。我们将通过一个例子说明这个概念。假设我们想要为画笔与钢笔图片建立一个分类器。然而，每个类别的图片是由两个不同的团队收集的，事先并未就准确的获取协议达成一致（例如，选择哪种相机型号或照明条件）。结果，*画笔*
+    训练图片明显比*钢笔* 图片更暗更嘈杂。由于神经网络训练以正确预测任何视觉线索，这些模型在这样的数据集上学习时可能最终依赖于这些明显的光照/噪声差异来分类对象，而不是纯粹专注于对象的表征（如它们的形状和纹理）。一旦投入生产，这些模型表现会很差，不再能依赖这些偏差。这个例子在
+    *图 7-3* 中有所说明：
 - en: '![](img/0cb9e43e-e94d-4a5e-ac61-911dcd808178.png)'
   id: totrans-152
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/0cb9e43e-e94d-4a5e-ac61-911dcd808178.png)'
 - en: 'Figure 7-3: Example of a classifier trained on a biased dataset, unable to
     apply its knowledge to the target data'
   id: totrans-153
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 7-3：一个在偏差数据集上训练的分类器示例，无法将其知识应用到目标数据上
 - en: Randomly adding some noise to the pictures or randomly adjusting their brightness
     would prevent the networks from relying on these cues. These augmentations would
     thus partially compensate for the dataset's biases, and make these visual differences
@@ -1160,6 +1218,7 @@
   id: totrans-154
   prefs: []
   type: TYPE_NORMAL
+  zh: 随机向图片添加一些噪声或随机调整它们的亮度，将阻止网络依赖这些线索。这些增广将部分补偿数据集的偏差，并使这些视觉差异变得太不可预测，无法被网络使用（即防止模型过度拟合偏差数据集）。
 - en: Augmentations can also be used to improve the dataset's coverage. Training datasets
     cannot cover all image variations (otherwise we would not have to build machine
     learning models to deal with new different images). If, for example, all the images
@@ -1174,11 +1233,13 @@
   id: totrans-155
   prefs: []
   type: TYPE_NORMAL
+  zh: 数据增强还可以用于提高数据集的覆盖范围。训练数据集无法涵盖所有图像变化（否则我们就不需要构建机器学习模型来处理新的不同图像）。例如，如果某个数据集中的所有图像都是在相同的光照下拍摄的，那么在不同光照条件下拍摄的图像，训练出来的识别模型效果会非常差。这些模型本质上没有学习到*光照条件是一个因素*，它们应该学会忽略光照条件，专注于实际的图像内容。因此，在将训练图像传递给网络之前，随机调整图像亮度可以帮助模型学习这一视觉特性。通过更好地为目标图像的变化性做好准备，数据增强有助于训练出更强大的解决方案。
 - en: Considerations
   id: totrans-156
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 考虑事项
 - en: Data augmentation can take multiple forms, and several options should be considered
     when performing this procedure. First of all, data augmentation can be done either
     offline or online. Offline augmentation means transforming all the images before
@@ -1188,6 +1249,7 @@
   id: totrans-157
   prefs: []
   type: TYPE_NORMAL
+  zh: 数据增强可以采取多种形式，在执行这一过程时应考虑多个选项。首先，数据增强可以是离线进行的，也可以是在线进行的。离线增强意味着在训练开始之前转换所有图像，并将各种版本保存以备后用。在线增强则意味着在训练输入管道中生成每个新批次时应用转换。
 - en: Since augmentation operations can be computationally heavy, applying them beforehand
     and storing the results can be advantageous in terms of latency for the input
     pipelines. However, this implies having enough memory space to store the augmented
@@ -1200,6 +1262,7 @@
   id: totrans-158
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于增强操作可能计算开销较大，因此提前应用这些操作并存储结果，在输入管道的延迟方面可能具有优势。然而，这意味着需要足够的内存空间来存储增强后的数据集，这通常会限制生成的不同版本的数量。通过在实时处理时随机转换图像，在线解决方案可以为每个训练周期提供不同的版本。尽管计算开销更大，但这意味着网络将接收到更多的变化。因此，离线增强和在线增强之间的选择受限于可用设备的内存/处理能力，以及所需的变化性。
 - en: The variability is itself conditioned by the choice of transformations to be
     applied. For example, if only random horizontal and vertical flipping operations
     are applied, then this means a maximum of four different versions per image. Depending
@@ -1210,6 +1273,7 @@
   id: totrans-159
   prefs: []
   type: TYPE_NORMAL
+  zh: 变化性本身由要应用的转换类型决定。例如，如果仅应用随机水平和垂直翻转操作，那么每张图像最多会有四个不同版本。根据原始数据集的大小，您可以考虑离线应用转换，并存储四倍大小的数据集。另一方面，如果考虑应用随机裁剪和随机色彩偏移等操作，则可能的变化数量几乎是无限的。
 - en: When setting up data augmentation, the first thing to do, therefore, is to shortlist
     the relevant transformations (and their parameters when applicable). The list
     of possible operations is huge, but not all make sense with regard to the target
@@ -1221,6 +1285,8 @@
   id: totrans-160
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，在设置数据增强时，首先要做的是筛选出相关的转换操作（以及在适用时它们的参数）。可能的操作列表非常庞大，但并非所有操作都适用于目标数据和使用案例。例如，垂直翻转仅应在图像内容自然会出现在倒立状态下时考虑（如大系统的特写图像或鸟瞰图/卫星图像）。如果垂直翻转城市景观图像（例如
+    *Cityscapes* 图像），对于模型没有任何帮助，因为它们（希望）永远不会遇到这种倒立的图像。
 - en: Similarly, you should be careful to properly parameterize some transformations
     such as cropping or brightness adjustment. If an image becomes so dark/bright
     that its content cannot be identified anymore, or if the key elements are cropped
@@ -1232,19 +1298,23 @@
   id: totrans-161
   prefs: []
   type: TYPE_NORMAL
+  zh: 同样，你应该小心地正确参数化一些转换操作，例如裁剪或亮度调整。如果图像变得过暗或过亮，以至于其内容无法再被识别，或者如果关键元素被裁剪掉，那么模型将无法从这些编辑后的图片中学习任何东西（如果过多的图像经过不恰当的增强处理，甚至可能会混淆模型）。因此，重要的是要筛选和参数化那些能为数据集（针对目标使用案例）增加有意义变化的转换，同时保持其语义内容。
 - en: '*Figure 7-4* provides some examples of what invalid and valid augmentations
     can be for an autonomous driving application:'
   id: totrans-162
   prefs: []
   type: TYPE_NORMAL
+  zh: '*图 7-4* 提供了一些对于自动驾驶应用来说，哪些增强操作是有效的，哪些是无效的示例：'
 - en: '![](img/78a99a2c-eca2-41e8-b965-002b99c13e19.png)'
   id: totrans-163
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/78a99a2c-eca2-41e8-b965-002b99c13e19.png)'
 - en: 'Figure 7-4: Valid/invalid augmentations for an autonomous driving application'
   id: totrans-164
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 7-4：自动驾驶应用中的有效/无效增强操作
 - en: It is also important to keep in mind that data augmentation cannot fully compensate
     for data scarcity. If we want a model to be able to recognize cats, but only have
     training images of Persian cats, no straightforward image transformations will
@@ -1252,6 +1322,7 @@
   id: totrans-165
   prefs: []
   type: TYPE_NORMAL
+  zh: 同样，值得记住的是，数据增强无法完全弥补数据稀缺问题。如果我们希望模型能够识别猫，但仅有波斯猫的训练图像，那么任何简单的图像变换都无法帮助模型识别其他猫品种（例如斯芬克斯猫）。
 - en: Some advanced data augmentation solutions include applying computer graphics
     or encoder-decoder methods to alter images. For example, computer graphics algorithms
     could be used to add fake sun blares or motion blur, and CNNs could be trained
@@ -1260,6 +1331,7 @@
   id: totrans-166
   prefs: []
   type: TYPE_NORMAL
+  zh: 一些先进的数据增强解决方案包括应用计算机图形学或编码器-解码器方法来改变图像。例如，可以使用计算机图形学算法添加虚假的太阳光晕或运动模糊，CNN 可以训练将白天的图像转换为夜间图像。我们将在本章后面介绍这些技术。
 - en: Finally, you should not forget to transform the labels accordingly, when applicable.
     This especially concerns detection and segmentation labels, when geometrical transformations
     are performed. If an image is resized or rotated, its related label map or bounding
@@ -1269,22 +1341,27 @@
   id: totrans-167
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，当适用时，你不应忘记相应地转换标签，特别是当进行几何转换时，涉及检测和分割标签时。如果图像被调整大小或旋转，相关的标签图或边界框也应该进行相同的操作，以保持对齐（参见[第
+    6 章](c4bb2429-f9f5-424d-8462-e376fd81f5a4.xhtml)的 *Cityscapes* 实验，*图像增强与分割*）。
 - en: Augmenting images with TensorFlow
   id: totrans-168
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用 TensorFlow 进行图像增强
 - en: Having clarified *why* and *when* images should be augmented, it is time to
     properly explain *how*. We will introduce some useful tools provided by TensorFlow
     to transform images, sharing a number of concrete examples.
   id: totrans-169
   prefs: []
   type: TYPE_NORMAL
+  zh: 在阐明了*为什么*和*何时*应该进行图像增强之后，接下来就是详细解释*如何*进行图像增强了。我们将介绍 TensorFlow 提供的一些有用工具来转换图像，并分享一些具体的示例。
 - en: TensorFlow Image module
   id: totrans-170
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: TensorFlow 图像模块
 - en: Python offers a huge variety of frameworks to manipulate and transform images.
     Besides the generic ones such as *OpenCV* ([https://opencv.org](https://opencv.org))
     and *Python Imaging Library* (PIL—[http://effbot.org/zone/pil-index.htm](http://effbot.org/zone/pil-index.htm)),
@@ -1299,6 +1376,11 @@
   id: totrans-171
   prefs: []
   type: TYPE_NORMAL
+  zh: Python 提供了各种各样的框架来处理和转换图像。除了 *OpenCV*（[https://opencv.org](https://opencv.org)）和
+    *Python Imaging Library*（PIL—[http://effbot.org/zone/pil-index.htm](http://effbot.org/zone/pil-index.htm)）等通用框架外，还有一些包专门提供用于机器学习系统的数据增强方法。在这些包中，Alexander
+    Jung 提供的 `imgaug`（[https://github.com/aleju/imgaug](https://github.com/aleju/imgaug)）和
+    Marcus D. Bloice 提供的 `Augmentor`（[https://github.com/mdbloice/Augmentor](https://github.com/mdbloice/Augmentor)）可能是最广泛使用的，它们都提供了丰富的操作和简洁的接口。即使是
+    Keras 也提供了用于预处理和增强图像数据集的函数。`ImageDataGenerator`（[https://keras.io/preprocessing/image](https://keras.io/preprocessing/image)）可以用来实例化图像批处理生成器，涵盖数据增强（如图像旋转、缩放或通道偏移）。
 - en: However, TensorFlow has its own module for image processing that can seamlessly
     integrate `tf.data` pipelines—`tf.image` (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/image](https://www.tensorflow.org/api_docs/python/tf/image)).
     This module contains all sorts of functions. Some of them implement common image-related
@@ -1315,17 +1397,26 @@
   id: totrans-172
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，TensorFlow 有自己专门的图像处理模块，可以与 `tf.data` 数据管道无缝集成——`tf.image`（请参阅[https://www.tensorflow.org/api_docs/python/tf/image](https://www.tensorflow.org/api_docs/python/tf/image)中的文档）。该模块包含各种函数。其中一些实现了常见的图像相关度量（例如，`tf.image.psnr()`
+    和 `tf.image.ssim()`），还有一些可以用于将图像从一种格式转换为另一种格式（例如，`tf.image.rgb_to_grayscale()`）。但最重要的是，`tf.image`
+    实现了多种图像变换。这些函数大多成对出现——一个函数实现了操作的固定版本（例如，`tf.image.central_crop()`、`tf.image.flip_left_right()`
+    和 `tf.image.adjust_jpeg_quality()`），另一个则是随机版本（例如，`tf.image.random_crop()`、`tf.image.random_flip_left_right()`
+    和 `tf.image.random_jpeg_quality()`）。随机化函数通常接受一个值的范围作为参数，从中随机抽取变换的属性（例如，`tf.image.random_jpeg_quality()`
+    的 `min_jpeg_quality` 和 `max_jpeg_quality` 参数）。
 - en: Directly applicable to image tensors (single or batched), the `tf.image` functions
     are recommended within `tf.data` pipelines for online augmentation (grouping the
     operations into a function passed to `.map()`).
   id: totrans-173
   prefs: []
   type: TYPE_NORMAL
+  zh: '`tf.image` 函数直接应用于图像张量（无论是单个还是批量），在 `tf.data` 数据管道中推荐用于在线增强（将操作分组为传递给 `.map()`
+    的函数）。'
 - en: Example – augmenting images for our autonomous driving application
   id: totrans-174
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 示例 – 为我们的自动驾驶应用增强图像
 - en: In the previous chapter, we introduced some state-of-the-art models for semantic
     segmentation and applied them to urban scenes in order to guide self-driving cars.
     In the related Jupyter notebooks, we provided an `_augmentation_fn(img, gt_img)`
@@ -1335,6 +1426,9 @@
   id: totrans-175
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前一章中，我们介绍了一些最先进的语义分割模型，并将它们应用于城市场景，以指导自动驾驶汽车。在相关的 Jupyter 笔记本中，我们提供了一个传递给 `dataset.map()`
+    的 `_augmentation_fn(img, gt_img)` 函数，用于增强图像及其地面真值标签图。虽然当时我们没有提供详细解释，但这个增强函数很好地展示了
+    `tf.image` 如何增强复杂数据。
 - en: For example, it offers a simple solution to the problem of transforming both
     the input images and their dense labels. Imagine we want some of the samples to
     be randomly horizontally flipped. If we call `tf.image.random_flip_left_right()`
@@ -1343,11 +1437,13 @@
   id: totrans-176
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，它为解决同时变换输入图像和其密集标签的问题提供了一个简单的解决方案。假设我们想让一些样本随机水平翻转。如果我们分别对输入图像和真实标签图调用`tf.image.random_flip_left_right()`，那么两张图像会经历相同变换的概率只有一半。
 - en: 'One solution to ensure that the same set of geometrical transformations are
     applied to  the image pairs is the following:'
   id: totrans-177
   prefs: []
   type: TYPE_NORMAL
+  zh: 确保对图像对应用相同几何变换的一个解决方案如下：
 - en: '[PRE16]'
   id: totrans-178
   prefs: []
@@ -1360,6 +1456,7 @@
   id: totrans-179
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于大多数`tf.image`几何函数对图像的通道数没有任何限制，因此提前沿通道轴将图像拼接在一起是一个简单的技巧，可以确保它们经历相同的几何操作。
 - en: The preceding example also illustrates how some operations can be further randomized
     by sampling some parameters from random distributions. `tf.image.random_crop(images,
     size)` returns crops of a fixed size, extracted from random positions in the images.
@@ -1368,6 +1465,7 @@
   id: totrans-180
   prefs: []
   type: TYPE_NORMAL
+  zh: 上述示例还说明了一些操作如何通过从随机分布中抽取一些参数来进一步随机化。`tf.image.random_crop(images, size)`返回固定大小的裁剪，裁剪位置随机选自图像中的位置。通过使用`tf.random.uniform()`选择一个尺寸因子，我们获得的裁剪不仅在原图像中随机定位，而且尺寸也是随机的。
 - en: Finally, this example is also a reminder that *not* all transformations should
     be applied to both the input images and their label maps. Trying to adjust the
     brightness or saturation of label maps would not make sense (and would, in some
@@ -1375,6 +1473,7 @@
   id: totrans-181
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，这个例子也提醒我们，*并非*所有的变换都应该应用于输入图像及其标签图。尝试调整标签图的亮度或饱和度是没有意义的（并且在某些情况下会引发异常）。
 - en: We will conclude this subsection on data augmentation by emphasizing that this
     procedure should always be considered. Even when training on large datasets, augmenting
     their images can only make the models more robust—as long as the random transformations
@@ -1382,11 +1481,13 @@
   id: totrans-182
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将通过强调此过程应始终考虑来结束这一小节关于数据增强的讨论。即使在大数据集上进行训练，增强其图像也能使模型更加稳健——只要随机变换是小心选择并应用的。
 - en: Rendering synthetic datasets
   id: totrans-183
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 渲染合成数据集
 - en: However, what if we have no images to train on, at all? A common solution in
     computer vision is the use of *synthetic datasets*. In the following subsection,
     we will explain what synthetic images are, how they can be generated, and what
@@ -1394,21 +1495,25 @@
   id: totrans-184
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，如果我们根本没有图像进行训练怎么办？计算机视觉中一种常见的解决方案是使用*合成数据集*。在接下来的小节中，我们将解释什么是合成图像，它们如何生成以及它们的局限性。
 - en: Overview
   id: totrans-185
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 概述
 - en: Let's first clarify what is meant by *synthetic images*, and why they are so
     often used in computer vision.
   id: totrans-186
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先让我们澄清什么是*合成图像*，以及为什么它们在计算机视觉中如此常见。
 - en: Rise of 3D databases
   id: totrans-187
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 3D数据库的崛起
 - en: As mentioned in the introduction of this section on data scarcity, the complete
     lack of training images is not that uncommon a situation, especially in industry.
     Gathering hundreds of images for each new element to recognize is costly, and
@@ -1417,6 +1522,7 @@
   id: totrans-188
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如本节介绍数据匮乏时所提到的，完全缺乏训练图像的情况在工业界并不少见。收集每个新元素的几百张图像是昂贵的，有时甚至是完全不切实际的（例如，当目标物体尚未生产出来，或者仅在某个遥远地点可用时）。
 - en: However, for industrial applications and others, it is increasingly common to
     have access to 3D models of the target objects or scenes (such as 3D **computer-aided
     design** (**CAD**) blueprints or 3D scenes captured with depth sensors). Large
@@ -1426,11 +1532,13 @@
   id: totrans-189
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，对于工业应用和其他场景，越来越常见的是能够获取目标物体或场景的3D模型（例如3D **计算机辅助设计**（**CAD**）蓝图或使用深度传感器捕捉的3D场景）。大规模的3D模型数据集甚至在网络上成倍增加。随着计算机图形学的发展，越来越多的专家开始使用这些3D数据库来*渲染*合成图像，用于训练他们的识别模型。
 - en: Benefits of synthetic data
   id: totrans-190
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 合成数据的优势
 - en: '**Synthetic images** are thus images generated by computer graphics libraries
     from 3D models. Thanks to the lucrative entertainment industry, computer graphics
     have indeed come a long way, and rendering engines can nowadays generate highly
@@ -1440,6 +1548,7 @@
   id: totrans-191
   prefs: []
   type: TYPE_NORMAL
+  zh: '**合成图像**是通过计算机图形库从3D模型生成的图像。得益于盈利丰厚的娱乐产业，计算机图形技术确实取得了长足进展，现在的渲染引擎能够从3D模型中生成高度逼真的图像（例如用于视频游戏、3D动画电影和特效）。科学家们很快就看到了计算机视觉的潜力。'
 - en: Given some detailed 3D models of the target objects/scenes, it is possible with
     modern 3D engines to render huge datasets of pseudo-realistic images. With proper
     scripting, you can, for instance, render images of target objects from every angle,
@@ -1450,6 +1559,8 @@
   id: totrans-192
   prefs: []
   type: TYPE_NORMAL
+  zh: 给定一些目标物体/场景的详细3D模型，使用现代3D引擎可以渲染出大量伪现实的图像数据集。通过适当的脚本，举例来说，你可以从每个角度、不同的距离、不同的光照条件或背景等渲染目标物体的图像。使用各种渲染方法，甚至可以模拟不同类型的相机和传感器（例如，深度传感器，如*Microsoft
+    Kinect*或*Occipital Structure*传感器）。
 - en: Having full control over the scene/image content, you can also easily obtain
     all kinds of ground truth labels for each synthetic image (such as precise 3D
     positions of the rendered models or object masks). For example, targeting driving
@@ -1461,26 +1572,31 @@
   id: totrans-193
   prefs: []
   type: TYPE_NORMAL
+  zh: 拥有对场景/图像内容的完全控制，你还可以轻松获得每张合成图像的各种地面真值标签（例如渲染模型的精确3D位置或物体掩码）。例如，针对驾驶场景，巴塞罗那自治大学的一个研究团队构建了城市环境的虚拟副本，并利用这些副本渲染了多个城市场景数据集，名为*SYNTHIA*（[http://synthia-dataset.net](http://synthia-dataset.net)）。这个数据集类似于*Cityscapes*（[https://www.cityscapes-dataset.com](https://www.cityscapes-dataset.com)），但规模更大。
 - en: Another team from the Technical University of Darmstadt and Intel Labs successfully
     demonstrated self-driving models trained on images taken from the realistic looking
     video game *Grand Theft Auto V (GTA 5)* ([https://download.visinf.tu-darmstadt.de/data/from_games](https://download.visinf.tu-darmstadt.de/data/from_games)).
   id: totrans-194
   prefs: []
   type: TYPE_NORMAL
+  zh: 来自达姆施塔特工业大学和英特尔实验室的另一支团队成功演示了使用现实感十足的电子游戏*Grand Theft Auto V (GTA 5)*（[https://download.visinf.tu-darmstadt.de/data/from_games](https://download.visinf.tu-darmstadt.de/data/from_games)）中的图像训练的自动驾驶模型。
 - en: 'These three datasets are presented in *Figure 7-5*:'
   id: totrans-195
   prefs: []
   type: TYPE_NORMAL
+  zh: 这三个数据集展示在*图7-5*中：
 - en: '![](img/6d823e2d-4485-48f1-8f92-16b2bd8eab75.png)'
   id: totrans-196
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/6d823e2d-4485-48f1-8f92-16b2bd8eab75.png)'
 - en: 'Figure 7-5: Samples from the *Cityscapes*, *SYNTHIA*, and *Playing for Data*
     datasets (links to the datasets are provided in the section). Images and their
     class labels are superposed'
   id: totrans-197
   prefs: []
   type: TYPE_NORMAL
+  zh: 图7-5：*Cityscapes*、*SYNTHIA* 和 *Playing for Data* 数据集的样本（数据集链接在本节中提供）。图像及其类别标签已叠加。
 - en: Besides the generation of static datasets, 3D models and game engines can also
     be used to create *interactive simulation environments*. After all, *simulation-based
     learning* is commonly used to teach humans complex skills, for instance, when
@@ -1493,6 +1609,7 @@
   id: totrans-198
   prefs: []
   type: TYPE_NORMAL
+  zh: 除了生成静态数据集，3D模型和游戏引擎还可以用于创建*互动仿真环境*。毕竟，*基于仿真的学习*通常用于教导人类复杂的技能，例如当在真实环境中学习过于危险或复杂时（例如，模拟零重力环境来教宇航员如何在太空中执行某些任务，或构建基于游戏的平台帮助外科医生在虚拟病人上学习）。如果这对人类有效，为什么不对机器有效呢？公司和研究实验室一直在开发多种仿真框架，涵盖了各种应用（如机器人学、自动驾驶、监控等）。
 - en: In these virtual environments, people can train and test their models. At each
     time step, the models receive some visual inputs from the environments, which
     they can use to take further action, affecting the simulation, and so on (this
@@ -1502,28 +1619,33 @@
   id: totrans-199
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这些虚拟环境中，人们可以训练和测试他们的模型。在每个时间步骤，模型会从环境中接收一些视觉输入，模型可以利用这些输入采取进一步的行动，进而影响仿真过程，依此类推（这种互动式训练实际上是*强化学习*的核心内容，如[第1章](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml)《计算机视觉与神经网络》中所提到的）。
 - en: Synthetic datasets and virtual environments are used to compensate for the lack
     of real training data or to avoid the consequences of directly applying immature
     solutions to complex or dangerous situations.
   id: totrans-200
   prefs: []
   type: TYPE_NORMAL
+  zh: 合成数据集和虚拟环境用于弥补缺乏真实训练数据的问题，或者避免将不成熟的解决方案直接应用到复杂或危险的情境中。
 - en: Generating synthetic images from 3D models
   id: totrans-201
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 从3D模型生成合成图像
 - en: '**Computer graphics** is a vast and fascinating domain by itself. In the following
     paragraphs, we will simply point out some useful tools and ready-to-use frameworks
     for those in need of rendering data for their applications.'
   id: totrans-202
   prefs: []
   type: TYPE_NORMAL
+  zh: '**计算机图形学**本身是一个广泛且迷人的领域。在接下来的段落中，我们将简单介绍一些实用的工具和现成的框架，供那些需要为其应用渲染数据的人使用。'
 - en: Rendering from 3D models
   id: totrans-203
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 从3D模型进行渲染
 - en: 'Generating images from 3D models is a complex, multi-step process. Most 3D
     models are represented by a *mesh*, a set of small *faces* (usually triangles)
     delimited by *vertices* (that is, points in the 3D space) representing the model''s
@@ -1537,15 +1659,18 @@
   id: totrans-204
   prefs: []
   type: TYPE_NORMAL
+  zh: 从3D模型生成图像是一个复杂的多步骤过程。大多数3D模型由*网格*表示，网格是一组由*顶点*（即3D空间中的点）限定的小*面*（通常是三角形）组成，表示模型的表面。一些模型还包含一些*纹理或颜色信息*，指示每个顶点或小表面应该具有的颜色。最后，模型可以被放置到一个更大的3D场景中（进行平移/旋转）。给定一个由**内参**（如焦距和主点）定义的虚拟相机及其在3D场景中的姿态，任务是渲染出相机在场景中所看到的内容。该过程在下方的*图7-6*中以简化的方式展示：
 - en: '![](img/68241f0c-18fb-4cf0-8240-9c05f503c504.png)'
   id: totrans-205
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/68241f0c-18fb-4cf0-8240-9c05f503c504.png)'
 - en: 'Figure 7-6: Simplistic representation of a 3D rendering pipeline (3D models
     are from the LineMOD dataset—http://campar.in.tum.de/Main/StefanHinterstoisser)'
   id: totrans-206
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 7-6：简化的3D渲染管线表示（3D模型来自LineMOD数据集——http://campar.in.tum.de/Main/StefanHinterstoisser）
 - en: Converting a 3D scene into a 2D image thus implies multiple transformations,
     projecting the faces of each model from 3D coordinates relative to the object
     to coordinates relative to the whole scene (world coordinates), then, relative
@@ -1559,6 +1684,7 @@
   id: totrans-207
   prefs: []
   type: TYPE_NORMAL
+  zh: 将3D场景转换为2D图像意味着需要进行多个变换，首先将每个模型的面从3D坐标（相对于物体）投影到全局场景坐标（世界坐标），然后再投影到相机坐标系（相机坐标），最后将其投影到图像空间中的2D坐标（图像坐标）。所有这些投影可以通过直接的*矩阵乘法*来表示，但它们（遗憾的是）只是渲染过程的一小部分。表面颜色也应正确插值，*可见性*应得到尊重（被其他物体遮挡的元素不应绘制），还应应用现实的光照效果（例如，光照、反射和折射）等等。
 - en: Operations are numerous and computationally heavy. Thankfully for us, GPUs were
     originally built to efficiently perform them, and frameworks such as *OpenGL*
     ([https://www.opengl.org](https://www.opengl.org)) have been developed to help
@@ -1568,6 +1694,7 @@
   id: totrans-208
   prefs: []
   type: TYPE_NORMAL
+  zh: 操作繁多且计算量大。幸运的是，GPU最初是为了高效地执行这些操作而设计的，像*OpenGL*（[https://www.opengl.org](https://www.opengl.org)）这样的框架已经开发出来，帮助与GPU进行接口连接，以实现计算机图形学（例如，将顶点/面加载到GPU作为*缓冲区*，或定义名为*着色器*的程序来指定如何投影和着色场景），并简化一些过程。
 - en: Most of the modern computer languages offer libraries built on top of *OpenGL*,
     such as `PyOpenGL` ([http://pyopengl.sourceforge.net](http://pyopengl.sourceforge.net))
     or the object-oriented `vispy` ([http://vispy.org](http://vispy.org)) for Python.
@@ -1578,6 +1705,7 @@
   id: totrans-209
   prefs: []
   type: TYPE_NORMAL
+  zh: 大多数现代计算机语言提供了基于*OpenGL*的库，如`PyOpenGL`（[http://pyopengl.sourceforge.net](http://pyopengl.sourceforge.net)）或面向对象的`vispy`（[http://vispy.org](http://vispy.org)）库（适用于Python）。像*Blender*（[https://www.blender.org](https://www.blender.org)）这样的应用程序提供了图形界面来构建和渲染3D场景。尽管掌握所有这些工具需要一些努力，但它们极为灵活，可以极大地帮助渲染任何类型的合成数据。
 - en: 'However, it is good to keep in mind that, as we previously mentioned, labs
     and companies have been sharing many higher-level frameworks to render synthetic
     datasets specifically for machine learning applications. For example, Michael
@@ -1591,6 +1719,10 @@
   id: totrans-210
   prefs: []
   type: TYPE_NORMAL
+  zh: '然而，值得记住的是，正如我们之前提到的，实验室和公司已经共享了许多高级框架，用于专门为机器学习应用渲染合成数据集。例如，来自萨尔茨堡大学的Michael
+    Gschwandtner和Roland Kwitt开发了*BlenSor*（[https://www.blensor.org](https://www.blensor.org)），这是一个基于Blender的应用程序，用于模拟各种传感器（*BlenSor:
+    Blender传感器模拟工具箱*，Springer，2011年）；最近，Simon Brodeur和来自不同领域的研究人员分享了*HoME-Platform*，该平台模拟了多种室内环境，用于智能系统（*HoME:
+    家庭多模态环境*，ArXiv，2017年）。'
 - en: When manually setting up a complete rendering pipeline or using a specific simulation
     system, in both cases, the end goal is to render a large amount of training data
     with ground truths and enough variation (viewpoints, lighting conditions, textures,
@@ -1598,17 +1730,20 @@
   id: totrans-211
   prefs: []
   type: TYPE_NORMAL
+  zh: 在手动设置完整的渲染管线或使用特定的仿真系统时，无论是哪种情况，最终目标都是渲染大量带有真实数据和足够变化（视角、光照条件、纹理等）的训练数据。
 - en: To better illustrate these notions, a complete notebook is dedicated to rendering
     synthetic datasets from 3D models, briefly covering concepts such as *3D meshes*,
     *shaders*, and *view matrices*. A simple renderer is implemented using `vispy`.
   id: totrans-212
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了更好地说明这些概念，专门有一个完整的笔记本来渲染来自3D模型的合成数据集，简要介绍了*3D网格*、*着色器*和*视图矩阵*等概念。使用`vispy`实现了一个简单的渲染器。
 - en: Post-processing synthetic images
   id: totrans-213
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 合成图像的后期处理
 - en: While 3D models of target objects are often available in industrial contexts,
     it is rare to have a 3D representation of the environments they will be found
     in (for instance, a 3D model of the industrial plant). The 3D objects/scenes then
@@ -1621,6 +1756,7 @@
   id: totrans-214
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然目标对象的3D模型在工业环境中通常是可获得的，但很少能够获得它们所处环境的3D表示（例如，工业厂房的3D模型）。因此，3D对象/场景往往显得孤立，没有适当的背景。但是，就像任何其他视觉内容一样，如果模型没有经过训练去处理背景/杂乱物体，它们在面对真实图像时就无法正常工作。因此，研究人员通常会对合成图像进行后期处理，例如将它们与相关的背景图片合成（用相关环境的图像像素值替换空白背景）。
 - en: While some augmentation operations could be taken care of by the rendering pipeline
     (such as brightness changes or motion blur), other 2D transformations are still
     commonly applied to synthetic data during training. This additional post-processing
@@ -1629,6 +1765,7 @@
   id: totrans-215
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然某些增强操作可以通过渲染管道来处理（例如亮度变化或运动模糊），但其他2D变换在训练期间仍然常常应用于合成数据。这种额外的后期处理再次是为了减少过拟合的风险，并提高模型的鲁棒性。
 - en: In May 2019, **TensorFlow Graphics** was released. This module provides a computer
     graphics pipeline to generate images from 3D models. Because this rendering pipeline
     is composed of novel differentiable operations, it can be tightly combined with—or
@@ -1642,11 +1779,14 @@
   id: totrans-216
   prefs: []
   type: TYPE_NORMAL
+  zh: 2019年5月，**TensorFlow Graphics**发布了。这个模块提供了一个计算机图形学管道，可以从3D模型生成图像。由于这个渲染管道由新颖的可微分操作组成，它可以与神经网络（NNs）紧密结合——或者集成到其中——（这些图形操作是可微分的，因此训练误差可以通过它们进行反向传播，就像其他任何神经网络层一样）。随着越来越多的功能被添加到TensorFlow
+    Graphics中（例如TensorBoard的3D可视化插件和额外的渲染选项），它无疑将成为解决3D应用或依赖合成训练数据的应用方案的核心组件。更多信息以及详细教程可以在相关的GitHub仓库中找到（[https://github.com/tensorflow/graphics](https://github.com/tensorflow/graphics)）。
 - en: Problem – realism gap
   id: totrans-217
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 问题——真实感差距
 - en: Though rendering synthetic images has enabled a variety of computer vision applications,
     it is, however, not the perfect remedy for data scarcity (or at least not yet).
     While computer graphics frameworks can nowadays render hyper-realistic images,
@@ -1657,6 +1797,7 @@
   id: totrans-218
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管合成图像的渲染已经使得各种计算机视觉应用成为可能，但它仍然不是数据稀缺的完美解决方案（或者至少目前还不是）。虽然如今计算机图形学框架可以渲染出超真实的图像，但它们*需要详细的3D模型*（具有精确的表面和高质量的纹理信息）。收集数据以构建这样的模型与直接构建目标对象的真实图像数据集的成本一样*昂贵*——甚至可能更贵。
 - en: Because 3D models sometimes have simplified geometries or lack texture-related
     information, realistic synthetic datasets are not that common. This **realism
     gap** between the rendered training data and the real target images *harms the
@@ -1666,12 +1807,14 @@
   id: totrans-219
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于3D模型有时具有简化的几何形状或缺乏与纹理相关的信息，因此真实感合成数据集并不常见。这种渲染训练数据与真实目标图像之间的**真实感差距**会*损害模型的表现*。它们在合成数据上训练时学到的视觉线索可能在真实图像中并不存在（这些图像可能具有不同的饱和度颜色、更复杂的纹理或表面等）。
 - en: Even when the 3D models are properly depicting the original objects, it often
     happens that the appearance of these objects changes over time (for instance,
     from wear and tear).
   id: totrans-220
   prefs: []
   type: TYPE_NORMAL
+  zh: 即使3D模型能够正确描绘原始物体，物体的外观随着时间的推移（例如，由于磨损）也常常发生变化。
 - en: Currently, a lot of effort is being devoted to tackling the realism gap for
     computer vision. While some experts are working on building more realistic 3D
     databases or developing more advanced simulation tools, others are coming up with
@@ -1681,11 +1824,13 @@
   id: totrans-221
   prefs: []
   type: TYPE_NORMAL
+  zh: 目前，许多努力正致力于解决计算机视觉中的现实差距。虽然一些专家正在致力于构建更逼真的3D数据库或开发更先进的仿真工具，其他专家则提出了新的机器学习模型，这些模型能够将它们在合成环境中获得的知识转移到真实场景中。后者的方法将是本章最后小节的主题。
 - en: Leveraging domain adaptation and generative models (VAEs and GANs)
   id: totrans-222
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 利用领域适应和生成模型（VAE和GAN）
 - en: '**Domain adaptation** methods were briefly mentioned in [Chapter 4](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml),
     *Influential Classification Tools*, among transfer learning strategies. Their
     goal is to transpose the knowledge acquired by models from one *source domain*
@@ -1697,6 +1842,7 @@
   id: totrans-223
   prefs: []
   type: TYPE_NORMAL
+  zh: '**领域适应**方法在[第4章](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml)中简要提到过，属于迁移学习策略中的一部分。它们的目标是将模型在一个*源领域*（即一个数据分布）中获得的知识转移到另一个*目标领域*。因此，得到的模型应该能够正确识别来自新分布的样本，即使它们没有在该分布上进行直接训练。这适用于当目标领域的训练样本不可用时，但可以考虑使用其他相关数据集作为训练替代品的场景。'
 - en: Suppose we want to train a model to classify household tools in real scenes,
     but we only have access to uncluttered product pictures provided by the manufacturers.
     Without domain adaptation, models trained on these advertising pictures will not
@@ -1705,6 +1851,7 @@
   id: totrans-224
   prefs: []
   type: TYPE_NORMAL
+  zh: 假设我们希望训练一个模型，在真实场景中对家用工具进行分类，但我们只能获得制造商提供的整洁的产品图片。如果没有领域适应，基于这些广告图片训练的模型在面对目标图像时——例如有杂乱物品、光照不佳等问题时——将无法正常工作。
 - en: Training recognition models on synthetic data so that they can be applied to
     real images has also become a common application for domain adaptation methods.
     Indeed, synthetic images and real pictures of the same semantic content can be
@@ -1713,27 +1860,32 @@
   id: totrans-225
   prefs: []
   type: TYPE_NORMAL
+  zh: 在合成数据上训练识别模型，使其能够应用于真实图像，已经成为领域适应方法的一种常见应用。实际上，具有相同语义内容的合成图像和真实照片可以被看作是两个不同的数据分布，也就是说，它们是具有不同细节、噪声等特征的两个领域。
 - en: 'In this section, we will consider the following two different flavors of approaches:'
   id: totrans-226
   prefs: []
   type: TYPE_NORMAL
+  zh: 本节中，我们将考虑以下两种不同的方法：
 - en: Domain adaptation methods that aim to train models so that they perform indifferently
     on the source and target domains
   id: totrans-227
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 领域适应方法旨在训练模型，使其在源领域和目标领域上表现相同
 - en: Methods for adapting the training images to make them more similar to the target
     images
   id: totrans-228
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 适应训练图像使其与目标图像更相似的方法
 - en: Training models to be robust to domain changes
   id: totrans-229
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 训练模型以适应领域变化的鲁棒性
 - en: A first approach to domain adaptation is to encourage the models to focus on
     robust features, which can be found in both the source and target domains. Multiple
     solutions following this approach have been proposed, contingent on the availability
@@ -1741,11 +1893,13 @@
   id: totrans-230
   prefs: []
   type: TYPE_NORMAL
+  zh: 域适应的第一种方法是鼓励模型关注在源领域和目标领域中都能找到的鲁棒特征。基于这种方法，已经提出了多种解决方案，具体取决于训练过程中是否有目标数据可用。
 - en: Supervised domain adaptation
   id: totrans-231
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 监督式领域适应
 - en: Sometimes, you may be lucky enough to have access to some pictures from the
     target domain and relevant annotations, besides a larger source dataset (for instance,
     of synthetic images). This is typically the case in industry, where companies
@@ -1755,12 +1909,14 @@
   id: totrans-232
   prefs: []
   type: TYPE_NORMAL
+  zh: 有时，你可能幸运地能够获得来自目标领域的一些图像及相关注释，除此之外还有一个较大的源数据集（例如，合成图像）。这种情况通常出现在工业界，在那里公司必须在收集足够的目标图像以训练识别模型的高昂成本与如果模型仅在合成数据上进行训练时所遭遇的性能下降之间找到折衷。
 - en: 'Thankfully, multiple studies have demonstrated that adding even a small number
     of target samples to training sets can boost the final performance of the algorithms.
     The following two main reasons are usually put forward:'
   id: totrans-233
   prefs: []
   type: TYPE_NORMAL
+  zh: 幸运的是，多个研究表明，将少量目标样本添加到训练集中可以提升算法的最终表现。通常提出的两个主要原因是：
 - en: Even if scarce, this provides the models with some information on the target
     domain. To minimize their training loss over all samples, the networks will have
     to learn how to process this handful of added images (this can even be accentuated
@@ -1769,6 +1925,7 @@
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 即使目标数据稀缺，它也为模型提供了目标领域的一些信息。为了最小化对所有样本的训练损失，网络必须学会如何处理这一小部分添加的图像（这甚至可以通过对这些图像加重损失来进一步强调）。
 - en: Since source and target distributions are, by definition, different, mixed datasets
     display *greater visual variability*. As previously explained, models will have
     to learn more robust features, which can be beneficial once applied to target
@@ -1778,6 +1935,7 @@
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 由于源分布和目标分布本质上是不同的，混合数据集展示了*更大的视觉变异性*。正如前面所解释的，模型需要学习更强大的特征，这在仅应用于目标图像时是有益的（例如，模型变得更好地准备处理多样化的数据，从而更好地应对目标图像分布）。
 - en: A direct parallel can also be made with the transfer learning methods we explored
     in [Chapter 4](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml), *Influential Classification
     Tools* (training models first on a large source dataset, and then fine-tuning
@@ -1789,11 +1947,14 @@
   id: totrans-236
   prefs: []
   type: TYPE_NORMAL
+  zh: 也可以直接将其与我们在[第4章](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml)中探讨的迁移学习方法相类比，*影响力分类工具*（先在大型源数据集上训练模型，然后在较小的目标训练集上进行微调）。正如当时所提到的，源数据与目标领域越接近，这样的训练方案就越有效——反之亦然（在Jupyter
+    Notebook中，我们强调了这些限制，尝试在过于偏离目标分布的合成图像上训练自驾车的分割模型）。
 - en: Unsupervised domain adaptation
   id: totrans-237
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 无监督领域适应
 - en: When preparing training datasets, gathering images is often not the main problem.
     But properly annotating these images is, as it is a tedious and therefore costly
     procedure. Plenty of domain adaptation methods are thus targeting these scenarios
@@ -1805,6 +1966,7 @@
   id: totrans-238
   prefs: []
   type: TYPE_NORMAL
+  zh: 在准备训练数据集时，收集图像通常不是主要问题。但正确地为这些图像进行注释才是，因为这是一个繁琐且因此成本高昂的过程。因此，许多领域适应方法专注于这些仅有源图像、其对应注释和目标图像的场景。在没有真实标签的情况下，这些目标样本无法像通常的*监督*方式那样直接用于训练模型。相反，研究人员一直在探索*无监督*方案，以利用这些图像仍能提供的目标领域的视觉信息。
 - en: 'For example, works such as *Learning Transferable Features with Deep Adaptation
     Networks*, by Mingsheng Long et al. (from Tsinghua University, China) are adding
     constraints to some layers of the models, so that the feature maps they generate
@@ -1813,11 +1975,13 @@
   id: totrans-239
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，像《*通过深度适应网络学习可转移特征*》这样的工作，作者是来自清华大学的Mingsheng Long等人，他们在模型的某些层中添加了约束，使得无论输入图像属于哪个领域，它们生成的特征图都有相同的分布。这种方法提出的训练方案可以简化为以下几种步骤：
 - en: For several iterations, train the model on source batches in a supervised manner.
   id: totrans-240
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 在多个迭代中，以监督方式在源批次上训练模型。
 - en: Once in a while, feed the training set to the model and compute the distribution
     (for instance, mean and variance) of the feature maps generated by the layers
     we want to adapt.
@@ -1825,22 +1989,26 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 偶尔，将训练集输入到模型中，并计算我们希望适应的层生成的特征图的分布（例如，均值和方差）。
 - en: Similarly, feed the set of target images to the model and compute the distribution
     of the resulting feature maps.
   id: totrans-242
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 类似地，将目标图像集输入到模型中，并计算生成的特征图的分布。
 - en: Optimize each layer to reduce the distance between the two distributions.
   id: totrans-243
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 优化每一层，以减少两个分布之间的距离。
 - en: Repeat the whole process until you achieve convergence.
   id: totrans-244
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 重复整个过程，直到达到收敛。
 - en: Without the need for target labels, these solutions force the networks to learn
     features that can transfer to both domains while the networks are trained on the
     source data (the constraints are usually added to the last convolutional layers
@@ -1848,6 +2016,7 @@
   id: totrans-245
   prefs: []
   type: TYPE_NORMAL
+  zh: 在没有目标标签的情况下，这些解决方案迫使网络学习可以在两个领域之间迁移的特征，而网络则在源数据上进行训练（约束通常添加到负责特征提取的最后卷积层，因为前面的层通常已经足够通用）。
 - en: Other methods are taking into account an implicit label always available in
     these training scenarios—the domain each image belongs to (that is, *source* or
     *target*). This information can be used to train a supervised binary classifier—given
@@ -1857,6 +2026,7 @@
   id: totrans-246
   prefs: []
   type: TYPE_NORMAL
+  zh: 其他方法则考虑到在这些训练场景中始终存在的隐式标签——每个图像所属的领域（即*源*或*目标*）。这个信息可以用来训练一个监督式二分类器——给定一张图像或特征图，其任务是预测它来自源领域还是目标领域。这个次级模型可以与主模型一起训练，指导其提取可能属于任一领域的特征。
 - en: 'For example, in their **Domain-Adversarial Neural Networks** (**DANN**) paper
     (published in JMLR, 2016), Hana Ajakan, Yaroslav Ganin, et al. (from Skoltech)
     proposed adding a secondary head to the models to train (right after their feature
@@ -1865,6 +2035,7 @@
   id: totrans-247
   prefs: []
   type: TYPE_NORMAL
+  zh: 例如，在他们的**领域对抗神经网络**（**DANN**）论文中（发表于JMLR，2016），Hana Ajakan、Yaroslav Ganin等人（来自Skoltech）提出在模型中添加一个次级分支（紧接着特征提取层）进行训练，任务是识别输入数据的领域（即二分类）。然后，训练过程如下（再次简化）：
 - en: Generate a batch of source images and their task-related ground truths to train
     the main network on it (normal feed-forwarding and backpropagation through the
     main branch).
@@ -1872,6 +2043,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 生成一批源图像及其任务相关的真实标签，以训练主网络（通过主分支进行常规的前馈和反向传播）。
 - en: Generate a batch mixing source and target images with their domain labels and
     feed it forward through the feature extractor and the secondary branch, which
     tries to predict the correct domain for each input *(source* or *target*).
@@ -1879,6 +2051,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 生成一批混合了源图像和目标图像的批次，并带有其领域标签，然后通过特征提取器和次级分支进行前馈，次级分支尝试预测每个输入的正确领域（*源*或*目标*）。
 - en: Backpropagate the domain classification loss normally through the layers of
     the secondary branch, but then *reverse the gradient* before backpropagating through
     the feature extractor.
@@ -1886,6 +2059,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 正常地通过次分支的层进行领域分类损失的反向传播，但在通过特征提取器反向传播之前，*反转梯度*。
 - en: Repeat the whole process until convergence, that is, until the main network
     can perform its task as expected, whereas the domain classification branch can
     no longer properly predict the domains.
@@ -1893,24 +2067,29 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 重复整个过程直到收敛，即直到主网络能够按预期执行任务，而领域分类分支不再正确地预测领域。
 - en: 'This training procedure is illustrated in *Figure 7-7*:'
   id: totrans-252
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个训练过程如*图7-7*所示：
 - en: '![](img/b1deb4e7-a851-4237-9cfa-93e3a30535c8.png)'
   id: totrans-253
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/b1deb4e7-a851-4237-9cfa-93e3a30535c8.png)'
 - en: 'Figure 7-7: DANN concept applied to the training of a classifier'
   id: totrans-254
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 7-7：应用于分类器训练的 DANN 概念
 - en: With proper control of the data flow or weighting of the main loss, the three
     steps can be executed at once in a single iteration. This is demonstrated in the
     Jupyter Notebook we dedicate to this method.
   id: totrans-255
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过适当控制数据流或主损失的加权，三个步骤可以在一次迭代中同时执行。这在我们为该方法专门编写的 Jupyter Notebook 中有演示。
 - en: This scheme got a lot of attention for its cleverness. By *reversing* the gradient
     from the domain classification loss (that is, multiplying it by *-1*) before propagating
     it through the feature extractor, its layers will *learn to maximize this loss*,
@@ -1924,6 +2103,7 @@
   id: totrans-256
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个框架因其巧妙而受到了广泛关注。通过*反转*来自领域分类损失的梯度（即，将其乘以 *-1*）再通过特征提取器传播，特征提取器的各层将*学习最大化这个损失*，而不是*最小化*它。这个方法被称为**对抗性**，因为次级头会不断尝试正确预测领域，而上游特征提取器将学习*混淆*它。具体来说，这使得特征提取器学习到无法用于*区分*输入图像领域的特征，但对网络的主要任务是有用的（因为主头的正常训练是并行进行的）。训练完成后，领域分类头可以被简单地丢弃。
 - en: 'Note that with TensorFlow 2, it is quite straightforward to manipulate the
     gradients of specific operations. This can be done by applying the `@tf.custom_gradient`
     decorator (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/custom_gradient](https://www.tensorflow.org/api_docs/python/tf/custom_gradient))
@@ -1934,6 +2114,8 @@
   id: totrans-257
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，在 TensorFlow 2 中，操控特定操作的梯度是非常直接的。可以通过应用 `@tf.custom_gradient` 装饰器（参考文档 [https://www.tensorflow.org/api_docs/python/tf/custom_gradient](https://www.tensorflow.org/api_docs/python/tf/custom_gradient)）到函数，并提供自定义的梯度操作来完成此任务。通过这种方式，我们可以为
+    *DANN* 实现以下操作，操作将在特征提取器后、领域分类层之前调用，以便在反向传播时反转该点的梯度：
 - en: '[PRE17]'
   id: totrans-258
   prefs: []
@@ -1944,6 +2126,7 @@
   id: totrans-259
   prefs: []
   type: TYPE_NORMAL
+  zh: 自*DANN*之后，发布了许多其他领域适应方法（例如，*ADDA* 和 *CyCaDa*），它们遵循类似的对抗性框架。
 - en: In some cases, annotations for the target images are available, but not with
     the desired *density* (for instance, with only image-level class labels when the
     target task is pixel-level semantic segmentation). **Auto-labeling methods** have
@@ -1955,11 +2138,13 @@
   id: totrans-260
   prefs: []
   type: TYPE_NORMAL
+  zh: 在某些情况下，目标图像的注释是可用的，但密度不符合要求（例如，当目标任务是像素级语义分割时，只有图像级类别标签）。**自动标注方法**已经被提出用于这种情况。例如，在稀疏标签的指导下，训练于源数据的模型用于预测目标训练图像的更密集标签。然后，这些源标签被添加到训练集中，以细化模型。这个过程会反复进行，直到目标标签看起来足够正确，并且基于混合数据训练的模型已经收敛。
 - en: Domain randomization
   id: totrans-261
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 领域随机化
 - en: Finally, it may happen that *no target data is available* at all for training
     (no image, no annotation). The performance of the models then relies entirely
     on the relevance of the source dataset (for instance, how realistic looking and
@@ -1967,6 +2152,7 @@
   id: totrans-262
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，可能出现完全*没有目标数据可用于训练*的情况（没有图像，没有注释）。此时，模型的性能完全依赖于源数据集的相关性（例如，渲染的合成图像在外观上多么逼真，并且与任务的相关性有多大）。
 - en: Pushing the concept of data augmentation for synthetic images to the extreme,
     *domain randomization* can also be considered. Mostly explored by industrial experts,
     the idea is to train models on large data variations (as described in *Domain
@@ -1982,16 +2168,20 @@
   id: totrans-263
   prefs: []
   type: TYPE_NORMAL
+  zh: 将数据增强概念推向极限，*领域随机化*也是一种可行的方式。这个方法主要由工业专家探索，基本思路是在大范围的数据变异下训练模型（如在《*通过领域随机化将深度神经网络从模拟迁移到现实世界*》，IEEE,
+    2017中所述）。举个例子，如果我们只能访问到目标物体的3D模型，但不知道这些物体可能会出现在什么样的场景中，我们可以使用3D仿真引擎生成带有大量*随机*背景、光照、场景布局等的图像。其理论是，通过足够多的变异，仿真数据对模型而言可能就像是另一种变体，只要目标领域与随机化的训练领域在某种程度上重叠，网络在训练后就不会完全没有方向。
 - en: Obviously, we cannot expect such NNs to perform as well as any trained on target
     samples, but domain randomization is a fair solution to desperate situations.
   id: totrans-264
   prefs: []
   type: TYPE_NORMAL
+  zh: 显然，我们不能指望这样的神经网络（NNs）能表现得像那些在目标样本上训练过的网络一样好，但领域随机化是应对困境的一种合理解决方案。
 - en: Generating larger or more realistic datasets with VAEs and GANs
   id: totrans-265
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用VAEs和GANs生成更大或更现实的数据集
 - en: The second main type of domain adaptation methods we will cover in this chapter
     will give us the opportunity to introduce what many call the most interesting
     development in machine learning these past years—generative models, and, more
@@ -2002,11 +2192,13 @@
   id: totrans-266
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章将介绍的第二种主要的领域适应方法将为我们提供一个机会，介绍近年来机器学习中被称为最有趣的发展之一——生成模型，尤其是*变分自编码器（VAEs）*和*生成对抗网络（GANs）*。自从这些模型被提出以来，它们就非常流行，已被应用到多种不同的解决方案中。因此，我们将在这里进行一个通用的介绍，然后再呈现这些模型如何应用于数据集生成和领域适应。
 - en: Discriminative versus generative models
   id: totrans-267
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 判别模型与生成模型
 - en: So far, most of the models we have been studying are **discriminative**. Given
     an input, *x*, they learn the proper parameters, *W*, in order to return/discriminate
     the correct label, *y*, out of those considered (for instance, *x* may be an input
@@ -2018,6 +2210,8 @@
   id: totrans-268
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止，我们研究的大多数模型都是**判别**模型。给定一个输入*x*，它们通过学习合适的参数*W*，来返回/区分出正确的标签*y*（例如，*x*可能是输入图像，*y*可能是该图像的类别标签）。判别模型可以被解释为*函数
+    f(x ; W) = y*。它们也可以被解释为尝试学习*条件概率分布*，*p*(*y*|*x*)（意思是*给定x的情况下y的概率*；例如，给定一张特定的图片*x*，它的标签是*猫的图片*的概率是多少？）。
 - en: There is a second category of models we have yet to introduce—*generative* models.
     Given some samples, *x*, drawn from an unknown probability distribution, *p*(*x*),
     generative models are trying to *model this distribution*. For example, given
@@ -2028,6 +2222,7 @@
   id: totrans-269
   prefs: []
   type: TYPE_NORMAL
+  zh: 还有一个我们尚未介绍的模型类别——*生成*模型。给定一些样本，*x*，这些样本来自未知的概率分布*p*（*x*），生成模型的目标是*建模这个分布*。例如，给定一些代表猫的图像*x*，生成模型将试图推测数据分布（这些猫的图像是如何通过所有可能的像素组合形成的），从而生成新的猫图像，这些图像可能属于与*x*相同的集合。
 - en: In other words, a discriminative model learns to recognize a picture based on
     specific features (for instance, it is probably a cat picture because it depicts
     something with whiskers, paws, and a tail). A generative model learns to sample
@@ -2037,6 +2232,7 @@
   id: totrans-270
   prefs: []
   type: TYPE_NORMAL
+  zh: 换句话说，判别模型通过特定特征学习识别图像（例如，它可能是一张猫的图片，因为它描绘了胡须、爪子和尾巴）。生成模型则学习从输入域中抽取新的图像，重现其典型特征（例如，这是一张合理的新猫的图片，通过生成并组合典型的猫特征得到）。
 - en: As functions, generative CNNs need an input they can process into a new picture.
     Oftentimes, they are *conditioned by a noise vector*, that is, a tensor, *z*,
     sampled from a random distribution (such as ![](img/7a246ff9-7a7c-4048-9ee3-e3b1c3f6d26a.png),
@@ -2050,6 +2246,10 @@
   id: totrans-271
   prefs: []
   type: TYPE_NORMAL
+  zh: 作为函数，生成性CNN需要一个输入，可以将其处理成一张新图片。通常，它们是通过*噪声向量*进行条件化的，也就是说，*z*是从随机分布中抽样得到的张量（例如
+    ![](img/7a246ff9-7a7c-4048-9ee3-e3b1c3f6d26a.png)，意味着*z*是从均值为 ![](img/c9fb8172-71ed-4c36-a993-f3cd685595fe.png)
+    和标准差为 ![](img/32ef4265-9515-4bbb-9313-e7620826e376.png)的正态分布中随机抽样得到的）。对于每一个接收到的随机输入，模型都会提供一个从它们学会建模的分布中生成的新图像。当标签可用时，生成性网络还可以通过标签进行条件化，*y*。在这种情况下，它们需要建模条件分布，*p*(*x*|*y*)（例如，考虑标签*y*
+    = "cat"，那么抽取特定图像*x*的概率是多少？）
 - en: According to the majority of experts, generative models hold the key to the
     next stage of machine learning. To be able to generate a large and varied amount
     of new data despite their limited number of parameters, networks have to distill
@@ -2058,11 +2258,13 @@
   id: totrans-272
   prefs: []
   type: TYPE_NORMAL
+  zh: 根据大多数专家的观点，生成模型是机器学习下一阶段的关键。为了能够生成大量且多样的新数据，尽管其参数数量有限，网络必须提炼数据集，以揭示其结构和关键特征。它们必须*理解*数据。
 - en: VAEs
   id: totrans-273
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: VAE
 - en: While auto-encoders can also learn some aspects of a data distribution, their
     goal is only to reconstruct encoded samples, that is, to *discriminate* the original
     image out of all possible pixel combinations, based on the encoded features. Standard
@@ -2074,6 +2276,7 @@
   id: totrans-274
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然自编码器也可以学习数据分布的某些方面，但它们的目标仅仅是重建编码后的样本，也就是说，通过编码后的特征*辨别*出原始图像，而不是从所有可能的像素组合中重建它们。标准自编码器并不旨在*生成*新的样本。如果我们随机从它们的潜在空间中抽取一个*编码*向量，那么从它们的解码器中得到一张无意义的图像的可能性是非常高的。这是因为它们的潜在空间没有约束，通常*不是连续的*（也就是说，潜在空间中通常有很大一部分区域并不对应任何有效图像）。
 - en: '**Variational auto-encoders** (**VAEs**) are particular auto-encoders designed
     to have continuous latent space, and they are therefore used as generative models.
     Instead of directly extracting the code corresponding to an image, *x*, the encoder
@@ -2082,6 +2285,7 @@
   id: totrans-275
   prefs: []
   type: TYPE_NORMAL
+  zh: '**变分自编码器**（**VAE**）是一种特别的自编码器，旨在具有连续的潜在空间，因此它们被用作生成模型。VAE的编码器不是直接提取与图像*x*对应的编码，而是提供潜在空间中图像所属于分布的简化估计。'
 - en: Typically, the encoder is built to return two vectors, respectively representing
     the mean, ![](img/accc4133-bc87-4d2f-beb6-a330201bdb97.png), and the standard
     deviation, ![](img/9d724ce2-f5ff-4e06-af6b-d6f96bd95f60.png), of a multivariate
@@ -2096,19 +2300,23 @@
   id: totrans-276
   prefs: []
   type: TYPE_NORMAL
+  zh: 通常，编码器被构建为返回两个向量，分别表示多元正态分布的均值![](img/accc4133-bc87-4d2f-beb6-a330201bdb97.png)和标准差![](img/9d724ce2-f5ff-4e06-af6b-d6f96bd95f60.png)（针对*n*维潜在空间）。形象地说，均值表示图像在潜在空间中的*最可能*位置，而标准差控制围绕该位置的圆形区域的大小，该区域也是图像*可能存在的地方*。从编码器定义的这个分布中，选取一个随机编码*z*并传递给解码器。解码器的任务是基于*z*恢复图像*x*。由于相同图像的*z*可能会有所变化，解码器必须学会处理这些变化，以返回输入图像。
 - en: 'To illustrate the differences between them, auto-encoders and VAEs are depicted
     side by side in *Figure 7-8*:'
   id: totrans-277
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了说明它们之间的区别，自编码器和VAE并排显示在*图 7-8*中：
 - en: '![](img/f4a7a545-0b37-4b43-bfae-9891708b12a4.png)'
   id: totrans-278
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/f4a7a545-0b37-4b43-bfae-9891708b12a4.png)'
 - en: 'Figure 7-8: Comparison of standard auto-encoders and variational ones'
   id: totrans-279
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 7-8：标准自编码器与变分自编码器的比较
 - en: Gradients cannot flow back through random sampling operations. To be able to
     backpropagate the loss through the encoder despite the sampling of *z*, a **reparameterization
     trick** is used. Instead of directly sampling ![](img/7beb4539-c3b2-466a-90c7-4688a35e79f4.png),
@@ -2119,6 +2327,8 @@
   id: totrans-280
   prefs: []
   type: TYPE_NORMAL
+  zh: 梯度无法通过随机采样操作反向传播。为了能够在尽管有采样 *z* 的情况下通过编码器反向传播损失，采用了**重参数化技巧**。该操作通过![](img/5af5992a-0698-4e75-be89-cd9e7f50832d.png)来近似，而不是直接采样![](img/7beb4539-c3b2-466a-90c7-4688a35e79f4.png)，并且有![](img/cc41dbfb-9fb3-4e08-bbd5-8840150e7c3d.png)。通过这种方式，*z*
+    可以通过可导操作获得，将![](img/f54a9975-144a-4880-a099-4cb1a2a96e7a.png)视为一个随机向量，作为额外的输入传递给模型。
 - en: 'During training, a loss—usually the **mean-squared error** (**MSE**)—measures
     how similar the output image is to the input one, as we do for standard auto-encoders.
     However, another loss is added to VAE models, to make sure the distribution estimated
@@ -2133,10 +2343,12 @@
   id: totrans-281
   prefs: []
   type: TYPE_NORMAL
+  zh: 在训练过程中，一个损失—通常是**均方误差**（**MSE**）—衡量输出图像与输入图像的相似度，就像我们在标准自编码器中做的一样。然而，VAE模型中还添加了另一个损失，以确保其编码器估计的分布是明确的。如果没有这个约束，VAE可能会表现得像普通的自编码器，返回![](img/f91213f6-448c-4269-a794-3bfc73c58928.png)空值和![](img/5a0c2520-c3d2-44ad-9a50-a6fbd79e38b9.png)作为图像的编码。这个第二个损失基于**Kullback–Leibler散度**（以其创始人的名字命名，通常缩写为*KL散度*）。KL散度度量两个概率分布之间的差异。它被转化为一个损失，以确保编码器定义的分布足够接近标准正态分布![](img/626ed271-78e9-497e-b49f-80420808668a.png)。
 - en: '![](img/6b4bceea-891d-4683-a149-7237c8cb8180.png)'
   id: totrans-282
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/6b4bceea-891d-4683-a149-7237c8cb8180.png)'
 - en: 'With this reparameterization trick and KL divergence, auto-encoders become
     powerful generative models. Once the models are trained, their encoders can be
     discarded, and their decoders can be directly used to generate new images, given
@@ -2147,15 +2359,20 @@
   id: totrans-283
   prefs: []
   type: TYPE_NORMAL
+  zh: 通过这种重参数化技巧和KL散度，自编码器变成了强大的生成模型。一旦模型训练完成，它们的编码器可以被丢弃，解码器可以直接用来生成新的图像，只需将随机向量作为输入！[](img/1e481d38-a9c2-48fb-978f-aa41debe27a4.png)。例如，*图
+    7-9* 显示了一个简单卷积变分自编码器（VAE）生成的图像网格，该VAE的潜在空间维度为*n = 2*，经过训练以生成类似MNIST的图像（更多细节和源代码可以在
+    Jupyter Notebook 中找到）：
 - en: '![](img/fe38d124-f850-4285-9f97-7a16fdc2aa1a.png)'
   id: totrans-284
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/fe38d124-f850-4285-9f97-7a16fdc2aa1a.png)'
 - en: 'Figure 7-9: Grid of images generated by a simple VAE trained to create MNIST-like
     results'
   id: totrans-285
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 7-9：由简单 VAE 生成的图像网格，训练以生成类似 MNIST 的结果
 - en: To generate this grid, the different vectors, *z*, are not randomly picked,
     but are sampled to homogeneously cover part of the 2D latent space, hence the
     grid figure that shows the output images for *z* varying from (*-1.5, -1.5*) to
@@ -2164,16 +2381,20 @@
   id: totrans-286
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了生成这个网格，不同的向量*z*不是随机选取的，而是通过采样均匀覆盖2D潜在空间的一部分，因此生成的网格图展示了*z*从（*-1.5, -1.5*）到（*1.5,
+    1.5*）变化时的输出图像。我们因此可以观察到潜在空间的连续性，生成图像的内容从一个数字到另一个数字有所变化。
 - en: GANs
   id: totrans-287
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: GANs
 - en: First proposed in 2014 by Ian Goodfellow et al. from the University of Montreal,
     GANs are certainly the most popular solution for generative tasks.
   id: totrans-288
   prefs: []
   type: TYPE_NORMAL
+  zh: 生成对抗网络（GANs）最早由蒙特利尔大学的Ian Goodfellow等人于2014年提出，毫无疑问，它们是生成任务中最受欢迎的解决方案。
 - en: As their name indicates, GANs use an adversarial scheme so they can be trained
     in an unsupervised manner (this scheme inspired the *DANN* method introduced earlier
     in this chapter). Having only a number of images, *x*, we want to train a *generator*
@@ -2184,6 +2405,7 @@
   id: totrans-289
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如其名字所示，GANs使用对抗性方案，因此它们可以以无监督的方式进行训练（这个方案启发了本章前面介绍的*DANN*方法）。在仅有一组图像*x*的情况下，我们希望训练一个*生成器*网络来建模*p*(*x*)，也就是说，生成新的有效图像。因此，我们没有适当的真实标签数据可以用来直接与新图像进行比较（因为它们是*新的*）。无法使用典型的损失函数时，我们将生成器与另一个网络——**判别器**对抗。
 - en: The discriminator's task is to evaluate whether an image comes from the original
     dataset (*real* image) or if it was generated by the other network (*fake* image).
     Like the domain discriminating head in *DANN*, the discriminator is trained in
@@ -2194,6 +2416,7 @@
   id: totrans-290
   prefs: []
   type: TYPE_NORMAL
+  zh: 判别器的任务是评估一张图像是否来自原始数据集（*真实*图像），还是由另一个网络生成（*伪造*图像）。类似于*DANN*中的领域判别头，判别器作为二分类器以监督方式进行训练，使用隐式图像标签（*真实*与*伪造*）进行训练。在与判别器对抗的过程中，生成器试图欺骗判别器，通过噪声向量*z*生成新的图像，使判别器认为它们是*真实*图像（即，从*p(x)*中采样的图像）。
 - en: 'When the discriminator predicts the binary class of generated images, its results
     are backpropagated all the way into the generator. The generator thus learns purely
     from the *discriminator''s feedback*. For example, if the discriminator learns
@@ -2205,54 +2428,66 @@
   id: totrans-291
   prefs: []
   type: TYPE_NORMAL
+  zh: 当判别器预测生成图像的二分类时，其结果会通过反向传播传递回生成器。生成器因此从*判别器的反馈*中学习。例如，如果判别器学会检查图像中是否有胡须来标记其为*真实*（如果我们想要创建猫的图像），那么生成器就会从反向传播中接收到这一反馈，并学会画胡须（即使只有判别器接收到实际猫图像！）。*图
+    7-10* 通过生成手写数字图像来说明 GAN 的概念：
 - en: '![](img/6bd33ea0-a99a-497f-bb34-9dfbcb576cc3.png)'
   id: totrans-292
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/6bd33ea0-a99a-497f-bb34-9dfbcb576cc3.png)'
 - en: 'Figure 7-10: GAN representation'
   id: totrans-293
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 7-10：GAN 表示
 - en: 'GANs were inspired by *game theory*, and their training can be interpreted
     as a *two-player zero-sum minimax game*. Each phase of the game (that is, each
     training iteration) takes place as follows:'
   id: totrans-294
   prefs: []
   type: TYPE_NORMAL
+  zh: 'GANs 的灵感来源于 *博弈论*，它们的训练可以解释为一个 *二人零和极小极大博弈*。博弈的每一阶段（即每次训练迭代）如下进行：  '
 - en: The generator, *G*, receives *N* noise vectors, *z,* and outputs as many images,
     *x[G]*[.]
   id: totrans-295
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '生成器 *G* 接收 *N* 个噪声向量 *z*，并输出相同数量的图像 *x[G]*[.]  '
 - en: These 𝑁 *fake* images are mixed with *N* *real* images, *x,* picked from the
     training set.
   id: totrans-296
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '这些 𝑁 个 *虚假的* 图像与 *N* 个从训练集中挑选出来的 *真实的* 图像 *x* 混合在一起。  '
 - en: The discriminator, *D,* is trained on this mixed batch, trying to estimate which
     images are *real* and which are *fake*.
   id: totrans-297
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: '判别器 *D* 在这个混合批次上进行训练，试图估计哪些图像是 *真实的*，哪些是 *虚假的*。  '
 - en: The generator, *G,* is trained on another batch of *N* noise vectors, trying
     to generate images so that *D* assumes they are real.
   id: totrans-298
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 生成器 *G* 在另一个 *N* 个噪声向量的批次上进行训练，试图生成图像，使得 *D* 假设它们是真实的。
 - en: 'Therefore, at each iteration, the discriminator, *D* (parameterized by *P*[*D*]),
     tries to maximize the game reward, *V*(*G*, *D*), while the generator, *G* (parameterized
     by *P*[*G*]), tries to minimize it:'
   id: totrans-299
   prefs: []
   type: TYPE_NORMAL
+  zh: '因此，在每次迭代中，判别器 *D*（由 *P*[*D*] 参数化）试图最大化博弈奖励 *V*(*G*, *D*)，而生成器 *G*（由 *P*[*G*]
+    参数化）试图最小化它：  '
 - en: '![](img/79233327-5b4e-4320-94aa-b844811db30d.png)'
   id: totrans-300
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/79233327-5b4e-4320-94aa-b844811db30d.png)  '
 - en: Note that this equation assumes that the label *real* is 1 and the label *fake*
     is 0\. The first term of *V(G, D*) represents the averaged log probability estimated
     by the discriminator, *D,* that the images, *x,* are *real* (*D* should return
@@ -2264,6 +2499,9 @@
   id: totrans-301
   prefs: []
   type: TYPE_NORMAL
+  zh: '注意，这个方程假设标签 *真实* 为 1，标签 *虚假* 为 0。*V(G, D*) 的第一项代表判别器 *D* 对图像 *x* 是 *真实的* 的平均对数概率估计（*D*
+    应该返回 1 对每一个）。第二项代表 *D* 对生成器输出是 *虚假的* 的平均对数概率估计（*D* 应该返回 0 对每一个）。因此，这个奖励 *V(G,
+    D*) 被用来训练判别器 *D*，作为一个分类度量，*D* 必须最大化这个度量（尽管在实践中，人们更习惯于训练网络最小化 - *V(G, D*)，以减少损失）。  '
 - en: 'Theoretically, *V(G, D*) should also be used to train the generator, *G*, as
     a value to minimize this time. However, the gradient of its second term would
     *vanish* toward 0 if *D* becomes too confident (and the derivative of the first
@@ -2273,10 +2511,14 @@
   id: totrans-302
   prefs: []
   type: TYPE_NORMAL
+  zh: '从理论上讲，*V(G, D*) 也应该用于训练生成器 *G*，作为一个值，目的是最小化这个值。然而，如果 *D* 变得过于自信，它的第二项的梯度将会
+    *消失*，趋近于 0（因为第一项相对于 *P*[*G*] 的导数始终为零，因为 *P*[*G*] 在其中不起作用）。这种消失梯度可以通过一个小的数学变化避免，使用以下损失来训练
+    *G*：  '
 - en: '![](img/10e48567-7e5d-4dcd-8524-507b3d6405f7.png)'
   id: totrans-303
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/10e48567-7e5d-4dcd-8524-507b3d6405f7.png)  '
 - en: According to game theory, the outcome of this *mini**max* *game* is an *equilibrium*
     between *G* and *D* (called **Nash equilibrium**, after the mathematician John
     Forbes Nash Jr, who defined it). Though hard to achieve in practice with GANs,
@@ -2286,12 +2528,16 @@
   id: totrans-304
   prefs: []
   type: TYPE_NORMAL
+  zh: '根据博弈论，这个 *极小极大* *博弈* 的结果是 *G* 和 *D* 之间的 *均衡*（称为 **纳什均衡**，以数学家约翰·福布斯·纳什 Jr.
+    的名字命名，他定义了这个概念）。虽然在 GANs 中很难实现，但训练应该最终使 *D* 无法区分 *真实* 和 *虚假*（即 *D*(*x*) = ¹/[2]
+    和 *D(G(z))* = ¹/[2] 对所有样本成立），同时使 *G* 模拟目标分布 *p(x)*。  '
 - en: 'Though difficult to train, GANs can lead to highly realistic results and are
     therefore commonly used to generate new data samples (GANs can be applied to any
     data modality: image, video, speech, text, and more.)'
   id: totrans-305
   prefs: []
   type: TYPE_NORMAL
+  zh: '尽管训练困难，GANs 可以产生非常真实的结果，因此常用于生成新的数据样本（GANs 可应用于任何数据模态：图像、视频、语音、文本等）。  '
 - en: While VAEs are easier to train, GANs usually return crisper results. Using the
     MSE to evaluate the generated images, VAE results can be slightly blurry, as the
     models tend to return averaged images to minimize this loss. Generators in GANs
@@ -2303,15 +2549,20 @@
   id: totrans-306
   prefs: []
   type: TYPE_NORMAL
+  zh: 虽然变分自编码器（VAE）较容易训练，但生成对抗网络（GANs）通常返回更清晰的结果。使用均方误差（MSE）评估生成的图像时，VAE 的结果可能略显模糊，因为模型倾向于返回平均图像以最小化该损失。而
+    GANs 中的生成器无法采用这种方式作弊，因为判别器可以轻松识别模糊的图像为 *虚假*。VAE 和 GANs 都可以用于生成更大的训练数据集，以进行图像级别的识别（例如，准备一个
+    GAN 生成新的 *狗* 图像，另一个生成新的 *猫* 图像，用于在更大的数据集上训练 *狗* 对 *猫* 分类器）。
 - en: Both VAEs and GANs are implemented in the Jupyter Notebooks provided.
   id: totrans-307
   prefs: []
   type: TYPE_NORMAL
+  zh: VAE 和 GANs 都在提供的 Jupyter Notebooks 中得到了实现。
 - en: Augmenting datasets with conditional GANs
   id: totrans-308
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用条件生成对抗网络（GANs）扩增数据集
 - en: Another great advantage GANs have is that they can be conditioned by any kind
     of data. **Conditional GANs** (**cGANs**) can be trained to model the *conditional
     distribution, p(x|y),* that is, to generate images conditioned by a set of input
@@ -2321,6 +2572,8 @@
   id: totrans-309
   prefs: []
   type: TYPE_NORMAL
+  zh: 生成对抗网络（GANs）的另一个重要优势是它们可以通过任何类型的数据进行条件化。**条件生成对抗网络**（**cGANs**）可以被训练来建模 *条件分布
+    p(x|y)*，即生成根据一组输入值 *y* 条件化的图像（参见生成模型的介绍）。条件输入 *y* 可以是图像、类别或连续标签、噪声向量等，或者它们的任何组合。
 - en: In conditional GANs, the discriminator is edited to receive both an image, *x*
     (real or fake), and its corresponding conditional variable, *y,* as a paired input
     (that is, *D*(*x*, *y*)). Though its output is still a value between *0* and *1*
@@ -2330,6 +2583,8 @@
   id: totrans-310
   prefs: []
   type: TYPE_NORMAL
+  zh: 在条件生成对抗网络（GANs）中，判别器被修改为接收图像 *x*（真实或虚假）及其对应的条件变量 *y*，作为配对输入（即 *D*(*x*, *y*)）。尽管其输出仍然是介于
+    *0* 和 *1* 之间的值，用于衡量输入看起来有多“真实”，其任务略有变化。为了被视为*真实*，图像不仅需要看起来像是从训练数据集中绘制的，还应该与其配对变量相对应。
 - en: Imagine, for instance, that we want to train a generator, *G,* to create images
     of handwritten digits. Such a generator would be much more useful if, instead
     of outputting images of random digits, it could be conditioned to output images
@@ -2343,6 +2598,9 @@
   id: totrans-311
   prefs: []
   type: TYPE_NORMAL
+  zh: 举个例子，假设我们想要训练一个生成器 *G*，用来生成手写数字的图像。如果这个生成器能够根据请求生成特定数字的图像，那么它会更加有用，而不是生成随机数字的图像（即，*生成一个图像，其*
+    *y* *= 3*，其中 *y* 是类别数字标签）。如果判别器没有给定 *y*，生成器将学习生成真实的图像，但不能确定这些图像是否展示了所需的数字（例如，我们可能从
+    *G* 得到一个真实的 *5* 图像，而不是 *3*）。将条件信息提供给 *D* 后，网络将立即发现不对应 *y* 的虚假图像，迫使 *G* 有效地建模 *p(x|y)*。
 - en: The *Pix2Pix* model by Phillip Isola and others from Berkeley AI Research is
     a famous image-to-image conditional GAN (that is, with *y* being an image), demonstrated
     on several tasks, such as converting hand-drawn sketches into pictures, semantic
@@ -2357,6 +2615,11 @@
   id: totrans-312
   prefs: []
   type: TYPE_NORMAL
+  zh: 由Phillip Isola等人（来自伯克利AI研究中心）提出的*Pix2Pix*模型是一种著名的图像到图像条件GAN（即，*y*是图像），它在多个任务中得到了演示，例如将手绘草图转换为图片、将语义标签转换为实际图片等（*Image-to-image
+    translation with conditional adversarial networks*，IEEE，2017）。虽然*Pix2Pix*在监督学习的背景下表现最好，当目标图像可用并能为GAN目标添加MSE损失时，更新的解决方案移除了这一约束。例如，*CycleGAN*（由Jun-Yan
+    Zhu等人从伯克利AI研究中心提出，2017年IEEE发表，与*Pix2Pix*作者合作）或*PixelDA*（由Konstantinos Bousmalis和Google
+    Brain的同事提出，*Unsupervised pixel-level domain adaptation with generative adversarial
+    networks*，IEEE，2017）便是这样的例子。
 - en: Like other recent conditional GANs, *PixelDA* can be used as a domain adaptation
     method, to map training images from the source domain to the target domain. For
     example, the *PixelDA* generator can be applied to generating realistic-looking
@@ -2366,6 +2629,7 @@
   id: totrans-313
   prefs: []
   type: TYPE_NORMAL
+  zh: 像其他近期的条件GAN一样，*PixelDA*可以作为一种领域适应方法，用于将源领域的训练图像映射到目标领域。例如，*PixelDA*生成器可以应用于生成逼真的合成图像版本，从一小组未标注的真实图像中进行学习。因此，它可以用于增强合成数据集，以使在其上训练的模型不那么受限于现实差距。
 - en: Though mostly known for their artistic applications (GAN-generated portraits
     are already being exhibited in many art galleries), generative models are powerful
     tools that, in the long term, could become central to the understanding of complex
@@ -2374,11 +2638,13 @@
   id: totrans-314
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管主要以艺术应用而闻名（GAN生成的肖像已经在许多艺术画廊展出），生成模型是强大的工具，从长远来看，它们可能会成为理解复杂数据集的核心。但如今，尽管训练数据稀缺，它们已经被公司用来训练更强大的识别模型。
 - en: Summary
   id: totrans-315
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 总结
 - en: Although the exponential increase in computational power and the availability
     of larger datasets have led to the deep learning era, this certainly does not
     mean that best practices in data science should be ignored or that relevant datasets
@@ -2386,6 +2652,7 @@
   id: totrans-316
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管计算能力的指数级增长和更大数据集的可用性促成了深度学习时代的到来，但这并不意味着数据科学的最佳实践应该被忽视，也不意味着所有应用都能轻松获得相关数据集。
 - en: 'In this chapter, we took a deep dive into the `tf.data` API, learning how to
     optimize the data flow. We then covered different, yet compatible, solutions to
     tackle the problem of data scarcity: data augmentation, synthetic data generation,
@@ -2394,17 +2661,20 @@
   id: totrans-317
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们深入研究了`tf.data` API，学习了如何优化数据流。接着，我们介绍了几种不同但兼容的解决方案来解决数据稀缺的问题：数据增强、合成数据生成和领域适应。后者的解决方案使我们有机会介绍了VAEs和GANs这两种强大的生成模型。
 - en: 'The importance of well-defined input pipelines will be highlighted in the next
     chapter, as we will apply NNs to data of higher dimensionality: image sequences
     and videos.'
   id: totrans-318
   prefs: []
   type: TYPE_NORMAL
+  zh: 在下一章中，我们将强调定义良好的输入管道的重要性，因为我们将应用神经网络（NNs）于更高维度的数据：图像序列和视频。
 - en: Questions
   id: totrans-319
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 问题
 - en: Given a tensor, `a = [1, 2, 3]`, and another tensor, `b = [4, 5, 6]`, how do
     you build a `tf.data` pipeline that would output each value separately, from `1`
     to `6`?
@@ -2412,28 +2682,33 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 给定一个张量，`a = [1, 2, 3]`，和另一个张量，`b = [4, 5, 6]`，你如何构建一个`tf.data`管道，使其能够单独输出每个值，从`1`到`6`？
 - en: According to the documentation of `tf.data.Options`, how do you make sure that
     a dataset always returns samples in the same order, run after run?
   id: totrans-321
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 根据`tf.data.Options`的文档，如何确保数据集每次运行时都能以相同的顺序返回样本？
 - en: Which domain adaptation methods that we introduced can be used when no target
     annotations are available for training?
   id: totrans-322
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 我们介绍的哪些领域适应方法可以在没有目标注释的情况下用于训练？
 - en: What role does the discriminator play in GANs?
   id: totrans-323
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 判别器在生成对抗网络（GANs）中起什么作用？
 - en: Further reading
   id: totrans-324
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 进一步阅读
 - en: '*Learn OpenGL* ([https://www.packtpub.com/game-development/learn-opengl](https://www.packtpub.com/game-development/learn-opengl)),
     by Frahaan Hussain: For readers interested in computer graphics and eager to learn
     how to use OpenCV, this book is a nice place to start.'
@@ -2441,6 +2716,8 @@
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*学习 OpenGL* ([https://www.packtpub.com/game-development/learn-opengl](https://www.packtpub.com/game-development/learn-opengl))，作者：Frahaan
+    Hussain：对于有兴趣了解计算机图形学并渴望学习如何使用 OpenCV 的读者，这本书是一个很好的起点。'
 - en: '*Hands-On Artificial Intelligence for Beginners* ([https://www.packtpub.com/big-data-and-business-intelligence/hands-artificial-intelligence-beginners](https://www.packtpub.com/big-data-and-business-intelligence/hands-artificial-intelligence-beginners)),
     by Patrick D. Smith: Though written for TensorFlow 1, this book dedicates a complete
     chapter to generative networks.'
@@ -2448,3 +2725,5 @@
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '*初学者的人工智能实践* ([https://www.packtpub.com/big-data-and-business-intelligence/hands-artificial-intelligence-beginners](https://www.packtpub.com/big-data-and-business-intelligence/hands-artificial-intelligence-beginners))，作者：Patrick
+    D. Smith：尽管这本书是为 TensorFlow 1 编写的，但它为生成网络专门分配了完整的一章。'
