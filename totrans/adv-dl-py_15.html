@@ -1,0 +1,712 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Deep Learning for Autonomous Vehicles</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Let's think about how <strong>autonomous vehicles</strong><span> </span>(<strong>AVs</strong>)<span> will</span><span> </span>affect our lives. For one thing, instead of focusing our attention on driving, we'll be able to do something else during our trip. Catering to the needs of such travelers could probably spawn a whole industry in itself. But that's just an added bonus. If we can be more productive or just relax during our travels, it is likely that we'll start traveling more, not to mention the benefits for people with limited ability to drive themselves. Making such an essential and basic commodity as transportation more accessible has the potential to transform our lives. And that's just the effect on us as individuals—AVs can have profound effects on the economy too, starting from delivery services to just-in-time manufacturing. In short, making AVs work is a very high-stakes game. No wonder, then, that in recent years the research in this area has moved from the academic world to the real economy. Companies from Waymo, Uber, and NVIDIA to virtually all major vehicle manufacturers are rushing to develop AVs.</p>
+<p class="mce-root">However, we are not there just yet. One of the reasons for this is that self-driving is a complex task, composed of multiple subproblems, each a major task in its own right. To navigate successfully, the vehicle's program needs an accurate 3D model of the environment. The way to construct such a model is to combine the signals coming from multiple sensors. Once we have the model, we still need to solve the actual driving task. Think about the many unexpected and unique situations a driver has to overcome without crashing. But even if we create a driving policy, it needs to be accurate almost 100% of the time. Say that our AV will successfully stop at 99 out of 100 red traffic lights. 99% accuracy is a great success for any other<span> </span><strong>machine learning </strong>(<strong>ML</strong>) task; not so for autonomous driving, where even a single mistake can lead to a crash. </p>
+<p>In this chapter, we'll explore the applications of deep learning in AVs. We'll look at how to use deep networks to help the vehicle make sense of its surrounding environment. We'll also see how to use them in actually controlling the vehicle. </p>
+<p>This chapter will cover the following topics:</p>
+<ul>
+<li><span>Introduction to AVs</span></li>
+<li>Components of an AV system</li>
+<li>Introduction to 3D data processing</li>
+<li>Imitation driving policy</li>
+<li>Driving policy with ChauffeurNet</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Introduction to AVs</h1>
+                </header>
+            
+            <article>
+                
+<p>We'll start this section with a brief history of AV research (which started surprisingly long ago). We'll also try to define the different levels of AV automation according to the <strong>Society of Automotive Engineers</strong> (<strong>SAE</strong>).</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Brief history of AV research</h1>
+                </header>
+            
+            <article>
+                
+<p>The first serious attempts to implement self-driving cars<span> </span>began<span> </span>in the 1980s in Europe and the USA. Since the mid 2000s, progress has rapidly accelerated. <span>The first major effort in the area was the </span>Eureka<span> </span><span>Prometheus Project (</span><a href="https://en.wikipedia.org/wiki/Eureka_Prometheus_Project">https://en.wikipedia.org/wiki/Eureka_Prometheus_Project</a><span>), which lasted from </span><span>1987 to 1995. It culminated in 1995, when an autonomous Mercedes-Benz S-Class took a 1,600 km trip from Munich to Copenhagen and back using computer vision. At some points, the car achieved speeds of up to 175 km/h on the German Autobahn (fun fact: some sections of the Autobahn don't have speed restrictions). The car was able to overtake other cars on its own. The average distance between human interventions was 9 km, and at one point it drove 158 km without interventions. </span></p>
+<p>In 1989, Dean Pomerleau from Carnegie Mellon University published<span> </span><em>ALVINN: An Autonomous Land Vehicle in a Neural Network</em> (<a href="https://papers.nips.cc/paper/95-alvinn-an-autonomous-land-vehicle-in-a-neural-network.pdf">https://papers.nips.cc/paper/95-alvinn-an-autonomous-land-vehicle-in-a-neural-network.pdf</a>), a pioneering paper on the use of neural networks for AVs. This work is especially interesting, as it applied many of the topics we've discussed in this book in AVs 30 years ago. <span>Let's look at the most important properties of ALVINN</span>:</p>
+<ul>
+<li>It uses a simple neural network to decide the steering angle of a vehicle (it doesn't control the acceleration and the brakes).</li>
+<li>The network is fully connected with one input layer, one hidden layer, and one output layer.</li>
+<li>The input consists of the following:
+<ul>
+<li>A 30 <span>× </span>32 single-color image (they used the blue channel from an RGB image) from a forward-facing camera mounted on the vehicle.</li>
+<li>An 8 <span>× </span>32 image from a laser range finder. This is simply a grid, where each cell contains the distance to the nearest obstacle covered by that cell in the field of view.</li>
+<li>One scalar input, which indicates the <span>road intensity—that is, whether the road is lighter or darker than the nonroad in the image from the camera. This values comes recursively from the network output.</span></li>
+</ul>
+</li>
+<li>A single fully connected hidden layer with 29 neurons.</li>
+<li>A fully connected output layer with 46 neurons. The curvature of the road is represented by 45 of those neurons in a way that resembles one-hot encoding—that is, if the middle neuron has the highest activation, then the road is straight. Conversely, the left and right neurons represent increasing road curvature. The final output unit indicates the road intensity.</li>
+<li>The network was trained for 40 epochs on a dataset of 1,200 images:</li>
+</ul>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1150 image-border" src="assets/36614e50-69fd-4749-9fc3-5914fdb767fe.png" style="width:21.00em;height:21.00em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">The network architecture of ALVINN. Source: The ALVINN paper</div>
+<p>Next, let's take a look at the more recent timeline of (mostly) commercial AV progress:</p>
+<ul>
+<li>The DARPA Grand Challenge (<a href="https://en.wikipedia.org/wiki/DARPA_Grand_Challenge">https://en.wikipedia.org/wiki/DARPA_Grand_Challenge</a>) was organized in 2004, 2005, and 2007. In the first year, the participating teams' AVs had to navigate a <span>240 km route in the Mojave Desert. The best-performing AV managed just 11.78 km of that route, before getting hung up on a rock. In 2005, the teams had to overcome a 212 km off-road course in California and Nevada. This time, five vehicles managed to drive the whole route. The 2007 challenge was to navigate a mock urban environment, built in an air force base. The total route length was 89 km and the participants had to obey the traffic rules. Six vehicles finished the whole course.</span></li>
+<li>In 2009, Google started developing self-driving technology. This effort led to the creation of Alphabet's (Google's parent company) subsidiary Waymo (<a href="https://waymo.com/">https://waymo.com/</a><span>). In December 2018, they launched the first commercial on-demand ride-hailing service with AVs in Phoenix, Arizona. In October 2019, Waymo announced the start of the first truly driverless cars as part of their robotaxi service (previously, a safety driver had always been present).</span></li>
+<li>Mobileye (<a href="https://www.mobileye.com/">https://www.mobileye.com/</a>) uses deep neural networks to provide driver-assistance systems (for example, lane-keeping assistance). The company has developed a series of<span> </span><strong>system-on-chip</strong><span> </span>(<strong>SOC</strong>) devices, specifically optimized to run neural networks with low<span> </span>energy<span> </span>consumption, required for automotive use. Its products are used by many of the<span> </span>major<span> </span>vehicle manufacturers. In 2017, Mobileye was acquired by Intel for <span>$15.3 billion. Since then, BMW, Intel, Fiat-Chrysler, SAIC, Volkswagen, NIO, and the automotive supplier Delphi (now Aptiv) have cooperated on the joint development of self-driving technology. In the first three quarters of 2019, the total sales of Mobileye were $822 million, compared to $358 million in all four quarters of 2016.</span></li>
+<li>In 2016, General Motors acquired Cruise Automation (<a href="https://getcruise.com/">https://getcruise.com/</a>), a developer of self-driving technology, for more than $500 million (the exact figure is unknown). Since then, Cruise Automation has tested and demonstrated multiple AV prototypes, driving in San Francisco. In October 2018, it was announced that Honda will also participate in the venture by investing <span>$750 million in return for a 5.7% stake</span>. In May 2019, Cruise secured $1.15 billion additional investment from a group of new and existing investors. </li>
+<li><span>In 2017, Ford Motor Co. acquired majority ownership of the self-driving startup Argo AI. In 2019, Volkswagen announced that it will invest $2.6 billion in Argo AI as part of a larger deal with Ford. Volkswagen would contribute $1 billion in funding and its $1.6 billion</span> Autonomous Intelligence Driving subsidiary with more than 150 employees, based in Munich.</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Levels of automation</h1>
+                </header>
+            
+            <article>
+                
+<p>When we talk about AVs, we usually<span> </span>imagine<span> </span>fully driverless vehicles. But in reality, we have cars that require a driver, but still provide some automated features.</p>
+<p>The<span> </span>SAE has developed a scale of six levels of automation: </p>
+<ul>
+<li><strong>Level 0</strong>: The driver handles the steering, acceleration, and braking of the vehicle. The features at this level can only provide warnings and immediate assistance to the driver's actions. Examples of features of this level include the following:
+<ul>
+<li>A lane-departure warning simply warns the driver when the vehicle has crossed one of the lane markings. </li>
+<li>A blind-spot warning warns the driver when another vehicle is located in the blind spot area of the car (the area immediately left or right of the rear end of the vehicle).</li>
+</ul>
+</li>
+<li><strong>Level 1</strong>: Features that provide either steering or acceleration/braking assistance to the driver. The most popular of these features in vehicles today are the following:
+<ul>
+<li><strong>Lane-keeping assist</strong><span> </span>(<strong>LKA</strong>): The vehicle can detect the lane markings and use the steering to keep itself centered in the lane.</li>
+<li><strong>Adaptive cruise control</strong><span> </span>(<strong>ACC</strong>): The vehicle can detect<span> </span>other<span> </span>vehicles and use brakes and acceleration to maintain a preset speed or reduce it, depending on the circumstances.</li>
+<li><span><strong>Automatic emergency braking</strong> (<strong>AEB</strong>): The vehicle can stop automatically if it detects an obstacle and the driver doesn't react.</span></li>
+</ul>
+</li>
+<li><strong>Level 2</strong>: Features that provide both steering and brake/acceleration assistance to the driver. One such feature is a combination of LKA and adaptive cruise control. At this level, the car can return control to the driver <span>without advance warning</span><span> </span>at any moment. Therefore, he or she has to maintain a constant focus on the road situation. For example, if the lane<span> markings</span><span> </span>suddenly disappear, the LKA system can prompt the driver to take control of the steering immediately. </li>
+<li><strong>Level 3</strong>: This is the first level where we can talk about real autonomy. It is similar to level 2 in the sense that the car can drive itself under certain limited conditions and can prompt the driver to take control; however, this is guaranteed to happen in advance with sufficient time to allow an inattentive person to familiarize themselves with the road conditions. For example, say that the car drives itself on the highway, but the cloud-connected navigation obtains information about construction works on the road ahead. The driver will be prompted to take control well in advance of reaching the construction area. </li>
+<li><strong>Level 4</strong>: Vehicles at level 4 are fully autonomous in a wider range of situations, compared to level 3. For example, a locally geofenced (that is, limited to a certain region) taxi service could be at level 4. There is no requirement for the driver to take control. Instead, if the vehicle goes outside this region, it should be able to safely abort the trip. </li>
+<li><strong>Level 5</strong>: Full autonomy under all circumstances. The steering wheel is optional.</li>
+</ul>
+<p><span>All commercially available vehicles today have features at level 2 at most (even Tesla's Autopilot). The only exception (according to the manufacturer) is the 2018 Audi A8, which has a level 3 feature called AI Traffic Jam Pilot.</span> The system<span> takes charge of driving at speeds up to 60 km/h </span><span>on multilane roads with a physical barrier between the two directions of traffic.</span> <span>The driver can be prompted to take control with 10 seconds of advance warning. This feature was demonstrated during the launch of the vehicle, but as of the writing of this chapter, Audi cites regulatory limitations and doesn't include it in all markets. I have no information on where (or if) this feature is available. </span></p>
+<p>In the next section, we'll look at the components that make up an AV system.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Components of an AV system </h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll outline two types of AV system from a <span>software architecture</span> perspective. The first type uses sequential architecture with multiple components, as illustrated in the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1152 image-border" src="assets/748d39a7-f202-48aa-862e-71ac49331605.png" style="width:26.75em;height:16.08em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">The components of an AV system</div>
+<p><span>The system resembles the reinforcement-learning framework we briefly discussed in</span><span> </span><a href="f641c4c2-60f2-41cb-a437-a961851dcc7f.xhtml">Chapter 10</a>, <em>Meta Learning</em><span>. We have a feedback loop where the environment (either the physical world or a simulation) provides the agent (vehicle) with its current state. In turn, the agent decides on its new trajectory, the environment reacts to it, and so on. </span>Let's start with the environment-perception subsystem, which has the following modules (we'll discuss them in more detail in the following sections):</p>
+<ul>
+<li><strong>Sensors:</strong> Physical devices, such as cameras and radars.</li>
+<li><strong>Localization:</strong> Determines the exact position of the vehicle (with centimeter accuracy) within a high-definition map. </li>
+<li><strong>Moving object detection and tracking:</strong> Detects and tracks other traffic participants, such as vehicles and pedestrians.</li>
+</ul>
+<p>The output of the perception system combines the data from its various modules <span>to produce a <strong>middle-level</strong> virtual representation of the surrounding environment. This representation is usually a top-down (birds-eye) 2D view of the environment, referred to as the <strong>occupancy map</strong>. The following screenshot shows an example occupancy map of the ChauffeurNet system, which we'll discuss later in the chapter. It includes road surfaces (white and yellow lines), traffic lights (red lines), and other vehicles (white rectangles). The image is best viewed in color: </span></p>
+<p class="CDPAlignCenter CDPAlign"><img src="assets/5c78674a-7d9a-4252-82a9-44391a061de9.png"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Occupancy map of ChauffeurNet. <span>S</span><span>ource:</span><span><span> https://arxiv.org/abs/1812.03079</span></span></div>
+<p>The occupancy map serves as input <span>for the </span><strong>path-planning</strong><span> module, which uses it to determine the future trajectory of the vehicle. The <strong>control</strong> module takes the desired trajectory and translates it to low-level control inputs to the vehicle. </span></p>
+<p><span>The middle-level representation approach has several advantages. Firstly, it is well-suited for the functions of the path-planning and control modules. Also, </span><span>instead of using the sensor data to create the top-down image, we can produce it with a simulator. In this way, it will be easier to collect training data, as we won't have to drive a real car.</span><span> Even more important is that we'll be able to simulate situations that rarely occur in the real world. For example, our AV has to avoid crashes at any cost, yet real-world training data will have very few, if any, crashes. If we only use real sensor data, one of the most important driving situations will be severely underrepresented.</span></p>
+<p>The second type of AV system uses a single end-to-end component, which takes the raw sensor data as input and produces driving policy in the form of steering controls, as shown in the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1483 image-border" src="assets/9696a032-249e-4692-adeb-fbc984c28b16.png" style="width:21.42em;height:8.67em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">End-to-end AV system</div>
+<p><span>In fact, we already mentioned an end-to-end system when we discussed ALVINN (in the</span> <em>Brief history of AV research </em><span>section</span><span>). Next, we'll focus on the different modules of the sequential system. We'll cover the end-to-end system in more detail later in the chapter.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Environment perception</h1>
+                </header>
+            
+            <article>
+                
+<p><span>For any automation feature to work, the</span><span> </span>vehicle<span> </span><span>needs a good perception of its surrounding environment. </span>The environment-perception system has to identify the exact position, distance, and direction of moving objects, such as pedestrians, cyclists, and other vehicles. Additionally, it has to create a precise mapping of the road surface and the exact position of the vehicle on that surface and in the environment as a whole. <span>Let's discuss the hardware and software components that help the AV create this virtual model of the environment. </span></p>
+<p class="mce-root"/>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Sensing</h1>
+                </header>
+            
+            <article>
+                
+<p>The key to building a good environment model is the vehicle sensors. The following is a list of the most important sensors:</p>
+<ul>
+<li><strong>Camera</strong>: Its images are used to<span> </span>detect<span> </span>the road surface, lane markings, pedestrians, cyclists, other vehicles, and so on. An important camera property in the automotive context (besides the resolution) is the field of view. It measures how much of the observable world the camera sees at any given moment. For example, with a 180<sup>o</sup> field of view, it can see everything in front of it and nothing behind. With a 360<span><sup>o</sup></span> field of view, i<span>t can see everything in front of it and everything behind the vehicle (full observation).</span> The following different types of camera systems exist:
+<ul>
+<li> <strong>Mono camera</strong>: Uses a single forward-facing camera<span>, usually mounted on the top of the windshield.</span><span> </span>M<span>ost automation features rely on this type of camera to work. A typical field of view for the mono camera is 125<sup>o</sup>.</span></li>
+<li><strong>Stereo camera</strong>: A system of two <span>forward</span>-facing cameras, slightly removed from each other. The distance between the cameras allows them to capture the same picture from a slightly different angle and combine them into a 3D image (in the same way we use our eyes)<span>. </span>A stereo system can measure the distance to some of the objects in the image, while a mono camera relies only on heuristics to do this.</li>
+<li><strong><span>360</span><sup>o</sup><span> </span><span>surrounding </span></strong><span><strong>view of the environment</strong>:</span> some vehicles have a system of four cameras (front, back, left, and right).</li>
+<li><strong>Night vision camera</strong>: a system, where the vehicle includes a special type of headlight, which emits light in the infrared spectrum in addition to its regular function. The light is recorded from infrared cameras, which can display an enhanced image to the driver and detect obstacles during the night.</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li><strong>Radar</strong>: A system that uses a transmitter to emit electromagnetic waves (in the radio or microwave spectrum) in different directions. When the waves reach an object, they are usually reflected, some of them in the direction of the radar itself. The radar can<span> </span>detect<span> </span>them with a special receiver antenna. Since we know that radio waves travel at the speed of light, we can calculate the distance to the reflected object by measuring how much time has passed between emitting and receiving the signal. We can also calculate the speed of an object (for example, another vehicle) by measuring the difference between the frequencies of the outgoing and incoming waves (Doppler effect). The "image" of the radar is noisier, narrower, and with lower resolution, compared to a camera image. For example, a long-range radar can detect objects at a distance of 160 m, but in a narrow 12<sup>o</sup> field of view. The radar can detect other vehicles and pedestrians, but it won't be able to detect the road surface or lane markings. It is usually used for ACC and AEB, while the LKA system uses a camera. <span>Most vehicles have one or two front-facing radars and, on rare occasions, a rear-facing radar. </span></li>
+<li class="CDPAlignLeft CDPAlign"><strong>Lidar</strong><span> </span>(<strong>l<span>ight detection and ranging</span></strong><span>)</span>: This sensor is<strong> </strong>somewhat<span> </span>similar<span> </span>to radar, but instead of radio waves, it emits laser beams in the<span> near-infrared spectrum</span>. Because of this, one emitted pulse can accurately measure the distance to a single point. Lidar emits multiple signals very fast in a pattern, which creates a 3D point cloud of the environment (the sensor can rotate very fast). The following is a diagram of how a vehicle would see the world with a lidar:</li>
+</ul>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1161 image-border" src="assets/60018263-4727-4132-9f86-8a6e09b8b17a.png" style="width:23.58em;height:9.58em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">A diagram of how a vehicle sees the world through lidar</div>
+<ul>
+<li><strong>Sonar</strong> (<strong>so<span>und </span>na<span>vigation </span>r<span>anging</span></strong>): This sensor emits pulses of ultrasonic waves and maps the environment by listening to the echos of the waves, reflected by the surrounding objects. Sonar is inexpensive compared to radar, but has a limited effective range of detection. Because of this, they are usually used in parking assistance features.</li>
+</ul>
+<p>The data from multiple sensors can be merged into a single environment model with a process called <strong>sensor fusion</strong>. Sensor fusion is usually<span> </span>implemented<span> </span>using Kalman filters (<a href="https://en.wikipedia.org/wiki/Kalman_filter">https://en.wikipedia.org/wiki/Kalman_filter</a>).</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Localization</h1>
+                </header>
+            
+            <article>
+                
+<p><strong>Localization</strong> is the process of determining the exact position of the vehicle<span> </span>on<span> </span>the map. Why is this important? Companies such as HERE (<a href="https://www.here.com/">https://www.here.com/</a>) specialize in creating extremely accurate road maps, where the entire area of the road surface is known to within a few centimeters. These maps could also include information about static objects of interest, such as lane markings, traffic signs, traffic lights, speed restrictions, zebra crossings, speed bumps, and so on. <span>Therefore, if we</span><span> </span>know<span> </span><span>the exact position of the vehicle on the road, it won't be hard to calculate the optimal trajectory.</span> </p>
+<p>One obvious solution is to use GPS; however, GPS can be accurate to within 1-2 meters under perfect conditions. In areas with high-rise buildings or mountains, the accuracy can suffer because the GPS receiver won't be able to get a signal from a sufficient number of satellites. One way to solve this problem is with <strong>simultaneous localization and mapping</strong><span> </span>(<strong>SLAM</strong>) algorithms. These algorithms are beyond the scope of this book, but I encourage<span> </span>you<span> </span>to do your own research on the topic.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Moving object detection and tracking</h1>
+                </header>
+            
+            <article>
+                
+<p>We now have an idea of what sensors the vehicle uses, and we have briefly mentioned the importance of knowing its exact location on the map. With this knowledge, the vehicle could theoretically navigate to its destination by simply following a breadcrumb trail of fine-grained points. However, the <span>task</span><span> of </span><span>autonomous driving isn't that simple, because the environment is dynamic, as it includes moving objects such as vehicles, pedestrians, cyclists, and so on. An autonomous vehicle must constantly know the positions of the moving objects and track them as it plans its trajectory. This is one area where we can apply deep-learning algorithms to the raw sensor data. First, we'll do this for the camera. In</span> <a href="9ac88546-8662-4b23-aa96-7eb00f48fedb.xhtml">Chapter 5</a>,<em> Object Detection and Image Segmentation</em><span>, we discussed how to use</span> <strong>convolutional networks</strong> <span>(</span><strong>CNNs</strong><span>) in two advanced vision tasks—object detection and semantic segmentation.</span></p>
+<p><span>To recap, object detection creates a bounding box around different classes of objects detected in the image. Semantic segmentation assigns a class label to every pixel of the image. We can use segmentation to detect the exact shape of the road surface and the lane markings on the camera image. We can use object detection to classify and localize the moving objects of interest in the environment; however, we have already covered these topics in <a href="9ac88546-8662-4b23-aa96-7eb00f48fedb.xhtml">Chapter 5</a>, <em>Object Detection and Image Segmentation. </em>In this chapter, we'll focus on the lidar sensor and we'll discuss how to apply CNNs over the 3D point cloud this sensor produces. </span></p>
+<p>Now that we've outlined the perception subsystem components, in the next section, we'll introduce the path planning subsystem.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Path planning</h1>
+                </header>
+            
+            <article>
+                
+<p>Path planning (or driving policy) is the process of calculating the<span> </span>vehicle<span> </span>trajectory and speed. Although we might have an accurate map and exact<span> </span>location<span> </span>of the vehicle, we still need to keep in mind the dynamics of the environment. The car is surrounded by other moving vehicles, pedestrians, traffic lights, and so on. What happens if the vehicle in front stops suddenly? Or if it's moving too slow? Our AV has to make the decision to overtake and then execute the maneuver. This is an area where ML and DL in particular can be especially useful, and we'll discuss two ways to implement these in this chapter. <span>More specifically, we'll discuss using an imitation driving policy in an end-to-end learning system, as well as a driving policy algorithm called ChauffeurNet, which was developed by Waymo.</span></p>
+<p><span>One obstacle in AV research is that building an AV and obtaining the necessary permits to test it is very expensive and time-consuming. Thankfully, we can still train our algorithms with the help of AV simulators.</span></p>
+<p><span>Some of the most popular simulators are the following:</span></p>
+<ul>
+<li>Microsoft AirSim<span>, built on the Unreal Engine</span><span> </span>(<a href="https://github.com/Microsoft/AirSim/">https://github.com/Microsoft/AirSim/</a>)</li>
+<li>CARLA, built on the Unreal Engine (<a href="https://github.com/carla-simulator/carla">https://github.com/carla-simulator/carla</a>)</li>
+<li>Udacity's Self-Driving Car Simulator, built with Unity (<a href="https://github.com/udacity/self-driving-car-sim">https://github.com/udacity/self-driving-car-sim</a>)</li>
+<li>OpenAI Gym's<span> </span><kbd>CarRacing-v0</kbd><span> </span>environment (we'll see an example of this in the <em>Imitation driving policy </em>section)</li>
+</ul>
+<p>This concludes our description of the components of an AV system. Next, we'll discuss how to process 3D spatial data. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Introduction to 3D data processing</h1>
+                </header>
+            
+            <article>
+                
+<p>The lidar produces a point cloud—a set of data points in a three-dimensional space. Remember that the lidar emits laser beams. A beam reflecting off of a surface and returning to the receiver generates a single data point of the point cloud. If we assume that the lidar device is the center of the coordinate system and each laser beam is a vector, then a point is defined by the vector's direction and magnitude. Therefore, the point cloud is an <strong>unordered set</strong> of vectors. Alternatively, we can define the points by their Cartesian coordinates in <img class="fm-editor-equation" src="assets/625cb830-2d9a-49f5-a000-0aab3caee3fd.png" style="width:1.83em;height:1.67em;"/> space, as illustrated in the left side of the following diagram. In this case, the point cloud is a set of vectors <img class="fm-editor-equation" src="assets/c75c2878-da97-4a02-aa93-f0662c483bd1.png" style="width:7.50em;height:1.17em;"/>, where each vector <img class="fm-editor-equation" src="assets/579fc922-e0cf-4c6a-b7f4-5c2390bd2284.png" style="width:6.58em;height:1.17em;"/> contains the three coordinates of the point. For the sake of clarity, each point is represented as a cube:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1162 image-border" src="assets/8461de45-e32b-4ef9-be6a-9245e28daec5.png" style="width:38.00em;height:16.58em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Left: Points (represented as cubes) in the 3D space; Right: A 3D grid of voxels</div>
+<p>Next, let's focus on the input data format for neural networks, and specifically CNNs. A 2D color image is represented as a tensor with three slices (one for each channel) and each slice is a matrix (2D grid) composed of pixels. The CNN uses 2D convolutions (see<a href="d94e220f-820e-40da-8bb5-9593e0790b21.xhtml"> Chapter 2</a>, <em>Understanding Convolutional Networks</em>). Intuitively, we might think that we can use a similar 3D grid of <strong>voxels</strong> (a voxel is a 3D pixel) for 3D point clouds<span>, as illustrated in the right image of the preceding diagram</span>. Assuming the point cloud points have no color, we can represent the grid as a 3D tensor and use it as input to a CNN with 3D convolutions.</p>
+<p>However, if we take a closer look at this 3D grid, we can see that it is sparse. For example, in the preceding diagram, we have a point cloud with 8 points, but the grid contains 4 x 4 x 4 = 64 cells. In this simple case, we increase the memory footprint of the data eightfold, but in the real world the conditions, could be even worse. In this section, we'll introduce PointNet (see <em>PointNet: Deep Learning on Point Sets for 3D</em> <em>Classification and Segmentation</em>, <a href="https://arxiv.org/abs/1612.00593">https://arxiv.org/abs/1612.00593</a>), which provides a solution to this problem.</p>
+<p><span>PointNet takes as input the set of point cloud vectors </span><strong>p</strong><em><sub>i</sub></em>, <span>rather than their 3D grid representation. To understand its architecture, we'll start with the properties of the set of point cloud vectors that led to the network design (the following bullets contain quotes from the original paper):</span></p>
+<ul>
+<li><strong>Unordered</strong>: Unlike pixel arrays in images or voxel arrays in 3D grids, a point cloud is a set of points without a specific order. Therefore, a network that consumes <em>N</em> 3D point sets needs to be invariant to <em>N</em>! permutations of the input set in data-feeding order.</li>
+<li><strong>Interaction among points</strong>: Similar to the pixels of an image, the distance between 3D points can indicate the level of relation among them—that is, it's more likely that nearby points are part of the same object, compared to distant ones. Therefore, the model needs to be able to capture local structures from nearby points and the combinatorial interactions among local structures.</li>
+<li><strong>Invariance under transformations</strong>: As a geometric object, the learned representation of the point set should be invariant to certain transformations. For example, rotating and translating points all together should not modify the global point cloud category, nor the segmentation of the points.</li>
+</ul>
+<p>Now that we know these prerequisites, let's see how PointNet addresses them. We'll start with the network architecture and then we'll discuss its components<span> in more detail</span>:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1163 image-border" src="assets/ed73d15b-694e-481b-9f54-a357d3b2435b.png" style="width:68.25em;height:25.17em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">PointNet architecture. Source: https://arxiv.org/abs/1612.00593 </div>
+<p>PointNet is a <strong>multilayer perceptron</strong> (<strong>MLP</strong>). This is a feed-forward network that consists only of fully connected layers (and max pooling, but more on that later). As we mentioned, the set of input point cloud vectors <strong>p</strong><em><sub>i</sub></em> is represented as an <em>n</em> × 3 tensor. It is important to note that the network (up until the max pooling layer) is <strong>shared</strong> among all points of the set. That is, although the input size is <span><em>n</em> × 3, we can think of PointNet as applying the same network <em>n</em> times over <em>n</em> input vectors of size 1 × 3. In other words, the network weights are shared among all points of the point cloud. This sequential arrangement also allows for an arbitrary number of input points.</span></p>
+<p><span>The input passes through the input transform (we'll look at this in more detail later), which outputs another <em>n</em> × 3 tensor, where each of the <em>n</em> points is defined by three components (similar to the input tensor). This tensor is fed to an upsampling fully connected layer, which encodes each point to a 64-dimensional vector for <em>n</em> × 64 output. The network continues with another transformation, similar to the input transform. The result is then gradually upsampled with 64, then 128, and finally 1,024 fully connected layers to produce the final <em>n</em> × 1024 output. This tensor serves as input to a max pooling layer, which takes the maximum element of the same location among all <em>n</em> points and produces a 1,024-dimensional output vector. This vector is an aggregated representation of the whole set of points.</span></p>
+<p><span>But why use max pooling in the first place? Remember that max pooling is a symmetric operation—that is, it will produce the same output regardless of the order of the inputs. At the same time, the set of points is unordered as well. Using max pooling ensures that the network will produce the same result regardless of the order of the points. The authors of the paper chose max pooling over other symmetric functions, such as average pooling and sum, because max pooling demonstrated the highest accuracy in the benchmark datasets.</span></p>
+<p><span>After the max pooling, the network splits into two networks, depending on the type of task (see the preceding diagram):</span></p>
+<ul>
+<li><strong>Classification</strong>: The <span>1024D aggregate vector serves as input to several fully connected layers, which end with <em>k</em>-way softmax, where <em>k</em> is the number of classes. This is a standard classification pipeline. </span></li>
+<li><strong>Segmentation</strong>: This assigns a class to each point of the set. <span>An extension of the classification net, t</span>his task requires a combination of local and global knowledge. As the diagram illustrates, we concatenate each of the <span><em>n</em> 64D intermediate point representations with the global 1024D vector for a combined <em>n</em> × 1088 tensor. Like the initial segment of the network, this path is also shared among all points. The vector of each point is downsampled to 128D with a series (1088 to 512, then to 256, and finally, to 128) fully connected layers. The final fully connected layer has <em>m</em> units (one for each class) and softmax activation.</span></li>
+</ul>
+<p>So far, we have explicitly addressed the unordered nature of the input data with the max pooling operation, but we still have to address the invariance and interaction among points. This is where the input and feature transforms will help. Let's start with the input transform (in the preceding diagram, this is T-net). T-net is an MLP, which is similar to the full PointNet (it is referred to as a mini-PointNet), as illustrated in the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1484 image-border" src="assets/cb033604-0864-4697-93ed-c98a43d30f3d.png" style="width:83.92em;height:11.58em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref"> Input (and feature) <span>transform T-nets </span></div>
+<p>The input transform T-net takes as input the <span><em>n</em> × 3 set of points (the same input as the full network). Like the full PointNet, T-net</span> is shared among all points. First, the input is upsampled to <span><em>n</em> × 1024 with 64-, then 128-, and finally, 1024-unit fully connected layers. The upsampled output is fed to a max pooling operation, which outputs 1 × 1024 vector. Then, the vector is downsampled to 1 × 256 using two 512- and 256-unit fully connected layers. The 1 × 256 vector is multiplied by a 256 × 9 matrix of global (shared) learnable weights. The result is reshaped as a 3 × 3 matrix, which is multiplied by the original input point <strong>p</strong><em><sub>i</sub></em> over all points to produce the final <em>n</em> × 3 output tensor. The intermediate 3 × 3 matrix acts as a type of learnable affine transformation matrix over the set of points. In this way, the points are normalized into a familiar perspective with respect to the network—that is, the network becomes invariant under transformations. The second T-net (feature transform) is almost identical to the first, with the exception that the input tensor is <em>n</em> × 64, which results in a 64 × 64 matrix. </span></p>
+<p>Although the global max pooling layer ensures that the network is not influenced by the order of the data, it has another disadvantage, because it creates a single representation of the whole input set of points; however, these points might belong to different objects (for example, vehicles and pedestrians). In situations like this, the global aggregation could be problematic. To solve this, the authors of PointNet introduced PointNet++ (see <em>PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space </em>at <a href="https://arxiv.org/abs/1706.02413">https://arxiv.org/abs/1706.02413</a>), which is a hierarchical neural network that applies PointNet recursively on a nested partitioning of the input point set.</p>
+<p>In this section, we looked at 3D data processing in the context of the AV environment-perception system. In the next section, we'll shift our attention to the path-planning system with an imitation driving policy.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Imitation driving policy</h1>
+                </header>
+            
+            <article>
+                
+<p>In the <em>Components of an AV system</em><span> </span><span>section, </span><span>we outlined several modules that were necessary for a self-driving system. In this section, we'll look at how to implement one of them—the driving policy—with the help of DL. One way to do this is with RL, where the car is the agent and the environment is, well, the environment. Another popular approach is</span><span> </span><strong>imitation learning</strong><span>, where the model (network) learns to imitate the</span><span> </span>actions<span> </span><span>of an expert (human). Let's look at the properties of imitation</span><span> </span>learning<span> </span><span>in the AV scenario:</span></p>
+<ul>
+<li>We'll use a type of imitation learning, known as<span> </span><strong>behavioral cloning</strong>. This simply means that we'll train our network in a supervised way. Alternatively, we could use <span>imitation learning in a reinforcement learning (RL) scenario, which is known as</span> inverse RL. </li>
+<li>The output of the network is the driving policy, represented by the desired steering angle and/or acceleration or braking. For example, we can have one regression output neuron for the steering angle and one neuron for acceleration or braking (as we cannot have both at the same time). </li>
+<li>The network input can be either of the following:
+<ul>
+<li>Raw sensor data for end-to-end systems—for example, an image from the forward-facing camera. AV systems, where a single model uses raw sensor<span> </span>inputs<span> </span>and outputs a driving policy, are referred to as<span> </span><strong>end-to-end</strong>. </li>
+<li>Middle-level environment representation for sequential composite systems. </li>
+</ul>
+</li>
+<li>We'll create the training dataset with the help of an expert. We'll let the expert drive the vehicle<span> manually,</span> either in the real world or in a simulator. At each step of the journey, we'll record the following:
+<ul>
+<li>The current state of the environment. This could be the raw sensor data or the top-down view representation. We'll use the current state as input for the model.</li>
+<li>The actions of the expert in the current state of the environment (steering angle and braking/acceleration). This will be the target data for the network. During training, we'll simply minimize the error between the network predictions and the driver actions using the familiar gradient descent. In this way, we'll teach the network to imitate the driver.</li>
+</ul>
+</li>
+</ul>
+<p><span>The behavioral cloning scenario is illustrated in the following diagram:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img src="assets/ceac0735-09ab-4cc5-b4f8-b8d8793e6663.png" style="width:29.92em;height:14.42em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Behavioral cloning scenario</div>
+<p><span>As we have already mentioned, ALVINN (from the</span> <em>Brief history of AV research </em><span>section</span><span>) is a behavioral cloning end-to-end system.</span><span> More recently, the paper </span><em>End to End Learning for Self-Driving Cars</em> <span>(</span><a href="https://arxiv.org/abs/1604.07316">https://arxiv.org/abs/1604.07316</a><span>) introduced a similar system, which uses a CNN with five convolutional layers </span><span>instead of a fully connected network</span><span>. In their experiment, the images of a forward-facing camera on the vehicle are fed as input to the CNN. </span><span>The output of the CNN is a single scalar</span> <span>value, which represents the desired steering angle of the car. The network doesn't control acceleration and braking. To build the training dataset, the authors of the paper collected about 72 hours of real-world driving videos. During the evaluation,</span><span> </span><span>the car was able to drive itself 98% of the time in a suburban area (excluding making lane changes and turns from one road to another). Additionally, it managed to drive without intervention for 16 km on a multilane divided highway. </span><span>In the following section, we'll implement something fun—a</span><span> </span>behavioral<span> </span><span>cloning example with PyTorch.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Behavioral cloning with PyTorch</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll implement a<span> </span>behavioral<span> </span>cloning example with PyTorch 1.3.1. To help us with this task, we'll use OpenAI Gym (<a href="https://gym.openai.com/">https://gym.openai.com/</a>), which is an open source toolkit for the development and comparison of reinforcement learning<span> </span>algorithms. It allows us to teach <strong>agents</strong> to undertake various tasks, such as walking or playing games such as Pong, Pinball, some other Atari games, and even Doom.</p>
+<p>We can install it with<span> </span><kbd>pip</kbd>:</p>
+<pre><strong>pip install gym[box2d]</strong></pre>
+<p>In this example, we'll use the<span> </span><kbd>CarRacing-v0</kbd> OpenAI Gym environment, as shown in the following screenshot:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1167 image-border" src="assets/741b8c00-00c9-4f8a-834c-cbca078fd4f7.png" style="width:24.67em;height:20.50em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">In the CarRacing-v0 <span>environment, the agent is a racing car; a birds-eye view is used the whole time</span></div>
+<div class="packt_tip">This example contains multiple Python files. In this section, we'll mention the most important parts. The full source code is at <a href="https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter11/imitation_learning">https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter11/imitation_learning</a>.</div>
+<p>The goal is for the red racing car (referred to as the agent) to drive around the track as quickly as it can without sliding off of the road surface. We can control the car using four actions: accelerate, brake, turn left, and turn right. The input for each action is continuous—for example, we can specify full throttle with the value 1.0 and half throttle with the value 0.5 (the same goes for the other controls).</p>
+<p class="mce-root"/>
+<p>For the sake of simplicity, we'll assume that we can only specify two discrete action values: 0 for no action and 1 for full action. Since, originally, this was an RL environment, the agent will receive an award at each step as it progresses along the track; however, we'll not use it, since the agent will learn directly from our actions.<span> We'll perform the following steps:</span></p>
+<ol start="1">
+<li>Create a training dataset by driving the car around the track ourselves (we'll control it with the keyboard arrows). In other words, we'll be the expert that the agent tries to imitate. At every step of the episode, we'll record the current game frame (state) and the currently pressed keys, and we'll store them in a file. The full code for this step is available at <a href="https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/blob/master/Chapter11/imitation_learning/keyboard_agent.py">https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/blob/master/Chapter11/imitation_learning/keyboard_agent.py</a><span>. All you have to do is run the file and the game will start. As you play, the episodes will be recorded (once every five episodes) in the</span><span> </span><kbd>imitation_learning/data/data.gzip</kbd><span> file. If you want to start over, you can simply delete it. You can exit the game by pressing <em>Escape</em> and pause the game using the <em>Spacebar</em>. You can also start a new episode by pressing <em>Enter</em>. In this case, the current episode will be discarded and its sequence will not be stored. W</span><span>e suggest that you play at least 20 episodes for a sufficient size of the training dataset. It would be good to use the brake more often because otherwise, the dataset will become too imbalanced. In normal play, acceleration is used much more frequently than the brake or the steering. Alternatively, if you don't want to play, </span><span>the GitHub repository already includes an existing data file.</span></li>
+<li>The agent is represented by a CNN. We'll train it in a supervised manner using the dataset we just generated. The input will be a single game frame and the output will be a combination of steering direction and brake/acceleration. The target (labels) will be the action recorded for the human operator. If you want to omit this step, the repository already has a trained PyTorch network located at <a href="https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter11/imitation_learning/data/model.pt">https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter11/imitation_learning/data/model.pt</a>.</li>
+<li>Let the CNN agent play by using the network output to determine the next action to send to the environment. You can do this by simply running the <a href="https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/blob/master/Chapter11/imitation_learning/nn_agent.py">https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/blob/master/Chapter11/imitation_learning/nn_agent.py</a><a href="https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/blob/master/Chapter11/imitation_learning/nn_agent.py"> file. If you haven't performed any of the previous two steps, this file will use the existing agent. </a></li>
+</ol>
+<p class="mce-root">With that introduction, let's continue by preparing the training dataset.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Generating the training dataset</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">In this section, we'll look at how to generate a training dataset and load it as an instance of PyTorch's <kbd>torch.utils.data.DataLoader</kbd> class. We'll highlight the most relevant parts of the code, but the full source code is located at <a href="https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/blob/master/Chapter11/imitation_learning/train.py">https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/blob/master/Chapter11/imitation_learning/train.py</a>.</p>
+<p>We'll create the training dataset in several steps:</p>
+<ol>
+<li>The<span> </span><kbd>read_data</kbd><span> </span>function reads <kbd><span>imitation_learning/data/data.gzip</span></kbd> in two<span> </span><kbd>numpy</kbd><span> </span>arrays: one for the game frames and the other for the keyboard combinations associated with them. </li>
+<li>The environment accepts actions, composed of a three-element array, where the following are true:
+<ul>
+<li>The first element has a value in the range <kbd>[-1, 1]</kbd> and represents the steering angle (<kbd>-1</kbd> for right, <kbd>1</kbd> for left).</li>
+<li>The second element is in the <kbd>[0, 1]</kbd> range and represents the throttle. </li>
+<li>The third element is in the <kbd>[0, 1] </kbd>range and represents the brake power. </li>
+</ul>
+</li>
+<li>We'll use the seven most common key combinations: <kbd>[0, 0, 0]</kbd><span> </span>for no action (the car is coasting), <span><kbd>[0, 1, 0]</kbd> for acceleration,</span><span> </span><span><kbd>[0, 0, 1]</kbd> for brake, </span><kbd>[-1, 0, 0]</kbd><span> </span>for left, <kbd>[-1, 0, 1]</kbd><span> </span>for a combination of left and brake, <kbd>[1, 0, 0]</kbd><span> </span>for right, and<kbd> [1, 0, 1]</kbd><span> </span>for the right and brake combination. <span>We have deliberately prevented the simultaneous use of acceleration and left or right, as the car becomes very unstable.</span> The rest of the combinations are implausible. The <span><kbd>read_data</kbd> phrase will convert these arrays to a single class label from <kbd>0</kbd> to <kbd>6</kbd>. In this way, we'll simply solve a classification problem with seven classes.</span></li>
+<li><span>The <kbd>read_data</kbd> function will also balance the dataset. As we mentioned, acceleration is the most common key combination, while some of the others, such as brake, are the rarest. Therefore, we'll remove some of the acceleration samples and we'll multiply some of the braking (and left/right + brake). However, the author did this in a heuristic way by trying multiple combinations of deletion/multiplication ratios and selected the ones that work best. If you record your own dataset, your driving style may differ, and you may want to modify these ratios. </span></li>
+</ol>
+<p class="mce-root"/>
+<p>Once we have the<span> </span><kbd>numpy</kbd><span> </span>arrays of the training samples, we'll use the <kbd>create_datasets</kbd> function to convert them to <kbd><span>torch.utils.data.DataLoader</span></kbd><span> </span>instances. <span>These classes simply allow us to extract the data in mini batches and apply data augmentation.</span></p>
+<p>But first, let's implement the <kbd>data_transform</kbd> list of transformations, which modify the image<span> </span>before<span> </span>feeding it to the network. <span>The full implementation is available at <a href="https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/blob/master/Chapter11/imitation_learning/util.py">https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/blob/master/Chapter11/imitation_learning/util.py</a></span><span>.</span> We'll convert the image to grayscale, normalize the color values in the <kbd>[0, 1]</kbd> range, and crop the bottom part of the frame (the black rectangle, which<span> </span>shows<span> </span>the rewards and other information). The implementation is as follows:</p>
+<pre>data_transform = torchvision.transforms.Compose([<br/>   torchvision.transforms.ToPILImage()<span>,<br/></span><span>    </span>torchvision.transforms.Grayscale(<span>1</span>)<span>,<br/></span><span>    </span>torchvision.transforms.Pad((<span>12</span><span>, </span><span>12</span><span>, </span><span>12</span><span>, </span><span>0</span>))<span>,<br/></span><span>    </span>torchvision.transforms.CenterCrop(<span>84</span>)<span>,<br/></span><span>    </span>torchvision.transforms.ToTensor()<span>,<br/></span><span>    </span>torchvision.transforms.Normalize((<span>0</span><span>,</span>)<span>, </span>(<span>1</span><span>,</span>))<span>,<br/></span>])</pre>
+<p>Next, let's shift our attention back to the <kbd>create_datasets</kbd> function. We'll start with the declaration:</p>
+<pre><span>def </span><span>create_datasets</span>():</pre>
+<p>Then, we'll <span>implement the </span><kbd>TensorDatasetTransforms</kbd><span> </span><span>helper class to be able to apply the </span><kbd>data_transform</kbd><span> </span><span>transformations over the input image</span><span>. The implementation is as follows (please bear in mind the indentation, as this code is still part of the <kbd>create_datasets</kbd> function):</span></p>
+<pre><span>    </span><span>class </span>TensorDatasetTransforms(torch.utils.data.TensorDataset):<br/><span>        </span><span>def </span><span>__init__</span>(<span>self</span><span>, </span>x<span>, </span>y):<br/>            <span>super</span>().<span>__init__</span>(x<span>, </span>y)<br/><br/>        <span>def </span><span>__getitem__</span>(<span>self</span><span>, </span>index):<br/>            tensor = data_transform(<span>self</span>.tensors[<span>0</span>][index])<br/>            <span>return </span>(tensor<span>,</span>) + <span>tuple</span>(t[index] <span>for </span>t <span>in </span><span>self</span>.tensors[<span>1</span>:])</pre>
+<p>Next, we'll read the previously generated dataset in full:</p>
+<pre>    x<span>, </span>y = read_data()<br/>    x = np.moveaxis(x<span>, </span><span>3</span><span>, </span><span>1</span>)  <span># channel first (torch requirement)</span></pre>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p>Then, we'll create the training and validation data loaders (<kbd>train_loader</kbd> and <kbd>val_loader</kbd>). Finally, we'll return them as the result of the <kbd>create_datasets</kbd> function:</p>
+<pre><span>    # train dataset<br/></span><span>    </span>x_train = x[:<span>int</span>(<span>len</span>(x) * TRAIN_VAL_SPLIT)]<br/>    y_train = y[:<span>int</span>(<span>len</span>(y) * TRAIN_VAL_SPLIT)]<br/><br/>    train_set = TensorDatasetTransforms(torch.tensor(x_train)<span>, </span>torch.tensor(y_train))<br/><br/>    train_loader = torch.utils.data.DataLoader(train_set<span>, </span><span>batch_size</span>=BATCH_SIZE<span>,<br/></span><span>                                               </span><span>shuffle</span>=<span>True, </span><span>num_workers</span>=<span>2</span>)<br/><br/>    <span># test dataset<br/></span><span>    </span>x_val<span>, </span>y_val = x[<span>int</span>(<span>len</span>(x_train)):]<span>, </span>y[<span>int</span>(<span>len</span>(y_train)):]<br/><br/>    val_set = TensorDatasetTransforms(torch.tensor(x_val)<span>, </span>torch.tensor(y_val))<br/><br/>    val_loader = torch.utils.data.DataLoader(val_set<span>, </span><span>batch_size</span>=BATCH_SIZE<span>,<br/></span><span>                                             </span><span>shuffle</span>=<span>False, </span><span>num_workers</span>=<span>2</span>)<br/><br/>    <span>return </span>train_loader<span>, </span>val_loader</pre>
+<p>Next, let's focus on the agent NN architecture.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementing the agent neural network</h1>
+                </header>
+            
+            <article>
+                
+<p>The agent is represented by a CNN with the following properties:</p>
+<ul>
+<li>A single-input 84 × 84 slice.</li>
+<li>Three convolutional layers with striding for downsampling.</li>
+<li>ELU activations.</li>
+<li>Two fully connected layers.</li>
+<li>Seven output neurons (one for each neuron).</li>
+<li>Batch normalization and dropout, applied after each layer (even the convolutional) to prevent overfitting. Overfitting in this task is particularly exaggerated because we cannot use any meaningful data augmentation techniques. For example, say that we randomly flipped the image horizontally. In this case, we would have to also alter the label to reverse the steering value. Therefore, we'll rely on regularization as much as we can. </li>
+</ul>
+<p class="mce-root"/>
+<p>The following code block shows the <span>network</span><span> </span>implementation:</p>
+<pre><span>def </span><span>build_network</span>():<br/><span>    </span><span>return </span>torch.nn.Sequential(<br/>        torch.nn.Conv2d(<span>1</span><span>, </span><span>32</span><span>, </span><span>8</span><span>, </span><span>4</span>)<span>,<br/></span><span>        </span>torch.nn.BatchNorm2d(<span>32</span>)<span>,<br/></span><span>        </span>torch.nn.ELU()<span>,<br/></span><span>        </span>torch.nn.Dropout2d(<span>0.5</span>)<span>,<br/></span><span>        </span>torch.nn.Conv2d(<span>32</span><span>, </span><span>64</span><span>, </span><span>4</span><span>, </span><span>2</span>)<span>,<br/></span><span>        </span>torch.nn.BatchNorm2d(<span>64</span>)<span>,<br/></span><span>        </span>torch.nn.ELU()<span>,<br/></span><span>        </span>torch.nn.Dropout2d(<span>0.5</span>)<span>,<br/></span><span>        </span>torch.nn.Conv2d(<span>64</span><span>, </span><span>64</span><span>, </span><span>3</span><span>, </span><span>1</span>)<span>,<br/></span><span>        </span>torch.nn.ELU()<span>,<br/></span><span>        </span>torch.nn.Flatten()<span>,<br/></span><span>        </span>torch.nn.BatchNorm1d(<span>64 </span>* <span>7 </span>* <span>7</span>)<span>,<br/></span><span>        </span>torch.nn.Dropout()<span>,<br/></span><span>        </span>torch.nn.Linear(<span>64 </span>* <span>7 </span>* <span>7</span><span>, </span><span>120</span>)<span>,<br/></span><span>        </span>torch.nn.ELU()<span>,<br/></span><span>        </span>torch.nn.BatchNorm1d(<span>120</span>)<span>,<br/></span><span>        </span>torch.nn.Dropout()<span>,<br/></span><span>        </span>torch.nn.Linear(<span>120</span><span>, </span><span>len</span>(available_actions))<span>,<br/></span><span>    </span>)</pre>
+<p>Having implemented the training dataset and the agent, we can proceed with the training.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Training</h1>
+                </header>
+            
+            <article>
+                
+<p>We'll implement the training itself with the help of the <kbd>train</kbd><span> </span>function, which takes the network and the<span> </span><kbd>cuda</kbd><span> </span>device as parameters. We'll use cross-entropy loss and the Adam optimizer (the usual combination for classification tasks). The function simply iterates <kbd>EPOCHS</kbd><span> </span>times and calls the<span> </span><kbd>train_epoch</kbd><span> </span>and<span> </span><kbd>test</kbd><span> </span>functions for each epoch. The following is the implementation:</p>
+<pre><span>def </span><span>train</span>(model: torch.nn.Module<span>, </span>device: torch.device):<br/><span>    </span>loss_function = torch.nn.CrossEntropyLoss()<br/><br/>    optimizer = torch.optim.Adam(model.parameters())<br/><br/>    train_loader<span>, </span>val_order = create_datasets()  <span># read datasets<br/></span><span><br/></span><span>    # train<br/></span><span>    </span><span>for </span>epoch <span>in </span><span>range</span>(EPOCHS):<br/>        <span>print</span>(<span>'Epoch {}/{}'</span>.format(epoch + <span>1</span><span>, </span>EPOCHS))<br/><br/>        train_epoch(model<span>, </span>device<span>, </span>loss_function<span>, </span>optimizer<span>, </span>train_loader)<br/><br/>        test(model<span>, </span>device<span>, </span>loss_function<span>, </span>val_order)<br/><br/>        <span># save model<br/></span><span>        </span>model_path = os.path.join(DATA_DIR<span>, </span>MODEL_FILE)<br/>        torch.save(model.state_dict()<span>, </span>model_path)</pre>
+<p>Then, we'll implement the <kbd>train_epoch</kbd><span> </span>for a single epoch training. This function iterates over all mini batches and performs forward and backward passes for each one. The following is the implementation:</p>
+<pre><span>def </span><span>train_epoch(model, device, loss_function, optimizer, data_loader):<br/>    model.train() # set model to training mode<br/>    current_loss, current_acc = 0.0, 0.0<br/><br/>    for i, (inputs, labels) in enumerate(data_loader):<br/>        inputs, labels = inputs.to(device), labels.to(device) # send to device<br/><br/>        optimizer.zero_grad() # zero the parameter gradients<br/>        with torch.set_grad_enabled(True):<br/>            outputs = model(inputs) # forward<br/>            _, predictions = torch.max(outputs, 1)<br/>            loss = loss_function(outputs, labels)<br/><br/>            loss.backward() # backward<br/>            optimizer.step()<br/><br/>        current_loss += loss.item() * inputs.size(0) # statistics<br/>        current_acc += torch.sum(predictions == labels.data)<br/><br/>    total_loss = current_loss / len(data_loader.dataset)<br/>    total_acc = current_acc / len(data_loader.dataset)<br/><br/>    print('Train Loss: {:.4f}; Accuracy: {:.4f}'.format(total_loss, total_acc))<br/></span></pre>
+<div class="packt_tip">The <span><kbd>train_epoch</kbd> and <kbd>test</kbd> functions are similar to the ones we implemented for the transfer learning code example in <a href="d94e220f-820e-40da-8bb5-9593e0790b21.xhtml">Chapter 2</a>,<em> Understanding Convolutional Networks</em>. To avoid repetition, we won't implement the <kbd>test</kbd> function here, although it's available in the GitHub repository.</span></div>
+<p>We'll run the training for around 100 epochs, but you can shorten this to 20 or 30 epochs for rapid experiments. One epoch usually takes less than a minute using the default training set. Now that we are familiar with the training, let's see how to use the agent NN to drive the race car in our simulated environment.</p>
+<p class="mce-root"/>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Letting the agent drive</h1>
+                </header>
+            
+            <article>
+                
+<p>We'll start by implementing the <kbd>nn_agent_drive</kbd><span> </span>function, which allows the agent to play the game (defined in <a href="https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/blob/master/Chapter11/imitation_learning/nn_agent.py">https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/blob/master/Chapter11/imitation_learning/nn_agent.py</a>). The<span> </span>function<span> </span>will start the<span> </span><kbd>env</kbd> <span>environment</span><span> </span><span>with an initial state (game frame). We'll use it as an input to the network. Then, we'll convert the softmax network output from one-hot encoding to an array-based action and we'll send it to the environment to make the next step. We'll repeat these steps until the episode ends. The <kbd>nn_agent_drive</kbd></span><span> function also allows the user to exit by pressing <em>Escape</em>. Note that we still use the same </span><span><kbd>data_transform</kbd> transformations as we did for the training.</span></p>
+<p><span>First, we'll implement the initialization part, which binds the <em>Esc</em> key and initializes the environment:</span></p>
+<pre><span>def nn_agent_drive(model: torch.nn.Module, device: torch.device):<br/>    env = gym.make('CarRacing-v0')<br/><br/>    global human_wants_exit  # use ESC to exit<br/>    human_wants_exit = False<br/><br/>    def key_press(key, mod):<br/>        """Capture ESC key"""<br/>        global human_wants_exit<br/>        if key == 0xff1b:  # escape<br/>            human_wants_exit = True<br/><br/>    state = env.reset()  # initialize environment<br/>    env.unwrapped.viewer.window.on_key_press = key_press</span></pre>
+<p>Next, we'll implement the main loop, where the agent (vehicle) takes an <kbd>action</kbd>, the environment returns the new <kbd>state</kbd>, and so on. This dynamic is reflected in the infinite <kbd>while</kbd> loop (please mind the indentation, as this code is still part of <kbd>nn_agent_play</kbd>):</p>
+<pre>    <span>while </span><span>1:<br/>        env.render()<br/><br/>        state = np.moveaxis(state, 2, 0) # channel first image<br/>        state = torch.from_numpy(np.flip(state, axis=0).copy()) # np to tensor<br/>        state = data_transform(state).unsqueeze(0) # apply transformations<br/>        state = state.to(device) # add additional dimension<br/><br/>        with torch.set_grad_enabled(False): # forward<br/>            outputs = model(state)<br/><br/>        normalized = torch.nn.functional.softmax(outputs, dim=1)<br/><br/>        # translate from net output to env action<br/>        max_action = np.argmax(normalized.cpu().numpy()[0])<br/>        action = available_actions[max_action]<br/>        action[2] = 0.3 if action[2] != 0 else 0 # adjust brake power<br/><br/>        state, _, terminal, _ = env.step(action) # one step<br/><br/>        if terminal:<br/>            state = env.reset()<br/><br/>        if human_wants_exit:<br/>            env.close()<br/>            return<br/></span></pre>
+<p>We now have all the ingredients to run the program, which we will do in the following section.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Putting it all together</h1>
+                </header>
+            
+            <article>
+                
+<p>Finally, we can run the whole thing. The full code for this is available at <a href="https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/blob/master/Chapter11/imitation_learning/main.py">https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/blob/master/Chapter11/imitation_learning/main.py</a>.</p>
+<p>The<span> </span>following<span> </span>snippet builds and restores (if available) the network, runs the training, and evaluates the network:</p>
+<pre><span># create cuda device<br/></span>dev = torch.device(<span>"cuda:0" </span><span>if </span>torch.cuda.is_available() <span>else </span><span>"cpu"</span>)<br/><br/><span># create the network<br/></span>model = build_network()<br/><br/><span># if true, try to restore the network from the data file<br/></span>restore = <span>False<br/></span><span>if </span>restore:<br/>    model_path = os.path.join(DATA_DIR<span>, </span>MODEL_FILE)<br/>    model.load_state_dict(torch.load(model_path))<br/><br/><span># set the model to evaluation (and not training) mode<br/></span>model.eval()<br/><br/><span># transfer to the gpu<br/></span>model = model.to(dev)<br/><br/><span># train<br/></span>train(model<span>, </span>dev)<br/><br/><span># agent play<br/></span>nn_agent_drive(model<span>, </span>dev)</pre>
+<p>Although we cannot show the agent in action here, <span>you can easily see it in action by following the instructions in this section. Still,</span><span> </span>we can say that it learns well and is able to make full laps of the racing track on a regular basis (but not always). Interestingly, the network's driving style strongly resembles the style of the operator who generated the dataset. The example also goes to show that we shouldn't underestimate supervised learning. We<span> </span>were<span> </span>able to create a decently performing agent with a small dataset, and in a relatively short training time.</p>
+<p>With this, we conclude our imitation learning example. Next, we'll discuss a much more sophisticated driving policy algorithm called ChauffeurNet.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Driving policy with ChauffeurNet</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll discuss a recent paper called <em>ChauffeurNet: Learning to Drive by Imitating the Best and Synthesizing the Worst</em> (<a href="https://arxiv.org/abs/1812.03079">https://arxiv.org/abs/1812.03079</a>). It was released in December 2018 by Waymo, one of the leaders in the field of AV. <span>Let's look at some of the properties of the ChaffeurNet model:</span></p>
+<ul>
+<li>It is a combination of two interconnected networks. The first is a CNN called FeatureNet, which extracts features from the environment. These features are fed as<span> </span>inputs<span> </span>to a second, recurrent network called AgentRNN, which determines the driving policy.</li>
+<li>It uses imitation supervised learning in a similar way to the algorithms we described in the <em>Imitation driving policy</em><span> </span>section. The training set is generated based on records of real-world driving episodes. <span>ChauffeurNet</span><span> </span>can handle complex driving situations, such as lane changes, traffic lights, traffic signs, changing from one street to another, and so on.</li>
+</ul>
+<div class="packt_infobox">This paper is published by Waymo on arxiv.org and is used here for referential purposes only. Waymo and arxiv.org are not affiliated, and do not endorse this book, or the authors.</div>
+<p>We'll start our discussion about ChauffeurNet with the input and output data representations.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Input and output representations</h1>
+                </header>
+            
+            <article>
+                
+<p><span>The end-to-end approach feeds raw sensor data (for example, camera images) to the ML algorithm (NN), which in turn produces the driving policy (steering angle and acceleration). In contrast, ChauffeurNet uses the middle-level input and output that we introduced in the <em>Components of an AV system </em></span><span>section</span><span>. Let's look at the input to the ML algorithm first. This is a series of top-down (birds-eye) view 400 × 400 images, similar to the images of the </span><kbd>CarRacing-v0</kbd><span> environment, but much more complex. One moment of time</span> <em>t</em> <span>is represented by multiple images, where each one contains different elements of the environment.</span></p>
+<p><span>We can see an example of a ChauffeurNet input/output combination in the following image:</span></p>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1168 image-border" src="assets/5b1c1d0b-b3f6-43aa-b788-9ca9cc18fec2.png" style="width:33.58em;height:20.00em;"/></div>
+<div class="CDPAlignCenter CDPAlign packt_figref"><span><span>ChauffeurNet inputs. Source: https://arxiv.org/abs/1812.03079</span></span></div>
+<p>Let's look at the input elements ((a) through (g)) in alphabetical order:</p>
+<ul>
+<li>(a) is a precise representation of the road map. It is an RGB image, which uses different colors to represent various road features, such as lanes, cross-walks, traffic signs, and curbs.</li>
+<li>(b) is a temporal sequence of grayscale images of the traffic lights. Unlike the features of (a), the traffic lights are dynamic—that is, they can be green, red, or yellow at different times. In order to properly convey their dynamics, the algorithm uses a series of images, displaying the state of the traffic lights for each lane at each of the past <em>T<sub>scene</sub></em><span> </span>seconds up to the current moment. The color of the lines in each image represents the state of each traffic light, where the brightest color is red, intermediate is for yellow, and the darkest is green or unknown.</li>
+<li>(c) is a grayscale image with the known speed limit for each lane. Different color intensities represent different speed limits.</li>
+<li>(d) is the intended route between the start and the destination. Think of it as the directions generated by Google Maps.</li>
+<li>(e) is a grayscale image that represents the current location of the agent (displayed as a white box). </li>
+<li>(f) is a temporal sequence of grayscale images that represents the dynamic elements of the environment (displayed as boxes). These could be other vehicles, pedestrians, or cyclists. As these objects change locations over time, the algorithm conveys their trajectories with a series of snapshot images, representing their positions over the last <em>T<sub>scene</sub></em><span> </span>seconds. This works in the same way as the traffic lights (b).</li>
+<li>(g) is a single grayscale image for the agent trajectory of the past <em>T<sub>pose</sub></em><span> </span>seconds until the current moment. The agent locations are displayed as a series of points on the image. Note that we display them in a single image, and not with a temporal sequence like the other dynamic elements. The agent at moment <em>t</em><span> is represented in the same top-down environment with the properties </span><img style="font-size: 1em;color: #333333;width:3.83em;height:1.17em;" class="fm-editor-equation" src="assets/84bc5eb3-b984-40f9-83a0-017cbc17a302.png"/><span>, where </span><img style="font-size: 1em;color: #333333;width:5.92em;height:1.25em;" class="fm-editor-equation" src="assets/ef972f65-5d7b-415e-9661-845d5e4be8c8.png"/><span>i</span><span>s the coordinates, </span><img style="font-size: 1em;color: #333333;width:0.92em;height:1.17em;" class="fm-editor-equation" src="assets/c760b272-4b6d-4b96-bfd5-ea1372ae9872.png"/><span> is the orientation (or heading), and </span><img style="font-size: 1em;color: #333333;width:1.08em;height:1.00em;" class="fm-editor-equation" src="assets/2fa074d1-6bdd-498c-9926-88bc260d5ed9.png"/><span><span> is the speed.</span></span></li>
+<li><span>(h) is the algorithm middle-level output: </span><span>the agent's future trajectory, represented as</span> <span>a series of points. These points carry the same meaning as the past trajectory (g). The future location output at time</span><span> </span><em>t+1</em><span> </span><span>is generated by using the past trajectory (g) up to the current moment</span><span> </span><em>t.</em><span> We'll denote ChauffeurNet as:</span></li>
+</ul>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/d515d56e-ac45-42e9-9921-252b0148adbe.png" style="width:12.00em;height:1.17em;"/></p>
+<p style="padding-left: 60px">Here,<span> </span><em>I</em><span> </span>is all the preceding input images,<span> </span><strong>p</strong><em><sub>t</sub></em><span> </span>is the agent position at time<span> </span><em>t</em>, and <em>δt</em><span> </span>is a 0.2 s time delta. The value of <em>δt</em><span> is arbitrary, chosen by the authors of the paper. Once we have <em>t+δt</em>, we can add it to the past trajectory (g) and we can use it to generate the next location at step <em>t+2δt</em> in a recurrent manner. The newly generated trajectory is fed to the control module of the vehicle, which tries its best to execute it via the vehicle controls (steering, acceleration, and brakes). </span></p>
+<p><span>As we mentioned in the <em>Components of an AV system </em></span><span>section</span><span>, this middle-level input representation allows us to use different sources of training data with ease. It can be generated from real-world driving with a fusion of the vehicle sensor inputs (such as cameras and lidar) and mapping data (such as streets, traffic lights, traffic signs, and so on). But we can also generate images of the same format with a simulated environment. The same applies to the middle-level output, where the control module can be attached to various types of physical vehicles or to a simulated vehicle. Using a simulation makes it possible to learn from situations that occur rarely in the real world, such as emergency braking or even crashes. To help the agent learn about such situations, the authors of the paper explicitly synthesized multiple rare scenarios using simulations.</span></p>
+<p>Now that we are familiar with the data representation, let's shift our focus to the model's core components. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Model architecture</h1>
+                </header>
+            
+            <article>
+                
+<p>The following diagram illustrates the<span> </span><span>ChauffeurNet model architecture:</span></p>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1169 image-border" src="assets/9f9e71b0-3b08-4565-8e1c-ff12d9fe8d86.png" style="width:38.83em;height:27.50em;"/></div>
+<div class="CDPAlignCenter CDPAlign packt_figref">(a) ChauffeurNet architecture and (b) the memory updates over the iterations <span>Source: </span>https://arxiv.org/abs/1812.03079</div>
+<p>First, we have FeatureNet (in the preceding<span> </span><span>diagram</span>, this is marked by (a)). This is a CNN with residual connections, whose inputs are the <span>top-down images we looked at in the <em>Input and output representations </em></span><span>section</span><span>. The output of FeatureNet is a feature vector</span><span> </span><em>F</em><span> which represents the synthesized network's understanding of the current environment. This vector serves as one of the inputs to the recurrent network AgentRNN, which predicts successive points in the driving trajectory iteratively. Let's say that we want to predict the next point of the agent's trajectory at step</span><span> </span><em>k</em><span>. In this case, AgentRNN has the following outputs:</span></p>
+<ul>
+<li><strong>p</strong><em><sub>k</sub></em> is the predicted next point of the driving trajectory at that step. As we can see from the diagram, the output of <span>AgentRNN is actually</span> a heatmap with the same dimensions as the input images. It represents a probability distribution <em>P<sub>k</sub>(x, y)</em> over the spatial coordinates, which indicates the probability of the next waypoint over each cell (pixel) of the heatmap. We use the <kbd>arg-max</kbd> operation to obtain the coarse pose prediction <strong>p</strong><em><sub>k</sub></em> from this heatmap.</li>
+<li><em>B<sub>k</sub></em> is the predicted bounding box of the agent at step <em>k.</em> Like the waypoint output, <em>B<sub>k</sub></em><span> is a heatmap, but, here, each cell uses sigmoid activation and represents t</span>he probability that the agent occupies that particular pixel.</li>
+<li>There are also two additional outputs that are not displayed in the diagram:<span> </span><em>θ<sub>k</sub></em><span> </span>for the heading (or orientation) of the agent and<span> </span><em>s<sub>k</sub></em><span> </span>for the desired speed.</li>
+</ul>
+<p>ChauffeurNet also includes an additive memory, denoted by <em>M</em> (<span>in the preceding</span><span> </span><span>diagram</span><span>, this is marked by (b)</span>). <em>M</em><span> is the single-channel input image (g) that we defined in the</span> <em>Input and output representations </em><span>section</span><span>. It represents the waypoint predictions (</span><strong>p</strong><em><sub>k, </sub></em><strong>p</strong><em><sub>k-1</sub>, ....,</em><span> </span><strong>p</strong><em><sub>0</sub></em><span>) of the past steps</span> <em>k</em><span>. The current waypoint </span><strong>p</strong><em><sub>k</sub></em><span> is added to the memory at each step, as displayed in the preceding diagram.</span></p>
+<p>The outputs <strong>p</strong><em><sub>k</sub></em><span> </span>and <em>B<sub>k</sub></em><span> are fed back recursively as inputs to AgentRNN for the next step <em>k+1</em>. The formula for the AgentRNN output is as follows:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/252b8e39-5d59-4993-93b1-094d00c4ccb2.png" style="width:17.00em;height:1.08em;"/></p>
+<p>Next, let's check how ChauffeurNet integrates within the sequential AV pipeline:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1170 image-border" src="assets/d3876c6c-0069-4f16-b7dd-c5977df1b337.png" style="width:90.83em;height:11.00em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref"><span>ChauffeurNet within the full end-to-end driving pipeline. Source: https://arxiv.org/abs/1812.03079</span></div>
+<p>The system resembles the feedback loop that we introduced in the <em>Components of an AV system </em><span>section</span><span>. Let's look at its components:</span></p>
+<ul>
+<li><strong>Data Renderer</strong>: Receives input from both the environment and the dynamic router. Its role is to transform these signals into the top-down input images we defined in the <em>Input and output representations</em> section.</li>
+<li><strong>Dynamic Router</strong>: Provides the intended route, which is dynamically updated, based on whether the agent was able to reach the previous target coordinates. Think of it as a navigation system, where you input a destination and it provides you with a route to the target. You start navigating this route and, if you stray from it, the system will calculate a new route dynamically based on your current location and your destination.</li>
+<li><strong>Neural Net</strong>: The ChauffeurNet module, which outputs the desired future trajectory.</li>
+<li><strong>Controls Optimization</strong>: Receives the future trajectory and translates it into low-level control signals that drive the vehicle.</li>
+</ul>
+<p><span>ChauffeurNet is a rather complex system, so let's now look at how to train it.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Training</h1>
+                </header>
+            
+            <article>
+                
+<p><span>ChauffeurNet was trained with 30 million expert driving examples using imitation supervised learning. The model inputs are the top-down images we defined in the <em>Input and output representations </em></span><span>section</span><span>, as illustrated in the following flattened (aggregated) input image:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1172 image-border" src="assets/d6203fbf-aed4-4f4b-aaa7-f16469147f55.png" style="width:23.33em;height:23.33em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref"><span> The image is best viewed in color. </span><span>S</span><span>ource:</span><span> </span><span><span>https://arxiv.org/abs/1812.03079</span></span></div>
+<p><span>Next, let's look at the components of the </span><span>ChauffeurNet training process:</span></p>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1173 image-border" src="assets/890829fc-0939-4861-8b1e-b450fd4da108.png" style="width:42.42em;height:27.67em;"/></div>
+<div class="CDPAlignCenter CDPAlign packt_figref"><span>ChauffeurNet training components: (a) the model itself, (b) the additional networks, and (c) the losses. </span><span>S</span><span>ource: </span><span>https://arxiv.org/abs/1812.03079</span></div>
+<p>We are already familiar with the <span>ChauffeurNet model itself (marked as (a) in the preceding image). Let's focus on the two additional networks involved in the process (marked as (b) in the preceding image):</span></p>
+<ul>
+<li><strong>Road Mask</strong> N<strong>et</strong>: Outputs a segmentation mask with the exact area of the road surface over the current input images. To better understand this, the following image illustrates a target road mask (left) and the network's predicted road mask (right):</li>
+</ul>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1174 image-border" src="assets/63622968-9603-4650-9a12-80bc4b73e053.png" style="width:16.08em;height:8.08em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref"><span>S</span><span>ource</span><span>:</span><span><span> https://arxiv.org/abs/1812.03079</span></span></div>
+<ul>
+<li><strong>PerceptionRNN</strong>: Outputs a segmentation mask with the predicted future locations of every other dynamic object in the environment (vehicles, cyclists, pedestrians, and so on). The output of PerceptionRNN is illustrated in the following diagram, which shows the predicted location of other vehicles (the light rectangles):</li>
+</ul>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1175 image-border" src="assets/eabe2207-e95e-4023-8315-8dd16e9750b4.png" style="width:18.17em;height:18.17em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref"><span>S</span><span>ource:</span><span> </span><span>https://arxiv.org/abs/1812.03079</span></div>
+<p>These networks don't<span> </span>participate<span> </span>in the final vehicle control and are used only during training. The goal behind their use is that the FeatureNet network will learn better representations if it receives feedback from the tree tasks (AgentRNN, Road Mask Net, and PerceptionRNN), compared to simply getting feedback from AgentRNN.</p>
+<p>Now, let's focus on the various loss functions (the bottom section (c) of the ChauffeurNet schema). We'll start with the imitation losses, which reflect how the model prediction of the future agent position differs from the human expert ground truth. The following list shows the <span>AgentRNN</span> outputs with their corresponding loss functions:</p>
+<ul>
+<li><span>A probability distribution <em>P<sub>k</sub>(x, y)</em> over the spatial coordinates of the predicted waypoint <strong>p</strong><em><sub>k</sub></em>. We'll train this component with the following loss:</span></li>
+</ul>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/06ac107b-6888-48bf-add1-08c315700ae4.png" style="width:6.83em;height:1.42em;"/></p>
+<p style="padding-left: 60px">Here, <img class="fm-editor-equation" src="assets/eb3acd58-a819-4e47-b23a-d09f0d696616.png" style="width:1.08em;height:1.08em;"/> is the cross-entropy loss, <img class="fm-editor-equation" src="assets/a8bff431-0e74-4985-bef3-9b94eb2e25e1.png" style="width:1.25em;height:1.17em;"/> is the predicted distribution, and <img class="fm-editor-equation" src="assets/172dac83-1613-41ae-a687-beb7a8e1faf9.png" style="width:1.42em;height:1.42em;"/> is the ground truth distribution.</p>
+<ul>
+<li><span>A heatmap of the agent bounding box <em>B<sub>k</sub></em>. We can train it with the following loss (applied along the cells of the heatmap):</span></li>
+</ul>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/6e47c556-c586-4a2a-8e19-b305c2ecee06.png" style="width:17.75em;height:2.83em;"/></p>
+<p style="padding-left: 60px">Here, <em>W</em> and <em>H</em> are the input image dimensions, <img class="fm-editor-equation" src="assets/8ec84f29-ae73-4729-b881-976620f96840.png" style="width:3.83em;height:1.25em;"/> is the predicted heatmap, and <img class="fm-editor-equation" src="assets/ee23c93f-9e74-40a8-aadb-8a18d59e2f70.png" style="width:4.08em;height:1.58em;"/> is the ground truth heatmap.</p>
+<ul>
+<li>The heading <span> (orientation) </span>of the agent <em>θ<sub>k</sub></em><span> </span><span>with the following loss:</span></li>
+</ul>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/6e7cd74c-8631-4413-8ed4-b7ce69925a00.png" style="width:7.42em;height:1.75em;"/></p>
+<p style="padding-left: 60px"><span>Here, </span><em>θ<sub>k</sub></em> is the predicted orientation and <img class="fm-editor-equation" src="assets/1d0f268f-c485-4cca-a0c4-2961c61c9c6a.png" style="width:1.33em;height:1.58em;"/> is the ground truth orientation.</p>
+<p>The authors of the paper also introduce past motion dropout. We can best explain this by citing the paper:</p>
+<div class="packt_quote">During training, the model is provided the past motion history as one of the inputs (image (g) of the schema in section <em>Input and output representations</em>). Since the past motion history during training is from an expert demonstration, the net can learn to "cheat" by just extrapolating from the past rather than finding the underlying causes of the behavior. During closed-loop inference, this breaks down because the past history is from the net’s own past predictions. For example, such a trained net may learn to only stop for a stop sign if it sees a deceleration in the past history, and will therefore never stop for a stop sign during closed-loop inference. To address this, we introduce a dropout on the past pose history, where for 50% of the examples, we keep only the current position <em>(u<sub>0</sub>, v<sub>0</sub>)</em> of the agent in the past agent poses channel of the input data. This forces the net to look at other cues in the environment to explain the future motion profile in the training example.</div>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p>They also observed that the imitation learning approach works well when the driving situation does not differ significantly from the expert driving training data. However, the agent has to be prepared for many driving situations that are not part of the training, such as collisions. If the agent only relies on the training data, it will have to learn about collisions implicitly, which is not easy. To solve this problem, the paper proposes explicit loss functions for the most important situations. These include the following:</p>
+<ul>
+<li><strong>Waypoint loss</strong>: The error between the ground truth and the predicted agent future position <em>p<sub>k</sub></em>.</li>
+<li><strong>Speed loss</strong><span>: The error between the ground truth and the predicted agent future speed </span><em>s<sub>k</sub></em><span>.</span></li>
+<li><strong>Heading loss</strong><span>: The error between the ground truth and the predicted agent future direction <em>θ<sub>k</sub></em></span><span>.</span></li>
+<li><strong>Agent-box loss</strong>: The <span>error between the ground truth and the predicted agent bounding box <em>B<sub>k</sub></em></span><span>.</span></li>
+<li><strong>Geometry loss</strong>: Force the agent to explicitly follow the target trajectory, independent of the speed profile. </li>
+<li><strong>On-road loss</strong>: Force the agent to navigate <span>only over the road surface area and avoid the nonroad areas of the environment.</span> This loss will increase if the predicted bounding box of the agent overlaps with the nonroad area of the image, predicted by the road mask network.</li>
+<li><strong>Collision loss</strong>: Explicitly force the agent to avoid collisions. This loss will increase if the agent's predicted bounding box overlaps with the bounding boxes of any of the other dynamic objects of the environment.</li>
+</ul>
+<div class="packt_infobox"><span>ChauffeurNet performed well in various real-world driving situations. You can see some of the results at <a href="https://medium.com/waymo/learning-to-drive-beyond-pure-imitation-465499f8bcb2">https://medium.com/waymo/learning-to-drive-beyond-pure-imitation-465499f8bcb2</a>.</span></div>
+<p class="mce-root"/>
+<p class="mce-root"/>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>In this chapter, we explored the applications of deep learning in AVs. We started with a brief historical overview of AV research and we discussed the different levels of autonomy. Then we described the components of the AV system and identified when it's appropriate to use DL techniques. Next, we looked at 3D-data processing and PointNet. Then we introduced the topic of implementing driving policies using behavioral cloning, and we implemented an imitation learning example with PyTorch. Finally, we looked at Waymo's ChauffeurNet system.</p>
+<p>This chapter concludes our book. I hope you enjoyed the read!</p>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

@@ -1,0 +1,765 @@
+<html><head></head><body>
+  <div id="_idContainer058">
+    <h1 class="chapterNumber">4</h1>
+    <h1 id="_idParaDest-126" class="chapterTitle">Linear Regression</h1>
+    <p class="normal">Linear regression may be one of the most important algorithms in statistics, machine learning, and science in general. It's one of the most widely used algorithms, and it is very important to understand how to implement it and its various flavors. One of the advantages that linear regression has over many other algorithms is that it is very interpretable. We end up with a number (a coefficient) for each feature and such a number directly represents how that feature influences the target (the so-called dependent variable).</p>
+    <p class="normal">For instance, if you had to predict the selling value of a house and you obtained a dataset of historical sales comprising house characteristics (such as the lot size, indicators of the quality and condition of the house, and the distance from the city center), you could easily apply a linear regression. You could obtain a reliable estimator in a few steps and the resulting model would be easy to understand and explain to others, too. A linear regression, in fact, first estimates a baseline value, called the intercept, and then estimates a multiplicative coefficient for each feature. Each coefficient can transform each feature into a positive and negative part of the prediction. By summing the baseline and all the coefficient-transformed features, you get your final prediction. Therefore, in our house sale price prediction problem, you could get a positive coefficient for the lot size, implying that larger lots will sell for more, and a negative coefficient for the distance from the city center, an indicator that estates located in the outskirts have less market value.</p>
+    <p class="normal">Computing such kinds of models with TensorFlow is fast, suitable for big data, and much easier to put into production because it will be accessible to general interpretation by inspection of a weights vector. </p>
+    <p class="normal">In this chapter, we will introduce you to recipes explaining how linear regression is implemented in TensorFlow, via Estimators or Keras, and then move on to providing solutions that are even more practical. In fact, we will explain how to tweak it using different loss functions, how to regularize coefficients in order to achieve feature selection in your models, and how to use regression for classification, for non-linear problems, and when you have categorical variables with high-cardinality (high-cardinality means variables with many unique values).</p>
+    <div class="note">
+      <p class="Information-Box--PACKT-">Remember that all the code is available on GitHub at <a href="https://github.com/PacktPublishing/Machine-Learning-Using-TensorFlow-Cookbook"><span class="url">https://github.com/PacktPublishing/Machine-Learning-Using-TensorFlow-Cookbook</span></a>.</p>
+    </div>
+    <p class="normal">In this chapter, we will cover recipes involving linear regression. We start with the mathematical formulation for solving linear regression with matrices, before moving on to implementing standard linear regression and variants with the TensorFlow paradigm. We will cover the following topics:</p>
+    <ul>
+      <li class="bullet">Learning the TensorFlow way of regression</li>
+      <li class="bullet">Turning a Keras model into an Estimator</li>
+      <li class="bullet">Understanding loss functions in linear regression</li>
+      <li class="bullet">Implementing Lasso and Ridge regression</li>
+      <li class="bullet">Implementing logistic regression</li>
+      <li class="bullet">Resorting to non-linear solutions</li>
+      <li class="bullet">Using Wide &amp; Deep models</li>
+    </ul>
+    <p class="normal">By the end of the chapter, you will find that creating linear models (and some non-linear ones, too) using TensorFlow is easy using the recipes provided.</p>
+    <h1 id="_idParaDest-127" class="title">Learning the TensorFlow way of linear regression</h1>
+    <p class="normal">The statistical approach in <a id="_idIndexMarker206"/>linear regression, using matrices and <a id="_idIndexMarker207"/>decomposition methods on data, is very powerful. In any event TensorFlow has another means to solve for the coefficients of a slope and an intercept in a regression problem. TensorFlow can achieve a result in such problems iteratively, that is, gradually learning the best linear regression parameters that will minimize the loss, as we have seen in the recipes in previous chapters.</p>
+    <p class="normal">The interesting fact is that you actually don't have to write all the code from scratch when dealing with a regression problem in TensorFlow: Estimators and Keras can assist you in doing that. Estimators are to be found in <code class="Code-In-Text--PACKT-">tf.estimator</code>, a high-level API in TensorFlow.</p>
+    <p class="normal">Estimators were introduced in TensorFlow 1.3 (see <a href="https://github.com/tensorflow/tensorflow/releases/tag/v1.3.0-rc2"><span class="url">https://github.com/tensorflow/tensorflow/releases/tag/v1.3.0-rc2</span></a>) as ''<strong class="keyword">canned Estimators''</strong>, pre-made specific procedures (such as regression models or basic neural networks) created to simplify training, evaluation, predicting, and the exporting of models for serving. Using pre-made procedures aids development in an easier and more intuitive way, leaving the low-level API for customized or research solutions (for instance, when you want to test the solutions you found in a paper or when your problem requires a completely customized approach). Moreover, Estimators are easily deployed on CPUs, GPUs, or TPUs, as well as on a local host or on a distributed multi-server environment, without any further code changes on your model, making them suitable for ready-to-production use cases. That is the <a id="_idIndexMarker208"/>reason why Estimators are absolutely not going away anytime soon from <a id="_idIndexMarker209"/>TensorFlow, even if Keras, as presented in the previous chapter, is the main high-level API for TensorFlow 2.x. On the contrary, more and more support and development will be made to integrate between Keras and Estimators and you will soon realize in our recipes how easily you can turn Keras models into your own custom Estimators.</p>
+    <p class="normal">Four steps are involved in developing an Estimator model:</p>
+    <ol>
+      <li class="numbered">Acquire your data using <code class="Code-In-Text--PACKT-">tf.data</code> functions</li>
+      <li class="numbered">Instantiate the feature column(s)</li>
+      <li class="numbered">Instantiate and train the Estimator</li>
+      <li class="numbered">Evaluate the model's performance</li>
+    </ol>
+    <p class="normal">In our recipes, we will explore all four steps providing you with reusable solutions for each.</p>
+    <h2 id="_idParaDest-128" class="title">Getting ready</h2>
+    <p class="normal">In this recipe, we will loop through batches of data points and let TensorFlow update the slope and y intercept. Instead of generated data, we will use the Boston Housing dataset.</p>
+    <p class="normal">Originating in the paper by Harrison, D. and Rubinfeld, D.L. <em class="italic">Hedonic Housing Prices and the Demand for Clean Air</em> (J. Environ. Economics &amp; Management, vol.5, 81-102, 1978), the Boston Housing dataset can be found in many analysis packages (such as in scikit-learn) and is present at the UCI Machine Learning Repository, as well as at the original StatLib archive (http://lib.stat.cmu.edu/datasets/boston). It is a classical dataset for regression problems, but not a trivial one. For instance, the samples are ordered and if you do not shuffle the examples randomly, you may produce ineffective and biased models when you make a train/test split.</p>
+    <p class="normal">Going into the details, the dataset is made up of 506 census tracts of Boston from the 1970 census and it features 21 variables regarding various aspects that could affect real estate value. The target variable is the median monetary value of the houses, expressed in thousands of USD. Among the available features, there are a number of obvious ones, such as the number of rooms, the age of the buildings, and the crime levels in the neighborhood, and some others that are a bit less obvious, such as the pollution concentration, the availability of nearby schools, the access to highways, and the distance from employment centers.</p>
+    <p class="normal">Getting back to our solution, specifically, we will find an optimal of the features that will assist us in estimating the house prices in Boston. Before talking more about the effects of different loss functions on this problem in the next section, we are also going to show you how to create a regression Estimator in TensorFlow starting from Keras functions, which opens up important customizations for solving different problems.</p>
+    <h2 id="_idParaDest-129" class="title">How to do it...</h2>
+    <p class="normal">We <a id="_idIndexMarker210"/>proceed with the recipe as follows:</p>
+    <p class="normal">We start by loading the <a id="_idIndexMarker211"/>necessary libraries, and then load the data in-memory using pandas functions. We will also separate predictors from targets (the MEDV, median house values) and divide the data into training and test sets:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf 
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> pandas <span class="hljs-keyword">as</span> pd
+<span class="hljs-keyword">import</span> tensorflow_datasets <span class="hljs-keyword">as</span> tfds
+tfds.disable_progress_bar()
+housing_url = <span class="hljs-string">'http://archive.ics.uci.edu/ml/machine-learning-databases/housing/housing.data'</span>
+path = tf.keras.utils.get_file(housing_url.split(<span class="hljs-string">"/"</span>)[<span class="hljs-number">-1</span>], housing_url)
+columns = [<span class="hljs-string">'CRIM'</span>, <span class="hljs-string">'ZN'</span>, <span class="hljs-string">'INDUS'</span>, <span class="hljs-string">'CHAS'</span>, <span class="hljs-string">'NOX'</span>, <span class="hljs-string">'RM'</span>, <span class="hljs-string">'AGE'</span>,            <span class="hljs-string">'DIS'</span>, <span class="hljs-string">'RAD'</span>, <span class="hljs-string">'TAX'</span>, <span class="hljs-string">'PTRATIO'</span>, <span class="hljs-string">'B'</span>, <span class="hljs-string">'LSTAT'</span>, <span class="hljs-string">'MEDV'</span>]
+data = pd.read_table(path, delim_whitespace=<span class="hljs-literal">True</span>, 
+                     header=<span class="hljs-literal">None</span>, names=columns)
+np.random.seed(<span class="hljs-number">1</span>)
+train = data.sample(frac=<span class="hljs-number">0.8</span>).copy()
+y_train = train[<span class="hljs-string">'MEDV'</span>]
+train.drop(<span class="hljs-string">'MEDV'</span>, axis=<span class="hljs-number">1</span>, inplace=<span class="hljs-literal">True</span>)
+test = data.loc[~data.index.isin(train.index)].copy()
+y_test = test[<span class="hljs-string">'MEDV'</span>]
+test.drop(<span class="hljs-string">'MEDV'</span>, axis=<span class="hljs-number">1</span>, inplace=<span class="hljs-literal">True</span>)
+</code></pre>
+    <p class="normal">We then declare two key functions for our recipe: </p>
+    <ol>
+      <li class="numbered" value="1"><code class="Code-In-Text--PACKT-">make_input_fn</code>, which is a function that creates a <code class="Code-In-Text--PACKT-">tf.data</code> dataset from a pandas DataFrame turned into a Python dictionary of pandas Series (the features are the keys, the values are the feature vectors). It also provides batch size definition and random shuffling.</li>
+      <li class="numbered"><code class="Code-In-Text--PACKT-">define_feature_columns</code>, which is a function that maps each column name to a specific <code class="Code-In-Text--PACKT-">tf.feature_column</code> transformation. <code class="Code-In-Text--PACKT-">tf.feature_column</code> is a TensorFlow module (<a href="https://www.tensorflow.org/api_docs/python/tf/feature_column"><span class="url">https://www.tensorflow.org/api_docs/python/tf/feature_column</span></a>) offering functions that can process any kind of data in a suitable way for being inputted into a neural network.</li>
+    </ol>
+    <p class="normal">The <code class="Code-In-Text--PACKT-">make_input_fn</code> function is <a id="_idIndexMarker212"/>used to instantiate two data functions, one for training (the data is shuffled, with a batch size of 256 and set to consume 1,400 epochs), and one for test (set to a single epoch, no shuffling, so the ordering is the original one).</p>
+    <p class="normal">The <code class="Code-In-Text--PACKT-">define_feature_columns</code> function is used to map the numeric variables using the <code class="Code-In-Text--PACKT-">numeric_column</code> function (<a href="https://www.tensorflow.org/api_docs/python/tf/feature_column/numeric_column"><span class="url">https://www.tensorflow.org/api_docs/python/tf/feature_column/numeric_column</span></a>) and the categorical ones using <code class="Code-In-Text--PACKT-">categorical_column_with_vocabulary_list</code> (<a href="https://www.tensorflow.org/api_docs/python/tf/feature_column/categorical_column_with_vocabulary_list"><span class="url">https://www.tensorflow.org/api_docs/python/tf/feature_column/categorical_column_with_vocabulary_list</span></a>). Both will signal to our Estimator how to handle such data in the optimal manner:</p>
+    <pre class="programlisting code"><code class="hljs-code">learning_rate = <span class="hljs-number">0.05</span> 
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">make_input_fn</span><span class="hljs-function">(</span><span class="hljs-params">data_df, label_df, num_epochs=</span><span class="hljs-number">10</span><span class="hljs-params">, </span>
+<span class="hljs-params">                  shuffle=True, batch_size=</span><span class="hljs-number">256</span><span class="hljs-function">):</span>
+    
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">input_function</span><span class="hljs-function">():</span>
+        ds = tf.data.Dataset.from_tensor_slices((dict(data_df), label_df))
+        <span class="hljs-keyword">if</span> shuffle:
+            ds = ds.shuffle(<span class="hljs-number">1000</span>)
+        ds = ds.batch(batch_size).repeat(num_epochs)
+        <span class="hljs-keyword">return</span> ds
+    
+    <span class="hljs-keyword">return</span> input_function
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">define_feature_columns</span><span class="hljs-function">(</span><span class="hljs-params">data_df, categorical_cols, numeric_cols</span><span class="hljs-function">):</span>
+    feature_columns = []
+    
+    <span class="hljs-keyword">for</span> feature_name <span class="hljs-keyword">in</span> numeric_cols:              
+        feature_columns.append(tf.feature_column.numeric_column(
+             feature_name, dtype=tf.float32))
+    
+    <span class="hljs-keyword">for</span> feature_name <span class="hljs-keyword">in</span> categorical_cols:
+        vocabulary = data_df[feature_name].unique()
+        feature_columns.append(
+                                                                   tf.feature_column.categorical_column_with_vocabulary_list(
+                                                 feature_name, vocabulary))
+    <span class="hljs-keyword">return</span> feature_columns
+categorical_cols = [<span class="hljs-string">'CHAS'</span>, <span class="hljs-string">'RAD'</span>]
+numeric_cols = [<span class="hljs-string">'CRIM'</span>, <span class="hljs-string">'ZN'</span>, <span class="hljs-string">'INDUS'</span>,  <span class="hljs-string">'NOX'</span>, <span class="hljs-string">'RM'</span>, <span class="hljs-string">'AGE'</span>, <span class="hljs-string">'DIS'</span>, <span class="hljs-string">'TAX'</span>, <span class="hljs-string">'PTRATIO'</span>, <span class="hljs-string">'B'</span>, <span class="hljs-string">'LSTAT'</span>]
+feature_columns = define_feature_columns(data, categorical_cols, numeric_cols)
+train_input_fn = make_input_fn(train, y_train, num_epochs=<span class="hljs-number">1400</span>)
+test_input_fn = make_input_fn(test, y_test, num_epochs=<span class="hljs-number">1</span>, shuffle=<span class="hljs-literal">False</span>)
+</code></pre>
+    <p class="normal">As a next step, we pass <a id="_idIndexMarker213"/>to instantiate the Estimator for a linear <a id="_idIndexMarker214"/>regression model. We will just recall the formula for the linear model, <em class="italic">y = aX +b</em>, which implies that there is a coefficient for the intercept value and then a coefficient for each feature or feature transformation (for instance, categorical data is one-hot encoded, so you have a single coefficient for each value of the variable):</p>
+    <pre class="programlisting code"><code class="hljs-code">linear_est = tf.estimator.LinearRegressor(feature_columns=feature_columns)
+</code></pre>
+    <p class="normal">Now, we just have to train the model and evaluate its performance. The metric used is the root mean squared error (the less the better):</p>
+    <pre class="programlisting code"><code class="hljs-code">linear_est.train(train_input_fn)
+result = linear_est.evaluate(test_input_fn)
+print(result)
+</code></pre>
+    <p class="normal">Here are the reported results:</p>
+    <pre class="programlisting code"><code class="hljs-code">INFO:tensorflow:Loss for final step: 25.013594.
+...
+INFO:tensorflow:Finished evaluation at 2020-05-11-15:48:16
+INFO:tensorflow:Saving dict for global step 2800: average_loss = 32.715736, global_step = 2800, label/mean = 22.048513, loss = 32.715736, prediction/mean = 21.27578
+</code></pre>
+    <div class="note">
+      <p class="Information-Box--PACKT-">Here is a good place to note how to see whether the model is overfitting or underfitting the data. If our data is broken into test and training sets, and the performance is greater on the training set and lower on the test set, then we are overfitting the data. If the accuracy is still increasing on both the test and training sets, then the model is underfitting and we should continue training. </p>
+      <p class="Information-Box--PACKT-">In our case, the training ended with an average loss of 25.0. Our test average is instead 32.7, implying we have probably overfitted and we should reduce the training iterations.</p>
+    </div>
+    <p class="normal">We can <a id="_idIndexMarker215"/>visualize the performances <a id="_idIndexMarker216"/>of the Estimator as it trains the data and as it is compared to the test set results. This requires the use of TensorBoard (<a href="https://www.tensorflow.org/tensorboard/"><span class="url">https://www.tensorflow.org/tensorboard/</span></a>), TensorFlow's visualization kit, which will be explained in more detail later in the book.</p>
+    <div class="packt_tip">
+      <p class="Tip--PACKT-">In any event, you can just replicate the visualizations by using the <code class="Code-In-Text--PACKT-">4. Linear Regression with TensorBoard.ipynb</code> notebook instead of the <code class="Code-In-Text--PACKT-">4. Linear Regression.ipynb</code> version. Both can be found in the book's GitHub repository at <a href="https://github.com/PacktPublishing/Machine-Learning-Using-TensorFlow-Cookbook"><span class="url">https://github.com/PacktPublishing/Machine-Learning-Using-TensorFlow-Cookbook</span></a>.</p>
+    </div>
+    <figure class="mediaobject"><img src="../Images/B16254_04_01.png" alt="C:\Users\Luca\Dropbox\Packt\Packt - TensorFlow Machine Learning Cookbook\new chapters\images\01 Linear regression.png"/></figure>
+    <p class="packt_figref">Figure 4.1: TensorBoard visualization of the training loss of the regression Estimator</p>
+    <p class="normal">The visualization <a id="_idIndexMarker217"/>shows that the Estimator fitted the problem quickly, reaching an optimal value after 1,000 observed batches. Afterward, it oscillated near the minimum loss value reached. The test performance, represented by a blue dot, is near the best reached value, thereby proving that the model is performing and stable even with unseen examples.</p>
+    <h2 id="_idParaDest-130" class="title">How it works...</h2>
+    <p class="normal">The Estimator that calls the proper TensorFlow functionalities, sifts the data from the data functions, and converts the data into the proper form based on the matched feature name and <code class="Code-In-Text--PACKT-">tf.feature_column</code> function does the entire job. All that remains is to check the fitting. Actually, the optimal line found by the Estimator is not guaranteed to be the line of best fit. Convergence to the line of best fit depends on the number of iterations, batch size, learning rate, and loss function. It is always good practice to observe the loss function over time as this can help you troubleshoot problems or hyperparameter changes.</p>
+    <h2 id="_idParaDest-131" class="title">There's more...</h2>
+    <p class="normal">If you want to increase the performance of your linear model, interactions could be the key. This means that you create a combination between two variables and that combination can explain the target better than the features taken singularly. In our Boston Housing dataset, combining the average room number in a house and the proportion of the lower income population in an area can reveal more about the type of neighborhood and help infer the housing value of the area. We combine the two just by pointing them out to the <code class="Code-In-Text--PACKT-">tf.feature_column.crossed_column</code> function.The Estimator, also receiving this output among the features, will automatically create the interaction:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">create_interactions</span><span class="hljs-function">(</span><span class="hljs-params">interactions_list, buckets=</span><span class="hljs-number">5</span><span class="hljs-function">):</span>
+    interactions = list()
+    <span class="hljs-keyword">for</span> (a, b) <span class="hljs-keyword">in</span> interactions_list:
+        interactions.append(tf.feature_column.crossed_column([a, b], hash_bucket_size=buckets))
+    <span class="hljs-keyword">return</span> interactions
+derived_feature_columns = create_interactions([[<span class="hljs-string">'RM'</span>, <span class="hljs-string">'LSTAT'</span>]])
+linear_est = tf.estimator.LinearRegressor(feature_columns=feature_columns+derived_feature_columns)
+linear_est.train(train_input_fn)
+result = linear_est.evaluate(test_input_fn)
+print(result)
+</code></pre>
+    <p class="normal">Here is the plot of the training loss and the resulting test set result.</p>
+    <figure class="mediaobject"><img src="../Images/B16254_04_02.png" alt="C:\Users\Luca\Dropbox\Packt\Packt - TensorFlow Machine Learning Cookbook\new chapters\images\02 Linear regression.png"/></figure>
+    <p class="packt_figref">Figure 4.2: TensorBoard plot of the regression model with interactions</p>
+    <p class="normal">Observe how the fitting is now faster and much more stable than before, indicating that we provided more informative features to the model (the interactions).</p>
+    <p class="normal">Another useful recipe function is suitable for handling predictions: the Estimator returns them as a dictionary. A simple function will convert everything into a more useful array of predictions:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">dicts_to_preds</span><span class="hljs-function">(</span><span class="hljs-params">pred_dicts</span><span class="hljs-function">):</span>
+    <span class="hljs-keyword">return</span> np.array([pred[<span class="hljs-string">'predictions'</span>] <span class="hljs-keyword">for</span> pred <span class="hljs-keyword">in</span> pred_dicts])
+preds = dicts_to_preds(linear_est.predict(test_input_fn))
+print(preds) 
+</code></pre>
+    <p class="normal">Having your predictions as an array will help you to reuse and export the results in a more convenient way than a dictionary could.</p>
+    <h1 id="_idParaDest-132" class="title">Turning a Keras model into an Estimator</h1>
+    <p class="normal">Up to now, we have worked <a id="_idIndexMarker218"/>out our linear regression <a id="_idIndexMarker219"/>models using specific Estimators from the <code class="Code-In-Text--PACKT-">tf.estimator</code> module. This has clear advantages because our model is mostly run automatically and we can easily deploy it in a scalable way on the cloud (such as Google Cloud Platform, offered by Google) and on different kinds of servers (CPU-, GPU-, and TPU-based). Anyway, by using Estimators, we may lack the flexibility in our model architecture as required by our data problem, which is instead offered by the Keras modular approach that we discussed in the previous chapter. In this recipe, we will remediate this by showing how we can transform Keras models into Estimators and thus take advantage of both the Estimators API and Keras versatility at the same time.</p>
+    <h2 id="_idParaDest-133" class="title">Getting ready</h2>
+    <p class="normal">We will use the same Boston Housing dataset as in the previous recipe, while also making use of the <code class="Code-In-Text--PACKT-">make_input_fn</code> function. As before, we need our core packages to be imported:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf 
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> pandas <span class="hljs-keyword">as</span> pd
+<span class="hljs-keyword">import</span> tensorflow_datasets <span class="hljs-keyword">as</span> tfds
+tfds.disable_progress_bar()
+</code></pre>
+    <p class="normal">We will also need to import the Keras module from TensorFlow.</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow.keras <span class="hljs-keyword">as</span> keras
+</code></pre>
+    <p class="normal">Importing <code class="Code-In-Text--PACKT-">tf.keras</code> as <code class="Code-In-Text--PACKT-">keras</code> will also allow you to easily reuse any previous script that you wrote using the standalone Keras package.</p>
+    <h2 id="_idParaDest-134" class="title">How to do it...</h2>
+    <p class="normal">Our first step will be to redefine the function creating the feature columns. In fact, now we have to specify an input to our Keras model, something that was not necessary with native Estimators since they just need a <code class="Code-In-Text--PACKT-">tf.feature</code> function mapping the feature:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">define_feature_columns_layers</span><span class="hljs-function">(</span><span class="hljs-params">data_df, categorical_cols, numeric_cols</span><span class="hljs-function">):</span>
+    feature_columns = []
+    feature_layer_inputs = {}
+    
+    <span class="hljs-keyword">for</span> feature_name <span class="hljs-keyword">in</span> numeric_cols:
+        feature_columns.append(tf.feature_column.numeric_column(feature_name, dtype=tf.float32))
+        feature_layer_inputs[feature_name] = tf.keras.Input(shape=(<span class="hljs-number">1</span>,), name=feature_name)
+        
+    <span class="hljs-keyword">for</span> feature_name <span class="hljs-keyword">in</span> categorical_cols:
+        vocabulary = data_df[feature_name].unique()
+        cat = tf.feature_column.categorical_column_with_vocabulary_list(feature_name, vocabulary)
+        cat_one_hot = tf.feature_column.indicator_column(cat)
+        feature_columns.append(cat_one_hot)
+        feature_layer_inputs[feature_name] = tf.keras.Input(shape=(<span class="hljs-number">1</span>,), name=feature_name, dtype=tf.int32)
+    
+    <span class="hljs-keyword">return</span> feature_columns, feature_layer_inputs
+</code></pre>
+    <p class="normal">The same goes <a id="_idIndexMarker220"/>for interactions. Here, too, we need to define <a id="_idIndexMarker221"/>the input that will be used by our Keras model (in this case, one-hot encoding):</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">create_interactions</span><span class="hljs-function">(</span><span class="hljs-params">interactions_list, buckets=</span><span class="hljs-number">5</span><span class="hljs-function">):</span>
+    feature_columns = []
+    
+    <span class="hljs-keyword">for</span> (a, b) <span class="hljs-keyword">in</span> interactions_list:
+        crossed_feature = tf.feature_column.crossed_column([a, b], hash_bucket_size=buckets)
+        crossed_feature_one_hot = tf.feature_column.indicator_column(crossed_feature)
+        feature_columns.append(crossed_feature_one_hot)
+        
+    <span class="hljs-keyword">return</span> feature_columns
+</code></pre>
+    <p class="normal">After preparing the necessary inputs, we can proceed to the model itself. The inputs will be collected in a feature layer that will pass the data to a <code class="Code-In-Text--PACKT-">batchNormalization</code> layer, which will automatically standardize it. After that the data will be directed to the output node, which will produce the numeric output. </p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">create_linreg</span><span class="hljs-function">(</span><span class="hljs-params">feature_columns, feature_layer_inputs, optimizer</span><span class="hljs-function">):</span>
+    feature_layer = keras.layers.DenseFeatures(feature_columns)
+    feature_layer_outputs = feature_layer(feature_layer_inputs)
+    norm = keras.layers.BatchNormalization()(feature_layer_outputs)
+    outputs = keras.layers.Dense(<span class="hljs-number">1</span>, kernel_initializer=<span class="hljs-string">'normal'</span>, activation=<span class="hljs-string">'linear'</span>)(norm)
+    
+    model = keras.Model(inputs=[v <span class="hljs-keyword">for</span> v <span class="hljs-keyword">in</span> feature_layer_inputs.values()], outputs=outputs)
+    model.compile(optimizer=optimizer, loss=<span class="hljs-string">'mean_squared_error'</span>)
+    <span class="hljs-keyword">return</span> model
+</code></pre>
+    <p class="normal">At this point, having <a id="_idIndexMarker222"/>set all the necessary inputs, new functions are <a id="_idIndexMarker223"/>created and we can run them:</p>
+    <pre class="programlisting code"><code class="hljs-code">categorical_cols = [<span class="hljs-string">'CHAS'</span>, <span class="hljs-string">'RAD'</span>]
+numeric_cols = [<span class="hljs-string">'CRIM'</span>, <span class="hljs-string">'ZN'</span>, <span class="hljs-string">'INDUS'</span>,  <span class="hljs-string">'NOX'</span>, <span class="hljs-string">'RM'</span>, <span class="hljs-string">'AGE'</span>, <span class="hljs-string">'DIS'</span>, <span class="hljs-string">'TAX'</span>, <span class="hljs-string">'PTRATIO'</span>, <span class="hljs-string">'B'</span>, <span class="hljs-string">'LSTAT'</span>]
+feature_columns, feature_layer_inputs = define_feature_columns_layers(data, categorical_cols, numeric_cols)
+interactions_columns = create_interactions([[<span class="hljs-string">'RM'</span>, <span class="hljs-string">'LSTAT'</span>]])
+feature_columns += interactions_columns
+optimizer = keras.optimizers.Ftrl(learning_rate=<span class="hljs-number">0.02</span>)
+model = create_linreg(feature_columns, feature_layer_inputs, optimizer)
+</code></pre>
+    <p class="normal">We have now obtained a working Keras model. We can convert it into an Estimator using the <code class="Code-In-Text--PACKT-">model_to_estimator</code> function. This requires the establishment of a temporary directory for the Estimator's outputs:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tempfile
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">canned_keras</span><span class="hljs-function">(</span><span class="hljs-params">model</span><span class="hljs-function">):</span>
+    model_dir = tempfile.mkdtemp()
+    keras_estimator = tf.keras.estimator.model_to_estimator(
+        keras_model=model, model_dir=model_dir)
+    <span class="hljs-keyword">return</span> keras_estimator
+estimator = canned_keras(model)
+</code></pre>
+    <p class="normal">Having <code class="Code-In-Text--PACKT-">canned</code> the Keras model into an Estimator, we can proceed as before to train the model and evaluate the results.</p>
+    <pre class="programlisting code"><code class="hljs-code">train_input_fn = make_input_fn(train, y_train, num_epochs=<span class="hljs-number">1400</span>)
+test_input_fn = make_input_fn(test, y_test, num_epochs=<span class="hljs-number">1</span>, shuffle=<span class="hljs-literal">False</span>)
+estimator.train(train_input_fn)
+result = estimator.evaluate(test_input_fn)
+print(result)
+</code></pre>
+    <p class="normal">When we plot the fitting <a id="_idIndexMarker224"/>process using TensorBoard, we will observe<a id="_idIndexMarker225"/>how the training trajectory is quite similar to the one obtained by previous Estimators:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_04_03.png" alt="C:\Users\Luca\Dropbox\Packt\Packt - TensorFlow Machine Learning Cookbook\new chapters\images\03 canned linear regression.png"/></figure>
+    <p class="packt_figref">Figure 4.3: Canned Keras linear Estimator training </p>
+    <p class="normal">Canned Keras Estimators are indeed a quick and robust way to bind together the flexibility of user-defined solutions by Keras and the high-performance training and deployment from Estimators.</p>
+    <h2 id="_idParaDest-135" class="title">How it works...</h2>
+    <p class="normal">The <code class="Code-In-Text--PACKT-">model_to_estimator</code> function <a id="_idIndexMarker226"/>is not a wrapper of your Keras model. Instead, it parses <a id="_idIndexMarker227"/>your model and transforms it into a static TensorFlow graph, allowing distributed training and scaling for your model.</p>
+    <h2 id="_idParaDest-136" class="title">There's more...</h2>
+    <p class="normal">One great <a id="_idIndexMarker228"/>advantage of using linear models is to be able to explore their weights and get an idea of what feature is producing the result we obtained. Each coefficient will tell us, given the fact that the inputs are standardized by the batch layer, how that feature is impacted with respect to the others (the coefficients are comparable in terms of absolute value) and whether it is adding or subtracting from the result (given a positive or negative sign):</p>
+    <pre class="programlisting code"><code class="hljs-code">weights = estimator.get_variable_value(<span class="hljs-string">'layer_with_weights-1/kernel/.ATTRIBUTES/VARIABLE_VALUE'</span>)
+print(weights)
+</code></pre>
+    <p class="normal">Anyway, if we extract the weights from our model we will find out that we cannot easily interpret them because they have no labels and the dimensionality is different since the <code class="Code-In-Text--PACKT-">tf.feature</code> functions have applied different transformations.</p>
+    <p class="normal">We need a function that can extract the correct labels from our feature columns as we mapped them prior to feeding them to our canned Estimator:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">extract_labels</span><span class="hljs-function">(</span><span class="hljs-params">feature_columns</span><span class="hljs-function">):</span>
+    labels = list()
+    <span class="hljs-keyword">for</span> col <span class="hljs-keyword">in</span> feature_columns:
+        col_config = col.get_config()
+        <span class="hljs-keyword">if</span> <span class="hljs-string">'key'</span> <span class="hljs-keyword">in</span> col_config:
+            labels.append(col_config[<span class="hljs-string">'key'</span>])
+        <span class="hljs-keyword">elif</span> <span class="hljs-string">'categorical_column'</span> <span class="hljs-keyword">in</span> col_config:
+            <span class="hljs-keyword">if</span> col_config[<span class="hljs-string">'categorical_column'</span>][<span class="hljs-string">'class_name'</span>]==<span class="hljs-string">'VocabularyListCategoricalColumn'</span>:
+                key = col_config[<span class="hljs-string">'categorical_column'</span>][<span class="hljs-string">'config'</span>][<span class="hljs-string">'key'</span>]
+                <span class="hljs-keyword">for</span> item <span class="hljs-keyword">in</span> col_config[<span class="hljs-string">'categorical_column'</span>][<span class="hljs-string">'config'</span>][<span class="hljs-string">'vocabulary_list'</span>]:
+                     labels.append(key+<span class="hljs-string">'_val='</span>+str(item))
+            <span class="hljs-keyword">elif</span> col_config[<span class="hljs-string">'categorical_column'</span>][<span class="hljs-string">'class_name'</span>]==<span class="hljs-string">'CrossedColumn'</span>:
+                keys = col_config[<span class="hljs-string">'categorical_column'</span>][<span class="hljs-string">'config'</span>][<span class="hljs-string">'keys'</span>]
+                <span class="hljs-keyword">for</span> bucket <span class="hljs-keyword">in</span> range(col_config[<span class="hljs-string">'categorical_column'</span>][<span class="hljs-string">'config'</span>][<span class="hljs-string">'hash_bucket_size'</span>]):
+                    labels.append(<span class="hljs-string">'x'</span>.join(keys)+<span class="hljs-string">'_bkt_'</span>+str(bucket))
+    <span class="hljs-keyword">return</span> labels
+</code></pre>
+    <div class="note">
+      <p class="Information-Box--PACKT-">This function only works with TensorFlow version 2.2 or later because in earlier TensorFlow 2.x versions the <code class="Code-In-Text--PACKT-">get_config</code> method was not present in <code class="Code-In-Text--PACKT-">tf.feature</code> objects.</p>
+    </div>
+    <p class="normal">Now we can extract all the labels and meaningfully match each weight in the output to its respective feature:</p>
+    <pre class="programlisting code"><code class="hljs-code">labels = extract_labels(feature_columns)
+<span class="hljs-keyword">for</span> label, weight <span class="hljs-keyword">in</span> zip(labels, weights):
+    print(<span class="hljs-string">f"</span><span class="hljs-subst">{label:</span><span class="hljs-number">15</span><span class="hljs-subst">s}</span><span class="hljs-string"> : </span><span class="hljs-subst">{weight[</span><span class="hljs-number">0</span><span class="hljs-subst">]:+</span><span class="hljs-number">.2</span><span class="hljs-subst">f}</span><span class="hljs-string">"</span>)
+</code></pre>
+    <p class="normal">Once you have the weights, you can easily get the contribution of each feature to the result by observing the sign and the magnitude of each coefficient. The scale of the feature can, however, influence the magnitude unless you previously statistically standardized the features by subtracting the mean and dividing by the standard deviation.</p>
+    <h1 id="_idParaDest-137" class="title">Understanding loss functions in linear regression</h1>
+    <p class="normal">It is important to <a id="_idIndexMarker229"/>know the effect of loss functions in <a id="_idIndexMarker230"/>algorithm convergence. Here, we will illustrate how the L1 and L2 loss functions affect convergence and predictions in linear regression. This is the first customization that we are applying to our canned Keras Estimator. More recipes in this chapter will enhance that initial Estimator by adding more functionality. </p>
+    <h2 id="_idParaDest-138" class="title">Getting ready</h2>
+    <p class="normal">We will use the same Boston Housing dataset as in the previous recipe, as well as utilize the following functions:</p>
+    <pre class="programlisting code"><code class="hljs-code">* define_feature_columns_layers
+* make_input_fn
+* create_interactions
+</code></pre>
+    <p class="normal">However, we will change our loss functions and learning rates to see how convergence changes.</p>
+    <h2 id="_idParaDest-139" class="title">How to do it...</h2>
+    <p class="normal">We proceed with the recipe as follows:</p>
+    <p class="normal">The start of the program is <a id="_idIndexMarker231"/>the same as the last recipe. We <a id="_idIndexMarker232"/>therefore load the necessary packages and also we download the Boston Housing dataset, if it is not already available:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf 
+<span class="hljs-keyword">import</span> tensorflow.keras <span class="hljs-keyword">as</span> keras
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> pandas <span class="hljs-keyword">as</span> pd
+<span class="hljs-keyword">import</span> tensorflow_datasets <span class="hljs-keyword">as</span> tfds
+tfds.disable_progress_bar()
+</code></pre>
+    <p class="normal">After that, we need to redefine our <code class="Code-In-Text--PACKT-">create_linreg</code> by adding a new parameter controlling the type of loss. The default is still the mean squared error (L2 loss), but now it can be easily changed when instantiating the canned Estimator:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">create_linreg</span><span class="hljs-function">(</span><span class="hljs-params">feature_columns, feature_layer_inputs, optimizer, </span>
+<span class="hljs-params">                  loss=</span><span class="hljs-string">'mean_squared_error'</span><span class="hljs-params">, </span>
+<span class="hljs-params">                  metrics=[</span><span class="hljs-string">'mean_absolute_error'</span><span class="hljs-params">]</span><span class="hljs-function">):</span>
+    feature_layer = keras.layers.DenseFeatures(feature_columns)
+    feature_layer_outputs = feature_layer(feature_layer_inputs)
+    norm = keras.layers.BatchNormalization()(feature_layer_outputs)
+    outputs = keras.layers.Dense(<span class="hljs-number">1</span>, kernel_initializer=<span class="hljs-string">'normal'</span>, 
+                                 activation=<span class="hljs-string">'linear'</span>)(norm)
+    
+    model = keras.Model(inputs=[v <span class="hljs-keyword">for</span> v <span class="hljs-keyword">in</span> feature_layer_inputs.values()], 
+                        outputs=outputs)
+    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+    <span class="hljs-keyword">return</span> model
+</code></pre>
+    <p class="normal">After doing so, we can train our model explicitly using the <code class="Code-In-Text--PACKT-">Ftrl</code> optimizer with a different learning rate, more <a id="_idIndexMarker233"/>suitable for an L1 loss (we set the loss <a id="_idIndexMarker234"/>to mean absolute error):</p>
+    <pre class="programlisting code"><code class="hljs-code">categorical_cols = [<span class="hljs-string">'CHAS'</span>, <span class="hljs-string">'RAD'</span>]
+numeric_cols = [<span class="hljs-string">'CRIM'</span>, <span class="hljs-string">'ZN'</span>, <span class="hljs-string">'INDUS'</span>,  <span class="hljs-string">'NOX'</span>, <span class="hljs-string">'RM'</span>, <span class="hljs-string">'AGE'</span>, <span class="hljs-string">'DIS'</span>, <span class="hljs-string">'TAX'</span>, <span class="hljs-string">'PTRATIO'</span>, <span class="hljs-string">'B'</span>, <span class="hljs-string">'LSTAT'</span>]
+feature_columns, feature_layer_inputs = define_feature_columns_layers(data, categorical_cols, numeric_cols)
+interactions_columns = create_interactions([[<span class="hljs-string">'RM'</span>, <span class="hljs-string">'LSTAT'</span>]])
+feature_columns += interactions_columns
+optimizer = keras.optimizers.Ftrl(learning_rate=<span class="hljs-number">0.02</span>)
+model = create_linreg(feature_columns, feature_layer_inputs, optimizer,
+                      loss=<span class="hljs-string">'mean_absolute_error'</span>, 
+                      metrics=[<span class="hljs-string">'mean_absolute_error'</span>,                                <span class="hljs-string">'mean_squared_error'</span>])
+estimator = canned_keras(model)
+train_input_fn = make_input_fn(train, y_train, num_epochs=<span class="hljs-number">1400</span>)
+test_input_fn = make_input_fn(test, y_test, num_epochs=<span class="hljs-number">1</span>, shuffle=<span class="hljs-literal">False</span>)
+estimator.train(train_input_fn)
+result = estimator.evaluate(test_input_fn)
+print(result)
+</code></pre>
+    <p class="normal">Here are the results that we obtained by switching to an L1 loss:</p>
+    <pre class="programlisting code"><code class="hljs-code">{'loss': 3.1208777, 'mean_absolute_error': 3.1208777, 'mean_squared_error': 27.170328, 'global_step': 2800}
+</code></pre>
+    <p class="normal">We can now visualize the training performances along iterations using TensorBoard:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_04_04.png" alt="C:\Users\Luca\Dropbox\Packt\Packt - TensorFlow Machine Learning Cookbook\new chapters\images\04 understanding loss.png"/></figure>
+    <p class="packt_figref">Figure 4.4: Mean absolute error optimization</p>
+    <p class="normal">The resulting plot shows a nice descent of the mean absolute error, which simply slows down after 400 iterations and tends to stabilize in a plateau after 1,400 iterations.</p>
+    <h2 id="_idParaDest-140" class="title">How it works...</h2>
+    <p class="normal">When choosing a loss <a id="_idIndexMarker235"/>function, we must also choose a corresponding <a id="_idIndexMarker236"/>learning rate that will work with our problem. Here, we test two situations, the first in which L2 is adopted and the second in which L1 is preferred.</p>
+    <p class="normal">If our learning rate is small, our convergence will take more time. However, if our learning rate is too large, we will have issues with our algorithm never converging.</p>
+    <h2 id="_idParaDest-141" class="title">There's more...</h2>
+    <p class="normal">To understand what is happening, we should look at how a large learning rate and small learning rate act on <strong class="keyword">L1 norms</strong> and <strong class="keyword">L2 norms</strong>. If the rate is too large, L1 can get stuck at a suboptimal result, whereas L2 can achieve an even worse performance. To visualize this, we will look at a one-dimensional representation of learning steps on both norms, as follows:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_04_05.png" alt=""/></figure>
+    <p class="packt_figref">Figure 4.5: What can happen with the L1 and L2 norm with larger and smaller learning rates</p>
+    <p class="normal">Small learning rates, as depicted in the preceding diagram, are indeed a guarantee of a better optimization in any case. Larger rates do not really work with L2, but may prove just suboptimal with L1 by stopping further optimizations after a while, without causing any further damage.</p>
+    <h1 id="_idParaDest-142" class="title">Implementing Lasso and Ridge regression</h1>
+    <p class="normal">There are ways <a id="_idIndexMarker237"/>to limit the influence of coefficients on the <a id="_idIndexMarker238"/>regression output. These methods are called regularization <a id="_idIndexMarker239"/>methods, and two of the most common regularization methods are Lasso and Ridge regression. We cover how to implement both of these in this recipe.</p>
+    <h2 id="_idParaDest-143" class="title">Getting ready</h2>
+    <p class="normal">Lasso and Ridge regression are very similar to regular linear regression, except that we add regularization terms to limit the slopes (or partial slopes) in the formula. There may be multiple reasons for this, but a common one is that we wish to restrict the number of features that have an impact on the dependent variable. </p>
+    <h2 id="_idParaDest-144" class="title">How to do it...</h2>
+    <p class="normal">We proceed with the recipe as follows:</p>
+    <p class="normal">We will use the Boston Housing dataset again and set up our functions in the same way as in the previous recipes. In particular we need <code class="Code-In-Text--PACKT-">define_feature_columns_layers</code>, <code class="Code-In-Text--PACKT-">make_input_fn</code>, and <code class="Code-In-Text--PACKT-">create_interactions</code>. We again first load the libraries, and then we define a new <code class="Code-In-Text--PACKT-">create_ridge_linreg</code> where we set a new Keras model using <code class="Code-In-Text--PACKT-">keras.regularizers.l2</code> as the <code class="Code-In-Text--PACKT-">regularizer</code> of our dense layer:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf 
+<span class="hljs-keyword">import</span> tensorflow.keras <span class="hljs-keyword">as</span> keras
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> pandas <span class="hljs-keyword">as</span> pd
+<span class="hljs-keyword">import</span> tensorflow_datasets <span class="hljs-keyword">as</span> tfds
+tfds.disable_progress_bar()
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">create_ridge_linreg</span><span class="hljs-function">(</span><span class="hljs-params">feature_columns, feature_layer_inputs, optimizer, </span>
+<span class="hljs-params">                        loss=</span><span class="hljs-string">'mean_squared_error'</span><span class="hljs-params">, </span>
+<span class="hljs-params">                        metrics=[</span><span class="hljs-string">'mean_absolute_error'</span><span class="hljs-params">],</span>
+<span class="hljs-params">                        l2=</span><span class="hljs-number">0.01</span><span class="hljs-function">):</span>
+    
+    regularizer = keras.regularizers.l2(l2)
+    feature_layer = keras.layers.DenseFeatures(feature_columns)
+    feature_layer_outputs = feature_layer(feature_layer_inputs)
+    norm = keras.layers.BatchNormalization()(feature_layer_outputs)
+    outputs = keras.layers.Dense(<span class="hljs-number">1</span>, 
+                                 kernel_initializer=<span class="hljs-string">'normal'</span>, 
+                                 kernel_regularizer = regularizer, 
+                                 activation=<span class="hljs-string">'linear'</span>)(norm)
+    
+    model = keras.Model(inputs=[v <span class="hljs-keyword">for</span> v <span class="hljs-keyword">in</span> feature_layer_inputs.values()],                         outputs=outputs)
+    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+    <span class="hljs-keyword">return</span> model
+</code></pre>
+    <p class="normal">Once this is done, we <a id="_idIndexMarker240"/>can again run our previous linear model with L1 loss and see <a id="_idIndexMarker241"/>the results improve:</p>
+    <pre class="programlisting code"><code class="hljs-code">categorical_cols = [<span class="hljs-string">'CHAS'</span>, <span class="hljs-string">'RAD'</span>]
+numeric_cols = [<span class="hljs-string">'CRIM'</span>, <span class="hljs-string">'ZN'</span>, <span class="hljs-string">'INDUS'</span>,  <span class="hljs-string">'NOX'</span>, <span class="hljs-string">'RM'</span>, <span class="hljs-string">'AGE'</span>, <span class="hljs-string">'DIS'</span>, <span class="hljs-string">'TAX'</span>, <span class="hljs-string">'PTRATIO'</span>, <span class="hljs-string">'B'</span>, <span class="hljs-string">'LSTAT'</span>]
+feature_columns, feature_layer_inputs = define_feature_columns_layers(data, categorical_cols, numeric_cols)
+interactions_columns = create_interactions([[<span class="hljs-string">'RM'</span>, <span class="hljs-string">'LSTAT'</span>]])
+feature_columns += interactions_columns
+optimizer = keras.optimizers.Ftrl(learning_rate=<span class="hljs-number">0.02</span>)
+model = create_ridge_linreg(feature_columns, feature_layer_inputs, optimizer,
+                      loss=<span class="hljs-string">'mean_squared_error'</span>, 
+                      metrics=[<span class="hljs-string">'mean_absolute_error'</span>,                                <span class="hljs-string">'mean_squared_error'</span>],
+                           l2=<span class="hljs-number">0.01</span>)
+estimator = canned_keras(model)
+train_input_fn = make_input_fn(train, y_train, num_epochs=<span class="hljs-number">1400</span>)
+test_input_fn = make_input_fn(test, y_test, num_epochs=<span class="hljs-number">1</span>, shuffle=<span class="hljs-literal">False</span>)
+estimator.train(train_input_fn)
+result = estimator.evaluate(test_input_fn)
+print(result)
+</code></pre>
+    <p class="normal">Here are the Ridge regression results:</p>
+    <pre class="programlisting code"><code class="hljs-code">{'loss': 25.903751, 'mean_absolute_error': 3.27314, 'mean_squared_error': 25.676477, 'global_step': 2800}
+</code></pre>
+    <p class="normal">In addition, here <a id="_idIndexMarker242"/>is the plot of the training <a id="_idIndexMarker243"/>using TensorBoard:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_04_06.png" alt="C:\Users\Luca\Dropbox\Packt\Packt - TensorFlow Machine Learning Cookbook\new chapters\images\05 ridge.png"/></figure>
+    <p class="packt_figref">Figure 4.6: Ridge regression training loss</p>
+    <p class="normal">We can also replicate that for L1 regularization by creating a new function:</p>
+    <pre class="programlisting code"><code class="hljs-code">create_lasso_linreg.
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">create_lasso_linreg</span><span class="hljs-function">(</span><span class="hljs-params">feature_columns, feature_layer_inputs, optimizer, </span>
+<span class="hljs-params">                        loss=</span><span class="hljs-string">'mean_squared_error'</span><span class="hljs-params">, metrics=[</span><span class="hljs-string">'mean_absolute_error'</span><span class="hljs-params">],</span>
+<span class="hljs-params">                        l1=</span><span class="hljs-number">0.001</span><span class="hljs-function">):</span>
+    
+    regularizer = keras.regularizers.l1(l1)
+    feature_layer = keras.layers.DenseFeatures(feature_columns)
+    feature_layer_outputs = feature_layer(feature_layer_inputs)
+    norm = keras.layers.BatchNormalization()(feature_layer_outputs)
+    outputs = keras.layers.Dense(<span class="hljs-number">1</span>, 
+                                 kernel_initializer=<span class="hljs-string">'normal'</span>, 
+                                 kernel_regularizer = regularizer, 
+                                 activation=<span class="hljs-string">'linear'</span>)(norm)
+    
+    model = keras.Model(inputs=[v <span class="hljs-keyword">for</span> v <span class="hljs-keyword">in</span> feature_layer_inputs.values()], outputs=outputs)
+    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+    <span class="hljs-keyword">return</span> model
+categorical_cols = [<span class="hljs-string">'CHAS'</span>, <span class="hljs-string">'RAD'</span>]
+numeric_cols = [<span class="hljs-string">'CRIM'</span>, <span class="hljs-string">'ZN'</span>, <span class="hljs-string">'INDUS'</span>,  <span class="hljs-string">'NOX'</span>, <span class="hljs-string">'RM'</span>, <span class="hljs-string">'AGE'</span>, <span class="hljs-string">'DIS'</span>, <span class="hljs-string">'TAX'</span>, <span class="hljs-string">'PTRATIO'</span>, <span class="hljs-string">'B'</span>, <span class="hljs-string">'LSTAT'</span>]
+feature_columns, feature_layer_inputs = define_feature_columns_layers(data, categorical_cols, numeric_cols)
+interactions_columns = create_interactions([[<span class="hljs-string">'RM'</span>, <span class="hljs-string">'LSTAT'</span>]])
+feature_columns += interactions_columns
+optimizer = keras.optimizers.Ftrl(learning_rate=<span class="hljs-number">0.02</span>)
+model = create_lasso_linreg(feature_columns, feature_layer_inputs, optimizer,
+                      loss=<span class="hljs-string">'mean_squared_error'</span>, 
+                      metrics=[<span class="hljs-string">'mean_absolute_error'</span>,                                <span class="hljs-string">'mean_squared_error'</span>],
+                           l1=<span class="hljs-number">0.001</span>)
+estimator = canned_keras(model)
+train_input_fn = make_input_fn(train, y_train, num_epochs=<span class="hljs-number">1400</span>)
+test_input_fn = make_input_fn(test, y_test, num_epochs=<span class="hljs-number">1</span>, shuffle=<span class="hljs-literal">False</span>)
+estimator.train(train_input_fn)
+result = estimator.evaluate(test_input_fn)
+print(result)
+</code></pre>
+    <p class="normal">Here are the results obtained from the L1 Lasso regression:</p>
+    <pre class="programlisting code"><code class="hljs-code">{'loss': 24.616476, 'mean_absolute_error': 3.1985352, 'mean_squared_error': 24.59167, 'global_step': 2800}
+</code></pre>
+    <p class="normal">In addition, here <a id="_idIndexMarker244"/>is the plot of the training <a id="_idIndexMarker245"/>loss:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_04_07.png" alt="C:\Users\Luca\Dropbox\Packt\Packt - TensorFlow Machine Learning Cookbook\new chapters\images\06 Lasso.png"/></figure>
+    <p class="packt_figref">Figure 4.7: Lasso regression training loss</p>
+    <p class="normal">Comparing the Ridge and Lasso approach, we notice that they are not too dissimilar in terms of training loss, but the test result favors Lasso. This could be explained by a noisy variable that had to be excluded in order for the model to improve, since Lasso routinely excludes non-useful variables from the prediction estimation (by assigning a zero coefficient to them), whereas Ridge just down-weights them.</p>
+    <h2 id="_idParaDest-145" class="title">How it works...</h2>
+    <p class="normal">We implement Lasso <a id="_idIndexMarker246"/>regression by adding a continuous Heaviside step <a id="_idIndexMarker247"/>function to the loss function of linear regression. Owing to the steepness of the step function, we have to be careful with step size. Too big a step size and it will not converge. For Ridge regression, see the change required in the next section.</p>
+    <h2 id="_idParaDest-146" class="title">There's more...</h2>
+    <p class="normal">Elastic net regression is a <a id="_idIndexMarker248"/>type of regression that combines Lasso regression with Ridge regression by adding L1 and L2 regularization terms to the loss function.</p>
+    <p class="normal">Implementing elastic net regression is straightforward following the previous two recipes, because you just need to change the regularizer.</p>
+    <p class="normal">We just create a <code class="Code-In-Text--PACKT-">create_elasticnet_linreg</code> function, which picks up as parameters the values of L1 and L2 strengths:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">create_elasticnet_linreg</span><span class="hljs-function">(</span><span class="hljs-params">feature_columns, feature_layer_inputs, </span>
+<span class="hljs-params">                             optimizer,                         </span>
+<span class="hljs-params">                             loss=</span><span class="hljs-string">'mean_squared_error'</span><span class="hljs-params">, </span>
+<span class="hljs-params">                             metrics=[</span><span class="hljs-string">'mean_absolute_error'</span><span class="hljs-params">],</span>
+<span class="hljs-params">                             l1=</span><span class="hljs-number">0.001</span><span class="hljs-params">, l2=</span><span class="hljs-number">0.01</span><span class="hljs-function">):</span>
+    
+    regularizer = keras.regularizers.l1_l2(l1=l1, l2=l2)
+    feature_layer = keras.layers.DenseFeatures(feature_columns)
+    feature_layer_outputs = feature_layer(feature_layer_inputs)
+    norm = keras.layers.BatchNormalization()(feature_layer_outputs)
+    outputs = keras.layers.Dense(<span class="hljs-number">1</span>, 
+                                 kernel_initializer=<span class="hljs-string">'normal'</span>, 
+                                 kernel_regularizer = regularizer, 
+                                 activation=<span class="hljs-string">'linear'</span>)(norm)
+    
+    model = keras.Model(inputs=[v <span class="hljs-keyword">for</span> v <span class="hljs-keyword">in</span> feature_layer_inputs.values()], 
+                        outputs=outputs)
+    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+    <span class="hljs-keyword">return</span> model
+</code></pre>
+    <p class="normal">Finally, we re-run the complete steps for training from data and obtain an evaluation of the model's performances:<a id="_idIndexMarker249"/></p>
+    <pre class="programlisting code"><code class="hljs-code">categorical_cols = [<span class="hljs-string">'CHAS'</span>, <span class="hljs-string">'RAD'</span>]
+numeric_cols = [<span class="hljs-string">'CRIM'</span>, <span class="hljs-string">'ZN'</span>, <span class="hljs-string">'INDUS'</span>,  <span class="hljs-string">'NOX'</span>, <span class="hljs-string">'RM'</span>, <span class="hljs-string">'AGE'</span>, <span class="hljs-string">'DIS'</span>, <span class="hljs-string">'TAX'</span>, <span class="hljs-string">'PTRATIO'</span>, <span class="hljs-string">'B'</span>, <span class="hljs-string">'LSTAT'</span>]
+feature_columns, feature_layer_inputs = define_feature_columns_layers(data, categorical_cols, numeric_cols)
+interactions_columns = create_interactions([[<span class="hljs-string">'RM'</span>, <span class="hljs-string">'LSTAT'</span>]])
+feature_columns += interactions_columns
+optimizer = keras.optimizers.Ftrl(learning_rate=<span class="hljs-number">0.02</span>)
+model = create_elasticnet_linreg(feature_columns, feature_layer_inputs,                                  optimizer,
+                                 loss=<span class="hljs-string">'mean_squared_error'</span>, 
+                                 metrics=[<span class="hljs-string">'mean_absolute_error'</span>,
+<span class="hljs-string">                                          'mean_squared_error'</span>],
+                                 l1=<span class="hljs-number">0.001</span>, l2=<span class="hljs-number">0.01</span>)
+estimator = canned_keras(model)
+train_input_fn = make_input_fn(train, y_train, num_epochs=<span class="hljs-number">1400</span>)
+test_input_fn = make_input_fn(test, y_test, num_epochs=<span class="hljs-number">1</span>, shuffle=<span class="hljs-literal">False</span>)
+estimator.train(train_input_fn)
+result = estimator.evaluate(test_input_fn)
+print(result)
+</code></pre>
+    <p class="normal">Here are the results: </p>
+    <pre class="programlisting code"><code class="hljs-code">{'loss': 24.910872, 'mean_absolute_error': 3.208289, 'mean_squared_error': 24.659771, 'global_step': 2800}
+</code></pre>
+    <p class="normal">Here is the training loss plot for the ElasticNet model:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_04_08.png" alt="C:\Users\Luca\Dropbox\Packt\Packt - TensorFlow Machine Learning Cookbook\new chapters\images\07 ElasticNet.png"/></figure>
+    <p class="packt_figref">Figure 4.8: ElasticNet training loss</p>
+    <p class="normal">The test results obtained do not <a id="_idIndexMarker250"/>differ too much from Ridge and Lasso, landing somewhere between them. As stated previously, the problem involves removing variables from the dataset in order to improve the performances, and as we've now seen the Lasso model is the best for doing so.</p>
+    <h1 id="_idParaDest-147" class="title">Implementing logistic regression</h1>
+    <p class="normal">For this recipe, we will <a id="_idIndexMarker251"/>implement logistic regression to predict the probability of breast cancer using the Breast Cancer Wisconsin dataset (<a href="https://archive.ics.uci.edu/ml/datasets/Breast+Cancer+Wisconsin+(Diagnostic)"><span class="url">https://archive.ics.uci.edu/ml/datasets/Breast+Cancer+Wisconsin+(Diagnostic)</span></a>). We will be predicting the diagnosis from features that are computed from a digitized image of a <strong class="keyword">fine needle aspiration</strong> (<strong class="keyword">FNA</strong>) of a <a id="_idIndexMarker252"/>breast mass. An FNA is a common breast cancer test, consisting of a small tissue biopsy that can be examined under a microscope.</p>
+    <p class="normal">The dataset can immediately be used for a classification model, without further transformations, since the target variable consists of 357 benign cases and 212 malignant ones. The two classes do not have the exact same consistency (an important requirement when doing binary classification with regression models), but they are not extremely different, allowing us to build a straightforward example and evaluate it using plain accuracy.</p>
+    <div class="packt_tip">
+      <p class="Tip--PACKT-">Please remember to check whether your classes are balanced (in other words, having approximately the same number of cases), otherwise you will have to apply specific recipes to balance the cases, such as applying weights, or your model may provide inaccurate predictions (you can refer to the following Stack Overflow question if you just need further details: <a href="https://datascience.stackexchange.com/questions/13490/how-to-set-class-weights-for-imbalanced-classes-in-keras"><span class="url">https://datascience.stackexchange.com/questions/13490/how-to-set-class-weights-for-imbalanced-classes-in-keras</span></a>).</p>
+    </div>
+    <h2 id="_idParaDest-148" class="title">Getting ready</h2>
+    <p class="normal">Logistic regression is a way to <a id="_idIndexMarker253"/>turn linear regression into a binary classification. This is accomplished by transforming the linear output into a sigmoid function that scales the output between zero and one. The target is a zero or one, which indicates whether a data point is in one class or another. Since we are predicting a number between zero and one, the prediction is classified into class value 1 if the prediction is above a specified cut-off value, and class 0 otherwise. For the purpose of this example, we will specify that cutoff to be 0.5, which will make the classification as simple as rounding the output.</p>
+    <p class="normal">When classifying, anyway, sometimes you need to control the kinds of mistakes you make, and this is especially true for medical applications (such as the example we are proposing), but it may be a sensible problem for other ones, too (for example, in the case of fraud detection in the insurance or banking sectors). In fact, when you classify, you get correct guesses, but also <strong class="keyword">false positives</strong> and <strong class="keyword">false negatives</strong>. False positives <a id="_idIndexMarker254"/>are the errors the model makes when it predicts a positive (class 1), but the true label is negative. False negatives, <a id="_idIndexMarker255"/>on the other hand, are cases labeled by the model as negative when they are actually positive.</p>
+    <p class="normal">When using a 0.5 threshold for deciding the class (positive or negative class), you are actually equating the expectations for false positives and false negatives. In reality, according to your problem, false positive and false negative errors may have different consequences. In the case of detecting cancer, clearly you absolutely do not want false negatives because that would mean predicting a patient as healthy when they are instead facing a life-threatening situation.</p>
+    <p class="normal">By setting the classification threshold higher or lower, you can trade-off false positives for false negatives. Higher thresholds will have more false negatives than false positives. Lower ones will have fewer false negatives but more false positives. For our recipe, we will just use the 0.5 threshold, but please be aware that the threshold is also something you have to consider for your model's real-world applications.</p>
+    <h2 id="_idParaDest-149" class="title">How to do it...</h2>
+    <p class="normal">We proceed with the recipe as follows:</p>
+    <p class="normal">We start by loading the <a id="_idIndexMarker256"/>libraries and recovering the data from the internet:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf 
+<span class="hljs-keyword">import</span> tensorflow.keras <span class="hljs-keyword">as</span> keras
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> pandas <span class="hljs-keyword">as</span> pd
+<span class="hljs-keyword">import</span> tensorflow_datasets <span class="hljs-keyword">as</span> tfds
+tfds.disable_progress_bar()
+breast_cancer = <span class="hljs-string">'https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/breast-cancer-wisconsin.data'</span>
+path = tf.keras.utils.get_file(breast_cancer.split(<span class="hljs-string">"/"</span>)[<span class="hljs-number">-1</span>], breast_cancer)
+columns = [<span class="hljs-string">'sample_code'</span>, <span class="hljs-string">'clump_thickness'</span>, <span class="hljs-string">'cell_size_uniformity'</span>,
+           <span class="hljs-string">'cell_shape_uniformity'</span>,
+           <span class="hljs-string">'marginal_adhesion'</span>, <span class="hljs-string">'single_epithelial_cell_size'</span>,
+           <span class="hljs-string">'bare_nuclei'</span>, <span class="hljs-string">'bland_chromatin'</span>,
+           <span class="hljs-string">'normal_nucleoli'</span>, <span class="hljs-string">'mitoses'</span>, <span class="hljs-string">'class'</span>]
+data = pd.read_csv(path, header=<span class="hljs-literal">None</span>, names=columns, na_values=[np.nan, <span class="hljs-string">'?'</span>])
+data = data.fillna(data.median())
+np.random.seed(<span class="hljs-number">1</span>)
+train = data.sample(frac=<span class="hljs-number">0.8</span>).copy()
+y_train = (train[<span class="hljs-string">'class'</span>]==<span class="hljs-number">4</span>).astype(int)
+train.drop([<span class="hljs-string">'sample_code'</span>, <span class="hljs-string">'class'</span>], axis=<span class="hljs-number">1</span>, inplace=<span class="hljs-literal">True</span>)
+test = data.loc[~data.index.isin(train.index)].copy()
+y_test = (test[<span class="hljs-string">'class'</span>]==<span class="hljs-number">4</span>).astype(int)
+test.drop([<span class="hljs-string">'sample_code'</span>, <span class="hljs-string">'class'</span>], axis=<span class="hljs-number">1</span>, inplace=<span class="hljs-literal">True</span>)
+</code></pre>
+    <p class="normal">Next, we specify the logistic regression function. The main modification with respect to our linear regression model is that we change the activation in the single output neuron from <code class="Code-In-Text--PACKT-">linear</code> to <code class="Code-In-Text--PACKT-">sigmoid</code>, which is <a id="_idIndexMarker257"/>enough to obtain a logistic regression because our output will be a probability expressed in the range 0.0 to 1.0:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">create_logreg</span><span class="hljs-function">(</span><span class="hljs-params">feature_columns, feature_layer_inputs, optimizer, </span>
+<span class="hljs-params">                  loss=</span><span class="hljs-string">'binary_crossentropy'</span><span class="hljs-params">, metrics=[</span><span class="hljs-string">'accuracy'</span><span class="hljs-params">],</span>
+<span class="hljs-params">                  l2=</span><span class="hljs-number">0.01</span><span class="hljs-function">):</span>
+    
+    regularizer = keras.regularizers.l2(l2)
+    feature_layer = keras.layers.DenseFeatures(feature_columns)
+    feature_layer_outputs = feature_layer(feature_layer_inputs)
+    norm = keras.layers.BatchNormalization()(feature_layer_outputs)
+    outputs = keras.layers.Dense(<span class="hljs-number">1</span>, 
+                                 kernel_initializer=<span class="hljs-string">'normal'</span>, 
+                                 kernel_regularizer = regularizer, 
+                                 activation=<span class="hljs-string">'sigmoid'</span>)(norm)
+    
+    model = keras.Model(inputs=[v <span class="hljs-keyword">for</span> v <span class="hljs-keyword">in</span> feature_layer_inputs.values()], outputs=outputs)
+    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+    <span class="hljs-keyword">return</span> model
+</code></pre>
+    <p class="normal">Finally, we run our procedure:</p>
+    <pre class="programlisting code"><code class="hljs-code">categorical_cols = []
+numeric_cols = [<span class="hljs-string">'clump_thickness'</span>, <span class="hljs-string">'cell_size_uniformity'</span>, <span class="hljs-string">'cell_shape_uniformity'</span>,
+                <span class="hljs-string">'marginal_adhesion'</span>, <span class="hljs-string">'single_epithelial_cell_size'</span>, <span class="hljs-string">'bare_  nuclei'</span>,
+                <span class="hljs-string">'bland_chromatin'</span>,
+                <span class="hljs-string">'normal_nucleoli'</span>, <span class="hljs-string">'mitoses'</span>]
+feature_columns, feature_layer_inputs = define_feature_columns_layers(data, categorical_cols, numeric_cols)
+optimizer = keras.optimizers.Ftrl(learning_rate=<span class="hljs-number">0.007</span>)
+model = create_logreg(feature_columns, feature_layer_inputs, optimizer, l2=<span class="hljs-number">0.01</span>)
+estimator = canned_keras(model)
+train_input_fn = make_input_fn(train, y_train, num_epochs=<span class="hljs-number">300</span>, batch_size=<span class="hljs-number">32</span>)
+test_input_fn = make_input_fn(test, y_test, num_epochs=<span class="hljs-number">1</span>, shuffle=<span class="hljs-literal">False</span>)
+estimator.train(train_input_fn)
+result = estimator.evaluate(test_input_fn)
+print(result)
+</code></pre>
+    <p class="normal">Here is the reported <a id="_idIndexMarker258"/>accuracy of our logistic regression:</p>
+    <pre class="programlisting code"><code class="hljs-code">{'accuracy': 0.95, 'loss': 0.16382739, 'global_step': 5400}
+</code></pre>
+    <p class="normal">In addition, here you can find the loss plot:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_04_09.png" alt=""/></figure>
+    <p class="packt_figref">Figure 4.9: TensorBoard plot of training loss for a logistic regression model</p>
+    <p class="normal">Using a few commands, we achieved a <a id="_idIndexMarker259"/>good result in terms of accuracy and loss for this problem, in spite of a slightly unbalanced target class (more benign cases than malignant ones).</p>
+    <h2 id="_idParaDest-150" class="title">How it works...</h2>
+    <p class="normal">Logistic regression predictions <a id="_idIndexMarker260"/>are based on the sigmoid curve and, to modify our previous linear model accordingly, we just need to switch to a sigmoid activation.</p>
+    <h2 id="_idParaDest-151" class="title">There's more...</h2>
+    <p class="normal">When you are predicting a multi-class or multi-label you don't need to extend the binary model using different <a id="_idIndexMarker261"/>kinds of <strong class="keyword">One Versus All</strong> (<strong class="keyword">OVA</strong>) strategies, but you just need to extend the number of output nodes to match the number of classes you need to predict. Using multiple neurons with sigmoid activation, you will obtain a multi-label approach, while using a softmax activation, you'll get a multi-class prediction. You will find more recipes in the later chapters of this book that indicate how to do this using simple Keras functions.</p>
+    <h1 id="_idParaDest-152" class="title">Resorting to non-linear solutions</h1>
+    <p class="normal">Linear models are <a id="_idIndexMarker262"/>approachable and interpretable, given the one-to-one relation between feature columns and regression coefficients. Sometimes, anyway, you may want to try non-linear solutions in order to check whether models that are more complex can model your data better and solve your prediction problem in a more expert manner. <strong class="keyword">Support Vector Machines</strong> (<strong class="keyword">SVMs</strong>) are an algorithm that rivaled neural networks for a long time and they are still a viable option thanks to recent developments in terms of random features for large-scale kernel machines (Rahimi, Ali; Recht, Benjamin. Random features for large-scale kernel machines. In: <em class="italic">Advances in neural information processing systems</em>. 2008. pp. 1177-1184). In this recipe, we demonstrate how to leverage Keras and obtain a non-linear solution to a classification problem.</p>
+    <h2 id="_idParaDest-153" class="title">Getting ready</h2>
+    <p class="normal">We will still be using functions from the previous recipes, including <code class="Code-In-Text--PACKT-">define_feature_columns_layers</code> and <code class="Code-In-Text--PACKT-">make_input_fn</code>. As in the logistic regression recipe, we will continue using the breast cancer dataset. As before, we need to load the following packages:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf 
+<span class="hljs-keyword">import</span> tensorflow.keras <span class="hljs-keyword">as</span> keras
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> pandas <span class="hljs-keyword">as</span> pd
+<span class="hljs-keyword">import</span> tensorflow_datasets <span class="hljs-keyword">as</span> tfds
+tfds.disable_progress_bar()
+</code></pre>
+    <p class="normal">At this point we are ready to proceed with the recipe.</p>
+    <h2 id="_idParaDest-154" class="title">How to do it...</h2>
+    <p class="normal">In addition to the previous packages, we also specifically import the <code class="Code-In-Text--PACKT-">RandomFourierFeatures</code> function, which can apply a non-linear transformation to the input. Depending on the loss function, a <code class="Code-In-Text--PACKT-">RandomFourierFeatures</code> layer can approximate kernel-based classifiers and regressors. After this, we just need to apply our usual single-output node and get our predictions. </p>
+    <p class="normal">Depending on the TensorFlow 2.x version you are using you may need to import it from different modules:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">try</span>:
+    <span class="hljs-keyword">from</span> tensorflow.python.keras.layers.kernelized <span class="hljs-keyword">import</span> RandomFourierFeatures
+<span class="hljs-keyword">except</span>:
+    <span class="hljs-comment"># from TF 2.2</span>
+    <span class="hljs-keyword">from</span> tensorflow.keras.layers.experimental <span class="hljs-keyword">import</span> RandomFourierFeatures
+</code></pre>
+    <p class="normal">Now we develop the <code class="Code-In-Text--PACKT-">create_svc</code> function. It contains an L2 regularizer for the final dense node, a batch normalization layer for the input, and a <code class="Code-In-Text--PACKT-">RandomFourierFeatures</code> layer inserted among them. In this intermediate layer non-linearities are generated and you can set the <code class="Code-In-Text--PACKT-">output_dim</code> parameter in order to determine the number of non-linear interactions that will be <a id="_idIndexMarker263"/>produced by the layers. Naturally, you can contrast the overfitting caused after setting higher <code class="Code-In-Text--PACKT-">output_dim</code> values by raising the L2 regularization value, thereby achieving more regularization:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">create_svc</span><span class="hljs-function">(</span><span class="hljs-params">feature_columns, feature_layer_inputs, optimizer, </span>
+<span class="hljs-params">               loss=</span><span class="hljs-string">'hinge'</span><span class="hljs-params">, metrics=[</span><span class="hljs-string">'accuracy'</span><span class="hljs-params">],</span>
+<span class="hljs-params">               l2=</span><span class="hljs-number">0.01</span><span class="hljs-params">, output_dim=</span><span class="hljs-number">64</span><span class="hljs-params">, scale=None</span><span class="hljs-function">):</span>
+    
+    regularizer = keras.regularizers.l2(l2)
+    feature_layer = keras.layers.DenseFeatures(feature_columns)
+    feature_layer_outputs = feature_layer(feature_layer_inputs)
+    norm = keras.layers.BatchNormalization()(feature_layer_outputs)
+    rff = RandomFourierFeatures(output_dim=output_dim, scale=scale, kernel_initializer=<span class="hljs-string">'gaussian'</span>)(norm)
+    outputs = keras.layers.Dense(<span class="hljs-number">1</span>, 
+                                 kernel_initializer=<span class="hljs-string">'normal'</span>, 
+                                 kernel_regularizer = regularizer, 
+                                 activation=<span class="hljs-string">'sigmoid'</span>)(rff)
+    
+    model = keras.Model(inputs=[v <span class="hljs-keyword">for</span> v <span class="hljs-keyword">in</span> feature_layer_inputs.values()], outputs=outputs)
+    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+    <span class="hljs-keyword">return</span> model
+</code></pre>
+    <p class="normal">As in the previous recipes, we define the different columns, we set the model and the optimizer, we prepare the input function, and finally we train and evaluate the results:</p>
+    <pre class="programlisting code"><code class="hljs-code">categorical_cols = []
+numeric_cols = [<span class="hljs-string">'clump_thickness'</span>, <span class="hljs-string">'cell_size_uniformity'</span>, <span class="hljs-string">'cell_shape_uniformity'</span>,
+                <span class="hljs-string">'marginal_adhesion'</span>, <span class="hljs-string">'single_epithelial_cell_size'</span>, <span class="hljs-string">'bare_nuclei'</span>, <span class="hljs-string">'bland_chromatin'</span>,
+                <span class="hljs-string">'normal_nucleoli'</span>, <span class="hljs-string">'mitoses'</span>]
+feature_columns, feature_layer_inputs = define_feature_columns_layers(data, categorical_cols, numeric_cols)
+optimizer = keras.optimizers.Adam(learning_rate=<span class="hljs-number">0.00005</span>)
+model = create_svc(feature_columns, feature_layer_inputs, optimizer, 
+                   loss=<span class="hljs-string">'hinge'</span>, l2=<span class="hljs-number">0.001</span>, output_dim=<span class="hljs-number">512</span>)
+estimator = canned_keras(model)
+train_input_fn = make_input_fn(train, y_train, num_epochs=<span class="hljs-number">500</span>, batch_size=<span class="hljs-number">512</span>)
+test_input_fn = make_input_fn(test, y_test, num_epochs=<span class="hljs-number">1</span>, shuffle=<span class="hljs-literal">False</span>)
+estimator.train(train_input_fn)
+result = estimator.evaluate(test_input_fn)
+print(result)
+</code></pre>
+    <p class="normal">Here is the reported <a id="_idIndexMarker264"/>accuracy. For an even better result, you have to try different combinations of the output dimension of the <code class="Code-In-Text--PACKT-">RandomFourierFeatures</code> layer and the regularization term:</p>
+    <pre class="programlisting code"><code class="hljs-code">{'accuracy': 0.95 'loss': 0.7390725, 'global_step': 1000}
+</code></pre>
+    <p class="normal">Here is the loss plot from TensorBoard:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_04_10.png" alt=""/></figure>
+    <p class="packt_figref">Figure 4.10: Loss plot for the RandomFourierFeatures-based model</p>
+    <p class="normal">The plot is indeed quite nice, thanks <a id="_idIndexMarker265"/>to the fact that we used a larger batch than usual. Given the complexity of the task, due to the large number of neurons to be trained, a larger batch generally works better than a smaller one.</p>
+    <h2 id="_idParaDest-155" class="title">How it works...</h2>
+    <p class="normal">Random Fourier features are <a id="_idIndexMarker266"/>a way to approximate the work done by SVM kernels, thereby achieving a lower computational complexity and making such an approach also feasible for a neural network implementation. If you require a more in-depth explanation, you can read the original paper, quoted at the beginning of the recipe, or you can take advantage of this very clear answer on Stack Exchange: <a href="https://stats.stackexchange.com/questions/327646/how-does-a-random-kitchen-sink-work#327961"><span class="url">https://stats.stackexchange.com/questions/327646/how-does-a-random-kitchen-sink-work#327961</span></a>.</p>
+    <h2 id="_idParaDest-156" class="title">There's more...</h2>
+    <p class="normal">Depending on the loss function, you can obtain different non-linear models:</p>
+    <ul>
+      <li class="bullet"><strong class="keyword">Hinge loss</strong> sets your <a id="_idIndexMarker267"/>model in an SVM</li>
+      <li class="bullet"><strong class="keyword">Logistic loss</strong> turns your model <a id="_idIndexMarker268"/>into kernel logistic regression (classification performance is almost the same as SVM, but kernel logistic regression can provide class probabilities) </li>
+      <li class="bullet"><strong class="keyword">Mean squared error</strong> transforms your model into a kernel regression</li>
+    </ul>
+    <p class="normal">It is up to you to decide what loss to try first, and decide how to set the dimension of the output from the random Fourier transformation. By way of a general suggestion you could start with a large number of output nodes and iteratively test whether shrinking their number improves the result.</p>
+    <h1 id="_idParaDest-157" class="title">Using Wide &amp; Deep models</h1>
+    <p class="normal">Linear models can boast a <a id="_idIndexMarker269"/>great advantage over complex models: they are efficient and easily interpretable, even when you work with many features and with features that interact with each other. Google researchers mentioned this aspect as the power of <strong class="keyword">memorization</strong> because your linear model records the association between the features and the target into single coefficients. On the other hand, neural networks are blessed with the power of <strong class="keyword">generalization</strong>, because in their complexity (they use multiple layers of weights and they interrelate each input), they can manage to approximate the general rules that govern the outcome of a process. </p>
+    <p class="normal">Wide &amp; Deep models, as conceived by Google researchers (<a href="https://arxiv.org/abs/1606.07792"><span class="url">https://arxiv.org/abs/1606.07792</span></a>), can blend memorization and generalization because they combine a linear model, applied to numeric features, together with generalization, applied to sparse features, such as categories encoded into a sparse matrix. Therefore, <strong class="keyword">wide</strong> in their name implies the regression part, and <strong class="keyword">deep</strong> the neural network aspect:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_04_11.png" alt="https://1.bp.blogspot.com/-Dw1mB9am1l8/V3MgtOzp3uI/AAAAAAAABGs/mP-3nZQCjWwdk6qCa5WraSpK8A7rSPj3ACLcB/s640/image04.png"/></figure>
+    <p class="packt_figref">Figure 4.11: How wide models (linear models) blend with neural networks in Wide &amp; Deep models (from the paper by Cheng, Heng-Tze, et al. "Wide &amp; deep learning for recommender systems." Proceedings of the 1st workshop on deep learning for recommender systems. 2016)</p>
+    <p class="normal">Such a blend can achieve the best results when working on recommender system problems (such as the one featured in Google Play). Wide &amp; Deep models work the best in recommendation problems because each part handles the right kind of data. The <strong class="keyword">wide</strong> part handles the features relative to the user's characteristics (dense numeric features, binary indicators, or their <a id="_idIndexMarker270"/>combination in interaction features) that are more stable over time, whereas the <strong class="keyword">deep</strong> part processes feature strings representing previous software downloads (sparse inputs on very large matrices), which instead are more variable over time and so require a more sophisticated kind of representation. </p>
+    <h2 id="_idParaDest-158" class="title">Getting ready</h2>
+    <p class="normal">Actually, Wide &amp; Deep models also work fine with many other data problems, recommender systems being their speciality, and such models are readily available among Estimators (see <a href="https://www.tensorflow.org/api_docs/python/tf/estimator/DNNLinearCombinedEstimator"><span class="url">https://www.tensorflow.org/api_docs/python/tf/estimator/DNNLinearCombinedEstimator</span></a>). In this recipe we will use a mixed <a id="_idIndexMarker271"/>data dataset, the <strong class="keyword">Adult dataset</strong> (<a href="https://archive.ics.uci.edu/ml/datasets/Adult"><span class="url">https://archive.ics.uci.edu/ml/datasets/Adult</span></a>). Also widely known as the <strong class="keyword">Census dataset</strong>, the <a id="_idIndexMarker272"/>purpose of this dataset is to predict whether your income exceeds $50K/annum based on census data. The available features are quite varied, from continuous values related to age to variables with a large number of classes, including occupation. We will then use each different type of feature to feed the correct part of the Wide &amp; Deep model.</p>
+    <h2 id="_idParaDest-159" class="title">How to do it...</h2>
+    <p class="normal">We start by downloading the Adult dataset from the UCI archive:</p>
+    <pre class="programlisting code"><code class="hljs-code">census_dir = <span class="hljs-string">'https://archive.ics.uci.edu/ml/machine-learning-databases/adult/'</span>
+train_path = tf.keras.utils.get_file(<span class="hljs-string">'adult.data'</span>, census_dir + <span class="hljs-string">'adult.data'</span>)
+test_path = tf.keras.utils.get_file(<span class="hljs-string">'adult.test'</span>, census_dir + <span class="hljs-string">'adult.test'</span>)
+columns = [<span class="hljs-string">'age'</span>, <span class="hljs-string">'workclass'</span>, <span class="hljs-string">'fnlwgt'</span>, <span class="hljs-string">'education'</span>, <span class="hljs-string">'education_num'</span>,
+           <span class="hljs-string">'marital_status'</span>, <span class="hljs-string">'occupation'</span>, <span class="hljs-string">'relationship'</span>, <span class="hljs-string">'race'</span>,  
+           <span class="hljs-string">'gender'</span>, <span class="hljs-string">'capital_gain'</span>, <span class="hljs-string">'capital_loss'</span>, <span class="hljs-string">'hours_per_week'</span>, 
+           <span class="hljs-string">'native_country'</span>, <span class="hljs-string">'income_bracket'</span>]
+train_data = pd.read_csv(train_path, header=<span class="hljs-literal">None</span>, names=columns)
+test_data = pd.read_csv(test_path, header=<span class="hljs-literal">None</span>, names=columns, skiprows=<span class="hljs-number">1</span>)
+</code></pre>
+    <p class="normal">Then, we select a subset of features for our purposes and we extract the target variable and transform it from the string type to the int type:</p>
+    <pre class="programlisting code"><code class="hljs-code">predictors = [<span class="hljs-string">'age'</span>, <span class="hljs-string">'workclass'</span>, <span class="hljs-string">'education'</span>, <span class="hljs-string">'education_num'</span>,
+              <span class="hljs-string">'marital_status'</span>, <span class="hljs-string">'occupation'</span>, <span class="hljs-string">'relationship'</span>, <span class="hljs-string">'gender'</span>]
+y_train = (train_data.income_bracket==<span class="hljs-string">' &gt;50K'</span>).astype(int)
+y_test = (test_data.income_bracket==<span class="hljs-string">' &gt;50K.'</span>).astype(int)
+train_data = train_data[predictors]
+test_data = test_data[predictors]
+</code></pre>
+    <p class="normal">This dataset requires <a id="_idIndexMarker273"/>additional manipulation since some fields present missing values. We treat them by replacing missing values with a mean value. As a general rule, we have to impute all missing data before feeding it into a TensorFlow model:</p>
+    <pre class="programlisting code"><code class="hljs-code">train_data[[<span class="hljs-string">'age'</span>, <span class="hljs-string">'education_num'</span>]] = train_data[[<span class="hljs-string">'age'</span>, <span class="hljs-string">'education_num'</span>]].fillna(train_data[[<span class="hljs-string">'age'</span>, <span class="hljs-string">'education_num'</span>]].mean())
+test_data[[<span class="hljs-string">'age'</span>, <span class="hljs-string">'education_num'</span>]] = test_data[[<span class="hljs-string">'age'</span>, <span class="hljs-string">'education_num'</span>]].fillna(train_data[[<span class="hljs-string">'age'</span>, <span class="hljs-string">'education_num'</span>]].mean())
+</code></pre>
+    <p class="normal">Now, we can proceed to define columns by means of the proper <code class="Code-In-Text--PACKT-">tf.feature_column</code> function:</p>
+    <ul>
+      <li class="bullet"><strong class="keyword">Numeric columns</strong>: dealing with numeric values (such as the age)</li>
+      <li class="bullet"><strong class="keyword">Categorical columns</strong>: dealing with categorical values when the unique categories are just a few in number (such as the gender)</li>
+      <li class="bullet"><strong class="keyword">Embeddings</strong>: dealing with categorical values when unique categories are many in number by mapping categorical values into a dense, low-dimensional, numeric space</li>
+    </ul>
+    <p class="normal">We also define the function that faciliates the interaction of <a id="_idIndexMarker274"/>categorical and numeric columns:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">define_feature_columns</span><span class="hljs-function">(</span><span class="hljs-params">data_df, numeric_cols, categorical_cols, categorical_embeds, dimension=</span><span class="hljs-number">30</span><span class="hljs-function">):</span>
+    numeric_columns = []
+    categorical_columns = []
+    embeddings = []
+    
+    <span class="hljs-keyword">for</span> feature_name <span class="hljs-keyword">in</span> numeric_cols:
+        numeric_columns.append(tf.feature_column.numeric_column(feature_name, dtype=tf.float32))
+    
+    <span class="hljs-keyword">for</span> feature_name <span class="hljs-keyword">in</span> categorical_cols:
+        vocabulary = data_df[feature_name].unique()
+        categorical_columns.append(tf.feature_column.categorical_column_with_vocabulary_list(feature_name, vocabulary))
+        
+    <span class="hljs-keyword">for</span> feature_name <span class="hljs-keyword">in</span> categorical_embeds:
+        vocabulary = data_df[feature_name].unique()
+        to_categorical = tf.feature_column.categorical_column_with_vocabulary_list(feature_name, 
+                                                          vocabulary)
+embeddings.append(tf.feature_column.embedding_column(to_categorical, 
+                                                        dimension=dimension))
+        
+    <span class="hljs-keyword">return</span> numeric_columns, categorical_columns, embeddings
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">create_interactions</span><span class="hljs-function">(</span><span class="hljs-params">interactions_list, buckets=</span><span class="hljs-number">10</span><span class="hljs-function">):</span>
+    feature_columns = []
+    
+    <span class="hljs-keyword">for</span> (a, b) <span class="hljs-keyword">in</span> interactions_list:
+        crossed_feature = tf.feature_column.crossed_column([a, b],                                             hash_bucket_size=buckets)
+        crossed_feature_one_hot = tf.feature_column.indicator_column(                                                     crossed_feature)
+        feature_columns.append(crossed_feature_one_hot)
+        
+    <span class="hljs-keyword">return</span> feature_columns
+</code></pre>
+    <p class="normal">Now that all the functions have been defined, we map the different columns and add some meaningful interaction (such as crossing education with occupation). We map high-dimensional categorical <a id="_idIndexMarker275"/>features into a fixed lower-dimensional numeric space of 32 dimensions by setting the dimension parameter:</p>
+    <pre class="programlisting code"><code class="hljs-code">numeric_columns, categorical_columns, embeddings = define_feature_columns(train_data, 
+                                                                          numeric_cols=[<span class="hljs-string">'age'</span>, <span class="hljs-string">'education_num'</span>], 
+                                                                          categorical_cols=[<span class="hljs-string">'gender'</span>], 
+                                                                          categorical_embeds=[<span class="hljs-string">'workclass'</span>, <span class="hljs-string">'education'</span>,
+                                                                                              <span class="hljs-string">'marital_status'</span>, <span class="hljs-string">'occupation'</span>, 
+                                                                                              <span class="hljs-string">'relationship'</span>], 
+                                                                          dimension=<span class="hljs-number">32</span>)
+interactions = create_interactions([[<span class="hljs-string">'education'</span>, <span class="hljs-string">'occupation'</span>]], buckets=<span class="hljs-number">10</span>)
+</code></pre>
+    <p class="normal">Having mapped the features, we then input them into our estimator (see <a href="https://www.tensorflow.org/api_docs/python/tf/estimator/DNNLinearCombinedClassifier"><span class="url">https://www.tensorflow.org/api_docs/python/tf/estimator/DNNLinearCombinedClassifier</span></a>), specifying the feature columns to be handled by the wide part and those by the deep part. For each part we also specify an optimizer (usually Ftrl for the linear part and Adam for the deep part) and, for the deep part, we specify the architecture of hidden layers as a list of numbers of neurons:</p>
+    <pre class="programlisting code"><code class="hljs-code">estimator = tf.estimator.DNNLinearCombinedClassifier(
+    <span class="hljs-comment"># wide settings</span>
+    linear_feature_columns=numeric_columns+categorical_columns+interactions,    linear_optimizer=keras.optimizers.Ftrl(learning_rate=<span class="hljs-number">0.0002</span>),
+    <span class="hljs-comment"># deep settings</span>
+    dnn_feature_columns=embeddings,
+    dnn_hidden_units=[<span class="hljs-number">1024</span>, <span class="hljs-number">256</span>, <span class="hljs-number">128</span>, <span class="hljs-number">64</span>],
+    dnn_optimizer=keras.optimizers.Adam(learning_rate=<span class="hljs-number">0.0001</span>))
+</code></pre>
+    <p class="normal">We then proceed to define the input function (no different to what we have done in the other recipes presented in this chapter):</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">make_input_fn</span><span class="hljs-function">(</span><span class="hljs-params">data_df, label_df, num_epochs=</span><span class="hljs-number">10</span><span class="hljs-params">, shuffle=True, batch_size=</span><span class="hljs-number">256</span><span class="hljs-function">):</span>
+    
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">input_function</span><span class="hljs-function">():</span>
+        ds = tf.data.Dataset.from_tensor_slices((dict(data_df), label_df))
+        <span class="hljs-keyword">if</span> shuffle:
+            ds = ds.shuffle(<span class="hljs-number">1000</span>)
+        ds = ds.batch(batch_size).repeat(num_epochs)
+        <span class="hljs-keyword">return</span> ds
+    
+    <span class="hljs-keyword">return</span> input_function
+</code></pre>
+    <p class="normal">Finally, we train the Estimator <a id="_idIndexMarker276"/>for 1,500 steps and evaluate the results on the test data:</p>
+    <pre class="programlisting code"><code class="hljs-code">train_input_fn = make_input_fn(train_data, y_train, 
+                               num_epochs=<span class="hljs-number">100</span>, batch_size=<span class="hljs-number">256</span>)
+test_input_fn = make_input_fn(test_data, y_test, 
+                              num_epochs=<span class="hljs-number">1</span>, shuffle=<span class="hljs-literal">False</span>)
+estimator.train(input_fn=train_input_fn, steps=<span class="hljs-number">1500</span>)
+results = estimator.evaluate(input_fn=test_input_fn)
+print(results)
+</code></pre>
+    <p class="normal">We obtain an accuracy of about 0.83 on our test set, as reported using the evaluate method on the Estimator:</p>
+    <pre class="programlisting code"><code class="hljs-code">{'accuracy': 0.83391684, 'accuracy_baseline': 0.76377374, 'auc': 0.88012385, 'auc_precision_recall': 0.68032277, 'average_loss': 0.35969484, 'label/mean': 0.23622628, 'loss': 0.35985297, 'precision': 0.70583993, 'prediction/mean': 0.21803579, 'recall': 0.5091004, 'global_step': 1000}
+</code></pre>
+    <p class="normal">Here is the plot of the training loss and the test estimate (the blue dot):</p>
+    <figure class="mediaobject"><img src="../Images/B16254_04_12.png" alt="C:\Users\Luca\Dropbox\Packt\Packt - TensorFlow Machine Learning Cookbook\new chapters\images\10 wide and deep.png"/></figure>
+    <p class="packt_figref">Figure 4.12: Training loss and test estimate for the Wide &amp; Deep model</p>
+    <p class="normal">For full prediction probabilities, we <a id="_idIndexMarker277"/>just extract them from the dictionary data type used by the Estimator. The <code class="Code-In-Text--PACKT-">predict_proba</code> function will return a NumPy array with the probabilities for the positive (income in excess of USD 50K) and negative classes in distinct columns:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">predict_proba</span><span class="hljs-function">(</span><span class="hljs-params">predictor</span><span class="hljs-function">):</span>
+    preds = list()
+    <span class="hljs-keyword">for</span> pred <span class="hljs-keyword">in</span> predictor:
+        preds.append(pred[<span class="hljs-string">'probabilities'</span>])
+    <span class="hljs-keyword">return</span> np.array(preds)
+predictions = predict_proba(estimator.predict(input_fn=test_input_fn))
+</code></pre>
+    <h2 id="_idParaDest-160" class="title">How it works...</h2>
+    <p class="normal">Wide &amp; Deep models <a id="_idIndexMarker278"/>represent a way to handle linear models together with a more complex approach involving neural networks. As for other Estimators, this Estimator is also quite straightforward and easy to use. The keys for the success of the recipe in terms of other applications definitely rest upon defining an input data function and mapping the features with the more suitable functions from <code class="Code-In-Text--PACKT-">tf.features_columns</code>.</p>
+  </div>
+</body></html>

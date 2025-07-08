@@ -1,0 +1,857 @@
+<html><head></head><body>
+<div id="sbo-rt-content"><div class="Basic-Text-Frame" id="_idContainer884">
+<h1 class="chapterNumber">19</h1>
+<h1 class="chapterTitle" id="_idParaDest-464">TensorFlow 2 Ecosystem</h1>
+<p class="normal">In this chapter, we will learn about the different components of the TensorFlow ecosystem. The chapter will elaborate upon TensorFlow Hub – a repository for pretrained deep learning models – and TensorFlow Datasets – a collection of ready-to-use datasets for ML tasks. TensorFlow JS, the solution for training and deploying ML models on the web, will be introduced. We will also learn about TensorFlow Lite, an open-source deep learning framework for mobile and edge devices. Some examples of Android, iOS, and Raspberry Pi applications will be discussed, together with examples of deploying pretrained models such as MobileNet v1, v2, v3 (image classification models designed for mobile and embedded vision applications), PoseNet for pose estimation (a vision model that estimates the poses of people in image or video), DeepLab segmentation (an image segmentation model that assigns semantic labels (for example, dog, cat, and car) to every pixel in the input image), and MobileNet SSD object detection (an image classification model that detects multiple objects with bounding boxes). The chapter will conclude with an example of federated learning, a decentralized machine learning framework that is thought to respect user privacy. The chapter includes:</p>
+<ul>
+<li class="bulletList">TensorFlow Hub</li>
+<li class="bulletList">TensorFlow Datasets</li>
+<li class="bulletList">TensorFlow Lite and using it for mobile and edge applications</li>
+<li class="bulletList">Federated learning at edge</li>
+<li class="bulletList">TensorFlow JS</li>
+<li class="bulletList">Using Node.js with TensorFlow models</li>
+</ul>
+<div class="note">
+<p class="normal">All the code files for this chapter can be found at <a href="https://packt.link/dltfchp19"><span class="url">https://packt.link/dltfchp19</span></a></p>
+</div>
+<p class="normal">Let’s begin with TensorFlow Hub.</p>
+<h1 class="heading-1" id="_idParaDest-465">TensorFlow Hub</h1>
+<p class="normal">Even if you have a powerful computer, training a machine learning model can take days or weeks. And once you’ve trained the<a id="_idIndexMarker1646"/> model, deploying it to different devices can be difficult and time-consuming. Depending upon the platform you want to deploy, you might need it in different formats.</p>
+<p class="normal">You can think of TensorFlow Hub as a library with many pretrained models. It contains hundreds of trained, ready-to-deploy deep learning models. TensorFlow Hub provides pretrained models for image classification, image segmentation, object detection, text embedding, text classification, video classification and generation, and much more. The models in TF Hub are available in SavedModel, TFLite, and TF.js formats. We can use these pretrained models directly for inference or fine-tune them. With its growing community of users and developers, TensorFlow Hub is the go-to place for finding and sharing machine learning models. To use TensorFlow Hub, we first need to install it:</p>
+<pre class="programlisting con"><code class="hljs-con">pip install tensorflow_hub
+</code></pre>
+<p class="normal">Once installed, we can import it simply using:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow_hub <span class="hljs-keyword">as</span> hub
+</code></pre>
+<p class="normal">and load the model using the <code class="inlineCode">load</code> function:</p>
+<pre class="programlisting code"><code class="hljs-code">model = hub.load(handle)
+</code></pre>
+<p class="normal">Here <code class="inlineCode">handle</code> is a string, which contains the link of the model we wants to use. If we want to use it as part of our existing model, we can wrap it as a Keras layer:</p>
+<pre class="programlisting code"><code class="hljs-code">hub.KerasLayer(
+    handle,
+    trainable=<span class="hljs-literal">False</span>,
+    arguments=<span class="hljs-literal">None</span>,
+    _sentinel=<span class="hljs-literal">None</span>,
+    tags=<span class="hljs-literal">None</span>,
+    signature=<span class="hljs-literal">None</span>,
+    signature_outputs_as_dict=<span class="hljs-literal">None</span>,
+    output_key=<span class="hljs-literal">None</span>,
+    output_shape=<span class="hljs-literal">None</span>,
+    load_options=<span class="hljs-literal">None</span>,
+    **kwargs
+)
+</code></pre>
+<p class="normal">By changing the parameter <code class="inlineCode">trainable</code> to <code class="inlineCode">True</code>, we can fine-tune the model for our specific data.</p>
+<p class="normal"><em class="italic">Figure 19.1</em> shows the <a id="_idIndexMarker1647"/>easy-to-use web interface to select different models at the <code class="inlineCode">tfhub.dev</code> site. Using the filters, we can easily find a model to solve our problem. </p>
+<p class="normal">We can choose which type and format we need, as well as who published it!</p>
+<figure class="mediaobject"><img alt="" height="591" src="../Images/B18331_19_01.png" width="877"/></figure>
+<p class="packt_figref">Figure 19.1: The tfhub.dev site showing different filters</p>
+<h2 class="heading-2" id="_idParaDest-466">Using pretrained models for inference</h2>
+<p class="normal">Let us see how you can leverage <a id="_idIndexMarker1648"/>pretrained models from TensorFlow Hub. We will consider an example of image classification:</p>
+<ol class="numberedList" style="list-style-type: decimal;">
+<li class="numberedList" value="1">Let us import the necessary modules:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+<span class="hljs-keyword">import</span> tensorflow_hub <span class="hljs-keyword">as</span> hub
+<span class="hljs-keyword">import</span> requests
+<span class="hljs-keyword">from</span> PIL <span class="hljs-keyword">import</span> Image
+<span class="hljs-keyword">from</span> io <span class="hljs-keyword">import</span> BytesIO
+<span class="hljs-keyword">import</span> matplotlib.pyplot <span class="hljs-keyword">as</span> plt
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+</code></pre>
+</li>
+<li class="numberedList">We define a function for loading an image from a URL. The functions get the image from the web, and we reshape it by adding batch indexes for inference. Also, the image is normalized and resized according to the pretrained model chosen:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">load_image_from_url</span><span class="hljs-function">(</span><span class="hljs-params">img_url, image_size</span><span class="hljs-function">):</span>
+  <span class="hljs-string">"""Get the image from url. The image return has shape [1, height, width, num_channels]."""</span>
+  response = requests.get(img_url, headers={<span class="hljs-string">'User-agent'</span>: <span class="hljs-string">'Colab Sample (https://tensorflow.org)'</span>})
+  image = Image.<span class="hljs-built_in">open</span>(BytesIO(response.content))
+  image = np.array(image)
+  <span class="hljs-comment"># reshape image</span>
+  img_reshaped = tf.reshape(image, [<span class="hljs-number">1</span>, image.shape[<span class="hljs-number">0</span>], image.shape[<span class="hljs-number">1</span>], image.shape[<span class="hljs-number">2</span>]]) 
+  <span class="hljs-comment"># Normalize by convert to float between [0,1]</span>
+  image = tf.image.convert_image_dtype(img_reshaped, tf.float32) 
+  image_padded = tf.image.resize_with_pad(image, image_size, image_size)
+  <span class="hljs-keyword">return</span> image_padded, image
+</code></pre>
+</li>
+<li class="numberedList">Another helper function to show the image:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">show_image</span><span class="hljs-function">(</span><span class="hljs-params">image, title=</span><span class="hljs-string">''</span><span class="hljs-function">):</span>
+  image_size = image.shape[<span class="hljs-number">1</span>]
+  w = (image_size * <span class="hljs-number">6</span>) // <span class="hljs-number">320</span>
+  plt.figure(figsize=(w, w))
+  plt.imshow(image[<span class="hljs-number">0</span>], aspect=<span class="hljs-string">'equal'</span>)
+  plt.axis(<span class="hljs-string">'off'</span>)
+  plt.title(title)
+  plt.show()
+</code></pre>
+</li>
+<li class="numberedList">The model we are using is EfficientNet-B2 (<a href="https://arxiv.org/abs/1905.11946"><span class="url">https://arxiv.org/abs/1905.11946</span></a>) trained on the ImageNet dataset. It gives better accuracy, is smaller in<a id="_idIndexMarker1649"/> size, and gives faster inference. For convenience, we choose images to be resized to 330 x 330 pixels. We use the helper function defined in step 2 to download the image from Wikimedia:
+        <pre class="programlisting code"><code class="hljs-code">image_size = <span class="hljs-number">330</span>
+print(<span class="hljs-string">f"Images will be converted to </span><span class="hljs-subst">{image_size}</span><span class="hljs-string">x</span><span class="hljs-subst">{image_size}</span><span class="hljs-string">"</span>)
+img_url =  <span class="hljs-string">"https://upload.wikimedia.org/wikipedia/commons/c/c6/Okonjima_Lioness.jpg"</span>
+image, original_image = load_image_from_url(img_url, image_size) 
+show_image(image, <span class="hljs-string">'Scaled image'</span>)
+</code></pre>
+</li>
+</ol>
+<figure class="mediaobject"><img alt="" height="578" src="../Images/B18331_19_02.png" width="552"/></figure>
+<p class="packt_figref">Figure 19.2: The image taken from the web for classification, scaled to size 330 x 330 pixels</p>
+<ol class="numberedList" style="list-style-type: decimal;">
+<li class="numberedList" value="5">For completeness, we<a id="_idIndexMarker1650"/> also get all the labels of ImageNet data so that we can infer the label from the model prediction; we download it from a public repository of TensorFlow:
+        <pre class="programlisting code"><code class="hljs-code">labels_file = <span class="hljs-string">"https://storage.googleapis.com/download.tensorflow.org/data/ImageNetLabels.txt"</span>
+<span class="hljs-comment">#download labels and creates a maps</span>
+downloaded_file = tf.keras.utils.get_file(<span class="hljs-string">"labels.txt"</span>, origin=labels_file)
+classes = []
+<span class="hljs-keyword">with</span> <span class="hljs-built_in">open</span>(downloaded_file) <span class="hljs-keyword">as</span> f:
+  labels = f.readlines()
+  classes = [l.strip() <span class="hljs-keyword">for</span> l <span class="hljs-keyword">in</span> labels]
+</code></pre>
+</li>
+<li class="numberedList">Now that all the ingredients are ready, we download the model from <code class="inlineCode">tfhub.dev</code>:
+        <pre class="programlisting code"><code class="hljs-code">classifier = hub.load(<span class="hljs-string">"https://tfhub.dev/tensorflow/efficientnet/b2/classification/1"</span>)
+</code></pre>
+</li>
+<li class="numberedList">We get the softmax probabilities for all the classes for the image downloaded in step 5:
+        <pre class="programlisting code"><code class="hljs-code">probabilities = tf.nn.softmax(classifier(image)).numpy()
+</code></pre>
+</li>
+<li class="numberedList">Let us see the <a id="_idIndexMarker1651"/>top prediction:
+        <pre class="programlisting code"><code class="hljs-code">top_5 = tf.argsort(probabilities, axis=-<span class="hljs-number">1</span>, direction=<span class="hljs-string">"DESCENDING"</span>)[<span class="hljs-number">0</span>][:<span class="hljs-number">5</span>].numpy()
+show_image(image, <span class="hljs-string">f'</span><span class="hljs-subst">{classes[top_5[</span><span class="hljs-number">0</span><span class="hljs-subst">]+</span><span class="hljs-number">1</span><span class="hljs-subst">]}</span><span class="hljs-string">: </span><span class="hljs-subst">{probabilities[</span><span class="hljs-number">0</span><span class="hljs-subst">][top_5][</span><span class="hljs-number">0</span><span class="hljs-subst">]:</span><span class="hljs-number">.4</span><span class="hljs-subst">f}</span><span class="hljs-string">'</span>)
+</code></pre>
+</li>
+</ol>
+<figure class="mediaobject"><img alt="" height="561" src="../Images/B18331_19_03.png" width="536"/></figure>
+<p class="packt_figref">Figure 19.3: The image with the label prediction of lion</p>
+<p class="normal">So, as we can see, in a<a id="_idIndexMarker1652"/> few lines of code we get a perfect inference – the image is of a lioness, and the closest label for it in the ImageNet dataset is that of a lion<span class="Comment-Reference">, </span>which the model has correctly predicted. By using the pretrained models of TF Hub, we can focus on our product workflow, and get better models and faster production.</p>
+<h1 class="heading-1" id="_idParaDest-467">TensorFlow Datasets</h1>
+<p class="normal"><strong class="keyWord">TensorFlow Datasets</strong> (<strong class="keyWord">TFDS</strong>) is a <a id="_idIndexMarker1653"/>powerful tool for anyone working with machine learning. It provides a collection of ready-to-use datasets that can be easily used with TensorFlow or any other Python ML framework. All datasets are exposed as <code class="inlineCode">tf.data.Datasets</code>, making it easy to use them in your input pipeline. </p>
+<p class="normal">With TFDS, you can quickly get started with your machine learning projects and save time by not having to collect and prepare your own data. The library currently contains a wide variety of datasets, including image classification, object detection, text classification, and more. In addition, the library provides tools for creating new datasets from scratch, which can be useful for researchers or developers who need to create custom datasets for their own projects. TFDS is open source and released under the Apache 2.0 license. To be able to use TFDS, you will need to install it:</p>
+<pre class="programlisting con"><code class="hljs-con">pip install tensorflow-datasets
+</code></pre>
+<p class="normal">Once installed, you can import it as:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow_datasets <span class="hljs-keyword">as</span> tfds
+</code></pre>
+<p class="normal">At the time of writing this book, TFDS contained 224 public datasets for a large range of tasks:</p>
+<pre class="programlisting code"><code class="hljs-code">datasets = tfds.list_builders()
+print(<span class="hljs-string">f"TFDS contains </span><span class="hljs-subst">{</span><span class="hljs-built_in">len</span><span class="hljs-subst">(datasets)}</span><span class="hljs-string"> datasets"</span>)
+</code></pre>
+<pre class="programlisting con"><code class="hljs-con">### Output
+TFDS contains 224 datasets
+</code></pre>
+<p class="normal">In this section, we will introduce you to TFDS and show how it can simplify your training process by exploring its underlying structure as well as providing some best practices for loading large amounts into machine learning models efficiently.</p>
+<h2 class="heading-2" id="_idParaDest-468">Load a TFDS dataset</h2>
+<p class="normal">Each dataset in TFDS is identified by its<a id="_idIndexMarker1654"/> unique name, and associated with each dataset is also a publisher and dataset version. To get the data, you can use the TFDS <code class="inlineCode">load</code> function (it is a powerful function with a lot of flexibility; you can read more about the function at <a href="https://www.tensorflow.org/datasets/api_docs/python/tfds/load"><span class="url">https://www.tensorflow.org/datasets/api_docs/python/tfds/load</span></a>):</p>
+<pre class="programlisting code"><code class="hljs-code">tfds.load(
+    name: <span class="hljs-built_in">str</span>,
+    *,
+    split: Optional[Tree[splits_lib.SplitArg]] = <span class="hljs-literal">None</span>,
+    data_dir: Optional[<span class="hljs-built_in">str</span>] = <span class="hljs-literal">None</span>,
+    batch_size: tfds.typing.Dim = <span class="hljs-literal">None</span>,
+    shuffle_files: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">False</span>,
+    download: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">True</span>,
+    as_supervised: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">False</span>,
+    decoders: Optional[TreeDict[decode.partial_decode.DecoderArg]] =
+<span class="hljs-literal">None</span>,
+    read_config: Optional[tfds.ReadConfig] = <span class="hljs-literal">None</span>,
+    with_info: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">False</span>,
+    builder_kwargs: Optional[Dict[<span class="hljs-built_in">str</span>, Any]] = <span class="hljs-literal">None</span>,
+    download_and_prepare_kwargs: Optional[Dict[<span class="hljs-built_in">str</span>, Any]] = <span class="hljs-literal">None</span>,
+    as_dataset_kwargs: Optional[Dict[<span class="hljs-built_in">str</span>, Any]] = <span class="hljs-literal">None</span>,
+    try_gcs: <span class="hljs-built_in">bool</span> = <span class="hljs-literal">False</span>
+)
+</code></pre>
+<p class="normal">You only need to specify the <a id="_idIndexMarker1655"/>dataset name; the rest of the parameters are optional. You can read more about the optional arguments from TFDS docs. For example, below, we are downloading the famous MNIST dataset:</p>
+<pre class="programlisting code"><code class="hljs-code">data, info = tfds.load(name=<span class="hljs-string">"mnist"</span>, as_supervised=<span class="hljs-literal">True</span>, split=[<span class="hljs-string">'train'</span>, <span class="hljs-string">'test'</span>], with_info=<span class="hljs-literal">True</span>)
+</code></pre>
+<p class="normal">The preceding statement downloads both the training and test dataset of MNIST into the variable data. Since the <code class="inlineCode">as_supervised</code> flag is set to <code class="inlineCode">True</code>, the labels are downloaded with the data, and the detailed information about the dataset is downloaded in <code class="inlineCode">info</code>.</p>
+<p class="normal">Let us first check the info:</p>
+<pre class="programlisting code"><code class="hljs-code">print(info)
+</code></pre>
+<pre class="programlisting con"><code class="hljs-con">### output
+tfds.core.DatasetInfo(
+    name='mnist',
+    version=3.0.1,
+    description='The MNIST database of handwritten digits.',
+    homepage='http://yann.lecun.com/exdb/mnist/',
+    features=FeaturesDict({
+        'image': Image(shape=(28, 28, 1), dtype=tf.uint8),
+        'label': ClassLabel(shape=(), dtype=tf.int64, num_classes=10),
+    }),
+    total_num_examples=70000,
+    splits={
+        'test': 10000,
+        'train': 60000,
+    },
+    supervised_keys=('image', 'label'),
+    citation="""@article{lecun2010mnist,
+      title={MNIST handwritten digit database},
+      author={LeCun, Yann and Cortes, Corinna and Burges, CJ},
+      journal={ATT Labs [Online]. Available: http://yann.lecun.com/exdb/mnist},
+      volume={2},
+      year={2010}
+    }""",
+    redistribution_info=,
+)
+</code></pre>
+<p class="normal">So, we can see that the information is quite extensive. It tells us about the splits and the total number of samples<a id="_idIndexMarker1656"/> in each split, the keys available if used for supervised learning, the citation details, and so on. The variable data here is a list of two TFDS dataset objects – the first one corresponding to the test dataset and the second one corresponding to the train dataset. TFDS dataset objects are <code class="inlineCode">dict</code> by default. Let us take one single sample from the train dataset and explore:</p>
+<pre class="programlisting code"><code class="hljs-code">data_train = data[<span class="hljs-number">1</span>].take(<span class="hljs-number">1</span>)
+<span class="hljs-keyword">for</span> sample, label <span class="hljs-keyword">in</span> data_train:
+  print(sample.shape)
+  print(label)
+</code></pre>
+<pre class="programlisting con"><code class="hljs-con">### output
+(28, 28, 1)
+tf.Tensor(2, shape=(), dtype=int64)
+</code></pre>
+<p class="normal">You can see that the sample is an image of handwritten digits of the shape 28 x 28 x 1 and its label is <code class="inlineCode">2</code>. For image data, TFDS also has a method <code class="inlineCode">show_examples</code>, which you can use to view the sample images from the dataset: </p>
+<pre class="programlisting code"><code class="hljs-code">fig = tfds.show_examples(data[<span class="hljs-number">0</span>], info)
+</code></pre>
+<figure class="mediaobject"><img alt="A picture containing diagram  Description automatically generated" height="403" src="../Images/B18331_19_04.png" width="403"/></figure>
+<p class="packt_figref">Figure 19.4: Sample from test dataset of MNIST dataset</p>
+<h2 class="heading-2" id="_idParaDest-469">Building data pipelines using TFDS</h2>
+<p class="normal">Let us build a complete <a id="_idIndexMarker1657"/>end-to-end example using the <a id="_idIndexMarker1658"/>TFDS data pipeline:</p>
+<ol class="numberedList" style="list-style-type: decimal;">
+<li class="numberedList" value="1">As always, we start with importing the necessary modules. Since we will be using TensorFlow to build the model, and TFDS for getting the dataset, we are including only these two for now:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+<span class="hljs-keyword">import</span> tensorflow_datasets <span class="hljs-keyword">as</span> tfds
+</code></pre>
+</li>
+<li class="numberedList">Using the Keras Sequential API, we build a simple convolutional neural network with three convolutional layers and two dense layers:
+        <pre class="programlisting code"><code class="hljs-code">model = tf.keras.models.Sequential([ 
+  tf.keras.layers.Conv2D(<span class="hljs-number">16</span>, (<span class="hljs-number">3</span>,<span class="hljs-number">3</span>), activation=<span class="hljs-string">'relu'</span>, input_shape=(<span class="hljs-number">300</span>, <span class="hljs-number">300</span>, <span class="hljs-number">3</span>)), 
+  tf.keras.layers.MaxPooling2D(<span class="hljs-number">2</span>, <span class="hljs-number">2</span>),
+  tf.keras.layers.Conv2D(<span class="hljs-number">32</span>, (<span class="hljs-number">3</span>,<span class="hljs-number">3</span>), activation=<span class="hljs-string">'relu'</span>), 
+  tf.keras.layers.MaxPooling2D(<span class="hljs-number">2</span>,<span class="hljs-number">2</span>), 
+  tf.keras.layers.Conv2D(<span class="hljs-number">64</span>, (<span class="hljs-number">3</span>,<span class="hljs-number">3</span>), activation=<span class="hljs-string">'relu'</span>), 
+  tf.keras.layers.MaxPooling2D(<span class="hljs-number">2</span>,<span class="hljs-number">2</span>), 
+  tf.keras.layers.Flatten(), 
+  tf.keras.layers.Dense(<span class="hljs-number">256</span>, activation=<span class="hljs-string">'relu'</span>), 
+  tf.keras.layers.Dense(<span class="hljs-number">1</span>, activation=<span class="hljs-string">'sigmoid'</span>)
+])
+</code></pre>
+</li>
+<li class="numberedList">We will be building a binary classifier, so we choose binary cross entropy as the loss function, and <a id="_idIndexMarker1659"/>Adam as the optimizer:
+        <pre class="programlisting code"><code class="hljs-code">model.<span class="hljs-built_in">compile</span>(optimizer=<span class="hljs-string">'Adam'</span>, loss=<span class="hljs-string">'binary_crossentropy'</span>,metrics=[<span class="hljs-string">'accuracy'</span>])
+</code></pre>
+</li>
+<li class="numberedList">Next, we come to<a id="_idIndexMarker1660"/> the dataset. We are using the <code class="inlineCode">horses_or_humans</code> dataset, so we use the <code class="inlineCode">tfds.load</code> function to get the training and validation data:
+        <pre class="programlisting code"><code class="hljs-code">data = tfds.load(<span class="hljs-string">'horses_or_humans'</span>, split=<span class="hljs-string">'train'</span>, as_supervised=<span class="hljs-literal">True</span>) 
+val_data = tfds.load(<span class="hljs-string">'horses_or_humans'</span>, split=<span class="hljs-string">'test'</span>, as_supervised=<span class="hljs-literal">True</span>)
+</code></pre>
+</li>
+<li class="numberedList">The images need to be normalized; additionally, for better performance, we will augment the images while training:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span> <span class="hljs-title">normalize_img</span>(<span class="hljs-params">image, label</span>):
+  <span class="hljs-string">"""Normalizes images: 'uint8' -&gt; 'float32'."""</span>
+  <span class="hljs-keyword">return</span> tf.cast(image, tf.float32) / <span class="hljs-number">255.</span>, label
+<span class="hljs-keyword">def</span> <span class="hljs-title">augment_img</span>(<span class="hljs-params">image, label</span>):
+  image, label = normalize_img(image, label)
+  image = tf.image.random_flip_left_right(image)
+  <span class="hljs-keyword">return</span> image, label
+</code></pre>
+</li>
+<li class="numberedList">So now we build the pipeline; we start with <code class="inlineCode">cache</code> for better memory efficiency, apply the pre-processing steps (normalization and augmentation), ensure that data is shuffled while training, define the batch size, and use <code class="inlineCode">prefetch</code> so that the next batch is brought in as the present batch is being trained on. We repeat the same steps for the validation data. The difference is that validation data need not be augmented or shuffled:
+        <pre class="programlisting code"><code class="hljs-code">data = data.cache()
+data = data.<span class="hljs-built_in">map</span>(augment_img, num_parallel_calls=tf.data.AUTOTUNE)
+train_data = data.shuffle(<span class="hljs-number">1024</span>).batch(<span class="hljs-number">32</span>)
+train_data = train_data.prefetch(tf.data.AUTOTUNE)
+val_data = val_data.<span class="hljs-built_in">map</span>(normalize_img, num_parallel_calls=tf.data.AUTOTUNE)
+val_data = val_data.batch(<span class="hljs-number">32</span>)
+val_data = val_data.cache()
+val_data = val_data.prefetch(tf.data.AUTOTUNE)
+</code></pre>
+</li>
+<li class="numberedList">And finally, we train the model:
+        <pre class="programlisting code"><code class="hljs-code">%time history = model.fit(train_data, epochs=<span class="hljs-number">10</span>, validation_data=val_data, validation_steps=<span class="hljs-number">1</span>)
+</code></pre>
+</li>
+</ol>
+<p class="normal">Play around with different<a id="_idIndexMarker1661"/> parameters of the<a id="_idIndexMarker1662"/> data pipeline and see how it affects the training time. For example, try removing <code class="inlineCode">prefetch</code> and <code class="inlineCode">cache</code> and not specifying <code class="inlineCode">num_parallel_calls</code>.</p>
+<h1 class="heading-1" id="_idParaDest-470">TensorFlow Lite</h1>
+<p class="normal">TensorFlow Lite is a lightweight platform <a id="_idIndexMarker1663"/>designed by TensorFlow. This platform is focused on mobile and embedded devices such as Android, iOS, and Raspberry Pi. The main goal is to enable machine learning inference directly on the device by putting a lot of effort into three main characteristics: (1) a small binary and model size to save on memory, (2) low energy consumption to save on the battery, and (3) low latency for efficiency. It goes without saying that battery and memory are two important resources for mobile and embedded devices. To achieve these goals, Lite uses a number of techniques such as quantization, FlatBuffers, mobile interpreter, and mobile converter, which we are going to review briefly in the following sections.</p>
+<h2 class="heading-2" id="_idParaDest-471">Quantization</h2>
+<p class="normal">Quantization refers to a set<a id="_idIndexMarker1664"/> of techniques that constrains an input made of continuous values (such as real numbers) into a discrete set (such as integers). The key idea is to reduce the space <a id="_idIndexMarker1665"/>occupancy of <strong class="keyWord">Deep Learning </strong>(<strong class="keyWord">DL</strong>) models by representing the internal weight with integers instead of real numbers. Of course, this implies trading space gains for some amount of <a id="_idIndexMarker1666"/>performance of the model. However, it has been empirically shown in many situations that a quantized model does not suffer from a significant decay in performance. TensorFlow Lite is internally built around a set of core operators supporting both quantized and floating-point operations.</p>
+<p class="normal">Model quantization is a toolkit for applying quantization. This operation is applied to the representations of weights and, optionally, to the activations for both storage and computation. There are two types of quantization available:</p>
+<ul>
+<li class="bulletList">Post-training quantization <a id="_idIndexMarker1667"/>quantizes weights and the result of activations post-training.</li>
+<li class="bulletList">Quantization-aware training allows for the training of networks that can be quantized with minimal <a id="_idIndexMarker1668"/>accuracy drop (only available for specific CNNs). Since this is a relatively experimental technique, we are not going to discuss it in this chapter, but the interested reader can find more information in [1].</li>
+</ul>
+<p class="normal">TensorFlow Lite supports reducing the precision of values from full floats to half-precision floats (<code class="inlineCode">float16</code>) or 8-bit integers. TensorFlow reports multiple trade-offs in terms of accuracy, latency, and space for selected CNN models (see <em class="italic">Figure 19.5</em>, source: <a href="https://www.tensorflow.org/lite/performance/model_optimization"><span class="url">https://www.tensorflow.org/lite/performance/model_optimization</span></a>):</p>
+<figure class="mediaobject"><img alt="Table  Description automatically generated" height="295" src="../Images/B18331_19_05.png" width="877"/></figure>
+<p class="packt_figref">Figure 19.5: Trade-offs for various quantized CNN models</p>
+<h2 class="heading-2" id="_idParaDest-472">FlatBuffers</h2>
+<p class="normal">FlatBuffers (<a href="https://google.github.io/flatbuffers/"><span class="url">https://google.github.io/flatbuffers/</span></a>) is an open-source format optimized to serialize data on mobile <a id="_idIndexMarker1669"/>and embedded devices. The format was originally created at Google for game <a id="_idIndexMarker1670"/>development and other performance-critical applications. FlatBuffers supports <a id="_idIndexMarker1671"/>access to serialized data without parsing/unpacking for fast processing. The format is designed for memory efficiency and speed by avoiding unnecessary multiple copies in memory. FlatBuffers works across multiple platforms and languages such as C++, C#, C, Go, Java, JavaScript, Lobster, Lua, TypeScript, PHP, Python, and Rust.</p>
+<h2 class="heading-2" id="_idParaDest-473">Mobile converter</h2>
+<p class="normal">A model generated with TensorFlow needs to be converted into a TensorFlow Lite model. The converter <a id="_idIndexMarker1672"/>can introduce optimizations for improving the binary size and performance. For instance, the converter can trim away all the nodes in a computational graph that are not directly related to inference but instead are needed for training.</p>
+<h2 class="heading-2" id="_idParaDest-474">Mobile optimized interpreter</h2>
+<p class="normal">TensorFlow Lite runs on a <a id="_idIndexMarker1673"/>highly optimized interpreter that is used to <a id="_idIndexMarker1674"/>optimize the underlying computational graphs, which in turn are used to describe the machine learning models. Internally, the interpreter uses multiple techniques to optimize the computational graph by inducing a static graph order and by ensuring better memory allocation. The interpreter core takes ~100 kb alone or ~300 kb with all supported kernels.</p>
+<div class="note">
+<p class="normal">Computational graphs are the graphical representation of the learning algorithm; here, nodes describe the operations to be performed and edges connecting the nodes represent the flow of data. These graphs provide the deep learning frameworks with performance efficiency, which we are not able to achieve if we construct a neural network in pure NumPy.</p>
+</div>
+<h2 class="heading-2" id="_idParaDest-475">Supported platforms</h2>
+<p class="normal">On Android, the TensorFlow Lite inference can be performed using either Java or C++. On iOS, TensorFlow Lite inference <a id="_idIndexMarker1675"/>can run in Swift and Objective-C. On Linux platforms (such as Raspberry Pi), inferences run in C++ and Python. TensorFlow Lite for microcontrollers is an experimental port of TensorFlow Lite designed to run <a id="_idIndexMarker1676"/>machine learning models on microcontrollers based on Arm Cortex-M (<a href="https://developer.arm.com/ip-products/processors/cortex-m"><span class="url">https://developer.arm.com/ip-products/processors/cortex-m</span></a>) and series processors, <a id="_idIndexMarker1677"/>including Arduino Nano 33 BLE Sense (<a href="https://store.arduino.cc/nano-33-ble-sense-with-headers"><span class="url">https://store.arduino.cc/nano-33-ble-sense-with-headers</span></a>), SparkFun <a id="_idIndexMarker1678"/>Edge (<a href="https://www.sparkfun.com/products/15170"><span class="url">https://www.sparkfun.com/products/15170</span></a>), and the STM32F746 Discovery<a id="_idIndexMarker1679"/> kit (<a href="https://www.st.com/en/evaluation-tools/32f746gdiscovery.xhtml"><span class="url">https://www.st.com/en/evaluation-tools/32f746gdiscovery.xhtml</span></a>). These microcontrollers are frequently used for IoT applications.</p>
+<h2 class="heading-2" id="_idParaDest-476">Architecture</h2>
+<p class="normal">The architecture of TensorFlow Lite is described in <em class="italic">Figure 19.6</em> (from <a href="https://www.tensorflow.org/lite/convert/index"><span class="url">https://www.tensorflow.org/lite/convert/index</span></a>). As you can see, both <strong class="keyWord">tf.keras</strong> (for example, TensorFlow 2.x) and <strong class="keyWord">low-Level APIs</strong> are supported. A standard TensorFlow 2.x model can be converted by using <strong class="keyWord">TFLite Converter</strong> and <a id="_idIndexMarker1680"/>then saved in a <strong class="keyWord">TFLite FlatBuffer</strong> <a id="_idIndexMarker1681"/>format (named <code class="inlineCode">.tflite</code>), which is<a id="_idIndexMarker1682"/> then executed <a id="_idIndexMarker1683"/>by the <strong class="keyWord">TFLite interpreter</strong> on available devices (GPUs and CPUs) and on native device APIs. The concrete function in <em class="italic">Figure 19.6</em> defines a<a id="_idIndexMarker1684"/> graph that can be converted to a TensorFlow Lite model or be exported to a <strong class="keyWord">SavedModel</strong>:</p>
+<figure class="mediaobject"><img alt="Diagram  Description automatically generated" height="420" src="../Images/B18331_19_06.png" width="877"/></figure>
+<p class="packt_figref">Figure 19.6: TensorFlow Lite internal architecture</p>
+<h2 class="heading-2" id="_idParaDest-477">Using TensorFlow Lite</h2>
+<p class="normal">Using TensorFlow Lite involves the<a id="_idIndexMarker1685"/> following steps:</p>
+<ol class="numberedList" style="list-style-type: decimal;">
+<li class="numberedList" value="1"><strong class="keyWord">Model selection</strong>: A standard TensorFlow 2.x model is selected for solving a specific task. This can be either a custom-built model or a pretrained model.</li>
+<li class="numberedList"><strong class="keyWord">Model conversion</strong>: The selected model is converted with the TensorFlow Lite converter, generally invoked with a few lines of Python code.</li>
+<li class="numberedList"><strong class="keyWord">Model deployment</strong>: The converted model is deployed on the chosen device, either a phone or an IoT device, and then run by using the TensorFlow Lite interpreter. As discussed, APIs are available for multiple languages.</li>
+<li class="numberedList"><strong class="keyWord">Model optimization</strong>: The model can be optionally optimized by using the TensorFlow Lite optimization framework.</li>
+</ol>
+<h2 class="heading-2" id="_idParaDest-478">A generic example of an application</h2>
+<p class="normal">In this section, we are going to <a id="_idIndexMarker1686"/>see how to convert a model to TensorFlow Lite and then run it. Note that training can still be performed by TensorFlow in the environment that best fits your needs. However, inference runs on the mobile device. Let’s see how with the following code fragment in Python:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+tflite_model = converter.convert()
+<span class="hljs-built_in">open</span>(<span class="hljs-string">"converted_model.tflite"</span>, <span class="hljs-string">"wb"</span>).write(tflite_model)
+</code></pre>
+<p class="normal">The code is self-explanatory. A standard TensorFlow 2.x model is opened and converted by using <code class="inlineCode">tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)</code>. Pretty simple! Note that no specific installation is required. We simply use the <code class="inlineCode">tf.lite</code> API (<a href="https://www.tensorflow.org/api_docs/python/tf/lite"><span class="url">https://www.tensorflow.org/api_docs/python/tf/lite</span></a>). It is also possible to apply a number of optimizations. For instance, post-training quantization can be applied by default:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+converter = tf.lite.TFLiteConverter.from_saved_model(saved_model_dir)
+converter.optimizations = [tf.lite.Optimize.DEFAULT]
+tflite_quant_model = converter.convert()
+<span class="hljs-built_in">open</span>(<span class="hljs-string">"converted_model.tflite"</span>, <span class="hljs-string">"wb"</span>).write(tflite_quant_model)
+</code></pre>
+<p class="normal">Once the model is converted, it can be copied onto the specific device. Of course, this step is different for each<a id="_idIndexMarker1687"/> different device. Then the model can run by using the language you prefer. For instance, in Java the invocation happens with the following code snippet:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">try</span> (Interpreter interpreter = new Interpreter(tensorflow_lite_model_file)) {
+  interpreter.run(<span class="hljs-built_in">input</span>, output);
+}
+</code></pre>
+<p class="normal">Again, pretty simple! What is very useful is that the same steps can be followed for a heterogeneous collection of mobile and IoT devices.</p>
+<h2 class="heading-2" id="_idParaDest-479">Using GPUs and accelerators</h2>
+<p class="normal">Modern phones frequently have<a id="_idIndexMarker1688"/> accelerators on board that allow floating-point matrix operations to be performed faster. In this case, the interpreter can use the concept of Delegate, and specifically, <code class="inlineCode">GpuDelegate()</code>, to use GPUs. Let’s look at an example in Java:</p>
+<pre class="programlisting code"><code class="hljs-code">GpuDelegate delegate = new GpuDelegate();
+Interpreter.Options options = (new Interpreter.Options()).addDelegate(delegate);
+Interpreter interpreter = new Interpreter(tensorflow_lite_model_file, options);
+<span class="hljs-keyword">try</span> {
+  interpreter.run(<span class="hljs-built_in">input</span>, output);
+}
+</code></pre>
+<p class="normal">Again, the code is self-commenting. A new <code class="inlineCode">GpuDelegate()</code> is created and then it is used by the interpreter to run the model on a GPU.</p>
+<h2 class="heading-2" id="_idParaDest-480">An example of an application</h2>
+<p class="normal">In this section, we are going to <a id="_idIndexMarker1689"/>use TensorFlow Lite for building an example application that is later deployed on Android. We will use Android Studio (<a href="https://developer.android.com/studio/"><span class="url">https://developer.android.com/studio/</span></a>) to <a id="_idIndexMarker1690"/>compile the code. The first step is to clone the repo with:</p>
+<pre class="programlisting con"><code class="hljs-con">git clone https://github.com/tensorflow/examples
+</code></pre>
+<p class="normal">Then we open an existing project (see <em class="italic">Figure 19.7</em>) with the path <code class="inlineCode">examples/lite/examples/image_classification/android</code>.</p>
+<p class="normal">Then you need to install <a id="_idIndexMarker1691"/>Android Studio from <a href="https://developer.android.com/studio/install"><span class="url">https://developer.android.com/studio/install</span></a> and an appropriate distribution of Java. In my case, I<a id="_idIndexMarker1692"/> selected the Android Studio macOS distribution and installed Java via <code class="inlineCode">brew</code> with the following command:</p>
+<pre class="programlisting con"><code class="hljs-con">brew tap adoptopenjdk/openjdk
+brew cask install  homebrew/cask-versions/adoptopenjdk8
+</code></pre>
+<p class="normal">After that, you can launch the <code class="inlineCode">sdkmanager</code> and install the required packages. In my case, I decided to use the internal emulator and deploy the application on a virtual device emulating a Google Pixel 3 XL. The required packages are reported in <em class="italic">Figure 19.7</em>:</p>
+<figure class="mediaobject"><img alt="Graphical user interface, text  Description automatically generated" height="275" src="../Images/B18331_19_07.png" width="885"/></figure>
+<p class="packt_figref">Figure 19.7: Required packages to use a Google Pixel 3 XL emulator</p>
+<p class="normal">Then, start Android Studio and select <strong class="screenText">Open an existing Android Studio project</strong>, as shown in <em class="italic">Figure 19.8</em>:</p>
+<figure class="mediaobject"><img alt="Graphical user interface, text, application  Description automatically generated" height="535" src="../Images/B18331_19_08.png" width="542"/></figure>
+<p class="packt_figref">Figure 19.8: Opening a new Android project</p>
+<p class="normal">Open <strong class="screenText">Adv Manager</strong> (under the <strong class="screenText">Tool</strong> menu) and <a id="_idIndexMarker1693"/>follow the instructions for how to create a virtual device, like the one shown in <em class="italic">Figure 19.9</em>:</p>
+<figure class="mediaobject"><img alt="" height="210" src="../Images/B18331_19_09.png" width="880"/></figure>
+<p class="packt_figref">Figure 19.9: Creating a virtual device</p>
+<p class="normal">Now that you have the virtual device ready, let us dive into the TensorFlow Lite models and see how we can use them.</p>
+<h1 class="heading-1" id="_idParaDest-481">Pretrained models in TensorFlow Lite</h1>
+<p class="normal">For many interesting use cases, it is possible to use a pretrained model that is already suitable for mobile computation. This is<a id="_idIndexMarker1694"/> a field of active research with new <a id="_idIndexMarker1695"/>proposals coming pretty much every month. Pretrained TensorFlow Lite models are available on TensorFlow Hub; these models are ready to use (<a href="https://www.tensorflow.org/lite/models/"><span class="url">https://www.tensorflow.org/lite/models/</span></a>). As of August 2022, these include:</p>
+<ul>
+<li class="bulletList"><strong class="keyWord">Image classification</strong>: Used to<a id="_idIndexMarker1696"/> identify multiple classes of objects such as places, plants, animals, activities, and people.</li>
+<li class="bulletList"><strong class="keyWord">Object detection</strong>: Used to <a id="_idIndexMarker1697"/>detect multiple objects with bounding boxes.</li>
+<li class="bulletList"><strong class="keyWord">Audio speech synthesis</strong>: Used to <a id="_idIndexMarker1698"/>generate speech from text.</li>
+<li class="bulletList"><strong class="keyWord">Text embedding</strong>: Used to embed<a id="_idIndexMarker1699"/> textual data.</li>
+<li class="bulletList"><strong class="keyWord">Segmentations</strong>: Identifies the <a id="_idIndexMarker1700"/>shape of objects together with semantic labels for people, places, animals, and many additional classes.</li>
+<li class="bulletList"><strong class="keyWord">Style transfers</strong>: Used to<a id="_idIndexMarker1701"/> apply artistic styles to any given image.</li>
+<li class="bulletList"><strong class="keyWord">Text classification</strong>: Used to assign<a id="_idIndexMarker1702"/> different categories to textual content.</li>
+<li class="bulletList"><strong class="keyWord">Question and answer</strong>: Used to <a id="_idIndexMarker1703"/>provide answers to questions provided by users.</li>
+</ul>
+<p class="normal">In this section, we will discuss some of the optimized pretrained models available in TensorFlow Lite out of the box as of August 2022. These models can be used for a large number of mobile and edge computing use cases. Compiling the example code is pretty simple.</p>
+<p class="normal">You just import a new project from each example directory and Android Studio will use Gradle (<a href="https://gradle.org/"><span class="url">https://gradle.org/</span></a>) for synching<a id="_idIndexMarker1704"/> the code with the latest version in the repo and for compiling. </p>
+<p class="normal">If you compile all the examples, you should be able to see them in the emulator (see <em class="italic">Figure 19.10</em>). Remember to select <strong class="screenText">Build</strong> | <strong class="screenText">Make Project</strong>, and Android Studio will do the rest:</p>
+<figure class="mediaobject"><img alt="" height="593" src="../Images/B18331_19_10.png" width="298"/></figure>
+<p class="packt_figref">Figure 19.10: Emulated Google Pixel 3 XL with TensorFlow Lite example applications</p>
+<div class="note">
+<p class="normal">Edge computing is a<a id="_idIndexMarker1705"/> distributed computing model that brings computation and data closer to the location where it is needed.</p>
+</div>
+<h2 class="heading-2" id="_idParaDest-482">Image classification</h2>
+<p class="normal">As of August 2022, the list of <a id="_idIndexMarker1706"/>available models for <a id="_idIndexMarker1707"/>pretrained classification is rather large, and it offers the opportunity to trade space, accuracy, and performance as shown in <em class="italic">Figure 19.11</em> (source: <a href="https://www.tensorflow.org/lite/models/trained"><span class="url">https://www.tensorflow.org/lite/models/trained</span></a>):</p>
+<figure class="mediaobject"><img alt="" height="760" src="../Images/B18331_19_11.png" width="597"/></figure>
+<p class="packt_figref">Figure 19.11: Space, accuracy, and performance trade-offs for various mobile models</p>
+<p class="normal">MobileNet V1 is a quantized CNN model described in Benoit Jacob [2]. MobileNet V2 is an advanced model proposed by Google [3]. Online, you can also find floating-point models, which offer<a id="_idIndexMarker1708"/> the best balance between model size and performance. Note that GPU acceleration requires the use of floating-point models. Note that recently, AutoML <a id="_idIndexMarker1709"/>models for mobile have been proposed based on an automated <strong class="keyWord">mobile neural architecture search</strong> (<strong class="keyWord">MNAS</strong>) approach [4], beating the models handcrafted by humans.</p>
+<p class="normal">We discussed AutoML in <em class="chapterRef">Chapter 13</em>, <em class="italic">An Introduction to AutoML</em>, and the interested reader can refer to MNAS documentation in the references [4] for applications to mobile devices.</p>
+<h2 class="heading-2" id="_idParaDest-483">Object detection</h2>
+<p class="normal">TensorFlow Lite format <a id="_idIndexMarker1710"/>models are included in TF Hub. There is a large number of pretrained models that can detect multiple objects within an image, with bounding boxes. Eighty different classes of objects are recognized. The network is based on a pretrained quantized COCO SSD MobileNet V1 model. For each object, the model provides the class, the confidence of detection, and the vertices of the bounding boxes (<a href="https://tfhub.dev/s?deployment-format=lite&amp;module-type=image-object-detection"><span class="url">https://tfhub.dev/s?deployment-format=lite&amp;module-type=image-object-detection</span></a>).</p>
+<h2 class="heading-2" id="_idParaDest-484">Pose estimation</h2>
+<p class="normal">TF Hub has a TensorFlow Lite<a id="_idIndexMarker1711"/> format pretrained model for detecting parts of human bodies in an image or a video. For instance, it is possible to detect noses, left/right eyes, hips, ankles, and many other parts. Each detection comes with an associated confidence score (<a href="https://tfhub.dev/s?deployment-format=lite&amp;module-type=image-pose-detection"><span class="url">https://tfhub.dev/s?deployment-format=lite&amp;module-type=image-pose-detection</span></a>).</p>
+<h2 class="heading-2" id="_idParaDest-485">Smart reply</h2>
+<p class="normal">TF Hub also has a TensorFlow<a id="_idIndexMarker1712"/> Lite format pretrained model for generating replies to chat messages. These replies are contextualized and similar to what is available on Gmail (<a href="https://tfhub.dev/tensorflow/lite-model/smartreply/1/default/1"><span class="url">https://tfhub.dev/tensorflow/lite-model/smartreply/1/default/1</span></a>).</p>
+<h2 class="heading-2" id="_idParaDest-486">Segmentation</h2>
+<p class="normal">There are pretrained models (<a href="https://tfhub.dev/s?deployment-format=lite&amp;module-type=image-segmentation"><span class="url">https://tfhub.dev/s?deployment-format=lite&amp;module-type=image-segmentation</span></a>) for image<a id="_idIndexMarker1713"/> segmentation, where the goal is to decide what the semantic labels (for example, person, dog, and cat) assigned to every pixel in the input image are. Segmentation is based on the DeepLab algorithm [5].</p>
+<h2 class="heading-2" id="_idParaDest-487">Style transfer</h2>
+<p class="normal">TensorFlow Lite also supports artistic style <a id="_idIndexMarker1714"/>transfer (see <em class="chapterRef">Chapter 20</em>, <em class="italic">Advanced Convolutional Neural Networks</em>) via a combination of a MobileNet V2-based neural network, which reduces the input style image to a 100-dimension style vector, and a style transform model, which applies the style vector to a content image to create the stylized image (<a href="https://tfhub.dev/s?deployment-format=lite&amp;module-type=image-style-transfer"><span class="url">https://tfhub.dev/s?deployment-format=lite&amp;module-type=image-style-transfer</span></a>).</p>
+<h2 class="heading-2" id="_idParaDest-488">Text classification</h2>
+<p class="normal">There are models for text <a id="_idIndexMarker1715"/>classification and sentiment analysis (<a href="https://tfhub.dev/s?deployment-format=lite&amp;module-type=text-classification"><span class="url">https://tfhub.dev/s?deployment-format=lite&amp;module-type=text-classification</span></a>) trained on the Large Movie Review Dataset v1.0 (<a href="http://ai.stanford.edu/~amaas/data/sentiment/"><span class="url">http://ai.stanford.edu/~amaas/data/sentiment/</span></a>) with IMDb movie reviews that are positive or negative. An example of text classification is given in <em class="italic">Figure 19.12</em>:</p>
+<figure class="mediaobject"><img alt="" height="684" src="../Images/B18331_19_12.png" width="343"/></figure>
+<p class="packt_figref">Figure 19.12: An example of text classification on Android with TensorFlow Lite</p>
+<h2 class="heading-2" id="_idParaDest-489">Large language models</h2>
+<p class="normal">There are pretrained large<a id="_idIndexMarker1716"/> language models based on transformer architecture (<a href="https://tfhub.dev/s?deployment-format=lite&amp;q=bert"><span class="url">https://tfhub.dev/s?deployment-format=lite&amp;q=bert</span></a>). The models are based on a compressed variant of BERT [6] (see <em class="chapterRef">Chapter 6</em>, <em class="italic">Transformers</em>) called MobileBERT [7], which runs 4x faster and has a 4x smaller size. An example of Q&amp;A is given in <em class="italic">Figure 19.13</em>:</p>
+<figure class="mediaobject"><img alt="" height="737" src="../Images/B18331_19_13.png" width="383"/></figure>
+<p class="packt_figref">Figure 19.13: An example of Q&amp;A on Android with TensorFlow Lite and BERT</p>
+<h2 class="heading-2" id="_idParaDest-490">A note about using mobile GPUs</h2>
+<p class="normal">This section concludes the <a id="_idIndexMarker1717"/>overview of pretrained models for mobile devices and IoT. Note that modern phones are equipped with internal GPUs. For instance, on Pixel 3, TensorFlow Lite GPU inference accelerates inference to 2–7x faster than CPUs for many models (see <em class="italic">Figure 19.14</em>, source: <a href="https://blog.tensorflow.org/2019/01/tensorflow-lite-now-faster-with-mobile.xhtml"><span class="url">https://blog.tensorflow.org/2019/01/tensorflow-lite-now-faster-with-mobile.xhtml</span></a>):</p>
+<figure class="mediaobject"><img alt="" height="762" src="../Images/B18331_19_14.png" width="878"/></figure>
+<p class="packt_figref">Figure 19.14: GPU speed-up over CPU for various learning models running on various phones</p>
+<h1 class="heading-1" id="_idParaDest-491">An overview of federated learning at the edge</h1>
+<p class="normal">As discussed, edge computing is a <a id="_idIndexMarker1718"/>distributed computing model that brings computation and data closer to the location where it is needed.</p>
+<p class="normal">Now, let’s introduce <strong class="keyWord">Federated Learning</strong> (<strong class="keyWord">FL</strong>) [8] at the <a id="_idIndexMarker1719"/>edge, starting with two use cases.</p>
+<p class="normal">Suppose you built an app for playing music on mobile devices and then you want to add recommendation features aimed at helping users to discover new songs they might like. Is there a way to build a distributed model that leverages each user’s experience without disclosing any private data?</p>
+<p class="normal">Suppose you are a car manufacturer producing millions of cars connected via 5G networks, and then you want to build a distributed model for optimizing each car’s fuel consumption. Is there a way to build such a model without disclosing the driving behavior of each user?</p>
+<p class="normal">Traditional machine learning requires you to have a centralized repository for training data either on your desktop, in your data center, or in the cloud. Federated learning pushes the training phase at the edge by distributing the computation among millions of mobile devices. These devices are ephemeral in that they are not always available for the learning process, and they can disappear silently (for instance, a mobile phone can be switched off all of a sudden). The key idea is to leverage the CPUs and the GPU of each mobile phone that is made available for an FL computation. Each mobile device that is part of the distributed FL<a id="_idIndexMarker1720"/> training downloads a (pretrained) model from a central server, and it performs local optimization based on the local training data collected on each specific mobile device. This process is similar to the transfer learning process (see <em class="chapterRef">Chapter 20</em>, <em class="italic">Advanced Convolutional Neural Networks</em>), but it is distributed at the edge. Each locally updated model is then sent back by millions of edge devices to a central server to build an averaged shared model.</p>
+<p class="normal">Of course, there are many issues to be<a id="_idIndexMarker1721"/> considered. Let’s review them:</p>
+<ul>
+<li class="bulletList"><strong class="keyWord">Battery usage</strong>: Each mobile device that is part of an FL computation should save as much as possible on local battery usage.</li>
+<li class="bulletList"><strong class="keyWord">Encrypted communication</strong>: Each mobile device belonging to an FL computation has to use encrypted communication with the central server to update the locally built model.</li>
+<li class="bulletList"><strong class="keyWord">Efficient communication</strong>: Typically, deep learning models are optimized with optimization algorithms such as SGD (see <em class="chapterRef">Chapter 1</em>, <em class="italic">Neural Network Foundations with TF</em>, and <em class="chapterRef">Chapter 14</em>, <em class="italic">The Math Behind Deep Learning</em>). However, FL works with millions of devices and there is, therefore, a strong need to minimize the communication patterns. Google introduced a Federated Averaging algorithm [8], which is reported to reduce the amount of communication 10x–100x when compared with vanilla SGD. Plus, compression techniques [9] reduce communication costs by an additional 100x with random rotations and quantization.</li>
+<li class="bulletList"><strong class="keyWord">Ensure user privacy</strong>: This is probably the most important point. All local training data acquired at the edge must stay at the edge. This means that the training data acquired on a mobile device cannot be sent to a central server. Equally important, any user behavior learned in locally trained models must be anonymized so that it is not possible to understand any specific action performed by specific individuals.</li>
+</ul>
+<p class="normal"><em class="italic">Figure 19.15</em> shows a typical FL architecture [10]. An FL server sends a model and a training plan to millions of devices. The training plan includes information on how frequently updates are expected and other metadata.</p>
+<p class="normal">Each device runs the<a id="_idIndexMarker1722"/> local training and sends a model update back to the global services. Note that each device has an FL runtime providing federated learning services <a id="_idIndexMarker1723"/>to an app process that stores data in a local example store. The FL runtime fetches the training examples from the example store:</p>
+<figure class="mediaobject"><img alt="" height="386" src="../Images/B18331_19_15.png" width="563"/></figure>
+<p class="packt_figref">Figure 19.15: An example of federated learning architecture</p>
+<h2 class="heading-2" id="_idParaDest-492">TensorFlow FL APIs</h2>
+<p class="normal"><strong class="keyWord">The TensorFlow Federated</strong> (<strong class="keyWord">TTF</strong>) platform has two<a id="_idIndexMarker1724"/> layers:</p>
+<ul>
+<li class="bulletList"><strong class="keyWord">Federated learning</strong> (<strong class="keyWord">FL</strong>), as discussed <a id="_idIndexMarker1725"/>earlier, is a high-level interface that works well with <code class="inlineCode">tf.keras</code> and non-<code class="inlineCode">tf.keras</code> models. In the majority of situations, we will use this API for <a id="_idIndexMarker1726"/>distributed training that is privacy-preserving.</li>
+<li class="bulletList"><strong class="keyWord">Federated core</strong> (<strong class="keyWord">FC</strong>), a low-level interface <a id="_idIndexMarker1727"/>that is highly <a id="_idIndexMarker1728"/>customizable and allows you to interact with low-level communications and with federated algorithms. You will need this API only if you intend to implement new and sophisticated distributed learning algorithms. This topic is rather advanced, and we are not going to cover it in this book. If you wish to learn more, you can find more information online (<a href="https://www.tensorflow.org/federated/federated_core"><span class="url">https://www.tensorflow.org/federated/federated_core</span></a>).</li>
+</ul>
+<p class="normal">The FL API has three key parts:</p>
+<ol class="numberedList" style="list-style-type: decimal;">
+<li class="numberedList" value="1"><strong class="keyWord">Models</strong>: Used to wrap existing <a id="_idIndexMarker1729"/>models for enabling federating learning. This can be achieved via the <code class="inlineCode">tff.learning.from_keras_model()</code>, or via the subclassing of <code class="inlineCode">tff.learning.Model()</code>. For instance, you can have the following code fragment:
+        <pre class="programlisting code"><code class="hljs-code">keras_model = …
+keras_model.<span class="hljs-built_in">compile</span>(...)
+keras_federated_model = tff.learning.from_compiled_keras_model(keras_model, ..)
+</code></pre>
+</li>
+<li class="numberedList"><strong class="keyWord">Builders</strong>: This is the layer<a id="_idIndexMarker1730"/> where the federated computation happens. There are two phases: compilation, where the learning algorithm is serialized into an abstract representation of the computation, and execution, where the represented computation is run.</li>
+<li class="numberedList"><strong class="keyWord">Datasets</strong>: This is a large <a id="_idIndexMarker1731"/>collection of data that can be used to simulate federated learning locally – a useful step for initial fine-tuning.</li>
+</ol>
+<p class="normal">We conclude this overview by mentioning that you can find a detailed description of the APIs online and also a number of coding examples (<a href="https://www.tensorflow.org/federated/federated_learning"><span class="url">https://www.tensorflow.org/federated/federated_learning</span></a>). Start by using the Colab notebook made available<a id="_idIndexMarker1732"/> by Google (<a href="https://colab.research.google.com/github/tensorflow/federated/blob/v0.10.1/docs/tutorials/federated_learning_for_image_classification.ipynb"><span class="url">https://colab.research.google.com/github/tensorflow/federated/blob/v0.10.1/docs/tutorials/federated_learning_for_image_classification.ipynb</span></a>). The framework allows us to simulate the distributed training before running it in a real environment. The library in charge of FL learning is <code class="inlineCode">tensorflow_federated</code>. <em class="italic">Figure 19.16</em> discusses all the steps used in federated learning with multiple nodes, and it might be useful to better understand what has been discussed in this section: </p>
+<figure class="mediaobject"><img alt="" height="368" src="../Images/B18331_19_16.png" width="772"/></figure>
+<p class="packt_figref">Figure 19.16: An example of federated learning with multiple nodes (source: https://upload.wikimedia.org/wikipedia/commons/e/e2/Federated_learning_process_central_case.png)</p>
+<p class="normal">The next section will introduce TensorFlow.js, a variant of TensorFlow that can be used natively in JavaScript.</p>
+<h1 class="heading-1" id="_idParaDest-493">TensorFlow.js</h1>
+<p class="normal">TensorFlow.js is a JavaScript library <a id="_idIndexMarker1733"/>for machine learning models that can work either in vanilla mode or via Node.js. In this section, we are going to review both of them.</p>
+<h2 class="heading-2" id="_idParaDest-494">Vanilla TensorFlow.js</h2>
+<p class="normal">TensorFlow.js is a JavaScript library<a id="_idIndexMarker1734"/> for training and using machine learning models in a<a id="_idIndexMarker1735"/> browser. It is derived from deeplearn.js, an open-source, hardware-accelerated library for doing deep learning in JavaScript, and is now a companion library to TensorFlow.</p>
+<p class="normal">The most common use of TensorFlow.js is to make pretrained ML/DL models available on the browser. This can help in situations where it may not be feasible to send client data back to the server due to network bandwidth or security concerns. However, TensorFlow.js is a full-stack ML platform, and it is possible to build and train an ML/DL model from scratch, as well as fine-tune an existing pretrained model with new client data.</p>
+<p class="normal">An example of a TensorFlow.js application is the TensorFlow Projector (<a href="https://projector.tensorflow.org"><span class="url">https://projector.tensorflow.org</span></a>), which allows a client to visualize their own data (as word vectors) in 3-dimensional space, using one of several dimensionality reduction algorithms provided. There are a few other examples of TensorFlow.js applications listed on the TensorFlow.js demo page (<a href="https://www.tensorflow.org/js/demos"><span class="url">https://www.tensorflow.org/js/demos</span></a>).</p>
+<p class="normal">Similar to TensorFlow, TensorFlow.js also provides two main APIs – the Ops API, which exposes low-level tensor operations such as matrix multiplication, and the Layers API, which exposes Keras-style high-level building blocks for neural networks.</p>
+<p class="normal">At the time of writing, TensorFlow.js runs on three different backends. The fastest (and also the most complex) is the WebGL backend, which provides access to WebGL’s low-level 3D graphics APIs and can take advantage of GPU hardware acceleration. The other popular backend is the Node.js <a id="_idIndexMarker1736"/>backend, which allows the use of TensorFlow.js in server-side applications. Finally, as a fallback, there is the CPU-based implementation in plain JavaScript that <a id="_idIndexMarker1737"/>will run in any browser.</p>
+<p class="normal">In order to gain a better understanding of how to write a TensorFlow.js application, we will walk through an example of classifying MNIST digits using a CNN provided by the TensorFlow.js team (<a href="https://storage.googleapis.com/tfjs-examples/mnist/dist/index.xhtml"><span class="url">https://storage.googleapis.com/tfjs-examples/mnist/dist/index.xhtml</span></a>).</p>
+<p class="normal">The steps here are similar to a normal supervised model development pipeline – load the data, define, train, and evaluate the model.</p>
+<p class="normal">JavaScript works inside a browser environment, within an HTML page. The HTML file (named <code class="inlineCode">index.xhtml</code>) below represents this HTML page. Notice the two imports for TensorFlow.js (<code class="inlineCode">tf.min.js</code>) and the TensorFlow.js visualization library (<code class="inlineCode">tfjs-vis.umd.min.js</code>) – these provide library functions that we will use in our application. The JavaScript code for our application comes from <code class="inlineCode">data.js</code> and <code class="inlineCode">script.js</code> files, located in the same directory as our <code class="inlineCode">index.xhtml</code> file:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-meta">&lt;!DOCTYPE </span><span class="hljs-meta-keyword">html</span><span class="hljs-meta">&gt;</span>
+<span class="hljs-tag">&lt;</span><span class="hljs-name">html</span><span class="hljs-tag">&gt;</span>
+<span class="hljs-tag">&lt;</span><span class="hljs-name">head</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">meta</span><span class="hljs-tag"> </span><span class="hljs-attr">charset</span><span class="hljs-tag">=</span><span class="hljs-string">"utf-8"</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">meta</span><span class="hljs-tag"> </span><span class="hljs-attr">http-equiv</span><span class="hljs-tag">=</span><span class="hljs-string">"X-UA-Compatible"</span><span class="hljs-tag"> </span><span class="hljs-attr">content</span><span class="hljs-tag">=</span><span class="hljs-string">"IE=edge"</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">meta</span><span class="hljs-tag"> </span><span class="hljs-attr">name</span><span class="hljs-tag">=</span><span class="hljs-string">"viewport"</span><span class="hljs-tag"> </span><span class="hljs-attr">content</span><span class="hljs-tag">=</span><span class="hljs-string">"width=device-width, initial-scale=1.0"</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-comment">&lt;!-- Import TensorFlow.js --&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">script</span><span class="hljs-tag"> </span><span class="hljs-attr">src</span><span class="hljs-tag">=</span><span class="hljs-string">"https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.0.0/dist/tf.min.js"</span><span class="hljs-tag">&gt;&lt;/</span><span class="hljs-name">script</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-comment">&lt;!-- Import tfjs-vis --&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">script</span><span class="hljs-tag"> </span><span class="hljs-attr">src</span><span class="hljs-tag">=</span><span class="hljs-string">"https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis@1.0.2/dist/tfjs-vis.umd.min.js"</span><span class="hljs-tag">&gt;&lt;/</span><span class="hljs-name">script</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-comment">&lt;!-- Import the data file --&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">script</span><span class="hljs-tag"> </span><span class="hljs-attr">src</span><span class="hljs-tag">=</span><span class="hljs-string">"data.js"</span><span class="hljs-tag"> </span><span class="hljs-attr">type</span><span class="hljs-tag">=</span><span class="hljs-string">"module"</span><span class="hljs-tag">&gt;&lt;/</span><span class="hljs-name">script</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-comment">&lt;!-- Import the main script file --&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">script</span><span class="hljs-tag"> </span><span class="hljs-attr">src</span><span class="hljs-tag">=</span><span class="hljs-string">"script.js"</span><span class="hljs-tag"> </span><span class="hljs-attr">type</span><span class="hljs-tag">=</span><span class="hljs-string">"module"</span><span class="hljs-tag">&gt;&lt;/</span><span class="hljs-name">script</span><span class="hljs-tag">&gt;</span>
+<span class="hljs-tag">&lt;/</span><span class="hljs-name">head</span><span class="hljs-tag">&gt;</span>
+<span class="hljs-tag">&lt;</span><span class="hljs-name">body</span><span class="hljs-tag">&gt;</span>
+<span class="hljs-tag">&lt;/</span><span class="hljs-name">body</span><span class="hljs-tag">&gt;</span>
+<span class="hljs-tag">&lt;/</span><span class="hljs-name">html</span><span class="hljs-tag">&gt;</span>
+</code></pre>
+<p class="normal">For deployment, we will <a id="_idIndexMarker1738"/>deploy these three files (<code class="inlineCode">index.xhtml</code>, <code class="inlineCode">data.js</code>, and <code class="inlineCode">script.js</code>) on a web server, but for development, we can start a web server up by <a id="_idIndexMarker1739"/>calling a simple one bundled with the Python distribution. This will start up a web server on port <code class="inlineCode">8000</code> on <code class="inlineCode">localhost</code>, and the <code class="inlineCode">index.xhtml</code> file can be rendered on the browser at <code class="inlineCode">http://localhost:8000</code>:</p>
+<pre class="programlisting con"><code class="hljs-con">python -m http.server
+</code></pre>
+<p class="normal">The next step is to load the data. Fortunately, Google provides a JavaScript script that we have called directly from our <code class="inlineCode">index.xhtml</code> file. It downloads the images and labels from GCP storage and returns shuffled and normalized batches of image and label pairs for training and testing. We can download this to the same folder as the <code class="inlineCode">index.xhtml</code> file using the following command:</p>
+<pre class="programlisting con"><code class="hljs-con">wget -cO - https://storage.googleapis.com/tfjs-tutorials/mnist_data.js &gt; data.js
+</code></pre>
+<div class="note">
+<p class="normal">For Windows users, you will need to first download Wget: <a href="https://eternallybored.org/misc/wget/"><span class="url">https://eternallybored.org/misc/wget/</span></a></p>
+</div>
+<p class="normal">Model definition, training, and evaluation code is all specified inside the <code class="inlineCode">script.js</code> file. The function to define and build the network is shown in the following code block. As you can see, it is very similar to the way you would build a sequential model with <code class="inlineCode">tf.keras</code>. The only difference is the way you specify the arguments, as a dictionary of name-value pairs instead of a list of parameters. The model is a sequential model, that is, a list of layers. Finally, the <a id="_idIndexMarker1740"/>model is compiled with the Adam<a id="_idIndexMarker1741"/> optimizer:</p>
+<pre class="programlisting code"><code class="hljs-code">function getModel() {
+  const IMAGE_WIDTH = <span class="hljs-number">28</span>;
+  const IMAGE_HEIGHT = <span class="hljs-number">28</span>;
+  const IMAGE_CHANNELS = <span class="hljs-number">1</span>;  
+  const NUM_OUTPUT_CLASSES = <span class="hljs-number">10</span>;
+  
+  const model = tf.sequential();
+  model.add(tf.layers.conv2d({
+    inputShape: [IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS],
+    kernelSize: <span class="hljs-number">5</span>,
+    filters: <span class="hljs-number">8</span>,
+    strides: <span class="hljs-number">1</span>,
+    activation: <span class="hljs-string">'relu'</span>,
+    kernelInitializer: <span class="hljs-string">'varianceScaling'</span>
+  }));
+  model.add(tf.layers.maxPooling2d({
+    poolSize: [<span class="hljs-number">2</span>, <span class="hljs-number">2</span>], strides: [<span class="hljs-number">2</span>, <span class="hljs-number">2</span>]
+  }));
+  model.add(tf.layers.conv2d({
+    kernelSize: <span class="hljs-number">5</span>,
+    filters: <span class="hljs-number">16</span>,
+    strides: <span class="hljs-number">1</span>,
+    activation: <span class="hljs-string">'relu'</span>,
+    kernelInitializer: <span class="hljs-string">'varianceScaling'</span>
+  }));
+  model.add(tf.layers.maxPooling2d({
+    poolSize: [<span class="hljs-number">2</span>, <span class="hljs-number">2</span>], strides: [<span class="hljs-number">2</span>, <span class="hljs-number">2</span>]
+  }));
+  model.add(tf.layers.flatten());
+  model.add(tf.layers.dense({
+    units: NUM_OUTPUT_CLASSES,
+    kernelInitializer: <span class="hljs-string">'varianceScaling'</span>,
+    activation: <span class="hljs-string">'softmax'</span>
+  }));
+  const optimizer = tf.train.adam();
+  model.<span class="hljs-built_in">compile</span>({
+    optimizer: optimizer,
+    loss: <span class="hljs-string">'categoricalCrossentropy'</span>,
+    metrics: [<span class="hljs-string">'accuracy'</span>],
+  });
+  <span class="hljs-keyword">return</span> model;
+}
+</code></pre>
+<p class="normal">The model is then trained for 10 epochs with batches from the training dataset and validated inline using batches from the test dataset. A best practice is to create a separate validation dataset from the training set. However, to keep our focus on the more important aspect of showing how to use TensorFlow.js to design an end-to-end DL pipeline, we are using the external <code class="inlineCode">data.js</code> file provided by Google, which provides functions to return only a training and test batch. In our example, we will use the test dataset for validation as <a id="_idIndexMarker1742"/>well as evaluation later. </p>
+<p class="normal">This is likely to give us <a id="_idIndexMarker1743"/>better accuracies compared to what we would have achieved with an unseen (during training) test set, but that is unimportant for an illustrative example such as this one:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">async</span> function train(model, data) {
+  const metrics = [<span class="hljs-string">'loss'</span>, <span class="hljs-string">'val_loss'</span>, <span class="hljs-string">'acc'</span>, <span class="hljs-string">'</span><span class="hljs-string">val_acc'</span>];
+  const container = {
+    name: <span class="hljs-string">'Model Training'</span>, tab: <span class="hljs-string">'Model'</span>, styles: { height: <span class="hljs-string">'1000px'</span> }
+  };
+  const fitCallbacks = tfvis.show.fitCallbacks(container, metrics);
+  
+  const BATCH_SIZE = <span class="hljs-number">512</span>;
+  const TRAIN_DATA_SIZE = <span class="hljs-number">5500</span>;
+  const TEST_DATA_SIZE = <span class="hljs-number">1000</span>;
+  const [trainXs, trainYs] = tf.tidy(() =&gt; {
+    const d = data.nextTrainBatch(TRAIN_DATA_SIZE);
+    <span class="hljs-keyword">return</span> [
+      d.xs.reshape([TRAIN_DATA_SIZE, <span class="hljs-number">28</span>, <span class="hljs-number">28</span>, <span class="hljs-number">1</span>]),
+      d.labels
+    ];
+  });
+  const [testXs, testYs] = tf.tidy(() =&gt; {
+    const d = data.nextTestBatch(TEST_DATA_SIZE);
+    <span class="hljs-keyword">return</span> [
+      d.xs.reshape([TEST_DATA_SIZE, <span class="hljs-number">28</span>, <span class="hljs-number">28</span>, <span class="hljs-number">1</span>]),
+      d.labels
+    ];
+  });
+  <span class="hljs-keyword">return</span> model.fit(trainXs, trainYs, {
+    batchSize: BATCH_SIZE,
+    validationData: [testXs, testYs],
+    epochs: <span class="hljs-number">10</span>,
+    shuffle: true,
+    callbacks: fitCallbacks
+  });
+}
+</code></pre>
+<p class="normal">Once the model finishes training, we want to make predictions and evaluate the model on its predictions. The following functions will do the predictions and compute the overall accuracy for each of the <a id="_idIndexMarker1744"/>classes over all the test set examples, as well as produce a confusion matrix <a id="_idIndexMarker1745"/>across all the test set samples:</p>
+<pre class="programlisting code"><code class="hljs-code">const classNames = [
+  <span class="hljs-string">'Zero'</span>, <span class="hljs-string">'One'</span>, <span class="hljs-string">'Two'</span>, <span class="hljs-string">'</span><span class="hljs-string">Three'</span>, <span class="hljs-string">'Four'</span>, 
+  <span class="hljs-string">'Five'</span>, <span class="hljs-string">'Six'</span>, <span class="hljs-string">'Seven'</span>, <span class="hljs-string">'Eight'</span>, <span class="hljs-string">'Nine'</span>];
+function doPrediction(model, data, testDataSize = <span class="hljs-number">500</span>) {
+  const IMAGE_WIDTH = <span class="hljs-number">28</span>;
+  const IMAGE_HEIGHT = <span class="hljs-number">28</span>;
+  const testData = data.nextTestBatch(testDataSize);
+  const testxs = testData.xs.reshape(
+    [testDataSize, IMAGE_WIDTH, IMAGE_HEIGHT, <span class="hljs-number">1</span>]);
+  const labels = testData.labels.argMax([-<span class="hljs-number">1</span>]);
+  const preds = model.predict(testxs).argMax([-<span class="hljs-number">1</span>]);
+  testxs.dispose();
+  <span class="hljs-keyword">return</span> [preds, labels];
+}
+<span class="hljs-keyword">async</span> function showAccuracy(model, data) {
+  const [preds, labels] = doPrediction(model, data);
+  const classAccuracy = <span class="hljs-keyword">await</span> tfvis.metrics.perClassAccuracy(
+    labels, preds);
+  const container = {name: <span class="hljs-string">'Accuracy'</span>, tab: <span class="hljs-string">'Evaluation'</span>};
+  tfvis.show.perClassAccuracy(container, classAccuracy, classNames);
+  labels.dispose();
+}
+<span class="hljs-keyword">async</span> function showConfusion(model, data) {
+  const [preds, labels] = doPrediction(model, data);
+  const confusionMatrix = <span class="hljs-keyword">await</span> tfvis.metrics.confusionMatrix(
+    labels, preds);
+  const container = {name: <span class="hljs-string">'</span><span class="hljs-string">Confusion Matrix'</span>, tab: <span class="hljs-string">'Evaluation'</span>};
+  tfvis.render.confusionMatrix(
+      container, {values: confusionMatrix}, classNames);
+  labels.dispose();
+}
+</code></pre>
+<p class="normal">Finally, the <code class="inlineCode">run()</code> function will call all these functions in sequence to build an end-to-end ML pipeline:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> {MnistData} <span class="hljs-keyword">from</span> <span class="hljs-string">'./data.js'</span>;
+<span class="hljs-keyword">async</span> function run() { 
+  const data = new MnistData();
+  <span class="hljs-keyword">await</span> data.load();
+  <span class="hljs-keyword">await</span> showExamples(data);
+  const model = getModel();
+  tfvis.show.modelSummary({name: <span class="hljs-string">'Model Architecture'</span>, tab: <span class="hljs-string">'Model'</span>}, model);
+  <span class="hljs-keyword">await</span> train(model, data);
+  <span class="hljs-keyword">await</span> showAccuracy(model, data);
+  <span class="hljs-keyword">await</span> showConfusion(model, data);
+}
+document.addEventListener(<span class="hljs-string">'DOMContentLoaded'</span>, run);
+</code></pre>
+<p class="normal">Refreshing the <a id="_idIndexMarker1746"/>browser location, <code class="inlineCode">http://localhost:8000/index.xhtml</code>, will invoke the <code class="inlineCode">run()</code> method above. <em class="italic">Figure 19.17</em> shows the model architecture and the<a id="_idIndexMarker1747"/> plots of the progress of the training.</p>
+<p class="normal">On the left are the loss and accuracy values on the validation dataset observed at the end of each batch, and on the right are the same loss and accuracy values observed on the training dataset (blue) and validation dataset (red) at the end of each epoch:</p>
+<figure class="mediaobject"><img alt="" height="368" src="../Images/B18331_19_17.1.png" width="825"/></figure>
+<figure class="mediaobject"><img alt="" height="398" src="../Images/B18331_19_17.2.png" width="876"/></figure>
+<p class="packt_figref">Figure 19.17: Model loss and accuracy as it is being trained</p>
+<p class="normal">In addition, the following<a id="_idIndexMarker1748"/> figure shows the accuracies across different <a id="_idIndexMarker1749"/>classes for predictions from our trained model on the test dataset, as well as the confusion matrix of predicted versus actual classes for test dataset samples:</p>
+<figure class="mediaobject"><img alt="" height="400" src="../Images/B18331_19_18.png" width="883"/></figure>
+<p class="packt_figref">Figure 19.18: Confusion metrics and accuracy for each class as obtained by the trained model</p>
+<p class="normal">Readers might enjoy seeing this live example from the TensorFlow team training a TFJS model on the MNIST dataset: <a href="https://storage.googleapis.com/tfjs-examples/mnist/dist/index.xhtml"><span class="url">https://storage.googleapis.com/tfjs-examples/mnist/dist/index.xhtml</span></a>.</p>
+<p class="normal">We have seen how to use TensorFlow.js within the browser. The next section will explain how to convert a model from Keras into TensorFlow.js.</p>
+<h2 class="heading-2" id="_idParaDest-495">Converting models</h2>
+<p class="normal">Sometimes it is <a id="_idIndexMarker1750"/>convenient to convert a model that has already been created with <code class="inlineCode">tf.keras</code>. This is very easy and can be done offline with the following command, which takes a Keras model from <code class="inlineCode">/tmp/model.h5</code> and outputs a JavaScript model into <code class="inlineCode">/tmp/tfjs_model</code>:</p>
+<pre class="programlisting con"><code class="hljs-con">tensorflowjs_converter --input_format=keras /tmp/model.h5 /tmp/tfjs_model
+</code></pre>
+<p class="normal">To be able to use this command, you will need a Python environment with TensorFlow JS installed using:</p>
+<pre class="programlisting con"><code class="hljs-con">pip install tensorflowjs
+</code></pre>
+<p class="normal">This will install the above converter. The next section will explain how to use pretrained models in TensorFlow.js.</p>
+<h2 class="heading-2" id="_idParaDest-496">Pretrained models</h2>
+<p class="normal">TensorFlow.js comes with a <a id="_idIndexMarker1751"/>significant number of pretrained models for deep learning with image, video, and text. The models are hosted on npm, so it’s very simple to use them if you are familiar with Node.js development.</p>
+<p class="normal"><em class="italic">Table 19.1</em> summarizes some of the pretrained models available as of August 2022 (source: <a href="https://github.com/tensorflow/tfjs-models"><span class="url">https://github.com/tensorflow/tfjs-models</span></a>):</p>
+<table class="table-container" id="table001-9">
+<tbody>
+<tr>
+<td class="table-cell" colspan="3">
+<p class="center"><strong class="keyWord">Images</strong></p>
+</td>
+</tr>
+<tr>
+<td class="table-cell">
+<p class="normal"><strong class="keyWord">Model</strong></p>
+</td>
+<td class="table-cell">
+<p class="normal"><strong class="keyWord">Details</strong></p>
+</td>
+<td class="table-cell">
+<p class="normal"><strong class="keyWord">Install</strong></p>
+</td>
+</tr>
+<tr>
+<td class="table-cell">
+<p class="normal">MobileNet (<a href="https://github.com/tensorflow/tfjs-models/tree/master/mobilenet"><span class="url">https://github.com/tensorflow/tfjs-models/tree/master/mobilenet</span></a>)</p>
+</td>
+<td class="table-cell">
+<p class="normal">Classify images with labels from the ImageNet database.</p>
+</td>
+<td class="table-cell">
+<p class="normal"><code class="inlineCode">npm i @tensorflow-models/mobilenet</code></p>
+</td>
+</tr>
+<tr>
+<td class="table-cell">
+<p class="normal">PoseNet (<a href="https://github.com/tensorflow/tfjs-models/tree/master/posenet"><span class="url">https://github.com/tensorflow/tfjs-models/tree/master/posenet</span></a>)</p>
+</td>
+<td class="table-cell">
+<p class="normal">A machine learning model that allows for real-time human pose estimation in the browser; see a detailed description here: <a href="https://medium.com/tensorflow/real-time-human-pose-estimation-in-the-browser-with-tensorflow-js-7dd0bc881cd5"><span class="url">https://medium.com/tensorflow/real-time-human-pose-estimation-in-the-browser-with-tensorflow-js-7dd0bc881cd5</span></a>.</p>
+</td>
+<td class="table-cell">
+<p class="normal"><code class="inlineCode">npm i @tensorflow-models/posenet</code></p>
+</td>
+</tr>
+<tr>
+<td class="table-cell">
+<p class="normal">Coco SSD (<a href="https://github.com/tensorflow/tfjs-models/tree/master/coco-ssd"><span class="url">https://github.com/tensorflow/tfjs-models/tree/master/coco-ssd</span></a>)</p>
+</td>
+<td class="table-cell">
+<p class="normal">Object detection model that aims to localize and identify multiple objects in a single image; based on the TensorFlow object detection API (<a href="https://github.com/tensorflow/models/blob/master/research/object_detection/README.md"><span class="url">https://github.com/tensorflow/models/blob/master/research/object_detection/README.md</span></a>).</p>
+</td>
+<td class="table-cell">
+<p class="normal"><code class="inlineCode">npm i @tensorflow-models/coco-ssd</code></p>
+</td>
+</tr>
+<tr>
+<td class="table-cell">
+<p class="normal">BodyPix (<a href="https://github.com/tensorflow/tfjs-models/tree/master/body-pix"><span class="url">https://github.com/tensorflow/tfjs-models/tree/master/body-pix</span></a>)</p>
+</td>
+<td class="table-cell">
+<p class="normal">Real-time person and body-part segmentation in the browser using TensorFlow.js.</p>
+</td>
+<td class="table-cell">
+<p class="normal"><code class="inlineCode">npm i @tensorflow-models/body-pix</code></p>
+</td>
+</tr>
+<tr>
+<td class="table-cell">
+<p class="normal">DeepLab v3(<a href="https://github.com/tensorflow/tfjs-models/tree/master/deeplab"><span class="url">https://github.com/tensorflow/tfjs-models/tree/master/deeplab</span></a>)</p>
+</td>
+<td class="table-cell">
+<p class="normal">Semantic segmentation.</p>
+</td>
+<td class="table-cell">
+<p class="normal"><code class="inlineCode">npm i @tensorflow-models/deeplab</code></p>
+</td>
+</tr>
+<tr>
+<td class="table-cell" colspan="3">
+<p class="center"><strong class="keyWord">Audio</strong></p>
+</td>
+</tr>
+<tr>
+<td class="table-cell">
+<p class="normal"><strong class="keyWord">Model</strong></p>
+</td>
+<td class="table-cell">
+<p class="normal"><strong class="keyWord">Details</strong></p>
+</td>
+<td class="table-cell">
+<p class="normal"><strong class="keyWord">Install</strong></p>
+</td>
+</tr>
+<tr>
+<td class="table-cell">
+<p class="normal">Speech Commands (<a href="https://github.com/tensorflow/tfjs-models/tree/master/speech-commands"><span class="url">https://github.com/tensorflow/tfjs-models/tree/master/speech-commands</span></a>)</p>
+</td>
+<td class="table-cell">
+<p class="normal">Classify 1-second audio snippets from the speech commands dataset (<a href="https://github.com/tensorflow/docs/blob/master/site/en/r1/tutorials/sequences/audio_recognition.md"><span class="url">https://github.com/tensorflow/docs/blob/master/site/en/r1/tutorials/sequences/audio_recognition.md</span></a>).</p>
+</td>
+<td class="table-cell">
+<p class="normal"><code class="inlineCode">npm i @tensorflow-models/speech-commands</code></p>
+</td>
+</tr>
+<tr>
+<td class="table-cell" colspan="3">
+<p class="center"><strong class="keyWord">Text</strong></p>
+</td>
+</tr>
+<tr>
+<td class="table-cell">
+<p class="normal"><strong class="keyWord">Model</strong></p>
+</td>
+<td class="table-cell">
+<p class="normal"><strong class="keyWord">Details</strong></p>
+</td>
+<td class="table-cell">
+<p class="normal"><strong class="keyWord">Install</strong></p>
+</td>
+</tr>
+<tr>
+<td class="table-cell">
+<p class="normal">Universal Sentence Encoder (<a href="https://github.com/tensorflow/tfjs-models/tree/master/universal-sentence-encoder"><span class="url">https://github.com/tensorflow/tfjs-models/tree/master/universal-sentence-encoder</span></a>)</p>
+</td>
+<td class="table-cell">
+<p class="normal">Encode text into a 512-dimensional embedding to be used as inputs to natural language processing tasks such as sentiment classification and textual similarity.</p>
+</td>
+<td class="table-cell">
+<p class="normal"><code class="inlineCode">npm i @tensorflow-models/universal-sentence-encoder</code></p>
+</td>
+</tr>
+<tr>
+<td class="table-cell">
+<p class="normal">Text Toxicity (<a href="https://github.com/tensorflow/tfjs-models/tree/master/toxicity"><span class="url">https://github.com/tensorflow/tfjs-models/tree/master/toxicity</span></a>)</p>
+</td>
+<td class="table-cell">
+<p class="normal">Score the perceived impact a comment might have on a conversation, from “Very toxic” to “Very healthy”.</p>
+</td>
+<td class="table-cell">
+<p class="normal"><code class="inlineCode">npm i @tensorflow-models/toxicity</code></p>
+</td>
+</tr>
+<tr>
+<td class="table-cell" colspan="3">
+<p class="center"><strong class="keyWord">General Utilities</strong></p>
+</td>
+</tr>
+<tr>
+<td class="table-cell">
+<p class="normal"><strong class="keyWord">Model</strong></p>
+</td>
+<td class="table-cell">
+<p class="normal"><strong class="keyWord">Details</strong></p>
+</td>
+<td class="table-cell">
+<p class="normal"><strong class="keyWord">Install</strong></p>
+</td>
+</tr>
+<tr>
+<td class="table-cell">
+<p class="normal">KNN Classifier (<a href="https://github.com/tensorflow/tfjs-models/tree/master/knn-classifier"><span class="url">https://github.com/tensorflow/tfjs-models/tree/master/knn-classifier</span></a>)</p>
+</td>
+<td class="table-cell">
+<p class="normal">This package provides a utility for creating a classifier using the K-nearest neighbors algorithm; it can be used for transfer learning.</p>
+</td>
+<td class="table-cell">
+<p class="normal"><code class="inlineCode">npm i @tensorflow-models/knn-classifier</code></p>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="packt_figref">Table 19.1: A list of some of the pretrained models on TensorFlow.js</p>
+<p class="normal">Each pretrained <a id="_idIndexMarker1752"/>model can be directly used from HTML. For instance, this is an example with the KNN classifier:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-tag">&lt;</span><span class="hljs-name">html</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;</span><span class="hljs-name">head</span><span class="hljs-tag">&gt;</span>
+    <span class="hljs-comment">&lt;!-- Load TensorFlow.js --&gt;</span>
+    <span class="hljs-tag">&lt;</span><span class="hljs-name">script</span><span class="hljs-tag"> </span><span class="hljs-attr">src</span><span class="hljs-tag">=</span><span class="hljs-string">"https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"</span><span class="hljs-tag">&gt;&lt;/</span><span class="hljs-name">script</span><span class="hljs-tag">&gt;</span>
+    <span class="hljs-comment">&lt;!-- Load MobileNet --&gt;</span>
+    <span class="hljs-tag">&lt;</span><span class="hljs-name">script</span><span class="hljs-tag"> </span><span class="hljs-attr">src</span><span class="hljs-tag">=</span><span class="hljs-string">"https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"</span><span class="hljs-tag">&gt;&lt;/</span><span class="hljs-name">script</span><span class="hljs-tag">&gt;</span>
+    <span class="hljs-comment">&lt;!-- Load KNN Classifier --&gt;</span>
+    <span class="hljs-tag">&lt;</span><span class="hljs-name">script</span><span class="hljs-tag"> </span><span class="hljs-attr">src</span><span class="hljs-tag">=</span><span class="hljs-string">"</span><span class="hljs-string">https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier"</span><span class="hljs-tag">&gt;&lt;/</span><span class="hljs-name">script</span><span class="hljs-tag">&gt;</span>
+  <span class="hljs-tag">&lt;/</span><span class="hljs-name">head</span><span class="hljs-tag">&gt;</span>
+</code></pre>
+<p class="normal">The next section will explain how to use pretrained models in Node.js.</p>
+<h2 class="heading-2" id="_idParaDest-497">Node.js</h2>
+<p class="normal">In this section, we will give an overview of how to use TensorFlow with Node.js. Let’s start.</p>
+<p class="normal">The CPU package is imported with<a id="_idIndexMarker1753"/> the following line of code, which <a id="_idIndexMarker1754"/>will work for all macOS, Linux, and Windows platforms:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> * <span class="hljs-keyword">as</span> tf <span class="hljs-keyword">from</span> <span class="hljs-string">'@tensorflow/tfjs-node'</span>
+</code></pre>
+<p class="normal">The GPU package is imported with the following line of code (as of November 2019, this will work only on a GPU in a CUDA environment):</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> * <span class="hljs-keyword">as</span> tf <span class="hljs-keyword">from</span> <span class="hljs-string">'@tensorflow/tfjs-node-gpu'</span>
+</code></pre>
+<p class="normal">An example of Node.js code for defining and compiling a simple dense model is reported below. The code is self-explanatory:</p>
+<pre class="programlisting code"><code class="hljs-code">const model = tf.sequential();
+model.add(tf.layers.dense({ units: <span class="hljs-number">1</span>, inputShape: [<span class="hljs-number">400</span>] }));
+model.<span class="hljs-built_in">compile</span>({
+  loss: <span class="hljs-string">'meanSquaredError'</span>,
+  optimizer: <span class="hljs-string">'sgd'</span>,
+  metrics: [<span class="hljs-string">'MAE'</span>]
+});
+</code></pre>
+<p class="normal">Training can then start with the typical Node.js asynchronous invocation:</p>
+<pre class="programlisting code"><code class="hljs-code">const xs = tf.randomUniform([<span class="hljs-number">10000</span>, <span class="hljs-number">400</span>]);
+const ys = tf.randomUniform([<span class="hljs-number">10000</span>, <span class="hljs-number">1</span>]);
+const valXs = tf.randomUniform([<span class="hljs-number">1000</span>, <span class="hljs-number">400</span>]);
+const valYs = tf.randomUniform([<span class="hljs-number">1000</span>, <span class="hljs-number">1</span>]);
+<span class="hljs-keyword">async</span> function train() {
+  <span class="hljs-keyword">await</span> model.fit(xs, ys, {
+    epochs: <span class="hljs-number">100</span>,
+    validationData: [valXs, valYs],
+  });
+}
+train();
+</code></pre>
+<p class="normal">In this section, we have discussed how to use TensorFlow.js with both vanilla JavaScript and Node.js using sample applications for both the browser and backend computation.</p>
+<h1 class="heading-1" id="_idParaDest-498">Summary</h1>
+<p class="normal">In this chapter, we have discussed different components of the TensorFlow ecosystem. We started with TensorFlow Hub, the place where many pretrained models are available. Next, we talked about the TensorFlow Datasets and learned how to build a data pipeline using TFDS. We learned how to use TensorFlow Lite for mobile devices and IoT and deployed real applications on Android devices. Then, we also talked about federated learning for distributed learning across thousands (millions) of mobile devices, taking into account privacy concerns. The last section of the chapter was devoted to TensorFlow.js for using TensorFlow with vanilla JavaScript or with Node.js.</p>
+<p class="normal">The next chapter is about advanced CNNs, where you will learn some advanced CNN architectures and their applications.</p>
+<h1 class="heading-1" id="_idParaDest-499">References</h1>
+<ol class="numberedList" style="list-style-type: decimal;">
+<li class="numberedList" value="1">Quantization-aware training: <a href="https://github.com/tensorflow/tensorflow/tree/r1.13/tensorflow/contrib/quantize"><span class="url">https://github.com/tensorflow/tensorflow/tree/r1.13/tensorflow/contrib/quantize</span></a></li>
+<li class="numberedList">Jacob, B., Kligys, S., Chen, B., Zhu, M., Tang, M., Howard, A., Adam, H., and Kalenichenko, D. (Submitted on 15 Dec 2017). <em class="italic">Quantization and Training of Neural Networks for Efficient Integer-Arithmetic-Only Inference</em>. <a href="https://arxiv.org/abs/1712.05877"><span class="url">https://arxiv.org/abs/1712.05877</span></a></li>
+<li class="numberedList">Sandler, M., Howard, A., Zhu, M., Zhmoginov, A., Chen, L-C. (Submitted on 13 Jan 2018 (v1), last revised 21 Mar 2019 (v4)). <em class="italic">MobileNetV2: Inverted Residuals and Linear Bottlenecks</em>. <a href="https://arxiv.org/abs/1806.08342"><span class="url">https://arxiv.org/abs/1806.08342</span></a></li>
+<li class="numberedList">Tan, M., Chen, B., Pang, R., Vasudevan, V., Sandler, M., Howard, A., and Le, Q. V.<em class="italic"> MnasNet: Platform-Aware Neural Architecture Search for Mobile</em>. <a href="https://arxiv.org/abs/1807.11626"><span class="url">https://arxiv.org/abs/1807.11626</span></a></li>
+<li class="numberedList">Chen, L-C., Papandreou, G., Kokkinos, I., Murphy, K., and Yuille, A. L. (May 2017). <em class="italic">DeepLab: Semantic Image Segmentation with Deep Convolutional Nets, Atrous Convolution, and Fully Connected CRFs</em>. <a href="https://arxiv.org/pdf/1606.00915.pdf"><span class="url">https://arxiv.org/pdf/1606.00915.pdf</span></a></li>
+<li class="numberedList">Devlin, J., Chang, M-W., Lee, K., and Toutanova, K. (Submitted on 11 Oct 2018 (v1), last revised 24 May 2019 v2). <em class="italic">BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding</em>. <a href="https://arxiv.org/abs/1810.04805"><span class="url">https://arxiv.org/abs/1810.04805</span></a></li>
+<li class="numberedList">Anonymous authors, Paper under double-blind review. (modified: 25 Sep 2019). <em class="italic">MOBILEBERT: TASK-AGNOSTIC COMPRESSION OF BERT BY PROGRESSIVE KNOWLEDGE TRANSFER</em>. ICLR 2020 Conference Blind Submission Readers: Everyone. <a href="https://openreview.net/pdf?id=SJxjVaNKwB"><span class="url">https://openreview.net/pdf?id=SJxjVaNKwB</span></a> </li>
+<li class="numberedList">McMahan, H. B., Moore, E., Ramage, D., Hampson, and S., Arcas, B. A. y. (Submitted on 17 Feb 2016 (v1), last revised 28 Feb 2017 (this version, v3)). <em class="italic">Communication-Efficient Learning of Deep Networks from Decentralized Data</em>. <a href="https://arxiv.org/abs/1602.05629"><span class="url">https://arxiv.org/abs/1602.05629</span></a></li>
+<li class="numberedList">Konečný, J., McMahan, H. B., Yu, F. X., Richtárik, P., Suresh, A. T., and Bacon, D. (Submitted on 18 Oct 2016 (v1), last revised 30 Oct 2017 (this version, v2)). <em class="italic">Federated Learning: Strategies for Improving Communication Efficiency</em>. <a href="https://arxiv.org/abs/1610.05492"><span class="url">https://arxiv.org/abs/1610.05492</span></a></li>
+<li class="numberedList">Bonawitz, K. et al. (22 March 2019). <em class="italic">TOWARDS FEDERATED LEARNING AT SCALE: SYSTEM DESIGN</em>. <a href="https://arxiv.org/pdf/1902.01046.pdf%20"><span class="url">https://arxiv.org/pdf/1902.01046.pdf</span></a></li>
+</ol>
+<h1 class="heading-1">Join our book’s Discord space</h1>
+<p class="normal">Join our Discord community to meet like-minded people and learn alongside more than 2000 members at: <a href="https://packt.link/keras"><span class="url">https://packt.link/keras</span></a></p>
+<p class="normal"><img alt="" height="177" src="../Images/QR_Code1831217224278819687.png" width="177"/></p>
+</div>
+</div>
+</body></html>

@@ -1,0 +1,376 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Deep Deterministic Policy Gradient</h1>
+                </header>
+            
+            <article>
+                
+<p>In earlier chapters, you saw the use of <strong>reinforcement learning</strong> (<strong>RL</strong>) to solve discrete action problems, such as those that arise in Atari games. We will now build on this to tackle continuous, real-valued action problems. Continuous control problems are copious—for example, the motor torque of a robotic arm; the steering, acceleration, and braking of an autonomous car; the wheeled robotic motion on terrain; and the roll, pitch, and yaw controls of a drone. For these problems, we train neural networks in an RL setting to output real-valued actions. </p>
+<p>Many continuous control algorithms involve two neural networks—one referred to as the <strong>actor</strong> (policy-based), and the other as the <strong>critic</strong> (value-based)—and therefore, this family of algorithms is referred to as <strong>Actor-Critic algorithms</strong>. The role of the actor is to learn a good policy that can predict good actions for a given state. The role of the critic is to ascertain whether the actor undertook a good action, and to provide feedback that serves as the learning signal for the actor. This is akin to a student-teacher or employee-boss relationship, wherein the student or employee undertakes a task or work, and the role of the teacher or boss is to provide feedback on the quality of the action performed. </p>
+<p>The foundation of continuous control RL is through what is called the <strong>policy gradient</strong>, which is an estimate of how much a neural network's weights should be altered so as to maximize the long-term cumulative discounted rewards. Specifically, it uses the <strong>chain rule</strong> and it is an estimate of the gradient that needs to be back-propagated into the actor network for the policy to improve. It is evaluated as an average over a mini-batch of samples. We will cover these topics in this chapter. In particular, we will cover an algorithm called the <strong>Deep Deterministic Policy Gradient</strong> (<strong>DDPG</strong>), which is a state-of-the-art RL algorithm for continuous control.</p>
+<p>Continuous control has many real-world applications. For instance, continuous control can involve the evaluation of the steering, acceleration, and braking of an autonomous car. It can also be applied to determine the torques required for the actuator motors of a robot. Or, it can be used in biomedical applications, where the control could be to determine the muscle movements for a humanoid locomotion. Thus, continuous control problem applications abound.</p>
+<p>The following topics will be covered in this chapter:</p>
+<ul>
+<li>Actor-Critic algorithms and policy gradients</li>
+<li>DDPG</li>
+<li>Training and testing DDPG on Pendulum-v0</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Technical requirements</h1>
+                </header>
+            
+            <article>
+                
+<p>In order to successfully complete this chapter, the following items are required:</p>
+<ul>
+<li>Python (2 and above)</li>
+<li>NumPy</li>
+<li>Matplotlib</li>
+<li>TensorFlow (version 1.4 or higher)</li>
+<li>A computer with at least 8 GB of RAM (higher than this is even better!)</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Actor-Critic algorithms and policy gradients</h1>
+                </header>
+            
+            <article>
+                
+<p>I<span>n this section, w</span>e will cover what Actor-Critic algorithms are. You will also see what policy gradients are and how they are useful to Actor-Critic algorithms.</p>
+<p>How do students learn at school? Students normally make a lot of mistakes as they learn. When they do well at learning a task, their teacher provides positive feedback. On the other hand, if students do poorly at a task, the teacher provides negative feedback. This feedback serves as the learning signal for the student to get better at their tasks. This is the crux of Actor-Critic algorithms.</p>
+<p>The following is a summary of the steps involved:</p>
+<ul>
+<li>We will have two neural networks—one referred to as the actor, and the other as the critic</li>
+<li>The actor is like the student, as we described previously, and takes an action at a given state</li>
+<li>The critic is like the teacher, as we described previously, and provides feedback for the actor to learn</li>
+<li>Unlike a teacher in a school, the critic network should also be trained from scratch, which makes the problem challenging</li>
+<li>The policy gradient is used to train the actor</li>
+<li>The L2 norm on the Bellman update is used to train the critic</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Policy gradient</h1>
+                </header>
+            
+            <article>
+                
+<p>The <strong>policy gradient</strong> is defined as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/bd6043e6-9bab-4949-b906-f96405cf58c5.png" style="width:17.00em;height:3.33em;"/></p>
+<p><em>J</em> is the long-term reward function that needs to be maximized, <em>θ</em> is the policy neural network parameters, <em>N</em> is the mini-batch size, <em>Q(s,a)</em> is the state-action value function, and <em>π</em> is the policy. In other words, we compute the gradient of the state-action value function with respect to actions and the gradient of the policy with respect to the network parameters, multiply them, and take an average of them over <em>N</em> samples of data from a mini-batch. We can then use this policy gradient in a gradient ascent setting to update the policy parameters. Note that it is essentially a chain rule of calculus that is being used to evaluate the policy gradient.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Deep Deterministic Policy Gradient</h1>
+                </header>
+            
+            <article>
+                
+<p>We will now delve into the DDPG algorithm, which is a state-of-the-art RL algorithm for continuous control. It was originally published by Google DeepMind in 2016 and has gained a lot of interest in the community, with several new variants proposed thereafter. As was the case in DQN, DDPG also uses target networks for stability. It also uses a replay buffer to reuse past data, and therefore, it is an off-policy RL algorithm.</p>
+<p>The <kbd>ddpg.py</kbd> file is the main file from which we start the training and testing. It will call the training or testing functions, which are present in <kbd>TrainOrTest.py</kbd>. The <kbd>AandC.py</kbd> file has the TensorFlow code for the actor and the critic networks. Finally, <kbd>replay_buffer.py</kbd> stores the samples in a replay buffer by using a deque data structure. We will train the DDPG to learn to hold an inverted pendulum vertically, using OpenAI Gym's Pendulum-v0, which has three states and one continuous action, which is the torque to be applied to hold the pendulum as vertically inverted.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Coding ddpg.py</h1>
+                </header>
+            
+            <article>
+                
+<p>We will first code the <kbd>ddpg.py</kbd> file. The steps that are involved are as follows.</p>
+<p>We will now summarize the DDPG code:</p>
+<ol>
+<li><strong>Importing the required packages</strong>: We will import the required packages and other Python files:</li>
+</ol>
+<pre style="padding-left: 60px">import tensorflow as tf<br/>import numpy as np<br/>import gym<br/>from gym import wrappers<br/><br/>import argparse<br/>import pprint as pp<br/>import sys<br/><br/>from replay_buffer import ReplayBuffer<br/>from AandC import *<br/>from TrainOrTest import *</pre>
+<ol start="2">
+<li><strong>Defining the</strong> <strong>train()</strong> <strong>function</strong>: We will define the <kbd>train()</kbd> function. This takes the argument parser object, <kbd>args</kbd>. We create a TensorFlow session as <kbd>sess</kbd>. The name of the environment is used to make a Gym environment stored in the <kbd>env</kbd> object. We also set the random number of seeds and the maximum number of steps for an episode of the environment. We also set the state and action dimensions in <kbd>state_dim</kbd> and <kbd>action_dim</kbd>, which take the values of <kbd>3</kbd> and <kbd>1</kbd>, respectively, for the Pendulum-v0 problem. We then create actor and critic objects, which are instances of the <kbd>ActorNetwork</kbd> class and the <kbd>CriticNetwork</kbd> class, respectively, which will be described later, in the <kbd>AandC.py file</kbd>. We then call the <kbd>trainDDPG()</kbd> function, which will start the training of the RL agent.</li>
+</ol>
+<p style="padding-left: 60px">Finally, we save the TensorFlow model by using <kbd>tf.train.Saver()</kbd> and <kbd>saver.save()</kbd>:</p>
+<pre style="padding-left: 60px">def train(args):<br/><br/>    with tf.Session() as sess:<br/><br/>        env = gym.make(args['env'])<br/>        np.random.seed(int(args['random_seed']))<br/>        tf.set_random_seed(int(args['random_seed']))<br/>        env.seed(int(args['random_seed']))<br/>        env._max_episode_steps = int(args['max_episode_len'])<br/><br/>        state_dim = env.observation_space.shape[0]<br/>        action_dim = env.action_space.shape[0]<br/>        action_bound = env.action_space.high<br/><br/>        actor = ActorNetwork(sess, state_dim, action_dim, action_bound,<br/>                float(args['actor_lr']), float(args['tau']), int(args['minibatch_size']))<br/><br/>        critic = CriticNetwork(sess, state_dim, action_dim,<br/>                 float(args['critic_lr']), float(args['tau']), float(args['gamma']), actor.get_num_trainable_vars())<br/>        <br/><br/>        trainDDPG(sess, env, args, actor, critic)<br/><br/>        saver = tf.train.Saver()<br/>        saver.save(sess, "ckpt/model")<br/>        print("saved model ")</pre>
+<ol start="3">
+<li><strong>Defining the</strong> <strong>test()</strong> <strong>function</strong>: The <kbd>test()</kbd> function is defined next. This will be used once we have finished the training and want to test how well our agent is performing. The code is as follows for the <kbd>test()</kbd> function and is very similar to <kbd>train()</kbd>. We will restore the saved model from <kbd>train()</kbd> by using <kbd>tf.train.Saver()</kbd> and <kbd>saver.restore()</kbd>. We call the <kbd>testDDPG()</kbd> function to test the model:</li>
+</ol>
+<pre style="padding-left: 60px">def test(args):<br/><br/>    with tf.Session() as sess:<br/><br/>        env = gym.make(args['env'])<br/>        np.random.seed(int(args['random_seed']))<br/>        tf.set_random_seed(int(args['random_seed']))<br/>        env.seed(int(args['random_seed']))<br/>        env._max_episode_steps = int(args['max_episode_len'])<br/><br/>        state_dim = env.observation_space.shape[0]<br/>        action_dim = env.action_space.shape[0]<br/>        action_bound = env.action_space.high<br/><br/>        actor = ActorNetwork(sess, state_dim, action_dim, action_bound,<br/>                float(args['actor_lr']), float(args['tau']), int(args['minibatch_size']))<br/><br/>        critic = CriticNetwork(sess, state_dim, action_dim,<br/>                 float(args['critic_lr']), float(args['tau']), float(args['gamma']), actor.get_num_trainable_vars())<br/><br/>        saver = tf.train.Saver()<br/>        saver.restore(sess, "ckpt/model")<br/><br/>        testDDPG(sess, env, args, actor, critic)</pre>
+<ol start="4">
+<li><strong>Defining the</strong> <strong>main</strong> <strong>function</strong>: Finally, the <kbd>main</kbd> function is as follows. We define an argument parser by using Python's <kbd>argparse</kbd>. The learning rates for the actor and critic are specified, including the discount factor, <kbd>gamma</kbd>, and the target network exponential average parameter, <kbd>tau</kbd>. The buffer size, mini-batch size, and number of episodes are also specified in the argument parser. The environment that we are interested in is Pendulum-v0, and this is also specified in the argument parser.</li>
+<li><strong>Calling the</strong> <strong>train()</strong> <strong>or</strong> <strong>test()</strong> <strong>function, as appropriate</strong>: The mode for running this code is train or test, and it will call the appropriate eponymous function, which we defined previously:</li>
+</ol>
+<pre style="padding-left: 60px">if __name__ == '__main__':<br/>    parser = argparse.ArgumentParser(description='provide arguments for DDPG agent')<br/><br/>    # agent parameters<br/>    parser.add_argument('--actor-lr', help='actor network learning rate', default=0.0001)<br/>    parser.add_argument('--critic-lr', help='critic network learning rate', default=0.001)<br/>    parser.add_argument('--gamma', help='discount factor for Bellman updates', default=0.99)<br/>    parser.add_argument('--tau', help='target update parameter', default=0.001)<br/>    parser.add_argument('--buffer-size', help='max size of the replay buffer', default=1000000)<br/>    parser.add_argument('--minibatch-size', help='size of minibatch', default=64)<br/><br/>    # run parameters<br/>    parser.add_argument('--env', help='gym env', default='Pendulum-v0')<br/>    parser.add_argument('--random-seed', help='random seed', default=258)<br/>    parser.add_argument('--max-episodes', help='max num of episodes', default=250)<br/>    parser.add_argument('--max-episode-len', help='max length of each episode', default=1000)<br/>    parser.add_argument('--render-env', help='render gym env', action='store_true')<br/>    parser.add_argument('--mode', help='train/test', default='train')<br/>    <br/>    <br/>    args = vars(parser.parse_args())<br/>    <br/>    pp.pprint(args)<br/><br/>    if (args['mode'] == 'train'):<br/>      train(args)<br/>    elif (args['mode'] == 'test'):<br/>      test(args)</pre>
+<p>That's it for <kbd>ddpg.py</kbd>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Coding AandC.py</h1>
+                </header>
+            
+            <article>
+                
+<p>We will specify the <kbd>ActorNetwork</kbd> class and the <kbd>CriticNetwork</kbd> class in <kbd>AandC.py</kbd>. The steps involved are as follows:</p>
+<ol>
+<li><strong>Importing packages</strong>: First, we import the packages:</li>
+</ol>
+<pre style="padding-left: 60px"><span>import tensorflow as tf</span><br/><span>import numpy as np</span><br/><span>import gym</span><br/><span>from gym import wrappers</span><br/><span>import argparse</span><br/><span>import pprint as pp</span><br/><span>import sys</span><br/><br/><span>from replay_buffer import ReplayBuffer</span></pre>
+<ol start="2">
+<li><strong>Define initializers for the weights and biases</strong>: Next, we define the weights and biases initializers:</li>
+</ol>
+<pre style="padding-left: 60px"><span>winit = tf.contrib.layers.xavier_</span><span>initializer()</span><br/><span>binit = tf.constant_initializer(0.01)</span><br/><span>rand_unif = tf.keras.initializers.</span><span>RandomUniform(minval=-3e-3,</span><span>maxval=3e-3)</span><br/><span>regularizer = tf.contrib.layers.l2_</span><span>regularizer(scale=0.0)</span></pre>
+<ol start="3">
+<li><strong>Defining the</strong> <strong>ActorNetwork</strong> <strong>class</strong>: The <kbd>ActorNetwork</kbd> class is specified as follows. First, it receives parameters as arguments in the <kbd>__init__</kbd> constructor. We then call <kbd>create_actor_network()</kbd>, which will return <kbd>inputs</kbd>, <kbd>out</kbd>, and <kbd>scaled_out</kbd> objects. The actor model parameters are stored in <kbd>self.network_params</kbd> by calling TensorFlow's <kbd>tf.trainable_variables()</kbd>. We replicate the same for the actor's target network, as well. Note that the target network is required for stability reasons; it is identical to the actor in neural network architecture, albeit the parameters gradually change. The target network parameters are collected and stored in <kbd>self.target_network_params</kbd> by calling <kbd>tf.trainable_variables()</kbd> again:</li>
+</ol>
+<pre style="padding-left: 60px"><span>class ActorNetwork(object):</span><br/><br/><span>    def __init__(self, sess, state_dim, action_dim, action_bound, learning_rate, tau, batch_size):</span><br/><span>        self.sess = sess</span><br/><span>        self.s_dim = state_dim</span><br/><span>        self.a_dim = action_dim</span><br/><span>        self.action_bound = action_bound</span><br/><span>        self.learning_rate = learning_rate</span><br/><span>        self.tau = tau</span><br/><span>        self.batch_size = batch_size</span><br/><br/><span>        # actor </span><br/><span>        self.state, self.out, self.scaled_out = self.create_actor_network(</span><span>scope='actor')</span><br/><br/><span>        # actor params</span><br/><span>        self.network_params = tf.trainable_variables()</span><br/><br/><span>        # target network</span><br/><span>        self.target_state, self.target_out, self.target_scaled_out = self.create_actor_network(</span><span>scope='act_target')</span><br/><span>        self.target_network_params = tf.trainable_variables()[len(</span><span>self.network_params):]</span><br/>        </pre>
+<ol start="4">
+<li><strong>Defining</strong> <strong>self.update_target_network_params</strong>: Next, we define <kbd>self.update_target_network_params</kbd>, which will weigh the current actor network parameters with <kbd>tau</kbd> and the target network's parameters with <kbd>1-tau</kbd>, and add them to store them as a TensorFlow operation. We are thus gradually updating the target network's model parameters. Note the use of <kbd>tf.multiply()</kbd> for multiplying the weights with <kbd>tau</kbd> (or <kbd>1-tau</kbd>, as the case may be). We then create a TensorFlow placeholder called <kbd>action_gradient</kbd> to store the gradient of <em>Q</em>, with respect to the action, which is to be supplied by the critic. We also use <kbd>tf.gradients()</kbd> to compute the gradient of the output of the policy network with respect to the network parameters. Note that we then divide by the <kbd>batch_size</kbd>, in order to average the summation over a mini-batch. This gives us the averaged policy gradient, which we can then use to update the actor network parameters:</li>
+</ol>
+<pre style="padding-left: 60px"><span># update target using tau and 1-tau as weights<br/>self.update_target_network_params = \<br/>                                   [self.target_network_params[i].assign(tf.multiply(self.network_params[i], self.tau) + tf.multiply(self.target_network_params[i], 1. - self.tau))<br/>        for i in range(len(self.target_network_params))]<br/><br/># gradient (this is provided by the critic)<br/>self.action_gradient = tf.placeholder(tf.float32, [None, self.a_dim])<br/><br/># actor gradients<br/>self.unnormalized_actor_gradients = tf.gradients(<br/>    self.scaled_out, self.network_params, -self.action_gradient)<br/>self.actor_gradients = list(map(lambda x: tf.div(x, self.batch_size), self.unnormalized_actor_gradients))</span></pre>
+<ol start="5">
+<li><strong>Using Adam optimization</strong>: We use Adam optimization to apply the policy gradients, in order to optimize the actor's policy:</li>
+</ol>
+<pre style="padding-left: 60px"> <span># adam optimization </span><br/><span>        self.optimize = tf.train.AdamOptimizer(self.</span><span>learning_rate).apply_</span><span>gradients(zip(self.actor_</span><span>gradients, self.network_params))</span><br/><br/><span>        # num trainable vars</span><br/><span>        self.num_trainable_vars = len(self.network_params) + len(self.target_network_</span><span>params)</span></pre>
+<ol start="6">
+<li><strong>Defining the</strong> <strong>create_actor_network()</strong> <strong>function</strong>: We now define the <kbd>create_actor_network()</kbd> function. We will use a neural network with two layers, with <kbd>400</kbd> and <kbd>300</kbd> neurons, respectively. The weights are initialized by using <strong>Xavier initialization</strong>, and the biases are zeros to begin with. We use the <kbd>relu</kbd> activation function, and also batch normalization, for stability. The final output layer has weights initialized with a uniform distribution and a <kbd>tanh</kbd> activation function in order to keep it bounded. For the Pendulum-v0 problem, the actions are bounded in the range [<em>-2,2</em>], and since <kbd>tanh</kbd> is bounded in the range [<em>-1,1</em>], we need to multiply the output by two to scale accordingly; this is done by using <kbd>tf.multiply()</kbd>, where <kbd>action_bound = 2</kbd> for the inverted pendulum problem:</li>
+</ol>
+<pre style="padding-left: 60px"><span>def create_actor_network(self, scope):</span><br/><span>      with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):</span><br/><span>        state = tf.placeholder(name='a_states'</span><span>, dtype=tf.float32, shape=[None, self.s_dim])</span><br/><span>  </span><br/><span>        net = tf.layers.dense(inputs=state, units=400, activation=None, kernel_initializer=winit, bias_initializer=binit, name='anet1') </span><br/><span>        net = tf.nn.relu(net)</span><br/><br/><span>        net = tf.layers.dense(inputs=net, units=300, activation=None, kernel_initializer=winit, bias_initializer=binit, name='anet2')</span><br/><span>        net = tf.nn.relu(net)</span><br/><br/><span>        out = tf.layers.dense(inputs=net, units=self.a_dim, activation=None, kernel_initializer=rand_unif, bias_initializer=binit, name='anet_out')</span><br/><span>        out = tf.nn.tanh(out)</span><br/><span>        scaled_out = tf.multiply(out, self.action_bound)</span><br/><span>        return state, out, scaled_out</span></pre>
+<ol start="7">
+<li><strong>Define the actor functions</strong>: Finally, we have the remaining functions that are required to complete the <kbd>ActorNetwork</kbd> class. We will define <kbd>train()</kbd>, which will run a session on <kbd>self.optimize</kbd>; the <kbd>predict()</kbd> function runs a session on <kbd>self.scaled_out</kbd>, that is, the output of the <kbd>ActorNetwork</kbd>; the <kbd>predict_target()</kbd> function will run a session on <kbd>self.target_scaled_out</kbd>, that is, the output action of the actor's target network. Then, <kbd>update_target_network()</kbd> will run a session on <kbd>self.update_target_network_params</kbd>, which will perform the weighted average of the network parameters.</li>
+</ol>
+<p style="padding-left: 60px">Finally, the <kbd>get_num_trainable_vars()</kbd> function returns a count of the number of trainable variables:</p>
+<pre style="padding-left: 60px"><span>def train(self, state, a_gradient):</span><br/><span>        self.sess.run(self.optimize, feed_dict={self.state: state, self.action_gradient: a_gradient})</span><br/><br/><span>def predict(self, state):</span><br/><span>        return self.sess.run(self.scaled_out, feed_dict={</span><br/><span>            self.state: state})</span><br/><br/><span>def predict_target(self, state):</span><br/><span>        return self.sess.run(self.target_</span><span>scaled_out, feed_dict={</span><br/><span>            self.target_state: state})</span><br/><br/><span>def update_target_network(self):</span><br/><span>        self.sess.run(self.update_</span><span>target_network_params)</span><br/><br/><span>def get_num_trainable_vars(self):</span><br/><span>        return self.num_trainable_vars</span></pre>
+<ol start="8">
+<li><strong>Defining</strong> <strong>CriticNetwork class</strong>: We will now define the <kbd>CriticNetwork</kbd> class. Similar to <kbd>ActorNetwork</kbd>, we receive the model hyperparameters as arguments. We then call the <kbd>create_critic_network()</kbd> function, which will return <kbd>inputs</kbd>, <kbd>action</kbd>, and <kbd>out</kbd>. We also create the target network for the critic by calling <kbd>create_critic_network()</kbd> again:</li>
+</ol>
+<pre style="padding-left: 60px"><span>class CriticNetwork(object):</span><br/><br/><span>    def __init__(self, sess, state_dim, action_dim, learning_rate, tau, gamma, num_actor_vars):</span><br/><span>        self.sess = sess</span><br/><span>        self.s_dim = state_dim</span><br/><span>        self.a_dim = action_dim</span><br/><span>        self.learning_rate = learning_rate</span><br/><span>        self.tau = tau</span><br/><span>        self.gamma = gamma</span><br/><br/><span>        # critic</span><br/><span>        self.state, self.action, self.out = self.create_critic_network(</span><span>scope='critic')</span><br/><br/><span>        # critic params</span><br/><span>        self.network_params = tf.trainable_variables()[num_</span><span>actor_vars:]</span><br/><br/><span>        # target Network</span><br/><span>        self.target_state, self.target_action, self.target_out = self.create_critic_network(</span><span>scope='crit_target')</span><br/><br/><span>        # target network params </span><br/><span>        self.target_network_params = tf.trainable_variables()[(len(</span><span>self.network_params) + num_actor_vars):]</span></pre>
+<ol start="9">
+<li><strong>Critic target network</strong>: Similar to the actor's target, the critic's target network is also updated by using weighted averaging. We then create a TensorFlow placeholder called <kbd>predicted_q_value</kbd>, which is the target value. We then define the L2 norm in <kbd>self.loss</kbd>, which is the quadratic error on the Bellman residual. Note that <kbd>self.out</kbd> is the <em>Q(s,a)</em> that we saw earlier, and <kbd>predicted_q_value</kbd> is the <em>r + γQ(s',a')</em> in the Bellman equation. Again, we use the Adam optimizer to minimize this L2 loss function. We then evaluate the gradient of <em>Q(s,a)</em> with respect to the actions by calling <kbd>tf.gradients()</kbd>, and we store this in <kbd>self.action_grads</kbd>. This gradient is used later in the computation of the policy gradients:</li>
+</ol>
+<pre style="padding-left: 60px"><span># update target using tau and 1 - tau as weights</span><br/><span>        self.update_target_network_</span><span>params = \</span><br/><span>            [self.target_network_params[i]</span><span>.assign(tf.multiply(self.</span><span>network_params[i], self.tau) \</span><br/><span>            + tf.multiply(self.target_</span><span>network_params[i], 1. - self.tau))</span><br/><span>                for i in range(len(self.target_network_</span><span>params))]</span><br/><br/><span>        # network target (y_i in the paper)</span><br/><span>        self.predicted_q_value = tf.placeholder(tf.float32, [None, 1])</span><br/><br/><span>        # adam optimization; minimize L2 loss function</span><br/><span>        self.loss = tf.reduce_mean(tf.square(self.</span><span>predicted_q_value - self.out))</span><br/><span>        self.optimize = tf.train.AdamOptimizer(self.</span><span>learning_rate).minimize(self.</span><span>loss)</span><br/><br/><span>        # gradient of Q w.r.t. action</span><br/><span>        self.action_grads = tf.gradients(self.out, self.action)</span></pre>
+<ol start="10">
+<li><strong>Defining create_critic_network()</strong>: Next, we will define the <kbd>create_critic_network()</kbd> function. The critic network is also similar to the actor in architecture, except that it takes both the states and the actions as input. There are two hidden layers, with <kbd>400</kbd> and <kbd>300</kbd> neurons, respectively. The last output layer has only one neuron, that is, is the <em>Q(s,a)</em> state-action value function. Note that the last layer has no activation function, as <kbd>Q(s,a)</kbd> is, in theory, unbounded:</li>
+</ol>
+<pre style="padding-left: 60px"><span>def create_critic_network(self, scope):</span><br/><span>        with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):</span><br/><span>           state = tf.placeholder(name='c_states'</span><span>, dtype=tf.float32, shape=[None, self.s_dim])</span><br/><span>           action = tf.placeholder(name='c_action'</span><span>, dtype=tf.float32, shape=[None, self.a_dim]) </span><br/><br/><span>           net = tf.concat([state, action],1) </span><br/><br/><span>           net = tf.layers.dense(inputs=net, units=400, activation=None, kernel_initializer=winit, bias_initializer=binit, name='cnet1') </span><br/><span>           net = tf.nn.relu(net)</span><br/><br/><span>           net = tf.layers.dense(inputs=net, units=300, activation=None, kernel_initializer=winit, bias_initializer=binit, name='cnet2') </span><br/><span>           net = tf.nn.relu(net)</span><br/><br/><span>           out = tf.layers.dense(inputs=net, units=1, activation=None, kernel_initializer=rand_unif, bias_initializer=binit, name='cnet_out')</span><br/><span>           return state, action, out</span></pre>
+<ol start="11">
+<li>Finally, the functions required to complete the <kbd>CriticNetwork</kbd> are as follows. These are similar to the <kbd>ActorNetwork</kbd>, so we do not elaborate further for brevity. One difference, however, is the <kbd>action_gradients()</kbd> function, which is the gradient of <em>Q(s,a)</em> with respect to the actions, which is computed by the critic and supplied to the actor, to be used in the evaluation of the policy gradients:</li>
+</ol>
+<pre style="padding-left: 60px"><span>def train(self, state, action, predicted_q_value):</span><br/><span>        return self.sess.run([self.out, self.optimize], feed_dict={self.state: state, self.action: action, self.predicted_q_value: predicted_q_value})</span><br/><br/><span>def predict(self, state, action):</span><br/><span>        return self.sess.run(self.out, feed_dict={self.state: state, self.action: action})</span><br/><br/><span>def predict_target(self, state, action):</span><br/><span>        return self.sess.run(self.target_out, feed_dict={self.target_state: state, self.target_action: action})</span><br/><br/><span>def action_gradients(self, state, actions):</span><br/><span>        return self.sess.run(self.action_</span><span>grads, feed_dict={self.state: state, self.action: actions})</span><br/><br/><span>    def update_target_network(self):</span><br/><span>        self.sess.run(self.update_</span><span>target_network_params)</span></pre>
+<div class="yj6qo"/>
+<p>That's it for <kbd>AandC.py</kbd>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Coding TrainOrTest.py</h1>
+                </header>
+            
+            <article>
+                
+<p>The <kbd>trainDDPG()</kbd> and <kbd>testDDPG()</kbd> functions that we used earlier will now be defined in <kbd>TrainOrTest.py</kbd>. The steps that are involved are as follows:</p>
+<ol>
+<li><strong>Import packages and functions</strong>:<span> The </span><kbd>TrainOrTest.py</kbd> file <span>starts with the importing of the packages and other Python files:</span></li>
+</ol>
+<pre style="padding-left: 60px">import tensorflow as tf<br/>import numpy as np<br/>import gym<br/>from gym import wrappers<br/><br/>import argparse<br/>import pprint as pp<br/>import sys<br/><br/>from replay_buffer import ReplayBuffer<br/>from AandC import *</pre>
+<ol start="2">
+<li><strong>Define the trainDDPG() function</strong>: Next, we define the <kbd>trainDDPG()</kbd> function. First, we initialize all of the networks by calling a <kbd>sess.run()</kbd> on <kbd>tf.global_variables_initializer()</kbd>. Then, we initialize the target network weights and the replay buffer. Then, we start the main loop over the training episodes. Inside of this loop, we reset the environment (Pendulum-v0, in our case) and also start the loop over time steps for each episode (recall that each episode has a <kbd>max_episode_len</kbd> number of time steps).</li>
+</ol>
+<p style="padding-left: 60px">The actor's policy is sampled to obtain the action for the current state. We feed this action into <kbd>env.step()</kbd>, which takes one time step of this action and, in the process, moves to the next state, <kbd>s2</kbd>. The environment also gives this a reward, <kbd>r</kbd>, and information on whether the episode is terminated is stored in the Boolean variable <kbd>terminal</kbd>. We add the tuple (<kbd>state</kbd>, <kbd>action</kbd>, <kbd>reward</kbd>, <kbd>terminal</kbd>, <kbd>new state</kbd>) to the replay buffer for sampling later and for training:</p>
+<pre style="padding-left: 60px">def trainDDPG(sess, env, args, actor, critic):<br/><br/>    sess.run(tf.global_variables_initializer())<br/> <br/><br/>    # Initialize target networks<br/>    actor.update_target_network()<br/>    critic.update_target_network()<br/><br/>    # Initialize replay memory<br/>    replay_buffer = ReplayBuffer(int(args['buffer_size']), int(args['random_seed']))<br/><br/>    # start training on episodes <br/>    for i in range(int(args['max_episodes'])):<br/><br/>        s = env.reset()<br/><br/>        ep_reward = 0<br/>        ep_ave_max_q = 0<br/><br/>        for j in range(int(args['max_episode_len'])):<br/><br/>            if args['render_env']:<br/>                env.render()<br/><br/>            a = actor.predict(np.reshape(s, (1, actor.s_dim))) <br/>            <br/>            s2, r, terminal, info = env.step(a[0])<br/><br/>            replay_buffer.add(np.reshape(s, (actor.s_dim,)), np.reshape(a, (actor.a_dim,)), r,<br/>                              terminal, np.reshape(s2, (actor.s_dim,)))</pre>
+<ol start="3">
+<li><strong>Sample a mini-batch of data from the replay buffer</strong>: Once we have more than the mini-batch size of samples in the replay buffer, we sample a mini-batch of data from the buffer. For the subsequent state, <kbd>s2</kbd>, we use the critic's target network to compute the target <em>Q</em> value and store it in <kbd>target_q</kbd>. Note the use of the critic's target and not the critic—this is done for stability reasons. We then use the Bellman equation to evaluate the target, <kbd>y_i</kbd>, which is computed as <em>r + γ Q</em> for non-Terminal time steps and as <em>r</em> for Terminal steps:</li>
+</ol>
+<pre style="padding-left: 60px"># sample from replay buffer<br/>            if replay_buffer.size() &gt; int(args['minibatch_size']):<br/>                s_batch, a_batch, r_batch, t_batch, s2_batch = <br/>                replay_buffer.sample_batch(int(args['minibatch                   <br/>                _size']))<br/><br/>                # Calculate target q<br/>                target_q = critic.predict_target(s2_batch,  <br/>                           actor.predict_target(s2_batch))<br/><br/>                y_i = []<br/>                for k in range(int(args['minibatch_size'])):<br/>                    if t_batch[k]:<br/>                        y_i.append(r_batch[k])<br/>                    else:<br/>                        y_i.append(r_batch[k] + critic.gamma * <br/>                                                target_q[k])</pre>
+<ol start="4">
+<li><strong>Use the preceding to train the actor and critic</strong>: We then train the critic for one step on the mini-batch by calling <kbd>critic.train()</kbd>. Then, we compute the gradient of <em>Q</em> with respect to the action by calling <kbd>critic.action_gradients()</kbd> and we store it in <kbd>grads</kbd>; note that this action gradient is used to compute the policy gradient, as we mentioned previously. We then train the actor for one step by calling <kbd>actor.train()</kbd> and passing <kbd>grads</kbd> as an argument, along with the state that we sampled from the replay buffer. Finally, we update the actor and critic target networks by calling the appropriate functions for the actor and critic objects:</li>
+</ol>
+<pre style="padding-left: 60px"># Update critic<br/>                predicted_q_value, _ = critic.train(s_batch, a_batch, np.reshape(y_i, (int(args['minibatch_size']), 1)))<br/><br/>                ep_ave_max_q += np.amax(predicted_q_value)<br/><br/>                # Update the actor policy using gradient<br/>                a_outs = actor.predict(s_batch)<br/>                grads = critic.action_gradients(s_batch, a_outs)<br/>                actor.train(s_batch, grads[0])<br/><br/>                # update target networks<br/>                actor.update_target_network()<br/>                critic.update_target_network()</pre>
+<p style="padding-left: 60px">The new state, <kbd>s2</kbd>, is assigned to the current state, <kbd>s</kbd>, as we proceed to the next time step. If the episode has terminated, we print the episode reward and other observations <span>on the screen</span>, and we write them into a text file called <kbd>pendulum.txt</kbd> for later analysis. We also break out of the inner <kbd>for</kbd> loop, as the episode has terminated:</p>
+<pre style="padding-left: 60px">s = s2<br/>ep_reward += r<br/><br/>if terminal:<br/>    print('| Episode: {:d} | Reward: {:d} | Qmax: {:.4f}'.format(i,        <br/>          int(ep_reward), (ep_ave_max_q / float(j))))<br/>    f = open("pendulum.txt", "a+")<br/>    f.write(str(i) + " " + str(int(ep_reward)) + " " +    <br/>            str(ep_ave_max_q / float(j)) + '\n') <br/>    break</pre>
+<ol start="5">
+<li><strong>Defining testDDPG()</strong>: This concludes the <kbd>trainDDPG()</kbd> function. We will now present the <kbd>testDDPG()</kbd> function that is used to test how well our model is performing. The <kbd>testDDPG()</kbd> function is more or less the same as <kbd>trainDDPG()</kbd>, except that we do not have a replay buffer and we do not train the neural networks. Like before, we have two <kbd>for</kbd> loops—the outer one for episodes, and the inner loop over time steps for each episode. We sample actions from the trained actor's policy by using <kbd>actor.predict()</kbd> and use it to evolve the environment by using <kbd>env.step()</kbd>. Finally, we terminate the episode if <kbd>terminal == True</kbd>:</li>
+</ol>
+<pre style="padding-left: 60px">def testDDPG(sess, env, args, actor, critic):<br/><br/><br/>    # test for max_episodes number of episodes<br/>    for i in range(int(args['max_episodes'])):<br/><br/>        s = env.reset()<br/><br/>        ep_reward = 0<br/>        ep_ave_max_q = 0<br/><br/>        for j in range(int(args['max_episode_len'])):<br/><br/>            if args['render_env']:<br/>                env.render()<br/><br/>            a = actor.predict(np.reshape(s, (1, actor.s_dim))) <br/><br/>            s2, r, terminal, info = env.step(a[0])<br/><br/>            s = s2<br/>            ep_reward += r<br/><br/>            if terminal:<br/>                print('| Episode: {:d} | Reward: {:d} |'.format(i, <br/>                      int(ep_reward)))<br/>                break</pre>
+<p>This concludes <kbd>TrainOrTest.py</kbd>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Coding replay_buffer.py</h1>
+                </header>
+            
+            <article>
+                
+<p>We will use the deque data structure for storing our replay buffer. The steps that are involved are as follows:</p>
+<ol>
+<li><strong>Import the packages</strong>: First, we import the required packages.</li>
+<li><strong>Define the ReplayBuffer class</strong>:<strong> </strong>We then define the <kbd>ReplayBuffer</kbd> class, with the arguments passed to the <kbd>__init__()</kbd> constructor. The <kbd>self.buffer = deque()</kbd> function is the instance of the data structure to store the data in a queue:</li>
+</ol>
+<pre style="padding-left: 60px">from collections import deque<br/>import random<br/>import numpy as np<br/><br/>class ReplayBuffer(object):<br/><br/>    def __init__(self, buffer_size, random_seed=258):<br/>        self.buffer_size = buffer_size<br/>        self.count = 0<br/>        self.buffer = deque()<br/>        random.seed(random_seed)</pre>
+<ol start="3">
+<li><strong>Define</strong> <strong>the add</strong> <strong>and</strong> <strong>size</strong> <strong>functions</strong>: We then define the <kbd>add()</kbd> function to add the experience as a tuple (<kbd>state</kbd>, <kbd>action</kbd>, <kbd>reward</kbd>, <kbd>terminal</kbd>, <kbd>new state</kbd>). The <kbd>self.count</kbd> function keeps a count of the number of samples we have in the replay buffer. If this count is less than the replay buffer size (<kbd>self.buffer_size</kbd>), we append the current experience to the buffer and increment the count. On the other hand, if the count is equal to (or greater than) the buffer size, we discard the old samples from the buffer by calling <kbd>popleft()</kbd>, which is a built-in function of deque. Then, we add the experience to the replay buffer; the count need not be incremented, as we discarded one old data sample in the replay buffer and replaced it with the new data sample or experience, so the total number of samples in the buffer remains the same. We also define the <kbd>size()</kbd> function to obtain the current size of the replay buffer: </li>
+</ol>
+<pre style="padding-left: 30px">    def add(self, s, a, r, t, s2):<br/>        experience = (s, a, r, t, s2)<br/>        if self.count &lt; self.buffer_size: <br/>            self.buffer.append(experience)<br/>            self.count += 1<br/>        else:<br/>            self.buffer.popleft()<br/>            self.buffer.append(experience)<br/><br/>    def size(self):<br/>        return self.count</pre>
+<ol start="4">
+<li><strong>Define</strong> <strong>the sample_batch</strong> <strong>and</strong> <strong>clear</strong> <strong>functions</strong>: Next, we define the <kbd>sample_batch()</kbd> function to sample a <kbd>batch_size</kbd> number of samples from the replay buffer. If the count of the number of samples in the buffer is less than the <kbd>batch_size</kbd>, we sample count the number of samples from the buffer. Otherwise, we sample the <kbd>batch_size</kbd> number of samples from the replay buffer. Then, we convert these samples to <kbd>NumPy</kbd> arrays and return them. Lastly, the <kbd>clear()</kbd> function is used to completely clear the reply buffer and make it empty:</li>
+</ol>
+<pre style="padding-left: 30px">   def sample_batch(self, batch_size):<br/>        batch = []<br/><br/>        if self.count &lt; batch_size:<br/>            batch = random.sample(self.buffer, self.count)<br/>        else:<br/>            batch = random.sample(self.buffer, batch_size)<br/><br/>        s_batch = np.array([_[0] for _ in batch])<br/>        a_batch = np.array([_[1] for _ in batch])<br/>        r_batch = np.array([_[2] for _ in batch])<br/>        t_batch = np.array([_[3] for _ in batch])<br/>        s2_batch = np.array([_[4] for _ in batch])<br/><br/>        return s_batch, a_batch, r_batch, t_batch, s2_batch<br/><br/>    def clear(self):<br/>        self.buffer.clear()<br/>        self.count = 0<br/><br/></pre>
+<p>That concludes the code for the DDPG. We will now test it.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Training and testing the DDPG on Pendulum-v0</h1>
+                </header>
+            
+            <article>
+                
+<p>We will now train the preceding DDPG code on Pendulum-v0. To train the DDPG agent, simply type the following in the command line at the same level as the rest of the code:</p>
+<pre><strong>python ddpg.py</strong></pre>
+<p>This will start the training:</p>
+<pre> <br/>{'actor_lr': 0.0001,<br/> 'buffer_size': 1000000,<br/> 'critic_lr': 0.001,<br/> 'env': 'Pendulum-v0',<br/> 'gamma': 0.99,<br/> 'max_episode_len': 1000,<br/> 'max_episodes': 250,<br/> 'minibatch_size': 64,<br/> 'mode': 'train',<br/> 'random_seed': 258,<br/> 'render_env': False,<br/> 'tau': 0.001}<br/>.<br/>.<br/>.<br/>2019-03-03 17:23:10.529725: I tensorflow/stream_executor/cuda/cuda_diagnostics.cc:300] kernel version seems to match DSO: 384.130.0<br/>| Episode: 0 | Reward: -7981 | Qmax: -6.4859<br/>| Episode: 1 | Reward: -7466 | Qmax: -10.1758<br/>| Episode: 2 | Reward: -7497 | Qmax: -14.0578</pre>
+<p>Once the training is complete, you can also test the trained DDPG agent, as follows:</p>
+<pre><strong>python ddpg.py --mode test</strong></pre>
+<p>We can also plot the episodic rewards during training by using the following code:</p>
+<pre>import numpy as np<br/>import matplotlib.pyplot as plt<br/><br/>data = np.loadtxt('pendulum.txt')<br/><br/>plt.plot(data[:,0], data[:,1])<br/>plt.xlabel('episode number', fontsize=12)<br/>plt.ylabel('episode reward', fontsize=12)<br/>#plt.show()<br/>plt.savefig("ddpg_pendulum.png")</pre>
+<p>The plot is presented as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-542 image-border" src="assets/0b31b8d7-d68d-4efe-9a3c-65afec2fa8e5.png" style="width:31.33em;height:23.00em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Figure 1: Plot showing the episode rewards during training for the Pendulum-v0 problem, using the DDPG</div>
+<p>As you can see, the DDPG agent has learned the problem very well. The maximum rewards are slightly negative, and this is the best for this problem. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>In this chapter, we were introduced to our first continuous actions RL algorithm, DDPG, which also happens to be the first Actor-Critic algorithm in this book. DDPG is an off-policy algorithm, as it uses a replay buffer. We also covered the use of policy gradients to update the actor, and the use of the L2 norm to update the critic. Thus, we have two different neural networks. The actor learns the policy and the critic learns to evaluate the actor's policy, thereby providing a learning signal to the actor. You saw how to compute the gradient of the state-action value, <em>Q(s,a)</em>, with respect to the action, and also the gradient of the policy, both of which are combined to evaluate the policy gradient, which is then used to update the actor. We trained the DDPG on the inverted pendulum problem, and the agent learned it very well. </p>
+<p>We have come a long way in this chapter. You have learned about Actor-Critic algorithms and how to code your first continuous control RL algorithm. In the next chapter, you will learn about the <strong>A3C algorithm</strong>, which is an on-policy deep RL algorithm.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Questions</h1>
+                </header>
+            
+            <article>
+                
+<ol>
+<li>Is the DDPG an on-policy or off-policy algorithm?</li>
+<li>We used the same neural network architectures for both the actor and the critic. Is this required, or can we choose different neural network architectures for the actor and the critic?</li>
+<li>Can we use the DDPG for Atari Breakout?</li>
+<li>Why are the biases of the neural networks initialized to small positive values?</li>
+<li>This is left as an exercise: Can you modify the code in this chapter to train an agent to learn InvertedDoublePendulum-v2, which is more challenging than the Pendulum-v0 that you saw in this chapter?</li>
+<li>Here is another exercise: Vary the neural network architecture and check whether the agent can learn the Pendulum-v0 problem. For instance, keep decreasing the number of neurons in the first hidden layer with the values 400, 100, 25, 10, 5, and 1, and check how the agent performs for the different number of neurons in the first hidden layer. If the number of neurons is too small, it can lead to information bottlenecks, where the input of the network is not sufficiently represented; that is, the information is lost as we go deeper into the neural network. Do you observe this effect? </li>
+</ol>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Further reading</h1>
+                </header>
+            
+            <article>
+                
+<ul>
+<li><em>Continuous control with deep reinforcement learning</em>, by <em>Timothy P. Lillicrap</em>, <em>Jonathan J. Hunt</em>, <em>Alexander Pritzel</em>, <em>Nicolas Heess</em>, <em>Tom Erez</em>, <em>Yuval Tassa</em>, <em>David Silver</em>, and <em>Daan Wierstra</em>, original DDPG paper from <em>DeepMind</em>, <span>arXiv:1509.02971</span>: <a href="https://arxiv.org/abs/1509.02971" target="_blank">https://arxiv.org/abs/1509.02971</a><a href="https://arxiv.org/abs/1509.02971" target="_blank"/></li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

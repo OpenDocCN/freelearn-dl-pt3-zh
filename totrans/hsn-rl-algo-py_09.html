@@ -1,0 +1,686 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">TRPO and PPO Implementation</h1>
+                </header>
+            
+            <article>
+                
+<p>In the previous chapter, we looked at policy gradient algorithms. Their uniqueness lies in the order in which they solve a <strong>reinforcement learning</strong> (<strong>RL</strong>) problem<span>—</span>policy gradient algorithms take a step in the direction of the highest gain of the reward. The simpler version of this algorithm (<strong>REINFORCE</strong>) has a straightforward implementation that alone achieves good results. Nevertheless, it is slow and has a high variance. For this reason, we introduced a value function that has a double goal<span>—</span>to critique the actor and to provide a baseline. Despite their great potential, these actor-critic algorithms can suffer from unwanted rapid variations in the action distribution that may cause a drastic change in the states that are visited, followed by a rapid decline in the performance from which they could never recover from.</p>
+<p>In this chapter, we will address this problem by showing you how introducing a trust-region, or a clipped objective, can mitigate it. We'll show two practical algorithms, namely TRPO and PPO. These have shown ability in controlling simulated walking, controlling hopping and swimming robots, and playing Atari games. We'll cover a new set of environments for continuous control and show how policy gradient algorithms can be adapted to work in a continuous action space. By applying TRPO and PPO to these new environments, you'll be able to train an agent to run, jump, and walk.</p>
+<p>The following topics will be covered in this chapter:</p>
+<ul>
+<li>Roboschool</li>
+<li>Natural policy gradient</li>
+<li>Trust region policy optimization</li>
+<li>Proximal policy optimization</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Roboschool</h1>
+                </header>
+            
+            <article>
+                
+<p>Up until this point, we have worked with discrete control tasks such as the Atari games in <a href="b2fa8158-6d3c-469a-964d-a800942472ca.xhtml">Chapter 5</a>, <em>Deep Q-Network</em>, and LunarLander in <a href="6748bde9-7cd9-43a0-a477-b8a867b1e424.xhtml">Chapter 6</a>, <em>Learning Stochastic and PG Optimization</em>. To play these games, only a few discrete actions have to be controlled, that is, approximately two to five actions. As we <span><span>learned </span></span>in <a href="6748bde9-7cd9-43a0-a477-b8a867b1e424.xhtml">Chapter 6</a><span>, </span><em>Learning Stochastic and PG Optimization</em>, policy gradient algorithms can be easily adapted to continuous actions. To show these properties, we'll deploy the next few policy gradient algorithms in a new set of environments called Roboschool, in which the goal is to control a robot in different situations. Roboschool has been developed by OpenAI and uses the famous OpenAI Gym interface that we used in the previous chapters. These environments are based on the Bullet Physics Engine (a physics engine that simulates soft and rigid body dynamics) and are similar to the ones of <span><span>the famous</span></span> Mujoco physical engine. We opted for Roboschool as it is open source (Mujoco requires a license) and because it includes some more challenging environments.</p>
+<p>Specifically, Roboschool incorporates 12 environments, from the simple Hopper (RoboschoolHopper), displayed on the left in the following figure and controlled by three continuous actions, to a more complex humanoid (RoboschoolHumanoidFlagrun) with 17 continuous actions, shown on the right:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1970 image-border" src="assets/37f5ad9a-4bb0-4d86-87ec-7c28867cbc76.png" style="width:39.67em;height:10.58em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Figure 7.1. Render of RoboschoolHopper-v1 on the left and RoboschoolHumanoidFlagrun-v1 on the right</div>
+<p>In some of these environments, the goal is to run, jump, or walk <span>as fast as possible </span>to reach the 100 m endpoint while moving in a single direction. In others, the goal is to move in a three-dimensional field while being careful of possible external factors, such as objects that have been thrown. Also included in the set of 12 environments is a multiplayer Pong environment, as well as an interactive environment in which a 3D humanoid is free to move in all directions and has to move toward a flag in a continuous movement. In addition to this, there is a similar environment in which the robot is bombarded with cubes to destabilize the robot, who then has to build a more robust control to keep its balance.</p>
+<p>The environments are fully observable, meaning that an agent has a complete view of its state that is encoded in a <kbd>Box</kbd> class of variable size, from about 10 to 40. As we mentioned previously, the action space is continuous and it is represented by a <kbd>Box</kbd> class of variable size, depending on the environment.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Control a continuous system</h1>
+                </header>
+            
+            <article>
+                
+<p>Policy gradient algorithms such as REINFORCE and AC, as well as PPO and TRPO, all of which will be implemented in this chapter, can work with a discrete and continuous action space. The migration from one type of action to the other is pretty simple. Instead of computing a probability for each action in a continuous control, the actions can be specified through the parameters of a probability distribution. The most common approach is to learn the parameters of a normal Gaussian distribution, which is a very important family of distributions that is parametrized by a mean, <img class="fm-editor-equation" src="assets/9649d114-e700-485e-a586-42154c153513.png" style="width:0.92em;height:1.25em;"/>, and a standard deviation, <img class="fm-editor-equation" src="assets/c6cfee24-4967-4627-b62e-8f6c5654706a.png" style="width:0.92em;height:0.92em;"/>. Examples of Gaussian distributions and the change of these parameters are shown in the following figure:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-2071 image-border" src="assets/99173b39-afaa-4193-a34f-592648e141eb.png" style="width:122.17em;height:76.00em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign">Figure 7.2. A plot of three Gaussian distributions with different means and standard deviations</div>
+<div class="packt_infobox"><span>For all the color references mentioned in the chapter, please refer to the color images bundle at </span><a href="http://www.packtpub.com/sites/default/files/downloads/9781789131116_ColorImages.pdf">http://www.packtpub.com/sites/default/files/downloads/9781789131116_ColorImages.pdf</a><span>.</span></div>
+<p>For example, a policy that's represented by a parametric function approximation (such as deep neural networks) can predict the mean and the standard deviation of a normal distribution in the functionality of a state. The mean can be approximated as a linear function and, usually, the standard deviation is independent of the state. In this case, we'll represent the parameterized mean as a function of a state denoted by <img class="fm-editor-equation" src="assets/43585b36-5ac1-4e1e-9a69-87d2283053a7.png" style="width:3.00em;height:1.58em;"/> and the standard deviation as a fixed value denoted by <img class="fm-editor-equation" src="assets/4fea26fa-3eb6-460e-96b7-ac230c3f47be.png" style="width:0.92em;height:0.92em;"/>. Moreover, instead of working with standard deviation, it is preferred to use the logarithm of the standard deviation. </p>
+<p>Wrapping this up, a parametric policy for discrete control can be defined using the following line of code:</p>
+<div>
+<pre><span>p_logits </span><span>=</span><span> </span><span>mlp</span><span>(obs_ph, hidden_sizes, act_dim, activation=tf.nn.relu, </span><span>last_activation</span><span>=</span><span>None)</span></pre></div>
+<p><kbd>mlp</kbd> is a function that builds a multi-layer perceptron (also called a fully connected neural network) with hidden layer sizes specified in <kbd>hidden_sizes</kbd>, an output of the <kbd>act_dim</kbd> dimension, and the activations specified in the <kbd>activation</kbd> and <kbd>last_activation</kbd> arguments. These will become part of a parametric policy for continuous control and will have the following changes:</p>
+<div>
+<pre><span>p_means </span><span>=</span><span> </span><span>mlp</span><span>(obs_ph, hidden_sizes, act_dim, activation=tf.tanh, </span><span>last_activation</span><span>=None</span><span>)<br/></span>log_std <span>=</span><span> tf.</span><span>get_variable</span><span>(</span><span>name</span><span>=</span><span>'</span><span>log_std</span><span>'</span><span>, </span><span>initializer</span><span>=</span><span>np.</span><span>zeros</span><span>(act_dim, </span><span>dtype</span><span>=</span><span>np.float32))</span></pre></div>
+<p>Here <kbd>p_means</kbd> is <img class="fm-editor-equation" src="assets/43585b36-5ac1-4e1e-9a69-87d2283053a7.png" style="width:2.08em;height:1.08em;"/> and <kbd>log_std</kbd> is <img class="fm-editor-equation" src="assets/8ee83f0d-7596-4bf5-89fe-c606afe367b0.png" style="width:2.42em;height:1.08em;"/>.</p>
+<p>Furthermore, if all the actions have a value between 0 and 1, it is better to use a <kbd>tanh</kbd> function as the last activation: </p>
+<div>
+<pre><span>p_means </span><span>=</span><span> </span><span>mlp</span><span>(obs_ph, hidden_sizes, act_dim, activation=tf.tanh, </span><span>last_activation</span><span>=</span><span>tf.tanh)</span></pre></div>
+<p>Then, to sample from this Gaussian distribution and obtain the actions, the standard deviation has to be multiplied by a noisy vector that follows a normal distribution with a mean of 0 and a standard deviation of 1 that have been summed to the predicted <span>mean</span>:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/bbbae8ae-518b-41cb-82f4-11136f2bbfcc.png" style="width:7.25em;height:1.17em;"/></p>
+<p>Here, z is the vector of Gaussian noise, <img class="fm-editor-equation" src="assets/14af4d96-9a28-42e0-bfed-11a90d8f9cd0.png" style="width:4.50em;height:1.08em;"/>, with the<span> same shape as </span><img class="fm-editor-equation" src="assets/a2223d73-33e9-4c19-a375-0a08feeee23d.png" style="width:2.08em;height:1.08em;"/><span> . This can be implemented in just one line of code: </span></p>
+<div>
+<pre><span>p_noisy </span><span>=</span><span> p_means </span><span>+</span><span> tf.</span><span>random_normal</span><span>(tf.</span><span>shape</span><span>(p_means), </span><span>0</span><span>, </span><span>1</span><span>) </span><span>*</span><span> tf.</span><span>exp</span><span>(log_std)</span></pre></div>
+<p>Since we are introducing noise, we cannot be sure that the values still lie in the limit of the actions, so we have to clip <kbd>p_noisy</kbd> in such a way that the action values remain between the minimum and maximum allowed values. The clipping is done in the following line of code:</p>
+<div>
+<div>
+<pre><span>act_smp </span><span>=</span><span> tf.</span><span>clip_by_value</span><span>(p_noisy, envs.action_space.low, envs.action_space.high)</span></pre></div>
+</div>
+<p class="mce-root">In the end, the log probability <span>is computed as follows:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/cd12c059-7e22-4e81-a02b-32f369aa33f5.png" style="width:23.33em;height:2.67em;"/></p>
+<p>This formula is computed in the <kbd>gaussian_log_likelihood</kbd> function, which returns the log probability. Thus, we can retrieve the log probability as follows:</p>
+<pre><span>p_log </span><span>=</span><span> </span><span>gaussian_log_likelihood</span><span>(act_ph, p_means, log_std)</span><span><br/></span></pre>
+<p>Here, <kbd>gaussian_log_likelihood</kbd> is defined in the following snippet:</p>
+<div>
+<pre><span>def</span><span> </span><span>gaussian_log_likelihood</span><span>(</span><span>x</span><span>, </span><span>mean</span><span>, </span><span>log_std</span><span>):<br/></span><span>    log_p </span><span>=</span><span> -0.5 * (np.log(2*np.pi) + (x</span><span>-</span><span>mean)</span><span>**</span><span>2</span><span> </span><span>/</span><span> (tf.</span><span>exp</span><span>(log_std)</span><span>**</span><span>2 </span><span>+ </span><span>1e-9</span><span>) </span><span>+</span><span> </span><span>2</span><span>*</span><span>log_std</span><span>)<br/>    </span><span>return</span><span> </span><span>tf.</span><span>reduce_sum</span><span>(log_p, </span><span>axis</span><span>=-</span><span>1</span><span>)</span></pre></div>
+<p>That's it. Now, you can implement it in every PG algorithm and try all sorts of environments with continuous action space. As you may recall, in the previous chapter, we implemented REINFORCE and AC on LunarLander. The same game is also available with continuous control and is called <kbd>LunarLanderContinuous-v2</kbd>. </p>
+<p>With the necessary knowledge to tackle <span>problems with an inherent continuous action space, you are now able to address a broader variety of tasks. However, generally speaking, these are also more difficult to solve and the PG algorithms we've learned about so far are too weak and not best suited to solving hard problems. Thus, i</span>n the remaining chapters, we'll look at more advanced PG algorithms, starting with the natural policy gradient.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Natural policy gradient</h1>
+                </header>
+            
+            <article>
+                
+<p>REINFORCE and Actor-Critic are very intuitive <span>methods that </span>work well on small to medium-sized RL tasks. However, they present some problems that need to be addressed so that we can adapt policy gradient algorithms so that they work on much larger and complex tasks. The main problems are as follows:</p>
+<ul>
+<li><strong>Difficult to choose a correct step size</strong>: This comes from the nature of RL being non-stationary, meaning that the distribution of the data changes continuously over time and as the agent learns new things, it explores a different state space. Finding an overall stable learning rate is very tricky.</li>
+<li><strong>Instability</strong>: The algorithms aren't aware of the amount by which the policy will change. This is also related to the problem we stated previously. A single, not controlled update could induce a substantial shift of the policy that will drastically change the action distribution, and that consequently will move the agent toward a bad state space. Additionally, if the new state space is very different from the previous one, it could take a long time before recovering from it.</li>
+<li><strong>Bad sample efficiency</strong>: This problem is common to almost all on-policy algorithms. The challenge here is to extract more information from the on-policy data before discarding it.</li>
+</ul>
+<p>The algorithms that are proposed in this chapter, namely TRPO and PPO, try to address these three problems by taking different approaches, though they share a common background that will be explained soon. Also, both TRPO and PPO are on-policy policy gradient algorithms that belong to the model-free family, as shown in the following categorization RL map:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-2048 image-border" src="assets/c18ca40e-b73f-42ad-b20c-0e4d3e0101bb.png" style="width:35.58em;height:37.25em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Figure 7.3. The collocation of TRPO and PPO inside the categorization map of the RL algorithms</div>
+<p><strong>Natural Policy Gradient</strong> (<strong>NPG</strong>) is one of the first algorithms that has been proposed to tackle the instability problem of the policy gradient methods. It does this by presenting a variation in the policy step that takes care of guiding the policy in a more controlled way. Unfortunately, it is designed for linear function approximations only, and it cannot be applied to deep neural networks. However, it's the base for more powerful algorithms such as TRPO and PPO.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Intuition behind NPG</h1>
+                </header>
+            
+            <article>
+                
+<p>Before looking at a potential solution to the instability of PG methods, let's understand why it appears. Imagine you are climbing a steep volcano with a crater on the top, similar to the function in the following diagram. Let's also imagine that the only sense you have is the inclination of your foot (the gradient) and that you cannot see the world around you<span>—</span>you are blind. Let's also set a fixed length of each step you can take (a learning rate), for example, one meter. You take the first step, perceive the inclination of your feet, and move 1 m toward the steepest ascent direction. After repeating this process many times, you arrive at a point near the top where the crater lies, but still, you are not aware of it since you are blind. At this point, you observe that the inclination is still pointing in the direction of the crater. However, if the volcano only gets higher for a length smaller than your step, with the next step, you'll fall down. At this point, the space around you is totally new. In the case outlined in <span>the following diagram,</span><span> you'll recover pretty soon as it is a simple function, but in general, it can be arbitrarily complex. As a remedy, you could use a much smaller step size but you'll climb the mountain much slower and still, there is no guarantee of reaching the maximum. This problem is not unique to RL, but here it is more serious as the data is not stationary and the damage could be way bigger than in other contexts, such as supervised learning. Let's take a look at the following diagram:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1971 image-border" src="assets/1f666ace-b10f-4191-b8f8-2645f2c7502e.png" style="width:31.17em;height:24.25em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Figure 7.4. While trying to reach the maximum of this function, you may fall inside the crater</div>
+<p>A solution that could come to mind, and one that has been proposed in NPG, is to use the curvature of the function in addition to the gradient. The information regarding the curvature is carried on by the second derivative. It is very useful because a high value indicates a drastic change in the gradient between two points and, as prevention, a smaller and more cautious step could be taken, thus avoiding possible cliffs. With this new approach, you can use the second derivative to gain more information about the action distribution space and make sure that, in the case of a drastic shift, the distribution of the action spaces don't vary too much. In the following section, we'll see how this is done in NPG.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">A bit of math</h1>
+                </header>
+            
+            <article>
+                
+<p>The novelty of the NPG algorithm is in how it updates the parameters with a step update that combines the first and second derivatives. To understand the natural policy gradient step, we have to explain two key concepts: the <strong>Fisher Information Matrix</strong> (<strong>FIM</strong>) and the <strong>Kullback-Leibler</strong><span> </span>(<strong>KL</strong>) divergence. But before explaining these two key concepts, let's look at the formula behind the update:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/17666fbf-8eaa-4e6b-a566-46f7179dd190.png" style="width:10.83em;height:1.50em;"/> (7.1)</p>
+<p>This update differentiates from the vanilla policy gradient, but only by the term <img class="fm-editor-equation" src="assets/5474c6f5-f532-4ceb-949e-40a546bbb8d2.png" style="width:1.83em;height:1.08em;"/>, which is used to enhance the gradient term.</p>
+<p>In this formula, <img class="fm-editor-equation" src="assets/bcc9d5c5-34e4-44bb-a4bd-9c53476edd92.png" style="width:0.83em;height:0.92em;"/> is the FIM and <img class="fm-editor-equation" src="assets/774e9e83-fce6-4ce7-80b8-5d6755106f99.png" style="width:1.92em;height:1.17em;"/> is the objective function. </p>
+<p>As we mentioned previously, we are interested in making all the steps of the same length in the distribution space, no matter what the gradient is. This is accomplished by the inverse of the FIM.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">FIM and KL divergence</h1>
+                </header>
+            
+            <article>
+                
+<p>The FIM is defined as the covariance of an objective function. <span>Let's look at how it can help us</span>. To be able to limit the distance between the distributions of our model, we need to define a metric that provides the distance between the new and the old distributions. The most popular choice is to use the KL divergence. It measures how far apart two distributions are and is used in many places in RL and machine learning. The KL divergence is not a proper metric as it is not symmetric, but it is a good approximation of it. The more different two distributions, are the higher the KL divergence value. Consider the plot in the following diagram. In this example, the KL divergences are computed with respect to the green function. Indeed, because the orange function is similar to the green function, the KL divergence is 1.11, which is close to 0. Instead, it's easy to see that the blue and the green lines are quite different. This observation is confirmed by the high KL divergence between the two: 45.8. Note that the KL divergence between the same function will be always 0.</p>
+<div class="packt_infobox">For those of you who are interested, the KL divergence for discrete probability distribution is computed as <img class="fm-editor-equation" src="assets/05df10d1-9804-496e-8102-c25bb5fe9899.png" style="width:14.50em;height:2.42em;"/>.</div>
+<p>Let's take a look at the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1972 image-border" src="assets/83415e1d-05c7-4b7e-bbb9-03d15a43096e.png" style="width:37.08em;height:22.83em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Figure 7.5. The KL divergence that's shown in the box is measured between each function and the function colored in green. The bigger the value, the farther the two functions are apart.</div>
+<p>Thus, using the KL divergence, we are able to compare two distributions and get an indication of how they relate to each other. So, how can we use this metric in our problem and limit the divergence between two subsequent policies distribution?</p>
+<p>It so happens that the FIM defines the local curvature in the distribution space by using the KL divergence as a metric. Thereby,<span> </span>we can obtain the <span>direction and the length of the step that keeps the KL divergence distance constant by </span>combining the curvature (second-order derivative) of the KL divergence with the gradient (first-order derivative) of the objective function (as in formula (7.1)). Thus, the update that follows from formula (7.1) will be more cautious by taking small steps along the steepest direction when the FIM is high (meaning that there is a big distance between the action distributions) and big steps when the FIM is low (meaning that there is a plateau and the distributions don't vary too much).</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Natural gradient complications</h1>
+                </header>
+            
+            <article>
+                
+<p>D<span>espite knowing the usefulness of the natural gradient in the RL framework, one of the major drawbacks of it is the computational cost that involves the calculation of FIM.</span> While the computation of the gradient has a computational cost of <img class="fm-editor-equation" src="assets/5d7df3b0-ef0f-43b1-81b6-692b6b72c407.png" style="width:2.00em;height:1.08em;"/>, the natural gradient has a computational cost of <img class="fm-editor-equation" src="assets/c9e9563d-9439-47bd-a47e-95bcc8c1846b.png" style="width:2.67em;height:1.33em;"/>, where <img class="fm-editor-equation" src="assets/c1febc28-3777-48a1-941c-268d9ba05b84.png" style="width:0.83em;height:0.92em;"/> is the number of parameters. In fact, in the NPG paper that dates back to 2003, the algorithm has been applied to very small tasks with linear policies. The computation of <img class="fm-editor-equation" src="assets/3dca5d3e-8058-4d21-80f2-2c6d786918f0.png" style="width:1.83em;height:1.08em;"/> is too expensive with modern deep neural networks that have hundreds of thousands of parameters. Nonetheless, by introducing some approximations and tricks, the natural gradient can be also used with deep neural networks. </p>
+<div class="packt_infobox">In supervised learning, the use of the natural gradient is not needed as much as in reinforcement learning because the second-order gradient is somehow approximated in an empirical way by modern optimizers such as Adam and RMSProp.</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Trust region policy optimization</h1>
+                </header>
+            
+            <article>
+                
+<p><strong>Trust region policy optimization</strong> (<strong>TRPO</strong>) is the first successful algorithm that makes use of several approximations to compute the natural gradient with the goal of training a deep neural network policy in a more controlled and stable way. From NPG, we saw that it isn't possible to compute the inverse of the FIM for nonlinear functions with a lot of parameters. TRPO overcomes these difficulties by building on top of NPG. It does this by introducing a surrogate objective function and making a series of approximations, which means it succeeds in learning about complex policies for walking, hopping, or playing Atari games from raw pixels.</p>
+<p>TRPO is one of the most complex model-free algorithms and though we already learned the underlying principles of the natural gradient, there are still difficult parts behind it. In this chapter, we'll only give an intuitive level of detail regarding the algorithm and provide the main equations. If you want to dig into the algorithm in more detail, check their paper (<a href="https://arxiv.org/abs/1502.05477">https://arxiv.org/abs/1502.05477</a>) for a complete explanation and proof of the theorems.</p>
+<p>We'll also implement the algorithm and apply it to a Roboschool environment. Nonetheless, we won't discuss every component of the implementation here. For the complete implementation, check the GitHub repository of this book. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The TRPO algorithm</h1>
+                </header>
+            
+            <article>
+                
+<p>From a broad perspective, <span>TRPO</span> can be seen as a continuation of the NPG algorithm for nonlinear function approximation. The biggest improvement that was introduced in TRPO is the use of a constraint on the KL divergence between the new and the old policy that forms a <em>trust region.</em> This allows the network to take larger steps, always within the trust region. The resulting constraint problem is formulated as follows: </p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/d6ad2df0-d457-498d-9040-fcf62c432f60.png" style="width:14.83em;height:3.33em;"/> (7.2)</p>
+<p>Here, <img class="fm-editor-equation" src="assets/566596fb-1cc6-4d2e-a26c-c0683f771a5c.png" style="width:1.92em;height:1.25em;"/> is the objective surrogate function that we'll see soon, <img class="fm-editor-equation" src="assets/eb787be5-e07c-4ebc-9303-af6c054265bb.png" style="width:5.92em;height:1.33em;"/> is the KL divergence between the old policy with the <img class="fm-editor-equation" src="assets/7bd85162-5171-4b32-8272-efb7a599dba7.png" style="width:1.92em;height:1.25em;"/> parameters, and the new policy with<br/>
+the <img class="fm-editor-equation" src="assets/8fcdc5a0-205c-44a7-8338-0f437d7948bb.png" style="width:0.50em;height:0.92em;"/> and <img class="fm-editor-equation" src="assets/118cb98d-380e-41ec-97c8-e208698c3f45.png" style="width:0.42em;height:0.92em;"/> parameters is a coefficient of the constraint.</p>
+<p>The objective surrogate function is designed in such a way that it is maximized with respect to the new policy parameters using the state distribution of the old policy. This is done using importance sampling, which estimates the distribution of the new policy (the desired one) while only having the distribution of the old policy (the known distribution). Importance sampling is required because the trajectory was sampled with the old policy, but what we actually care about is the distribution of the new one. Using importance sampling, the surrogate objective function is defined:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/c5d873fc-2f25-4558-8be6-60b7b047b49d.png" style="width:22.83em;height:2.50em;"/> (7.3)</p>
+<p><img class="fm-editor-equation" src="assets/a493723c-4f11-4e85-a046-9e2aaaba2ae8.png" style="width:1.83em;height:1.08em;"/> is the advantage function of the old policy. Thus, the constraint optimization problem is equivalent to the following: </p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/511e5dac-0210-48f5-ad72-5583db302cbd.png" style="width:26.92em;height:4.67em;"/> (7.4)</p>
+<p>Here, <img class="fm-editor-equation" src="assets/a3131585-ed20-4e88-a731-4a6ce71eb67c.png" style="width:2.25em;height:1.17em;"/> indicates the actions distributions conditioned on the state, <img class="fm-editor-equation" src="assets/31a74e77-c25b-4db8-8b02-d3668510fc04.png" style="width:0.58em;height:0.83em;"/>.</p>
+<p>What we are left to do is replace the expectation with an empirical average over a batch of samples and substitute <img class="fm-editor-equation" src="assets/cbd8354d-7ff8-4b75-9c16-098f793154e3.png" style="width:1.92em;height:1.08em;"/> with an empirical estimate.</p>
+<p>Constraint problems are difficult to solve and in TRPO, the optimization problem in equation (7.4) is approximately solved by using a linear approximation of the objective function and a quadratic approximation to the constraint so that the solution becomes similar to the NPG update:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/06ea7307-6019-452a-9c51-3e8bf4003822.png" style="width:7.00em;height:1.33em;"/></p>
+<p>Here, <img class="fm-editor-equation" src="assets/706a6722-8040-43f4-b1f7-c43338239009.png" style="width:4.25em;height:1.08em;"/>.</p>
+<p>The approximation of the original optimization problem can now be solved using the <strong>Conjugate Gradient</strong> (<strong>CG</strong>) method, an iterative method for solving linear systems. When we talked about NPG, we emphasize that computing <img class="fm-editor-equation" src="assets/29560202-4d86-4173-803f-69befefbc670.png" style="width:1.83em;height:1.08em;"/> is computationally very expensive with a large number of parameters. However, CG can approximately solve a linear problem without forming the full matrix, <img class="fm-editor-equation" src="assets/b98d4fbf-7edb-4f5f-a6a7-16f13450a320.png" style="width:0.75em;height:0.92em;"/>. Thus, using CG, we can compute <img class="fm-editor-equation" src="assets/d894bb78-8af2-4807-bf95-861935118d06.png" style="width:0.67em;height:0.92em;"/> as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/de87bafe-7bf9-44dc-b851-917f9afe0688.png" style="width:4.67em;height:1.42em;"/> (7.5)</p>
+<p>TRPO also gives us a way of estimating the step size: </p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/ad8bc8ea-b7cc-4603-a0ca-5011874e2ffd.png" style="width:5.25em;height:2.50em;"/> (7.6)</p>
+<p>Therefore, the update becomes as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/816d421d-da65-4a88-bb86-428bf93e8de1.png" style="width:8.25em;height:2.75em;"/> (7.7)</p>
+<p>So far, we have created a special case of the natural policy gradient step, but to complete the TRPO update, we are missing a key ingredient. Remember that we approximated the problem with the solution of a linear objective function and quadratic constraint. Thus, we are solving only a local approximation to the expected return. With the introduction of these approximations, we cannot be certain that the KL divergence constraint is still satisfied. To ensure the nonlinear constraint while improving the nonlinear objective, TRPO performs a line search to find the higher value, <img class="fm-editor-equation" src="assets/1ea7c5d6-6679-488f-b2fe-0af78e933cab.png" style="width:0.92em;height:0.83em;"/>, that satisfies the constraint. The TRPO update with the line search becomes the following:</p>
+<p class="CDPAlignCenter CDPAlign"><br/>
+<img class="fm-editor-equation" src="assets/619b58e7-0948-4811-963b-8a0ee8824efb.png" style="width:9.08em;height:2.83em;"/> (7.8)</p>
+<p>It may seem to you that the line search is a negligible part of the algorithm, but as demonstrated in the paper, it has a fundamental role. Without it, the algorithm may compute large steps, causing catastrophic degradation in the performance. </p>
+<p>In terms of the TRPO algorithm, it computes a search direction with the conjugate gradient algorithm to find a solution for the approximated objective function and constraint. Then it uses a line search for the maximal step length, <img class="fm-editor-equation" src="assets/42841f37-dbf5-4cee-ba15-1bbdafda1a17.png" style="width:0.67em;height:1.08em;"/>, so that the constraint on the KL divergence is satisfied and the objective is improved. To further increase the speed of the algorithm, the conjugate gradient algorithm also makes use of an efficient Fisher-Vector product (to learn more about it, check out the paper that can be found at <a href="https://arxiv.org/abs/1502.05477">https://arxiv.org/abs/1502.05477paper</a>).</p>
+<p>TRPO can be integrated into an AC architecture where the critic is included in the algorithm to provide additional support to the policy (the actor) in the learning of the task. A high-level implementation of such an algorithm (that is, TRPO combined with a critic), when written in pseudocode, is as follows:</p>
+<pre>Initialize <img class="fm-editor-equation" src="assets/0a02ef3e-469a-419d-96c1-011e30365bdb.png" style="width:1.25em;height:0.92em;"/> with random weight<br/>Initialize environment <img class="fm-editor-equation" src="assets/58b3d7e8-3ca7-4472-be5a-3ac52eaf5f3e.png" style="width:8.25em;height:1.33em;"/><br/><strong>for</strong> episode 1..M <strong>do</strong><br/>    Initialize empty buffer<br/><br/>    <span class="underline"><em>&gt; Generate few trajectories</em></span><br/>    <strong>for</strong> step 1..TimeHorizon <strong>do</strong><br/>        <span class="underline"><em>&gt; Collect experience by acting on the environment</em></span><br/>        <img class="fm-editor-equation" src="assets/8262a545-bdf2-45a5-95bb-a76a54cdaca4.png" style="width:5.42em;height:1.42em;"/><br/>        <img class="fm-editor-equation" src="assets/ee942a76-4c6b-42fd-8e75-fa3823121a1b.png" style="width:8.83em;height:1.50em;"/><br/>        <img class="fm-editor-equation" src="assets/cd4a57ec-0360-45d0-b449-386848b01cbb.png" style="width:3.58em;height:1.33em;"/><br/>        <strong>if</strong> <img class="fm-editor-equation" src="assets/770f4505-628c-46bf-bdd7-9d5f03fab3d3.png" style="width:5.33em;height:1.00em;"/>:<br/>            <img class="fm-editor-equation" src="assets/a9835bbd-94fb-4138-94d8-934d77a9b6a2.png" style="width:8.83em;height:1.50em;"/><br/>            <span class="underline"><em>&gt; Store the episode in the buffer</em></span><br/>            <img class="fm-editor-equation" src="assets/aff8030c-0e68-4466-a5ef-5f91f333139a.png" style="width:15.42em;height:1.33em;"/> # where <img class="fm-editor-equation" src="assets/98b21a97-ce2b-469f-9636-f35b95d7c305.png" style="width:0.75em;height:1.00em;"/> is the length of the episode<br/><br/>    Compute the advantage values <img class="fm-editor-equation" src="assets/2c2a6df4-50fa-403b-89d7-4bae0ebd6e2a.png" style="width:1.00em;height:1.00em;"/> and n-step reward to go <img class="fm-editor-equation" src="assets/c3a2064f-a1f1-4550-bbf9-98643a272fc0.png" style="width:1.08em;height:1.00em;"/><br/><br/>    <span class="underline">&gt; Estimate the gradient of the objective function</span><br/>        <img class="fm-editor-equation" src="assets/bf8549f2-0c83-438f-a98f-99a702276a9a.png" style="width:16.33em;height:2.58em;"/> (1)<br/>    <span class="underline">&gt; Compute <img class="fm-editor-equation" src="assets/3b2e7f61-ff15-45aa-a902-0c54c51ac281.png" style="width:0.75em;height:1.00em;"/> using conjugate gradient</span><br/>        <img class="fm-editor-equation" src="assets/b3c039bc-5fac-484d-87c2-dc521222ba7f.png" style="width:4.67em;height:1.42em;"/> (2)<br/>    <span class="underline">&gt; Compute the step length</span> <br/>        <img class="fm-editor-equation" src="assets/ce8b515c-b8ab-4774-b6c2-e5436d2006c6.png" style="width:6.58em;height:3.17em;"/> (3)<br/><br/>    <span class="underline"><em>&gt; Update the policy using all the experience in <img class="fm-editor-equation" src="assets/b45dbbe4-23d2-4584-8004-62dee06b5a64.png" style="width:0.83em;height:0.92em;"/><br/></em></span><br/>    Backtracking line search to find the maximum <img class="fm-editor-equation" src="assets/159bdea5-4680-41c7-9bf1-eb17e96b93d4.png" style="width:0.92em;height:0.83em;"/> value that satisfy the constraint<br/><br/>    <img class="fm-editor-equation" src="assets/c0c62e3e-b0e8-4ad7-a863-da9f9bf85bf9.png" style="width:6.42em;height:1.17em;"/> (4)<br/><br/>    <span class="underline"><em>&gt; Critic update using all the experience in <img class="fm-editor-equation" src="assets/45cd7c04-0a62-48ca-89a3-f1e75effe333.png" style="width:0.92em;height:1.00em;"/></em></span><br/>    <img class="fm-editor-equation" src="assets/41701144-b58e-479b-b157-609892c5505c.png" style="width:18.75em;height:2.92em;"/></pre>
+<p>After this high-level overview of TRPO, we can finally start implementing it. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementation of the TRPO algorithm</h1>
+                </header>
+            
+            <article>
+                
+<p>In this implementation section of the TRPO algorithm, we'll concentrate our efforts on the computational graph and the steps that are required to optimize the policy. We'll leave out the implementation of other aspects that we looked at in the previous chapters (such as the cycle to gather trajectories from the environment, the conjugate gradient algorithm, and the line search algorithm). However, make sure to check out the full code in this book's GitHub repository. The implementation is for continuous control.</p>
+<p>First, let's create all the placeholders and the two deep neural networks for the policy (the actor) and the value function (the critic): </p>
+<div>
+<pre><span>act_ph </span><span>=</span><span> tf.</span><span>placeholder</span><span>(</span><span>shape</span><span>=</span><span>(</span><span>None</span><span>,act_dim), </span><span>dtype</span><span>=</span><span>tf.float32, </span><span>name</span><span>=</span><span>'</span><span>act</span><span>'</span><span>)<br/></span><span>obs_ph </span><span>=</span><span> tf.</span><span>placeholder</span><span>(</span><span>shape</span><span>=</span><span>(</span><span>None</span><span>, obs_dim[</span><span>0</span><span>]), </span><span>dtype</span><span>=</span><span>tf.float32, </span><span>name</span><span>=</span><span>'</span><span>obs</span><span>'</span><span>)<br/></span><span>ret_ph </span><span>=</span><span> tf.</span><span>placeholder</span><span>(</span><span>shape</span><span>=</span><span>(</span><span>None</span><span>,), </span><span>dtype</span><span>=</span><span>tf.float32, </span><span>name</span><span>=</span><span>'</span><span>ret</span><span>'</span><span>)<br/></span><span>adv_ph </span><span>=</span><span> tf.</span><span>placeholder</span><span>(</span><span>shape</span><span>=</span><span>(</span><span>None</span><span>,), </span><span>dtype</span><span>=</span><span>tf.float32, </span><span>name</span><span>=</span><span>'</span><span>adv</span><span>'</span><span>)<br/></span><span>old_p_log_ph </span><span>=</span><span> tf.</span><span>placeholder</span><span>(</span><span>shape</span><span>=</span><span>(</span><span>None</span><span>,), </span><span>dtype</span><span>=</span><span>tf.float32, </span><span>name</span><span>=</span><span>'</span><span>old_p_log</span><span>'</span><span>)<br/></span><span>old_mu_ph </span><span>=</span><span> tf.</span><span>placeholder</span><span>(</span><span>shape</span><span>=</span><span>(</span><span>None</span><span>, act_dim), </span><span>dtype</span><span>=</span><span>tf.float32, </span><span>name</span><span>=</span><span>'</span><span>old_mu</span><span>'</span><span>)<br/></span><span>old_log_std_ph </span><span>=</span><span> tf.</span><span>placeholder</span><span>(</span><span>shape</span><span>=</span><span>(act_dim), </span><span>dtype</span><span>=</span><span>tf.float32, </span><span>name</span><span>=</span><span>'</span><span>old_log_std</span><span>'</span><span>)<br/></span><span>p_ph </span><span>=</span><span> tf.</span><span>placeholder</span><span>(</span><span>shape</span><span>=</span><span>(</span><span>None</span><span>,), </span><span>dtype</span><span>=</span><span>tf.float32, </span><span>name</span><span>=</span><span>'</span><span>p_ph</span><span>'</span><span>)<br/></span><span># result of the conjugate gradient algorithm<br/></span><span>cg_ph </span><span>=</span><span> tf.</span><span>placeholder</span><span>(</span><span>shape</span><span>=</span><span>(</span><span>None</span><span>,), </span><span>dtype</span><span>=</span><span>tf.float32, </span><span>name</span><span>=</span><span>'</span><span>cg</span><span>'</span><span>)<br/><br/></span><span># Actor neural network<br/></span><span>with</span><span> tf.</span><span>variable_scope</span><span>(</span><span>'</span><span>actor_nn</span><span>'</span><span>):<br/>    </span><span>p_means </span><span>=</span><span> </span><span>mlp</span><span>(obs_ph, hidden_sizes, act_dim, tf.tanh, </span><span>last_activation</span><span>=</span><span>tf.tanh)<br/>    </span><span>log_std </span><span>=</span><span> tf.</span><span>get_variable</span><span>(</span><span>name</span><span>=</span><span>'</span><span>log_std</span><span>'</span><span>, </span><span>initializer</span><span>=</span><span>np.</span><span>ones</span><span>(act_dim, </span><span>dtype</span><span>=</span><span>np.float32))<br/><br/></span><span># Critic neural network<br/></span><span>with</span><span> tf.</span><span>variable_scope</span><span>(</span><span>'</span><span>critic_nn</span><span>'</span><span>):<br/>    </span><span>s_values </span><span>=</span><span> </span><span>mlp</span><span>(obs_ph, hidden_sizes, </span><span>1</span><span>, tf.nn.relu, </span><span>last_activation</span><span>=</span><span>None</span><span>)<br/>    </span><span>s_values </span><span>=</span><span> tf.</span><span>squeeze</span><span>(s_values) </span></pre></div>
+<p>There are a few things to note here:</p>
+<ol>
+<li>The placeholder with the <kbd>old_</kbd> prefix refers to the tensors of the old policy.</li>
+<li>The actor and the critic are defined in two separate variable scopes because we'll need to select the parameters separately later.</li>
+</ol>
+<ol start="3">
+<li>The action space is a Gaussian distribution with a covariance matrix that is diagonal and independent of the state. A diagonal matrix can then be resized as a vector with one element for each action. We also work with the logarithm of this vector.</li>
+</ol>
+<p>Now, we can add normal noise to the predicted mean according to the standard deviation, clip the actions, and compute the Gaussian log likelihood, as follows: </p>
+<div>
+<div>
+<pre>p_noisy<span> </span><span>=</span><span> </span><span>p_means</span><span> </span><span>+</span><span> </span><span>tf.</span><span>random_normal</span><span>(tf.</span><span>shape</span><span>(p_means),</span><span> </span><span>0</span><span>,</span><span> </span><span>1</span><span>)</span><span> </span><span>*</span><span> </span><span>tf.</span><span>exp</span><span>(log_std)<br/></span><br/>a_sampl<span> </span><span>=</span><span> </span><span>tf.</span><span>clip_by_value</span><span>(p_noisy, low_action_space, high_action_space)<br/></span><br/>p_log<span> </span><span>=</span><span> </span><span>gaussian_log_likelihood</span><span>(act_ph, p_means, log_std)</span></pre></div>
+</div>
+<p>We then have to compute the objective function, <img class="fm-editor-equation" src="assets/9c129825-9522-4ccd-a3c7-ce6dbb51176d.png" style="width:11.92em;height:2.50em;"/>, the MSE loss function of the critic, and create the optimizer for the critic, as follows: </p>
+<pre><span># TRPO loss function<br/></span><span>ratio_new_old</span> <span>=</span> <span>tf.</span><span>exp</span><span>(p_log</span> <span>-</span> <span>old_p_log_ph)<br/></span><span>p_loss</span> <span>=</span> <span>-</span> <span>tf.</span><span>reduce_mean</span><span>(ratio_new_old</span> <span>*</span> <span>adv_ph)<br/></span><span><br/># MSE loss function<br/></span><span>v_loss</span> <span>=</span> <span>tf.</span><span>reduce_mean</span><span>((ret_ph</span> <span>-</span> <span>s_values)</span><span>**</span><span>2</span><span>)<br/></span><span><br/># Critic optimization<br/></span><span>v_opt</span> <span>=</span> <span>tf.train.</span><span>AdamOptimizer</span><span>(cr_lr).</span><span>minimize</span><span>(v_loss)</span></pre>
+<p>Then, the subsequent steps involve the creation of the graph for the points (2), (3), and (4), as given in the preceding pseudocode. Actually, (2) and (3) are not done in TensorFlow and so they aren't part of the computational graph. Nevertheless, in the computational graph, we have to take care of some related things. The steps for this are as follows:</p>
+<ol>
+<li>Estimate the gradient of the policy loss function.</li>
+<li>Define a procedure to restore the policy parameters. This is needed because in the line search algorithm, we'll optimize the policy and test the constraints, and if the new policy doesn't satisfy them, we'll have to restore the policy parameters and try with a smaller <img class="fm-editor-equation" src="assets/b088313b-2e23-4184-a6a9-8ffc45d388e6.png" style="width:0.92em;height:0.83em;"/> coefficient.</li>
+<li>Compute the Fisher-vector product. It is an efficient way to compute <img class="fm-editor-equation" src="assets/6e8cdfd0-5f49-4f07-a0de-80fd60b13eec.png" style="width:1.42em;height:0.92em;"/> without forming the full <img class="fm-editor-equation" src="assets/d786b2b8-bb88-453a-8ba3-5ad45f4e5a5c.png" style="width:0.83em;height:0.92em;"/>.</li>
+<li>Compute the TRPO step.</li>
+<li>Update the policy.</li>
+</ol>
+<p>Let's start from step 1, that is, estimating the gradient of the policy loss function:</p>
+<pre><span>def</span> <span>variables_in_scope</span><span>(</span><span>scope</span><span>):    <br/></span><span>    return</span> <span>tf.</span><span>get_collection</span><span>(tf.GraphKeys.</span><span>TRAINABLE_VARIABLES</span><span>, scope)<br/><br/></span><span># Gather and flatten the actor parameters<br/></span><span>p_variables</span> <span>=</span> <span>variables_in_scope</span><span>(</span><span>'</span><span>actor_nn</span><span>'</span><span>)<br/></span><span>p_var_flatten</span> <span>=</span> <span>flatten_list</span><span>(p_variables)<br/><br/></span><span># Gradient of the policy loss with respect to the actor parameters<br/></span><span>p_grads</span> <span>=</span> <span>tf.</span><span>gradients</span><span>(p_loss, p_variables)<br/></span><span>p_grads_flatten</span> <span>=</span> <span>flatten_list</span><span>(p_grads)</span></pre>
+<p>Since we are working with vector parameters, we have to flatten them using <kbd>flatten_list</kbd>. <kbd>variable_in_scope</kbd> returns the trainable variables in <kbd>scope</kbd>. This function is used to get the variables of the actor since the gradients have to be computed with respect to these variables only.</p>
+<p>Regarding step 2, the policy parameters are restored in this way:</p>
+<pre><span>p_old_variables</span> <span>=</span> <span>tf.</span><span>placeholder</span><span>(</span><span>shape</span><span>=</span><span>(</span><span>None</span><span>,),</span> <span>dtype</span><span>=</span><span>tf.float32,</span> <span>name</span><span>=</span><span>'</span><span>p_old_variables</span><span>'</span><span>)<br/></span><span><br/># variable used as index for restoring the actor's parameters<br/></span><span>it_v1</span> <span>=</span> <span>tf.</span><span>Variable</span><span>(</span><span>0</span><span>,</span> <span>trainable</span><span>=</span><span>False</span><span>)<br/></span><span>restore_params</span> <span>=</span> <span>[]<br/></span><span><br/>for</span> <span>p_v</span> <span>in</span> <span>p_variables:<br/>    </span><span>upd_rsh</span> <span>=</span> <span>tf.</span><span>reshape</span><span>(p_old_variables[it_v1</span> <span>:</span> <span>it_v1</span><span>+</span><span>tf.</span><span>reduce_prod</span><span>(p_v.shape)],</span> <span>shape</span><span>=</span><span>p_v.shape)<br/>    </span><span>restore_params.</span><span>append</span><span>(p_v.</span><span>assign</span><span>(upd_rsh))<br/>    </span><span>it_v1</span> <span>+=</span> <span>tf.</span><span>reduce_prod</span><span>(p_v.shape)<br/><br/>restore_params = tf.group(*restore_params)<br/></span></pre>
+<p>It iterates over each layer's variables and assigns the values of the old variables to the current one.</p>
+<p>The <span>Fisher-vector product</span><span> of step</span> 3 is done by calculating the second derivative of the KL divergence with respect to the policy variables: </p>
+<pre><span># gaussian KL divergence of the two policies <br/></span><span>dkl_diverg</span> <span>=</span> <span>gaussian_DKL</span><span>(old_mu_ph, old_log_std_ph, p_means, log_std)<br/></span><span><br/># Jacobian of the KL divergence (Needed for the Fisher matrix-vector product)<br/></span><span>dkl_diverg_grad</span> <span>=</span> <span>tf.</span><span>gradients</span><span>(dkl_diverg, p_variables)<br/></span><span>dkl_matrix_product</span> <span>=</span> <span>tf.</span><span>reduce_sum</span><span>(</span><span>flatten_list</span><span>(dkl_diverg_grad)</span> <span>*</span> <span>p_ph)<br/></span><span><br/># Fisher vector product<br/></span><span>Fx</span> <span>=</span> <span>flatten_list</span><span>(tf.</span><span>gradients</span><span>(dkl_matrix_product, p_variables))</span></pre>
+<p>Steps 4 and 5 involve the application of the updates to the policy, where <kbd>beta_ph</kbd> is <img class="fm-editor-equation" src="assets/6a731882-7484-4235-87ad-dfa0688ebf4c.png" style="width:0.67em;height:1.08em;"/>, which is calculated using formula (7.6), and <kbd>alpha</kbd> is the rescaling factor found by line search:</p>
+<pre><span># NPG update<br/>beta_ph</span> <span>=</span> <span>tf.</span><span>placeholder</span><span>(</span><span>shape</span><span>=</span><span>(),</span> <span>dtype</span><span>=</span><span>tf.float32,</span> <span>name</span><span>=</span><span>'</span><span>beta</span><span>'</span><span>)</span><br/>npg_update<span> </span><span>=</span><span> </span><span>beta_ph</span><span> </span><span>*</span><span> </span><span>cg_ph<br/></span>alpha<span> </span><span>=</span><span> </span><span>tf.</span><span>Variable</span><span>(</span><span>1</span><span>.,</span><span> </span><span>trainable</span><span>=</span><span>False</span><span>)<br/><br/></span># TRPO update<br/>trpo_update<span> </span><span>=</span><span> </span><span>alpha</span><span> </span><span>*</span><span> </span><span>npg_update<br/><br/></span># Apply the updates to the policy<br/>it_v<span> </span><span>=</span><span> </span><span>tf.</span><span>Variable</span><span>(</span><span>0</span><span>,</span><span> </span><span>trainable</span><span>=</span><span>False</span><span>)<br/></span>p_opt<span> </span><span>=</span><span> </span><span>[]<br/></span>for<span> </span><span>p_v</span><span> </span><span>in</span><span> </span><span>p_variables:<br/></span>    upd_rsh<span> </span><span>=</span><span> </span><span>tf.</span><span>reshape</span><span>(trpo_update[it_v</span><span> </span><span>:</span><span> </span><span>it_v</span><span>+</span><span>tf.</span><span>reduce_prod</span><span>(p_v.shape)],</span><span> </span><span>shape</span><span>=</span><span>p_v.shape)<br/></span>    p_opt.<span>append</span><span>(p_v.</span><span>assign_sub</span><span>(upd_rsh))<br/></span>    it_v<span> </span><span>+=</span><span> </span><span>tf.</span><span>reduce_prod</span><span>(p_v.shape)<br/><br/>p_opt = tf.group(*p_opt)<br/></span></pre>
+<p><span>Note how, without <img class="fm-editor-equation" src="assets/50429154-550d-4b3a-af35-805862f2b90e.png" style="width:0.92em;height:0.83em;"/>, the update can be seen as the NPG update.</span></p>
+<p><span>The update is applied to each variable of the policy. The work is done by <kbd>p_v.assign_sub(upd_rsh)</kbd>, which assigns the <kbd>p_v - upd_rsh</kbd> values to <kbd>p_v</kbd>, that i,: <img class="fm-editor-equation" src="assets/1e217f24-f0ed-41ec-941a-8dd03a5bdc24.png" style="width:6.00em;height:1.08em;"/>. The subtraction is due to the fact that we converted the objective function into a loss function.</span></p>
+<p>Now, let's briefly see how all the pieces we implemented come together when we update the policy at every iteration of the algorithm. The snippets of code we'll present here should be added after the innermost cycle where the trajectories are sampled. But before digging into the code, let's recap what we have to do:</p>
+<ol>
+<li>Get the output, log probability, standard deviation, and parameters of the policy that we used to sample the trajectory. This policy is our old policy.</li>
+<li>Get the conjugate gradient.</li>
+<li>Compute the step length, <img class="fm-editor-equation" src="assets/0137aa34-0139-4e38-9c80-5ed0d857a5a1.png" style="width:0.58em;height:1.00em;"/>.</li>
+</ol>
+<ol start="4">
+<li>Execute the backtracking line search to get <img class="fm-editor-equation" src="assets/de031bca-d8ab-4690-90c8-9fbc5211c7f2.png" style="width:0.92em;height:0.83em;"/>.</li>
+<li>Run the policy update.</li>
+</ol>
+<p>The first point is achieved by running a few operations: </p>
+<div>
+<pre><span>    ...    <br/>    old_p_log, old_p_means, old_log_std </span><span>=</span><span> sess.</span><span>run</span><span>([p_log, p_means, log_std], </span><span>feed_dict</span><span>=</span><span>{obs_ph:obs_batch, act_ph:act_batch, adv_ph:adv_batch, ret_ph:rtg_batch})<br/></span>    old_actor_params <span>=</span><span> sess.</span><span>run</span><span>(p_var_flatten)<br/></span>    old_p_loss <span>=</span><span> sess.</span><span>run</span><span>([p_loss], </span><span>feed_dict</span><span>=</span><span>{obs_ph:obs_batch, act_ph:act_batch, adv_ph:adv_batch, ret_ph:rtg_batch, old_p_log_ph:old_p_log})</span></pre></div>
+<p>The conjugate gradient algorithm requires an input function that returns the estimated Fisher Information Matrix, the gradient of the objective function, and the number of iterations (in TRPO, this is a value between 5 and 15): </p>
+<pre><span>     </span><span>def</span><span> </span><span>H_f</span><span>(</span><span>p</span><span>):<br/></span><span>        return</span><span> sess.</span><span>run</span><span>(Fx, </span><span>feed_dict</span><span>=</span><span>{old_mu_ph:old_p_means, old_log_std_ph:old_log_std, p_ph:p, obs_ph:obs_batch, act_ph:act_batch, adv_ph:adv_batch, ret_ph:rtg_batch})<br/><br/>    </span><span>g_f </span><span>=</span><span> sess.</span><span>run</span><span>(p_grads_flatten, </span><span>feed_dict</span><span>=</span><span>{old_mu_ph:old_p_means,obs_ph:obs_batch, act_ph:act_batch, adv_ph:adv_batch, ret_ph:rtg_batch, old_p_log_ph:old_p_log})<br/>    </span><span>conj_grad </span><span>=</span><span> </span><span>conjugate_gradient</span><span>(H_f, g_f, </span><span>iters</span><span>=</span><span>conj_iters)</span></pre>
+<p>We can then compute the step length, <img class="fm-editor-equation" src="assets/14a11483-4f11-47a4-abd3-02cffc682185.png" style="width:0.58em;height:1.08em;"/>, <kbd>beta_np</kbd>, and the maximum coefficient, <img class="fm-editor-equation" src="assets/42343ec7-8b72-4d73-8bdc-b9a70a05f3fe.png" style="width:0.92em;height:0.83em;"/>,<br/>
+ <kbd>best_alpha</kbd>, which satisfies the constraint using the backtracking line search algorithm, and run the optimization by feeding all the values to the computational graph:</p>
+<div>
+<pre><span>    beta_np </span><span>=</span><span> np.</span><span>sqrt</span><span>(</span><span>2</span><span>*</span><span>delta </span><span>/</span><span> np.</span><span>sum</span><span>(conj_grad </span><span>*</span><span> </span><span>H_f</span><span>(conj_grad)))<br/><br/></span>    def<span> </span><span>DKL</span><span>(</span><span>alpha_v</span><span>):<br/></span>        sess.<span>run</span><span>(p_opt, </span><span>feed_dict</span><span>=</span><span>{beta_ph:beta_np, alpha:alpha_v, cg_ph:conj_grad, obs_ph:obs_batch, act_ph:act_batch, adv_ph:adv_batch, old_p_log_ph:old_p_log})<br/></span>        a_res <span>=</span><span> sess.</span><span>run</span><span>([dkl_diverg, p_loss], </span><span>feed_dict</span><span>=</span><span>{old_mu_ph:old_p_means, old_log_std_ph:old_log_std, obs_ph:obs_batch, act_ph:act_batch, adv_ph:adv_batch, ret_ph:rtg_batch, old_p_log_ph:old_p_log})<br/></span>        sess.<span>run</span><span>(restore_params, </span><span>feed_dict</span><span>=</span><span>{p_old_variables: old_actor_params})<br/></span>        return<span> a_res<br/><br/></span>    best_alpha <span>=</span><span> </span><span>backtracking_line_search</span><span>(</span><span>DKL</span><span>, delta, old_p_loss, </span><span>p</span><span>=</span><span>0.8</span><span>)<br/></span>    sess.<span>run</span><span>(p_opt, </span><span>feed_dict</span><span>=</span><span>{beta_ph:beta_np, alpha:best_alpha, cg_ph:conj_grad, obs_ph:obs_batch, act_ph:act_batch, adv_ph:adv_batch, old_p_log_ph:old_p_log})<br/><br/>    ...<br/></span></pre></div>
+<p><span><span>As you can see, </span></span><span><kbd>backtracking_line_search</kbd> takes a function called <kbd>DKL</kbd> that returns the KL divergence between the old and the new policy, the <img class="fm-editor-equation" src="assets/53ada7b4-4686-498b-ae68-ecd38c630df9.png" style="width:0.50em;height:1.08em;"/> coefficient (this is the constraint value), and the loss of the old policy. What <kbd>backtracking_line_search</kbd> does is, starting from <img class="fm-editor-equation" src="assets/e55a1b33-07c4-459b-aa50-2476397c0b1a.png" style="width:2.92em;height:1.00em;"/>, incrementally decrease the value until it satisfies the following condition: the KL divergence is less than <img class="fm-editor-equation" src="assets/81708741-4453-4f0f-a4c7-6342d29e7f48.png" style="width:0.50em;height:1.08em;"/> and the new loss function has decreased. </span></p>
+<p>To this end, the hyperparameters that are unique to TRPO are as follows: </p>
+<ul>
+<li><kbd>delta</kbd>, (<img class="fm-editor-equation" src="assets/d3132ac7-9721-486b-9de5-2eb7cb568311.png" style="width:0.50em;height:1.08em;"/>), the maximum KL divergence between the old and new policy.</li>
+<li>The number of conjugate iterations, <kbd>conj_iters</kbd>. Usually, it is a number between 5 and 15.</li>
+</ul>
+<p>Congratulations for coming this far! That was tough.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Application of TRPO</h1>
+                </header>
+            
+            <article>
+                
+<p>The efficiency and stability of TRPO allowed us to test it on new and more complex environments. We applied it on Roboschool. Roboschool and its Mujoco counterpart are often used as a testbed for algorithms that are able to control complex agents with continuous actions, such as TRPO. Specifically, we tested TRPO on RoboschoolWalker2d, where the task of the agent is to learn to walk as fast as possible. This environment is shown in the following figure. The environment terminates whenever the agent falls or when more than 1,000 timesteps have passed since the start. The state is encoded in a <kbd>Box</kbd> class of size 22 and the agent is controlled with 6 float values with a range of <img class="fm-editor-equation" src="assets/23091402-2556-43b3-9c13-75e42b683263.png" style="width:2.67em;height:1.17em;"/>:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1973 image-border" src="assets/42124a47-710b-477f-8fdb-41e8fe5d6178.png" style="width:19.25em;height:12.83em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Figure 7.6. Render of the RoboschoolWalker2d environment</div>
+<p><span>In TRPO, the number of steps to collect from an environment on each episode is called the <em>time horizon.</em> This number will also determine the size of the batch.</span> Moreover, it can be beneficial to run multiple agents <span>in parallel</span> so as to collect more representative data of the environment. In this case, the batch size will be equal to the time horizon, multiplied by the number of agents. Although our implementation is not predisposed to running multiple agents in parallel, the same objective can be achieved by using a time horizon longer than the maximum number of steps allowed on each episode. For example, knowing that, in RoboschoolWalker2d, an agent has a maximum of 1,000 time steps to reach the goal, by using a time horizon of 6,000, we are sure that at least six full trajectories are run.</p>
+<p>We run TRPO with the hyperparameters that are reported in the following table. Its third column also shows the standard ranges for each hyperparameter: </p>
+<table style="border-collapse: collapse;width: 100%" border="1">
+<tbody>
+<tr>
+<td style="width: 30.6364%" class="CDPAlignCenter CDPAlign"><strong>Hyperparameter</strong></td>
+<td style="width: 27.3636%" class="CDPAlignCenter CDPAlign"><strong>For RoboschoolWalker2<br/></strong></td>
+<td style="width: 39%" class="CDPAlignCenter CDPAlign"><strong>Range</strong></td>
+</tr>
+<tr>
+<td style="width: 30.6364%" class="CDPAlignCenter CDPAlign">Conjugate iterations</td>
+<td style="width: 27.3636%" class="CDPAlignCenter CDPAlign">10</td>
+<td style="width: 39%" class="CDPAlignCenter CDPAlign">[7-10]</td>
+</tr>
+<tr>
+<td style="width: 30.6364%" class="CDPAlignCenter CDPAlign">Delta (δ)</td>
+<td style="width: 27.3636%" class="CDPAlignCenter CDPAlign">0.01</td>
+<td style="width: 39%" class="CDPAlignCenter CDPAlign">[0.005-0.03]</td>
+</tr>
+<tr>
+<td style="width: 30.6364%" class="CDPAlignCenter CDPAlign">Batch size (Time Horizon * Number of Agents)</td>
+<td style="width: 27.3636%" class="CDPAlignCenter CDPAlign">6000</td>
+<td style="width: 39%" class="CDPAlignCenter CDPAlign">[500-20000]</td>
+</tr>
+</tbody>
+</table>
+<p> </p>
+<p>The progress of TRPO (and PPO, as we'll see in the next section) can be monitored by specifically looking at the total reward accumulated in each game and the state values that were predicted by the critic.</p>
+<p>We trained for 6 million steps and the result of the performance is shown in the following diagram. With 2 million steps, it is able to reach a good score of 1,300 and it is able to walk fluently and with a moderate speed. In the first phase of training, we can note a transition period where the score decreases a little bit, probably due to a local optimum. After that, the agent recovers and improves until reaching a score of 1,250:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1974 image-border" src="assets/8d7621e3-f311-415a-b26d-8ee00a945409.png" style="width:34.33em;height:20.58em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Figure 7.7. Learning curve of TRPO on RoboschoolWalker2d</div>
+<p>Also, the <span>predicted </span>state value offers an important metric with which we can study the results. Generally, it is more stable than the total reward and is easier to analyze. The shown is provided in the following diagram. Indeed, it confirms our hypothesis since it is showing a smoother function in general, despite a few spikes around 4 million and 4. 5 million steps:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1975 image-border" src="assets/aac3f834-27e6-489f-8c25-23006681c25e.png" style="width:34.75em;height:21.17em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Figure 7.8. State values predicted by the critic of TRPO on RoboschoolWalker2d</div>
+<p><span>From this plot, it is also easier to see that after the first 3 million steps, the agent continues to learn, if even at a very slow rate</span>. </p>
+<p><span>As you saw, TRPO is a pretty complex algorithm with many moving parts. Nonetheless, it constitutes as proof of the effectiveness of limiting the policy inside a trust region so as to keep the policy from deviating too much from the current distribution. </span></p>
+<p><span>But can we design a simpler and more general algorithm that uses the same underlying approach?</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Proximal Policy Optimization</h1>
+                </header>
+            
+            <article>
+                
+<p>A work by <a href="https://arxiv.org/pdf/1707.06347.pdf">Schulman and others</a> shows that this is possible. Indeed, it uses a similar idea to TRPO while reducing the complexity of the method. This method is called <strong>Proximal Policy Optimization</strong> (<strong>PPO</strong>) and its strength is in the use of the first-order optimization only, without degrading the reliability compared to TRPO. PPO is also more general and sample-efficient than TRPO and enables multi updates with mini-batches. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">A quick overview</h1>
+                </header>
+            
+            <article>
+                
+<p>The main idea behind PPO is to clip the surrogate objective function when it moves away, instead of constraining it as it does in TRPO. This prevents the policy from making updates that are too large. The main objective is as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/204037a2-8946-4117-975c-5f6b49a65cc4.png" style="width:31.25em;height:1.58em;"/> (7.9)</p>
+<p>Here, <img class="fm-editor-equation" src="assets/f066d0ab-a18a-4e26-939c-981c5c22b461.png" style="width:2.17em;height:1.25em;"/> is defined as follows: </p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/280ee6c1-5a25-4705-b19a-58df34726268.png" style="width:10.08em;height:3.17em;"/> (7.10)</p>
+<p>What the objective is saying is that if the probability ratio, <img class="fm-editor-equation" src="assets/76a3e45e-ea39-42c5-87c0-7cd767d7e763.png" style="width:2.00em;height:1.17em;"/>, between the new and the old policy is higher or lower than a constant, <img class="fm-editor-equation" src="assets/ec8b96f4-57bc-4a2d-861c-dbde954b7eee.png" style="width:0.58em;height:0.83em;"/>, then the minimum value should be taken. This prevents <img class="fm-editor-equation" src="assets/592512b4-4696-45ad-bd85-22b34fdf31b1.png" style="width:1.00em;height:1.00em;"/> from moving outside the interval <img class="fm-editor-equation" src="assets/4fa9b030-6938-45e7-a0b4-32b3d2844fa9.png" style="width:5.17em;height:1.17em;"/>. The value of <img class="fm-editor-equation" src="assets/84c73744-eb16-45c2-836c-72acd5b2b77a.png" style="width:0.50em;height:0.92em;"/> is taken as the reference point, <img class="fm-editor-equation" src="assets/8d97faa8-64b4-4596-919c-cc9879f3c8bf.png" style="width:4.83em;height:1.17em;"/>. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The PPO algorithm</h1>
+                </header>
+            
+            <article>
+                
+<p>The practical algorithm that is introduced in the PPO paper uses a truncated version of <strong>Generalized Advantage Estimation</strong> (<strong>GAE</strong>), an idea that was introduced for the first time in the paper <a href="https://arxiv.org/pdf/1506.02438.pdf">High-Dimensional Continuous Control using Generalized Advantage Estimation</a>. GAE calculates the advantage as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/a16f4c12-b653-4188-a10c-d0301750c4f1.png" style="width:21.25em;height:3.42em;"/> (7.11)</p>
+<p>It does this instead of using the common advantage estimator:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/72e54cc9-9d38-4877-a8a5-bd6dfb8b3088.png" style="width:18.42em;height:1.50em;"/> (7.12)</p>
+<p>Continuing with the PPO algorithm, on each iteration, <em>N</em> trajectories from multiple parallel actors <span>are collected</span> with time horizon <em>T</em>, and the policy is updated <em>K</em> times with mini-batches. Following this trend, the critic can also be updated multiple times using mini-batches. The following table contains standard values of every PPO hyperparameter and coefficient. Despite the fact that every problem needs ad hoc hyperparameters, it would be useful to get an idea of their ranges (reported in the third column of the table):</p>
+<table style="border-collapse: collapse;width: 100%" border="1">
+<tbody>
+<tr>
+<td style="width: 27%" class="CDPAlignCenter CDPAlign"><strong>Hyperparameter</strong></td>
+<td style="width: 31.3746%" class="CDPAlignCenter CDPAlign"><strong>Symbol</strong></td>
+<td style="width: 39.6254%" class="CDPAlignCenter CDPAlign"><strong>Range</strong></td>
+</tr>
+<tr>
+<td style="width: 27%" class="CDPAlignCenter CDPAlign">Policy learning rate </td>
+<td style="width: 31.3746%" class="CDPAlignCenter CDPAlign">-</td>
+<td style="width: 39.6254%" class="CDPAlignCenter CDPAlign">[1e<sup>-5</sup>, 1e<sup>-3</sup>]</td>
+</tr>
+<tr>
+<td style="width: 27%" class="CDPAlignCenter CDPAlign">Number of policy iterations</td>
+<td style="width: 31.3746%" class="CDPAlignCenter CDPAlign">K</td>
+<td style="width: 39.6254%" class="CDPAlignCenter CDPAlign">[3, 15]</td>
+</tr>
+<tr>
+<td style="width: 27%" class="CDPAlignCenter CDPAlign"><span>Number of trajectories (equivalent to the number of parallel actors)</span></td>
+<td style="width: 31.3746%" class="CDPAlignCenter CDPAlign">N</td>
+<td style="width: 39.6254%" class="CDPAlignCenter CDPAlign">[1, 20]</td>
+</tr>
+<tr>
+<td style="width: 27%" class="CDPAlignCenter CDPAlign">Time horizon</td>
+<td style="width: 31.3746%" class="CDPAlignCenter CDPAlign">T</td>
+<td style="width: 39.6254%" class="CDPAlignCenter CDPAlign">[64, 5120]</td>
+</tr>
+<tr>
+<td style="width: 27%" class="CDPAlignCenter CDPAlign">Mini-batch size</td>
+<td style="width: 31.3746%" class="CDPAlignCenter CDPAlign">-</td>
+<td style="width: 39.6254%" class="CDPAlignCenter CDPAlign"><span>[64, 5120]</span></td>
+</tr>
+<tr>
+<td style="width: 27%" class="CDPAlignCenter CDPAlign">Clipping coefficient</td>
+<td style="width: 31.3746%" class="CDPAlignCenter CDPAlign">∈</td>
+<td style="width: 39.6254%" class="CDPAlignCenter CDPAlign">0.1 or 0.2</td>
+</tr>
+<tr>
+<td style="width: 27%" class="CDPAlignCenter CDPAlign">Delta (for GAE)</td>
+<td style="width: 31.3746%" class="CDPAlignCenter CDPAlign">δ</td>
+<td style="width: 39.6254%" class="CDPAlignCenter CDPAlign">[0.9, 0.97]</td>
+</tr>
+<tr>
+<td style="width: 27%" class="CDPAlignCenter CDPAlign">Gamma (for GAE)</td>
+<td style="width: 31.3746%" class="CDPAlignCenter CDPAlign">γ</td>
+<td style="width: 39.6254%" class="CDPAlignCenter CDPAlign">[0.8, 0.995]</td>
+</tr>
+</tbody>
+</table>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementation of PPO</h1>
+                </header>
+            
+            <article>
+                
+<p>Now that we have the basic ingredients of PPO, we can implement it using Python and TensorFlow.</p>
+<p>The structure and implementation of PPO is very similar to the actor-critic algorithms but with only a few additional parts, all of which we'll explain here.</p>
+<p>One such addition is the generalized advantage estimation (7.11) that takes just a few lines of code using the already implemented <kbd>discounted_rewards</kbd> function, which computes (7.12):</p>
+<div>
+<pre><span>def</span><span> </span><span>GAE</span><span>(</span><span>rews</span><span>, </span><span>v</span><span>, </span><span>v_last</span><span>, </span><span>gamma</span><span>=</span><span>0.99</span><span>, </span><span>lam</span><span>=</span><span>0.95</span><span>):<br/></span><span>    vs </span><span>=</span><span> np.</span><span>append</span><span>(v, v_last)<br/></span><span>    delta </span><span>=</span><span> np.</span><span>array</span><span>(rews) </span><span>+</span><span> gamma</span><span>*</span><span>vs[</span><span>1</span><span>:</span><span>] </span><span>-</span><span> vs[</span><span>:-</span><span>1</span><span>]<br/></span><span>    gae_advantage </span><span>=</span><span> </span><span>discounted_rewards</span><span>(delta, </span><span>0</span><span>, gamma</span><span>*</span><span>lam)<br/></span><span>    return</span><span> gae_advantage</span></pre></div>
+<p>The <kbd>GAE</kbd> function is used in the <kbd>store</kbd> method of the <kbd>Buffer</kbd> class when a trajectory is stored: </p>
+<div>
+<pre><span>class Buffer():<br/>    def __init__(self, gamma, lam):<br/>        ...<br/><br/>    def</span><span> </span><span>store</span><span>(</span><span>self</span><span>, </span><span>temp_traj</span><span>, </span><span>last_sv</span><span>):<br/>        </span><span>if</span><span> </span><span>len</span><span>(temp_traj) </span><span>&gt;</span><span> </span><span>0</span><span>:<br/></span><span>            self</span><span>.ob.</span><span>extend</span><span>(temp_traj[</span><span>:</span><span>,</span><span>0</span><span>])<br/></span><span>            rtg </span><span>=</span><span> </span><span>discounted_rewards</span><span>(temp_traj[</span><span>:</span><span>,</span><span>1</span><span>], last_sv, </span><span>self</span><span>.gamma)<br/></span><span>            self</span><span>.adv.</span><span>extend</span><span>(</span><span>GAE</span><span>(temp_traj[</span><span>:</span><span>,</span><span>1</span><span>], temp_traj[</span><span>:</span><span>,</span><span>3</span><span>], last_sv, </span><span>self</span><span>.gamma, </span><span>self</span><span>.lam))<br/></span><span>            self</span><span>.rtg.</span><span>extend</span><span>(rtg)<br/></span><span>            self</span><span>.ac.</span><span>extend</span><span>(temp_traj[</span><span>:</span><span>,</span><span>2</span><span>])<br/><br/>    def get_batch(self):<br/></span><span>        </span>return<span> np.</span><span>array</span><span>(</span><span>self</span><span>.ob), np.</span><span>array</span><span>(</span><span>self</span><span>.ac), np.</span><span>array</span><span>(self.adv), np.</span><span>array</span><span>(</span><span>self</span><span>.rtg)<br/><br/>    </span><span>def __len__(self):<br/>        ...</span></pre></div>
+<p>Here, <kbd>...</kbd> stands for the lines of code that we didn't report.</p>
+<p>We can now define the clipped surrogate loss function (7.9):</p>
+<div>
+<pre><span>def</span><span> </span><span>clipped_surrogate_obj</span><span>(</span><span>new_p</span><span>, </span><span>old_p</span><span>, </span><span>adv</span><span>, </span><span>eps</span><span>):<br/></span><span>    rt </span><span>=</span><span> tf.</span><span>exp</span><span>(new_p </span><span>-</span><span> old_p) </span><span># i.e. pi / old_pi<br/></span><span>    return</span><span> </span><span>-</span><span>tf.</span><span>reduce_mean</span><span>(tf.</span><span>minimum</span><span>(rt</span><span>*</span><span>adv, tf.</span><span>clip_by_value</span><span>(rt, </span><span>1</span><span>-</span><span>eps, </span><span>1</span><span>+</span><span>eps)</span><span>*</span><span>adv))</span></pre></div>
+<p>It is quite intuitive and it doesn't need further explanation.</p>
+<p>The computational graph holds nothing new, but let's go through it quickly:</p>
+<div>
+<pre><span># Placeholders<br/></span>act_ph <span>=</span><span> tf.</span><span>placeholder</span><span>(</span><span>shape</span><span>=</span><span>(</span><span>None</span><span>,act_dim), </span><span>dtype</span><span>=</span><span>tf.float32, </span><span>name</span><span>=</span><span>'</span><span>act</span><span>'</span><span>)<br/></span><span>obs_ph </span><span>=</span><span> tf.</span><span>placeholder</span><span>(</span><span>shape</span><span>=</span><span>(</span><span>None</span><span>, obs_dim[</span><span>0</span><span>]), </span><span>dtype</span><span>=</span><span>tf.float32, </span><span>name</span><span>=</span><span>'</span><span>obs</span><span>'</span><span>)<br/></span><span>ret_ph </span><span>=</span><span> tf.</span><span>placeholder</span><span>(</span><span>shape</span><span>=</span><span>(</span><span>None</span><span>,), </span><span>dtype</span><span>=</span><span>tf.float32, </span><span>name</span><span>=</span><span>'</span><span>ret</span><span>'</span><span>)<br/></span><span>adv_ph </span><span>=</span><span> tf.</span><span>placeholder</span><span>(</span><span>shape</span><span>=</span><span>(</span><span>None</span><span>,), </span><span>dtype</span><span>=</span><span>tf.float32, </span><span>name</span><span>=</span><span>'</span><span>adv</span><span>'</span><span>)<br/></span><span>old_p_log_ph </span><span>=</span><span> tf.</span><span>placeholder</span><span>(</span><span>shape</span><span>=</span><span>(</span><span>None</span><span>,), </span><span>dtype</span><span>=</span><span>tf.float32, </span><span>name</span><span>=</span><span>'</span><span>old_p_log</span><span>'</span><span>)<br/><br/># Actor<br/></span><span>with</span><span> tf.</span><span>variable_scope</span><span>(</span><span>'</span><span>actor_nn</span><span>'</span><span>):<br/></span><span>    p_means </span><span>=</span><span> </span><span>mlp</span><span>(obs_ph, hidden_sizes, act_dim, tf.tanh, </span><span>last_activation</span><span>=</span><span>tf.tanh)<br/></span><span>    log_std </span><span>=</span><span> tf.</span><span>get_variable</span><span>(</span><span>name</span><span>=</span><span>'</span><span>log_std</span><span>'</span><span>, </span><span>initializer</span><span>=</span><span>np.</span><span>ones</span><span>(act_dim, </span><span>dtype</span><span>=</span><span>np.float32))<br/></span><span>    p_noisy </span><span>=</span><span> p_means </span><span>+</span><span> tf.</span><span>random_normal</span><span>(tf.</span><span>shape</span><span>(p_means), </span><span>0</span><span>, </span><span>1</span><span>) </span><span>*</span><span> tf.</span><span>exp</span><span>(log_std)<br/></span><span>    act_smp </span><span>=</span><span> tf.</span><span>clip_by_value</span><span>(p_noisy, low_action_space, high_action_space)<br/></span><span>    # Compute the gaussian log likelihood<br/></span><span>    p_log </span><span>=</span><span> </span><span>gaussian_log_likelihood</span><span>(act_ph, p_means, log_std)<br/><br/></span><span># Critic <br/></span><span>with</span><span> tf.</span><span>variable_scope</span><span>(</span><span>'</span><span>critic_nn</span><span>'</span><span>):<br/></span><span>    s_values </span><span>=</span><span> tf.squeeze(</span><span>mlp</span><span>(obs_ph, hidden_sizes, </span><span>1</span><span>, tf.tanh, </span><span>last_activation</span><span>=</span><span>None</span><span>))<br/></span><span><br/></span><span># PPO loss function<br/></span><span>p_loss </span><span>=</span><span> </span><span>clipped_surrogate_obj</span><span>(p_log, old_p_log_ph, adv_ph, eps)<br/></span><span># MSE loss function<br/></span><span>v_loss </span><span>=</span><span> tf.</span><span>reduce_mean</span><span>((ret_ph </span><span>-</span><span> s_values)</span><span>**</span><span>2</span><span>)<br/><br/></span><span># Optimizers<br/></span><span>p_opt </span><span>=</span><span> tf.train.</span><span>AdamOptimizer</span><span>(ac_lr).</span><span>minimize</span><span>(p_loss)<br/></span><span>v_opt </span><span>=</span><span> tf.train.</span><span>AdamOptimizer</span><span>(cr_lr).</span><span>minimize</span><span>(v_loss)</span></pre></div>
+<p>The code for interaction with the environment and the collection of the experience is equal to AC and TRPO. However, in the PPO implementation in this book's GitHub repository, you can find a simple implementation that uses multiple agents.</p>
+<p>Once <img class="fm-editor-equation" src="assets/11fd3429-de91-4e1a-99fc-3aa01f1b89e2.png" style="width:2.67em;height:0.92em;"/> transitions (where <em>N</em> is the number of <span>trajectories to run and <em>T</em> is the time horizon of each trajectory) are collected</span>, we are ready to update the policy and the critic. In both cases, the optimization is run multiple times and done on mini-batches. But before it, we have to run <kbd>p_log</kbd> on the full batch because the clipped objective needs the action log probabilities of the old policy: </p>
+<div>
+<pre><span>        ...    <br/></span>        obs_batch, act_batch, adv_batch, rtg_batch <span>=</span><span> buffer.</span><span>get_batch</span><span>()</span><span>     <br/>        </span><span>old_p_log </span><span>=</span><span> sess.</span><span>run</span><span>(p_log, </span><span>feed_dict</span><span>=</span><span>{obs_ph:obs_batch, act_ph:act_batch, adv_ph:adv_batch, ret_ph:rtg_batch})<br/></span><span>        old_p_batch </span><span>=</span><span> np.</span><span>array</span><span>(old_p_log)<br/></span><span>lb </span><span>=</span><span> </span><span>len</span><span>(buffer)<br/>        lb = len(buffer)<br/>        </span><span>shuffled_batch </span><span>=</span><span> np.</span><span>arange</span><span>(lb) <br/><br/></span><span>        # Policy optimization steps<br/></span><span>        for</span><span> _ </span><span>in</span><span> </span><span>range</span><span>(actor_iter):<br/></span><span>            # shuffle the batch on every iteration<br/></span><span>            np.random.</span><span>shuffle</span><span>(shuffled_batch)<br/><br/></span><span>            for</span><span> idx </span><span>in</span><span> </span><span>range</span><span>(</span><span>0</span><span>,lb, minibatch_size):<br/></span><span>                minib </span><span>=</span><span> shuffled_batch[idx</span><span>:</span><span>min</span><span>(idx</span><span>+</span><span>batch_size,lb)]<br/></span><span>                sess.</span><span>run</span><span>(p_opt, </span><span>feed_dict</span><span>=</span><span>{obs_ph:obs_batch[minib], act_ph:act_batch[minib], adv_ph:adv_batch[minib], old_p_log_ph:old_p_batch[minib]})<br/><br/></span><span>        # Value function optimization steps<br/></span><span>        for</span><span> _ </span><span>in</span><span> </span><span>range</span><span>(critic_iter):<br/></span><span>            # shuffle the batch on every iteration<br/></span><span>            np.random.</span><span>shuffle</span><span>(shuffled_batch)<br/><br/></span><span>            for</span><span> idx </span><span>in</span><span> </span><span>range</span><span>(</span><span>0</span><span>,lb, minibatch_size):<br/></span><span>                minib </span><span>=</span><span> shuffled_batch[idx</span><span>:</span><span>min</span><span>(idx</span><span>+mini</span><span>batch_size,lb)]<br/></span><span>                sess.</span><span>run</span><span>(v_opt, </span><span>feed_dict</span><span>=</span><span>{obs_ph:obs_batch[minib], ret_ph:rtg_batch[minib]})<br/>        ...<br/></span></pre></div>
+<p>On each optimization iteration, we shuffle the batch so that every mini-batch is different from the others. </p>
+<p>That's everything for the PPO implementation, but keep in mind that before and after every iteration, we are also running the summaries that we will later use with TensorBoard to analyze the results and debug the algorithm. Again, we don't show the code here as it is always the same and is quite long, but you can go through it in the full form in this book's repository. It is fundamental for you to understand what each plot displays if you want to master these RL algorithms.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">PPO application</h1>
+                </header>
+            
+            <article>
+                
+<p>PPO and TRPO are very similar algorithms and we choose to compare them by testing PPO in the same environment as TRPO, namely RoboschoolWalker2d. We devoted the same computational resources for tuning both of the algorithms so that we have a fairer comparison. The hyperparameters for TRPO are the same as those we listed in the previous section but instead, the hyperparameters of PPO are shown in the following table: </p>
+<table style="border-collapse: collapse;width: 100%" border="1">
+<tbody>
+<tr>
+<td style="width: 27%" class="CDPAlignCenter CDPAlign"><strong>Hyperparameter</strong></td>
+<td style="width: 39.6254%" class="CDPAlignCenter CDPAlign"><strong>Value</strong></td>
+</tr>
+<tr>
+<td style="width: 27%" class="CDPAlignCenter CDPAlign">Neural network</td>
+<td style="width: 39.6254%" class="CDPAlignCenter CDPAlign">64, tanh, 64, tanh</td>
+</tr>
+<tr>
+<td style="width: 27%" class="CDPAlignCenter CDPAlign">Policy learning rate </td>
+<td style="width: 39.6254%" class="CDPAlignCenter CDPAlign">3e-4</td>
+</tr>
+<tr>
+<td style="width: 27%" class="CDPAlignCenter CDPAlign">Number of actor iterations</td>
+<td style="width: 39.6254%" class="CDPAlignCenter CDPAlign">10</td>
+</tr>
+<tr>
+<td style="width: 27%" class="CDPAlignCenter CDPAlign"><span>Number of agents</span></td>
+<td style="width: 39.6254%" class="CDPAlignCenter CDPAlign">1</td>
+</tr>
+<tr>
+<td style="width: 27%" class="CDPAlignCenter CDPAlign">Time horizon</td>
+<td style="width: 39.6254%" class="CDPAlignCenter CDPAlign">5,000</td>
+</tr>
+<tr>
+<td style="width: 27%" class="CDPAlignCenter CDPAlign">Mini-batch size</td>
+<td style="width: 39.6254%" class="CDPAlignCenter CDPAlign">256</td>
+</tr>
+<tr>
+<td style="width: 27%" class="CDPAlignCenter CDPAlign">Clipping coefficient</td>
+<td style="width: 39.6254%" class="CDPAlignCenter CDPAlign">0.2</td>
+</tr>
+<tr>
+<td style="width: 27%" class="CDPAlignCenter CDPAlign">Delta (for GAE)</td>
+<td style="width: 39.6254%" class="CDPAlignCenter CDPAlign">0.95</td>
+</tr>
+<tr>
+<td style="width: 27%" class="CDPAlignCenter CDPAlign">Gamma (for GAE)</td>
+<td style="width: 39.6254%" class="CDPAlignCenter CDPAlign">0.99</td>
+</tr>
+</tbody>
+</table>
+<p> </p>
+<p>A comparison between PPO and TRPO is shown in the following diagram. PPO needs more experience to take off, but once it reaches this state, it has a rapid improvement that outpaces TRPO. In these specific settings, PPO also outperforms TRPO in terms of its final performance. Keep in mind that further tuning of the hyperparameters could bring better and slightly different results:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1976 image-border" src="assets/fb3db0f3-8ba5-4b5b-9589-febc68af8be2.png" style="width:34.50em;height:20.67em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Figure 7.9. Comparison of performance between PPO and TRPO</div>
+<div class="packt_infobox">A few personal observations: we found PPO more difficult to tune compared to TRPO. One reason for that is the higher number of hyperparameters in PPO. Moreover, the actor learning rate is one of the most important coefficients to tune, and if not properly tuned, it can greatly affect the final results. A great point in favor of TRPO is that it doesn't have a learning rate <span class="tlid-translation translation"><span class="">and that</span></span> the policy is conditioned on a few hyperparameters that are easy to tune. Instead, an advantage of PPO is that it's faster and has been shown to work with a bigger variety of environments.</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>In this chapter, you learned how policy gradient algorithms can be adapted to control agents with continuous actions and then used a new set of environments called Roboschool.</p>
+<p>You also learned aboutand developed two advanced policy gradient algorithms: trust region policy optimization and proximal policy optimization. These algorithms make better use of the data sampled from the environment and both use techniques to limit the difference in the distribution of two subsequent policies. In particular, TRPO (as the name suggests) builds a trust region around the objective function using a second-order derivative and some constraints based on the KL divergence between the old and the new policy. PPO, on the other hand, optimizes an objective function similar to TRPO but using only a first-order optimization method. PPO prevents the policy from taking steps that are <span>too large </span>by clipping the objective function when it becomes too large.</p>
+<p>PPO and TRPO are still on-policy (like the other policy gradient algorithms) but they are more sample-efficient than AC and REINFORCE. This is due to the fact that TRPO, using a second-order derivative, is actually extracting a higher order of information from the data. The sample efficiency of PPO, on the other hand, is due to its ability to perform multiple policy updates on the same on-policy data.</p>
+<p>Thanks to their sample efficiency, robustness, and reliability, TRPO and especially PPO are used in many very complex environments such as Dota (<a href="https://openai.com/blog/openai-five/">https://openai.com/blog/openai-five/</a>).<a href="https://openai.com/blog/openai-five/"/></p>
+<p>PPO and TRPO, as well as AC and REINFORCE, are stochastic gradient algorithms.</p>
+<p>In the next chapter, we'll look at two policy gradient algorithms that are deterministic. Deterministic algorithms are an interesting alternative because they have some useful properties that cannot be replicated in the algorithms we have seen so far.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Questions</h1>
+                </header>
+            
+            <article>
+                
+<ol>
+<li class="mce-root">How can a policy neural network control a continuous agent?</li>
+<li class="mce-root">What's the KL divergence?</li>
+<li class="mce-root">What's the main idea behind TRPO?</li>
+<li class="mce-root">How is the KL divergence used in TRPO?</li>
+<li class="mce-root">What's the main benefit of PPO?</li>
+<li class="mce-root">How does PPO achieve good sample efficiency?</li>
+</ol>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Further reading</h1>
+                </header>
+            
+            <article>
+                
+<ul>
+<li>If you are interested in the original paper of the NPG, read <strong>A Natural Policy Gradient</strong>: <a href="https://papers.nips.cc/paper/2073-a-natural-policy-gradient.pdf">https://papers.nips.cc/paper/2073-a-natural-policy-gradient.pdf</a>.</li>
+<li>For the paper that introduced the Generalized Advantage Function, please read <em>High-Dimensional Continuous Control Using Generalized Advantage Estimation</em>: <a href="https://arxiv.org/pdf/1506.02438.pdf">https://arxiv.org/pdf/1506.02438.pdf</a>.</li>
+<li>If you are interested in the original Trust Region Policy Optimization paper, then please read <span><strong>Trust Region Policy</strong></span> <span><strong>Optimization</strong>: <a href="https://arxiv.org/pdf/1502.05477.pdf">https://arxiv.org/pdf/1502.05477.pdf</a>.</span></li>
+<li><span>If you are interested in the original paper that introduced the Proximal Policy Optimization algorithm, then please read</span> <em>Proximal Policy Optimization Algorithms</em>: <a href="https://arxiv.org/pdf/1707.06347.pdf">https://arxiv.org/pdf/1707.06347.pdf</a>.</li>
+<li>For a further explanation of Proximal Policy Optimization, read the following blog post:<span> <a href="https://openai.com/blog/openai-baselines-ppo/">https://openai.com/blog/openai-baselines-ppo/</a>.</span></li>
+<li>If you are interested in knowing how PPO has been applied on Dota 2, check the following blog post regarding OpenAI: <a href="https://openai.com/blog/openai-five/">https://openai.com/blog/openai-five/</a>.</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

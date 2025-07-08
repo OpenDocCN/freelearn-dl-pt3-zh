@@ -1,0 +1,287 @@
+<html><head></head><body>
+<div id="sbo-rt-content"><div id="_idContainer131">
+<h1 class="chapter-number" id="_idParaDest-145"><a id="_idTextAnchor186"/>8</h1>
+<h1 id="_idParaDest-146"><a id="_idTextAnchor187"/>Handling Overfitting</h1>
+<p><a id="_idTextAnchor188"/>One major challenge<a id="_idIndexMarker421"/> in <strong class="bold">machine learning</strong> (<strong class="bold">ML</strong>) is overfitting. <strong class="bold">Overfitting</strong> occurs<a id="_idIndexMarker422"/> when a model is trained too well on the training data but fails to generalize on unseen data, resulting in poor performance. In <a href="B18118_06.xhtml#_idTextAnchor129"><span class="No-Break"><em class="italic">Chapter 6</em></span></a>, <em class="italic">Improving the Model</em> we witnessed firsthand how overtraining pushed our model into this overfitting trap. In this chapter, we will probe further into the nuances of overfitting, striving to unpack both its warning signs and the underlying reasons behind it. Also, we will explore the different strategies we can apply to mitigate the dangers overfitting presents to real-world ML applications. Using TensorFlow, we will apply these ideas in a hands-on fashion to overcome overfitting in a real-world case study. By the end of this chapter, you should have a solid understanding of what overfitting is and how to mitigate it in real-world image <span class="No-Break">classification tasks.</span></p>
+<p>In this chapter, we will cover the <span class="No-Break">following topics:</span></p>
+<ul>
+<li>Overfitting <span class="No-Break">in ML</span></li>
+<li><span class="No-Break">Early stopping</span></li>
+<li>Changing the <span class="No-Break">model’s architecture</span></li>
+<li>L1 and <span class="No-Break">L2 regularization</span></li>
+<li><span class="No-Break">Dropout regularization</span></li>
+<li><span class="No-Break">Data augmentation</span></li>
+</ul>
+<h1 id="_idParaDest-147"><a id="_idTextAnchor189"/>Technical requirements</h1>
+<p>We will be using Google Colab to run the coding exercise that requires <strong class="source-inline">python &gt;= 3.8.0</strong>, along with the following packages, which can be installed using the <strong class="source-inline">pip </strong><span class="No-Break"><strong class="source-inline">install</strong></span><span class="No-Break"> command:</span></p>
+<ul>
+<li><span class="No-Break"><strong class="source-inline">tensorflow&gt;=2.7.0</strong></span></li>
+<li><span class="No-Break"><strong class="source-inline">os</strong></span></li>
+<li><span class="No-Break"><strong class="source-inline">pillow==8.4.0</strong></span></li>
+<li><span class="No-Break"><strong class="source-inline">pandas==1.3.4</strong></span></li>
+<li><span class="No-Break"><strong class="source-inline">numpy==1.21.4</strong></span></li>
+<li><span class="No-Break"><strong class="source-inline">matplotlib &gt;=3.4.0</strong></span></li>
+</ul>
+<p>The code bundle for this book is available at the following GitHub link: <a href="https://github.com/PacktPublishing/TensorFlow-Developer-Certificate">https://github.com/PacktPublishing/TensorFlow-Developer-Certificate</a>. Also, solutions to all exercises can be found in the GitHub <span class="No-Break">repo itself.</span></p>
+<h1 id="_idParaDest-148"><a id="_idTextAnchor190"/>Overfitting in ML</h1>
+<p>From the previous<a id="_idIndexMarker423"/> chapters, we now know what overfitting<a id="_idIndexMarker424"/> is and its adverse effect when used on unseen data. Let's take a step further by digging into what the root causes of overfitting are, how we can spot overfitting when we build our models, and some important strategies we can apply to curb overfitting. When we gain this understanding, we can go on to build effective and robust <span class="No-Break">ML models.</span></p>
+<h2 id="_idParaDest-149"><a id="_idTextAnchor191"/>What triggers overfitting</h2>
+<p>In <a href="B18118_06.xhtml#_idTextAnchor129"><span class="No-Break"><em class="italic">Chapter 6</em></span></a>, <em class="italic">Improving the Model,</em> we saw<a id="_idIndexMarker425"/> that by adding more neurons to <a id="_idIndexMarker426"/>our hidden layer, our model became too complex. This made our model not only capture the patterns in our data but also the noise in it, leading to overfitting. Another root cause of overfitting is working with insufficient data volume. If our data does not truly capture the full spectrum of variations our model will be faced with upon deployment, when we train our model on such a dataset, it becomes too specialized and fails to generalize when used in the <span class="No-Break">real world.</span></p>
+<p>Beyond the volume of data, another issue we can face is noisy data. Unlike when we work with curated or static data, when building real-world applications, we may find that our data could be noisy or incorrect. If we develop models with such data, there is a chance it would lead to overfitting when put to use. We looked at some ideas around why overfitting could occur; the next question we may want to ask is, how can we detect overfitting? Let's discuss this in the <span class="No-Break">following subsection.</span></p>
+<h2 id="_idParaDest-150"><a id="_idTextAnchor192"/>Detecting overfitting</h2>
+<p>One way we can <a id="_idIndexMarker427"/>detect overfitting is by comparing a<a id="_idIndexMarker428"/> model’s accuracy on training data versus the validation/test data. When a model records a high accuracy on training and poor accuracy on testing, this disparity indicates that the model has memorized the training samples, hence its poor generalization of unseen data. Another effective way of discovering overfitting is to examine the training error against the validation error. When the training error decreases over time but the validation error increases, this can indicate our model overfits, as the model performs worse on the validation data. A scenario where the model’s validation accuracy deteriorates as its training counterpart flourishes should sound the alarm bells for <span class="No-Break">potential overfitting.</span></p>
+<p>Let’s revisit our case study from <a href="B18118_07.xhtml#_idTextAnchor146"><span class="No-Break"><em class="italic">Chapter 7</em></span></a>, <em class="italic">Image Classification with Convolutional Neural Networks,</em> the weather dataset from WeatherBIG, and examine how we can monitor overfitting by using a validation dataset during the model’s training process. By employing a validation dataset, we can accurately track the model’s performance and prevent overfitting. Let’s begin by creating a <span class="No-Break">baseline model.</span></p>
+<h1 id="_idParaDest-151"><a id="_idTextAnchor193"/>Baseline model</h1>
+<p>Following the<a id="_idIndexMarker429"/> standard three-step approach of building, compiling, and fitting, we will construct a <strong class="bold">convolutional neural network</strong> (<strong class="bold">CNN</strong>) model comprising two Conv2D and pooling<a id="_idIndexMarker430"/> layers, coupled with a fully connected layer that has a dense layer of 1,050 neurons. The output layer consists of four neurons, which represent the four classes in our dataset. We then compile and fit the model using the training data for <span class="No-Break">20 epochs:</span></p>
+<pre class="source-code">
+#Build
+model_1 = tf.keras.models.Sequential([
+    tf.keras.layers.Conv2D(filters=16,
+        kernel_size=3, # can also be (3, 3)
+        activation="relu",
+        input_shape=(224, 224, 3)),
+        #(height, width, colour channels)
+    tf.keras.layers.MaxPool2D(2,2),
+    tf.keras.layers.Conv2D(32, 3, activation="relu"),
+    tf.keras.layers.MaxPool2D(2,2),
+    tf.keras.layers.Conv2D(64, 3, activation="relu"),
+    tf.keras.layers.MaxPool2D(2,2),
+    tf.keras.layers.Flatten(),
+    tf.keras.layers.Dense(1050, activation="relu"),
+    tf.keras.layers.Dense(4, activation="softmax")
+])
+# Compile the model
+model_1.compile(loss="CategoricalCrossentropy",
+    optimizer=tf.keras.optimizers.Adam(),
+    metrics=["accuracy"])
+#fit
+history_1 = model_1.fit(train_data,
+    epochs=20,
+    validation_data=valid_data
+)</pre>
+<p>We set<a id="_idIndexMarker431"/> the <strong class="source-inline">validation_data</strong> parameter to <strong class="source-inline">valid_data</strong>. This ensures that when we run the code, after each epoch, the model will evaluate its performance on the validation data, as shown in <span class="No-Break"><em class="italic">Figure 8</em></span><span class="No-Break"><em class="italic">.1</em></span><span class="No-Break">.</span></p>
+<div>
+<div class="IMG---Figure" id="_idContainer123">
+<img alt="Figure 8.1 – The last five training epochs" height="222" src="image/B18118_08_01.jpg" width="1299"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.1 – The last five training epochs</p>
+<p>This is a straightforward way to compare the loss values between the training set and the validation set. We can see that the model accurately predicts every sample in the training set, reaching an accuracy of 100 percent. However, on the validation set, it attains an accuracy of 91 percent, which suggests that the model likely overfits. Another effective way to observe overfitting is to use the learning curve to plot the loss and accuracy values of both the training set and the validation set – again, a large gap between both<a id="_idIndexMarker432"/> plots is a sign of overfitting, as shown in <span class="No-Break"><em class="italic">Figure 8</em></span><span class="No-Break"><em class="italic">.2</em></span><span class="No-Break">.</span></p>
+<div>
+<div class="IMG---Figure" id="_idContainer124">
+<img alt="Figure 8.2 – The learning curve showing the loss and accuracy for both training and test data" height="383" src="image/B18118_08_02.jpg" width="551"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.2 – The learning curve showing the loss and accuracy for both training and test data</p>
+<p>At the start of the experiment, the difference between the training loss and the validation loss is minimal; however, as we move into the fourth epoch, the validation loss starts to increase, while the training loss continues to decrease. Similarly, the training and validation accuracies are closely aligned at the start, but again, at around the fourth epoch, the validation accuracy reaches a peak of around 90 percent and stays there, while the training accuracy reaches 100 <span class="No-Break">percent accuracy.</span></p>
+<p>The ultimate objective of building an image classifier is to apply it to real-world data. After completing the training process, we evaluate the model on our holdout dataset. If the results obtained during testing are significantly different from those achieved during training, this could <span class="No-Break">indicate overfitting.</span></p>
+<p>Fortunately, there are several strategies that can be applied to overcome overfitting. Some of the main techniques to handle overfitting focus on improving the model itself to enhance its generalization capabilities. On the other hand, it is equally important to examine the data itself, observing what the model missed during training and evaluation. By visualizing the misclassified images, we gain insight into where the model falls short. We start by first recreating our baseline model from <a href="B18118_07.xhtml#_idTextAnchor146"><span class="No-Break"><em class="italic">Chapter 7</em></span></a><em class="italic">, Image Classification with Convolutional Neural Networks</em>. This time, we train it for 20 epochs to enable us to observe overfitting, as illustrated in <span class="No-Break"><em class="italic">Figure 8</em></span><em class="italic">.2</em>. Next, let's see<a id="_idIndexMarker433"/> how we can curb overfitting using several strategies, starting with applying <span class="No-Break">early stopping.</span></p>
+<h1 id="_idParaDest-152"><a id="_idTextAnchor194"/>Early stopping</h1>
+<p>In <a href="B18118_06.xhtml#_idTextAnchor129"><span class="No-Break"><em class="italic">Chapter 6</em></span></a><em class="italic">, </em><em class="italic">Improving the Model,</em> we introduced <a id="_idIndexMarker434"/>the concept of early stopping as an effective way of preventing overfitting. It does this by halting training when the model’s performance fails to improve over a defined number of epochs, as indicated in <span class="No-Break"><em class="italic">Figure 8</em></span><em class="italic">.3</em>. This way, we prevent our model <span class="No-Break">from overfitting.</span></p>
+<div>
+<div class="IMG---Figure" id="_idContainer125">
+<img alt="Figure 8.3 – A learning curve showing early stopping" height="808" src="image/B18118_08_03.jpg" width="1102"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.3 – A learning curve showing early stopping</p>
+<p>Let’s recreate the same baseline model, but this time, we will apply a built-in callback to stop training when<a id="_idIndexMarker435"/> the validation accuracy fails to improve. We will use the same build and compile steps as in the first model and then add a callback when we fit <span class="No-Break">the model:</span></p>
+<pre class="source-code">
+#Fit the model
+# Add an early stopping callback
+callbacks = [tf.keras.callbacks.EarlyStopping(
+    monitor="val_accuracy", patience=3,
+    restore_best_weights=True)]
+history_2 = model_2.fit(train_data,
+    epochs=20,
+    validation_data=valid_data,
+    callbacks=[<a id="_idTextAnchor195"/>callbacks])</pre>
+<p>Here, we specified the number of epochs as <strong class="source-inline">20</strong> and added a validation set to monitor the model’s performance during training. After this, we used the <strong class="source-inline">callbacks</strong> argument to specify a callback function to implement early stopping. We used an early stopping callback to stop training after three epochs should the validation set accuracy fail to improve. This is done by setting the <strong class="source-inline">patience</strong> parameter to <strong class="source-inline">3</strong>. This means that if there’s no progress in validation accuracy for three straight epochs, the early stopping callback halts training. We also set the <strong class="source-inline">restore_best_weights</strong> parameter to <strong class="source-inline">True</strong>; this restores the best model weight from the training process when the training ends. The information <a id="_idIndexMarker436"/>from the <strong class="source-inline">fit</strong> function is stored in the <span class="No-Break"><strong class="source-inline">history_2</strong></span><span class="No-Break"> variable:</span></p>
+<pre class="source-code">
+Epoch 8/20
+25/25 [==============================] - 8s 318ms/step - loss: 0.0685 - accuracy: 0.9810 - val_loss: 0.3937 - val_accuracy: 0.8827
+Epoch 9/20
+25/25 [==============================] - 8s 325ms/step - loss: 0.0368 - accuracy: 0.9912 - val_loss: 0.3338 - val_accuracy: 0.9218
+Epoch 10/20
+25/25 [==============================] - 8s 316ms/step - loss: 0.0169 - accuracy: 0.9987 - val_loss: 0.4322 - val_accuracy: 0.8994
+Epoch 11/20
+25/25 [==============================] - 8s 297ms/step - loss: 0.0342 - accuracy: 0.9912 - val_loss: 0.2994 - val_accuracy: 0.8994
+Epoch 12/20
+25/25 [==============================] - 8s 318ms/step - loss: 0.1352 - accuracy: 0.9570 - val_loss: 0.4503 - val_accuracy: 0.8939</pre>
+<p>From the training process, we can see that our model reaches a peak validation accuracy of <strong class="source-inline">0.9218</strong> on the ninth epoch, after which training continues for three epochs before stopping. Since there were no further improvements in the validation accuracy, training is stopped and the best weight is saved. Now, let's evaluate <strong class="source-inline">model_2</strong> on our <span class="No-Break">test data:</span></p>
+<pre class="source-code">
+model_2.evaluate(test_data)</pre>
+<p>When we run the code, we see that the model achieves an accuracy of <strong class="source-inline">0.9355</strong>. Here, the performance on the test set is in line with the performance on the validation set and higher than our baseline model, where we achieved an accuracy of <strong class="source-inline">0.9097</strong>. This is our first step to create <a id="_idIndexMarker437"/>a <span class="No-Break">better model.</span></p>
+<div>
+<div class="IMG---Figure" id="_idContainer126">
+<img alt="Figure 8.4 – A snapshot of the model summary" height="608" src="image/B18118_08_04.jpg" width="633"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.4 – A snapshot of the m<a id="_idTextAnchor196"/>odel summary</p>
+<p>When we inspect our model summary, we can see that our model has over 45 million parameters, and this could lead to the model being susceptible to picking up noise in the training data, due to the model being highly parameterized. To address this issue, we can simplify our model by reducing the number of parameters in such a way that our model is not too complex for our dataset. Let's discuss model <span class="No-Break">simplification next.</span></p>
+<h2 id="_idParaDest-153"><a id="_idTextAnchor197"/>Model simplification</h2>
+<p>To address overfitting, you <a id="_idIndexMarker438"/>may consider reassessing<a id="_idIndexMarker439"/> the model’s architecture. Simplifying your model’s architecture could prove to be an effective strategy in tackling overfitting, especially when your model is highly parameterized. However, it is important to know that this approach does not always guarantee better performance in every instance; in fact, you must be mindful of oversimplifying your model, which could lead to the trap of underfitting. Hence, it is important to strike the right balance between model complexity and simplicity to achieve an optimally performing model, as illustrated in <span class="No-Break"><em class="italic">Figure 8</em></span><em class="italic">.5</em>, as the relationship between model complexity and overfitting is not a <span class="No-Break">linear one.</span></p>
+<div>
+<div class="IMG---Figure" id="_idContainer127">
+<img alt="Figure 8.5 – Overfitting and underfitting in ML" height="507" src="image/B18118_08_05.jpg" width="865"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.5 – Overfitting and under<a id="_idTextAnchor198"/>fitting in ML</p>
+<p>Model simplification can be achieved in a number of ways – for instance, we can replace a large number of filters with smaller ones, or we could also reduce the number of neurons in the first <strong class="source-inline">Dense</strong> layer. In our architecture, you can see that the first dense layer has <strong class="source-inline">1050</strong> neurons. Let's reduce the neurons to <strong class="source-inline">500</strong> as the initial step in our model <span class="No-Break">simplification experiment:</span></p>
+<pre class="source-code">
+    tf.keras.layers.Flatten(),
+    tf.keras.layers.Dense(500, activation="relu"),
+    tf.keras.layers.Dense(4, activation="softmax")
+])</pre>
+<p>When we compile and fit the model, our model reaches a peak accuracy of <strong class="source-inline">0.9162</strong> on the <span class="No-Break">validation set:</span></p>
+<pre class="source-code">
+Epoch 5/50
+25/25 [==============================] - 8s 300ms/step - loss: 0.1284 - accuracy: 0.9482 - val_loss: 0.4489 - val_accuracy: 0.8771
+Epoch 6/50
+25/25 [==============================] - 8s 315ms/step - loss: 0.1122 - accuracy: 0.9659 - val_loss: 0.2414 - val_accuracy: 0.9162
+Epoch 7/50
+25/25 [==============================] - 8s 327ms/step - loss: 0.0814 - accuracy: 0.9735 - val_loss: 0.2976 - val_accuracy: 0.9050
+Epoch 8/50
+25/25 [==============================] - 11s 441ms/step - loss: 0.0541 - accuracy: 0.9785 - val_loss: 0.2215 - val_accuracy: 0.9050
+Epoch 9/50
+25/25 [==============================] - 8s 313ms/step - loss: 0.1279 - accuracy: 0.9621 - val_loss: 0.2848 - val_accuracy: 0.8994</pre>
+<p>Since our<a id="_idIndexMarker440"/> validation<a id="_idIndexMarker441"/> accuracy did not fare better, perhaps now will be a good time to try a few well-known ideas to fix overfitting. Let's look at L1 and L2 regularizations in the following subsection. We will discuss how they work and apply them to our <span class="No-Break">case study.</span></p>
+<p class="callout-heading">Note</p>
+<p class="callout">The goal of model simplification is not to achieve a smaller model but a well-designed model that generalizes well. We may just need to reduce layers if they are unnecessary for our use case, or we could simplify the model by changing the activation function or reorganizing the order and arrangement of the model layers to improve the flow <span class="No-Break">of information.</span></p>
+<h2 id="_idParaDest-154">L1 and L2<a id="_idTextAnchor199"/><a id="_idTextAnchor200"/> regularization</h2>
+<p>Regularization is<a id="_idIndexMarker442"/> a set of techniques used to prevent <a id="_idIndexMarker443"/>overfitting by reducing a model’s complexity, by applying a penalty term to the loss function. Regularization techniques make the model more resistant to the noise in the training data, thus improving its ability to generalize to unseen data. There are different types of regularization techniques, namely L1 and L2 regularization. <strong class="bold">L1 and L2 regularization</strong> are two well know regularization techniques; L1 can also be referred<a id="_idIndexMarker444"/> to as <strong class="bold">lasso regression</strong>. When selecting between L1 and L2, it is important to consider the type of data we <span class="No-Break">work with.</span></p>
+<p>L1 regularization comes in handy when working with data with many irrelevant features. The penalty term in L1 will cause some of the coefficients to become zero, resulting in a reduction in the number of features used during modeling; this, in turn, reduces the risk of overfitting, as the model will be trained on less noisy data. Conversely, L2 is an excellent choice when the goal is to create a model with small weights and good generalization. The penalty term in L2 reduces the magnitude of the coefficients, preventing them from becoming too large and leading <span class="No-Break">to overfitting:</span></p>
+<pre class="source-code">
+    tf.keras.layers.Flatten(),
+    tf.keras.layers.Dense(1050, activation="relu",
+        kernel_regularizer=regularizers.l2(0.01)),
+    tf.keras.layers.Dense(4, activation="softmax")
+    # binary activation output
+])</pre>
+<p>When we run this experiment, we reach an accuracy of around 92 percent, not faring better than other experiments. To try out L1 regularization, we simply changed the regularization method from L2 to L1. However, in this case, our results were not as good. As a result, let's try another regularization method called <span class="No-Break">dropout regularization.</span></p>
+<h2 id="_idParaDest-155">Drop<a id="_idTextAnchor201"/>out regularization</h2>
+<p>One key issue <a id="_idIndexMarker445"/>with neural networks is co-dependence. <strong class="bold">Co-dependence</strong> is a <a id="_idIndexMarker446"/>phenomenon <a id="_idIndexMarker447"/>in neural networks that occurs when a group of neurons, especially in the same layer, become highly correlated such that they rely too much on each other. This could lead to them amplifying certain features and failing to capture other important features in the data. Because these neurons act in sync, our model is more prone to overfitting. To mitigate this risk, we can apply a technique referred to as <strong class="bold">dropout</strong>. Unlike L1 and L2 <a id="_idIndexMarker448"/>regularization, dropout does not add a penalty term, but as the name implies, we randomly “drop out” a certain percentage of neurons from the model during training, as illustrated in <span class="No-Break"><em class="italic">Figure 8</em></span><em class="italic">.6</em>, reducing co-dependence between neurons, which can help to mitigate <span class="No-Break">against overfitting.</span></p>
+<div>
+<div class="IMG---Figure" id="_idContainer128">
+<img alt="Figure 8.6 – A neural network with dropout applied" height="687" src="image/B18118_08_06.jpg" width="1221"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.6 – A neural network with dropout applied</p>
+<p>When we apply<a id="_idIndexMarker449"/> the dropout technique, the model is forced to learn more robust features, since we break co-dependence between neurons. However, it’s worth noting that when we apply dropout, the training process may require more iterations to achieve convergence. Let’s apply dropout to our baseline model and observe what its effect <span class="No-Break">will be:</span></p>
+<pre class="source-code">
+    tf.keras.layers.Flatten(),
+    tf.keras.layers.Dense(1050, activation="relu"),
+    tf.keras.layers.Dropout(0.6), # added dropout layer
+    tf.keras.layers.Dense(4, activation="softmax")])</pre>
+<p>To implement dropout in code, we specify the dropout layer using the <strong class="source-inline">tf.keras.layers.Dropout(0.6)</strong> function. This creates a dropout layer with a dropout rate of <strong class="source-inline">0.6</strong> – that is, we turn off 60 percent of the neurons during training. It is worth noting that we can set the dropout value between 0 <span class="No-Break">and 1:</span></p>
+<pre class="source-code">
+25/25 [==============================] - 8s 333ms/step - loss: 0.3069 - accuracy: 0.8913 - val_loss: 0.2227 - val_accuracy: 0.9330
+Epoch 6/10
+25/25 [==============================] - 8s 317ms/step - loss: 0.3206 - accuracy: 0.8824 - val_loss: 0.1797 - val_accuracy: 0.9441
+Epoch 7/10
+25/25 [==============================] - 8s 322ms/step - loss: 0.2557 - accuracy: 0.9166 - val_loss: 0.2503 - val_accuracy: 0.8994
+Epoch 8/10
+25/25 [==============================] - 9s 339ms/step - loss: 0.1474 - accuracy: 0.9469 - val_loss: 0.2282 - val_accuracy: 0.9274
+Epoch 9/10
+25/25 [==============================] - 8s 326ms/step - loss: 0.2321 - accuracy: 0.9241 - val_loss: 0.3958 - val_accuracy: 0.8659</pre>
+<p>In this<a id="_idIndexMarker450"/> experiment, our model reaches a peak <a id="_idIndexMarker451"/>performance of <strong class="source-inline">0.9441</strong> on the validation set, improving our baseline model’s performance. Next, let's look at changing the <span class="No-Break">learning rate.</span></p>
+<h2 id="_idParaDest-156"><a id="_idTextAnchor202"/>Adjusting the learning rate</h2>
+<p>In <a href="B18118_06.xhtml#_idTextAnchor129"><span class="No-Break"><em class="italic">Chapter 6</em></span></a>, <em class="italic">Improving the Model,</em> we discussed <a id="_idIndexMarker452"/>learning rates and the need to <a id="_idIndexMarker453"/>find an optimal learning rate. For this experiment, let us use a learning rate of <strong class="source-inline">0.0001</strong>, which I found to produce a good result here, by experimenting with different learning rates, similar to what we did in <a href="B18118_06.xhtml#_idTextAnchor129"><span class="No-Break"><em class="italic">Chapter 6</em></span></a><em class="italic">, Improving the Model</em>. In <a href="B18118_13.xhtml#_idTextAnchor318"><span class="No-Break"><em class="italic">Chapter 13</em></span></a>,<em class="italic"> </em><em class="italic">Time Series, Sequence and Prediction with TensorFlow,</em> we will look at how to apply both custom and inbuilt learning rate schedulers. Here, we also apply our early stopping callback to ensure that training is terminated once the model fails to improve. Let’s compile <span class="No-Break">our model:</span></p>
+<pre class="source-code">
+# Compile the model
+model_7.compile(loss="CategoricalCrossentropy",
+    optimizer=tf.keras.optimizers.Adam(learning_rate=0.0001),
+    metrics=["accuracy"])</pre>
+<p>We will fit the model and run it. In seven epochs, our model’s training stops, reaching peak<a id="_idIndexMarker454"/> performance<a id="_idIndexMarker455"/> of <strong class="source-inline">0.9274</strong> on the <span class="No-Break">validation set:</span></p>
+<pre class="source-code">
+Epoch 3/10
+25/25 [==============================] - 8s 321ms/step - loss: 0.4608 - accuracy: 0.8508 - val_loss: 0.2776 - val_accuracy: 0.8994
+Epoch 4/10
+25/25 [==============================] - 8s 305ms/step - loss: 0.3677 - accuracy: 0.8824 - val_loss: 0.2512 - val_accuracy: 0.9274
+Epoch 5/10
+25/25 [==============================] - 8s 316ms/step - loss: 0.3143 - accuracy: 0.8925 - val_loss: 0.4450 - val_accuracy: 0.8324
+Epoch 6/10
+25/25 [==============================] - 8s 317ms/step - loss: 0.2749 - accuracy: 0.9052 - val_loss: 0.3427 - val_accuracy: 0.8603
+Epoch 7/10
+25/25 [==============================] - 8s 322ms/step - loss: 0.2241 - accuracy: 0.9279 - val_loss: 0.2996 - val_accuracy: 0.8659</pre>
+<p>We’ve explored various methods to improve our model and overcome overfitting. Now, let’s shift our focus <a id="_idIndexMarker456"/>to<a id="_idIndexMarker457"/> the dataset itself and examine how error analysis can <span class="No-Break">be useful.</span></p>
+<h2 id="_idParaDest-157"><a id="_idTextAnchor203"/>Error analysis</h2>
+<p>From our results <a id="_idIndexMarker458"/>so far, we can see that our model fails to misclassify <a id="_idIndexMarker459"/>some labels correctly. To further improve the generalization ability of our model, it is a good idea to examine the mistakes made by the model, with the underlying idea to uncover patterns in the misclassified data so that the insights we gain from looking at the misclassified labels can be used to improve the model’s generalization capability. This technique is referred to as <strong class="bold">error analysis</strong>. To perform error analysis, we begin by identifying misclassified labels on the validation/test set. Next, we put these errors into groups – for example, we can make a group to blur images or images taken under poor <span class="No-Break">lighting conditions.</span></p>
+<p>Based on the insights gained from the collected errors, we may need to adjust our model architecture or tune our hyperparameters, especially when certain features are not captured by the model. Also, our error analysis step can also point us to the need to improve our data size and quality. One effective way of resolving this is by applying data augmentation, a well-known technique to enrich our data size and quality. Let's discuss data augmentation next and apply it to our <span class="No-Break">case study.</span></p>
+<h2 id="_idParaDest-158"><a id="_idTextAnchor204"/>Data augmentation</h2>
+<p>Image <strong class="bold">data augmentation</strong> is a <a id="_idIndexMarker460"/>technique used to increase<a id="_idIndexMarker461"/> the size and diversity of our training set by the application of various transformations, such as rotating, flipping, cropping, and scaling to create new, synthetic data, as illustrated in <span class="No-Break"><em class="italic">Figure 8</em></span><em class="italic">.7</em>. For many real-world applications, data collection can be a very expensive and time-consuming process; hence, data augmentation comes in quite handy. Data augmentation helps the model to learn more robust features rather than allowing the model to memorize features, thereby improving the model’s <span class="No-Break">generalization capabilities.</span></p>
+<div>
+<div class="IMG---Figure" id="_idContainer129">
+<img alt="Figure 8.7 – Various data augmentation techniques applied to an image of a butterfly (Source: https://medium.com/secure-and-private-ai-writing-challenge/data-augmentation-increases-accuracy-of-your-model-but-how-aa1913468722)" height="587" src="image/B18118_08_07.jpg" width="857"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.7 – Various data augmentation techniques a<a id="_idTextAnchor205"/>pplied to an image of a butterfly (Source: https://medium.com/secure-and-private-ai-writing-challenge/data-augmentation-increases-accuracy-of-your-model-but-how-aa1913468722)</p>
+<p>Another important use of data augmentation is to create balance across different classes in our training dataset. If the training set contains imbalanced data, we can use data augmentation techniques to create variants of the minority class, thereby building a more balanced dataset with a lower likelihood of overfitting. When implementing data augmentation, it’s important to keep in mind various factors that may affect the outcome. For <a id="_idIndexMarker462"/>instance, the type of data augmentation<a id="_idIndexMarker463"/> to use depends on the type of data we <span class="No-Break">work with.</span></p>
+<p>In image classification tasks, techniques such as random rotations, translations, flips, and scaling may prove useful. However, when dealing with numeric datasets, applying rotations to numbers could lead to unintended results, such as rotating a 6 into a 9. Again, flipping letters of the alphabet, such as “b” and “d,” can also have adverse effects. When applying image augmentation to our training set, it’s crucial to consider the magnitude of augmentation and its effect on the quality of our training data. Excessive augmentation may lead to severely distorted images, resulting in a poorly performing model. To prevent this, it’s equally important to monitor the model’s training with a <span class="No-Break">validation set.</span></p>
+<p>Let's apply data augmentation to our case study and see what our results will <span class="No-Break">look like.</span></p>
+<p>To implement data augmentation, you can use the <strong class="source-inline">ImageDataGenerator</strong> class from the <strong class="source-inline">tf.keras.preprocessing.image</strong> module. This class allows you to specify a range of transformations, which should only be applied to images in our training set, and it generates synthetic images on the fly during the training process. For example, here is how you can use the <strong class="source-inline">ImageDataGenerator</strong> class to apply rotation, flipping, and <a id="_idIndexMarker464"/>scaling<a id="_idIndexMarker465"/> transformations to the <span class="No-Break">training images:</span></p>
+<pre class="source-code">
+train_datagen = ImageDataGenerator(rescale=1./255,
+    rotation_range=25, zoom_range=0.3)
+valid_datagen = ImageDataGenerator(rescale=1./255)
+# Set up the train, validation, and test directories
+train_dir = "/content/drive/MyDrive/weather dataset/train/"
+val_dir = "/content/drive/MyDrive/weather dataset/validation/"
+test_dir = "/content/drive/MyDrive/weather dataset/test/"
+# Import data from directories and turn it into batches
+train_data = train_datagen.flow_from_directory(
+    train_dir,
+    target_size=(224,224), # convert all images to be 224 x 224
+    class_mode="categorical")
+valid_data = valid_datagen.flow_from_directory(
+    val_dir,
+    target_size=(224,224),
+    class_mode="categorical")
+test_data = valid_datagen.flow_from_directory(
+    test_dir,
+    target_size=(224,224),
+    class_mode="categorical",)</pre>
+<p>Using image data augmentation is quite straightforward; we created three instances of the <strong class="source-inline">ImageDataGenerator</strong> class from the <strong class="source-inline">keras.preprocessing.image</strong> module for our train, validation, and test sets. One key difference is that we added the <strong class="source-inline">rotation_range=25</strong> and <strong class="source-inline">zoom_range=0.3</strong> arguments to the <strong class="source-inline">train_datagen</strong> object. This will randomly rotate our images by 25 degrees and zoom them by a factor of <strong class="source-inline">0.3</strong> during the training process; everything else will remain <span class="No-Break">the same.</span></p>
+<p>Next, we will <a id="_idIndexMarker466"/>build, compile, and fit our baseline model, with <a id="_idIndexMarker467"/>early stopping applied, on our <span class="No-Break">augmented data:</span></p>
+<pre class="source-code">
+Epoch 4/20
+25/25 [==============================] - 8s 308ms/step - loss: 0.2888 - accuracy: 0.9014 - val_loss: 0.3256 - val_accuracy: 0.8715
+Epoch 5/20
+25/25 [==============================] - 8s 312ms/step - loss: 0.2339 - accuracy: 0.9115 - val_loss: 0.2172 - val_accuracy: 0.9330
+Epoch 6/20
+25/25 [==============================] - 8s 320ms/step - loss: 0.1444 - accuracy: 0.9507 - val_loss: 0.2379 - val_accuracy: 0.9106
+Epoch 7/20
+25/25 [==============================] - 8s 315ms/step - loss: 0.1190 - accuracy: 0.9545 - val_loss: 0.2828 - val_accuracy: 0.9162
+Epoch 8/20
+25/25 [==============================] - 8s 317ms/step - loss: 0.0760 - accuracy: 0.9785 - val_loss: 0.3220 - val_accuracy: 0.8883</pre>
+<p>In eight epochs, our training comes to an end. This time, we reached <strong class="source-inline">0.9330</strong> on the validation set. So far, we have run seven different experiments. Let's test each of these models on the test set and examine what the results will look like. To do this, we will write a helper function that creates a DataFrame showing the top 5 models, each model’s name, and the loss and accuracy of each model, as shown in <span class="No-Break"><em class="italic">Figure 8</em></span><span class="No-Break"><em class="italic">.8</em></span><span class="No-Break">.</span></p>
+<div>
+<div class="IMG---Figure" id="_idContainer130">
+<img alt="Figure 8.8 – A DataFrame showing the loss and accuracy of the top five models" height="238" src="image/B18118_08_08.jpg" width="257"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 8.8 – A DataFrame showing the lo<a id="_idTextAnchor206"/>ss and accuracy of the top five models</p>
+<p>Our best-performing <a id="_idIndexMarker468"/>model on our test data was <strong class="bold">model 7</strong>, where <a id="_idIndexMarker469"/>we altered the learning rate. We have covered a few ideas that are used to tackle overfitting in real-world image classifiers; however, a combination of these techniques can be applied to build a simpler yet more robust model that is less prone to overfitting. Combining various techniques of curbing overfitting is generally a good idea, as it may help to produce a more robust and generalizable model. However, it is important to keep in mind that there is no one-size-fits-all solution, and the best combination of methods will depend on the specific data and task at hand and may require <span class="No-Break">multiple experiments.</span></p>
+<h1 id="_idParaDest-159"><a id="_idTextAnchor207"/>Summary</h1>
+<p>In this chapter, we discussed overfitting in image classification and explored the different techniques to overcome it. We started by examining what overfitting is and why it happens, and we discussed how we can apply different techniques such as early stopping, model simplification, L1 and L2 regularization, dropout, and data augmentation to mitigate against overfitting in image classification tasks. Furthermore, we applied each of these techniques in our weather dataset case study and saw, hands-on, the effects of these techniques on our case study. We also explored combining these techniques in a quest to build an optimal model. By now, you should have a good understanding of overfitting and how to mitigate it in your own image <span class="No-Break">classification projects.</span></p>
+<p>In the next chapter, we will dive into transfer learning, a powerful technique that allows you to leverage pre-trained models for your specific image classification tasks, saving time and resources while achieving <span class="No-Break">impressive results.</span></p>
+<h1 id="_idParaDest-160"><a id="_idTextAnchor208"/>Questions</h1>
+<p>Let’s test what we learned in <span class="No-Break">this chapter:</span></p>
+<ol>
+<li>What is overfitting in image <span class="No-Break">classification tasks?</span></li>
+<li>How does <span class="No-Break">overfitting occur?</span></li>
+<li>What techniques can be used to <span class="No-Break">prevent overfitting?</span></li>
+<li>What is data augmentation, and how is it used to <span class="No-Break">prevent overfitting?</span></li>
+<li>How can data pre-processing, data diversity, and data balancing be used to <span class="No-Break">mitigate overfitting?</span></li>
+</ol>
+<h1 id="_idParaDest-161"><a id="_idTextAnchor209"/>Further reading</h1>
+<p>To learn more, you can check out the <span class="No-Break">following resources:</span></p>
+<ul>
+<li>Garbin, C., Zhu, X., &amp; Marques, O. (2020). <em class="italic">Dropout vs. Batch Normalization: An Empirical Study of Their Impact to Deep Learning</em>. arXiv preprint <span class="No-Break">arXiv:1911.12677: </span><a href="https://par.nsf.gov/servlets/purl/10166570"><span class="No-Break">https://par.nsf.gov/servlets/purl/10166570</span></a><span class="No-Break">.</span></li>
+<li>Kandel, I., &amp; Castelli, M. (2020). <em class="italic">The effect of batch size on the generalizability of the convolutional neural networks on a histopathology dataset</em>. arXiv <span class="No-Break">preprint arXiv:2003.00204.</span></li>
+<li><em class="italic">Effect_batch_size_generalizability_convolutional_neural_networks_histopathology_dataset.pdf (unl.pt)</em>. Kapoor, A., Gulli, A. and Pal, S. (<span class="No-Break">2020): </span><a href="https://research.unl.pt/ws/portalfiles/portal/18415506/Effect_batch_size_generalizability_convolutional_neural_networks_histopathology_dataset.pdf"><span class="No-Break">https://research.unl.pt/ws/portalfiles/portal/18415506/Effect_batch_size_generalizability_convolutional_neural_networks_histopathology_dataset.pdf</span></a><span class="No-Break">.</span></li>
+<li><em class="italic">Deep Learning with TensorFlow and Keras, Third Edition,  Amita Kapoor, Antonio Gulli, Sujit Pal</em>, Packt <span class="No-Break">Publishing Ltd.</span></li>
+<li>Nitish Srivastava, Geoffrey Hinton, Alex Krizhevsky, Ilya Sutskever, and Ruslan Salakhutdinov. 2014. <em class="italic">Dropout: A simple way to prevent neural networks from overfitting</em>. J. Mach. Learn. Res. 15, 1 (2014), <span class="No-Break">1,929–1,958 </span><a href="https://jmlr.org/papers/volume15/srivastava14a/srivastava14a.pdf"><span class="No-Break">https://jmlr.org/papers/volume15/srivastava14a/srivastava14a.pdf</span></a><span class="No-Break">.</span></li>
+<li>Zhang, Z., Ma, H., Fu, H., &amp; Zha, C. (2016). <em class="italic">Scene-Free Multi-Class Weather Classification on Single Images</em>. IEEE Access, 8, 146,038–146,049. <span class="No-Break">doi:10.1109: </span><a href="https://web.cse.ohio-state.edu/~zhang.7804/Cheng_NC2016.pdf"><span class="No-Break">https://web.cse.ohio-state.edu/~zhang.7804/Cheng_NC2016.pdf</span></a><span class="No-Break">.</span></li>
+</ul>
+</div>
+</div></body></html>

@@ -1,0 +1,735 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">DIY - A Web DL Production Environment</h1>
+                </header>
+            
+            <article>
+                
+<p>In previous chapters, we saw how to use some notable <strong>Deep Learning</strong> <span>(</span><strong>DL</strong><span>)</span> platforms, such as <strong>Amazon Web Services</strong> (<strong>AWS</strong>), <strong>Google Cloud Platform</strong> (<strong>GCP</strong>), and Microsoft Azure, to enable DL in our web applications. We then saw how to make websites secure using DL. However, in production, the challenge is often not just building the predictive model—the real problems arise when you want to update a model that is already sending responses to users. How much time and business can you lose in the 30 seconds or 1 minute that it may take to replace the model file? What if there are models customized for each user? That might even mean billions of models for a platform such as Facebook.</p>
+<p>You need to have definite solutions for updating models in production. Also, since the ingested data may not be in the format that the training is performed in, you need to define flows of data, such that they are morphed in a seamless manner for usage.</p>
+<p>In this chapter, we will discuss the methods by which we update models in production and the thought that goes into choosing each method. We will begin with a brief overview and then demonstrate some famous tools for creating DL data flows. Finally, we will implement our own demonstration of online learning or incremental learning to establish a method for updating a model in production.</p>
+<p>We will be covering the following topics in this chapter:</p>
+<ul>
+<li style="font-weight: 400">An overview of DL in production methods</li>
+<li style="font-weight: 400">Popular tools for deploying ML in production</li>
+<li style="font-weight: 400">Implementing a demonstration DL web production environment</li>
+<li>Deploying the project to Heroku</li>
+<li>Security, monitoring, and performance optimizations</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Technical requirements</h1>
+                </header>
+            
+            <article>
+                
+<p>You can access the code for this chapter at <a href="https://github.com/PacktPublishing/Hands-On-Python-Deep-Learning-for-Web/tree/master/Chapter11">https://github.com/PacktPublishing/Hands-On-Python-Deep-Learning-for-Web/tree/master/Chapter11</a>.<a href="https://github.com/PacktPublishing/Hands-On-Python-Deep-Learning-for-Web/tree/master/Chapter11"/></p>
+<p>You'll need the following software to run the code used in this chapter:</p>
+<ul>
+<li>Python 3.6+</li>
+<li>Flask 1.1.12+</li>
+</ul>
+<p>All other installations will be made during the course of this chapter.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">An overview of DL in production methods</h1>
+                </header>
+            
+            <article>
+                
+<p>Be it DL or classic <strong>Machine Learning</strong> (<strong>ML</strong>), when it comes to using models in production, things can get challenging. The main reason is that data fuels ML and data can change over time. When an ML model is deployed in production, it is re-trained at certain intervals as the data keeps changing over time. Therefore, re-training ML is not a luxury but a necessity when you are thinking of production-based purposes. DL is only a sub-field of ML and it is no exception to the previous statements. There are two popular methods that ML models are trained on—batch learning and online learning, especially when they are in production.</p>
+<p class="mce-root">We will be discussing online learning in the next section. For this section, let's introduce ourselves to the concept of batch learning. In batch learning, we start by training an ML model on a specific chunk of data and when the model is done training on that chunk, it is supplied with the next chunk of data and this process continues until all the chunks are exhausted. These chunks are referred to as batches.</p>
+<p class="mce-root">In real-life projects, you will be dealing with large volumes of data all the time. It would not be ideal to fit those datasets in memory at once. Batch learning comes to our aid in situations such as this one. There are disadvantages to using batch learning and we will get to them in the next section. You may wonder (or may not, as well), but yes, we perform batch learning whenever we train a neural network in this book.</p>
+<p class="mce-root">Just like training, the concepts of batches can be applied to serving ML models, as well. Serving ML models here means using machine models to make predictions on unseen data points. This is also known as inference. Now, model serving can be of two types—online serving, where the prediction needs to be made as soon as the model is met with the data point(s) (we cannot afford latency here), and offline serving, where a batch of data points is first gathered and the batch is run through the model to get predictions. Note that in the second case, we can opt in for a bit of latency.</p>
+<p class="mce-root">Note that there are several engineering aspects as well that are directly attached to production ML systems. Discussing them is beyond the scope of this book, but you are encouraged to check online for courses by the GCP team.</p>
+<p>Let's try to summarize and further understand the preceding discussion with the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1283 image-border" src="assets/95a14b78-836f-49f9-9709-4c20f0a2152e.png" style="width:27.58em;height:26.08em;"/></p>
+<p>This diagram depicts the requirements of your AI backend and the various parameters that can affect the choice of the solution that you make. We will discuss all of the aspects and choices available, as in this diagram, in the following section.</p>
+<p>So, we have four major types of solutions that you may usually find in implementations of DL in production:</p>
+<ul>
+<li>A web API service</li>
+<li>Online learning</li>
+<li>Batch forecasting</li>
+<li>Auto ML</li>
+</ul>
+<p>Let's look at each of them in detail.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">A web API service</h1>
+                </header>
+            
+            <article>
+                
+<p>We have a model that is trained by a separate script on the backend and is stored as a model and then deployed as an API-based service. Here, we're looking at a solution that produces results <em>on-demand</em> but the training occurs offline (not in the execution span of the portion of code responsible for responding to the client queries). Web APIs respond to a single query at a time and yield singular results.</p>
+<p>This is by far the most commonly used method for deploying DL in production since it allows accurate training performed offline by data scientists and a short deployment script to create an API. In this book, we have mostly carried out deployments of this kind.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Online learning</h1>
+                </header>
+            
+            <article>
+                
+<p>Another form of on-demand predictions via the backend is online learning. However, in this methodology, the learning happens during the execution of the server script and so the model keeps changing with every relevant query. While such a method is dynamic and unlikely to become stale, it is often less accurate than its static counterpart—web APIs. Online learning, too, yields a single result at a time.</p>
+<p>In this chapter, we have demonstrated an example of online learning. We will discuss the tools that are helpful for online learning in the coming sections.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Batch forecasting</h1>
+                </header>
+            
+            <article>
+                
+<p>In this method, a number of predictions are made at once and stored on the server, ready to be fetched and used when the user needs them. However, as a static training method, this method allows training the model offline and so offers greater accuracy to the training, similar to web APIs.</p>
+<p>In other words, batch forecasting can be understood as a batch version of web APIs; however, the predictions are not served by an API. Rather, the predictions are stored and fetched from a database.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Auto ML</h1>
+                </header>
+            
+            <article>
+                
+<p>Making predictions is only one part of the entire process of having DL in production. A data scientist is also responsible for cleaning and organizing the data, creating a pipeline, and optimizations. Auto ML is a way of eliminating the need for such repetitive tasks.</p>
+<p class="mce-root"/>
+<p>Auto ML is a batch forecasting method where the need for human intervention is removed. So, the data, as it comes, goes through a pipeline and the forecasts are regularly updated. So, this method provides more up-to-date predictions than the batch forecasting method.</p>
+<p>Let's now discuss some tools for rapidly realizing some of the methods we have presented.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Popular tools for deploying ML in production</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we will be discussing some popular tools used for putting ML in production systems. The core utility provided by these tools is automating the learning-prediction-feedback pipeline and facilitating the monitoring of the model's quality and performance. While it is very much possible to create your own tools for this, it is highly recommended that you use any of the following tools, as per the requirements of your software.</p>
+<p>Let's begin by discussing <kbd>creme</kbd>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">creme</h1>
+                </header>
+            
+            <article>
+                
+<p><span><kbd>creme</kbd> is a Python library that allows us to perform online learning efficiently. Before we look at <kbd>creme</kbd> in action, let's have a brief discussion about online learning itself:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1284 image-border" src="assets/adfb193f-163c-4f21-9dae-af3df778d861.png" style="width:9.58em;height:3.83em;"/></p>
+<p>In online learning, ML models are trained on one instance at a time, instead of being trained on a batch of data (which is also known as batch learning). To be able to appreciate the use of online learning, it's important to understand the cons of batch learning:</p>
+<ul>
+<li style="font-weight: 400">In production, we need to re-train ML models on new data over time. Batch learning forces us to do this but this comes at a cost. The cost not only lies in computational resources but also the fact that the models are re-trained from scratch. Training models from scratch is not always useful in production environments.</li>
+<li style="font-weight: 400">The features and labels of data can change over time. Batch learning does not allow us to train ML models that can support dynamic features and labels.</li>
+</ul>
+<p>This is exactly where we need to use online learning, which enables us to do the following:</p>
+<ul>
+<li style="font-weight: 400">Train ML models using only one instance at a time. So, we won't require a batch of data to train an ML model; it can be trained instantaneously using data as it becomes available.</li>
+<li style="font-weight: 400">Train ML models with dynamic features and labels.</li>
+</ul>
+<p>Online learning has got several other names, but they all do the same thing:</p>
+<ul>
+<li style="font-weight: 400">Incremental learning</li>
+<li style="font-weight: 400">Sequential learning</li>
+<li style="font-weight: 400">Iterative learning</li>
+<li style="font-weight: 400">Out-of-core learning</li>
+</ul>
+<p><kbd>creme</kbd>, as mentioned earlier, is a Python library for performing online learning. It is an extremely useful thing to keep in your ML toolbox, especially when you are dealing with a production environment. <kbd>creme</kbd> is heavily inspired by scikit-learn (which is a very popular ML library in Python), which makes it very easy to use. To get a comprehensive introduction to <kbd>creme</kbd>, you are encouraged to check out the official GitHub repository for <kbd>creme</kbd> at <a href="https://github.com/creme-ml/creme">https://github.com/creme-ml/creme</a>.</p>
+<p>Enough talking! Let's go ahead and first install <kbd>creme</kbd>. It can be done by using the following command:</p>
+<pre><strong>pip install creme</strong></pre>
+<p>To get the latest version of <kbd>creme</kbd>, you can use the following commands:</p>
+<pre><strong>pip install git+https://github.com/creme-ml/creme</strong><br/># Or through SSH:<br/><strong>pip install git+ssh://git@github.com/creme-ml/creme.git</strong></pre>
+<p class="mce-root"/>
+<p>Let's take a look at a quick example by following these steps:</p>
+<ol>
+<li><span>We first make a few necessary imports from the <kbd>creme</kbd> module:</span></li>
+</ol>
+<pre style="padding-left: 60px">from creme import compose<br/>from creme import datasets<br/>from creme import feature_extraction<br/>from creme import metrics<br/>from creme import model_selection<br/>from creme import preprocessing<br/>from creme import stats<br/>from creme import neighbors<br/><br/>import datetime as dt</pre>
+<p style="padding-left: 60px">Notice that the naming convention of <kbd>creme</kbd> is similar to that of the <kbd>sklearn</kbd> library for an easier migration experience.</p>
+<ol start="2">
+<li><span>We then f</span><span>etch a dataset provided by the <kbd>creme</kbd> module itself to the data variable:</span></li>
+</ol>
+<pre style="padding-left: 60px">data = datasets.Bikes()</pre>
+<p style="padding-left: 60px">We will be working on this dataset, which contains information about bike-ride sharing.</p>
+<div class="packt_infobox">While the dataset is included in the <kbd>creme</kbd> library, you can read more about it at <a href="https://archive.ics.uci.edu/ml/datasets/bike+sharing+dataset">https://archive.ics.uci.edu/ml/datasets/bike+sharing+dataset</a>.</div>
+<ol start="3">
+<li>Next, we build a pipeline using <kbd>creme</kbd>, as shown:</li>
+</ol>
+<pre style="padding-left: 60px">model = compose.Select("humidity", "pressure", "temperature")<br/>model += feature_extraction.TargetAgg(by="station", how=stats.Mean())<br/>model |= preprocessing.StandardScaler()<br/>model |= neighbors.KNeighborsRegressor()</pre>
+<p style="padding-left: 60px">Notice the use of the <kbd>|=</kbd> and <kbd>+=</kbd> operators. <kbd>creme</kbd> makes it possible to use these operators, which makes understanding the data pipeline very intuitive. <span>We can obtain a detailed representation of the pipeline built in the previous code block by using the following command:</span></p>
+<pre><strong>model</strong></pre>
+<p class="mce-root"/>
+<p style="padding-left: 60px">The output of the previous command is as shown:</p>
+<pre><strong>Pipeline([('TransformerUnion', TransformerUnion (</strong><br/><strong>             Select (</strong><br/><strong>               humidity</strong><br/><strong>               pressure</strong><br/><strong>               temperature</strong><br/><strong>             ),</strong><br/><strong>             TargetAgg (</strong><br/><strong>               by=['station']</strong><br/><strong>               how=Mean ()</strong><br/><strong>               target_name="target"</strong><br/><strong>             )</strong><br/><strong>           )), ('StandardScaler', StandardScaler (</strong><br/><strong>             with_mean=True</strong><br/><strong>             with_std=True</strong><br/><strong>           )), ('KNeighborsRegressor', KNeighborsRegressor([]))])</strong></pre>
+<p style="padding-left: 60px">We can also get a visual representation of this pipeline by using the following command:</p>
+<pre><strong>model.draw()</strong></pre>
+<p style="padding-left: 60px">This produces the following graph:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1285 image-border" src="assets/385f0fc6-4b0a-46d6-8414-c73c8c3a4c38.png" style="width:33.00em;height:23.83em;"/></p>
+<ol start="4">
+<li>Finally, we run the training and obtain the scoring metric at an interval of every 30,000 row of the dataset. On the production server, this code will result in batch forecasting at every 1 minute:</li>
+</ol>
+<pre style="padding-left: 60px">model_selection.progressive_val_score(<br/> X_y=data,<br/> model=model,<br/> metric=metrics.RMSE(),<br/> moment='moment',<br/> delay=dt.timedelta(minutes=1),<br/> print_every=30_000<br/>)</pre>
+<p><span>So, <kbd>creme</kbd> makes it very simple to create batch forecasting and online learning deployments in production with its lucid syntax and debugging facilities.</span></p>
+<p>We'll now discuss another popular tool—Airflow.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Airflow</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">As an effective ML practitioner, you will need to programmatically handle workflows such as <span>the previous one</span> <span>and be able to automate them, as well. Airflow provides you with a platform to efficiently do this. This link—</span><a href="https://airflow.apache.org">https://airflow.apache.org</a><span>—is an excerpt taken from Airflow's official website</span><span>. Airflow is a platform used to programmatically author, schedule, and monitor workflows.</span></p>
+<p class="mce-root">The main advantage of this is that tasks represented on <strong>Directed Acyclic Graphs</strong> (<strong>DAGs</strong>) can easily be distributed across available resources (often known as workers). It also makes it easier to visualize your entire workflow and this turns out to be very helpful, especially when a workflow is very complicated. If you need a refresher on DAGs, the article at <a href="https://cran.r-project.org/web/packages/ggdag/vignettes/intro-to-dags.html">https://cran.r-project.org/web/packages/ggdag/vignettes/intro-to-dags.html</a> can help. This will become much clearer when you see this implemented in a little while.</p>
+<p>When you are designing an ML workflow, you need to think of many different things, such as the following:</p>
+<ul>
+<li style="font-weight: 400">The data collection pipeline</li>
+<li style="font-weight: 400">The data preprocessing pipeline</li>
+<li style="font-weight: 400">Making the data available to the ML model</li>
+<li style="font-weight: 400">Training and evaluation pipelines for the ML model</li>
+<li style="font-weight: 400">The deployment of the model</li>
+<li style="font-weight: 400">Monitoring the model, along with other things</li>
+</ul>
+<p>For now, let's go ahead and install Airflow by executing the following line:</p>
+<pre><strong>pip install apache-airflow</strong></pre>
+<p>Although Airflow is Python-based, it is absolutely possible to use Airflow to define workflows that incorporate different languages for different tasks.</p>
+<p>Once installed, you can invoke the admin panel of Airflow and view the list of DAGs on it, as well as manage them and trigger a lot of other useful functions, as shown:</p>
+<ol>
+<li>To do so, you must first initialize the database:</li>
+</ol>
+<pre style="padding-left: 60px">airflow initdb</pre>
+<ol start="2">
+<li>You should see a number of tables being created on a <kbd>SQLite3</kbd> database. If successful, you will be able to start the web server by using the following command:</li>
+</ol>
+<pre style="padding-left: 60px"><strong>airflow webserver</strong></pre>
+<p style="padding-left: 60px">Open <kbd>http://localhost:8080</kbd> <span>on your browser. You will be presented with a screen as in the following screenshot:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1286 image-border" src="assets/5f932f02-915b-4c68-84fc-1b54864cb4fe.png" style="width:115.92em;height:51.25em;"/></p>
+<p>A number of example DAGs are presented. You can try running them for a brief play!</p>
+<p>Let's now discuss a very popular tool called AutoML.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">AutoML</h1>
+                </header>
+            
+            <article>
+                
+<p>DL or AI solutions are not limited to building cutting-edge accurate models in Jupyter Notebook when it comes to industrial usage. There are several steps in the formation of AI solutions, beginning with collecting raw data, converting the data into a format that can be used with predictive models, creating predictions, building an application around the model, and monitoring and updating the model in production. AutoML aims to automate this process by automating the pre-deployment tasks. Often, AutoML is mostly about orchestrating the data and Bayesian hyperparameter optimization. AutoML only sometimes means a fully automated learning pipeline.</p>
+<p>One famous library available for AutoML is provided by <kbd>H2O.ai</kbd> and it is called <kbd>H2O.AutoML</kbd>. To use it, we can install it using the following commands:</p>
+<pre># Using Conda installer<br/><strong>conda install -c h2oai h2o</strong><br/><br/># Using PIP installer<br/><strong>pip install -f http://h2o-release.s3.amazonaws.com/h2o/latest_stable_Py.html h2o</strong></pre>
+<p><kbd>H2O.AutoML</kbd> is very simple to understand due to the similarity of its syntax with other popular ML libraries.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementing a demonstration DL web environment</h1>
+                </header>
+            
+            <article>
+                
+<p>We will now take a deep dive into building a sample production application that uses online learning on the backend. We will be creating an application that can predict heart diseases, based on the Cleveland dataset. We will then deploy this model to Heroku, which is a cloud container-based service. Finally, we will demonstrate the online learning feature of the application.</p>
+<div class="packt_tip packt_infobox">You can find out more about Heroku by going to <a href="https://heroku.com">https://heroku.com</a>.</div>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p>Let's list the steps that we will be covering:</p>
+<ol>
+<li>Build a predictive model on Jupyter Notebook.</li>
+<li>Build a backend for the web application that predicts on the saved model.</li>
+<li>Build a frontend for the web application that invokes incremental learning on the model.</li>
+<li>Update the model on the server side incrementally.</li>
+<li>Deploy the application to Heroku.</li>
+</ol>
+<p>We will begin with the zeroth step; that is, observing the dataset.</p>
+<p>The UCI Heart Disease dataset contains 303 samples, with 76 attributes in each. However, most of the research work on the dataset has been centered around a simplified version of the Cleveland dataset with 13 attributes, as defined here:</p>
+<ul>
+<li><span>Age</span></li>
+<li><span>Sex</span></li>
+<li><span>Chest pain type:</span>
+<ul>
+<li>Typical angina</li>
+<li>Atypical angina</li>
+<li>Non-anginal pain</li>
+<li>Asymptomatic</li>
+</ul>
+</li>
+<li><span>Resting blood pressure</span></li>
+<li><span>Serum cholesterol in mg/dl</span></li>
+<li><span>Fasting blood sugar &gt; 120 mg/dl</span></li>
+<li><span>Resting electrocardiographic results:</span>
+<ul>
+<li><span>Normal</span></li>
+<li><span>Having ST-T wave abnormality (T wave inversions and/or ST elevation or depression of &gt; 0.05 mV)</span></li>
+<li><span>Showing probable or definite left ventricular hypertrophy by Estes' criteria</span></li>
+</ul>
+</li>
+<li><span>Maximum heart rate achieved</span></li>
+<li><span>Exercise-induced angina</span></li>
+<li><span>Oldpeak = ST depression induced by exercise relative to rest</span></li>
+<li><span>The slope of the peak exercise ST segment</span></li>
+<li><span>Number of major vessels (0-3) colored by fluoroscopy</span></li>
+<li><span>Thal: 3 = normal; 6 = fixed defect; 7 = reversible defect</span></li>
+</ul>
+<p class="mce-root"/>
+<p>There will be a final column, which is the target we will be predicting. This will make the problem at hand a classification between normal and affected patients.</p>
+<div class="packt_infobox">You can read more about the Cleveland dataset at <a href="https://archive.ics.uci.edu/ml/datasets/Heart+Disease">https://archive.ics.uci.edu/ml/datasets/Heart+Disease</a>.</div>
+<p>Let's now begin building the heart disease detection model.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Building a predictive model</h1>
+                </header>
+            
+            <article>
+                
+<p>In this subsection, we will begin by building a simple neural network using Keras, which will classify, from a given input, the probability that a patient has heart disease.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Step 1 – Importing the necessary modules</h1>
+                </header>
+            
+            <article>
+                
+<p>We begin by importing the required libraries:</p>
+<pre>import pandas as pd<br/>import numpy as np<br/>from sklearn.model_selection import train_test_split<br/>np.random.seed(5)</pre>
+<p>We have imported the <kbd>pandas</kbd> and <kbd>numpy</kbd> modules. Along with these, we have imported the <kbd>train_test_split</kbd> method from the scikit-learn library to help us quickly split the dataset into training and testing parts.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Step 2 – Loading the dataset and observing</h1>
+                </header>
+            
+            <article>
+                
+<p>Let's load the dataset, assuming it to be stored in a folder named <kbd>data</kbd> that is on the same directory level as that of the directory containing our Jupyter notebook:</p>
+<pre>df = pd.read_csv("data/heart.csv")</pre>
+<p>We'll quickly observe the DataFrame to see whether all the columns have been imported correctly:</p>
+<pre>df.head(5)</pre>
+<p>This produces the following output in the Jupyter notebook:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1287 image-border" src="assets/1f9f805b-e515-4714-9e23-d04c4b7fd49c.png" style="width:36.58em;height:10.00em;"/></p>
+<p>We can observe the 14 columns and see that they have been imported correctly. A basic <strong>Exploratory Data Analysis</strong> (<strong>EDA</strong>) would reveal that the dataset does not contain any missing values. However, the raw UCI Cleveland dataset does contain missing values contrary to the version we're using, which has been preprocessed and is readily available in this form on the internet. You can find a copy of it in the repository of this chapter on GitHub at <a href="http://tiny.cc/HoPforDL-Ch-11">http://tiny.cc/HoPforDL-Ch-11</a>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Step 3 – Separating the target variable</h1>
+                </header>
+            
+            <article>
+                
+<p>We'll now splice out the target variable from the dataset, as shown:</p>
+<pre><span class="n">X</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s2">"target"</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">"target"</span><span class="p">]<br/></span></pre>
+<p>Next, we will perform scaling on the features.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Step 4 – Performing scaling on the features</h1>
+                </header>
+            
+            <article>
+                
+<p>As you might have observed in the sample of the dataset in the preceding step, the values in the training columns are not in a common or comparable range. We will be performing scaling on the columns to bring them to a uniform range distribution, as shown:</p>
+<pre><span class="n">from sklearn.preprocessing import StandardScaler<br/><br/>X</span> <span class="o">=</span> <span class="n">StandardScaler</span><span class="p">()</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">X</span><span class="p">)</span></pre>
+<p>The target is in the range of <kbd>0</kbd> to <kbd>1</kbd> and so does not require scaling.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Step 5 – Splitting the dataset into test and train datasets</h1>
+                </header>
+            
+            <article>
+                
+<p>We'll then split the dataset into training and testing parts, using the following line of code:</p>
+<pre><span class="n">X_train</span><span class="p">,</span><span class="n">X_test</span><span class="p">,</span><span class="n">y_train</span><span class="p">,</span><span class="n">y_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">X</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">test_size</span><span class="o">=</span><span class="mf">0.20</span><span class="p">,</span><span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></pre>
+<p>We have allotted 20% of the dataset to testing purposes.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Step 6 – Creating a neural network object in sklearn</h1>
+                </header>
+            
+            <article>
+                
+<p class="highlight hl-ipython3">Next, we create an instance of the classifier model by instantiating a new object of the <kbd>MLPClassifier</kbd> object:</p>
+<pre><span class="n">from sklearn.neural_network import MLPClassifier<br/><br/>clf</span> <span class="o">=</span> <span class="n">MLPClassifier</span><span class="p">(</span><span class="n">max_iter</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span></pre>
+<p>We have arbitrarily set the maximum number of iterations to <kbd>200</kbd>. This may not be reached if the convergence happens earlier.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Step 7 – Performing the training</h1>
+                </header>
+            
+            <article>
+                
+<p>Finally, we perform the training and note the observed accuracy of the method:</p>
+<pre><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">X_train</span><span class="p">)):</span>
+    <span class="n">xt</span> <span class="o">=</span> <span class="n">X_train</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">yt</span> <span class="o">=</span> <span class="n">y_train</span><span class="o">.</span><span class="n">values</span><span class="p">[[</span><span class="n">i</span><span class="p">]]</span>
+    <span class="n">clf</span> <span class="o">=</span> <span class="n">clf</span><span class="o">.</span><span class="n">partial_fit</span><span class="p">(</span><span class="n">xt</span><span class="p">,</span> <span class="n">yt</span><span class="p">,</span> <span class="n">classes</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">%</span> <span class="mi">25</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">i</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">X_train</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">score</span> <span class="o">=</span> <span class="n">clf</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">X_test</span><span class="p">,</span> <span class="n">y_test</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">"Iters "</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="s2">": "</span><span class="p">,</span> <span class="n">score</span><span class="p">)</span></pre>
+<p>The output of the preceding block of code in Jupyter Notebook is as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1288 image-border" src="assets/83f2a674-113d-4694-ba19-9ba8dc7cc57c.png" style="width:18.67em;height:11.67em;"/></p>
+<p>We can see that after training on all of the 241 samples in the processed dataset, the accuracy is expected to reach 83.60%. Notice the <kbd>partial_fit</kbd> <span>method</span> <span>in the preceding block of code. This is a method of the model that allows fitting a simple sample to the model. The more commonly used</span> <kbd>fit</kbd> <span>method is, in fact, a wrapper around the</span> <kbd>partial_fit</kbd> <span>method, iterating over the entire dataset and training one sample in each iteration. It is one of the most instrumental parts of our demonstration of incremental learning using the</span> scikit-learn <span>library.</span></p>
+<p>To quickly see the format that the model provides an output in, we run the following block of code:</p>
+<pre># Positive Sample<br/>clf.predict(X_test[30].reshape(-1, 1).T)<br/><br/>#Negative Sample<br/>clf.predict(X_test[0].reshape(-1, 1).T)</pre>
+<p>The following output is obtained:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1289 image-border" src="assets/7af1eb56-d3b4-4e26-a4fc-804077759dcd.png" style="width:25.08em;height:9.83em;"/></p>
+<p>Note that a sample with a predicted output of <kbd>0</kbd> means that the person does not have a heart disease, while a sample with an output of <kbd>1</kbd> means that the person is suffering from a heart disease.</p>
+<p>We will now begin to convert this Jupyter notebook into a script that can perform learning on-demand incrementally. However, we will first build the frontend of this project so that we can understand the requirements from the backend.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementing the frontend</h1>
+                </header>
+            
+            <article>
+                
+<p>We will take a bottom-up approach here and design the frontend of our sample application first. This is merely done for the sake of understanding why we write a few methods in the backend script differently from how we did in previous chapters. You would obviously create the backend script first when developing the real application.</p>
+<p>We'll have a very stripped-down frontend, merely comprising a button that invokes incremental training of the application and a placeholder displaying the accuracy score of the model trained up to a given number of samples.</p>
+<p>Let's take a quick peek at what we are building:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1290 image-border" src="assets/7e081a94-5c7d-4e85-a20a-e1576ec3cea9.png" style="width:13.75em;height:9.58em;"/></p>
+<p>As you might interpret from the preceding screenshot of the application we will be building, we will have two buttons—one will add 25 samples from the training dataset to the partially trained model and the other will reset the training to 0 samples (this is, actually, 1 sample in the implementation, to avoid common errors caused by 0; but this has minimal effect on the demonstration).</p>
+<p>Let's create a Flask project folder named, say, <kbd>app</kbd>. We then create the <kbd>templates</kbd> folder and create <kbd>index.html</kbd> inside it. Another file, named <kbd>app.py</kbd>, is created in the <kbd>app</kbd> folder. We will create more files in this folder for deployment on Heroku.</p>
+<p>We will not be writing the complete code of the <kbd>index.html</kbd> file, but we'll take a look at the two functions calling the API of the backend via Ajax triggers.</p>
+<div class="packt_infobox">You can find the entire code at <a href="http://tiny.cc/HoPforDL-Ch-11-index">http://tiny.cc/HoPforDL-Ch-11-index</a>.</div>
+<p>Observe lines <kbd>109</kbd> to <kbd>116</kbd> in <kbd>index.html</kbd>:</p>
+<pre>.... <br/>$("#train-btn").click(function() {<br/>     $.ajax({<br/>         type: "POST",<br/>         url: "/train_batch",<br/>         dataType: "json",<br/>         success: function(data) {<br/>             console.log(data);<br/>....</pre>
+<p>The preceding piece of JavaScript (jQuery) code creates a <kbd>click</kbd> handler on a button with the <kbd>train-btn</kbd> ID. It calls the <kbd>/train_batch</kbd> API on the backend. We will be creating this API while we are developing the backend.</p>
+<p>Another interesting block of code in this file is lines <kbd>138</kbd> to <kbd>145</kbd>:</p>
+<pre>....<br/>$("#reset-btn").click(function() {<br/>     $.ajax({<br/>         type: "POST",<br/>         url: "/reset",<br/>         dataType: "json",<br/>         success: function(data) {<br/>             console.log(data);<br/>....</pre>
+<p>Here, we set a <kbd>click</kbd> handler on the button with a <kbd>reset-btn</kbd> ID to fire a request to the <kbd>/reset</kbd> API. This is an easily forgotten side of incremental learning, which asks for the decrement of the training; that is, it resets the trained model to an untrained state.</p>
+<p>We now know the APIs we will need to build on the backend. Let's build those in the next section!</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementing the backend</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we will work on creating the required APIs along with the server script for the demonstration. Edit the <kbd>app.py</kbd> file in the root folder of the project:</p>
+<ol>
+<li>First, we will make some necessary imports to the script:</li>
+</ol>
+<pre style="padding-left: 60px">from flask import Flask, request, jsonify, render_template<br/><br/>import pandas as pd<br/>import numpy as np<br/>from sklearn.model_selection import train_test_split<br/>from sklearn.preprocessing import StandardScaler<br/>from sklearn.neural_network import MLPClassifier<br/><br/>np.random.seed(5)</pre>
+<p style="padding-left: 60px">Notice that the imports here are very similar to the imports we made during model creation in the Jupyter notebook. This is explained due to the fact that we're only converting the Jupyter notebook code into a server script for the backend demonstration.</p>
+<ol start="2">
+<li>We will then load the dataset onto a <kbd>pandas</kbd> DataFrame:</li>
+</ol>
+<pre style="padding-left: 60px">df = pd.read_csv("data/heart.csv")</pre>
+<ol start="3">
+<li>We'll quickly run through the rest of the code, where we will split the dataset, scale the columns, and train the model on a certain number of samples:</li>
+</ol>
+<pre style="padding-left: 60px">X = df.drop("target",axis=1)<br/>y = df["target"]<br/><br/>X = StandardScaler().fit_transform(X)<br/>X_train,X_test,y_train,y_test = train_test_split(X,y,test_size=0.20,random_state=0)<br/><br/>clf = MLPClassifier(max_iter=200)<br/><br/>for i in range(100):<br/>    xt = X_train[i].reshape(1, -1)<br/>    yt = y_train.values[[i]]<br/>    clf = clf.partial_fit(xt, yt, classes=[0,1])<br/>    if i &gt; 0 and i % 25 == 0 or i == len(X_train) - 1:<br/>        score = clf.score(X_test, y_test)<br/>        print("Iters ", i, ": ", score)</pre>
+<p style="padding-left: 60px">Notice that in the preceding code, we train the model on <kbd>100</kbd> samples from the dataset. This would make the model fairly accurate, but obviously, with scope for improvement, which we will trigger using the <kbd>/train_batch</kbd> API, which adds 25 samples to the training of the model.</p>
+<ol start="4">
+<li>Let's set a few variables to use the script, as well as instantiating the <kbd>Flask</kbd> server object:</li>
+</ol>
+<pre style="padding-left: 60px">score = clf.score(X_test, y_test)<br/><br/>app = Flask(__name__)<br/><br/>start_at = 100</pre>
+<ol start="5">
+<li>We will now create the <kbd>/train_batch</kbd> API, as shown:</li>
+</ol>
+<pre style="padding-left: 60px">@app.route('/train_batch', methods=['GET', 'POST'])<br/>def train_batch():<br/>    global start_at, clf, X_train, y_train, X_test, y_test, score<br/>    for i in range(start_at, min(start_at+25, len(X_train))):<br/>        xt = X_train[i].reshape(1, -1)<br/>        yt = y_train.values[[i]]<br/>        clf = clf.partial_fit(xt, yt, classes=[0,1])<br/><br/>    score = clf.score(X_test, y_test)<br/><br/>    start_at += 25<br/><br/>    response = {'result': float(round(score, 5)), 'remaining': len(X_train) - start_at}<br/><br/>    return jsonify(response)</pre>
+<p style="padding-left: 60px">The <kbd>train_batch()</kbd> <span>function</span> <span>increments the learning of the model by <kbd>25</kbd> samples or the remaining samples of the dataset. It returns the current score of the model on the 20% test split of the dataset. Notice again the usage of the</span> <kbd>partial_fit</kbd> <span>method used for 25 iterations.</span></p>
+<ol start="6">
+<li>Next, we will create the <kbd>/reset</kbd> API, which will reset the model to an untrained state:</li>
+</ol>
+<pre style="padding-left: 60px">@app.route('/reset', methods=['GET', 'POST'])<br/>def reset():<br/>    global start_at, clf, X_train, y_train, X_test, y_test, score<br/>    start_at = 0<br/>    del clf<br/>    clf = MLPClassifier(max_iter=200)<br/>    for i in range(start_at, start_at+1):<br/>        xt = X_train[i].reshape(1, -1)<br/>        yt = y_train.values[[i]]<br/>        clf = clf.partial_fit(xt, yt, classes=[0,1])<br/><br/>    score = clf.score(X_test, y_test)<br/><br/>    start_at += 1<br/><br/>    response = {'result': float(round(score, 5)), 'remaining': len(X_train) - start_at}<br/><br/>    return jsonify(response)</pre>
+<p style="padding-left: 60px">This API, again, returns the score of the model after the reset. It should be as expected—very poor—assuming the dataset is balanced in its categories.</p>
+<ol start="7">
+<li>Let's now write the code to start the Flask server for this app:</li>
+</ol>
+<pre style="padding-left: 60px">@app.route('/')<br/>def index():<br/>    global score, X_train<br/>    rem = (len(X_train) - start_at) &gt; 0<br/><br/>    return render_template("index.html", score=round(score, 5), remain = rem)<br/><br/>if __name__ == '__main__':<br/>    app.run()</pre>
+<ol start="8">
+<li>Once this is done, we're ready to test whether the app works by running it from a console. To do so, open a new terminal window and enter the following command in the <kbd>app</kbd> directory:</li>
+</ol>
+<pre style="padding-left: 60px"><strong>python app.py</strong></pre>
+<p>Once the server is running, you can view the application at <kbd>http://localhost:5000</kbd>.</p>
+<p>Finally, we will deploy the project to Heroku.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Deploying the project to Heroku</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we will take a look at how we can deploy our demonstration app to Heroku. In the following steps, we will create an account on Heroku and add the modifications required to the code, which will make it eligible to host on the platform:</p>
+<ol>
+<li><span>First, visit</span> <a href="https://id.heroku.com/login">https://id.heroku.com/login</a> <span>to get the login screen for Heroku. If you do not have a user account already, you can go through the sign-up process to create one for free:</span></li>
+</ol>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1291 image-border" src="assets/ec63d54a-25e8-40aa-bd4c-c8b071847486.png" style="width:15.17em;height:19.83em;"/></p>
+<ol start="2">
+<li>We will now create a <kbd>Procfile</kbd> file. In this step, we create a blank file called <kbd>Procfile</kbd> in the <kbd>app</kbd> directory. Once created, we add the following line to it:</li>
+</ol>
+<pre style="padding-left: 60px"><span>web: gunicorn app:app</span></pre>
+<p style="padding-left: 60px">This file is used during the deployment of the project to Heroku. The preceding line instructs the Heroku system to use the <kbd>gunicorn</kbd> server and run the file called <kbd>app.py</kbd>.</p>
+<ol start="3">
+<li>We then freeze the requirements of the project. Heroku looks for the <kbd>requirements.txt</kbd> file to automatically download and install the required packages for the project. To create the list of requirements, use the following command in the terminal:</li>
+</ol>
+<pre style="padding-left: 60px"><strong>pip freeze &gt; requirements.txt</strong></pre>
+<p style="padding-left: 60px">This creates a list of packages in a file named <kbd>requirements.txt</kbd> in the project's root folder.</p>
+<div class="packt_infobox">You may want to leave some packages from being included in the <kbd>requirements.txt</kbd> file. A good method for working with projects such as this is to use virtual environments so that only the required packages are available in the environment and so <kbd>requirements.txt</kbd> only contains them. <span>However, this solution might not always be feasible. In such cases, feel free to manually edit <kbd>requirements.txt</kbd> and remove the lines that include packages that are not relevant to the project.</span></div>
+<p style="padding-left: 60px">The directory structure of the project should currently look as follows:</p>
+<pre style="padding-left: 60px">app/<br/>---- templates/<br/>-------- index.html<br/>---- Procfile<br/>---- requirements.txt<br/>---- app.py</pre>
+<ol start="4">
+<li>Now, we'll need to install the Heroku CLI on our local system. Follow the instructions provided at <a href="https://devcenter.heroku.com/articles/heroku-cli">https://devcenter.heroku.com/articles/heroku-cli</a> to install Heroku on your system.</li>
+<li class="mce-root">Next<span>, we'll initialize <kbd>git</kbd> on the directory. To do so, use the following command in the root directory of the project:</span></li>
+</ol>
+<pre style="color: black;padding-left: 60px"><strong>git init</strong></pre>
+<ol start="6">
+<li>We then initialize the Heroku version management on the project. We open a terminal window and navigate to the project directory. Use the following command to initialize the version manager provided by Heroku for this project and to register it with your currently logged-in user:</li>
+</ol>
+<pre style="padding-left: 60px"><strong>heroku create</strong></pre>
+<p style="padding-left: 60px">This command will end by displaying the URL that your project will be hosted on. Along with that, a <kbd>.git</kbd> URL is displayed, which is used to track the versions of your project. You can push/pull from this <kbd>.git</kbd> URL to change your project and trigger redeployment. The output will be similar to the following:</p>
+<pre style="padding-left: 60px"><strong>https://yyyyyy-xxxxxx-ddddd.herokuapp.com/ | https://git.heroku.com/yyyyyy-xxxxxx-ddddd.git</strong></pre>
+<ol start="7">
+<li>Next, we add files to <kbd>git</kbd> and push to Heroku. You are now ready to push the files to the Heroku <kbd>git</kbd> item for deployment. We use the following commands:</li>
+</ol>
+<pre style="padding-left: 60px">git add .<br/>git commit -m "some commit message"<br/>git push heroku master</pre>
+<p>This will create the deployment and you will see a long output stream. The stream is a log of events happening during the deployment of your project—installing packages, determining the runtime, and starting the listening script. Once you get a successful deployment message, you will be able to view your application on the URL provided by Heroku in the previous step. If you are unable to remember it, you can use the following command to trigger it to open in a browser from the terminal:</p>
+<pre><strong>heroku open</strong></pre>
+<p>You should now see a new window or tab open in your default browser with the deployed code. If anything goes wrong, you'll be able to see the deployment logs in the Heroku dashboard, as shown:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1292 image-border" src="assets/11361907-2e81-41e5-ab97-90f7bd2cf2cf.png" style="width:127.17em;height:52.67em;"/></p>
+<p>This is an actual screenshot from a failed build while deploying the code presented in this chapter. You should be able to make out the error at the end of the log.</p>
+<p>If the build deploys successfully, you will see a <span>successful deployment</span> message at the end of the logs.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Security measures, monitoring techniques, and performance optimization</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we will talk about the security measures, monitoring techniques, and performance optimizations that can be integrated into a DL solution in production. These functionalities are essential to maintaining solutions that depend on AI backends. While we have discussed the security methods facilitated by DL in previous chapters, we will discuss the possible security threats that could be posed to an AI backend.</p>
+<p>One of the largest security threats to AI backends is from noisy data. In most of the methodologies for having AI in production, it is important to regularly check for new types of noise in the dataset that it is trained on.</p>
+<p class="mce-root"/>
+<p>Here is a very important message for all developers who love the Python <kbd>pickle</kbd> library:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1293 image-border" src="assets/c8e91eed-3467-461c-8b35-17eaee574e35.png" style="width:43.67em;height:10.92em;"/></p>
+<div class="packt_infobox">The preceding screenshot is taken from the official Python documentation at <a href="https://docs.python.org/3/library/pickle.html">https://docs.python.org/3/library/pickle.html</a>.</div>
+<p class="mce-root">To demonstrate a simple example of why pickling in production might be dangerous, consider the following Python code:</p>
+<pre class="mce-root">data = """cos<br/>    system<br/>    (S'rm -ri ~'<br/>    tR.<br/>"""<br/><br/>pickle.loads(data)</pre>
+<div class="mce-root packt_infobox">What the preceding code does is simple—it attempts to wipe out your home directory.<br/>
+<br/>
+Warning: anyone who runs the preceding code is solely responsible for the results of their actions.</div>
+<p>The preceding example and associated warning implicate a general security threat in AI backends and almost every automated system—the hazards of untrusted input. So, it is important that any data that might be put into the model, whether in training or testing, is properly validated to make sure it won't cause any critical issues with the system.</p>
+<p>It is also very important that continuous monitoring is carried out for models in production. Models often get stale and obsolete and run the risk of making outdated predictions after a while. It is important to keep a check on the relevance of the predictions made by the AI models. Consider a person who only knows about CD-ROMs and floppy disks. Over time, we came up with USB drives and solid-state disks. This person would not be able to make any intelligent decisions about recent devices. Similarly, a <strong>Natural Language Processing</strong> (<strong>NLP</strong>) model trained on text dumps from the early 2000s would not be able to understand a conversation where somebody asks <em>Can you please WhatsApp me the wiki link for Avengers: Endgame?</em>.</p>
+<p>Finally, how can you come up with optimizations for the performance of the AI backend?</p>
+<p>Web developers are mostly concerned with this question. Everything needs to be lightning-fast when in production. Some of the tricks to speed up AI models in production are as follows:</p>
+<ul>
+<li>Break down the dataset into the lowest number of features that you can make a fairly accurate prediction by. This is the core idea of feature selection performed by several algorithms, such as principal component analysis and other heuristic methods. Often, not all of the data that is fed into a system is relevant or is only slightly relevant to make the predictions based on it.</li>
+<li>Consider hosting your model on a separate, powerful cloud server with autoscaling enabled on it. This will ensure that your model doesn't waste resources on serving the pages for the website and only handles the AI-based queries. Autoscaling will take care of the sudden increased or steeply decreased workloads on the backend.</li>
+<li>Online learning and auto ML methods are subject to slowness induced by the size of the dataset. Make sure you have in place constraints that do not allow a blowup of the size of the data being churned by dynamically learning systems.</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>In this chapter, we covered the methodologies that we can use to deploy DL models in production. We looked at the different methods in detail and some famous tools that are useful in making it easier to deploy to production and manage the models there. We covered a demonstration of online learning using the Flask and <kbd>sklearn</kbd> libraries. We also discussed the post-deployment requisites and some examples for the most common tasks.</p>
+<p>In the next chapter, we will demonstrate an end-to-end sample application—a customer support chatbot—using Dialogflow integrated into a website.</p>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

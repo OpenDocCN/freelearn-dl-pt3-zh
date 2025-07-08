@@ -1,0 +1,404 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Trust Region Policy Optimization and Proximal Policy Optimization</h1>
+                </header>
+            
+            <article>
+                
+<p>In the last chapter, we saw the use of A3C and A2C, with the former being asynchronous and the latter synchronous. In this chapter, we will see another on-policy <strong>reinforcement learning</strong> (<strong>RL</strong>) algorithm; two algorithms, to be precise, with a lot of similarities in the mathematics, differing, however, in how they are solved. We will be introduced to the algorithm called <strong>Trust Region Policy Optimization</strong> (<strong>TRPO</strong>), which was introduced in 2015 by researchers at OpenAI and the University of California, Berkeley (the latter is incidentally my former employer!). This algorithm, however, is difficult to solve mathematically, as it involves the conjugate gradient algorithm, which is relatively difficult to solve; note that first order optimization methods, such as the well established Adam and <strong>Stochastic Gradient Descent</strong> (<strong>SGD</strong>), cannot be used to solve the TRPO equations. We will then see how solving the policy optimization equations can be combined into one, to result in the <strong>Proximal Policy Optimization</strong> (<strong>PPO</strong>) algorithm, and first order optimization algorithms such as Adam or SGD can be used. </p>
+<p>The following topics will be covered in this chapter:</p>
+<ul>
+<li>Learning TRPO</li>
+<li>Learning PPO</li>
+<li>Using PPO to solve the MountainCar problem</li>
+<li>Evaluating the performance</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Technical requirements</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">To successfully complete this chapter, the following software are required:<br/></p>
+<ul>
+<li>Python (2 and above)</li>
+<li>NumPy</li>
+<li>TensorFlow (version 1.4 or higher)</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Learning TRPO</h1>
+                </header>
+            
+            <article>
+                
+<p>TRPO is a very popular on-policy algorithm from OpenAI and the University of California, Berkeley, and was introduced in 2015. There are many flavors of TRPO, but we will learn about the vanilla TRPO version from the paper <em>Trust Region Policy Optimization</em>, by <em>John Schulman, Sergey Levine, Philipp Moritz, Michael I. Jordan, and Pieter Abbeel</em>, <em>arXiv:1502.05477</em>: <a href="https://arxiv.org/abs/1502.05477" target="_blank">https://arxiv.org/abs/1502.05477</a>.</p>
+<p>TRPO involves solving a policy optimization equation subject to an additional constraint on the size of the policy update. We will see these equations now.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">TRPO equations</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">TRPO involves the maximization of the expectation of the ratio of the current policy distribution, <em>π<sub>θ</sub></em>, to the old policy distribution, <em>π<sub>θ</sub><sup>old</sup></em> (that is, at an earlier time step), multiplied by the advantage function, <em>A<sub>t</sub></em>, subject to an additional constraint that the expectation of the <strong>Kullback-Leibler</strong> <span>(<strong>KL</strong>) </span>divergence of the old and new policy distributions is bounded by a user-specified value, <em>δ</em>:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/4dbed06d-6157-49f9-8f80-676f882bc648.png" style="width:50.08em;height:6.08em;"/></p>
+<p>The first equation here is the policy objective, and the second equation is an additional constraint that ensures that the policy update is gradual and does not make large policy updates that can take the policy to regions that are very far away in parameter space.</p>
+<p>Since we have two equations that need to be jointly optimized, first-order optimization algorithms, such as Adam and SGD, will not work. Instead, the equations are solved using the conjugate gradient algorithm, making a linear approximation to the first equation, and a quadratic approximation to the second equation. This, however, is mathematically involved, and so we do not present it here in this book. Instead, we will proceed to the PPO algorithm, which is relatively easier to code.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Learning PPO</h1>
+                </header>
+            
+            <article>
+                
+<p>PPO is an extension to TRPO, and was introduced in 2017 by researchers at OpenAI. PPO is also an on-policy algorithm, and can be applied to discrete action problems as well as continuous actions. It uses the same ratio of policy distributions as in TRPO, but does not use the KL divergence constraint. Specifically, PPO uses three loss functions that are combined into one. We will now see the three loss functions.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">PPO loss functions</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">The first of the three loss functions involved in PPO is called the clipped surrogate objective. Let <em>r<sub>t</sub>(θ)</em> denote the ratio of the new to old policy probability distributions:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/e30659b4-bb3e-4805-8066-2af8caa3d12d.png" style="width:9.75em;height:3.33em;"/></p>
+<p>The clipped surrogate objective is given by the following equation, <span>where </span><em>A<sub>t</sub></em><span> is the advantage function and </span><em>ε</em><span> is a hyper parameter; typically, </span><em>ε</em><span> = 0.1 or 0.2 is used</span>:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/b89128a1-c704-4ea9-8ff7-9d07e4020a83.png" style="width:22.67em;height:1.42em;"/></p>
+<p>The <kbd>clip()</kbd> function bounds the ratio between <em>1-ε</em> and <em>1+ε</em>, thus keeping the ratio bounded within the range. The <kbd>min()</kbd> function is the minimum function to ensure that the final objective is a lower bound on the unclipped objective. </p>
+<p>The second loss function is the L2 norm of the state value function:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/d07eb74a-f603-46a7-94e4-0a0f42c3dc2c.png" style="width:13.25em;height:1.92em;"/></p>
+<p>The third loss is the Shannon entropy of the policy distribution, which comes from information theory:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/dacc3a5a-3e4f-446c-876b-0de7f13fc689.png" style="width:12.75em;height:1.33em;"/></p>
+<p>We will now combine the three losses. Note that we need to maximize <em>L<sup>clip</sup></em> and <em>L<sup>entropy</sup></em>, but minimize <em>L<sup>V</sup></em>. So, we define our total PPO loss function as in the following equation, <span>where </span><em>c<sub>1</sub></em><span> and </span><em>c<sub>2</sub></em><span> are positive constants used to scale the terms</span>:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/5d181518-8ba1-4033-997f-a19a79dbf602.png" style="width:15.25em;height:1.33em;"/> </p>
+<p>Note that, if we share the neural network parameters between the policy and the value networks, then the preceding <em>L<sup>PPO</sup></em> loss function alone can be maximized. On the other hand, if we have separate neural networks for the policy and the value, then we can have separate loss functions as in the following equation, w<span>here </span><em>L<sup>policy</sup></em><span> is maximized and </span><em>L<sup>value</sup></em><span> is minimized</span>:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/f7f691e8-e6c0-4b54-b01d-de1193e00b00.png" style="width:44.42em;height:2.75em;"/></p>
+<p>Notice that the constant <em>c<sub>1</sub></em> is not required in this latter setting, where we have separate neural networks for the policy and the value. The neural network parameters are updated over multiple iteration steps over a batch of data points, where the number of update steps are specified by the user as hyper parameters.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using PPO to solve the MountainCar problem</h1>
+                </header>
+            
+            <article>
+                
+<p>We will solve the MountainCar problem using PPO. MountainCar involves a car trapped in the valley of a mountain. It has to apply throttle to accelerate against gravity and try to drive out of the valley up steep mountain walls to reach a desired flag point on the top of the mountain. You can see a schematic of the MountainCar problem from OpenAI Gym at <a href="https://gym.openai.com/envs/MountainCar-v0/">https://gym.openai.com/envs/MountainCar-v0/</a>.</p>
+<p>This problem is very challenging, as the agent cannot just apply full throttle from the base of the mountain and try to reach the flag point, as the mountain walls are steep and gravity will not allow the car to achieve sufficient enough momentum. The optimal solution is for the car to initially go backward and then step on the throttle to pick up enough momentum to overcome gravity and successfully drive out of the valley. We will see that the RL agent actually learns this trick.</p>
+<p>We will code the following two files to solve MountainCar using PPO:</p>
+<ul>
+<li><kbd>class_ppo.py</kbd></li>
+<li><kbd>train_test.py</kbd></li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Coding the class_ppo.py file</h1>
+                </header>
+            
+            <article>
+                
+<p>We will now code the <kbd>class_ppo.py</kbd> file:</p>
+<ol>
+<li><strong>Import packages</strong>: First, we will import the required packages as follows:</li>
+</ol>
+<pre style="padding-left: 60px">import numpy as np<br/>import gym<br/>import sys</pre>
+<ol start="2">
+<li> <strong>Set the neural network initializers</strong>: Then, we will set the neural network parameters (we will use two hidden layers) and the initializers for the weights and biases. As we have also done in past chapters, we will use the Xavier initializer for the weights and a small positive value for the initial values of the biases:</li>
+</ol>
+<pre style="padding-left: 60px">nhidden1 = 64 <br/>nhidden2 = 64 <br/><br/><br/>xavier = tf.contrib.layers.xavier_initializer()<br/>bias_const = tf.constant_initializer(0.05)<br/>rand_unif = tf.keras.initializers.RandomUniform(minval=-3e-3,maxval=3e-3)<br/>regularizer = tf.contrib.layers.l2_regularizer(scale=0.0</pre>
+<ol start="3">
+<li><strong>Define the PPO</strong> <strong>class</strong>: The <kbd>PPO()</kbd> class is now defined. First, the <kbd>__init__()</kbd> <span>constructor </span>is defined using the arguments passed to the class. Here, <kbd>sess</kbd> is the TensorFlow <kbd>session</kbd>; <kbd>S_DIM</kbd> and <kbd>A_DIM</kbd> are the state and action dimensions, respectively; <kbd>A_LR</kbd> and <kbd>C_LR</kbd> are the learning rates for the actor and the critic, respectively; <kbd>A_UPDATE_STEPS</kbd> and <kbd>C_UPDATE_STEPS</kbd> are the number of update steps used for the actor and the critic; <kbd>CLIP_METHOD</kbd> stores the epsilon value:</li>
+</ol>
+<pre style="padding-left: 60px">class PPO(object):<br/><br/>    def __init__(self, sess, S_DIM, A_DIM, A_LR, C_LR, A_UPDATE_STEPS, C_UPDATE_STEPS, CLIP_METHOD):<br/>        self.sess = sess<br/>        self.S_DIM = S_DIM<br/>        self.A_DIM = A_DIM<br/>        self.A_LR = A_LR<br/>        self.C_LR = C_LR<br/>        self.A_UPDATE_STEPS = A_UPDATE_STEPS<br/>        self.C_UPDATE_STEPS = C_UPDATE_STEPS<br/>        self.CLIP_METHOD = CLIP_METHOD</pre>
+<ol start="4">
+<li><strong>Define TensorFlow placeholders</strong>: We will next need to define the TensorFlow placeholders: <kbd>tfs</kbd> for the state, <kbd>tfdc_r</kbd> for the discounted rewards, <kbd>tfa</kbd> for the actions, and <kbd>tfadv</kbd> for the advantage function:</li>
+</ol>
+<pre style="padding-left: 60px"># tf placeholders<br/>self.tfs = tf.placeholder(tf.float32, [None, self.S_DIM], 'state')<br/>self.tfdc_r = tf.placeholder(tf.float32, [None, 1], 'discounted_r')<br/>self.tfa = tf.placeholder(tf.float32, [None, self.A_DIM], 'action')<br/>self.tfadv = tf.placeholder(tf.float32, [None, 1], 'advantage')</pre>
+<ol start="5">
+<li><strong>Define the critic</strong>: The critic neural network is defined next. We use the state (<em>s<sub>t</sub></em>) placeholder, <kbd>self.tfs</kbd>, as input to the neural network. Two hidden layers are used with the <kbd>nhidden1</kbd> and <kbd>nhidden2</kbd> number of neurons and the <kbd>relu</kbd> activation function (both <kbd>nhidden1</kbd> and <kbd>nhidden2</kbd> were set to <kbd>64</kbd> previously). The output layer has one neuron that will output the state value function <em>V(s<sub>t</sub>)</em>, and so no activation function is used for the output. We then compute the advantage function as the difference between the discounted cumulative rewards, which is stored in the <kbd>self.tfdc_r</kbd> placeholder and the <kbd>self.v</kbd> output that we just computed. The critic loss is computed as an L2 norm and the critic is trained using the Adam optimizer with the objective to minimize this L2 loss.</li>
+</ol>
+<p style="padding-left: 60px">Note that this loss is the same as <em>L<sup>value</sup></em> mentioned earlier in this chapter in the theory section:</p>
+<pre style="padding-left: 60px"># critic<br/>with tf.variable_scope('critic'):<br/>    l1 = tf.layers.dense(self.tfs, nhidden1, activation=None, kernel_initializer=xavier, bias_initializer=bias_const, kernel_regularizer=regularizer)<br/>    l1 = tf.nn.relu(l1)<br/>    l2 = tf.layers.dense(l1, nhidden2, activation=None, kernel_initializer=xavier, bias_initializer=bias_const, kernel_regularizer=regularizer)<br/>    l2 = tf.nn.relu(l2)<br/>            <br/>    self.v = tf.layers.dense(l2, 1, activation=None, kernel_initializer=rand_unif, bias_initializer=bias_const) <br/>    self.advantage = self.tfdc_r - self.v<br/>    self.closs = tf.reduce_mean(tf.square(self.advantage))<br/>    self.ctrain_op = tf.train.AdamOptimizer(self.C_LR).minimize(self.closs)</pre>
+<ol start="6">
+<li><strong>Call the</strong> <strong>_build_anet</strong> <strong>function</strong>: We define the actor using a <kbd>_build_anet()</kbd> function that will soon be specified. Specifically, the policy distribution and the list of model parameters are output from this function. We call this function once for the current policy and again for the older policy. The mean and standard deviation can be obtained from <kbd>self.pi</kbd> by calling the <kbd>mean()</kbd> and <kbd>stddev()</kbd> functions, respectively:</li>
+</ol>
+<pre style="padding-left: 60px"># actor<br/>self.pi, self.pi_params = self._build_anet('pi', trainable=True) <br/>self.oldpi, self.oldpi_params = self._build_anet('oldpi', trainable=False)<br/><br/>self.pi_mean = self.pi.mean()<br/>self.pi_sigma = self.pi.stddev()</pre>
+<ol start="7">
+<li><strong>Sample actions</strong>: From the policy distribution, <kbd>self.pi</kbd>, we can also sample actions using the <kbd>sample()</kbd> function that is part of TensorFlow distributions:</li>
+</ol>
+<pre style="padding-left: 60px">with tf.variable_scope('sample_action'):<br/>    self.sample_op = tf.squeeze(self.pi.sample(1), axis=0) </pre>
+<ol start="8">
+<li><strong>Update older policy parameters</strong>: The older policy network parameters can be updated using the new policy values simply by assigning the values from the latter to the former, using TensorFlow's <kbd>assign()</kbd> function. Note that the new policy is optimized – the older policy is simply a copy of the current policy, albeit from one update cycle earlier:</li>
+</ol>
+<pre style="padding-left: 60px">with tf.variable_scope('update_oldpi'):<br/>    self.update_oldpi_op = [oldp.assign(p) for p, oldp in zip(self.pi_params, self.oldpi_params)]</pre>
+<ol start="9">
+<li><strong>Compute policy distribution ratio</strong>: The policy distribution ratio is computed at the <kbd>self.tfa</kbd> action, and is stored in <kbd>self.ratio</kbd>. Note that, exponentially, the difference of logarithms of the distributions is the same as the ratio of the distributions. This ratio is then clipped to bound it between <em>1-ε</em> and <em>1+ε</em>, as explained earlier in the theory: </li>
+</ol>
+<pre style="padding-left: 60px">with tf.variable_scope('loss'):<br/>    self.ratio = tf.exp(self.pi.log_prob(self.tfa) - self.oldpi.log_prob(self.tfa))<br/>    self.clipped_ratio = tf.clip_by_value(self.ratio, 1.-self.CLIP_METHOD['epsilon'], 1.+self.CLIP_METHOD['epsilon'])</pre>
+<ol start="10">
+<li><strong>Compute losses</strong>: The total loss for the policy, as mentioned previously, involves three losses that are combined when the policy and value neural networks share weights. However, since we consider the other setting mentioned in the theory earlier in this chapter, where we have separate neural networks for the policy and the value, we will have two losses for the policy optimization. The first is the minimum of the product of the unclipped ratio and the advantage function and its clipped analogue—this is stored in <kbd>self.aloss</kbd>. The second loss is the Shannon entropy, which is the product of the policy distribution and its logarithm, summed over, and a minus sign included. This term is scaled with the hyper parameter, <em>c<sub>1</sub></em> = 0.01, and subtracted from the loss. For the time being, the entropy loss term is set to zero, as it also is in the PPO paper. We can consider including this entropy loss later to see if it makes any difference in the learning of the policy. We use the Adam optimizer. Note that we need to maximize the original policy loss mentioned in the theory earlier in this chapter, but the Adam optimizer has the <kbd>minimize()</kbd> function, so we have included a minus sign in <kbd>self.aloss</kbd> (see the first line of the following code), as maximizing a loss is the same as minimizing the negative of it:</li>
+</ol>
+<pre style="padding-left: 60px">self.aloss = -tf.reduce_mean(tf.minimum(self.ratio*self.tfadv, self.clipped_ratio*self.tfadv))<br/><br/># entropy <br/>entropy = -tf.reduce_sum(self.pi.prob(self.tfa) * tf.log(tf.clip_by_value(self.pi.prob(self.tfa),1e-10,1.0)),axis=1)<br/>entropy = tf.reduce_mean(entropy,axis=0) <br/>self.aloss -= 0.0 #0.01 * entropy<br/><br/><br/>with tf.variable_scope('atrain'):<br/>    self.atrain_op = tf.train.AdamOptimizer(self.A_LR).minimize(self.aloss) </pre>
+<ol start="11">
+<li><strong>Define the</strong> <strong>update</strong> <strong>function</strong>: The <kbd>update()</kbd> function is defined next, which takes the <kbd>s</kbd> state, the <kbd>a</kbd> action, and the <kbd>r</kbd> reward as arguments. It involves running a TensorFlow session on updating the old policy network parameters by calling the TensorFlow <kbd>self.update_oldpi_op</kbd> <span>operation. </span>Then, the advantage is computed, which, along with the state and action, is used to update the <kbd>A_UPDATE_STEPS</kbd> actor number of iterations. Then, the critic is updated by the <kbd>C_UPDATE_STEPS</kbd> number of iterations by running a TensorFlow session on the critic train operation:</li>
+</ol>
+<pre style="padding-left: 60px">def update(self, s, a, r):<br/>      <br/>    self.sess.run(self.update_oldpi_op)<br/>    adv = self.sess.run(self.advantage, {self.tfs: s, self.tfdc_r: r})<br/> <br/><br/>    # update actor<br/>    for _ in range(self.A_UPDATE_STEPS):<br/>        self.sess.run(self.atrain_op, feed_dict={self.tfs: s, self.tfa: a, self.tfadv: adv})<br/>                 <br/>    # update critic<br/>    for _ in range(self.C_UPDATE_STEPS):<br/>        self.sess.run(self.ctrain_op, {self.tfs: s, self.tfdc_r: r}) </pre>
+<ol start="12">
+<li><strong>Define the</strong> <strong>_build_anet</strong> <strong>function</strong>: We will next define the <kbd>_build_anet()</kbd> function that was used earlier. It will compute the policy distribution, which is treated as a Gaussian (that is, normal). It takes the <kbd>self.tfs</kbd> state <span>placeholder </span>as input, has two hidden layers with the <kbd>nhidden1</kbd> and <kbd>nhidden2</kbd> neurons, and uses the <kbd>relu</kbd> activation function. This is then sent to two output layers with the <kbd>A_DIM</kbd> <span> action dimension </span>number of outputs, with one representing the mean, <kbd>mu</kbd>, and the other the standard deviation, <kbd>sigma</kbd>.</li>
+</ol>
+<p style="padding-left: 60px">Note that the mean of the actions are bounded, and so the <kbd>tanh</kbd> activation function is used, including a small clipping to avoid edge values; for sigma, the <kbd>softplus</kbd> activation function is used, shifted by <kbd>0.1</kbd> to avoid zero sigma values. Once we have the mean and standard deviations for the actions, TensorFlow distributions' <kbd>Normal</kbd> is used to treat the policy as a Gaussian distribution. We can also call <kbd>tf.get_collection()</kbd> to obtain the model parameters, and the <kbd>Normal</kbd> distribution and the model parameters are returned from the function:</p>
+<pre style="padding-left: 30px">    def _build_anet(self, name, trainable):<br/>        with tf.variable_scope(name):<br/>            l1 = tf.layers.dense(self.tfs, nhidden1, activation=None, trainable=trainable, kernel_initializer=xavier, bias_initializer=bias_const, kernel_regularizer=regularizer)<br/>            l1 = tf.nn.relu(l1)<br/>            l2 = tf.layers.dense(l1, nhidden2, activation=None, trainable=trainable, kernel_initializer=xavier, bias_initializer=bias_const, kernel_regularizer=regularizer)<br/>            l2 = tf.nn.relu(l2)<br/>            <br/>            mu = tf.layers.dense(l2, self.A_DIM, activation=tf.nn.tanh, trainable=trainable, kernel_initializer=rand_unif, bias_initializer=bias_const)<br/><br/>            small = tf.constant(1e-6)<br/>            mu = tf.clip_by_value(mu,-1.0+small,1.0-small) <br/><br/>            sigma = tf.layers.dense(l2, self.A_DIM, activation=None, trainable=trainable, kernel_initializer=rand_unif, bias_initializer=bias_const)<br/>            sigma = tf.nn.softplus(sigma) + 0.1 <br/><br/>            norm_dist = tf.distributions.Normal(loc=mu, scale=sigma)<br/>        params = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=name)<br/>        return norm_dist, params</pre>
+<ol start="13">
+<li><strong>Define the</strong> <strong>choose_action</strong> <strong>function</strong>: We also define a <kbd>choose_action()</kbd> function to sample from the policy to obtain actions:</li>
+</ol>
+<pre style="padding-left: 30px">   def choose_action(self, s):<br/>        s = s[np.newaxis, :]<br/>        a = self.sess.run(self.sample_op, {self.tfs: s})<br/>        return a[0]</pre>
+<ol start="14">
+<li><strong>Define the</strong> <strong>get_v</strong> <strong>function</strong>: Finally, we also define a <kbd>get_v()</kbd> function to return the state value by running a TensorFlow session on <kbd>self.v</kbd>:</li>
+</ol>
+<pre style="padding-left: 30px">   def get_v(self, s):<br/>        if s.ndim &lt; 2: s = s[np.newaxis, :]<br/>        vv = self.sess.run(self.v, {self.tfs: s})<br/>        return vv[0,0]</pre>
+<p>That concludes <kbd>class_ppo.py</kbd>. We will now code <kbd>train_test.py</kbd>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Coding train_test.py file</h1>
+                </header>
+            
+            <article>
+                
+<p>We will now code the <kbd>train_test.py</kbd> file.</p>
+<ol>
+<li><strong>Importing the packages:</strong> First, we import the required packages:</li>
+</ol>
+<pre style="padding-left: 60px">import tensorflow as tf<br/>import numpy as np<br/>import matplotlib.pyplot as plt<br/>import gym<br/>import sys<br/>import time<br/><br/>from class_ppo import *</pre>
+<ol start="2">
+<li><strong>Define function:</strong> We then define a function for reward shaping that will give out some extra bonus rewards and penalties for good and bad performance, respectively. We do this for encouraging the car to go higher towards the side of the flag which is on the mountain top, without which the learning will be slow:</li>
+</ol>
+<pre style="padding-left: 60px">def reward_shaping(s_):<br/><br/>     r = 0.0<br/><br/>     if s_[0] &gt; -0.4:<br/>          r += 5.0*(s_[0] + 0.4)<br/>     if s_[0] &gt; 0.1: <br/>          r += 100.0*s_[0]<br/>     if s_[0] &lt; -0.7:<br/>          r += 5.0*(-0.7 - s_[0])<br/>     if s_[0] &lt; 0.3 and np.abs(s_[1]) &gt; 0.02:<br/>          r += 4000.0*(np.abs(s_[1]) - 0.02)<br/><br/>     return r</pre>
+<ol start="3">
+<li>We next choose <kbd>MountainCarContinuous</kbd> as the environment. The total number of episodes we will train the agent for is <kbd>EP_MAX</kbd>, and we set this to <kbd>1000</kbd>. The <kbd>GAMMA</kbd> <span>discount factor </span>is set to <kbd>0.9</kbd> and the learning rates to <kbd>2e-4</kbd>. We use a batch size of <kbd>32</kbd> and perform <kbd>10</kbd> update steps per cycle. The state and action dimensions are obtained and stored in <kbd>S_DIM</kbd> and <kbd>A_DIM</kbd>, respectively. For the PPO <kbd>clip</kbd> parameter, <kbd>epsilon</kbd>, we use a value of <kbd>0.1</kbd>. <kbd>train_test</kbd> is set to <kbd>0</kbd> for training the agent and <kbd>1</kbd> for testing:</li>
+</ol>
+<pre style="padding-left: 60px">env = gym.make('MountainCarContinuous-v0')<br/><br/><br/>EP_MAX = 1000<br/>GAMMA = 0.9<br/><br/>A_LR = 2e-4<br/>C_LR = 2e-4<br/><br/>BATCH = 32<br/>A_UPDATE_STEPS = 10<br/>C_UPDATE_STEPS = 10<br/><br/>S_DIM = env.observation_space.shape[0]<br/>A_DIM = env.action_space.shape[0]<br/><br/>print("S_DIM: ", S_DIM, "| A_DIM: ", A_DIM)<br/><br/>CLIP_METHOD = dict(name='clip', epsilon=0.1)<br/><br/># train_test = 0 for train; =1 for test<br/>train_test = 0<br/><br/># irestart = 0 for fresh restart; =1 for restart from ckpt file<br/>irestart = 0<br/><br/>iter_num = 0<br/><br/>if (irestart == 0):<br/>  iter_num = 0</pre>
+<ol start="4">
+<li>We create a TensorFlow session and call it <kbd>sess</kbd>. An instance of the <kbd>PPO</kbd> class is created, called <kbd>ppo</kbd>. We also create a TensorFlow saver. Then, if we are training from scratch, we initialize all the model parameters by calling <kbd>tf.global_variables_initializer()</kbd>, or, if we are continuing the training from a saved agent or testing, then we restore from the <kbd>ckpt/model</kbd> path:</li>
+</ol>
+<pre style="padding-left: 60px">sess = tf.Session()<br/><br/>ppo = PPO(sess, S_DIM, A_DIM, A_LR, C_LR, A_UPDATE_STEPS, C_UPDATE_STEPS, CLIP_METHOD)<br/><br/>saver = tf.train.Saver()<br/><br/><br/>if (train_test == 0 and irestart == 0):<br/>  sess.run(tf.global_variables_initializer())<br/>else:<br/>  saver.restore(sess, "ckpt/model") </pre>
+<ol start="5">
+<li>The main <kbd>for loop</kbd> over episodes is then defined. Inside it, we reset the environment and also set buffers to empty lists. The terminal Boolean, <kbd>done</kbd>, and the number of time steps, <kbd>t</kbd>, are also initialized:</li>
+</ol>
+<pre style="padding-left: 60px">for ep in range(iter_num, EP_MAX):<br/><br/>    print("-"*70)<br/>   <br/>    s = env.reset()<br/><br/>    buffer_s, buffer_a, buffer_r = [], [], []<br/>    ep_r = 0<br/><br/>    max_pos = -1.0<br/>    max_speed = 0.0<br/>    done = False<br/>    t = 0</pre>
+<p style="padding-left: 60px">Inside the outer loop, we have the inner <kbd>while</kbd> loop over time steps. This problem involves short time steps during which the car may not significantly move, and so we use sticky actions where actions are sampled from the policy only once every <kbd>8</kbd> time steps. The <kbd>choose_action()</kbd> function in the <kbd>PPO</kbd> class will sample the actions for a given state. A small Gaussian noise is added to the actions to explore, and are clipped in the <kbd>-1.0</kbd> to <kbd>1.0</kbd> range, as required for the <kbd>MountainCarContinuous</kbd> environment. The action is then fed into the environment's <kbd>step()</kbd> function, which will output the next <kbd>s_</kbd> state, <kbd>r</kbd><span> reward, </span>and the terminal <kbd><span>done</span></kbd> Boolean. The <kbd>reward_shaping()</kbd> function is called to shape rewards. To track how far the agent is pushing its limits, we also compute its maximum position and speed in <kbd>max_pos</kbd> and <kbd>max_speed</kbd>, respectively:</p>
+<pre style="padding-left: 30px">    while not done: <br/>       <br/>        env.render()<br/><br/>        # sticky actions<br/>        #if (t == 0 or np.random.uniform() &lt; 0.125): <br/>        if (t % 8 ==0):<br/>          a = ppo.choose_action(s) <br/><br/>        # small noise for exploration<br/>        a += 0.1 * np.random.randn() <br/><br/>        # clip<br/>        a = np.clip(a, -1.0, 1.0)<br/><br/>        # take step <br/>        s_, r, done, _ = env.step(a)<br/>       <br/>        if s_[0] &gt; 0.4:<br/>            print("nearing flag: ", s_, a) <br/><br/>        if s_[0] &gt; 0.45:<br/>          print("reached flag on mountain! ", s_, a) <br/>          if done == False:<br/>             print("something wrong! ", s_, done, r, a)<br/>             sys.exit() <br/><br/>        # reward shaping <br/>        if train_test == 0:<br/>          r += reward_shaping(s_)<br/><br/>        if s_[0] &gt; max_pos:<br/>           max_pos = s_[0]<br/>        if s_[1] &gt; max_speed:<br/>           max_speed = s_[1]</pre>
+<ol start="6">
+<li>If we are in training mode, the state, action, and reward are appended to the buffer. The new state is set to the current state and we proceed to the next time step if the episode has not already terminated. The <kbd>ep_r</kbd><span> </span>episode total rewards and the <kbd><span>t</span></kbd> time step count are also updated:</li>
+</ol>
+<pre style="padding-left: 60px">if (train_test == 0):<br/>    buffer_s.append(s)<br/>    buffer_a.append(a)<br/>    buffer_r.append(r) <br/><br/>    s = s_<br/>    ep_r += r<br/>    t += 1</pre>
+<p style="padding-left: 60px">If we are in the training mode, if the number of samples is equal to a batch, or if the episode has terminated, we will train the neural networks. For this, the state value for the new state is first obtained using <kbd>ppo.get_v</kbd>. Then, we compute the discounted rewards. The buffer lists are also converted to NumPy arrays, and the buffer lists are reset to empty lists. These <kbd>bs</kbd>, <kbd>ba</kbd>, and <kbd>br</kbd> <span>NumPy arrays </span>are then used to update the <kbd>ppo</kbd> object's actor and critic networks:</p>
+<pre style="padding-left: 60px">if (train_test == 0):<br/>    if (t+1) % BATCH == 0 or done == True:<br/>        v_s_ = ppo.get_v(s_)<br/>        discounted_r = []<br/>        for r in buffer_r[::-1]:<br/>            v_s_ = r + GAMMA * v_s_<br/>            discounted_r.append(v_s_)<br/>            discounted_r.reverse()<br/><br/>        bs = np.array(np.vstack(buffer_s))<br/>        ba = np.array(np.vstack(buffer_a)) <br/>        br = np.array(discounted_r)[:, np.newaxis]<br/><br/>        buffer_s, buffer_a, buffer_r = [], [], []<br/>             <br/>        ppo.update(bs, ba, br)</pre>
+<ol start="7">
+<li>If we are in testing mode, Python is paused briefly for better visualization. If the episode has terminated, the <kbd>while</kbd> loop is exited with a <kbd>break</kbd> statement. Then, we print the maximum position and speed values on the screen, as well as write them, along with the episode rewards, to a file called <kbd>performance.txt</kbd>. Once every 10 episodes, the model is also saved by calling <kbd>saver.save</kbd>:</li>
+</ol>
+<pre style="padding-left: 30px">    if (train_test == 1):<br/>        time.sleep(0.1)<br/><br/>    if (done == True):<br/>        print("values at done: ", s_, a)<br/>        break<br/><br/>    print("episode: ", ep, "| episode reward: ", round(ep_r,4), "| time steps: ", t)<br/>    print("max_pos: ", max_pos, "| max_speed:", max_speed)<br/><br/>    if (train_test == 0):<br/>      with open("performance.txt", "a") as myfile:<br/>        myfile.write(str(ep) + " " + str(round(ep_r,4)) + " " + str(round(max_pos,4)) + " " + str(round(max_speed,4)) + "\n")<br/><br/>    if (train_test == 0 and ep%10 == 0):<br/>      saver.save(sess, "ckpt/model")</pre>
+<p>This concludes the coding of PPO. We will next evaluate its performance on MountainCarContinuous.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Evaluating the performance</h1>
+                </header>
+            
+            <article>
+                
+<p>The PPO agent is trained by the following command:</p>
+<pre><strong>python train_test.py</strong></pre>
+<p>Once the training is complete, we can test the agent by setting the following:</p>
+<pre>train_test = 1</pre>
+<p>Then, we will repeat <kbd>python train_test.py</kbd> again. On visualizing the agent, we can observe that the car first moves backward to climb the left mountain. Then it goes full throttle and picks up enough momentum to drive past the steep slope of the right mountain with the flag on top. So, the PPO agent has learned to drive out of the mountain valley successfully.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Full throttle</h1>
+                </header>
+            
+            <article>
+                
+<p>Note that we had to navigate backward first and then step on the throttle in order to have sufficient momentum to escape gravity and successfully drive out of the mountain valley. What if we had just stepped on the throttle right from the first step – would the car still be able to escape? Let's check by coding and running <kbd>mountaincar_full_throttle.py</kbd>.</p>
+<p>We will now set the action to <kbd>1.0</kbd>, that is, full throttle:</p>
+<pre>import sys<br/>import numpy as np<br/>import gym<br/><br/>env = gym.make('MountainCarContinuous-v0')<br/><br/><br/>for _ in range(100):<br/>  s = env.reset()<br/>  done = False<br/><br/>  max_pos = -1.0<br/>  max_speed = 0.0 <br/>  ep_reward = 0.0<br/><br/>  while not done:<br/>    env.render() <br/>    a = [1.0] # step on throttle<br/>    s_, r, done, _ = env.step(a)<br/><br/>    if s_[0] &gt; max_pos: max_pos = s_[0]<br/>    if s_[1] &gt; max_speed: max_speed = s_[1] <br/>    ep_reward += r<br/><br/>  print("ep_reward: ", ep_reward, "| max_pos: ", max_pos, "| max_speed: ", max_speed)</pre>
+<p>As is evident from the video generated during the training, the car is unable to escape the inexorable pull of gravity, and remains stuck at the base of the mountain valley.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Random throttle</h1>
+                </header>
+            
+            <article>
+                
+<p>What if we try random throttle values? We will code <kbd>mountaincar_random_throttle.py</kbd> with random actions in the <kbd>-1.0</kbd> to <kbd>1.0</kbd> range:</p>
+<pre>import sys<br/>import numpy as np<br/>import gym<br/><br/>env = gym.make('MountainCarContinuous-v0')<br/><br/><br/>for _ in range(100):<br/>  s = env.reset()<br/>  done = False<br/><br/>  max_pos = -1.0<br/>  max_speed = 0.0 <br/>  ep_reward = 0.0<br/><br/>  while not done:<br/>    env.render() <br/>    a = [-1.0 + 2.0*np.random.uniform()] <br/>    s_, r, done, _ = env.step(a)<br/><br/>    if s_[0] &gt; max_pos: max_pos = s_[0]<br/>    if s_[1] &gt; max_speed: max_speed = s_[1] <br/>    ep_reward += r<br/><br/>  print("ep_reward: ", ep_reward, "| max_pos: ", max_pos, "| max_speed: ", max_speed)</pre>
+<p>Here too, the car fails to escape gravity and remains stuck at the base. So, the RL agent is required to figure out that the optimum policy here is to first go backward, and then step on the throttle to escape gravity and reach the flag on the mountain top.</p>
+<p>This concludes our MountainCar exercise with PPO.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>In this chapter, we were introduced to the TRPO and PPO RL algorithms. TRPO involves two equations that need to be solved, with the first equation being the policy objective and the second equation being a constraint on how much we can update. TRPO requires second-order optimization methods, such as conjugate gradient. To simplify this, the PPO algorithm was introduced, where the policy ratio is clipped within a certain user-specified range so as to keep the update gradual. In addition, we also saw the use of data samples collected from experience to update the actor and the critic for multiple iteration steps. We trained the PPO agent on the MountainCar problem, which is a challenging problem, as the actor must first drive the car backward up the left mountain, and then accelerate to gain sufficient momentum to overcome gravity and reach the flag point on the right mountain. We also saw that a full throttle policy or a random policy will not help the agent reach its goal.</p>
+<p>With this chapter, we have looked at several RL algorithms. In the next chapter, we will apply DDPG and PPO to train an agent to drive a car autonomously. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Questions</h1>
+                </header>
+            
+            <article>
+                
+<ol>
+<li class="mce-root">Can we apply Adam or SGD optimization in TRPO?</li>
+<li>What is the role of the entropy term in the policy optimization?</li>
+<li>Why do we clip the policy ratio? What will happen if the clipping parameter epsilon is large?</li>
+<li>Why do we use the <kbd>tanh</kbd> activation function for <kbd>mu</kbd> and <kbd>softplus</kbd> for sigma? Can we use the <kbd>tanh</kbd> activation function for sigma?</li>
+<li>Does reward shaping always help in the training?</li>
+<li>Do we need reward shaping when we test an already trained agent?</li>
+</ol>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Further reading</h1>
+                </header>
+            
+            <article>
+                
+<ul>
+<li><span><em>Trust Region Policy Optimization</em>,</span> <em>John Schulman</em>, <em>Sergey Levine</em>, <em>Philipp Moritz</em>, <em>Michael I. Jordan</em>, <em>Pieter Abbeel</em>, arXiv:1502.05477 (T<span>RPO paper): <a href="https://arxiv.org/abs/1502.05477" target="_blank">https://arxiv.org/abs/1502.05477</a><br/></span></li>
+<li><em>Proximal Policy Optimization Algorithms</em>, <em>John Schulman</em>, <em>Filip Wolski</em>, <em>Prafulla Dhariwal</em>, <em>Alec Radford</em>, <em>Oleg Klimov</em>, arXiv:1707.06347 (PPO paper): <a href="https://arxiv.org/abs/1707.06347" target="_blank">https://arxiv.org/abs/1707.06347</a></li>
+<li><em>Deep Reinforcement Learning Hands-On</em>, <em>Maxim Lapan</em>, <em>Packt Publishing</em>: <a href="https://www.packtpub.com/big-data-and-business-intelligence/deep-reinforcement-learning-hands" target="_blank">https://www.packtpub.com/big-data-and-business-intelligence/deep-reinforcement-learning-hands</a></li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

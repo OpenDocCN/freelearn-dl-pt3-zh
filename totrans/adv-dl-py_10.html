@@ -1,0 +1,505 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding Recurrent Networks</h1>
+                </header>
+            
+            <article>
+                
+<p>In <a href="b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml">Chapter 1</a>, <em>The Nuts and Bolts of Neural Networks</em>, and <a href="d94e220f-820e-40da-8bb5-9593e0790b21.xhtml">Chapter 2</a>, <em>Understanding Convolutional Networks</em>, we took an in-depth look at the properties of general feedforward networks and their specialized incarnation, <strong>Convolutional Neural Networks</strong> (<strong>CNNs</strong>). In this chapter, we'll close this story arc with <strong>Recurrent Neural Networks</strong> (<strong>RNNs</strong>). The NN architectures we discussed in the previous chapters take in a fixed-sized input and provide a fixed-sized output. RNNs lift this constraint with their ability to process input sequences of a variable length by defining a recurrent relationship over these sequences (hence the name). If you are familiar with some of the topics that will be discussed in this chapter, you can skip them.</p>
+<p>In this chapter, we will cover the following topics:</p>
+<ul>
+<li><span>Introduction to RNNs</span></li>
+<li><span>Introducing long short-term memory</span></li>
+<li><span>Introducing g</span>ated recurrent units</li>
+<li>Implementing text classification</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Introduction to RNNs</h1>
+                </header>
+            
+            <article>
+                
+<p>RNNs are neural networks that<span> </span>can<span> </span>process sequential data with a variable length. Examples of such data include the words of a sentence or the price of stock at various moments in time. By using the word sequential, we imply that the elements of the sequence are related to each other and that their order matters. For example, if we take a book and randomly shuffle all of the words in it, the text will lose its meaning, even though we'll still know the individual words. Naturally, we can use RNNs to solve tasks that relate to sequential data. Examples of such tasks are language translation, speech recognition, predicting the next element of a time series, and so on. </p>
+<p>RNNs get their name because they apply the same function over a sequence recurrently. We can define an RNN as a recurrence relation:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/aaf28f6c-9839-430b-b02a-7b0580618ccf.png" style="width:7.83em;height:1.33em;"/></p>
+<p>Here, <em>f</em><span> </span>is a differentiable function, <strong>s</strong><em><sub>t</sub></em><span> </span>is a vector of values called the internal network state (at step<span> </span><em>t</em>), and<span> </span><strong>x</strong><em><sub>t</sub></em> is the network input at step<span> </span><em>t</em>. Unlike regular networks, where the state only depends on the current input (and network weights), here, <strong><span>s</span></strong><em><sub>t</sub></em><span> </span>is a function of both the current input as well as the previous state, <strong><span>s</span></strong><em><sub>t-1</sub></em>. You can think of <strong><span>s</span></strong><em><sub>t-1</sub></em><span> </span>as the network's summary of all of the previous inputs. This is unlike the regular feedforward networks (including CNNs), which take only the current input sample as input. The recurrence relationship defines how the state evolves step by step over the sequence via a feedback loop over previous states, as illustrated in the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1308 image-border" src="assets/d4773e34-6b4f-4007-8316-601d70c94e8a.png" style="width:30.33em;height:12.25em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref"><span>Left: Visual illustration of the RNN recurrence relation:</span><span> </span>s<em><sub>t</sub><span> </span>=</em>Ws<em><sub>t-1</sub> + </em>Ux<em><sub>t;</sub></em><span> The final output will be</span><span> </span>y<em><sub>t</sub><span> </span>=</em>Vs<em><sub>t</sub> . </em><span>Right: The RNN states are recurrently unfolded over the sequence</span><span> </span><em>t-1, t, t+1</em><span>. Note that the parameters</span><span> </span>U, V, and W<span> </span><span>are shared between all steps</span></div>
+<p>The RNN has three sets of parameters (or weights):</p>
+<ul>
+<li><strong>U</strong> transforms the input,<span> </span><strong>x</strong><em><sub>t</sub></em><span>, in</span>to the state,<span> </span><strong>s</strong><em><sub>t</sub><span>.</span></em></li>
+<li><strong>W</strong> transforms the previous state,<span> </span><strong>s</strong><em><sub>t-1</sub></em><span>, in</span>to the current state,<span> </span><strong>s</strong><em><sub>t</sub><span>.</span></em></li>
+<li><strong>V</strong><span> </span>maps the <span>newly computed</span><span> </span>internal state,<span> </span><strong>s</strong><em><sub>t</sub></em>, to the output,<span> </span><strong>y</strong><em><sub>t</sub><span>.</span></em></li>
+</ul>
+<p><strong>U</strong>,<span> </span><strong>V</strong>, and<span> </span><strong>W</strong><span> </span>apply linear transformation over their respective inputs. The most basic case of such a transformation is the familiar weighted sum we know and love. We<span> </span>can<span> </span>now define the internal state and the network output as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/584cff1d-869f-4eae-a3e4-6d928b765678.png" style="width:9.83em;height:1.17em;"/></p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/0d0c0977-4890-4872-8e65-ad1e5cef01af.png" style="width:4.25em;height:1.17em;"/></p>
+<p><span>Here,</span><span> </span><em>f</em><span> </span><span>is the non-linear activation function (such as tanh, sigmoid, or ReLU).</span></p>
+<p>For example, in a word-level language model, the input,<span> </span><em>x</em><span>, </span>will be a sequence of words encoded in input vectors<span> </span><em>(</em><strong>x</strong><em><sub>1</sub><span> </span>...</em> <strong>x</strong><em><sub>t</sub><span> </span>...)</em>. The state,<span> </span><em>s</em><span>, </span>will be a sequence of state vectors<span> </span><em>(</em><strong>s</strong><em><sub>1</sub><span> </span>...</em> <strong>s</strong><em><sub>t</sub><span> </span>... )</em>. Finally, the output,<span> </span><em>y</em><span>, </span>will be a sequence of probability vectors<span> </span><em>(</em><strong>y</strong><em><sub>1</sub><span> </span>...</em> <strong>y</strong><em><sub>t</sub><span> </span>... )</em><span> </span>of the next words in the sequence.</p>
+<p>Note that, in an RNN, each state is dependent on all of the previous computations through this recurrence relation. An important implication of this is that RNNs have memory over time because the states,<span> </span><em>s</em><span>, </span>contain information based on the previous steps. In theory, RNNs can remember information for an arbitrarily long period of time, but in practice, they are limited to looking back only a few steps. We will address this issue in more detail in the <em>Vanishing and exploding gradients</em> section.</p>
+<p>The RNN we described here is somewhat equivalent to a single layer regular neural network (with an additional recurrence relationship). As we now know from <a href="b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml">Chapter 1</a>, <em>The Nuts and Bolts of Neural Networks</em>, a network with a single layer has some serious limitations. Fear not! As with regular networks, we can stack multiple RNNs to form a<span> </span><strong>stacked RNN</strong>. The cell state, <strong>s</strong><em><sup>l</sup><sub>t</sub></em>, of an RNN cell at level<span> </span><em>l</em> at time<span> </span><em>t</em><span> </span>will take the output, <strong>y</strong><em><sub>t</sub><sup>l-1</sup></em>, of the<span> </span>RNN<span> </span>cell from level<span> </span><em>l-1</em><span> </span>and the previous <span>cell state, </span><strong>s</strong><em><sup>l</sup><sub>t-1</sub></em>, of the cell at the same level,<span> </span><em>l</em><span>, </span>as the input:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/10bc347d-66bb-471a-a2a7-476e5854a08c.png" style="width:10.75em;height:2.17em;"/></p>
+<p>In the following diagram, we<span> </span>can<span> </span>see an unfolded, stacked RNN:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1309 image-border" src="assets/bede0919-4493-44ef-987c-42c64ddaa706.png" style="width:30.08em;height:19.33em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Stacked RNN</div>
+<p>The RNN we've discussed so far takes the preceding elements of the sequence to produce an output. This makes sense for tasks such as time series prediction, where we want to predict the next element of the series based on the previous elements. But it also imposes unnecessary limitations on other tasks, such as the ones from the NLP domain. As we saw in <a href="fe6a42c9-f18e-4c2b-9a82-99ec53e727ca.xhtml">Chapter 6</a>, <em>Language Modeling</em>, we can obtain a lot of information about a word by its context and it makes sense to extract that context from both the preceding and succeeding words.</p>
+<p>We can extend the regular RNN to the so-called <strong>bidirectional RNN</strong> to cover this scenario, as shown in the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1472 image-border" src="assets/bb274fc3-b90e-4e5d-bb80-4e9bd1fc1e1f.png" style="width:39.42em;height:14.50em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Bidirectional RNN</div>
+<p><span>This network has two propagation loops working in both directions, that is, left to right from steps <em>t</em> to <em>t+1</em> and right to left from steps <em>t+1</em> to <em>t</em>. We'll denote the right to left propagation related notations with the prim symbol (not to be confused with derivatives). At each time step, </span><em>t</em><span>, the network maintains two internal state vectors: <strong>s</strong><em><sub>t</sub></em> for the left to right propagation</span><span> and <strong>s</strong><em>'<sub>t</sub></em> for the right to left propagation</span><span>. </span>The right to left phase has its own set of input weights, <em>U'</em> and <em>W'</em> , mirroring the weights, <strong>U</strong> and <strong>W</strong>, for the left to right phase. The formula for the right to left hidden state vector is as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/c13ef94c-4676-406e-8c86-ff41b28e8cb2.png" style="width:10.75em;height:1.50em;"/></p>
+<p>The output of the network, <strong>y</strong><em><sub>t</sub></em>, is a combination of the internal states, <strong>s</strong><em><sub>t</sub></em> and <strong>s</strong><em><sub>t+1</sub></em>. One way to combine them is with concatenation. In this case, we'll denote the weight matrix of the concatenated states to the output with <strong>V</strong>. Here, the formula for the output is as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/18d9dcef-80b9-42f3-a675-907cc3c52d53.png" style="width:7.08em;height:1.50em;"/></p>
+<p>Alternatively, we can simply sum the two state vectors:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/598c746e-ca6e-4734-85bb-84b909c5ca84.png" style="width:8.25em;height:1.50em;"/></p>
+<p>Because RNNs are not limited to processing fixed-size inputs, they really expand the possibilities of what we can compute with neural networks, such as sequences of different lengths or images of varied sizes.<span> </span></p>
+<p><span>Let's go over some different combinations:</span></p>
+<ul>
+<li><strong>One</strong>-<strong>to</strong>-<strong>one</strong>: This is non-sequential processing, such as<span> </span>feedforward<span> </span>neural networks and CNNs. Note that, there isn't much difference between a feedforward network and applying an RNN to a single time step. An example of one-to-one processing is image classification, which we looked at in <a href="d94e220f-820e-40da-8bb5-9593e0790b21.xhtml">Chapter 2</a>, <em>Understanding Convolutional Networks</em>, and <a href="433225cc-e19a-4ecb-9874-8de71338142d.xhtml">Chapter 3</a>, <em>Advanced Convolutional Networks</em>.</li>
+<li><strong>One</strong>-<strong>to</strong>-<strong>many</strong>: This processing generates a sequence<span> </span>based<span> </span>on a single input, for example, caption generation from an image (<em>Show and Tell: A Neural Image Caption Generator</em>, <a href="https://arxiv.org/abs/1411.4555">https://arxiv.org/abs/1411.4555</a>).</li>
+<li><strong>Many</strong>-<strong>to</strong>-<strong>one</strong>: This <span>processing</span><span> </span>outputs a<span> </span>single<span> </span>result based on a sequence, for example, sentiment classification of text.</li>
+<li><strong>Many</strong>-<strong>to</strong>-<strong>many indirect</strong>: A sequence is encoded into a state vector, after which<span> </span>this state vector is decoded into a new sequence, for example, language translation (<em>Learning Phrase Representations using RNN Encoder-Decoder for Statistical Machine Translation, </em><a href="https://arxiv.org/abs/1406.1078">https://arxiv.org/abs/1406.1078</a> and<span class="URLPACKT"> <em>Sequence to Sequence Learning with Neural Networks</em>,<span> </span><a href="http://papers.nips.cc/paper/5346-sequence-to-sequence-learning-with-neural-networks.pdf">http://papers.nips.cc/paper/5346-sequence-to-sequence-learning-with-neural-networks.pdf</a></span>).</li>
+<li><strong>Many</strong>-<strong>to</strong>-<strong>many direct:</strong><span> </span>This outputs a result for each input step, for example, frame<span> </span>phoneme<span> </span>labeling in speech recognition<em>.</em></li>
+</ul>
+<div class="packt_infobox">The many-to-many models are often referred to as <strong>sequence-to-sequence</strong> (<strong>seq2seq</strong>) models.</div>
+<p>The following is a graphical representation of the preceding input-output combinations<span>:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1310 image-border" src="assets/b66a358c-a343-4da9-b294-a1430120170c.png" style="width:62.08em;height:27.08em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">RNN input-output combinations: Inspired by http://karpathy.github.io/2015/05/21/rnn-effectiveness/.</div>
+<p>Now that we've introduced RNNs, in the next section, we'll implement a simple RNN example from scratch to improve our knowledge.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">RNN implementation and training</h1>
+                </header>
+            
+            <article>
+                
+<p>In the preceding section, we briefly discussed what RNNs are and what problems they<span> </span>can<span> </span>solve. Let's dive into the details of an RNN and how to train it with a very simple toy example: counting ones in a sequence.</p>
+<p>In this problem, we will teach a basic RNN how to<span> </span>count<span> </span>the number of ones in the input and then output the result at the end of the sequence. This is an example of a many-to-one relationship, which we defined in the previous section.</p>
+<p>We'll implement this example with Python (no DL libraries) and NumPy. An example of the input and output is as follows:</p>
+<pre>In: (0, 0, 0, 0, 1, 0, 1, 0, 1, 0) <br/>Out: 3</pre>
+<p>The RNN we'll use is illustrated in the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1311 image-border" src="assets/c817848d-b9e9-4fb0-928d-02becdbb5127.png" style="width:43.00em;height:13.17em;"/></p>
+<div class="packt_figure CDPAlignCenter CDPAlign packt_figref">Basic RNN for counting ones in the input</div>
+<p>The network will have only two parameters: an input weight,<span> </span><strong>U</strong><span>, </span>and a recurrence weight,<span> </span><strong>W</strong>. The output weight,<span> </span><strong>V</strong><span>, </span>is set to 1 so that we just read out the last state as the output,<span> </span><strong>y</strong>.</p>
+<div class="packt_tip">Since <em>s<sub>t</sub></em>, <em>x<sub>t</sub></em>, <em>U</em>, and <em>W</em> are scalar values, we won't use the matrix notation (bold capital letters) in the <em>RNN implementation and training</em> section and its subsections. However, note that the generic versions of these formulas use matrix and vector parameters.</div>
+<p>Before we continue, let's add some code so that our example can be executed. We'll import<span> </span><kbd>numpy</kbd><span> </span>and define our training and data, <kbd>x</kbd>, and labels, <kbd>y</kbd>.<span> </span><kbd>x</kbd> is two-dimensional since the first dimension represents the sample in the mini-batch. For the sake of simplicity, we'll use a mini-batch with a single sample:</p>
+<pre><span>import </span>numpy <span>as </span>np<br/><br/><span># The first dimension represents the mini-batch<br/></span>x = np.array([[<span>0</span><span>, </span><span>0</span><span>, </span><span>0</span><span>, </span><span>0</span><span>, </span><span>1</span><span>, </span><span>0</span><span>, </span><span>1</span><span>, </span><span>0</span><span>, </span><span>1</span><span>, </span><span>0</span>]])<br/><br/>y = np.array([<span>3</span>])</pre>
+<p>The recurrence relation defined by this network is <sub><img class="fm-editor-equation" src="assets/6a316df2-66ff-4de3-ac56-4e852c351973.png" style="width:10.83em;height:1.33em;"/></sub>. Note that this is a linear model since we don't apply a non-linear function in this formula. We can implement a rec<span>urrence relationship</span><span> </span>as follows:</p>
+<pre><span>def </span><span>step</span>(s<span>, </span>x<span>, </span>U<span>, </span>W):<br/>   return x * U + s * W</pre>
+<p><span>The states, </span><em>s<sub>t</sub></em><span>, and the weights, </span><em>W</em><span> and </span><em>U</em><span>, are single scalar values. </span>A good solution to this is to just get the<span> </span>sum<span> </span>of the inputs across the sequence. If we set<span> </span><em>U=1</em>, then whenever input is received, we will get its full value. If we set<span> </span><em>W=1</em>, then the value we would accumulate would never decay. So, for this example, we would get the desired output: 3.</p>
+<p>Nevertheless, let's use this simple example to network the training and implementation of this neural network. This will be interesting, as we will see in the rest of this section. First, let's look at how we can get this result through backpropagation.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Backpropagation through time</h1>
+                </header>
+            
+            <article>
+                
+<p>Backpropagation through time is the typical algorithm we use to<span> </span>train<span> </span>recurrent networks (<span class="URLPACKT"><em>Backpropagation Through Time: What It Does and How to Do It</em>, <a href="http://axon.cs.byu.edu/~martinez/classes/678/Papers/Werbos_BPTT.pdf">http://axon.cs.byu.edu/~martinez/classes/678/Papers/Werbos_BPTT.pdf</a></span>). As the name suggests, it's based on the backpropagation algorithm we discussed in <a href="b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml">Chapter 1</a>, <em>The Nuts and Bolts of Neural Networks</em>.</p>
+<p>The main difference between regular <span>backpropagation</span> and <span>backpropagation</span> through time is that the recurrent network is unfolded through time for a certain number of time steps (as illustrated in the preceding diagram). Once the unfolding is complete, we end up with a model that is quite similar to a regular multi-layer feedforward network, that is, one hidden layer of that network represents one step through time. The only differences are that each layer has multiple inputs: the previous state,<span> </span><em>s<sub>t-1</sub></em>, and the current input,<span> </span><em>x<sub>t</sub></em>. The parameters<span> </span><em>U</em><span> </span>and<span> </span><em>W</em> are shared between all of the hidden layers.</p>
+<p>The forward pass unwraps the RNN along the sequence and builds a stack of states for each step. <span>In the following code block, we can see an implementation</span> of the forward pass, which returns the <span>activation, </span><em>s</em><span>, for each recurrent step and each sample in the batch</span>:</p>
+<pre><span>def </span><span>forward</span>(x<span>, </span>U<span>, </span>W):<br/>    <span># Number of samples in the mini-batch<br/></span><span>    </span>number_of_samples = <span>len</span>(x)<br/><br/>    <span># Length of each sample<br/></span><span>    </span>sequence_length = <span>len</span>(x[<span>0</span>])<br/><br/>    <span># Initialize the state activation for each sample along the sequence<br/></span><span>    </span>s = np.zeros((number_of_samples<span>, </span>sequence_length + <span>1</span>))<br/><br/>    <span># Update the states over the sequence<br/></span><span>    </span><span>for </span>t <span>in </span><span>range</span>(<span>0</span><span>, </span>sequence_length):<br/>        s[:<span>, </span>t + <span>1</span>] = step(s[:<span>, </span>t]<span>, </span>x[:<span>, </span>t]<span>, </span>U<span>, </span>W)  <span># step function<br/></span><span><br/></span><span>    </span><span>return </span>s</pre>
+<p>Now that we have our forward step and loss function, we can define how the gradient is propagated backward. Since the unfolded RNN is equivalent to a regular feedforward network, we can use the backpropagation chain rule we introduced in<span> </span><a href="b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml">Chapter 1</a>, <em>The Nuts and Bolts of Neural Networks</em>.</p>
+<p>Because the weights, <em>W</em><span> </span>and<span> </span><em>U</em><span>, </span>are shared across the layers, we'll accumulate the error derivatives for each recurrent step, and in the end, we'll update the weights with the accumulated value.</p>
+<p>First, we need to get the gradient of the output,<span> </span><strong>s</strong><em><sub>t</sub></em><span>, </span>with respect to the loss function (<em>∂J/∂s</em>). Once we have it, we'll propagate it backward through the stack of activities we built during the forward step. This backward pass pops activities off of the stack to accumulate their error derivatives at each time step. The recurrence relation to propagate this gradient through the network can be written as follows (chain rule):</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/3b2df19a-bc53-40d8-97f4-44a99dce9073.png" style="width:13.42em;height:2.67em;"/></p>
+<p>Here, <em>J</em><span> </span>is the loss function.</p>
+<p>The gradients of the weights, <em>U</em> and <em>W</em>, are accumulated as follows:</p>
+<div class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/e86ed439-4010-4d3c-bb46-ae9c1d94a108.png" style="width:8.83em;height:3.58em;"/></div>
+<div class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/21a0bab0-78dc-4092-9285-083b28271940.png" style="width:8.75em;height:3.00em;"/></div>
+<p>The following is an implementation of the backward pass:</p>
+<ol>
+<li>The gradients for<span> </span><kbd>U</kbd><span> </span>and<span> </span><kbd>W</kbd><span> </span>are accumulated in<span> </span><kbd>gU</kbd><span> </span>and<span> </span><kbd>gW</kbd>, respectively:</li>
+</ol>
+<pre style="padding-left: 60px"><span>def </span><span>backward</span>(x<span>, </span>s<span>, </span>y<span>, </span>W):<br/>    sequence_length = <span>len</span>(x[<span>0</span>])<br/><br/>    <span># The network output is just the last activation of sequence<br/></span><span>    </span>s_t = s[:<span>, </span>-<span>1</span>]<br/><br/>    <span># Compute the gradient of the output w.r.t. MSE loss function <br/>      at final state<br/></span><span>    </span>gS = <span>2 </span>* (s_t - y)<br/><br/>    <span># Set the gradient accumulations to 0<br/></span><span>    </span>gU<span>, </span>gW = <span>0</span><span>, </span><span>0<br/></span><span><br/></span><span>    </span><span># Accumulate gradients backwards<br/></span><span>    </span><span>for </span>k <span>in </span><span>range</span>(sequence_length<span>, </span><span>0</span><span>, </span>-<span>1</span>):<br/>        <span># Compute the parameter gradients and accumulate the<br/>          results<br/></span><span>        </span>gU += np.sum(gS * x[:<span>, </span>k - <span>1</span>])<br/>        gW += np.sum(gS * s[:<span>, </span>k - <span>1</span>])<br/><br/>        <span># Compute the gradient at the output of the previous layer<br/></span><span>        </span>gS = gS * W<br/><br/>    <span>return </span>gU<span>, </span>gW</pre>
+<ol start="2">
+<li>We can now try to use gradient descent to<span> </span>optimize<span> </span>our network. We compute <kbd>gradients</kbd> (using mean square error) with the help of the <kbd>backward</kbd> function and we use them to update the <kbd>weights</kbd> value:</li>
+</ol>
+<pre style="padding-left: 60px">def train(x, y, epochs, learning_rate=0.0005):<br/>    """Train the network"""<br/><br/>    # Set initial parameters<br/>    weights = (-2, 0) # (U, W)<br/><br/>    # Accumulate the losses and their respective weights<br/>    losses = list()<br/>    gradients_u = list()<br/>    gradients_w = list()<br/><br/>    # Perform iterative gradient descent<br/>    for i in range(epochs):<br/>        # Perform forward and backward pass to get the gradients<br/>        s = forward(x, weights[0], weights[1])<br/><br/>        # Compute the loss<br/>        loss = (y[0] - s[-1, -1]) ** 2<br/><br/>        # Store the loss and weights values for later display<br/>        losses.append(loss)<br/><br/>        gradients = backward(x, s, y, weights[1])<br/>        gradients_u.append(gradients[0])<br/>        gradients_w.append(gradients[1])<br/><br/>        # Update each parameter `p` by p = p - (gradient *<br/>          learning_rate).<br/>        # `gp` is the gradient of parameter `p`<br/>        weights = tuple((p - gp * learning_rate) for p, gp in<br/>        zip(weights, gradients))<br/><br/>    print(weights)<br/><br/>    return np.array(losses), np.array(gradients_u),<br/>    np.array(gradients_w)</pre>
+<ol start="3">
+<li>Next, we'll implement the related <kbd>plot_training</kbd> function, which displays the <kbd>loss</kbd> function and the gradients for each weight over the epochs:</li>
+</ol>
+<pre style="padding-left: 60px">def plot_training(losses, gradients_u, gradients_w):<br/>    import matplotlib.pyplot as plt<br/><br/>    # remove nan and inf values<br/>    losses = losses[~np.isnan(losses)][:-1]<br/>    gradients_u = gradients_u[~np.isnan(gradients_u)][:-1]<br/>    gradients_w = gradients_w[~np.isnan(gradients_w)][:-1]<br/><br/>    # plot the weights U and W<br/>    fig, ax1 = plt.subplots(figsize=(5, 3.4))<br/><br/>    ax1.set_ylim(-3, 20)<br/>    ax1.set_xlabel('epochs')<br/>    ax1.plot(gradients_u, label='grad U', color='blue',<br/>    linestyle=':')<br/>    ax1.plot(gradients_w, label='grad W', color='red', linestyle='--<br/>    ')<br/>    ax1.legend(loc='upper left')<br/><br/>    # instantiate a second axis that shares the same x-axis<br/>    # plot the loss on the second axis<br/>    ax2 = ax1.twinx()<br/><br/>    # uncomment to plot exploding gradients<br/>    ax2.set_ylim(-3, 10)<br/>    ax2.plot(losses, label='Loss', color='green')<br/>    ax2.tick_params(axis='y', labelcolor='green')<br/>    ax2.legend(loc='upper right')<br/><br/>    fig.tight_layout()<br/><br/>    plt.show()</pre>
+<ol start="4">
+<li>Finally, we can<span> </span>run<span> </span>this code:</li>
+</ol>
+<pre style="padding-left: 60px">losses, gradients_u, gradients_w = train(x, y, epochs=150)<br/>plot_training(losses, gradients_u, gradients_w)</pre>
+<p><span>The preceding code produces the following</span><span> </span>diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1312 image-border" src="assets/c8b9ef4b-3dd9-449e-a387-15c4cd59b827.png" style="width:29.33em;height:19.42em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign">The RNN loss: the uninterrupted line represents the loss, where the dashed lines represent the weight gradients during training</div>
+<p>Now that we've learned about backpropagation through time, let's discuss how the familiar vanishing and exploding gradient problems affect it. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Vanishing and exploding gradients</h1>
+                </header>
+            
+            <article>
+                
+<p>The preceding example<span> </span>has<span> </span>an issue, though. Let's run the training process with a longer sequence:</p>
+<pre>x = np.array([[0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0]])<br/><br/>y = np.array([12])<br/><br/>losses, gradients_u, gradients_w = train(x, y, epochs=150)<br/>plot_training(losses, gradients_u, gradients_w)</pre>
+<p>The output is as follows:</p>
+<pre>Sum of ones RNN from scratch<br/>chapter07-rnn/simple_rnn.py:5: RuntimeWarning: overflow encountered in multiply<br/>  return x * U + s * W<br/>chapter07-rnn/simple_rnn.py:40: RuntimeWarning: invalid value encountered in multiply<br/>  gU += np.sum(gS * x[:, k - 1])<br/>chapter07-rnn/simple_rnn.py:41: RuntimeWarning: invalid value encountered in multiply<br/>  gW += np.sum(gS * s[:, k - 1])<br/>(nan, nan)</pre>
+<p>The reason for these warnings is that the final parameters,<span> </span><em>U</em><span> </span>and<span> </span><em>W</em>, end up as <strong>Not a Number</strong> (<strong>NaN</strong>). To display the gradients properly, we'll need to change the scale of the gradient axis in the <kbd>plot_training</kbd> function from <kbd>ax1.set_ylim(-3, 20)</kbd> to <kbd>ax1.set_ylim(-3, 600)</kbd>, as well as the scale of the loss axis from <kbd>ax2.set_ylim(-3, 10)</kbd> to <kbd>ax2.set_ylim(-3, 200)</kbd>.</p>
+<p>Now, the program will produce the following diagram of the new loss and gradients:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1313 image-border" src="assets/d20b08b7-7629-4068-9b31-bc8201873414.png" style="width:30.50em;height:20.50em;"/></p>
+<div class="packt_figure packt_figref CDPAlignCenter CDPAlign">Parameters and loss function during exploding gradients scenario</div>
+<p><span>In the initial epochs, the gradients slowly increase, similar to the way they increased for the shorter sequence. However, when they get to epoch 23 (the exact epoch is unimportant, though), the gradient becomes so large that it </span><span>goes out of the range of the <kbd>float</kbd> variable and becomes NaN (as illustrated by the jump in the plot).</span><span> This problem is known as exploding gradients. We can stumble upon exploding gradients in a regular feedforward NN, but it is especially pronounced in RNNs.</span><span> To understand why, let's recall the recurrent gradient propagation chain rule for the two consecutive sequence steps we defined in the <em>Backpropagation through time</em> section:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/fba12913-286f-4108-8ddf-650abdee55f7.png" style="width:14.58em;height:2.92em;"/></p>
+<p><span>Depending on the sequence's length, an unfolded RNN can be much deeper compared to a regular network. At the same time, </span><span>the weights,</span><span> </span><em>W</em><span>, of an RNN are shared across all of the steps. Therefore, </span>we can generalize this formula to compute the gradient between two non-consecutive steps of the sequence. Because <em>W</em> is shared, the equation forms a geometric progression:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/4d8f4eb3-d708-4568-938b-1815bf786810.png" style="width:30.67em;height:4.25em;"/></p>
+<p>In our simple linear RNN, the gradient grows exponentially if<span> </span><em>|W|</em><span> </span>&gt;<span> </span><em>1</em><span> </span>(<span>exploding gradient), where <em>W</em> is a single scalar weight,</span> for example, 50 time steps over W=1.5 is<span> </span><em>W<sup>50</sup> ≈ <span>637621500</span></em>. The gradient shrinks exponentially if<span> </span><em>|W| &lt;1</em> (vanishing gradient), for example, 10 time steps over<span> </span><em>W=0.6</em><span> </span>is<span> </span><em>W<sup>20</sup> = 0.00097</em><span>. If the weight parameter,</span><span> </span><strong>W</strong><span>, </span><span>is a matrix instead of a scalar, this exploding or vanishing gradient is related to the largest eigenvalue (</span><em>ρ</em><span>) of</span><span> </span><strong>W</strong><span> </span><span>(also known as a spectral radius). It is sufficient for</span><span> </span><em>ρ</em><span> </span><span>&lt;</span><span> </span><em>1</em><span> </span><span>for the gradients to vanish, and it is necessary for</span><span> </span><em>ρ</em><span> </span><span>&gt;</span><span> </span><em>1</em><span> </span><span>for them to explode.</span></p>
+<p><span>The vanishing gradients problem, which we first mentioned in </span><a href="b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml">Chapter 1</a>,<em> The Nuts and Bolts of Neural Networks</em><span>, has another more subtle effect in RNNs. The gradient decays exponentially over the number of steps to a point where it becomes extremely small in the earlier states. In effect, they are overshadowed by the larger gradients from more recent time steps, and the network's ability to retain the history of these earlier states vanishes. This problem is harder to detect because the training will still work and the network will produce valid outputs (unlike with exploding gradients). It just won't be able to learn long-term dependencies. </span></p>
+<p>Now, we are familiar with some of the problems of RNNs. This knowledge will serve us well because, in the next section, we'll discuss how to solve these problems with the help of a special type of RNN.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Introducing long short-term memory</h1>
+                </header>
+            
+            <article>
+                
+<p>Hochreiter and Schmidhuber studied the problems of vanishing and exploding gradients extensively and came up with a solution called<span> </span><strong>Long Short-Term Memory</strong><span> </span>(<strong>LSTM</strong>, <a href="https://www.bioinf.jku.at/publications/older/2604.pdf">https://www.bioinf.jku.at/publications/older/2604.pdf</a>). LSTMs can handle long-term dependencies due to a specially crafted<span> </span>memory<span> </span>cell. In fact, they work so well that most of the current accomplishments in training RNNs on a variety of problems are due to the use of LSTMs. In this section, we'll explore how this memory cell works<span> </span>and<span> </span>how it solves the vanishing gradients issue.</p>
+<p>The key idea of LSTM is the cell state, <strong>c</strong><em><sub>t</sub></em> (in addition to the hidden RNN state, <strong>h</strong><em><sub>t</sub></em>), where the information can only be explicitly written in or removed so that the state stays constant if there is no outside interference. The cell state can only be modified by specific gates, which are a way to let information pass through. These gates are composed of a sigmoid function and element-wise multiplication. Because the sigmoid only outputs values between 0 and 1, the multiplication can only reduce the value running through the gate. A typical LSTM is composed of three gates: a forget gate, an input gate, and an output gate. The cell state, input, and output are all vectors so that the LSTM can hold a combination of different information blocks at each time step.</p>
+<p>The following is a diagram of an<span> </span>LSTM<span> </span>cell:</p>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1314 image-border" src="assets/1d5075a0-c9b0-4eb5-9145-f44374225915.png" style="width:77.67em;height:47.25em;"/></div>
+<div class="packt_figref CDPAlignCenter CDPAlign"><span>Top: LSTM cell; bottom: Unfolded LSTM cell: Inspired by http://colah.github.io/posts/2015-08-Understanding-LSTMs/.</span></div>
+<p>Before we continue, let's introduce some notations. <strong>x</strong><em><sub>t</sub></em>, <strong>c</strong><em><sub>t</sub></em>, and <strong>h</strong><em><sub>t</sub></em> are the LSTM's input, cell memory state, and output (or hidden state) vectors in moment<span> </span><em>t</em>. <strong><span>c</span></strong><em><span>'<sub>t</sub></span></em> is the candidate cell state vector (more on that later). The input, <strong>x</strong><em><sub>t</sub></em>, and the<span> previous cell output, </span><strong>h</strong><em><sub>t-</sub></em><span>, </span>are connected to each gate and the candidate cell vector with sets of fully connected weights, <strong>W</strong> and <strong>U</strong>, respectively<em>. </em><strong>f</strong><em><sub>t</sub></em><span>,</span><span> </span><strong>i</strong><em><sub>t</sub></em><span>, and</span><span> </span><strong>o</strong><em><sub>t</sub></em><span> </span><span>are the forget, input, and output gates of the LSTM cell. These gates are fully connected layers with sigmoid activations.</span></p>
+<p>Let's start with the forget gate, <strong>f</strong><em><sub>t</sub></em>. As the name suggests, it decides whether we want to erase parts of the existing cell state or not. It bases its decision on the weighted vector sum of the output of the previous cell, <strong>h</strong><em><sub>t-1</sub></em><span>, </span>and the current input,<span> </span><strong>x</strong><em><sub>t</sub></em>:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/2cd9c1ec-6f5b-4f43-a1e4-ca82b60dbb4a.png" style="width:12.75em;height:1.50em;"/></p>
+<p>From the preceding diagram, we can see that the forget gate applies element-wise sigmoid activations on each element of the previous state vector, <strong>c</strong><em><sub>t-1</sub></em>: <strong>f</strong><sub><em>t</em> </sub><strong>* c</strong><sub><em>t</em>-1</sub>. Again, note that <span>because the operation is element-wise, </span>the values of this vector are squashed in the [0, 1] range. An output of 0 erases a specific <strong>c</strong><em><sub>t-1</sub></em><span> </span>cell block completely and an output of 1 allows the information in that cell block to pass through. This means that the LSTM can get rid of irrelevant information in its cell state vector.</p>
+<div class="packt_infobox"><span>The forget gate was not in the original LSTM that was proposed by Hochreiter. Instead, it was proposed in <em>Learning to Forget: Continual Prediction with</em></span> <em>LSTM</em> (<a href="http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.55.5709&amp;rep=rep1&amp;type=pdf"><span class="URLPACKT">http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.55.5709&amp;rep=rep1&amp;type=pdf</span></a><span>). </span></div>
+<p>The input<span> gate, <strong>i</strong><em><sub>t</sub></em></span><span>, decides what new information is going to be added to the memory cell in a multi-step process. The first step determines whether any information is going to be added. As in the forget gate, it bases its decision on</span><span> </span><strong>h</strong><em><sub>t-1</sub></em><span> </span><span>and</span><span> </span><strong>x</strong><em><sub>t</sub></em><span>: it outputs 0 or 1 through the sigmoid function for each cell of the candidate state vector. An output of 0 means that no information is added to that cell block's memory. As a result, the LSTM can store specific pieces of information in its cell state vector:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/6cb87dbb-950c-4bee-9bc1-b88634ab8942.png" style="width:12.08em;height:1.33em;"/></p>
+<p>In the next step, we compute the new candidate cell state, <strong>c</strong><em>'<sub>t</sub></em>. It is based on the previous output,<span> </span><strong>h</strong><em><sub>t-1</sub></em>, and the current input,<span> </span><strong>x</strong><em><sub>t</sub></em>, and is transformed via a tanh function:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/1d895b63-4b75-4f0a-b827-bb48c7556b0f.png" style="width:13.58em;height:1.42em;"/></p>
+<p>Next, <em>c'<sub>t</sub></em> is combined with the sigmoid outputs of the input gate via element-wise multiplication, <sub><img class="fm-editor-equation" src="assets/9f951b19-2361-4769-a807-039a1bab3515.png" style="width:2.92em;height:1.33em;"/></sub>.</p>
+<p><span>To recap, the forget and input gates decide what information to forget and include from the previous and candidate cell states, respectively. The final version of the new cell state, <em>c<sub>t</sub></em>, is just an element-wise sum between these two components</span><span>:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/3774867d-3a9b-4dc8-90a8-4fd0ed6a5c91.png" style="width:11.75em;height:1.42em;"/></p>
+<p>Next, let's focus on the output gate, which decides what the total cell output is going to be. It takes<span> </span><strong>h</strong><em><sub>t-1</sub></em><span> </span>and<span> </span><strong>x</strong><em><sub>t</sub></em><span> </span>as inputs and outputs, that is, 0 or 1 (via the sigmoid function), for each block of the cell's memory. Like before, 0 means that the block doesn't output any information and 1 means that the block can pass through as a cell's output. Therefore, the LSTM can output specific blocks of information from its cell state vector:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/9e95c81e-cf77-4e91-b9c8-0a636838726d.png" style="width:11.83em;height:1.25em;"/></p>
+<p>Finally, the LSTM cell output is transferred by a<span> </span>tanh function:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/de7b058d-73fd-40e3-82be-1dc81faf8045.png" style="width:8.08em;height:1.17em;"/></p>
+<p>Because all of these formulas are derivable, we can chain<span> </span>LSTM<span> </span>cells together, just like when we chain simple RNN states together and train the network via backpropagation through time.</p>
+<p>But how does the LSTM protect us from vanishing gradients? Let's start with the forward phase. Notice that the cell state is copied identically from step to step if the forget gate is 1 and the input gate is 0: <sub><img class="fm-editor-equation" src="assets/dbc2d8d2-a890-4200-a527-fe635ba668e8.png" style="width:22.92em;height:1.25em;"/></sub>. Only the forget gate can completely erase the cell's memory. As a result, the memory can remain unchanged over a long period of time. Also, note that the input is a<span> </span>tanh activation that's been added to the current cell's memory. This means that the cell's memory doesn't blow up and is quite stable.</p>
+<p>Let's use an example to demonstrate how a LSTM cell is unfolded. For the sake of simplicity, we'll assume that it has one-dimensional (single scalar value) input, state, and output vectors. Because the values are scalar, we won't use vector notation for the rest of this example:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1315 image-border" src="assets/020ba50e-a95e-4095-9cff-1cae9504ff52.png" style="width:43.33em;height:15.92em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref"><span>Unrolling an LSTM through time: </span><span>Inspired by </span>http://nikhilbuduma.com/2015/01/11/a-deep-dive-into-recurrent-neural-networks/.</div>
+<p>The process is as follows:</p>
+<ol>
+<li>First, we have a value of 3 as a candidate state. The input gate is set to <em>f<sub>i</sub> = 1</em> and the forget gate is set to <em>f<sub>t</sub> = 0</em>. This means that the previous state, <em>c<sub>t-1 </sub>= N</em>, is erased and is replaced with the new state, <sub><img class="fm-editor-equation" src="assets/c33ecfc0-f1db-45ae-b1bc-e6c0bb7238bf.png" style="width:10.83em;height:1.17em;"/></sub>.</li>
+<li>For the next two time steps, the forget gate is set to 1, while the input gate is set to 0. By doing this, all of the information is kept throughout these steps and no new information is added because the input gate is set to 0: <sub><img class="fm-editor-equation" src="assets/b9053fd0-79ab-4ead-afba-eff0e9fbfba0.png" style="width:12.08em;height:1.33em;"/></sub>.</li>
+<li>Finally, the output gate is set to <em>o<sub>t</sub> = 1</em> and 3 is output and remains unchanged. We have successfully demonstrated how the internal state is stored across multiple steps.</li>
+</ol>
+<p>Next, let's focus on the backward phase. The cell state, <em>c<sub>t</sub></em>, can mitigate the vanishing/ exploding gradients as well with the help of the forget gate, <em>f<sub>t</sub></em>. Like the regular RNN, we can use the chain rule to compute the partial derivative, <sub><img class="fm-editor-equation" src="assets/d4892443-090e-4c1c-ab29-1bdac99af414.png" style="width:4.50em;height:1.25em;"/></sub>, for two consecutive steps. Following the formula <sub><img class="fm-editor-equation" src="assets/5571ece6-2c96-43b6-8702-a073dcdfb7c2.png" style="width:10.25em;height:1.25em;"/></sub> and without going into details, its partial derivative is as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/02048859-47b3-49b0-8762-a8f98ea96f59.png" style="width:5.83em;height:3.00em;"/></p>
+<p>We can generalize this to non-consecutive steps as well:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/7e03905d-1642-4d01-ac62-bf7c04e91213.png" style="width:25.00em;height:4.17em;"/></p>
+<p><span>If the forget gate values are close to 1, gradient information can pass back through the network states almost unchanged. This is because <em>f<sub>t</sub></em> uses sigmoid activation and information flow is still subject to the vanishing gradient that's specific to sigmoid activations (</span><a href="b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml">Chapter 1</a>,<em> The Nuts and Bolts of Neural Networks</em><span>). But unlike the gradients in the regular RNN, <em>f<sub>t</sub></em> has a different value at each time step. Therefore, this is not a geometric progression and the vanishing gradient effect is less pronounced.</span></p>
+<p>We can stack LSTM cells in the same way as we stack regular RNNs, with the exception that a cell state of step <em>t</em> at one level serves as an input to the cell state of the same level at step <em>t+1</em>. The following diagram shows an unfolded stacked LSTM:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1316 image-border" src="assets/84fa3898-e1b6-4bf3-b4b6-cb75e50b1b7a.png" style="width:51.00em;height:26.08em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Stacked LSTM</div>
+<p>Now that we've introduced LSTM, let's solidify our knowledge by implementing it in the next section.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementing LSTM</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll implement an LSTM cell with PyTorch 1.3.1. First, let's note that PyTorch already has an LSTM implementation, which is available at <kbd>torch.nn.LSTM</kbd>. However, our goal is to understand how the LSTM cell works, so we'll implement our own version from scratch instead. The cell will be a subclass of <kbd>torch.nn.Module</kbd> and we'll use it as a building block for larger models. The source code for this example is available at <a href="https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter07/lstm_cell.py">https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter07/lstm_cell.py</a>. Let's get started:</p>
+<ol>
+<li>First, we'll do the imports:</li>
+</ol>
+<pre style="padding-left: 60px"><span>import </span>math<br/><span>import </span>typing<br/><br/><span>import </span>torch</pre>
+<ol start="2">
+<li>Next, we'll implement the class and the <kbd>__init__</kbd> method:</li>
+</ol>
+<pre style="padding-left: 60px"><span>class </span>LSTMCell(torch.nn.Module):<br/><br/>    <span>def </span><span>__init__</span>(<span>self</span><span>, </span>input_size: <span>int</span><span>, </span>hidden_size: <span>int</span>):<br/>        <span>"""<br/></span><span>        </span><span>:param</span><span> input_size: input vector size<br/></span><span>        </span><span>:param</span><span> hidden_size: cell state vector size<br/></span><span>        """<br/></span><span><br/></span><span>        </span><span>super</span>(LSTMCell<span>, </span><span>self</span>).<span>__init__</span>()<br/>        <span>self</span>.input_size = input_size<br/>        <span>self</span>.hidden_size = hidden_size<br/><br/>        <span># combine all gates in a single matrix multiplication<br/></span><span>        </span><span>self</span>.x_fc = torch.nn.Linear(input_size<span>, </span><span>4 </span>* hidden_size)<br/>        <span>self</span>.h_fc = torch.nn.Linear(hidden_size<span>, </span><span>4 </span>* hidden_size)<br/><br/>        <span>self</span>.reset_parameters()</pre>
+<p style="padding-left: 60px">To understand the role of the fully connected layers, <kbd>self.x_fc</kbd> and <kbd>self.h_fc</kbd>, let's recall that the candidate cell state and the input, forget, and output gates all depend on the weighted vector sum of the input, <strong>x</strong><sub><em>t</em></sub>, and the previous cell output, <strong>h</strong><em><sub>t-1</sub></em>. Therefore, instead of having eight separate <sub><img class="fm-editor-equation" src="assets/4ef433cf-f877-43bd-beec-91ec7b59eb90.png" style="width:4.25em;height:1.25em;"/></sub> and <sub><img class="fm-editor-equation" src="assets/c78961c9-01c2-45ed-89a8-39a10cdc5a2d.png" style="width:5.25em;height:1.25em;"/></sub> operations for each cell, we can combine these and make two large fully connected layers, <kbd>self.x_fc</kbd><span> and </span><kbd>self.h_fc</kbd>, each with an output size of <kbd>4 * hidden_size</kbd>. Once we need the output for a specific gate, we can extract the necessary slice from either of the two tensor outputs of the fully connected layers (we'll see how to do that in the implementation of the <kbd>forward</kbd> method). </p>
+<ol start="3">
+<li>
+<p>Let's continue with the <kbd>reset_parameters</kbd> method, which initializes all of the weights of the network with the LSTM-specific Xavier initializer (if you copy and paste this code directly, you may have to check the indentation):</p>
+</li>
+</ol>
+<pre style="padding-left: 60px">def reset_parameters(self):<br/>    """Xavier initialization """<br/>    size = math.sqrt(3.0 / self.hidden_size)<br/>    for weight in self.parameters():<br/>        weight.data.uniform_(-size, size)</pre>
+<ol start="4">
+<li>Next, we'll start implementing the <kbd>forward</kbd> method, which contains all of the LSTM execution logic we described in the <em>Introducing long short-term memory</em> section. It takes the current mini-batch at step <em>t</em>, as well as a tuple that contains the cell output and cell state at step <em>t-1</em>, as input:</li>
+</ol>
+<pre style="padding-left: 60px">def forward(self,<br/>            x_t: torch.Tensor,<br/>            hidden: typing.Tuple[torch.Tensor, torch.Tensor] =      (None, None)) \<br/>        -&gt; typing.Tuple[torch.Tensor, torch.Tensor]:<br/>    h_t_1, c_t_1 = hidden # t_1 is equivalent to t-1<br/><br/>    # in case of more than 2-dimensional input<br/>    # flatten the tensor (similar to numpy.reshape)<br/>    x_t = x_t.view(-1, x_t.size(1))<br/>    h_t_1 = h_t_1.view(-1, h_t_1.size(1))<br/>    c_t_1 = c_t_1.view(-1, c_t_1.size(1))</pre>
+<ol start="5">
+<li>We'll continue by computing activations for all three gates and the candidate state simultaneously. It's as simple as doing the following:</li>
+</ol>
+<pre style="padding-left: 60px">gates = self.x_fc(x_t) + self.h_fc(h_t_1)</pre>
+<ol start="6">
+<li>Next, we'll split the output for each gate:</li>
+</ol>
+<pre style="padding-left: 60px">i_t, f_t, candidate_c_t, o_t = gates.chunk(4, 1)</pre>
+<ol start="7">
+<li>Then, we'll apply the <kbd>activation</kbd> functions over them:</li>
+</ol>
+<pre style="padding-left: 60px">i_t, f_t, candidate_c_t, o_t = \<br/>    i_t.sigmoid(), f_t.sigmoid(), candidate_c_t.tanh(), o_t.sigmoid()</pre>
+<ol start="8">
+<li>Next, we'll compute the new cell state, <strong>c</strong><em><sub>t</sub></em>:</li>
+</ol>
+<pre style="padding-left: 60px">c_t = torch.mul(f_t, c_t_1) + torch.mul(i_t, candidate_c_t)</pre>
+<ol start="9">
+<li>Finally, we'll compute the cell output, <kbd>ht</kbd>, and we'll return it along with the new cell state, <em>c<sub>t</sub></em>:</li>
+</ol>
+<pre style="padding-left: 60px">h_t = torch.mul(o_t, torch.tanh(c_t))<br/>return h_t, c_t</pre>
+<p>Once we have the LSTM cell, we can apply it to the same task of <span>counting the ones in a sequence, like we did with the regular RNN. We'll only include the most relevant parts of the source code, but the full example is available at <a href="https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter07/lstm_gru_count_1s.py">https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter07/lstm_gru_count_1s.py</a>. This time, we'll use a full training set of 10,000 binary sequences that have a length of 20 (these are arbitrary numbers). The premise of the implementation is similar to the RNN example: we feed the binary sequence to the LSTM in a recurrent manner and the cell outputs the predicted count of the ones as a single scalar value (regression task). However, our <kbd>LSTMCell</kbd> implementation has two limitations:</span></p>
+<ul>
+<li><span>It only covers a single step of the sequence.</span></li>
+<li><span>It outputs the cell state and the network output vector. This is a regression task and we have a single output value, but the cell state and network output have more dimensions.</span></li>
+</ul>
+<p>To solve these problems, we'll implement a custom <kbd>LSTMModel</kbd><span> class,</span> which extends <kbd>LSTMCell</kbd>. It feeds the <kbd>LSTMCell</kbd> instance with all of the elements of the sequence and handles the transition of the cell state and network output from one element of the sequence to the next.</p>
+<p>Once the final output has been produced, it is fed to a fully connected layer, which transforms it into a single scalar value that represents the network's prediction of the number of ones. The following is the implementation of this:</p>
+<pre><span>class </span>LSTMModel(torch.nn.Module):<br/><span>    </span><span>def </span><span>__init__</span>(<span>self</span><span>, </span>input_dim<span>, </span>hidden_size<span>, </span>output_dim):<br/>        <span>super</span>(LSTMModel<span>, </span><span>self</span>).<span>__init__</span>()<br/>        <span>self</span>.hidden_size = hidden_size<br/><br/>        <span># Our own LSTM implementation<br/></span><span>        </span><span>self</span>.lstm = LSTMCell(input_dim<span>, </span>hidden_size)<br/><br/>        <span># Fully connected output layer<br/></span><span>        </span><span>self</span>.fc = torch.nn.Linear(hidden_size<span>, </span>output_dim)<br/><br/>    <span>def </span><span>forward</span>(<span>self</span><span>, </span>x):<br/>        <span># Start with empty network output and cell state to initialize the sequence<br/></span><span>        </span>c_t = torch.zeros((x.size(<span>0</span>)<span>, </span><span>self</span>.hidden_size)).to(x.device)<br/>        h_t = torch.zeros((x.size(<span>0</span>)<span>, </span><span>self</span>.hidden_size)).to(x.device)<br/><br/>        <span># Iterate over all sequence elements across all sequences of the mini-batch<br/></span><span>        </span><span>for </span>seq <span>in </span><span>range</span>(x.size(<span>1</span>)):<br/>            h_t<span>, </span>c_t = <span>self</span>.lstm(x[:<span>, </span>seq<span>, </span>:]<span>, </span>(h_t<span>, </span>c_t))<br/><br/>        <span># Final output layer<br/></span><span>        </span><span>return </span><span>self</span>.fc(h_t)</pre>
+<p>Now, we'll jump straight to the train/test setup stage (recall that this is just a snippet of the full source code):</p>
+<ol>
+<li>First, we'll generate the training and testing datasets. The <kbd>generate_dataset</kbd> function returns an instance of <kbd>torch.utils.data.TensorDataset</kbd>. It contains <kbd>TRAINING_SAMPLES = 10000</kbd> two-dimensional tensors of binary sequences with a length of <kbd>SEQUENCE_LENGTH = 20</kbd> and scalar value labels for the number of ones in each sequence:</li>
+</ol>
+<pre style="padding-left: 60px">train = generate_dataset(SEQUENCE_LENGTH<span>, </span>TRAINING_SAMPLES)<br/>train_loader = torch.utils.data.DataLoader(train<span>, </span><span>batch_size</span>=BATCH_SIZE<span>, </span><span>shuffle</span>=<span>True</span>)<br/><br/>test = generate_dataset(SEQUENCE_LENGTH<span>, </span>TEST_SAMPLES)<br/>test_loader = torch.utils.data.DataLoader(test<span>, </span><span>batch_size</span>=BATCH_SIZE<span>, </span><span>shuffle</span>=<span>True</span>)</pre>
+<ol start="2">
+<li>We'll instantiate the model with <kbd><span>HIDDEN_UNITS = 20</span></kbd>. The model takes a single input (each sequence element) and outputs a single value (number of ones):</li>
+</ol>
+<pre style="padding-left: 60px">model = LSTMModel(input_size=<span>1</span><span>, hidden_size=</span>HIDDEN_UNITS<span>, output_size=</span><span>1</span>)</pre>
+<ol start="3">
+<li>Next, we'll instantiate the <kbd>MSELoss</kbd> function (because of the regression) and the Adam optimizer:</li>
+</ol>
+<pre style="padding-left: 60px">loss_function = torch.nn.MSELoss()<br/>optimizer = torch.optim.Adam(model.parameters())</pre>
+<ol start="4">
+<li>Finally, we can run the training/testing cycle for <kbd>EPOCHS = 10</kbd>. The <kbd>train_model</kbd> and <kbd>test_model</kbd> functions are the same as the ones we implemented in the <em>Implementing transfer learning with PyTorch</em> section of <a href="d94e220f-820e-40da-8bb5-9593e0790b21.xhtml">Chapter 2</a>, <em>Understanding Convolutional Networks</em>: </li>
+</ol>
+<pre style="padding-left: 60px"><span>for </span>epoch <span>in </span><span>range</span>(EPOCHS):<br/>    <span>print</span>(<span>'Epoch {}/{}'</span>.format(epoch + <span>1</span><span>, </span>EPOCHS))<br/><br/>    train_model(model<span>, </span>loss_function<span>, </span>optimizer<span>, </span>train_loader)<br/>    test_model(model<span>, </span>loss_function<span>, </span>test_loader)</pre>
+<p>If we run this example, the network will achieve 100% test accuracy in 5-6 epochs.</p>
+<p>Now that we've learned about LSTMs, let's shift our attention to gated recurrent units. This is another type of recurrent block that tries to replicate the properties of LSTM, but with a simplified structure.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Introducing gated recurrent units</h1>
+                </header>
+            
+            <article>
+                
+<p>A<span> </span><strong>Gated Recurrent Unit </strong>(<strong>GRU</strong>)<span> </span>is a type of recurrent block that was introduced in 2014 (<em>Learning Phrase Representations using RNN Encoder-Decoder for Statistical Machine Translation</em>, <a href="https://arxiv.org/abs/1406.1078">https://arxiv.org/abs/1406.1078</a> and <em>Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling</em>,<span> </span><a href="https://arxiv.org/abs/1412.3555">https://arxiv.org/abs/1412.3555</a>) as an improvement over LSTM. A <span>GRU unit usually has similar or better performance than an LSTM, but it does so with fewer parameters and operations:</span></p>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1317 image-border" src="assets/1a0ea6ee-84f5-4e7a-8d8f-d9a8deaf2e10.png" style="width:31.50em;height:24.92em;"/></div>
+<div class="packt_figref CDPAlignCenter CDPAlign">A GRU cell</div>
+<p><span>Similar to the <em>classic</em> RNN, a GRU cell has a single hidden state, <strong>h</strong><em><sub>t</sub></em>. You can think of it as a combination of the hidden and cell states of an LSTM. The GRU cell has two gates</span><span>:</span></p>
+<ul>
+<li>An update gate,<span> </span><strong>z</strong><em><sub>t</sub></em>, which combines the input and forget LSTM gates. <span>It decides what information to discard and what new information to include in its place, based on the network input, <strong>x</strong><em><sub>t</sub></em>, and the previous cell hidden state, <strong>h</strong><em><sub>t-1</sub></em>. By combining the two gates, we can ensure that the cell will forget information, but only when we are going to include new information in its place:</span></li>
+</ul>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/c9f1074d-3c22-42ef-bf8b-885f7c8246f9.png" style="width:12.50em;height:1.33em;"/></p>
+<ul>
+<li>A reset gate, <strong>r</strong><em><sub>t</sub></em>, which uses the previous cell state, <strong>h</strong><em><sub>t-1</sub></em>, and the network input,<span> </span><strong>x</strong><em><sub>t</sub></em>, to decide <span>how much of the previous state to pass through:<br/></span></li>
+</ul>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/63df3872-1fcc-41dd-aeff-9dd0960de4af.png" style="width:11.50em;height:1.25em;"/></p>
+<p>Next, we have the candidate state,<span> </span><strong>h</strong><em>'<sub>t</sub></em>:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/20e8ab88-8f11-4a81-86b9-a9a7a57952ce.png" style="width:14.33em;height:1.33em;"/></p>
+<p>Finally, the GRU output,<span> </span><strong>h</strong><em><sub>t</sub></em><span>, </span>at time<span> </span><em>t</em><span> </span>is an element-wise sum<span> </span>between<span> </span>the previous output, <strong>h</strong><em><sub>t−1</sub></em><span>, </span>and the candidate output, <strong>h</strong><em>'<sub>t</sub></em>:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/b4f6da4f-4787-48f8-891f-0194aad6be2b.png" style="width:13.00em;height:1.33em;"/></p>
+<p>Since the update gate allows us to both forget and store data, it is directly applied over the previous output, <strong>h<sub>t</sub></strong><em><sub>−1</sub></em>, and applied over the candidate output, <strong>h</strong><em>'<sub>t</sub></em>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementing GRUs</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll implement a GRU cell with PyTorch 1.3.1 by following the blueprint from the <em>Implementing LSTM</em> section. Let's get started:</p>
+<ol>
+<li>First, we'll do the imports:</li>
+</ol>
+<pre style="padding-left: 60px"><span>import </span>math<br/><span>import </span>torch</pre>
+<ol start="2">
+<li>Next, we'll write the class definition and the <kbd>init</kbd> method. In LSTM, we were able to create a shared fully connected layer for all gates, because each gate required the same input combination of<span> </span><strong>x</strong><sub><em>t</em></sub><span> and </span><strong>h</strong><sub><em>t-1</em></sub>. The GRU gates use different inputs, <span>so we'll create separate fully connected operations for each GRU gate</span>:</li>
+</ol>
+<pre style="padding-left: 60px">class GRUCell(torch.nn.Module):<br/><br/>    def __init__(self, input_size: int, hidden_size: int):<br/>        """<br/>        :param input_size: input vector size<br/>        :param hidden_size: cell state vector size<br/>        """<br/><br/>        super(GRUCell, self).__init__()<br/>        self.input_size = input_size<br/>        self.hidden_size = hidden_size<br/><br/>        # x to reset gate r<br/>        self.x_r_fc = torch.nn.Linear(input_size, hidden_size)<br/><br/>        # x to update gate z<br/>        self.x_z_fc = torch.nn.Linear(input_size, hidden_size)<br/><br/>        # x to candidate state h'(t)<br/>        self.x_h_fc = torch.nn.Linear(input_size, hidden_size)<br/><br/>        # network output/state h(t-1) to reset gate r<br/>        self.h_r_fc = torch.nn.Linear(hidden_size, hidden_size)<br/><br/>        # network output/state h(t-1) to update gate z<br/>        self.h_z_fc = torch.nn.Linear(hidden_size, hidden_size)<br/><br/>        # network state h(t-1) passed through the reset gate r towards candidate state h(t)<br/>        self.hr_h_fc = torch.nn.Linear(hidden_size, hidden_size)</pre>
+<p style="padding-left: 60px">We'll omit the definition of <kbd>reset_parameters</kbd> because it's the same as it is in <kbd>LSTMCell</kbd>.</p>
+<ol start="3">
+<li>Then, we'll implement the <kbd>forward</kbd> method with the cell by following the steps we described in the <em>Gated recurrent units</em> section. The method takes the current input vector, <strong>x</strong><em><sub>t</sub></em>, and the previous cell state/output, <strong>h</strong><em><sub>t-1</sub></em>, as input. First, we'll compute the forget and update gates, similar to how we computed the gates in the LSTM cell:</li>
+</ol>
+<pre style="padding-left: 60px">def forward(self,<br/>            x_t: torch.Tensor,<br/>            h_t_1: torch.Tensor = None) \<br/>        -&gt; torch.Tensor:<br/><br/>    # compute update gate vector<br/>    z_t = torch.sigmoid(self.x_z_fc(x_t) + self.h_z_fc(h_t_1))<br/><br/>    # compute reset gate vector<br/>    r_t = torch.sigmoid(self.x_r_fc(x_t) + self.h_r_fc(h_t_1))</pre>
+<ol start="4">
+<li>Next, we'll compute the new candidate state/output, which uses the reset gate:</li>
+</ol>
+<pre style="padding-left: 60px">candidate_h_t = torch.tanh(self.x_h_fc(x_t) + self.hr_h_fc(torch.mul(r_t, h_t_1)))</pre>
+<ol start="5">
+<li>Finally, we'll compute the new output based on the candidate state and the update gate:</li>
+</ol>
+<pre style="padding-left: 60px">h_t = torch.mul(z_t, h_t_1) + torch.mul(1 - z_t, candidate_h_t)</pre>
+<p>We can implement the counting of ones task with a GRU cell in the same way that we did with LSTM. To avoid repetition, we won't include the implementation here, but it is available at <a href="https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter07/lstm_gru_count_1s.py">https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter07/lstm_gru_count_1s.py</a>. </p>
+<p>This concludes our discussion about various types of RNNs. Next, we'll channel this knowledge by implementing a text sentiment analysis example. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementing text classification</h1>
+                </header>
+            
+            <article>
+                
+<p>Let's recap on this chapter so far. We started by implementing an RNN using only <kbd>numpy</kbd>. Then, we continued with an LSTM implementation using primitive PyTorch operations. We'll conclude this arc by training the default PyTorch 1.3.1 LSTM implementation for a text classification problem. This example also requires the <kbd>torchtext</kbd> 0.4.0 package. Text classification (or categorization) refers to the task of assigning categories (or labels) depending on its contents. Text classification tasks include spam detection, topic labeling, and sentiment analysis.<span> This type of problem is an example of a <em>many-to-one</em> relationship, which we defined in the</span> <em>Introduction to RNNs</em><span> section. </span></p>
+<p>In this section, we'll implement a sentiment analysis example over the Large Movie Review Dataset (<a href="http://ai.stanford.edu/~amaas/data/sentiment/">http://ai.stanford.edu/~amaas/data/sentiment/</a>), which consists of 25,000 training and 25,000 testing reviews of popular movies. Each review has a binary label that indicates whether it is positive or negative. Besides PyTorch, we'll use the <kbd>torchtext</kbd> package (<a href="https://torchtext.readthedocs.io/">https://torchtext.readthedocs.io/</a>). It consists of data processing utilities and popular datasets for natural language. You'll also need to install the <kbd>spacy</kbd> <span>open source software library </span>(<a href="https://spacy.io">https://spacy.io</a>) for advanced NLP, which we'll use to tokenize the dataset. </p>
+<p>The sentiment analysis algorithm is displayed in the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1318 image-border" src="assets/3a5f7310-9b5a-4cce-b31d-90cdd382136c.png" style="width:27.67em;height:16.58em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Sentiment analysis with word embeddings and LSTM</div>
+<p>Let's describe the algorithm steps (these are valid for any text classification algorithm):</p>
+<ol>
+<li>Each word of the sequence is replaced with its embedding<span> vector</span> (<a href="fe6a42c9-f18e-4c2b-9a82-99ec53e727ca.xhtml">Chapter 6</a>, <em>Language Modeling</em>). These embeddings can be produced with word2vec, fastText, GloVe, and so on. </li>
+<li>The word embedding is fed as input to the LSTM cell.</li>
+<li>The cell output, <strong>h</strong><em><sub>t</sub></em>, serves as input to a fully connected layer with a single output unit. The unit uses sigmoid activation, which represents the probability of the review to be positive (1) or negative (0). If the problem is multinomial (and not binary), we can replace the sigmoid with softmax.</li>
+<li>The network output for the final element of the sequence is taken as a result for the whole sequence. </li>
+</ol>
+<p>Now that we have provided an overview of the algorithm, let's implement it. We'll only include the interesting portions of the code, but the full implementation is available at <a href="https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter07/sentiment_analysis.py">https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter07/sentiment_analysis.py</a><a href="https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter07/sentiment_analysis.py">. </a></p>
+<div class="packt_infobox"><span>This example is partially based on </span><a href="https://github.com/bentrevett/pytorch-sentiment-analysis">https://github.com/bentrevett/pytorch-sentiment-analysis</a><span>. </span></div>
+<p>Let's get started:</p>
+<ol>
+<li>First, we'll add the imports:</li>
+</ol>
+<pre style="padding-left: 60px"><span>import </span>torch<br/><span>import </span>torchtext</pre>
+<ol start="2">
+<li>Next, we'll instantiate a <kbd>torchtext.data.Field</kbd> object:</li>
+</ol>
+<pre style="padding-left: 60px">TEXT = torchtext.data.Field(<br/>    <span>tokenize</span>=<span>'spacy'</span><span>,  </span><span># use SpaCy tokenizer<br/></span><span>    </span><span>lower</span>=<span>True,  </span><span># convert all letters to lower case<br/></span><span>    </span><span>include_lengths</span>=<span>True,  </span><span># include the length of the movie review<br/></span>)</pre>
+<p style="padding-left: 60px">This object declares a text processing pipeline, which starts with the raw text and outputs a tensor representation of the text. More specifically, it uses the <kbd>spacy</kbd> tokenizer, converts all of the letters into lowercase, and includes the length (in words) of each movie review. </p>
+<ol start="3">
+<li>Then, we'll do the same for the labels (positive or negative):</li>
+</ol>
+<pre style="padding-left: 60px">LABEL = torchtext.data.LabelField(<span>dtype</span>=torch.float)</pre>
+<ol start="4">
+<li>Next, we'll instantiate the training and testing dataset splits:</li>
+</ol>
+<pre style="padding-left: 60px">train<span>, </span>test = torchtext.datasets.IMDB.splits(TEXT<span>, </span>LABEL)</pre>
+<p style="padding-left: 60px">The movie review dataset is included in <kbd>torchtext</kbd> and we don't need to do any additional work. The <kbd>splits</kbd> method takes the <kbd>TEXT</kbd> and <kbd>LABEL</kbd> fields as parameters. By doing this, the specified pipelines are applied over the selected dataset. </p>
+<ol start="5">
+<li>Then, we'll instantiate the vocabulary:</li>
+</ol>
+<pre style="padding-left: 60px">TEXT.build_vocab(train<span>, </span><span>vectors</span>=torchtext.vocab.GloVe(<span>name</span>=<span>'6B'</span><span>, </span><span>dim</span>=<span>100</span>))<br/>LABEL.build_vocab(train)</pre>
+<p style="padding-left: 60px">The vocabulary presents a mechanism for the numerical representation of the words. In this case, the numerical representation of the <kbd>TEXT</kbd> field is a pretrained 100d GloVe vector. On the other hand, the labels in the dataset have a string value of either <kbd>pos</kbd> or <kbd>neg</kbd>. The role of the vocabulary here is to assign numbers (0 and 1) to these two labels. </p>
+<ol start="6">
+<li>Next, we'll define iterators for the training and testing datasets, where <kbd>device</kbd> represents either GPU or CPU. The iterators will return one mini-batch at each call:</li>
+</ol>
+<pre style="padding-left: 60px">train_iter<span>, </span>test_iter = torchtext.data.BucketIterator.splits(<br/>    (train<span>, </span>test)<span>, </span><span>sort_within_batch</span>=<span>True, </span><span>batch_size</span>=<span>64</span><span>, </span><span>device</span>=device)</pre>
+<ol start="7">
+<li>We'll proceed by implementing and instantiating the <kbd>LSTMModel</kbd> class. This is at the core of the program, which implements the algorithm steps we defined in the diagram at the beginning of this section:</li>
+</ol>
+<pre style="padding-left: 60px">class LSTMModel(torch.nn.Module):<br/>    def __init__(self, vocab_size, embedding_size, hidden_size, output_size, pad_idx):<br/>        super().__init__()<br/><br/>        # Embedding field<br/>        self.embedding=torch.nn.Embedding(num_embeddings=vocab_size,<br/>        embedding_dim=embedding_size,padding_idx=pad_idx)<br/><br/>        # LSTM cell<br/>        self.rnn = torch.nn.LSTM(input_size=embedding_size,<br/>        hidden_size=hidden_size)<br/><br/>        # Fully connected output<br/>        self.fc = torch.nn.Linear(hidden_size, output_size)<br/><br/>    def forward(self, text_sequence, text_lengths):<br/>        # Extract embedding vectors<br/>        embeddings = self.embedding(text_sequence)<br/><br/>        # Pad the sequences to equal length<br/>        packed_sequence =torch.nn.utils.rnn.pack_padded_sequence<br/>        (embeddings, text_lengths)<br/><br/>        packed_output, (hidden, cell) = self.rnn(packed_sequence)<br/><br/>        return self.fc(hidden)<br/><br/><br/>model = LSTMModel(vocab_size=len(TEXT.vocab),<br/>                  embedding_size=EMBEDDING_SIZE,<br/>                  hidden_size=HIDDEN_SIZE,<br/>                  output_size=1,<br/>                  pad_idx=TEXT.vocab.stoi[TEXT.pad_token])</pre>
+<p style="padding-left: 60px" class="mce-root"><kbd>LSTMModel</kbd> processes a mini-batch of sequences (in this case, movie reviews) with varying lengths. However, the mini-batch is a tensor, which assigns slices with equal length for each sequence. Because of this, all of the sequences are padded in advance with a special symbol to reach the length of the longest sequence in the batch. The <kbd>padding_idx</kbd> para<span>meter</span> in the constructor of <kbd>torch.nn.Embedding</kbd> represents the index of the padding symbol in the vocabulary. But <span>using sequences with padding will lead to unnecessary calculations for the padded portions. Because of this, </span>the forward propagation of the model takes both the <kbd>text</kbd> mini-batch and <kbd>text_lengths</kbd> of each sequence as parameters. They are fed to the <kbd>pack_padded_sequence</kbd> function, which transforms them into a <kbd>packed_sequence</kbd> object. We do all of this because the <kbd>self.rnn</kbd> object (the instance of <kbd>torch.nn.LSTM</kbd>) has a special routine for processing packed sequences, which optimizes the computation with respect to the padding.</p>
+<ol start="8">
+<li>Next, we'll copy the GloVe word embedding vectors to the embedding layer of the model:</li>
+</ol>
+<pre style="padding-left: 60px">model.embedding.weight.data.copy_(TEXT.vocab.vectors)</pre>
+<ol start="9">
+<li>Then, we'll set the embedding entries for the padding and unknown tokens to zeros so that they don't influence the propagation:</li>
+</ol>
+<pre style="padding-left: 60px">model.embedding.weight.data[TEXT.vocab.stoi[TEXT.unk_token]] = torch.zeros(EMBEDDING_SIZE)<br/>model.embedding.weight.data[TEXT.vocab.stoi[TEXT.pad_token]] = torch.zeros(EMBEDDING_SIZE)</pre>
+<ol start="10">
+<li>Finally, we can run the whole thing with the following code (the <kbd>train_model</kbd> and <kbd>test_model</kbd> functions are the same as they were previously):</li>
+</ol>
+<pre style="padding-left: 60px">optimizer = torch.optim.Adam(model.parameters())<br/>loss_function = torch.nn.BCEWithLogitsLoss().to(device)<br/><br/>model = model.to(device)<br/><br/>for epoch in range(5):<br/>    print(f"Epoch {epoch + 1}/5")<br/>    train_model(model, loss_function, optimizer, train_iter)<br/>    test_model(model, loss_function, test_iter)</pre>
+<p>If everything works as intended, the model will achieve a test accuracy of around 88%. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>In this chapter, we discussed RNNs. First, we started with the RNN and backpropagation through time theory. Then, we implemented an RNN from scratch to solidify our knowledge on the subject. Next, we moved on to more complex LSTM and GRU cells using the same pattern: a theoretical explanation, followed by a practical PyTorch implementation. Finally, we combined our knowledge from <a href="fe6a42c9-f18e-4c2b-9a82-99ec53e727ca.xhtml">Chapter 6</a>, <em>Language Modeling</em>, with the new material from this chapter for a full-featured sentiment analysis task implementation. </p>
+<p>In the next chapter, we'll discuss seq2seq models and their variations—an exciting new development in sequence processing.</p>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

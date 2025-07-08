@@ -1,0 +1,358 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Sentiment Analysis in Your Browser Using TensorFlow.js</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root"><span>Sentiment analysis is a popular problem in machine learning. People are constantly trying to understand the sentiment of a product or movie review.</span> <span>Currently, for sentiment analysis, we extract the text from a client/browser, pass it on to a server that runs a machine learning model to predict sentiment of the text, and the server then sends the result back to the client.</span></p>
+<p class="mce-root"><span>This is perfectly fine if we don't care about the latency in the system. However, there are many applications, such as stock trading, customer support conversations where it might be helpful to predict sentiment of the text with low latency. One obvious bottleneck in reducing latency is the server call. </span></p>
+<p class="mce-root"><span>If sentiment analysis could be achieved on the browser</span><span>/client itself, we can get rid of the server call and can pred</span><span>ict the sentiment in real time. Google recently released TensorFlow.js, which enables us to do the model training and inference on a browser/client.</span></p>
+<p>Additionally, training the models on the client side opens up a world of opportunities. A brief summary of all the advantages of doing this are as follows: </p>
+<ul>
+<li><strong>Priv</strong><strong>acy</strong>: Since data will never leave the client side, we are able to provide the magical experience of machine learning without compromising on data privacy</li>
+<li><strong>No hassle ML</strong>: Since the code runs on a browser, the user doesn't need to install any libraries or dependencies</li>
+<li><strong>Latency</strong>: Since there is no need to transfer data to servers for training/predictions, we can deploy ML models for low latency applications</li>
+<li><strong>Device agnostic</strong>: A web page can be opened on any device (laptop, mobile. and so on) and so TensorFlow.js can take advantage of any hardware (GPU) or device sensors, such as accelerometers in mobile devices, to train ML models</li>
+</ul>
+<p>Let's learn how to incorporate sentiment analysis in the browser using TensorFlow.js by covering the following topics:</p>
+<ul>
+<li>Understanding TensorFlow.js</li>
+<li>Understanding Adam Optimization</li>
+<li>Understanding Categorical Cross Entropy Loss</li>
+<li>Understanding Word Embeddings</li>
+<li>Setting up the sentiment analysis problem and building a model in Python</li>
+<li>Deploying the model using TensorFlow.js in a browser</li>
+</ul>
+<div class="packt_tip">Find the code for this chapter and <span>Installation</span> <span>instructions are also present in a <strong>README</strong> file in repository for this project.</span></div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding TensorFlow.js</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">TensorFlow recently open sourced TensorFlow.js. This is an open source library that helps us define and train deep learning models entirely on the browser using JavaScript as well as through a high-level layered API. We can use this to train deep learning models entirely on the client side. A server GPU is not required to train these models. </p>
+<p class="mce-root">The following diagram illustrates the API overview of TensorFlow.js:<span> </span></p>
+<div class="mce-root CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-46 image-border" src="assets/1f074dbe-54eb-40d5-9042-6201fe2a9397.png" style="width:36.75em;height:21.67em;"/></div>
+<p>This is powered by <strong>WebGL</strong>. It also provides a high-level layered API. It has a support for <strong>Eager</strong> execution, too. You can achieve three things using TensorFlow.js:</p>
+<ul>
+<li>Load existing TensorFlow/Keras models for in browser predictions</li>
+<li>Retrain existing models using client data </li>
+<li>Define and train Deep Learning models from scratch on the <strong>Browser</strong></li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding Adam Optimization</h1>
+                </header>
+            
+            <article>
+                
+<p>Before we look at Adam optimization, let's try to first understand the concept of gradient descent.</p>
+<p>Gradient descent is an iterative optimization algorithm to find the minimum of a function. An analogous example could be as follows: let's say we are stuck on somewhere in middle of a mountain and we want to reach the ground in fastest possible manner.  As a first step, we will observe the slope of mountain in all directions around us and decide to take the the direction with steepest slope down.</p>
+<p>We re-evaluate our choice of direction after every step we take. Also, the size of our walking also depends on the steepness of the downward slope. If the slope is very steep, we take bigger steps as it can help us to reach faster to the ground. This way after a few/large number of steps we can reach the ground safely. Similarly, in machine learning, we want to minimize some error/cost function by updating the weights of the algorithm. To find minimum of cost function using gradient, we update the weights of the algorithm proportional to the gradient in the direction of steepest descent. The proportionality constant is also known as Learning Rate in neural network literature.</p>
+<p>However, in large scale machine learning, doing gradient descent optimization is pretty costly because we take only one step after a single pass on our entire training dataset. So, the time to converge to a minimum of cost function is huge if we were to take several thousand steps to converge.</p>
+<p>A solution to this problem is Stochastic Gradient Descent (SGD), an approach to update weights of the algorithm after each training example and not wait for entire training dataset to pass through the algorithm for the update. We use the term, <strong>stochastic</strong> to denote the approximate nature of gradient as it is only computed after every training example. However, it is shown in the literature that after many iterations, SGD almost surely converges to the true local/global minimum of the function. Generally, in deep learning algorithms, we can observe that we tend to use mini-batch SGD where we update the weights after every mini batch and not after every training example.</p>
+<p>Adam optimization is a variant of SGD where we maintain per parameter (weight) learning rate and update it based on the mean and variance of previous gradients of that parameter. Adam has been proven to be extremely good and fast for many deep learning problems. For more details on Adam optimization, please refer to the original paper (<a href="https://arxiv.org/abs/1412.6980">https://arxiv.org/abs/1412.6980</a>).</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding categorical cross entropy loss</h1>
+                </header>
+            
+            <article>
+                
+<p> <span>Cross entropy loss, or log loss, measures the performance of the classification model whose output is a probability between 0 and 1. Cross entropy increases as the predicted probability of a sample diverges from the actual value. Therefore, predicting a probability of 0.05 when the actual label has a value of 1 increases the cross entropy loss. </span></p>
+<p>Mathematically, for a binary classification setting, cross entropy is defined as the following equation:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/513a42dd-d240-46c7-8a74-dbd70a09d276.png" style="width:22.92em;height:1.83em;"/></p>
+<p>Here,<span> <img class="fm-editor-equation" src="assets/d8664366-e696-42ef-8019-5c5a534384a3.png" style="width:1.33em;height:1.33em;"/> </span>is the binary indicator (0 or 1) denoting the class for the sample<span> <img class="fm-editor-equation" src="assets/3c66d06e-4997-4db5-aa30-89812b374e7a.png" style="width:0.50em;height:1.33em;"/></span>, while <span><img class="fm-editor-equation" src="assets/e6887a84-0522-4518-8e83-6448f23b9c49.png" style="width:1.33em;height:1.25em;"/> </span>denotes the predicted probability between 0 and 1 for that sample.</p>
+<p>Alternatively, if there are more than two classes, we define a new term known as categorical cross entropy. It is calculated as a sum of separate loss for each class label per observation. Mathematically, it is given as the following equation:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/710d38ef-dfc4-4150-8b23-cebe30073ab3.png" style="width:13.50em;height:2.25em;"/></p>
+<p class="mce-root"/>
+<p>Here, <span><img class="fm-editor-equation" src="assets/5d45ec5a-62bb-4442-84dd-dd65ce7722e1.png" style="width:1.17em;height:0.92em;"/> </span>denotes the number of classes, <span><img class="fm-editor-equation" src="assets/fc17a134-4c08-4d89-baf4-4d06c4309bd2.png" style="width:2.08em;height:1.42em;"/> </span>is a binary indicator (0 or 1) that indicates whether<span> <img class="fm-editor-equation" src="assets/a8c647e5-8fe0-41c9-be72-a1bf309f9a0a.png" style="width:0.67em;height:0.92em;"/></span><span> </span>is the correct class for the observation,<span> <img class="fm-editor-equation" src="assets/84984180-ad05-465c-84d4-b217cb23f6d6.png" style="width:0.50em;height:1.33em;"/>, and </span><span><img class="fm-editor-equation" src="assets/ddf45d66-3f33-4d35-8c57-1d5cf205fee3.png" style="width:2.17em;height:1.42em;"/></span>denotes the probability of observation<span> <img class="fm-editor-equation" src="assets/c6141838-e2a2-484d-b836-86931ea042ef.png" style="width:0.50em;height:1.33em;"/></span><span> </span>for class <img class="fm-editor-equation" src="assets/61a34d4d-531a-4306-bae2-b62d653c96de.png" style="width:0.67em;height:0.92em;"/>.</p>
+<p class="mce-root">In this chapter, as we perform binary classification on reviews, we will only use binary cross entropy as our classification loss.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding word embeddings</h1>
+                </header>
+            
+            <article>
+                
+<p><span>Word embeddings refer to the class of feature learning techniques in <strong>Natural Language Processing</strong> (<strong>NLP</strong>) that are used to generate a real valued vector representation of a word, sentence, or document.</span></p>
+<p>Many machine learning tasks today involve text. For example, Google's language translation or spam detection in Gmail both use text as input to their models to perform the tasks of translation and spam detection. However, modern day computers can only take real valued numbers as input and can't understand strings or text unless we encode them into numbers or vectors.</p>
+<p>For example, let's consider a sentence, "<em>I like Football"</em>, for which we want a representation of all of the words. A brute force method to generate the embeddings of the three words "<em>I"</em>, <em>"like"</em>, and <em>"Football"</em> is done through the one hot representation of words. In this case, the embeddings are given as follows:</p>
+<ul>
+<li>"I" = [1,0,0]</li>
+<li>"like" = [0,1,0]</li>
+<li>"Football" = [0,0,1]</li>
+</ul>
+<p>The idea is to create a vector that has a dimension equal to the number of unique words in the sentence and to assign a 1 to the position where a word exists and zero everywhere else. There are two issues with this approach:</p>
+<ul>
+<li>The number of vector dimension scales with the number of words in the corpus. Let's say we have 100,000 unique words in a document. Therefore, we represent each word with a vector that has a dimension of 100,000. This increases the memory required to represent words, making our system inefficient. </li>
+</ul>
+<ul>
+<li>One hot representations like this fail to capture the similarity between words. For example, there are two words in a sentence, <em>"like"</em> and <em>"love"</em>. We know that <em>"like"</em> is more similar to <em>"love"</em> than it is to <em>"Football"</em>. However, in our current one hot representation, the dot product of any two vectors is zero. Mathematically, the dot product of <em>"like"</em> and <em>"Football"</em> is represented as follows:</li>
+</ul>
+<p class="CDPAlignCenter CDPAlign"><em>"like" * "Football" = Transpose([0,1,0]) *[0,0,1] = 0*0 + 1*0 + 0*1 = 0</em></p>
+<p style="padding-left: 60px">This is because we have a separate position in the vector for each word and only have 1 in that position. </p>
+<p>For both spam detection and language translation problems, understanding the similarity between words is quite crucial. For this reason, there are several other ways (both supervised and unsupervised) in which we can learn about word embeddings.</p>
+<div class="packt_tip">You can learn more about how to use word embeddings with TensorFlow from this <span>official tutorial. </span>(<a href="https://www.tensorflow.org/tutorials/representation/word2vec">https://www.tensorflow.org/tutorials/representation/word2vec</a>) </div>
+<p>This project uses the embedding layer from Keras to map the words in our movie reviews to real valued vector representations. In this project, we learn the vector representation of words in a supervised manner. Essentially, we initialize the word embeddings randomly and then use back propagation in neural networks to update the embeddings such that total network <span>loss</span> is minimized.<span> Training them in a supervised manner helps to generate task specific embeddings</span><span>. For example, we expect a similar representation of words such as <em>Awesome</em> and <em>Great</em> since they both signify a positive sentiment. Once we have encoded words in movie reviews, we can use them as input in our neural network layers. </span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Building the sentiment analysis model</h1>
+                </header>
+            
+            <article>
+                
+<p><span>In this section, we will learn how to build a sentiment analysis model from scratch using Keras. </span>To perform sentiment analysis, we will use sentiment analysis data from the University of Michigan that is available at <a href="https://www.kaggle.com/c/si650winter11/data">https://www.kaggle.com/c/si650winter11/data</a>. This dataset contains 7,086 movie reviews with labels. Label <kbd>1</kbd> denotes a positive sentiment, while <kbd>0</kbd> denotes a negative sentiment. In the repository, the dataset is stored in the file named <kbd>sentiment.txt</kbd>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Pre-processing data</h1>
+                </header>
+            
+            <article>
+                
+<p>Once you have installed the requisite packages (can be found in a <kbd>requirements.txt</kbd> file with the code) to run this project and read the data, the next step is to preprocess the data:</p>
+<ol>
+<li>The first step is to get the tokens/word list from the reviews. Remove any punctuation and make sure that all of the tokens are in lowercase:</li>
+</ol>
+<pre style="padding-left: 60px">def get_processed_tokens(text):<br/>'''<br/>Gets Token List from a Review<br/>'''<br/>filtered_text = re.sub(r'[^a-zA-Z0-9\s]', '', text) #Removing Punctuations<br/>filtered_text = filtered_text.split()<br/>filtered_text = [token.lower() for token in filtered_text]<br/>return filtered_text</pre>
+<p style="padding-left: 60px"><span>For example, if we have an input <kbd>This is a GREAT movie!!!!</kbd>, our output should be <kbd>this is a great movie</kbd>.</span></p>
+<ol start="2">
+<li><span>Creat</span><span>e a</span> <kbd>token_idx</kbd> <span>dictionary</span><em> </em><span>that maps tokens to integers to create embeddings.</span> <span>Note that </span><span>the number of unique tokens (words) present in a dictionary can be very large, so we must filter out the ones that occur less than the threshold (the default value for this is <kbd>5</kbd> in the code) in the training set. This is because it is difficult to learn any relationship between movie sentiment and words that don't occur much in the dataset:</span></li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px">def tokenize_text(data_text, min_frequency =5):<br/>    '''<br/>    Tokenizes the reviews in the dataset. Filters non frequent tokens<br/>    '''<br/>    review_tokens = [get_processed_tokens(review) for review in   <br/>                     data_text] # Tokenize the sentences<br/>    token_list = [token for review in review_tokens for token in review]         <br/>    #Convert to single list<br/>    token_freq_dict = {token:token_list.count(token) for token in     <br/>    set(token_list)} # Get the frequency count of tokens<br/>    most_freq_tokens = [tokens for tokens in token_freq_dict if <br/>    token_freq_dict[tokens] &gt;= min_frequency]<br/>    idx = range(len(most_freq_tokens))<br/>    token_idx = dict(zip(most_freq_tokens, idx))<br/>    return token_idx,len(most_freq_tokens)</pre>
+<ol start="3">
+<li>Map each review in the dataset to a sequence of integers (based on the <kbd>token_idx</kbd><em> </em>dictionary we created in the last step). However, before doing that, find the review with the largest number of tokens:</li>
+</ol>
+<pre style="padding-left: 60px">def get_max(data):<br/>    '''<br/>    Get max length of the token<br/>    '''<br/>    tokens_per_review = [len(txt.split()) for txt in data]<br/>    return max(tokens_per_review)</pre>
+<ol start="4">
+<li>To create the sequences that will be fed into the model to learn the embeddings, we must create a fixed-length sequence of <kbd>(max_tokens)</kbd> for each review in the dataset. We pre-pad the sequences with zeros if they are less than the maximum length to ensure that all of the sequences are of the same length. Pre-padding a sequence is preferred over post padding as it helps to achieve a more accurate result:</li>
+</ol>
+<pre style="padding-left: 60px"><br/>def create_sequences(data_text,token_idx,max_tokens):<br/>    '''<br/>    Create sequences appropriate for GRU input<br/>    Input: reviews data, token dict, max_tokens<br/>    Output: padded_sequences of shape (len(data_text), max_tokens)<br/>    '''<br/>    review_tokens = [get_processed_tokens(review) for review in  <br/>                   data_text] # Tokenize the sentences <br/>    #Covert the tokens to their indexes <br/>    review_token_idx = map( lambda review: [token_idx[k] for k in review <br/>                           if k in token_idx.keys() ], review_tokens)<br/>    padded_sequences = pad_sequences(review_token_idx,maxlen=max_tokens)<br/>    return np.array(padded_sequences)</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Building the model</h1>
+                </header>
+            
+            <article>
+                
+<p>This model will consist of an embedding layer, followed by three<span> la</span>yers of<span> </span>GRU<span> and a fully connected layer with sigmoid activation. For the optimization and accuracy metric, we will use an <kbd>Adam</kbd> optimizer and <kbd>binary_crossentropy</kbd>, respectively:</span></p>
+<ol>
+<li><span>The model is defined using the following parameters:</span></li>
+</ol>
+<pre style="padding-left: 60px">def define_model(num_tokens,max_tokens):<br/>    '''<br/>    Defines the model definition based on input parameters<br/>    '''<br/>    model = Sequential()<br/>    model.add(Embedding(input_dim=num_tokens,<br/>                    output_dim=EMBEDDING_SIZE,<br/>                    input_length=max_tokens,<br/>                    name='layer_embedding'))<br/><br/>    model.add(GRU(units=16, name = "gru_1",return_sequences=True))<br/>    model.add(GRU(units=8, name = "gru_2",return_sequences=True))<br/>    model.add(GRU(units=4, name= "gru_3"))<br/>    model.add(Dense(1, activation='sigmoid',name="dense_1"))<br/>    optimizer = Adam(lr=1e-3)<br/>    model.compile(loss='binary_crossentropy',<br/>                  optimizer=optimizer,<br/>                  metrics=['accuracy'])<br/>    print model.summary()<br/>    return model</pre>
+<ol start="2">
+<li>Train the model with the following parameters:
+<ul>
+<li>Epochs = 15</li>
+<li>Validation split = 0.05</li>
+<li>Batch size = 32</li>
+<li>Embedding Size = 8</li>
+</ul>
+</li>
+</ol>
+<pre style="padding-left: 60px">def train_model(model,input_sequences,y_train):<br/>    '''<br/>    Train the model based on input parameters<br/>    '''<br/>    <br/>    model.fit(input_sequences, y_train,<br/>          validation_split=VAL_SPLIT, epochs=EPOCHS, <br/>          batch_size=BATCH_SIZE)<br/>    return model</pre>
+<ol start="3">
+<li>Test the model trained on a few random review sentences to verify its performance:</li>
+</ol>
+<table border="1" style="border-collapse: collapse;width: 100%">
+<tbody>
+<tr>
+<td><strong>Text</strong></td>
+<td><strong>Predicted Score</strong></td>
+</tr>
+<tr>
+<td>Awesome movie</td>
+<td>0.9957</td>
+</tr>
+<tr>
+<td>Terrible Movie</td>
+<td>0.0023</td>
+</tr>
+<tr>
+<td>That movie really sucks </td>
+<td>0.0021</td>
+</tr>
+<tr>
+<td>I like that movie </td>
+<td>0.9469</td>
+</tr>
+</tbody>
+</table>
+<p> </p>
+<p>The predicted score is close to 1 for positive sentences and close to 0 for negative ones. This validates our random checks on the performance of our model.</p>
+<div class="packt_infobox">Note that the actual scores might vary a little if you train your model on different hardware types. </div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Running the model on a browser using TensorFlow.js</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we are going to deploy the model on a browser.</p>
+<p>The following steps demonstrate how to save the model:</p>
+<ol>
+<li>Install TensorFlow.js, which will help us format our trained model in accordance with what can be consumed by the browser:</li>
+</ol>
+<pre style="padding-left: 60px"><strong>pip install tensorflowjs</strong></pre>
+<ol start="2">
+<li>Save the model in the TensorFlow.js format:</li>
+</ol>
+<pre style="padding-left: 60px"><strong>import tensorflowjs as tfjs </strong><br/><strong>tfjs.converters.save_keras_model(model, OUTPUT_DIR)</strong></pre>
+<p class="graf graf--p graf-after--figure">This will create a json file called <kbd>model.json</kbd>, which will contain the meta-variables and some other files, such as <kbd><span>group1-shard1of1</span></kbd>. </p>
+<p><span>Good job! Deploying the model in the HTML file is a little trickier, however:</span></p>
+<div class="packt_tip"><span>For running the code mentioned in the repository, </span>please follow the <kbd>README.md</kbd><span> documentation </span>carefully (note the troubleshooting part, if required) regarding the settings before running the <kbd>Run_On_Browser.html</kbd> file.</div>
+<ol>
+<li>Incorporate TensorFlow.js in your JavaScript through script tags:</li>
+</ol>
+<pre style="padding-left: 60px">&lt;script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@0.8.0"&gt;&lt;/script&gt;</pre>
+<ol start="2">
+<li class="mce-root">Load the model and our <kbd>token_idx</kbd> dictionary. This will help us to load the relevant data before processing any review from the browser:</li>
+</ol>
+<pre style="padding-left: 60px"><span class="pl-k">async</span><span> </span><span class="pl-k">function</span><span> </span><span class="pl-en">createModel</span><span>()<br/>{<br/><span class="pl-k">const</span> <span class="pl-c1">model</span> <span class="pl-k">=</span> <span class="pl-k">await</span></span><span><br/><span class="pl-smi">tf</span>.<span class="pl-en">loadModel</span>(<span class="pl-s"><span class="pl-pds">'</span>http://127.0.0.1:8000/model.json<span class="pl-pds">'</span></span>)<span class="pl-k"><br/>return model<br/></span>}<br/></span>async function loadDict()<br/>{<br/> await $.ajax({<br/> url: 'http://127.0.0.1:8000/token_index.csv',<br/> dataType: 'text',<br/> crossDomain : true}).done(success);<br/>}<br/>function success(data)<br/>{<br/>    var wd_idx = new Object();<br/>    lst = data.split(/\r?\n|\r/)<br/>    for(var i = 0 ; i &lt; lst.length ;i++){<br/>        key = (lst[i]).split(',')[0]<br/>        value = (lst[i]).split(',')[1]<br/>        <br/>        if(key == "")<br/>            continue<br/>        wd_idx[key] = parseInt(value) <br/>    }<br/>    <br/>    word_index = wd_idx<br/>}<br/><br/><br/>async function init()<br/>{<br/> word_index = undefined<br/> console.log('Start loading dictionary')<br/> await loadDict()<br/> //console.log(word_index)<br/> console.log('Finish loading dictionary')<br/> console.log('Start loading model') <br/> model = await createModel()<br/> console.log('Finish loading model') <br/>}</pre>
+<ol start="3">
+<li>Add some helper functions to process the review input from the browser. This includes processing text, mapping words to <kbd>token_idx</kbd>, and creating sequences for model predictions:</li>
+</ol>
+<pre style="padding-left: 60px">function process(txt)<br/>{<br/> out = txt.replace(/[^a-zA-Z0-9\s]/, '')<br/> out = out.trim().split(/\s+/)<br/> for (var i = 0 ; i &lt; out.length ; i++)<br/> out[i] = out[i].toLowerCase()<br/> return out<br/>}<br/><br/>function create_sequences(txt)<br/>{<br/> max_tokens = 40 <br/> tokens = []<br/> words = process(txt)<br/> seq = Array.from(Array(max_tokens), () =&gt; 0) <br/> start = max_tokens-words.length<br/> for(var i= 0 ; i&lt; words.length ; i++)<br/> {<br/>     if (Object.keys(word_index).includes(words[i])){<br/>         seq[i+start] = word_index[words[i]]<br/>     } <br/> }<br/> return seq<br/>}</pre>
+<ol start="4">
+<li>Incorporate the predict function that processes the input sentence and uses the model's predict function to return a tensor with a predicted score, as shown in the previous section:</li>
+</ol>
+<pre style="padding-left: 60px">async function predict()<br/>{<br/> txt = document.getElementById("userInput").value<br/> alert(txt);<br/> seq = create_sequences(txt) <br/> input = tf.tensor(seq)<br/> input = input.expandDims(0)<br/> pred = model.predict(input)<br/> document.getElementById("Sentiment").innerHTML = pred;<br/> <br/> pred.print()<br/>}</pre>
+<ol start="5">
+<li>To illustrate the entire process from a user's point of view, open the <kbd>Run_on_Browser.html</kbd><span> file. You will see something similar to what's shown in the following screenshot:</span></li>
+</ol>
+<div class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1012 image-border" src="assets/c3ecaa16-a349-4418-ad6f-00e0fa621d61.png" style="width:162.50em;height:32.83em;"/></div>
+<p style="padding-left: 60px">The left-hand side of the screenshot denotes the website's layout, while the right-hand side shows the console and outputs.</p>
+<div class="packt_infobox">Note that we can load the dictionary and model beforehand to make the predictions faster.
+<div class="wp-menu-name"/>
+</div>
+<ol start="6">
+<li>Type a review into the box provided and click submit to see the model's predicted score. Try running the application with the <kbd>Awesome Movie</kbd> text:</li>
+</ol>
+<div class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1013 image-border" src="assets/29713226-a4ef-434b-9450-98be88b3e10f.png" style="width:162.50em;height:33.42em;"/></div>
+<p>The predicted score is quite high, which indicates a positive sentiment. You can play around with different text to see the results.</p>
+<div class="packt_infobox">Note that this is mainly for illustration purposes and that if you are up for it, you can improve the UI through JavaScript.</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p class="graf graf--p graf-after--figure">This chapter was a brief introduction to how to build an en- to-end system that trains a sentiment analysis model using Keras and deploys it in JavaScript using TensorFlow.js. The process of deploying the model in production is pretty seamless. </p>
+<p><span>A potential next step would be to modify the JavaScript to predict sentiment as soon as a word is typed. As we mentioned previously, by deploying the model using TensorFlow.js, you can enable low- latency applications like real-time sentiment prediction without having to interact with the server.</span></p>
+<p>Finally, we built a neural network in Python and deployed it in JavaScript. However, you can try building the entire model in JavaScript using TensorFlow.js. </p>
+<p>In the next chapter, we will learn about Google's new library, TensorFlow Lite.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Questions</h1>
+                </header>
+            
+            <article>
+                
+<ol>
+<li>Can you evaluate the accuracy of the model if you use LSTM instead of GRUs? </li>
+<li>What happens to the accuracy and training time if you increase Embedding Size?</li>
+<li>Can you incorporate more layers in the model? What will happen to the training time?</li>
+<li>Can you modify the code  to train the model inside a browser instead of loading the trained model?</li>
+</ol>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

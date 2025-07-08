@@ -1,0 +1,664 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Efficient Data Input Pipelines and Estimator API</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">In this chapter, we will look at two of the most common modules of the TensorFlow API: <kbd>tf.data</kbd> and <kbd>tf.estimator</kbd>.</p>
+<p>The TensorFlow 1.x design was so good that almost nothing changed in TensorFlow 2.0; in fact, <kbd>tf.data</kbd> and <kbd>tf.estimator</kbd> were the first two high-level modules introduced during the life cycle of TensorFlow 1.x.</p>
+<p>The <kbd>tf.data</kbd> module is a high-level API that allows you to define high-efficiency input pipelines without worrying about threads, queues, synchronization, and distributed filesystems. The API was designed with simplicity in mind to overcome the usability issues of the previous low-level API.</p>
+<p>The <kbd>tf.estimator</kbd> API was designed to simplify and standardize machine learning programming, allowing to train, evaluate, run inference, and export for serving a parametric model, letting the user focus on the model and input definition only.</p>
+<p><span>The </span><kbd>tf.data</kbd><span> and </span><kbd>tf.estimator</kbd> APIs are fully compatible, and it is highly encouraged to use them together. Moreover, as we will see in the next sections, every Keras model, the whole eager execution, and even AutoGraph are fully compatible with the <kbd>tf.data.Dataset</kbd> object. This compatibility speeds up the training and evaluation phases by defining and using high-efficiency data input pipelines in a few lines.</p>
+<p>In this chapter, we will cover the following topics:</p>
+<ul>
+<li>Efficient data input pipelines</li>
+<li>The <kbd>tf.estimator</kbd> API</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Efficient data input pipelines</h1>
+                </header>
+            
+            <article>
+                
+<p>Data is the most critical part of every machine learning pipeline; the model learns from it, and its quantity and quality are game-changers of every machine learning application.</p>
+<p>Feeding data to a Keras model has so far seemed natural: we can fetch the dataset as a NumPy array, create the batches, and feed the batches to the model to train it using mini-batch gradient descent.</p>
+<p>However, the way of feeding the input shown so far is, in fact, hugely inefficient and error-prone, for the following reasons:</p>
+<ul>
+<li>The complete dataset can weight several thousands of GBs: no single standard computer or even a deep learning workstation has the memory required to load huge datasets in memory.</li>
+<li>Manually creating the input batches means taking care of the slicing indexes manually; errors can happen.</li>
+<li>Doing data augmentation, applying random perturbations to each input sample, slows down the model training phase since the augmentation process needs to complete before feeding the data to the model. Parallelizing these operations means you worry about synchronization problems among threads and many other common issues related to parallel computing. Moreover, the boilerplate code increases.</li>
+<li>Feeding a model whose parameters are on a GPU/TPU from the main Python process that resides on the CPU involves loading/unloading data, and this is a process that can make the computation suboptimal: the hardware utilization can be below 100% and is a complete waste.</li>
+</ul>
+<p><span>The TensorFlow implementation of the Keras API specification, </span><kbd>tf.keras</kbd><span>, has native support for feeding models via the </span><kbd>tf.data</kbd><span> API, as it is possible and suggested to use them while using, eager execution, AutoGraph, and estimator API.</span></p>
+<p>Defining an input pipeline is a common practice that can be framed as an ETL (Extract Transform and Load) process.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Input pipeline structure</h1>
+                </header>
+            
+            <article>
+                
+<p>Defining a training input pipeline is a standard process; the steps to follow can be framed as an <strong><span>Extract Transform and Load</span></strong> (<strong><span>ETL</span></strong>) process: that is, the procedure of copying the data from a data source to a destination system that will use it.</p>
+<p>The ETL process consists of the following three steps that the <kbd>tf.data.Dataset</kbd> object allows us to implement easily:</p>
+<ol>
+<li><strong>Extract</strong>: Read the data from the data source. It can be either local (persistent storage, already loaded in memory) or remote (cloud storage, remote filesystem).</li>
+<li><strong>Transform</strong>: Apply transformations to the data to clean, augment (random crop image, flip, color distortion, add noise), make it interpretable by the model. Conclude the transformation by shuffling and batching the data.</li>
+<li><strong>Load</strong>: Load the transformed data into the device that better fits the training needs (GPUs or TPUs) and execute the training.</li>
+</ol>
+<p>These ETL steps can be performed not only during the training phases but also during the inference.</p>
+<p>If the target device for the training/inference is not the CPU but a different device, the <kbd>tf.data</kbd> API effectively utilizes the CPU, reserving the target device for the inference/training of the model; in fact, target devices such as GPUs or TPUs make it possible to train parametric models faster, while the CPU is heavily utilized for the sequential processing of the input data.</p>
+<p>This process, however, is prone to becoming the bottleneck of the whole training process since target devices could consume the data at a faster rate than the CPU produces it.</p>
+<p><span>The </span><kbd>tf.data</kbd><span> API, through its </span><kbd>tf.data.Dataset</kbd><span> class, allows us to easily define data input pipelines that transparently solve all the previous issues while adding powerful high-level features that make using them a pleasure. Special attention has to be given to performance optimization since it is still up to the developer to define the ETL process correctly to have 100% usage of the target devices, manually removing any bottleneck.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The tf.data.Dataset object</h1>
+                </header>
+            
+            <article>
+                
+<p>A <kbd>tf.data.Dataset</kbd> object represents an input pipeline as a collection of elements accompanied by an ordered set of transformations that act on those elements.</p>
+<p>Each element contains one or more <kbd>tf.Tensor</kbd> objects. For example, for an image classification problem, the <kbd>tf.data.Dataset</kbd> elements might be single training examples with a pair of tensors representing the image and its associated label.</p>
+<p>There are several ways of creating a dataset object, depending on the <em>data source</em>.</p>
+<p>Depending on the data position and format, the <kbd>tf.data.Dataset</kbd> class offers many static methods to use to create a dataset easily:</p>
+<ul>
+<li><strong>Tensors in memory</strong>: <kbd>tf.data.Dataset.from_tensors</kbd> or <kbd>tf.data.Dataset.from_tensor_slices</kbd>. In this case, the tensors can be NumPy arrays or <kbd>tf.Tensor</kbd> objects.</li>
+<li><strong>From a Python generator</strong>: <kbd>tf.data.Dataset.from_generator</kbd>.</li>
+<li><strong>From a list of files that matches a pattern</strong>: <kbd>tf.data.Dataset.list_files</kbd>.</li>
+</ul>
+<p>Also, there are two specializations of the <kbd>tf.data.Dataset</kbd> object created for working with two commonly used file formats:</p>
+<ul>
+<li><kbd>tf.data.TFRecordDataset</kbd> to work with the <kbd>TFRecord</kbd> files</li>
+<li><kbd>tf.data.TextLineDataset</kbd> to work with text files, reading them line by line</li>
+</ul>
+<p>A description of the <kbd>TFRecord</kbd> file format is presented in the optimization section that follows.</p>
+<p>Once the dataset object has been constructed, it is possible to transform it into a new <kbd>tf.data.Dataset</kbd> object by chaining method calls. The <kbd>tf.data</kbd> API extensively uses method chaining to naturally express the set of transformations applied to the data as a sequence of actions.</p>
+<p>In TensorFlow 1.x, it was required to create an iterator node since the input pipeline was a member of the computational graph, too. From version 2.0 onward, the <kbd>tf.data.Dataset</kbd> object is iterable, which means you can either enumerate its elements using a <kbd>for</kbd> loop or create a Python iterator using the <kbd>iter</kbd> keyword.</p>
+<div class="packt_infobox">Please note that being iterable does not imply being a Python iterator.<br/>
+You can loop in a dataset by using a <kbd>for</kbd> loop, <kbd>for value in dataset</kbd>, but you can't extract elements by using <kbd>next(dataset)</kbd>.<br/>
+<br/>
+Instead, it is possible to use <kbd>next(iterator)</kbd> after creating an iterator by using the Python <kbd>iter</kbd> keyword:<br/>
+<kbd>iterator = iter(dataset)<br/></kbd><kbd>value = next(iterator)</kbd>.</div>
+<p class="mce-root">A dataset object is a very flexible data structure that allows creating a dataset not only of numbers or a tuple of numbers but of every Python data structure. As shown in the next snippet, it is possible to mix Python dictionaries with TensorFlow generated values efficiently:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>dataset = tf.data.Dataset.from_tensor_slices({<br/>    "a": tf.random.uniform([4]),<br/>    "b": tf.random.uniform([4, 100], maxval=100, dtype=tf.int32)<br/>})<br/>for value in dataset:<br/>    # Do something with the dict value<br/>    print(value["a"])</pre>
+<p>The set of transformations the <kbd>tf.data.Dataset</kbd> object offers through its methods supports datasets of any structure.</p>
+<p>Let's say we want to define a dataset that produces an unlimited number of vectors, each one with 100 elements, of random values (we will do so in the chapter dedicated to the GANs, <a href="66948c53-131c-43ef-a7fc-3d242d1e0664.xhtml">Chapter 9</a>, <em>Generative Adversarial Networks</em>); using <kbd>tf.data.Dataset.from_generator</kbd>, it is possible to do so in a few lines:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>def noise():<br/>    while True:<br/>        yield tf.random.uniform((100,))<br/><br/>dataset = tf.data.Dataset.from_generator(noise, (tf.float32))</pre>
+<p>The only peculiarity of the <kbd>from_generator</kbd> method is the need to pass the type of the parameters (<kbd>tf.float32</kbd>, in this case) as the second parameter; this is required since to build a graph we need to know the type of the parameters in advance.</p>
+<p>Using method chaining, it is possible to create new dataset objects, transforming the one just built to get the data our machine learning model expects as input. For example, if we want to sum 10 to every component of the noise vector, shuffle the dataset content, and create batches of 32 vectors each, we can do so by calling just three methods:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>buffer_size = 10<br/>batch_size = 32<br/>dataset = dataset.map(lambda x: x + 10).shuffle(buffer_size).batch(batch_size)</pre>
+<p>The <kbd>map</kbd> method is the most widely used method of the <kbd>tf.data.Dataset</kbd> object since it allows us to apply a function to every element of the input dataset, producing a new, transformed dataset.</p>
+<p>The <kbd>shuffle</kbd> method is used in every training pipeline since this transformation randomly shuffles the input dataset using a fixed-sized buffer; this means that the shuffled data first fetches the <kbd>buffer_size</kbd> element from its input, then shuffles them and produces the output.</p>
+<p>The <kbd>batch</kbd> method gathers the <kbd>batch_size</kbd> elements from its input and creates a batch as output. The only constraint of this transformation is that all elements of the batch must have the same shape.</p>
+<p>To train a model, it has to be fed with all the elements of the training set for multiple epochs. The <kbd>tf.data.Dataset</kbd> class offers the <kbd>repeat(num_epochs)</kbd> method to do this.</p>
+<p>Thus, the input data pipeline can be summarized as shown in the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-960 image-border" src="assets/640c3fdc-3c31-47b8-8380-1f321542659d.png" style="width:94.83em;height:32.08em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign">The diagram shows the typical data input pipeline: the transformation from raw data to data ready to be used by the model, just by chaining method calls. Prefetching and caching are optimization tips that are explained in the next section.</div>
+<p>Please note that until not a single word has been said about the concept of thread, synchronization, or remote filesystems.</p>
+<p>All this is hidden by the <kbd>tf.data</kbd> API:</p>
+<ul>
+<li>The input paths (for example, when using the <kbd>tf.data.Dataset.list_files</kbd> method) can be remote. TensorFlow internally uses the <kbd>tf.io.gfile</kbd> package, which is a file input/output wrapper without thread locking. This module makes it possible to read from a local filesystem or a remote filesystem in the same way. For instance, it is possible to read from a Google Cloud Storage bucket by using its address in the <kbd>gs://bucket/</kbd> format, without the need to worry about authentication, remote requests, and all the boilerplate required to work with a remote filesystem.</li>
+<li>Every transformation applied to the data is executed using all the CPU resources efficiently—a number of threads equal to the number of CPU cores are created together with the dataset object and are used to process the data sequentially and in parallel whenever parallel transformation is possible.</li>
+<li>The synchronization among these threads is all managed by the <kbd>tf.data</kbd> API.</li>
+</ul>
+<p>All the transformations described by chaining method calls are executed by threads on the CPU that <kbd>tf.data.Dataset</kbd> instantiates to perform operations that can be executed in parallel automatically, which <span>is a great performance boost.</span></p>
+<p>Furthermore, <kbd>tf.data.Dataset</kbd> is high-level enough to make invisible all the threads execution and synchronization, but the automated solution can be suboptimal: the target device could be not completely used, and it is up to the user to remove the bottlenecks to reach the <span>100% usage of the target devices.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Performance optimizations</h1>
+                </header>
+            
+            <article>
+                
+<p>The <kbd>tf.data</kbd> API as shown so far describes a sequential data input pipeline that transforms the data from a raw to a useful format by applying transformations.</p>
+<p>All these operations are executed on the CPU while the target device (CPUs, TPUs, or, in general, the consumer) waits for the data. If the target device consumes the data faster than it is produced, there will be moments of 0% utilization of the target devices.</p>
+<p><span>In parallel programming, this problem has been solved by using prefetching.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Prefetching</h1>
+                </header>
+            
+            <article>
+                
+<p>When the consumer is working, the producer shouldn't be idle but must work in the background to produce the data the consumer will need in the next iteration.</p>
+<p>The <kbd>tf.data</kbd> API offers the <kbd>prefetch(n)</kbd> method to apply a transformation that allows overlapping the work of the producer and the consumer. The best practice is adding <kbd>prefetch(n)</kbd> at the end of the input pipeline to overlap the transformation performed on the CPU with the computation done on the target.</p>
+<p>Choosing <kbd>n</kbd> is easy: <kbd>n</kbd> is the number of elements consumed by a training step, and since the vast majority of models are trained using batches of data, one batch per training step, then <kbd>n=1</kbd>.</p>
+<p>The process of reading from disks, especially if reading big files, reading from slow HDDs, or using remote filesystems can be time-consuming. Caching is often used to reduce this overhead.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Cache elements</h1>
+                </header>
+            
+            <article>
+                
+<p>The <kbd>cache</kbd> transformation can be used to cache the data in memory, completely <span>removing </span>the accesses to the data sources. This can bring huge benefits when using remote filesystems, or when the reading process is slow. Caching data after the first epoch is only possible if the data can fit into memory.</p>
+<p>The <kbd>cache</kbd> method acts as a barrier in the transformation pipeline: everything executed before the <kbd>cache</kbd> method is executed only once, thus placing this transformation in the pipeline can bring immense benefits. In fact, it can be applied after a computationally intensive transformation or after any slow process to speed up everything that comes next.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using TFRecords</h1>
+                </header>
+            
+            <article>
+                
+<p>Reading data is a time-intensive process. Often, data can't be read as it is stored on the disk linearly, but the files have to be processed and transformed to be correctly read.</p>
+<p>The <kbd>TFRecord</kbd> format is a binary and language-agnostic format (defined using <kbd>protobuf</kbd>) for storing a sequence of binary records. TensorFlow allows reading and writing <kbd>TFRecord</kbd> files that are composed of a series of <kbd>tf.Example</kbd> messages.</p>
+<p>A <kbd>tf.Example</kbd> is a flexible message type that represents a <kbd>{"key": value}</kbd> mapping where <kbd>key</kbd> is the feature name, and <kbd>value</kbd> is its binary representation.</p>
+<p>For example, <kbd>tf.Example</kbd> could be the dictionary (in pseudocode):</p>
+<pre>{<br/>    "height": image.height,<br/>    "width": image.widht,<br/>    "depth": image.depth,<br/>    "label": label,<br/>    "image": image.bytes()<br/>}</pre>
+<p>Where a row of the dataset (image, label, together with additional information) is serialized as an example and stored inside a <kbd>TFRecord</kbd> file, in particular, the image is not stored using a compression format but directly using its binary representation. This allows reading the image linearly, as a sequence of bytes, without the need to apply any image decoding algorithm on it, saving time (but using disk space).</p>
+<p>Before the introduction of <kbd>tfds</kbd> (TensorFlow Datasets), reading and writing <kbd>TFRecord</kbd> files was a repetitive and tedious process since we had to take care of how to serialize and deserialize the input features to be compatible with the <kbd>TFRecord</kbd> binary format. TensorFlow Datasets, that is, a high-level API built over the <kbd>TFRecord</kbd> file specification, standardized the process of high-efficiency dataset creation, forcing the creation of the <kbd>TFRecord</kbd> representation of any dataset. Furthermore, <kbd>tfds</kbd> already contains a lot of ready-to-use datasets correctly stored in the <kbd>TFRecord</kbd> format, and its official guide explains perfectly how to build a dataset, by describing its features, to create the <kbd>TFRecord</kbd> representation of the dataset ready to use.</p>
+<p>Since the <kbd>TFRecord</kbd> description and usage goes beyond the scope of this book, in the next sections we will cover only the utilization of TensorFlow Datasets. For a complete guide on the creation of a TensorFlow Dataset Builder see <a href="51f4dcda-add6-4e58-a660-75f34a7e5593.xhtml">Chapter 8</a>, <em>Semantic Segmentation and Custom Dataset</em> <em>Builder</em>. If you are interested in the <kbd>TFRecord</kbd> representation please refer to the official documentation:<a href="https://www.tensorflow.org/beta/tutorials/load_data/tf_records"> https://www.tensorflow.org/beta/tutorials/load_data/tf_records</a>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Building your dataset</h1>
+                </header>
+            
+            <article>
+                
+<p>The following example shows how to build a <kbd>tf.data.Dataset</kbd> object using the Fashion-MNIST dataset. This is the first complete example of a dataset that uses all the best practices described previously; please take the time to understand why the method chaining is performed in this way and where the performance optimizations have been applied.</p>
+<p>In the following code, we define the <kbd>train_dataset</kbd> function, which returns the <kbd>tf.data.Dataset</kbd> object ready to use:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre><span>import tensorflow as tf <br/>from tensorflow.keras.datasets import fashion_mnist <br/> <br/> <br/>def train_dataset(batch_size=32, num_epochs=1): <br/>    (train_x, train_y), (test_x, test_y) = fashion_mnist.load_data()<br/>    input_x, input_y = train_x, train_y <br/><br/>    def scale_fn(image, label): <br/>        return (tf.image.convert_image_dtype(image, tf.float32) - 0.5) * 2.0, label <br/> <br/>    dataset = tf.data.Dataset.from_tensor_slices( <br/>        (tf.expand_dims(input_x, -1), tf.expand_dims(input_y, -1)) <br/>    ).map(scale_fn) <br/> <br/>    dataset = dataset.cache().repeat(num_epochs)<br/>    dataset = dataset.shuffle(batch_size)<br/> <br/>    return dataset.batch(batch_size).prefetch(1)</span></pre>
+<p>A training dataset, however, should contain augmented data in order to address the overfitting problem. Applying data augmentation on image data is straightforward using the TensorFlow <kbd>tf.image</kbd> package.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Data augmentation</h1>
+                </header>
+            
+            <article>
+                
+<p>The ETL process defined so far only transforms the raw data, applying transformations that do not change the image content. Data augmentation, instead, requires to apply meaningful transformation the raw data with the aim of creating a bigger dataset and train, thus, a model more robust to these kinds of variations.</p>
+<p>Working with images, it is possible to use the whole API offered by the <kbd>tf.image</kbd> package to augment the dataset. The augmentation step consists in the definition of a function and its application to the training set, using the dataset <kbd>map</kbd> method.</p>
+<p>The set of valid transformations depends on the dataset—if we were using the MNIST dataset, for instance, flipping the input image upside down won't be a good idea (nobody wants to feed an image of the number 6 labeled as 9), but since we are using the fashion-MNIST dataset we can flip and rotate the input image as we like (a pair of trousers remains a pair of trousers, even if randomly flipped or rotated).</p>
+<p>The <kbd>tf.image</kbd> package already contains functions with stochastic behavior, designed for data augmentation. These functions apply the transformation to the input image with a 50% chance; this is the desired behavior since we want to feed the model with both original and augmented images. Thus, a function that applies meaningful transformations to the input data can be defined as follows:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>def augment(image):<br/>    image = tf.image.random_flip_left_right(image)<br/>    image = tf.image.random_flip_up_down(image)<br/>    image = tf.image.random_brightness(image, max_delta=0.1)<br/>    return image</pre>
+<p>Applying this augmentation function to the dataset, using the dataset <kbd>map</kbd> method, is left as an exercise for you.</p>
+<p><span>Although it is easy, thanks to the </span><kbd>tf.data</kbd><span> API, building your own datasets to benchmark every new algorithm on a standard task (classification, object detection, or semantic segmentation) can be a repetitive and, therefore, error-prone process. The TensorFlow developers, together with the TensorFlow developer community, standardized the </span><em>extraction</em><span> and </span><em>transformation</em><span> process of the ETL pipeline, developing TensorFlow Datasets.</span></p>
+<div class="packt_infobox">The data augmentation functions offered by TensorFlow sometimes are not enough, especially when working with small datasets that require a lot of argumentation to become useful. There are many data augmentation libraries written in Python that can be easily integrated into the dataset augmentation step. Two of the most common are the following:<br/>
+- <strong>imgaug</strong>: <a href="https://github.com/aleju/imgaug">https://github.com/aleju/imgaug</a><br/>
+- <strong>albumentations</strong>: <a href="https://github.com/albu/albumentations">https://github.com/albu/albumentations</a><br/>
+Using <kbd>tf.py_function</kbd> it is possible to execute Python code inside the <kbd>map</kbd> method, and thus use these libraries to generate a rich set of transformations (not offered by the <kbd>tf.image</kbd> package).</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">TensorFlow Datasets – tfds</h1>
+                </header>
+            
+            <article>
+                
+<p><span>TensorFlow Datasets is a collection of ready-to-use datasets that handle the downloading and preparation phases of the ETL process, constructing a </span><kbd>tf.data.Dataset</kbd><span> object.</span></p>
+<p>The significant advantage this project has brought to machine learning practitioners is the extreme simplification of the data download and preparation of the most commonly used benchmark dataset.</p>
+<p>TensorFlow Datasets (<kbd>tfds</kbd>) not only downloads and converts the dataset to a standard format but also locally converts the dataset to its <kbd>TFRecord</kbd> representation, making the reading from disk highly efficient and giving the user a <kbd>tf.data.Dataset</kbd> object that reads from <kbd>TFRecord</kbd> and is ready to use. The API comes with the concept of a builder<em><strong>. </strong></em>Every builder is an available dataset.</p>
+<p>Different from the <kbd>tf.data</kbd> API, TensorFlow Datasets comes as a separate package that needs to be installed.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Installation</h1>
+                </header>
+            
+            <article>
+                
+<p>Being a Python package, installing it using <kbd>pip</kbd> is straightforward:</p>
+<pre>pip install tensorflow-datasets</pre>
+<p>That's it. The package is lightweight since all the datasets are downloaded only when needed.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Usage</h1>
+                </header>
+            
+            <article>
+                
+<p>The package comes with two main methods: <kbd>list_builders()</kbd> and <kbd>load()</kbd>:</p>
+<ul>
+<li><kbd>list_builders()</kbd> returns the list of the available datasets.</li>
+<li><kbd>load(name, split)</kbd> accepts the name of an available builder and the desired split. The split value depends on the builder since every builder carries its information.</li>
+</ul>
+<p>Using <kbd>tfds</kbd> to load the train and test splits of MNIST, in the list of the available builders, is shown as follows:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>import tensorflow_datasets as tfds<br/><br/># See available datasets<br/>print(tfds.list_builders())<br/># Construct 2 tf.data.Dataset objects<br/># The training dataset and the test dataset<br/>ds_train, ds_test = tfds.load(name="mnist", split=["train", "test"])</pre>
+<p>In a single line of code, we downloaded, processed, and converted the dataset to TFRecord, and created two <kbd>tf.data.Dataset</kbd> objects to read them.</p>
+<p>In this single line of code, we don't have any information about the dataset itself: no clue about the data type of the returned objects, the shape of the images and labels, and so on.</p>
+<p>To gain a complete description of the whole dataset, it is possible to use the builder associated with the dataset and print the <kbd>info</kbd> property; this property contains all the information required to work with the dataset, from the academic citation to the data format:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>builder = tfds.builder("mnist")<br/>print(builder.info)</pre>
+<p>Executing it, we get the following:</p>
+<pre>tfds.core.DatasetInfo(<br/>    name='mnist',<br/>    version=1.0.0,<br/>    description='The MNIST database of handwritten digits.',<br/>    urls=['http://yann.lecun.com/exdb/mnist/'],<br/>    features=FeaturesDict({<br/>        'image': Image(shape=(28, 28, 1), dtype=tf.uint8),<br/>        'label': ClassLabel(shape=(), dtype=tf.int64, num_classes=10)<br/>    },<br/>    total_num_examples=70000,<br/>    splits={<br/>        'test': &lt;tfds.core.SplitInfo num_examples=10000&gt;,<br/>        'train': &lt;tfds.core.SplitInfo num_examples=60000&gt;<br/>    },<br/>    supervised_keys=('image', 'label'),<br/>    citation='"""<br/>        @article{lecun2010mnist,<br/>          title={MNIST handwritten digit database},<br/>          author={LeCun, Yann and Cortes, Corinna and Burges, CJ},<br/>          journal={ATT Labs [Online]. Available: http://yann. lecun. com/exdb/mnist},<br/>          volume={2},<br/>          year={2010}<br/>        }<br/>        <br/>    """',<br/>)</pre>
+<p>That's all we need.</p>
+<p>Using <kbd>tfds</kbd> is highly encouraged; moreover, since the <kbd>tf.data.Dataset</kbd> objects are returned, there is no need to learn how to use another fancy API as the <kbd>tf.data</kbd> API is the standard, and we can use it everywhere in TensorFlow 2.0.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Keras integration</h1>
+                </header>
+            
+            <article>
+                
+<p>Dataset objects are natively supported by the TensorFlow implementation of the Keras <kbd>tf.keras</kbd> specification. This means that using NumPy arrays or using a <kbd>tf.data.Dataset</kbd> object is the same when it comes to training/evaluating a model. The classification model defined in <a href="655b734e-1636-4e11-b944-a71fafacb977.xhtml">Chapter 4</a>, <em>TensorFlow 2.0 Architecture,</em> using the <kbd>tf.keras.Sequential</kbd> API, can be trained more quickly using the <kbd>tf.data.Dataset</kbd> object created by the <kbd>train_dataset</kbd> function previously defined. </p>
+<p>In the following code, we just use the standard <kbd>.compile</kbd> and <kbd>.fit</kbd> method calls, to compile (define the training loop) and fit the dataset (that is a <kbd>tf.data.Dataset</kbd>):</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>model.compile(<br/>    optimizer=tf.keras.optimizers.Adam(1e-5),<br/>    loss='sparse_categorical_crossentropy',<br/>    metrics=['accuracy'])<br/><br/>model.fit(train_dataset(num_epochs=10))</pre>
+<p>TensorFlow 2.0, being eager by default, natively allows iterating over a <kbd>tf.data.Dataset</kbd> object to build our own custom training loop.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Eager integration</h1>
+                </header>
+            
+            <article>
+                
+<p><span>The <kbd>tf.data.Dataset</kbd> object </span><span>is iterable, which means one can either enumerate its elements using a for loop or create a Python iterator using the <kbd>iter</kbd> keyword. Please note that be</span>ing iterable does not imply being a Python iterator as pointed out at the beginning of this chapter.</p>
+<p>Iterating over a dataset object is extremely easy: we can use the standard Python <kbd>for</kbd> loop to extract a batch at each iteration.</p>
+<p>Configuring the input pipeline by using a dataset object is a better solution than the one used so far.</p>
+<p>The manual process of extracting elements from a dataset by computing the indices is error-prone and inefficient, while the <kbd>tf.data.Dataset</kbd> objects are highly-optimized. Moreover, the dataset objects are fully compatible with <kbd>tf.function</kbd>, and therefore the whole training loop can be graph-converted and accelerated.</p>
+<p>Furthermore, the lines of code get reduced a lot, increasing the readability. The following code block represents the graph-accelerated (via <kbd>@tf.function</kbd>) custom training loop from the previous chapter, <a href="https://cdp.packtpub.com/hands_on_applied_neural_networks_with_tensorflow_2_x/wp-admin/post.php?post=28&amp;action=edit#post_27">Chapter 4</a><span>, </span><em>TensorFlow 2.0 Architecture</em>; the loop uses the <kbd>train_dataset</kbd> function defined previously:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>def train():<br/>    # Define the model<br/>    n_classes = 10<br/>    model = make_model(n_classes)<br/><br/>    # Input data<br/>    dataset = train_dataset(num_epochs=10)<br/><br/>    # Training parameters<br/>    loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)<br/>    step = tf.Variable(1, name="global_step")<br/>    optimizer = tf.optimizers.Adam(1e-3)<br/>    accuracy = tf.metrics.Accuracy()<br/><br/>    # Train step function<br/>    @tf.function<br/>    def train_step(inputs, labels):<br/>        with tf.GradientTape() as tape:<br/>            logits = model(inputs)<br/>            loss_value = loss(labels, logits)<br/><br/>        gradients = tape.gradient(loss_value, model.trainable_variables)<br/>        optimizer.apply_gradients(zip(gradients, model.trainable_variables))<br/>        step.assign_add(1)<br/><br/>        accuracy_value = accuracy(labels, tf.argmax(logits, -1))<br/>        return loss_value, accuracy_value<br/><br/>    @tf.function<br/>    def loop():<br/>        for features, labels in dataset:<br/>            loss_value, accuracy_value = train_step(features, labels)<br/>            if tf.equal(tf.math.mod(step, 10), 0):<br/>                tf.print(step, ": ", loss_value, " - accuracy: ",<br/>                         accuracy_value)<br/><br/>    loop()</pre>
+<p>You are invited to read the source code carefully and compare it with the custom training loop from the previous chapter, <a href="https://cdp.packtpub.com/hands_on_applied_neural_networks_with_tensorflow_2_x/wp-admin/post.php?post=28&amp;action=edit#post_27">Chapter 4</a><span>, </span><em>TensorFlow 2.0 Architecture</em>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Estimator API</h1>
+                </header>
+            
+            <article>
+                
+<p>In the previous section, we saw how the <kbd>tf.data</kbd> API simplifies and standardizes the input pipeline definition. Also, we saw that the <kbd>tf.data</kbd> API is completely integrated into the TensorFlow Keras implementation and the eager or graph-accelerated version of a custom training loop.</p>
+<p>Just as for the input data pipelines, there are a lot of repetitive parts in the whole machine learning programming. In particular, after defining the first version of the machine learning model, the practitioner is interested in:</p>
+<ul>
+<li>Training</li>
+<li>Evaluating</li>
+<li>Predicting</li>
+</ul>
+<p>After many iterations of these points, exporting the trained model for serving is the natural consequence.</p>
+<p>Of course, defining a training loop, the evaluation process, and the predicting process are very similar for each machine learning process. For example, for a predictive model, we are interested in training the model for a certain number of epochs, measuring a metric on the training and validation set at the end of the process, and repeating this process, changing the hyperparameters until the results are satisfactory.</p>
+<p>To simplify machine learning programming and help the developer to focus on the nonrepetitive parts of the process, TensorFlow introduced the concept of Estimator through the <kbd>tf.estimator</kbd> API.</p>
+<p>The <kbd>tf.estimator</kbd> API is a high-level API that encapsulates the repetitive and standard processes of the machine learning pipeline. For more information on estimators, see the official documentation (<a href="https://www.tensorflow.org/guide/estimators">https://www.tensorflow.org/guide/estimators</a>). Here are the main advantages estimators bring:</p>
+<ul>
+<li>You can run Estimator-based models on a local host or a distributed multiserver environment without changing your model. Furthermore, you can run Estimator-based models on CPUs, GPUs, or TPUs without recoding your model.</li>
+<li>Estimators simplify sharing implementations between model developers.</li>
+<li>You can develop a state-of-the-art model with high-level, intuitive code. In short, it is generally much easier to create models with Estimators than with the low-level TensorFlow APIs.</li>
+<li>Estimators are themselves built on <kbd>tf.keras.layers</kbd>, which simplifies customization.</li>
+<li>Estimators build the graph for you.</li>
+<li>Estimators provide a safely distributed training loop that controls how and when to:
+<ul>
+<li>Build the graph</li>
+<li>Initialize variables</li>
+<li>Load data</li>
+<li>Handle exceptions</li>
+<li>Create checkpoint files and recover from failures</li>
+<li>Save summaries for TensorBoard</li>
+</ul>
+</li>
+</ul>
+<div class="CDPAlignCenter CDPAlign packt_figref"><img class="aligncenter size-full wp-image-961 image-border" src="assets/afe1dc5d-85d3-4366-8fae-faff6b191706.png" style="width:33.33em;height:13.83em;"/></div>
+<div class="packt_figref">The Estimator API is built upon the TensorFlow mid-level layers; in particular, estimators themselves are built using the Keras layers in order to simplify the customization. Image credits: tensorflow.org</div>
+<p>The standardization process of the machine learning pipeline passes through the definition of a class that describes it: <kbd>tf.estimator.Estimator</kbd>.</p>
+<p class="mce-root">To use this class, you need to use a well-defined programming model that is enforced by the public methods of the <kbd>tf.estimator.Estimator</kbd> object, as shown in the following screenshot:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-962 image-border" src="assets/61f4769c-873f-4ca0-9a5a-299c1cbe50d9.png" style="width:34.00em;height:13.58em;"/></p>
+<div class="mce-root packt_figref">The estimator programming model is enforced by the Estimator object public methods; the API itself takes care of the checkpoint saving and reloading; the user must implement only the input function and the model itself; the standard processes of training, evaluate, and predict are implemented by the API. Image credits: tensorflow.org</div>
+<p>It is possible to use the Estimator API in two different ways: building custom Estimators or using premade Estimators.</p>
+<p>Premade and custom Estimators follow the same programming model; the only difference is that in custom Estimators the user must write a <kbd>model_fn</kbd> model function, while in the premade Estimator the model definition comes for free (at the cost of lower flexibility).</p>
+<p>The programming model the Estimator API forces you to use consists of the implementation of two components:</p>
+<ul>
+<li>The implementation of the data input pipeline, implementing the <kbd>input_fn</kbd> function</li>
+<li>(optional) The implementation of the model, handling the training, evaluation, and predict cases, and implementing the <kbd>model_fn</kbd> function</li>
+</ul>
+<p><span>Please note that the documentation talks about </span>graphs<strong>. </strong><span>In fact, to guarantee high performance, the Estimator API is built upon the (hidden) graph representation. Even if TensorFlow 2.0 defaults on the eager execution paradigm, neither <kbd>model_fn</kbd> and <kbd>input_fn</kbd> are executed eagerly, the Estimator switches to graph mode before calling these functions, which is why the code has to be compatible with graph mode execution.</span></p>
+<p>In practice, the Estimator API is a standardization of the good practice of separating the data from the model. This is well highlighted by the constructor of the <kbd>tf.estimator.Estimator</kbd> object, which is the subject of this chapter:</p>
+<pre>__init__(<br/>    model_fn,<br/>    model_dir=None,<br/>    config=None,<br/>    params=None,<br/>    warm_start_from=None<br/>)</pre>
+<p class="mce-root">It is worth noticing that there is no mention of <kbd>input_fn</kbd> in the constructor, and this makes sense since the input can change during the estimator's lifetime, whereas the model can't.</p>
+<p>Let's see how the <kbd>input_fn</kbd> function should be implemented.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Data input pipeline</h1>
+                </header>
+            
+            <article>
+                
+<p>Firstly, let's look at the standard ETL process:</p>
+<ul>
+<li><strong>Extract</strong>: Read the data from the data source. It can be either local (persistent storage, already loaded in memory) or remote (Cloud Storage, remote filesystem).</li>
+<li><strong>Transform</strong>: Apply transformations to the data to clean, augment (random crop image, flip, color distortion, adding noise), and make the data interpretable by the model. Conclude the transformation by shuffling and batching the data.</li>
+<li><strong>Load</strong>: Load the transformed data into the device that better fits the training needs (GPUs or TPUs) and execute the training.</li>
+</ul>
+<p>The <kbd>tf.estimator.Estimator</kbd> API merges the first two phases in the implementation of the <kbd>input_fn</kbd> function passed to the <kbd>train</kbd> and <kbd>evaluate</kbd> methods.</p>
+<p>The <kbd>input_fn</kbd> function is a Python function that returns a <kbd>tf.data.Dataset</kbd> object, which yields the <kbd>features</kbd> and <kbd>labels</kbd> objects consumed by the model, that's all.</p>
+<p>As known from the theory presented in <a href="0dff1bba-f231-45fa-9a89-b4f127309579.xhtml">Chapter 1</a>, <em>What is machine learning?, </em>the correct way of using a dataset is to split it into three non-overlapping parts: training, validation, and test set.</p>
+<p>To correctly implement it, it is suggested to define an input function that accepts an input parameter able to change the returned <kbd>tf.data.Dataset</kbd> object, returning a new function to pass as input to the Estimator object. The estimator API comes with the concept of <em>m</em><em>ode</em>.</p>
+<p>The model, and dataset too, can be in a different mode, depending on which phases of the pipeline we are at. The mode is implemented in the <kbd>enum</kbd> type <kbd>tf.estimator.ModeKeys</kbd>, which contains the three standard keys:</p>
+<ul>
+<li><kbd>TRAIN</kbd>: Training mode</li>
+<li><kbd>EVAL</kbd>: Evaluation mode</li>
+<li><kbd>PREDICT</kbd>: Inference mode</li>
+</ul>
+<p>It is thus possible to use a <kbd><span>tf.estimator.ModeKeys</span></kbd> input variable to change the returned dataset (the fact that this is not required by the Estimator API is something that comes in handy).</p>
+<p>Suppose we are interested in defining the correct input pipeline for a classification model of the fashion-MNIST dataset, we just have to get the data, split the dataset (since the evaluation set is not provided, we halve the test set), and build the dataset object we need.</p>
+<p>The input signature of the input function is completely up to the developer; this freedom allows us to define the dataset objects parametrically by passing every dataset parameter as function inputs:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre><span>import tensorflow as tf <br/>from tensorflow.keras.datasets import fashion_mnist <br/> <br/><br/>def get_input_fn(mode, batch_size=32, num_epochs=1): <br/>    (train_x, train_y), (test_x, test_y) = fashion_mnist.load_data() <br/>    half = test_x.shape[0] // 2 <br/>    if mode == tf.estimator.ModeKeys.TRAIN: <br/>        input_x, input_y = train_x, train_y <br/>        train = True <br/>    elif mode == tf.estimator.ModeKeys.EVAL: <br/>        input_x, input_y = test_x[:half], test_y[:half] <br/>        train = False <br/>    elif mode == tf.estimator.ModeKeys.PREDICT: <br/>        input_x, input_y = test_x[half:-1], test_y[half:-1] <br/>        train = False <br/>    else: <br/>        raise ValueError("tf.estimator.ModeKeys required!") <br/> <br/>    def scale_fn(image, label): <br/>        return ( <br/>            (tf.image.convert_image_dtype(image, tf.float32) - 0.5) * 2.0, <br/>            tf.cast(label, tf.int32), <br/>        ) <br/> <br/>    def input_fn(): <br/>        dataset = tf.data.Dataset.from_tensor_slices( <br/>            (tf.expand_dims(input_x, -1), tf.expand_dims(input_y, -1)) <br/>        ).map(scale_fn) <br/>        if train: <br/>            dataset = dataset.shuffle(10).repeat(num_epochs) <br/>        dataset = dataset.batch(batch_size).prefetch(1) <br/>        return dataset <br/> <br/>    return input_fn</span></pre>
+<p>After defining the input function, the programming model introduced by the Estimator API gives us two choices: create our own custom estimator by manually defining the model to train, or use the so-called canned or premade estimators.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Custom estimators</h1>
+                </header>
+            
+            <article>
+                
+<p>Premade and custom estimators share a common architecture: both aim to build a <kbd>tf.estimator.EstimatorSpec</kbd> object that fully defines the model to be run by <kbd>tf.estimator.Estimator</kbd>; the return value of any <kbd>model_fn</kbd> is, therefore, the Estimator specification.</p>
+<p>The <kbd>model_fn</kbd> function follows this signature:</p>
+<pre>model_fn(<br/>    features,<br/>    labels,<br/>    mode = None,<br/>    params = None,<br/>    config = None<br/>)</pre>
+<p>The function parameters are:</p>
+<ul>
+<li><kbd>features</kbd> is the first item returned from <kbd>input_fn</kbd></li>
+<li><kbd>labels</kbd> is the second item returned from <kbd>input_fn</kbd></li>
+<li><kbd>mode</kbd> is the <kbd>tf.estimator.ModeKeys</kbd> object that specifies the status of the model, if it is in the training, evaluation, or prediction phase</li>
+<li><kbd>params</kbd> is a dictionary of hyperparameters that can be used to tune the model easily</li>
+<li><kbd>config</kbd> is a <kbd>tf.estimator.RunConfig</kbd> object that allows you to configure parameters related to the runtime execution, such as the model parameters directory and the number of distributed nodes to use</li>
+</ul>
+<p>Note that <kbd>features</kbd>, <kbd>labels</kbd>, and <kbd>mode</kbd> are the most important part of the <kbd>model_fn</kbd> definition, and that the signature of <kbd>model_fn</kbd> must use these parameter names; otherwise, a <kbd>ValueError</kbd> exception is raised.</p>
+<p>The requirement of having a complete match with the input signature is proof that estimators must be used in standard scenarios when the whole machine learning pipeline can get a huge speedup from this standardization.</p>
+<p>The goals of <kbd>model_fn</kbd> are twofold: it has to define the model using Keras, and define its behavior during the various <kbd>mode</kbd>. The way to specify the behavior is to return a correctly built <kbd>tf.estimator.EstimatorSpec</kbd>.</p>
+<p>Since even writing the model function is straightforward using the Estimator API, a complete implementation of a classification problem solution using the Estimator API follows. The model definition is pure Keras, and the function used is the <kbd>make_model(num_classes)</kbd> previously defined.</p>
+<p>You are invited to look carefully at how the behavior of the model changes when the <kbd>mode</kbd> parameter changes:</p>
+<div class="packt_infobox"><strong>Important</strong>: The Estimator API, although present in TensorFlow 2.0, still works in graph mode. <kbd>model_fn</kbd>, thus, can use Keras to build the model, but the training and summary logging operation must be defined using the <kbd>tf.compat.v1</kbd> <span>compatibility module.</span><br/>
+Please refer to <a href="f62be9d4-c8e0-4590-8299-2fdad139830f.xhtml">Chapter 3</a>, <em>TensorFlow Graph Architecture</em>, for a better understanding of the graph definition.</div>
+<div><kbd>(tf2)</kbd></div>
+<pre><span>def model_fn(features, labels, mode): <br/>    v1 = tf.compat.v1 <br/>    model = make_model(10) <br/>    logits = model(features) <br/> <br/>    if mode == tf.estimator.ModeKeys.PREDICT: <br/>        # Extract the predictions <br/>        predictions = v1.argmax(logits, -1) <br/>        return tf.estimator.EstimatorSpec(mode, predictions=predictions) <br/> <br/>    loss = v1.reduce_mean( <br/>        v1.nn.sparse_softmax_cross_entropy_with_logits( <br/>            logits=logits, labels=v1.squeeze(labels) <br/>        ) <br/>    ) <br/> <br/>    global_step = v1.train.get_global_step() <br/> <br/>    # Compute evaluation metrics. <br/>    accuracy = v1.metrics.accuracy( <br/>        labels=labels, predictions=v1.argmax(logits, -1), name="accuracy" <br/>    ) <br/>    # The metrics dictionary is used by the estimator during the evaluation <br/>    metrics = {"accuracy": accuracy} <br/> <br/>    if mode == tf.estimator.ModeKeys.EVAL: <br/>        return tf.estimator.EstimatorSpec(mode, loss=loss, eval_metric_ops=metrics) <br/>    if mode == tf.estimator.ModeKeys.TRAIN: <br/>        opt = v1.train.AdamOptimizer(1e-4) <br/>        train_op = opt.minimize( <br/>            loss, var_list=model.trainable_variables, global_step=global_step <br/>        ) <br/> <br/>        return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op) <br/> <br/>    raise NotImplementedError(f"Unknown mode {mode}")</span></pre>
+<p>The <kbd>model_fn</kbd> function works exactly like a standard graph model of TensorFlow 1.x; the whole model behavior (three possible scenarios) is encoded inside the function, inside the Estimator specification the function returns.</p>
+<p>A few lines of code are required to train and evaluate the model performance at the end of every training epoch:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre><span>print("Every log is on TensorBoard, please run TensorBoard --logidr log") <br/>estimator = tf.estimator.Estimator(model_fn, model_dir="log") <br/>for epoch in range(50): <br/>    print(f"Training for the {epoch}-th epoch") <br/>    estimator.train(get_input_fn(tf.estimator.ModeKeys.TRAIN, num_epochs=1)) <br/>    print("Evaluating...") <br/>    estimator.evaluate(get_input_fn(tf.estimator.ModeKeys.EVAL))</span></pre>
+<p>The loop for 50 epochs shows that the estimator API takes care of restoring the model parameters and saving them at the end of each <kbd>.train</kbd> invocation, without any user intervention, all automatically.</p>
+<p>By running <kbd>TensorBoard --logdir log</kbd>, it is possible to see the loss and accuracy trends. The orange is the training run while the blue is the validation run:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-963 image-border" src="assets/59a37b54-2e87-46d8-9110-3fc4e2f94fa7.png" style="width:24.83em;height:44.92em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign">The validation accuracy and the training and validation loss values as shown in TensorBoard</div>
+<p>Writing custom estimators requires you to think about the TensorFlow graph architecture and use them as in the 1.x version.</p>
+<p>In TensorFlow 2.0, as in the 1.x version, it is possible to define computational graphs by using premade estimators that define the <kbd>model_fn</kbd> function automatically, without the need to think in the graph-way.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Premade estimators</h1>
+                </header>
+            
+            <article>
+                
+<p>TensorFlow 2.0 has two different kinds of premade Estimators: the one automatically created from the Keras model definition, and the canned-estimators built upon the TensorFlow 1.x API.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using a Keras model</h1>
+                </header>
+            
+            <article>
+                
+<p>The recommended way of constructing an Estimator object in TensorFlow 2.0 is to use a Keras model itself.</p>
+<p>The <kbd>tf.keras.estimator</kbd> package offers all the tools required to automatically convert a <kbd>tf.keras.Model</kbd> object to its Estimator counterpart. In fact, when a Keras model is compiled, the whole training and evaluation loops are defined; it naturally follows that the <kbd>compile</kbd> method almost defines an Estimator-like architecture that the <kbd>tf.keras.estimator</kbd> package is able to use.</p>
+<p>Even when using Keras, you must always define the <kbd>tf.estimator.EstimatorSpec</kbd> objects that define the <kbd>input_fn</kbd> function to use during the training and evaluation phases.</p>
+<p>There is no need to define a single <kbd>EstimatorSpec</kbd> object for both cases, but it is possible and recommended to use <kbd>tf.estimator.TrainSpec</kbd> and <kbd>tf.estimator.EvalSpec</kbd> to define the behavior of the model separately.</p>
+<p>Therefore, given the usual <kbd>make_model(num_classes)</kbd> function, which creates a Keras model, it is really easy to define the specs and convert the model to an estimator:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre># Define train &amp; eval specs<br/>train_spec = tf.estimator.TrainSpec(input_fn=<span>get_input_fn(tf.estimator.ModeKeys.TRAIN, num_epochs=50)</span>)<br/>eval_spec = tf.estimator.EvalSpec(input_fn=<span>get_input_fn(tf.estimator.ModeKeys.EVAL, num_epochs=1)</span>)<br/><br/># Get the Keras model<br/>model = make_model(10)<br/># Compile it<br/>model.compile(optimizer='adam',<br/>              loss='sparse_categorical_crossentropy',<br/>              metrics=['accuracy'])<br/><br/># Convert it to estimator<br/>estimator = tf.keras.estimator.model_to_estimator(<br/>  keras_model = model<br/>)<br/><br/># Train and evalution loop<br/>tf.estimator.train_and_evaluate(estimator, train_spec, eval_spec)</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using a canned estimator</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Model architectures are pretty much standard: convolutional neural networks are made of convolutional layers interleaved by pooling layers; fully connected neural networks are made by a stack of dense layers, each with a different number of hidden units, and so on.</p>
+<p>The <kbd>tf.estimator</kbd> package comes with a huge list of premade models, ready to use. The full list is available in the documentation: <a href="https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/estimator">https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/estimator</a><a href="https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/estimator">.</a></p>
+<p>The process of the input function definition is pretty similar to what has been described so far; the main difference is that instead of feeding the model with the data as is, the canned Estimator requires an input description using feature columns. </p>
+<p>Feature columns are intermediaries between the <kbd>tf.data.Dataset</kbd> object and the Estimator. In fact, they can be used to apply standard transformations to the input data, working exactly like an additional <kbd>.map</kbd> method added to the input pipeline. </p>
+<p>Unfortunately, the <kbd>tf.estimator</kbd> API was added to TensorFlow 2.0 because of the popularity of the Estimator-based solution in 1.x, but this package lacks many features that a Keras-based or pure TensorFlow with eager execution plus AutoGraph offers. When TensorFlow 1.x was the standard, it was tough and time-consuming to experiment with many standard solutions and to manually define several standard computational graphs; that's why the Estimator package gained popularity quickly. Using TensorFlow 2.0 in eager mode and defining models using Keras, instead, allows you to prototype and experiment with many different solutions easily. Moreover, the <kbd>tf.data</kbd> API is so flexible that correctly defining the input pipeline is straightforward.</p>
+<p>For this reason, canned Estimators are only cited in this book. This knowledge is not mandatory, and there is a high chance that in future versions of TensorFlow the, <kbd>tf.estimator</kbd> package will be removed or moved to a separate project.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>In this chapter, two of the most widely used high-level APIs were presented. <kbd>tf.estimator</kbd> and <kbd>tf.data</kbd> APIs have maintained almost the same structure they had in TensorFlow 1.x since they were designed with simplicity in mind.</p>
+<p>The <kbd>tf.data</kbd> API, through <kbd>tf.data.Dataset</kbd>, allows you to define a high-efficiency data input pipeline by chaining transformations in an ETL fashion, using the method chaining paradigm.<span> </span><kbd>tf.data.Dataset</kbd><span> </span>objects are integrated with every part of TensorFlow, from eager execution to AutoGraph, passing through the training methods of Keras models and the Estimator API. The ETL process is made easy and the complexity is hidden.</p>
+<p>TensorFlow Datasets is the preferred way of creating a new <kbd>tf.data.Dataset</kbd><span> </span>object, and is the perfect tool to use when a machine learning model has been developed, and it is time to measure the performance on every publicly available benchmark.</p>
+<p>The Estimator API standardized machine learning programming but reduces flexibility while increasing productivity. In fact, it is the perfect tool to use to define the input pipeline once and to test with different standard models if a solution to the problem can be easily found.</p>
+<p>The custom estimators, on the other hand, are the perfect tool to use when a non-standard architecture could solve the problem, but the training process is the standard one. Instead of wasting time rewriting the training loops, the metrics measurements, and all the standard machine learning training pipeline, you can focus only on the model definition. The <kbd>tf.estimator</kbd> and<span> </span><kbd>tf.data</kbd> APIs are two powerful tools TensorFlow offers, and using them together speeds up the development a lot. The whole path from the development to the production is handled by these tools, making putting a model into production almost effortless.</p>
+<p>This is the last chapter dedicated to the TensorFlow framework architecture. In the following chapters, we will look at several machine learning tasks, all of them with an end-to-end TensorFlow 2.0 solution. During the hands-on solution, we will use other features of TensorFlow 2.0, such as the integration of TensorFlow Hub with the Keras framework. The following chapters are a complete tutorial on how to use TensorFlow 2.0 to solve a certain machine learning task using neural networks. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Exercises</h1>
+                </header>
+            
+            <article>
+                
+<p><span>Once again, you are invited to answer all the following questions. You will </span>struggle to find answers when the problems are hard, since this is the only way to master Estimator and Data APIs:</p>
+<ol>
+<li>What is an ETL process?</li>
+<li>How is an ETL process related to the <kbd>tf.data</kbd> API?</li>
+<li>Why can't a <kbd>tf.data.Dataset</kbd> object can't be manipulated directly, but every non-static method returns a new dataset object that's the result of the transformation applied?</li>
+<li>Which are the most common optimizations in the context of the <kbd>tf.data</kbd> API? Why is prefetching so important?</li>
+<li>Given the two datasets of the next question, which one loops faster? Explain your response.</li>
+<li>Given the following two datasets:</li>
+</ol>
+<pre style="padding-left: 60px">data = tf.data.Dataset.range(100)<br/>data2 = tf.data.Dataset.from_generator(lambda: range(100), (tf.int32))<br/><br/>def l1():<br/>    for v in data:<br/>        tf.print(v)<br/>def l2():<br/>    for v in data2:<br/>        tf.print(v)</pre>
+<p style="padding-left: 60px">Can functions <kbd>l1</kbd> <span>and </span><kbd>l2</kbd><span> be converted to their graph representations using</span> <kbd>@tf.function</kbd><span>?</span> Analyze the resulting code using the <kbd>tf.autograph</kbd> module to explain the answer.</p>
+<ol start="7">
+<li>When should the <kbd>tf.data.Dataset.cache</kbd> method be used?</li>
+<li>Use the <kbd>tf.io.gfile</kbd> package to store an uncompressed copy of the fashion-MNIST dataset locally.</li>
+<li>Create a <kbd>tf.data.Dataset</kbd> object reading the files created in the previous point; use the <kbd>tf.io.gfile</kbd> package.</li>
+<li>Convert the complete example of the previous chapter to <kbd>tf.data</kbd>.</li>
+<li>Convert the complete example of the previous chapter to <kbd>tf.Estimator</kbd>.</li>
+</ol>
+<ol start="12">
+<li>Use <kbd>tfds</kbd> to load the <kbd>"cat_vs_dog"</kbd> dataset. Look at its builder information: it's a single split dataset. Split it in three non-overlapping parts: the training set, the validation set, and the test set, using the <kbd>tf.data.Dataset.skip</kbd> and <kbd>tf.data.dataset.take</kbd> methods. Resize every image to <kbd>32x32x3</kbd>, and swap the labels.</li>
+<li>Use the three datasets created previously to define <kbd>input_fn</kbd>, which chooses the correct split when the <kbd>mode</kbd> changes.</li>
+<li>Define a custom <kbd>model_fn</kbd> function using a simple convolutional neural network to classify cats and dogs (with swapped labels). Log the results on TensorBoard and measure the accuracy, the loss value, and the distribution of the output neuron on the validation set.</li>
+<li>Use a canned estimator to solve question 11. Is it possible to reproduce the same solution developed using a custom <kbd>model_fn</kbd> function with a premade Estimator?</li>
+<li><span>From the accuracy and validation loss curves shown in the section dedicated to the custom Estimator, it is possible to see that the model is not behaving correctly; what is the name of this pathological condition and how can it be mitigated?</span></li>
+<li>Try to reduce the pathological condition of the model (referred to in the previous question) by tweaking the <kbd>loss</kbd> and/or changing the model architecture. Your solution should reach at least a validation accuracy value of 0.96.</li>
+</ol>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

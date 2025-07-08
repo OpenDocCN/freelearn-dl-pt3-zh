@@ -1,0 +1,727 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding Convolutional Networks</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">In this chapter, we'll discuss <strong>Convolutional Neural Networks</strong> (<strong>CNNs</strong>) and their applications in <strong>Computer Vision</strong> (<strong>CV</strong>). CNNs started the modern deep learning revolution. They are at the base of virtually all recent CV advancements, including <strong>Generative Adversarial Networks</strong> (<strong>GANs</strong>), object detection, image segmentation, neural style transfer, and much more. For this reason, we believe CNNs deserve an in-depth look that's beyond our basic understanding of them.</p>
+<p class="mce-root">To do this, we'll start with a short recap of the <span>CNN </span>building blocks, that is, the convolutional and pooling layers. We'll discuss the various types of convolutions in use today since they are reflected in a large number of CNN applications. We'll also learn how to visualize the internal state of CNNs. Then, we'll focus on regularization techniques and implement a transfer learning example. </p>
+<p>This chapter will cover the following topics:</p>
+<ul>
+<li>Understanding CNNs</li>
+<li>Introducing transfer learning</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding CNNs</h1>
+                </header>
+            
+            <article>
+                
+<p>In <a href="b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml">Chapter 1</a>,<em> The</em> <em>Nuts and Bolts of Neural Networks,</em> we discussed that many NN operations have solid mathematical foundations, and convolutions are no exception. Let's start by defining the mathematical convolution:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/f3bce005-8da4-479a-bb99-b56cc6234765.png" style="width:19.17em;height:2.83em;"/></p>
+<p>Here, we have the following:</p>
+<ul>
+<li>The convolution operation is denoted with *. </li>
+<li><em>f</em><span> </span>and<span> </span><em>g</em><span> </span>are two functions with a common parameter,<span> </span><em>t</em>.</li>
+<li>The result of the convolution is a third<span> function, </span><em>s(t)</em><span> (not just a single value).</span></li>
+</ul>
+<p><span>The convolution of <em>f</em> and <em>g</em> at value <em>t</em> is the integral of the product of <em>f(t)</em> and the reversed (mirrored) and shifted value of <em>g(t-τ)</em>, where <em>t-τ</em> represents the shift. That is, for a single value of <em>f</em> at time <em>t</em>, we shift <em>g</em> in the range <img class="fm-editor-equation" src="assets/27cdbe02-f140-4acb-bcea-3114eae42a4a.png" style="width:7.08em;height:1.25em;"/> and we compute the product <em>f(t)</em><em>g(t-τ)</em> continuously because of the integral. The integral (and hence the convolution) is equivalent to the area under the curve of the product of the two functions.</span></p>
+<p><span>This is best illustrated in the following diagram:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1277 image-border" src="assets/c8d8a4c1-7a56-460c-a0c3-7460343330a1.png" style="width:37.83em;height:23.25em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Left: a convolution<span>, where </span><em>g</em><span> is shifted and reversed; right: a step-by-step illustration of a convolution operation</span></div>
+<div class="packt_tip packt_infobox">In the convolution operation, <em>g</em> is shifted and reversed in order to preserve the operation's commutative property. In the context of CNNs, we can ignore this property and we can implement it without reversing <em>g</em>. In this case, the operation is called cross-correlation. These two terms are used interchangeably. </div>
+<p>We can define the convolution for discrete (integer) values of <em>t</em> with the following formula (which is very similar to the continuous case):</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/93ecc38f-ba32-4cc5-b628-ec8f975db95b.png" style="width:20.25em;height:3.75em;"/></p>
+<p>We can also generalize it to the convolution of functions with two shared input parameters, <em>i</em> and <em>j</em>:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/16ae140a-3930-4c85-99f1-04f0c49ff727.png" style="width:30.00em;height:3.67em;"/></p>
+<p class="mce-root">We can derive the formula in a similar manner for three parameters.</p>
+<p class="mce-root">In CNNs, the function <em>f</em> is the input of the convolution operation (also referred to as the convolutional layer). Depending on the number of input dimensions, we have 1D, 2D, or 3D convolutions. А time series input is a 1D vector, an image input is a 2D matrix, and a 3D point cloud is a 3D tensor. The function <em>g</em>, on the other hand, is called a kernel (or filter). It has the same number of dimensions as the input data and it is defined by a set of learnable weights. For example, a filter of size <em>n</em> for a 2D convolution is an <em>n×n</em> matrix. The following diagram illustrates a 2D convolution with a 2×2<em> </em>filter applied over a single <span>3×3 slice:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1278 image-border" src="assets/a52c6aef-cfd2-4f27-bc85-20649b591ca1.png" style="width:74.00em;height:16.00em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref"><span>2D convolution with a 2×2</span><em> </em><span>filter applied over a single </span><span>3×3 slice</span></div>
+<p class="mce-root">The convolution works as follows:</p>
+<ol>
+<li class="mce-root">We slide the filter along all of the dimensions of the input tensor.</li>
+<li class="mce-root">At every input position, we multiply each filter weight by its corresponding input tensor cell at the given location. The input cells, which contribute to a single output cell, are called <strong>receptive fields</strong>. We sum all of these values to produce the value of a single output cell.</li>
+</ol>
+<p>Unlike fully-connected layers, where each output unit gathers information from all of the inputs, the activation of a convolution output cell is determined by the inputs in its receptive field. Th<span>is principle works best for hierarchically structured data such as images. For example, neighboring pixels form meaningful shapes and objects, but a pixel at one end of the image is unlikely to have a relationship with a pixel at another end. Using a fully-connected layer to connect all of the input pixels with each output unit is like asking the network to find a needle in a haystack. It has no way of knowing whether an input pixel is in the receptive field of the output unit or not.</span></p>
+<p><span>The filter highlights some particular features in the receptive field. The output of the operation is a tensor (known as a feature map), which marks the locations where the feature is detected. Since we apply the same filter throughout the input tensor, the convolution is translation invariant; that is, it can detect the same features, regardless of their location on the image. However, the convolution is neither rotation invariant (it is not guaranteed to detect a feature if it's rotated), nor scale invariant (it is not guaranteed to detect the same artifact in different scales).</span></p>
+<p><span>In the following diagram, we can see examples of 1D and 3D convolutions (we've already introduced an example of a 2D convolution):</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1279 image-border" src="assets/6f84dd7f-8286-4cd7-9442-c79457e6322e.png" style="width:66.58em;height:22.17em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign">1D convolution: The filter (denoted with multicolored lines) slides over a single axis; 3D convolution: The filter (denoted with dashed lines) slides over three axes</div>
+<p><span>The CNN convolution can have multiple filters, highlighting different features, which results in multiple output feature maps (one for each filter). It can also gather input from multiple feature maps, for example, the output of a previous convolution. The combination of feature maps (input or output) is called a volume. In this context, we can also refer to the feature maps as slices. Although the two terms refer to the same thing, we can think of the slice as part of the volume, whereas the feature map highlights its role as, well, a feature map.</span></p>
+<p><span>As we mentioned earlier in this section, each volume (as well as the filter) is represented by a tensor. For example, a red, green, and blue (RGB) image is represented by a 3D tensor of three 2D slices (one slice per color channel). But in the context of CNNs, we add one more dimension for the sample index in the mini-batch. Here, a 1D</span> <span>convolution</span><span> </span><span>would have 3D input and output tensors. Their axes can be in either</span> <em>NCW</em> <span>or</span> <em>NWC</em> <span>order, where</span> <em>N</em> <span>is the index of the sample in the mini-batch,</span> <em>C</em> <span>is the index of the depth slice in the volume, and </span><em>W</em> <span>is the vector size of each sample. In the same way, a 2D convolution will be represented by</span> <em>NCHW</em> <span>or</span> <em>NHWC</em> <span>tensors, where</span> <em>H</em> <span>and</span> <em>W</em> <span>are the height and width of the slices. A 3D convolution will have an</span> <em>NCLHW</em> <span>or</span> <em>NLHWC</em> <span>order, where</span> <em>L</em> <span>stands for the depth of the slice.</span></p>
+<div class="packt_tip"><span>We use 2D convolutions to work with RGB images. However, we may consider the three colors an additional dimension, hence making the RGB image 3D. Why didn't we use 3D convolutions, then? The reason for this is that, even though we can think of the input as 3D, the output is still a 2D grid. Had we used 3D convolution, the output would also be 3D, which doesn't carry any meaning in the case of 2D images.</span></div>
+<p><span>Let's say we have </span><em>n</em><span> input and </span><em>m</em><span> output slices. In this case, w</span><span>e'll apply <em>m</em> filters across the set of <em>n</em> input slices. Each filter will generate a unique output slice that highlights the feature that was detected by the filter (<em>n</em> to <em>m</em> relationship).</span></p>
+<p><span>Depending on the relationship of the input and output slice, we get cross-channel and depth-wise convolutions, as illustrated in the following diagram:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1280 image-border" src="assets/56593c82-220f-46c9-a73f-346edd79558d.png" style="width:35.00em;height:11.00em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Left: cross-channel convolution; right: depthwise convolution</div>
+<p>Let's discuss their properties:</p>
+<ul>
+<li><span><span><strong>Cross-channel convolutions</strong>: One output slice receives input from all of the input slices (<em>n</em>-to-one relationship). With multiple output slices, the relationship becomes <em>n</em>-to-<em>m</em>. In other words, each input slice contributes to the output of each output slice. Each pair of input/output slices uses a separate filter slice that's unique to that pair. </span></span>Let's denote the size of the filter (equal <span>width and height)</span> with <em>F</em><span>, the depth of the input volume with</span><span> </span><em>C<sub>in</sub></em><span>, and the depth of the output volume with</span><span> </span><em>C<sub>out</sub></em><span>. With this, we can compute the total number of weights,</span><span> </span><em>W</em><span>, </span><span>in a 2D convolution with the following equation:</span></li>
+</ul>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/cbefc433-a0d8-46ef-98c5-9392bf144203.png" style="width:14.58em;height:1.67em;"/></p>
+<p style="padding-left: 60px" class="CDPAlignLeft CDPAlign"><span>Here, +1 represents the bias weight for each filter. Let's say we have three slices and want to apply four 5<em>×</em>5 filters to them. If we did this, the convolution filter would have a total of <em>(3*5*5 + 1) * 4 = 304</em> weights, four output slices (output volume with a depth of 4), and one bias per slice. The filter for each output slice will have three 5<em>×</em>5 filter patches for each of the three input slices and one bias for a total of 3*5*5 + 1 = 76 weights.</span></p>
+<ul>
+<li><strong>Depthwise convolutions</strong>: Each output slice receives input from a single input slice. It's a kind of reversal<span> </span>of the previous case. In its most simple form, we apply a filter over a single input slice to produce a single output slice. In this case, the input and output volumes have the same depth, that is, <em>C</em>. We can also specify a <strong>channel multiplier</strong><span> </span>(an integer,<span> </span><em>m</em>), where we apply<span> </span><em>m</em> filters over a single output slice to produce<span> </span><em>m</em><span> </span>output slices. This is a case of a one-to-<em>m</em> relationship. In this case, the total<span> </span>number of output slices is<span> </span><em>n * m</em>. We can compute the number of weights, <em>W</em>, in a 2D depthwise convolution with the following formula:</li>
+</ul>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/86e8086d-cbb7-430e-b548-164c7b897256.png" style="width:11.50em;height:1.50em;"/></p>
+<p style="padding-left: 60px">Here, <em>m</em> is the channel multiplier and <em>+C</em> represents the biases of each output slice.</p>
+<p>The convolution operation is also described by two other parameters:</p>
+<ul>
+<li><strong>S</strong><strong>tride</strong> <span>is the number of positions that we slide the filter over on the input slice on each step. By default, the stride is 1. If it's larger than 1, then we call it a</span> <strong>stride convolution</strong><span>. The largest stride</span><span> increases the receptive field of the output neurons. With stride 2, the size of the output slice will be roughly four times smaller than the input. In other words, one output neuron will cover the area, which is four times larger, compared to a stride 1 convolution. The neurons in the following layers will gradually capture input from the larger regions of the input image.</span></li>
+<li><strong>Padding</strong><span> </span><span>the edges of the input slice with rows and columns of zeros before the convolution operation. The most common way to use padding is to produce output with the same dimensions as the input. The newly padded zeros will participate in the convolution operation with the slice, but they won't affect the result.</span></li>
+</ul>
+<p>Knowing the input dimensions and the filter size, we can compute the dimensions of the output slices. Let's say the size of the input slice is <em>I</em> (equal height and width), the size of the filter is<span> </span><em>F</em>, the stride is<span> </span><em>S</em>, and the padding<span> is </span><em>P</em>. Here, the size,<span> </span><em>O</em><span>, </span>of the output slice is given by the following equation:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/288c3c31-1000-4908-8163-171bbc19a0d3.png" style="width:7.92em;height:1.92em;"/></p>
+<p>Besides stride convolutions, we can also use <strong>pooling</strong> operations to increase the receptive field of the deeper neurons and reduce the size of the future slices. The pooling splits the input slice into a grid, where each grid cell represents a receptive field of a number of neurons (just like it does with the convolution). Then, a pooling operation is applied over each cell of the grid. Similar to convolution, pooling is described by the stride, <em>S</em>, and the size of the receptive field, <em>F</em>. If the size of input slice is <em>I</em>, then the formula for the output size of the pooling is as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/643541b1-b7a2-44b3-a546-cd28d1b32542.png" style="width:6.33em;height:2.08em;"/></p>
+<p><span>In practice, only two combinations are used. The first is a 2<em>×</em>2 receptive</span><span> field with stride 2, while the second is a 3<em>×</em>3 receptive field with stride 2 (overlapping). </span>The most common pooling operations are as follows:</p>
+<ul>
+<li><strong>Max pooling</strong>: This propagates the maximum value of the input values of the receptive field.</li>
+<li><strong>Average pooling</strong>: This propagates the average value of the inputs in the receptive field.</li>
+<li><strong>Global Average Pooling</strong> (<strong>GAP</strong>): This is the same as average pooling, but the pooling region has the same size as the feature map, <em>I×I</em>. GAP performs an extreme type of dimensionality reduction: the output is a single scalar, which represents the average value of the whole feature map.</li>
+</ul>
+<p><span>Typically, we would alternate one or more convolutional</span><span> layers with one pooling (or stride convolution) layer. In this way, the convolutional layers can detect features at every level of the receptive fie</span><span>ld size because the aggregated receptive field size of deeper layers is larger than the ones at the beginning of the network.</span> The deeper layers also have more filters (hence, a higher volume depth) compared to the initial ones. The feature detector at the beginning of the network works on a small receptive field. It can only detect a limited number of features, such as edges or lines, that are shared among all classes.</p>
+<p>On the other hand, a deeper layer would detect more complex and numerous features. For example, if we have multiple classes, such as cars, trees, or people, each would have its own set of features, such as tires, doors, leaves, and faces. This would require more feature detectors. The output of the final convolution (or pooling) is "translated" to the target labels by adding one or more fully connected layers. </p>
+<p>Now that we have had an overview of convolutions, pooling operations, and CNNs, in the next section, we'll focus on different types of convolution operations.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Types of convolutions</h1>
+                </header>
+            
+            <article>
+                
+<p>So far, we've discussed the most common type of convolution. In the upcoming sections, we'll talk about a few of its variations. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Transposed convolutions</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root"><span>In the convolutional operations we've discussed so far, the output dimensions are either equal or smaller than the input dimensions. In contrast, transposed convolutions (first proposed in <em>Deconvolutional Networks</em> by Matthew D. Zeiler, Dilip Krishnan, Graham W. Taylor, and Rob Fergus: <a href="https://www.matthewzeiler.com/mattzeiler/deconvolutionalnetworks.pdf">https://www.matthewzeiler.com/mattzeiler/deconvolutionalnetworks.pdf</a>) allow us to upsample the input data (their output is larger than the input). This operation is also known as <strong>deconvolution</strong>, <strong>fractionally strided convolution</strong>, or <strong>sub-pixel convolution</strong>. These names can sometimes lead to confusion. To clarify things, note that the transposed convolution is, in fact, a regular convolution with a slightly modified input slice or convolutional filter.</span></p>
+<p class="mce-root"><span>For the longer explanation, we'll start with a 1D regular convolution over a single input and output slice:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1109 image-border" src="assets/a6a3a798-3dc8-441a-be05-3b5043baa376.png" style="width:32.92em;height:8.67em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">1D regular convolution</div>
+<p><span>It uses a filter with a size of 4, stride 2, and padding 2 (denoted with gray in the preceding diagram).</span> The input is a vector of size 6 and the output is a vector of size 4. The filter, a vector <strong>f</strong> = [1, 2, 3, 4], is always the same, but it's denoted with different colors for each position we apply it to. The respective output cells are denoted with the same color. The arrows show which input cells contribute to one output cell.</p>
+<div class="packt_tip packt_infobox">The example that is being discussed in this section is inspired by the paper; <em>Is the deconvolution layer the same as a convolutional layer? </em>(<a href="https://arxiv.org/abs/1609.07009">https://arxiv.org/abs/1609.07009</a>).</div>
+<p><span>Next, we'll discuss the same example (1D, single input and output slices, filter of size 4, padding 2, and stride 2), but for transposed convolution. The following diagram shows two ways we can implement it:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1110 image-border" src="assets/31980d51-3120-43f3-bf47-ac3ec266ef8a.png" style="width:39.50em;height:16.42em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign">Left: A convolution with stride 2, applied with the transposed filter <strong>f</strong>. The 2 pixels at the beginning and the end of the output are cropped; right: A convolution with stride 0.5, applied over input data, padded with subpixels. The input is filled with 0-valued pixels (gray).</div>
+<p class="mce-root">Let's discuss them in detail:</p>
+<ul>
+<li>In the first case, we have a regular convolution with stride 2 and a filter represented as transposed row matrix (equivalent to column matrix) with size 4: <img class="fm-editor-equation" src="assets/88d1c5eb-7650-46c4-b378-438a9f3fa008.png" style="width:6.67em;height:1.25em;"/><span> </span><span>(shown in the preceding diagram, left)</span>.<span> Note that the stride is applied over the output layer as opposed to the regular convolution, where we stride over the input.</span> By setting the stride larger than 1, we can increase the output size, compared to the input. Here, the size of the input slice is <em>I</em><span>, the size of the filter is</span><span> </span><em>F</em><span>, the stride is</span><span> </span><em>S</em><span>, and the input padding is</span><span> </span><em>P</em><span>. Due to this, the size, </span><em>O</em><span>, </span><span>of the output slice of a transposed convolution is given by the following formula:</span>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/5c6c084c-a942-44ce-adbd-190f97c82f4e.png" style="width:10.50em;height:1.08em;"/></p>
+<p><span>In this scenario, an input of size 4 produces an output of size </span><em>2*(4 - 1) + 4 - 2*2 = 6</em>.<span> We also crop the two cells at the beginning and the end of the output vector because they only gather input from a single input cell. </span></p>
+</li>
+<li>In the second case, the input is filled with imaginary 0-valued subpixels between the existing ones (shown in the preceding <span>diagram</span>, right). <span>This is where the name subpixel convolution comes from.</span><span> </span>Think of it as padding but within the image itself and not only along the borders. Once the input has been transformed in this way, a regular convolution is applied.</li>
+</ul>
+<p>Let's compare the two output cells, <em>o</em><sub>1</sub><span> </span>and <em>o</em><sub>3</sub><span>, </span>in both scenarios. As shown in the preceding <span>diagram</span>, in either case, <em>o</em><sub>1</sub><span> </span>receives input from the first and the second input cells and <em>o</em><sub>3</sub><span> </span>receives input from the second and third cells. In fact, the only difference between these two cases is the index of the weight, which participates in the computation. However, the weights are learned during training and, because of this, the index is not important. Therefore, the two operations are equivalent. </p>
+<p>Next, let's take a look at a 2D transposed convolution from a subpixel point of view (the input is at the bottom). As with the 1D case, we insert 0-valued pixels and padding in the input slice to achieve upsampling: </p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1111 image-border" src="assets/1d3ef15e-d1d6-407d-bcad-b696e2b6f812.png" style="width:52.25em;height:19.25em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign">The first three steps of a 2D transpose convolution with padding 1 and stride 2: <span>Source: </span>https://github.com/vdumoulin/conv_arithmetic<span>, https://arxiv.org/abs/1603.07285</span></div>
+<p><span>The backpropagation operation of a regular convolution is a transposed convolution.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">1×1 convolutions</h1>
+                </header>
+            
+            <article>
+                
+<p>A 1<em>×</em>1 (or pointwise) convolution is a special case of convolution where each dimension of the convolution filter is of size 1 (1<em>×</em>1 in 2D convolutions and 1<em>×</em>1<em>×</em>1 in 3D). At first, this doesn't make sense—a 1<em>×</em>1 filter doesn't increase the receptive field size of the output neurons. The result of such a convolution<span> </span>would be pointwise scaling. But it can be useful in another way—we can use them to change the depth between the input and output volumes.</p>
+<p>To understand this, let's recall that, in general, we have an input volume with a depth of <em>D</em> slices and<span> </span><em>M</em> filters for<span> </span><em>M</em><span> </span>output slices. Each output slice is generated by applying a unique filter over all of the input slices. If we use a 1<em>×</em>1 filter and<span> </span><em>D != M</em>, we'll have output slices of the same size, but with different volume depths. At the same time, we won't change the receptive field size between the input and output. The most common use case is to reduce the output volume, or <em>D &gt; M</em> (dimension reduction), nicknamed the "bottleneck" layer. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Depth-wise separable convolutions</h1>
+                </header>
+            
+            <article>
+                
+<p>An output slice in a cross-channel convolution receives input from all of the input slices using a single filter. The filter tries to learn features<span> </span>in a 3D space, where two of the dimensions are spatial (the height and width of the slice) and the third is the channel. Therefore, the filter maps both spatial and cross-channel correlations.</p>
+<p><strong>Depthwise separable convolutions</strong> <span>(<strong>DSC</strong>, <em>Xception: Deep Learning with Depthwise Separable Convolutions</em>, </span><a href="https://arxiv.org/abs/1610.02357">https://arxiv.org/abs/1610.02357</a><span>) </span>can completely decouple cross-channel and spatial correlations. A DSC combines two operations: a depthwise convolution and a 1<em>×</em>1 convolution. In a depthwise convolution, a single input slice produces a single output slice, so it only maps spatial (and not cross-channel) correlations. With 1<em>×</em>1 convolutions, we have the opposite. The following diagram represents the DSC:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1112 image-border" src="assets/79686796-d667-416c-a52f-9c40fd7631d4.png" style="width:31.25em;height:29.75em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign">A depthwise separable convolution</div>
+<p class="mce-root">The DSC is usually implemented without non-linearity after the first (depthwise) operation. </p>
+<div class="packt_infobox"><span>Let's compare the standard and depthwise separable convolutions. Imagine that we have 32 input and output channels and a filter with a size of 3<em>×</em>3. In a standard convolution, one output slice is the result of applying one</span><span> </span><span>filter for each of the 32 input slices for a total of <em>32 * 3 * 3 = 288</em> weights (excluding bias). In a comparable depthwise convolution, the filter has only <em>3 * 3 = 9</em> weights and the filter for the 1<em>×</em>1 convolution has <em>32 * 1 * 1 = 32</em> weights. The total number of weights is <em>32 + 9 = 41</em>. Therefore, the depthwise separable convolution is faster and more memory-efficient compared to the standard one.</span></div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Dilated convolutions</h1>
+                </header>
+            
+            <article>
+                
+<p>Recall the discrete convolution formula we introduced at the beginning of the <em>A quick recap of CNNs</em> section. To explain dilated convolutions (<em>Multi-Scale Context Aggregation by Dilated Convolutions</em>, <a href="https://arxiv.org/abs/1511.07122">https://arxiv.org/abs/1511.07122</a>), let's start with the following formula:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/61fd057f-883a-456b-85d4-d77cd8589e36.png" style="width:21.50em;height:3.83em;"/></p>
+<p>We'll denote the dilated convolution with <em>*<sub>l</sub></em><span>, </span>where<span> </span><em>l</em><span> </span>is a positive integer value called the dilation factor. The key is the way we apply the filter over the input. Instead of applying the<span> </span><em>n×n</em><span> </span>filter over the<span> </span><em>n×n</em><span> </span>receptive field, we apply the same filter sparsely over a receptive field of size <em>(n*l-1)×<span>(n*l-1)</span></em><span>. We still multiply each filter weight by one input slice cell, but these cells are at a distance of <em>l</em> away from each other.</span> The regular convolution is a special case of dilated convolution with<span> </span><em>l=1</em>. This is best illustrated with the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1113 image-border" src="assets/0807af5e-ce74-4b7d-8399-52a33bab68d4.png" style="width:32.08em;height:14.25em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">A dilated convolution with a dilation factor of l=2: Here, the first two steps of the operation are displayed. The bottom layer is the input while the top layer is the output. Source: https://github.com/vdumoulin/conv_arithmetic</div>
+<p>Dilated convolutions can increase the receptive field size exponentially without losing resolution or coverage. We can also increase the receptive field with stride convolutions or pooling but at the cost of resolution and/or coverage. To understand this, let's imagine that we have a stride convolution with stride<span> </span><em>s&gt;1</em>. In this case, the output slice is<span> </span><em>s</em><span> </span>times smaller than the input (loss of resolution). If we increase<span> </span><em>s&gt;n</em><span> further </span>(<em>n</em><span> </span>is the size of either the pooling or convolutional kernel), we get loss of coverage because some of the areas of the input slice will not participate in the output at all. Additionally, dilated convolutions don't increase the computation and memory costs because the filter uses the same number of weights as the regular convolution.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Improving the efficiency of CNNs</h1>
+                </header>
+            
+            <article>
+                
+<p><span>One of the main reasons for the advances in </span>recent <strong>Deep Learning</strong> <span>(<strong>DL</strong>) is its ability to run <strong>Neural Networks</strong> (<strong>NNs</strong>) very fast. This is in large part because of the good match between the nature of NN algorithms and the specifics of <strong>Graphical Processing Units</strong> (<strong>GPUs</strong>). </span><span>In</span> <a href="b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml">Chapter 1</a>, <em>The Nuts and Bolts of Neural Networks</em><span>, we underscored the importance of matrix multiplication in NNs. As a testament to this, it is possible to transform the convolution into a matrix multiplication as well. Matrix multiplication is embarrassingly parallel (trust me, this is a term—you can Google it!). The computation of each output cell is not related to the computation of any other output cell. Therefore, we can compute all of the outputs in parallel.</span></p>
+<p><span>Not coincidentally, GPUs are well suited for highly parallel operations like this. On the one hand, a </span><span>GPU has a high number of computational cores compared to a <strong>Central Processing Unit</strong> (<strong>CPU</strong>). Even though a GPU core is faster than a CPU one, we can still compute a lot more output cells in parallel. But what's even more important is that GPUs are optimized for memory bandwidth, while CPUs are optimized for latency. </span><span>This means that a CPU can fetch small chunks of memory very quickly but will be slow when it comes to fetching large chunks. The </span><span>GPU</span><span> does the opposite. Because of this, in tasks such as large matrix multiplication for NNs, the GPU has an advantage. </span></p>
+<p>Besides hardware specifics, we can optimize CNNs on the algorithmic side as well. The majority of computational time in a CNN is devoted to the convolutions themselves. Although the implementation of the convolution is straightforward enough, in practice, there are more efficient algorithms to achieve the same result. Although contemporary DL libraries such as TensorFlow or PyTorch shield the developer from such details, in this book, we are aiming for a deeper (pun intended) understanding of DL.</p>
+<p>Because of this, in the next section, we'll discuss two of the most popular fast convolution algorithms.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Convolution as matrix multiplication</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll describe the algorithm that we use to transform convolutions into matrix multiplication, just like how it's implemented in the cuDNN library (<em>cuDNN: Efficient Primitives for Deep Learning</em>, <a href="https://arxiv.org/abs/1410.0759">https://arxiv.org/abs/1410.0759</a>). To understand this, let's assume that we perform a cross-channel 2D convolution over an RGB input image. <span>Let's look at the following table for </span>the parameters of the convolution:</p>
+<table style="border-collapse: collapse;width: 100%" border="1">
+<tbody>
+<tr>
+<td class="CDPAlignCenter CDPAlign"><strong>Parameter</strong></td>
+<td class="CDPAlignCenter CDPAlign"><strong>Notation</strong></td>
+<td class="CDPAlignCenter CDPAlign"><strong>Value</strong></td>
+</tr>
+<tr>
+<td class="CDPAlignCenter CDPAlign"><span>Mini-batch size</span></td>
+<td class="CDPAlignCenter CDPAlign">N</td>
+<td class="CDPAlignCenter CDPAlign">1</td>
+</tr>
+<tr>
+<td class="CDPAlignCenter CDPAlign">Input feature maps (volume depth)</td>
+<td class="CDPAlignCenter CDPAlign">C</td>
+<td class="CDPAlignCenter CDPAlign">3 (one for each RGB channel)</td>
+</tr>
+<tr>
+<td class="CDPAlignCenter CDPAlign">Input image height</td>
+<td class="CDPAlignCenter CDPAlign">H</td>
+<td class="CDPAlignCenter CDPAlign">4</td>
+</tr>
+<tr>
+<td class="CDPAlignCenter CDPAlign"><span>Input image width</span></td>
+<td class="CDPAlignCenter CDPAlign">W</td>
+<td class="CDPAlignCenter CDPAlign">4</td>
+</tr>
+<tr>
+<td class="CDPAlignCenter CDPAlign">Output feature maps (volume depth)</td>
+<td class="CDPAlignCenter CDPAlign">K</td>
+<td class="CDPAlignCenter CDPAlign">2</td>
+</tr>
+<tr>
+<td class="CDPAlignCenter CDPAlign">Filter height</td>
+<td class="CDPAlignCenter CDPAlign">R</td>
+<td class="CDPAlignCenter CDPAlign">2</td>
+</tr>
+<tr>
+<td class="CDPAlignCenter CDPAlign">Filter width</td>
+<td class="CDPAlignCenter CDPAlign">S</td>
+<td class="CDPAlignCenter CDPAlign">2</td>
+</tr>
+<tr>
+<td class="CDPAlignCenter CDPAlign">Output feature map height</td>
+<td class="CDPAlignCenter CDPAlign">P</td>
+<td class="CDPAlignCenter CDPAlign">2 (based on the input/filter sizes)</td>
+</tr>
+<tr>
+<td class="CDPAlignCenter CDPAlign"><span>Output feature map width</span></td>
+<td class="CDPAlignCenter CDPAlign">Q</td>
+<td class="CDPAlignCenter CDPAlign">2 (based on the input/filter sizes)</td>
+</tr>
+</tbody>
+</table>
+<p> </p>
+<p>For the sake of simplicity, we'll assume we have zero padding and stride 1. We'll denote the input tensor with <em>D</em> and the convolution filter tensor with <em>F</em>. The matrix convolution works in the following way:</p>
+<ol>
+<li>We unfold the tensors, <em>D</em> and <em>F</em>, into the <img class="fm-editor-equation" src="assets/b51588a3-c401-4c1c-8b20-b91726e14de5.png" style="width:4.17em;height:1.00em;"/> and <img class="fm-editor-equation" src="assets/93fd8178-c6d7-4996-a1dd-94cf21f0a6a4.png" style="width:3.75em;height:1.00em;"/> matrices, respectively.</li>
+<li>Then, we multiply the matrices to get the output matrix, <img class="fm-editor-equation" src="assets/bc1fddcd-c0be-424f-9acb-47604f8d3a17.png" style="width:6.50em;height:1.00em;"/>.</li>
+</ol>
+<p>We discussed matrix multiplication in <a href="b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml">Chapter 1</a>, <em>The Nuts and Bolts of Neural Networks</em>. Now, let's focus on the way we can unfold the tensors in matrices. The following diagram shows how to do this:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1114 image-border" src="assets/aa86d420-5efa-43ad-bd02-cecad396cc09.png" style="width:30.75em;height:23.08em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign">Convolution as matrix multiplication; Inspired by https://arxiv.org/abs/1410.0759</div>
+<p><span>Each feature map has a different color (R, G, B). </span>In the regular convolution, the filter has a square shape and we apply it over a square input region. In the transformation, we unfold each possible square region of <em>D</em> into one column of <strong>D</strong><em><sub>m</sub></em>. Then, we unfold each square component of <em>F</em> into one row of <strong>F</strong><em><sub>m</sub></em>. In this way, the input and filter data for each output cell is situated in a single column/row of the matrices <strong>D</strong><em><sub>m</sub></em><span> and </span><strong>F</strong><em><sub>m</sub></em>. This makes it possible to compute the output value as a matrix multiplication. The dimensions of the transformed input/filter/output are as follows:</p>
+<ul>
+<li>dim(<strong>D</strong><em><sub>m</sub></em>)<span> = CRS<em>×</em>NPQ = 12<em>×</em>4</span></li>
+<li>dim(<strong>F</strong><em><sub>m</sub></em>)<span> = K<em>×</em>CRS = 2<em>×</em>12</span></li>
+<li>dim(<strong>O</strong><em><sub>m</sub></em>)<span> = K<em>×</em>NPQ = 2<em>×</em>4</span></li>
+</ul>
+<p>To understand this transformation, let's learn how to compute the first output cell with the regular convolution algorithm:</p>
+<p class="CDPAlignLeft CDPAlign"><img class="aligncenter size-full wp-image-1676 image-border" src="assets/9834db46-e86b-421e-8de9-8c1789e9ed47.png" style="width:605.92em;height:45.83em;"/></p>
+<p>Next, let's observe the same formula, but this time, in matrix multiplication form:</p>
+<p class="CDPAlignLeft CDPAlign"><img class="aligncenter size-full wp-image-1677 image-border" src="assets/89ec53d1-8092-46af-9893-2faa7aea4d0f.png" style="width:553.67em;height:50.17em;"/></p>
+<p>If we compare the components of the two equations, we'll see that they are exactly the same. That is, <em>D</em>[0,<span>0,</span><span>0,</span>0] = <strong>D</strong><sub>m</sub>[0,0], <em>F</em><span>[0,</span><span>0,</span><span>0,</span><span>0] = <strong>F</strong></span><sub>m</sub><span>[0,0], <em>D</em>[0,0,0,1] = <strong>D</strong><sub>m</sub>[0,1], <em>F</em>[0,0,0,1] = <strong>F</strong><sub>m</sub>[0,1], and so on.</span> We can do the same for the rest of the output cells. Therefore, the output of the two approaches is the same.</p>
+<div class="packt_tip"><span>One disadvantage of the matrix convolution is increased memory usage. In the preceding diagram, we can see that some of the input elements are duplicated multiple times (up to RS = 4 times, like D4).</span></div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Winograd convolutions</h1>
+                </header>
+            
+            <article>
+                
+<p>The Winograd algorithm (<em>Fast Algorithms for Convolutional Neural Networks</em>, <a href="https://arxiv.org/abs/1509.09308">https://arxiv.org/abs/1509.09308</a>) can provide 2 or 3<em>×</em> speedup compared to the direct convolution. To explain this, we'll use the same notations that we used in the <em>Convolution as matrix multiplication</em> section but with a <em>3×3</em> (<em>R=S=3</em>) filter. We'll also assume that the input slices are bigger than <em>4×4</em> (<em>H&gt;4, W&gt;4</em>).</p>
+<p>Here's how to compute Winograd convolutions:</p>
+<ol>
+<li>Divide the input image into 4<em>×</em>4 tiles that overlap with stride 2, as shown in the following diagram: </li>
+</ol>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1115 image-border" src="assets/cd4aa445-8508-4aab-bea4-72effd713822.png" style="width:21.25em;height:10.83em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign">The input is split into tiles</div>
+<div style="padding-left: 60px" class="packt_tip">The tile size can vary, but for the sake of simplicity, we'll only focus on 4<em>×</em>4 tiles.</div>
+<ol start="2">
+<li>Transform each tile using the following two matrix multiplications:</li>
+</ol>
+<p class="CDPAlignLeft CDPAlign">      <img class="aligncenter size-full wp-image-1678 image-border" src="assets/b0268ace-bb0f-44da-bbbe-28165f6b82fa.png" style="width:41.25em;height:7.08em;"/></p>
+<p style="padding-left: 60px">In the preceding formula, the matrix <strong>D</strong> is the input slice (the one with circle values) while <strong>B</strong> is a special matrix, which results from the specifics of the Winograd algorithm (you can find more information about them in the paper linked at the beginning of this section).</p>
+<ol start="3">
+<li>Transform the filter using the following two matrix multiplications:</li>
+</ol>
+<p class="CDPAlignLeft CDPAlign">      <img class="aligncenter size-full wp-image-1679 image-border" src="assets/72a0e638-cfe5-4a34-a05e-83cfe8af3884.png" style="width:43.50em;height:7.58em;"/></p>
+<p style="padding-left: 60px">In the preceding formula, the matrix <strong>F</strong><span> (the one with dot values) </span>is the 3<em>×</em>3 convolution filter between one input and one output slice. <strong>G</strong><span> </span>and its transpose, <img class="fm-editor-equation" src="assets/c62285e7-2871-435d-92d0-75ab2fc9df82.png" style="width:1.50em;height:1.00em;"/>, are, again, special matrices, which result from the specifics of the Winograd algorithm. Note that the transformed filter matrix, <strong>F</strong><em><sub>t</sub></em>, has the same dimensions as the input tile, <strong>D</strong><em><sub>t</sub></em>.</p>
+<ol start="4">
+<li>Compute the transformed output as an <strong>element-wise</strong> multiplication<span> (the</span> <img class="fm-editor-equation" src="assets/8c5ea580-95d6-4abf-b93b-a2dc5ba2824b.png" style="width:1.17em;height:1.25em;"/><span>symbol)</span> of the transformed input and filter:</li>
+</ol>
+<p class="CDPAlignLeft CDPAlign">                    <img class="aligncenter size-full wp-image-1680 image-border" src="assets/8c2d3f58-125b-4bc5-9cdc-0d72c1e1b1a6.png" style="width:28.67em;height:7.33em;"/></p>
+<ol start="5">
+<li>Transform the output back into its original form:</li>
+</ol>
+<p class="CDPAlignLeft CDPAlign">     <img class="aligncenter size-full wp-image-1681 image-border" src="assets/c425497c-3ed4-4453-a663-75e676f44a5d.png" style="width:43.67em;height:7.25em;"/></p>
+<p style="padding-left: 60px"><strong>A</strong> is a transformation matrix, which makes it possible to transform <img class="fm-editor-equation" src="assets/17eb8275-2f67-47dc-ba8d-e764d4956c73.png" style="width:3.58em;height:1.00em;"/> back into the form, which would have resulted from a direct convolution. As shown in the preceding formula and in the following diagram, t<span>he Winograd convolution allows us to compute 2<em>×</em>2 output tile simultaneously (four output cells):</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1122 image-border" src="assets/7f77fb1f-a7f4-41a6-a5ff-7a52ce537597.png" style="width:27.00em;height:12.92em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign"><span>T</span><span>he Winograd convolution allows us to compute four output cells simultaneously</span></div>
+<p>At first glance, it seems that the Winograd algorithm performs a lot more operations than direct convolution. So, how is it faster, then? To find out, let's focus on the <img class="fm-editor-equation" src="assets/199877db-609c-4220-bfef-fea0b783f935.png" style="width:3.42em;height:0.92em;"/> <span>transformation. The key here is that we have to perform <img class="fm-editor-equation" src="assets/62533cbb-4149-4b6f-9a6b-65a4401988db.png" style="width:3.67em;height:1.00em;"/> only once and then <strong>D</strong><em><sub>t</sub></em> can participate in the outputs of all <em>K</em> (following the notation) output slices. Therefore, <img class="fm-editor-equation" src="assets/75e04c2e-80be-4bf1-9aa6-3ce4c72140c4.png" style="width:3.67em;height:1.00em;"/> is amortized among all of the outputs and it doesn't affect the performance as much. Next, let's take a look at the <img class="fm-editor-equation" src="assets/de88f956-c9af-4ff3-aea8-91343b168a3e.png" style="width:3.58em;height:1.08em;"/> transformation. </span><span>This one is even better because, once we compute <strong>F</strong><em><sub>t</sub></em>, we can apply it</span><span> <em>N×P×Q</em> times (across all of the cells of the output slice and all of the images in the batch). Therefore, the performance penalty for this transformation is negligible. Similarly, the output transformation <img class="fm-editor-equation" src="assets/4833fd5c-3623-4e16-be16-96617865bf20.png" style="width:3.58em;height:1.00em;"/> is amortized over the number of input channels C. </span></p>
+<p class="mce-root"/>
+<p>Finally, we'll discuss the element-wise multiplication, <img class="fm-editor-equation" src="assets/f2884fb8-3671-4696-86f3-c113be25c24d.png" style="width:5.92em;height:1.00em;"/>, which is applied <span><em>P×Q</em> times across all of the cells of the output slice and takes the bulk of the computational time. It consists of 16 scalar multiply operations and allows us to compute 2<em>×</em>2 output tile, which results in four multiplications for one output cell. Let's compare this with the direct convolution, where we have to perform <em>3*3=9</em> scalar multiplications (each filter element is multiplied by each receptive field input cell) for a single output. Therefore, the Winograd convolution requires <em>9/4 = 2.25</em> fewer operations.</span></p>
+<div class="packt_tip packt_infobox">The Winograd convolution has the most benefits when working with smaller filter sizes (for example, 3<em>×</em>3). Convolutions with larger filters (for example, 11<em>×</em>11) can be efficiently implemented with Fast Fourier Transform (FFT) convolutions, which are beyond the scope of this book.</div>
+<p>In the next section, we'll try to understand the inner workings of CNNs by visualizing their internal state.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Visualizing CNNs</h1>
+                </header>
+            
+            <article>
+                
+<p>One of the criticisms of NNs is that their results aren't interpretable. It's common to think of a NN as a black box whose internal logic is hidden from us. This could be a serious problem. On the one hand, it's less likely we trust an algorithm that works in a way we don't understand, while on the other hand, it's hard to improve the accuracy of CNNs if we don't know how they work. Because of this, in the upcoming sections, we'll discuss two methods of visualizing the internal layers of a CNN, both of which will help us to gain insight into the way they learn.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Guided backpropagation</h1>
+                </header>
+            
+            <article>
+                
+<p>Guided backpropagation (<em>Striving for Simplicity: The All Convolutional Net</em>, <a href="https://arxiv.org/abs/1412.6806">https://arxiv.org/abs/1412.6806</a>) allows us to visualize the features that are learned by a single unit of one layer of a CNN. The following diagram shows how the algorithm works:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1117 image-border" src="assets/f578ee79-db08-41d5-82dd-e246b5197edb.png" style="width:27.50em;height:9.08em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Guided backpropagation visualization; Inspired by https://arxiv.org/abs/1412.6806.</div>
+<p><span>Here is the step-by-step execution:</span></p>
+<ol>
+<li>First, we start with a regular CNN (for example, AlexNet, VGG, and so on) with ReLU activations. </li>
+<li>Then, we feed the network with a single image<span> </span><em>f<sup>(0)</sup></em> and propagate it forward until we get to the layer, <em>l</em>, we're interested in. This could be any network layer—<span>hidden or output, convolutional or fully-connected</span>.</li>
+<li>Set all but one activation of the output tensor <em>f<sup>(l)</sup></em><span> </span>of that layer to 0. For example, if we're interested in the output layer of a classification network, we'll select the unit with maximum activation (equivalent to the predicted class) and we'll set its value to 1. All of the other units will be set to 0. By doing this, <span>we can isolate the unit in question and see which parts of the input image impact it the most. </span></li>
+<li>Finally, we propagate the activation value of the selected unit backward until we reach the input layer and the reconstructed image <em>R<sup>(0)</sup></em>. The backward pass is very similar to the regular backpropagation (but not the same), that is, we still use transposed convolution as the backward operation of the forward convolution. In this case, though, we are interested in its image restoration properties rather than error propagation. Because of this, we aren't limited by the requirement to propagate the first derivative (gradient) and we can modify the signal in a way that will improve the visualization.</li>
+</ol>
+<p>To understand the backward pass, we'll use an example convolution with a single 3<em>×</em>3 input and output slices. Let's assume that we're using a 1<em>×</em>1 filter with a single weight equal to 1 (we repeat the input). The following <span>diagram </span>shows this convolution, as well as three different ways to implement the backward pass:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1118 image-border" src="assets/319cc3f9-9d51-4e9e-828b-e962de89b88c.png" style="width:33.50em;height:17.00em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Convolution and the three different ways to reconstruct the image;<span> Inspired by </span>https://arxiv.org/abs/1412.6806.</div>
+<p>Let's discuss these three different ways to implement the backward pass in detail:</p>
+<ul>
+<li><strong>Regular backpropagation</strong>: <span>The backward signal is preconditioned on the input image since it also depends on the forward activations (</span><a href="b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml">Chapter 1</a>, <em>The Nuts and Bolts of Neural Networks</em><span>, in the </span><em>Backpropagation</em><span> section). Our network uses a ReLU activation function, so the signal will only pass through the units that had positive activations in the forward pass.</span></li>
+<li><strong>Deconvolutional network</strong> (<em>deconvnet</em>, <a href="https://arxiv.org/abs/1311.2901">https://arxiv.org/abs/1311.2901</a>): The backward signal of layer <em>l</em> depends only on the backward signal of layer <em>l+1</em>. A deconvnet will only route the positive values of <em>l+1</em> to <em>l</em>, regardless of what the forward activations are. Theoretically, the signal is not preconditioned on the input image at all. In this case, the deconvnet tries to restore the image based on its internal knowledge and the image class. However, this is not entirely true—if the network contains max-pooling layers, the deconvnet will store the so-called <strong>switches</strong> for each pooling layer. Each switch represents a map of the units with max activations of the forward pass. This map determines how to route the signal through the backward pass (you can read more about this in the source paper). </li>
+<li><strong>Guided backpropagation</strong>: This is a combination of deconvnet and regular backprop. It will only route signals that have positive forward activations in <em>l</em> and positive backward activations in <em>l+1</em>. This adds additional guidance signal (hence the name) from the higher layers to the regular backprop. In essence, this step prevents negative gradients from flowing through the backward pass. The rationale is that the units that act as suppressors of our starting unit will be blocked and the reconstructed image will be free of their influence. Guided backpropagation performs so well that it doesn't need to use deconvnet switches and instead routes the signal to all the units in each pooling region.</li>
+</ul>
+<p>The following <span>screenshot </span>shows a reconstructed image that was generated using guided backpropagation and AlexNet: </p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1119 image-border" src="assets/d5ea6a22-529b-43c2-b783-e5cff83efdd8.png" style="width:33.83em;height:11.33em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">From left to right: original image, color reconstruction, and grayscale reconstruction using guided backpropagation on AlexNet; these images were generated using https://github.com/utkuozbulak/pytorch-cnn-visualizations.</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Gradient-weighted class activation mapping</h1>
+                </header>
+            
+            <article>
+                
+<p><span>To understand gradient-weighted class activation mapping (<em>Grad-CAM: Visual Explanations from Deep Networks via Gradient-Based Localization</em>, <a href="https://arxiv.org/abs/1610.02391">https://arxiv.org/abs/1610.02391</a>), let's quote the source paper itself:</span></p>
+<div class="packt_quote">"Grad-CAM uses the gradients of any target concept (say, the logits for 'dog' or even a caption) flowing into the final convolutional layer to produce a coarse localization map highlighting the important regions in the image for predicting the concept."</div>
+<p>The following <span>screenshot </span>shows the <span>Grad-CAM algorithm:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1121 image-border" src="assets/bcef2eda-a402-4ce0-871f-60bdd70bc65b.png" style="width:64.00em;height:35.83em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Grad-CAM schema; Source: https://arxiv.org/abs/1610.02391</div>
+<p>Now, let's look at how it works:</p>
+<ol>
+<li>First, you start with a classification CNN model (for example, VGG). </li>
+<li>Then, you feed the CNN with a single image and propagate it to the output layer.</li>
+<li>Like we did in guided backpropagation, we take the output<span> unit with maximum activation (equivalent to the predicted class <strong><em>c</em></strong>), set its value to 1, and set all of the other outputs to 0. In other words, create a one-hot encoded vector, <em>y<sup>c</sup></em>, of the prediction.</span></li>
+</ol>
+<ol start="4">
+<li>Next, compute the gradient of <em>y<sup>c</sup></em><span> with respect to the feature maps, <em>A<sup>k</sup></em>, of the</span> final convolutional layer, <img class="fm-editor-equation" src="assets/01d05e9f-c408-4523-b0aa-7ca630c33961.png" style="width:4.67em;height:1.75em;"/><span>, using backpropagation</span>. <em>i</em> and <em>j</em> are the cell coordinates in the feature map.</li>
+<li>Then, compute the scalar weight, <img class="fm-editor-equation" src="assets/7bd05250-83fc-45f6-ae8d-3900c9a2fce7.png" style="width:1.58em;height:1.67em;"/>, which measures the "importance" of feature map <em>k</em> for the predicted class, <em>c</em>:</li>
+</ol>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/423b3d51-d95b-493b-ace2-5735fb791876.png" style="width:15.50em;height:7.25em;"/></p>
+<ol start="6">
+<li>Finally, compute a weighted combination between the scalar weights and the forward activation feature maps of the final convolutional layer and follow this with a ReLU:</li>
+</ol>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/8ac9e118-0da1-4eab-8b7d-0716b076b07b.png" style="width:18.33em;height:6.08em;"/></p>
+<p style="padding-left: 60px">Note that we multiply the scalar importance weight, <img class="fm-editor-equation" src="assets/5c1c7470-1634-4c96-8d46-5d40c6d68f9a.png" style="width:1.58em;height:1.67em;"/>, by the tensor feature map, <em>A<sup>k</sup></em>. The result is a heatmap with the same dimensions as the feature map (14<em>×</em>14 in the case of VGG and AlexNet). It will highlight the areas of the feature map with the highest importance to class <em>c</em>. The ReLU discards the negative activations because we're only interested in the features that increase <em>y<sup>c</sup></em>. We can upsample this heatmap back to the size of the input image and then superimpose it on it, as shown in the following <span>screenshot</span>:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1123 image-border" src="assets/decb3007-cf16-4fad-835a-52e5462ac541.png" style="width:43.42em;height:10.50em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Left to right: input image; upsampled heat-map; heat-map superimosed on the input (RGB); <span>grayscale heat-map. </span><span>The images were generated using </span><span>https://github.com/utkuozbulak/pytorch-cnn-visualizations</span><span>.</span></div>
+<p>One problem with Grad-CAM is upsampling the heatmap from 14<em>×</em>14 to 224<em>×</em>224 because it doesn't provide a fine-grained perspective of the important features for each class. To mitigate this problem, the authors of the paper proposed a combination of Grad-CAM and guided backpropagation (displayed in the <span>Grad-CAM schema at the beginning of this section)</span>. We take the upsampled heatmap and combine it with the guided backprop visualization with element-wise multiplication. <span>The input image contains two objects: a dog and a cat. Therefore, we can run Grad-CAM with both classes (the two rows of the diagram). This example shows how different classes detect different relevant features in the same image.</span></p>
+<p>In the next section, we'll discuss how to optimize CNNs with the help of regularization.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">CNN regularization</h1>
+                </header>
+            
+            <article>
+                
+<p>As we discussed in <a href="b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml">Chapter 1</a>, <em>The Nuts and Bolts of Neural Networks</em>, a NN can approximate any function. But with great power comes great responsibility. The NN may learn to approximate the noise of the target function rather than its useful components. For example, imagine that we are training a NN to classify whether an image contains a car or not, but for some reason, the training set contains mostly red cars. It may turn out that the NN will associate the color red with the car, rather than its shape. Now, if the network sees a green car in inference mode, it may not recognize it as such because the color doesn't match. This problem is referred to as overfitting and it<span> is central</span><span> </span><span>in machine learning (and even more so in deep networks). </span>In this section, we'll discuss several ways to prevent it. Such techniques are<span> collectively</span><span> </span>known as<span> </span><strong>regularization</strong>.</p>
+<p>In the context of NNs, these regularization techniques usually impose some artificial limitations or obstacles on the training process to prevent the network from approximating the target function too closely. They try to guide the network to learn generic rather than specific approximation of the target function in the hope that this representation will generalize well on previously unseen examples of the test dataset. You may <span>already be </span>familiar with many of these techniques, so we'll keep it short:</p>
+<ul>
+<li><strong>Input feature scaling</strong>:<span> </span><img class="fm-editor-equation" src="assets/566be761-e32f-489f-a3f5-cb215784bef2.png" style="width:9.00em;height:2.50em;"/>. This operation scales all of the inputs in the [0, 1] range. For example, a pixel with intensity 125 would have a scaled value of<span> </span><img class="fm-editor-equation" src="assets/b247a222-8b4d-4945-9732-e5444b75478b.png" style="width:6.58em;height:2.00em;"/>. Feature scaling is fast and easy to implement. </li>
+</ul>
+<ul>
+<li><strong>Input standard score</strong>:<strong> </strong><img class="fm-editor-equation" src="assets/a42dd245-b0f6-4a2a-8fc6-e991a4b1f37e.png" style="width:5.25em;height:2.17em;"/>. Here, μ and σ are the<span> mean</span><span> </span>and standard deviation of all of the training data.<span> They</span><span> are usually computed separately for each input dimension. For example, in an RGB image, we would compute the mean <em>μ</em> and <em>σ</em> for each channel. We should note that <em>μ</em> and <em>σ</em> have to be computed on the training data and then applied to the test data. Alternatively, we can compute <em>μ</em> and <em>σ</em> per sample if it's not practical to compute them over the entire dataset.</span></li>
+<li><strong>Data augmentation</strong>: This is where we a<span>rtificially increase the size of the training set by applying random modifications (rotation, skew, scaling, and so on) on the training samples before feeding them to the network.</span></li>
+<li><strong>L2 regularization</strong> (or <strong>weight decay</strong>): Here, we add a special regularization term to the cost function. Let's assume that we're using MSE (<a href="b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml">Chapter 1</a>,<em> The Nuts and Bolts of NNs</em>, <em>Gradient descent</em> section). Here, the MSE + L2 regularization formula is as follows:</li>
+</ul>
+<p style="padding-left: 150px"><img src="assets/f0238ce8-2b02-4940-8b97-e734088e66ae.png" style="width:25.42em;height:7.83em;"/></p>
+<p style="padding-left: 60px">Here, <em>w<sub>j</sub></em> is one of <em>k</em> total network weights and λ <span>is the weight decay coefficient. The rationale is that if the network weights, <em>w<sub>j</sub></em>, are large, then the cost function will also increase. In effect, weight decay penalizes large weights (hence the name). This prevents the network from relying too heavily on a few features associated with these weights. There is less chance of overfitting when the network is forced to work with multiple features. In practical terms, when we compute the derivative of the weight decay cost function (the preceding formula) with respect to each weight and then propagate it to the weights themselves, the weight update rule changes from</span> <img class="fm-editor-equation" src="assets/616423c0-4765-4633-992c-40af9f782b5c.png" style="width:9.42em;height:1.25em;"/> to <img class="fm-editor-equation" src="assets/97768311-0e57-46f7-ab19-d63b6d727f0d.png" style="width:13.92em;height:1.33em;"/>.</p>
+<ul>
+<li><strong>Dropout</strong>:<span> Here, we randomly and periodically remove some of the neurons (</span><span>along with their input and output connections)</span><span> from the network</span><span>. During a training mini-batch, each neuron has a probability,</span><span> </span><em>p</em>, of being stochastically dropped. This is to <span><span>ensure that no neuron ends up relying too much on other neurons and "learns" something useful for the network instead.</span></span></li>
+<li><strong>Batch Normalization</strong> (<strong>BN</strong>, <em>Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift</em>, <a href="https://arxiv.org/abs/1502.03167">https://arxiv.org/abs/1502.03167</a>): <span>This is a way to apply data processing, similar to the standard score, for the hidden layers of the network. It normalizes the outputs of the hidden layer for each mini-batch (hence the name) in a way that maintains its mean activation value close to 0 and its standard deviation close to 1. </span><span>Let's say <img class="fm-editor-equation" src="assets/b32be79b-c498-426d-ab86-63943dc09652.png" style="width:9.50em;height:1.42em;"/> is a mini-batch of size <em>n</em>. Each sample of <em>D</em> is a vector, <img class="fm-editor-equation" src="assets/a3c7bc7c-e67d-4c0d-9550-05aa36f4a3a0.png" style="width:1.42em;height:1.00em;"/>, and <img class="fm-editor-equation" src="assets/d8826d10-f9e0-4724-a977-eb5da755842e.png" style="width:2.17em;height:2.00em;"/>is a cell with an index <em>k</em> of that vector. For the sake of clarity, we'll omit the (<em>k</em>) superscript in the following formulas; that is, we'll write <em>x<sub>i</sub></em>, but we'll mean <img class="fm-editor-equation" src="assets/a7f2a55b-b380-4a97-92fa-5458f6ff024d.png" style="width:2.50em;height:2.33em;"/>. We can compute BN for each activation, <em>k</em>, over the whole minibatch in the following way:</span>
+<ol>
+<li><sub><img class="fm-editor-equation" src="assets/a7b5373c-098a-413c-833d-83609bcd6a1e.png" style="width:6.92em;height:3.25em;"/></sub>: This is the mini-batch mean. We compute <span><em>μ</em> separately for each location, <em>k</em>, over all samples.</span></li>
+<li><img class="fm-editor-equation" src="assets/d86ffa01-2a3f-43f1-8a3e-efbc2731d556.png" style="width:13.25em;height:3.92em;"/>: This is the mini-batch standard deviation. <span>We compute <em>σ</em></span><span> separately for each location, <em>k</em>, over all samples.</span></li>
+<li><img class="fm-editor-equation" src="assets/7acf3e8f-0a11-47d6-8cc1-0aae11396f2d.png" style="width:7.92em;height:3.92em;"/>: We normalize each sample. <em>ε</em> is a constant that's added for numerical stability. </li>
+<li><img class="fm-editor-equation" src="assets/7a6d44a8-9740-4439-9462-217732c87adc.png" style="width:11.83em;height:1.33em;"/>: <em>γ</em> and <em>β</em> are learnable parameters and we compute them over each location, <em>k</em> (<em>γ<sup>(k)</sup></em> and <em>β<sup>(k)</sup></em>), over all of the samples of the mini-batch (the same applies for<span> </span><em>μ</em> <span>and </span><em>σ</em><span>). In convolutional layers, each sample, </span><em>x</em><span>, is a tensor with multiple feature maps. To preserve the convolutional property, we compute </span><span><em>μ</em> and <em>σ</em> per location over all of the samples, but we use the same </span><span><em>μ</em> and <em>σ</em> in the matching locations across all of the feature maps. On the other hand, we compute</span><span> </span><span><em>γ</em> and <em>β</em> per feature map, rather than per location.</span></li>
+</ol>
+</li>
+</ul>
+<p>This section concludes our analysis of the structure and inner workings of CNNs. At this point, we would normally proceed with some sort of CNN coding example. But in this book, we want to do things a little differently. Therefore, we won't implement a plain old feed-forward CNN, which you may have already done before. <span>Instead, in the next section, you will be introduced to</span> the technique of transfer learning—a way to use pretrained CNN models for new tasks. But don't worry—we'll still implement a CNN from scratch. We'll do this in <a href="433225cc-e19a-4ecb-9874-8de71338142d.xhtml">Chapter 3</a>, <em>Advanced Convolutional Networks.</em> In this way, we'll be able to create a more complex network architecture using our knowledge from that chapter.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Introducing transfer learning</h1>
+                </header>
+            
+            <article>
+                
+<p>Let's say that we want to train a model on a task that doesn't have readily available labeled training data like ImageNet does. Labeling training samples could be expensive, time-consuming, and error-prone. So, what does a humble engineer do when they want to solve a real ML problem with limited resources? Enter <strong>Transfer Learning</strong> (<strong>TL</strong>).</p>
+<p class="mce-root">TL is the process of applying an existing trained ML model to a new, but related, problem. For example, we can take a network trained on ImageNet and repurpose it to classify grocery store items. Alternatively, we could use a driving simulator game to train a neural network to drive a simulated car and then use the network to drive a real car (but don't try this at home!). TL is a general ML concept that's applicable to all ML algorithms, but in this context, we'll talk about CNNs. Here's how it works.</p>
+<p><span>We start with an existing pretrained network. The most common scenario is to take a pretrained network from ImageNet, but it could be any dataset. TensorFlow and PyTorch both have popular ImageNet pretrained neural architectures that we can use. Alternatively, we can train our own network with a dataset of our choice.</span></p>
+<p>The fully-connected layers at the end of a CNN act as translators between the network's language (the abstract feature representations learned during training) and our language, which is the class of each sample. You can think of TL as a translation into another language. We start with the network's features, which is the output of the last convolutional or pooling layer. Then, we translate them into a different set of classes of the new task. We can do this by removing the last fully-connected layer (or all the fully-connected layers) of an existing pretrained network and replacing it with another layer, which represents the classes of the new problem.</p>
+<p>Let's look at the TL scenario shown in the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1124 image-border" src="assets/b755ece2-264b-4069-b880-ce0486c1ffef.png" style="width:55.67em;height:20.25em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign">In TL, we can replace the fully-connected layer(s) of a pretrained net and repurpose it/them for a new problem</div>
+<p>However, we cannot do this mechanically and expect the new network to work because we still have to train the new layer with data related to the new task. Here, we have two options:</p>
+<ul>
+<li><strong>Use the original part of the network as a feature extractor and<span> </span><span>only</span><span> </span>train the new layer(s)</strong>: In this scenario, we feed the network a training batch of the new data and propagate it forward to see the network's output. This part works just like regular training would. But in the backward pass, we lock the weights of the original network and only update the weights of the new layers. This is the recommended way to do things when we have limited training data for the new problem. By locking most of the network weights, we prevent overfitting on the new data.</li>
+<li><strong>Fine-tune the whole network</strong>: In this scenario, we'll train the whole network and not just the newly added layers at the end. It is possible to update all of the network weights, but we can also lock some of the weights in the first layers. The idea here is that the initial layers detect general features—not related to a specific task—and it makes sense to reuse them. On the other hand, the deeper layers may detect task-specific features and it would be better to update them. We can use this method when we have more training data and don't need to worry about overfitting.</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementing transfer learning with PyTorch</h1>
+                </header>
+            
+            <article>
+                
+<p>Now that we know what TL is, let's look at <span>whether</span><span> </span>it works in practice. In this section, we'll apply an advanced ImageNet pretrained network on the CIFAR-10 images with <strong>PyTorch 1.3.1</strong> and the <kbd>torchvision</kbd> 0.4.2<span> package</span>. We'll use both types of<span> TL</span>. It's preferable to run this example on a GPU.<a href="https://github.com/pytorch/tutorials/blob/master/beginner_source/transfer_learning_tutorial.py"/></p>
+<div class="packt_tip"><span>This example is partially based on <a href="https://github.com/pytorch/tutorials/blob/master/beginner_source/transfer_learning_tutorial.py">https://github.com/pytorch/tutorials/blob/master/beginner_source/transfer_learning_tutorial.py</a>.</span></div>
+<p>Let's get started:</p>
+<ol>
+<li style="font-weight: 400">Do the following imports:</li>
+</ol>
+<pre style="padding-left: 60px">import torch<br/>import torch.nn as nn<br/>import torch.optim as optim<br/>import torchvision<br/>from torchvision import models, transforms</pre>
+<ol start="2">
+<li class="mce-root">Define<span> </span><kbd>batch_size</kbd><span> </span><span>for convenience:</span></li>
+</ol>
+<pre style="padding-left: 60px">batch_size = 50</pre>
+<ol start="3">
+<li style="font-weight: 400">Define the training dataset. We have to consider a few things:
+<ul>
+<li style="font-weight: 400">The CIFAR-10 images are 32<em>×</em>32, while the ImageNet network expects 224<em>×</em>224 input. Since we are using an ImageNet-based network, we'll upsample the 32<em>×</em>32 CIFAR images to 224<em>×</em>224.</li>
+<li style="font-weight: 400">Standardize the CIFAR-10 data using the ImageNet mean and standard deviation since this is what the network expects.</li>
+<li style="font-weight: 400"><span>We'll also add some data augmentation in the form of random horizontal or vertical flips</span>:</li>
+</ul>
+</li>
+</ol>
+<pre style="padding-left: 120px"><span># training data<br/></span>train_data_transform = transforms.Compose([<br/>    transforms.Resize(<span>224</span>)<span>,<br/></span><span>    </span>transforms.RandomHorizontalFlip()<span>,<br/></span><span>    </span>transforms.RandomVerticalFlip()<span>,<br/></span><span>    </span>transforms.ToTensor()<span>,<br/></span><span>    transforms.Normalize((0.4914, 0.4821, 0.4465), (0.2470, <br/>    0.2435, 0.2616))</span><br/>])<br/><br/>train_set = torchvision.datasets.CIFAR10(root=<span>'./data'</span><span>,<br/>                           </span>train=<span>True, </span>download=<span>True,<br/></span>                           transform=train_data_transform)<br/><br/>train_loader = torch.utils.data.DataLoader(train_set<span>,<br/></span><span>                           </span>batch_size=batch_size<span>,<br/></span>                           shuffle=<span>True, </span>num_workers=<span>2</span>)</pre>
+<ol start="4">
+<li style="font-weight: 400">Follow the same steps with the validation/test data, but this time without augmentation:</li>
+</ol>
+<pre style="padding-left: 60px">val_data_transform = transforms.Compose([<br/>    transforms.Resize(<span>224</span>)<span>,<br/></span><span>    </span>transforms.ToTensor()<span>,<br/></span><span>    transforms.Normalize((0.4914, 0.4821, 0.4465), (0.2470, 0.2435, <br/>    0.2616))</span><br/>])<br/><br/>val_set = torchvision.datasets.CIFAR10(root=<span>'./data'</span><span>,<br/>                                  </span>train=<span>False, </span>download=<span>True,<br/>                                  </span>transform=val_data_transform)<br/><br/>val_order = torch.utils.data.DataLoader(val_set<span>,<br/></span><span>                                  </span>batch_size=batch_size<span>,<br/></span><span>                                  </span>shuffle=<span>False, </span>num_workers=<span>2</span>)</pre>
+<ol start="5">
+<li style="font-weight: 400">Choose <kbd>device</kbd>, preferably a GPU with a fallback on CPU:</li>
+</ol>
+<pre style="padding-left: 60px">device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")</pre>
+<ol start="6">
+<li>Define the training of the model. Unlike TensorFlow, in PyTorch, we have to iterate over the training data manually. This method iterates once over the whole training set (one epoch) and applies the optimizer after each forward pass:</li>
+</ol>
+<pre style="padding-left: 60px"><span>def </span><span>train_model</span>(model<span>, </span>loss_function<span>, </span>optimizer<span>, </span>data_loader):<br/>    <span># set model to training mode<br/></span><span>    </span>model.train()<br/><br/>    current_loss = <span>0.0<br/></span><span>    </span>current_acc = <span>0<br/></span><span><br/></span><span>    </span><span># iterate over the training data<br/></span><span>    </span><span>for </span>i<span>, </span>(inputs<span>, </span>labels) <span>in </span><span>enumerate</span>(data_loader):<br/>        <span># send the input/labels to the GPU<br/></span><span>        </span>inputs = inputs.to(device)<br/>        labels = labels.to(device)<br/><br/>        <span># zero the parameter gradients<br/></span><span>        </span>optimizer.zero_grad()<br/><br/>        <span>with </span>torch.set_grad_enabled(<span>True</span>):<br/>            <span># forward<br/></span><span>            </span>outputs = model(inputs)<br/>            _<span>, </span>predictions = torch.max(outputs<span>, </span><span>1</span>)<br/>            loss = loss_function(outputs<span>, </span>labels)<br/><br/>            <span># backward<br/></span><span>            </span>loss.backward()<br/>            optimizer.step()<br/><br/>        <span># statistics<br/></span><span>        </span>current_loss += loss.item() * inputs.size(<span>0</span>)<br/>        current_acc += torch.sum(predictions == labels.data)<br/><br/>    total_loss = current_loss / <span>len</span>(data_loader.dataset)<br/>    total_acc = current_acc.double() / <span>len</span>(data_loader.dataset)<br/><br/>    <span>print</span>(<span>'Train Loss: {:.4f}; Accuracy: {:.4f}'</span>.format(total_loss<span>, <br/>    </span>total_acc))</pre>
+<ol start="7">
+<li style="font-weight: 400">Define the testing/validation of the model. This is very similar to the training phase, but we will skip the backpropagation part:</li>
+</ol>
+<pre style="padding-left: 60px"><span>def </span><span>test_model</span>(model<span>, </span>loss_function<span>, </span>data_loader):<br/>    <span># set model in evaluation mode<br/></span><span>    </span>model.eval()<br/><br/>    current_loss = <span>0.0<br/></span><span>    </span>current_acc = <span>0<br/></span><span><br/></span><span>    </span><span># iterate over  the validation data<br/></span><span>    </span><span>for </span>i<span>, </span>(inputs<span>, </span>labels) <span>in </span><span>enumerate</span>(data_loader):<br/>        <span># send the input/labels to the GPU<br/></span><span>        </span>inputs = inputs.to(device)<br/>        labels = labels.to(device)<br/><br/>        <span># forward<br/></span><span>        </span><span>with </span>torch.set_grad_enabled(<span>False</span>):<br/>            outputs = model(inputs)<br/>            _<span>, </span>predictions = torch.max(outputs<span>, </span><span>1</span>)<br/>            loss = loss_function(outputs<span>, </span>labels)<br/><br/>        <span># statistics<br/></span><span>        </span>current_loss += loss.item() * inputs.size(<span>0</span>)<br/>        current_acc += torch.sum(predictions == labels.data)<br/><br/>    total_loss = current_loss / <span>len</span>(data_loader.dataset)<br/>    total_acc = current_acc.double() / <span>len</span>(data_loader.dataset)<br/><br/>    <span>print</span>(<span>'Test Loss: {:.4f}; Accuracy: {:.4f}'</span>.format(total_loss<span>, <br/>    </span>total_acc))<br/><br/>    <span>return </span>total_loss<span>, </span>total_acc</pre>
+<ol start="8">
+<li style="font-weight: 400">Define the first<span> TL</span> scenario, where we use the pretrained network as a feature extractor:
+<ul>
+<li style="font-weight: 400">We'll use a popular network known as ResNet-18. We'll talk about this in detail in the<span> </span><em>Advanced network architectures</em><span> </span>section. PyTorch will automatically download the pretrained weights.</li>
+<li style="font-weight: 400">Replace the last network layer with a new layer with 10 outputs (one for each CIFAR-10 class).</li>
+<li style="font-weight: 400">Exclude the existing network layers from the backward pass and only pass the newly added fully-connected layer to the Adam optimizer.</li>
+<li style="font-weight: 400"><span>Run the training for </span><kbd>epochs</kbd><span> and evaluate the network accuracy after each epoch.</span></li>
+<li>Plot the test accuracy with the help of the <kbd>plot_accuracy</kbd> function. Its definition is trivial and you can find it in this book's code repository.</li>
+</ul>
+</li>
+</ol>
+<p style="padding-left: 60px">The following is the<span> </span><kbd>tl_feature_extractor</kbd><span> </span>function, which implements all of this:</p>
+<pre style="padding-left: 60px"><span>def </span><span>tl_feature_extractor</span>(epochs=<span>5</span>):<br/>    <span># load the pretrained model<br/></span><span>    </span>model = torchvision.models.resnet18(<span>pretrained</span>=<span>True</span>)<br/><br/>    <span># exclude existing parameters from backward pass<br/></span><span>    # for performance<br/></span><span>    </span><span>for </span>param <span>in </span>model.parameters():<br/>        param.requires_grad = <span>False<br/></span><span><br/></span><span>    </span><span># newly constructed layers have requires_grad=True by default<br/></span><span>    </span>num_features = model.fc.in_features<br/>    model.fc = nn.Linear(num_features<span>, </span><span>10</span>)<br/><br/>    <span># transfer to GPU (if available)<br/></span><span>    </span>model = model.to(device)<br/><br/>    loss_function = nn.CrossEntropyLoss()<br/><br/>    <span># only parameters of the final layer are being optimized<br/></span><span>    </span>optimizer = optim.Adam(model.fc.parameters())<br/><br/>    <span># train<br/></span><span>    </span>test_acc = <span>list</span>()  <span># collect accuracy for plotting<br/></span><span>    </span><span>for </span>epoch <span>in </span><span>range</span>(epochs):<br/>        <span>print</span>(<span>'Epoch {}/{}'</span>.format(epoch + <span>1</span><span>, </span>epochs))<br/><br/>        train_model(model<span>, </span>loss_function<span>, </span>optimizer<span>, </span>train_loader)<br/>        _<span>, </span>acc = test_model(model<span>, </span>loss_function<span>, </span>val_order)<br/>        test_acc.append(acc)<br/><br/>    plot_accuracy(test_acc)</pre>
+<ol start="9">
+<li style="font-weight: 400">Implement the fine-tuning approach. This function is similar to<span> </span><kbd>tl_feature_extractor</kbd>, but here, we're training the whole network:</li>
+</ol>
+<pre style="padding-left: 60px"><span>def </span><span>tl_fine_tuning</span>(epochs=<span>5</span>):<br/>    <span># load the pretrained model<br/></span><span>    </span>model = models.resnet18(<span>pretrained</span>=<span>True</span>)<br/><br/>    <span># replace the last layer<br/></span><span>    </span>num_features = model.fc.in_features<br/>    model.fc = nn.Linear(num_features<span>, </span><span>10</span>)<br/><br/>    <span># transfer the model to the GPU<br/></span><span>    </span>model = model.to(device)<br/><br/>    <span># loss function<br/></span><span>    </span>loss_function = nn.CrossEntropyLoss()<br/><br/>    <span># We'll optimize all parameters<br/></span><span>    </span>optimizer = optim.Adam(model.parameters())<br/><br/>    <span># train<br/></span><span>    </span>test_acc = <span>list</span>()  <span># collect accuracy for plotting<br/></span><span>    </span><span>for </span>epoch <span>in </span><span>range</span>(epochs):<br/>        <span>print</span>(<span>'Epoch {}/{}'</span>.format(epoch + <span>1</span><span>, </span>epochs))<br/><br/>        train_model(model<span>, </span>loss_function<span>, </span>optimizer<span>, </span>train_loader)<br/>        _<span>, </span>acc = test_model(model<span>, </span>loss_function<span>, </span>val_order)<br/>        test_acc.append(acc)<br/><br/>    plot_accuracy(test_acc)</pre>
+<ol start="10">
+<li>Finally, we can run the whole thing in one of two ways:
+<ul>
+<li>Call<span> </span><kbd>tl_fine_tuning()</kbd><span> </span>to use the fine-tuning TL approach for five epochs.</li>
+<li><span>Call</span><span> </span><kbd>tl_feature_extractor()</kbd><span> </span>to train the network with the feature extractor approach for five epochs.</li>
+</ul>
+</li>
+</ol>
+<p><span>This is the accuracy of the networks after five epochs for the two scenarios:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1125 image-border" src="assets/17c9041d-7c61-440d-abc9-4065268247ba.png" style="width:34.00em;height:10.42em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Left: Feature extraction TL accuracy; right: Fine-tuning TL accuracy</div>
+<p>Due to the large size of the chosen <kbd><span>ResNet18</span></kbd> pretrained model, the network starts to overfit in the feature extraction scenario.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Transfer learning with TensorFlow 2.0</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll implement the two transfer learning scenarios again, but this time using <strong>TensorFlow 2.0.0 (TF)</strong>. In this way, we can compare the two libraries. Instead of <kbd>ResNet18</kbd>, we'll use the <kbd><span>ResNet50V2</span></kbd> architecture (more on that in the <a href="433225cc-e19a-4ecb-9874-8de71338142d.xhtml">Chapter 3</a>, <em>Advanced Convolutional Networks</em>). In addition to TF, this example also requires the TF Datasets <span>1.3.0</span> package (<a href="https://www.tensorflow.org/datasets">https://www.tensorflow.org/datasets</a>), a collection of various popular ML datasets.</p>
+<div class="packt_infobox">This example is partially based on <a href="https://github.com/tensorflow/docs/blob/master/site/en/tutorials/images/transfer_learning.ipynb">https://github.com/tensorflow/docs/blob/master/site/en/tutorials/images/transfer_learning.ipynb</a>.</div>
+<p>With that, let's get started:</p>
+<ol>
+<li>As usual, first, we need to do the imports:</li>
+</ol>
+<pre style="padding-left: 60px" class="mce-root"><span>import </span>matplotlib.pyplot <span>as </span>plt<br/><span>import </span>tensorflow <span>as </span>tf<br/><span>import </span>tensorflow_datasets <span>as </span>tfds </pre>
+<ol start="2">
+<li>Then, we'll define the mini-batch and input images sizes (the image size is determined by the network architecture): </li>
+</ol>
+<pre style="padding-left: 60px" class="mce-root">IMG_SIZE = <span>224<br/></span>BATCH_SIZE = <span>50<br/></span></pre>
+<ol start="3">
+<li>Next, we'll load the CIFAR-10 dataset with the help of TF datasets. The <kbd>repeat()</kbd> method allows us to reuse the dataset for multiple epochs:</li>
+</ol>
+<pre style="padding-left: 60px">data<span>, </span>metadata = tfds.load(<span>'cifar10'</span><span>, </span><span>with_info</span>=<span>True, </span><span>as_supervised</span>=<span>True</span>)<br/>raw_train<span>, </span>raw_test = data[<span>'train'</span>].repeat()<span>, </span>data[<span>'test'</span>].repeat()</pre>
+<ol start="4">
+<li>Then, we'll define the <kbd>train_format_sample</kbd> and <kbd>test_format_sample</kbd> functions, which will transform the input images into suitable CNN inputs. These functions play the same roles that the <kbd>transforms.Compose</kbd> object plays, which we defined in the <em>Implementing transfer learning with PyTorch</em> section. The input is transformed as follows:<br/>
+<ul>
+<li>The images are resized to 96<em>×</em>96, which is the expected network input size.</li>
+<li>Each image is standardized by transforming its values so that it's in the (-1; 1) interval.</li>
+<li>The labels are transformed for one-hot encoding.</li>
+<li>The training images are randomly flipped horizontally and vertically. </li>
+</ul>
+</li>
+</ol>
+<p style="padding-left: 60px">Let's look at the actual implementation:</p>
+<pre style="padding-left: 60px"><span>def </span><span>train_format_sample</span>(image<span>, </span>label):<br/>    <span>"""Transform data for training"""<br/></span><span>    </span>image = tf.cast(image<span>, </span>tf.float32)<br/>    image = tf.image.resize(image<span>, </span>(IMG_SIZE<span>, </span>IMG_SIZE))<br/>    image = (image / <span>127.5</span>) - <span>1<br/></span><span>    </span>image = tf.image.random_flip_left_right(image)<br/>    image = tf.image.random_flip_up_down(image)<br/><br/>    label = tf.one_hot(label<span>, </span>metadata.features[<span>'label'</span>].num_classes)<br/><br/>    <span>return </span>image<span>, </span>label<br/><br/><br/><span>def </span><span>test_format_sample</span>(image<span>, </span>label):<br/>    <span>"""Transform data for testing"""<br/></span><span>    </span>image = tf.cast(image<span>, </span>tf.float32)<br/>    image = tf.image.resize(image<span>, </span>(IMG_SIZE<span>, </span>IMG_SIZE))<br/>    image = (image / <span>127.5</span>) - <span>1<br/></span><span><br/></span><span>    </span>label = tf.one_hot(label<span>, <br/>    </span>metadata.features[<span>'label'</span>].num_classes)<br/><br/>    <span>return </span>image<span>, </span>label</pre>
+<ol start="5">
+<li>Next is some boilerplate code that assigns these transformers to the train/test datasets and splits them into mini-batches:</li>
+</ol>
+<pre style="padding-left: 60px"><span># assign transformers to raw data<br/></span>train_data = raw_train.map(train_format_sample)<br/>test_data = raw_test.map(test_format_sample)<br/><br/><span># extract batches from the training set<br/></span>train_batches = train_data.shuffle(<span>1000</span>).batch(BATCH_SIZE)<br/>test_batches = test_data.batch(BATCH_SIZE)</pre>
+<ol start="6">
+<li>Then, we need to define the feature extraction model:
+<ul>
+<li>We'll use Keras for the pretrained network and model definition since it is an integral part of TF 2.0. </li>
+<li>We load the <kbd>ResNet50V2</kbd> pretrained net, excluding the final fully-connected layers.</li>
+<li>Then, we call <kbd>base_model.trainable = False</kbd>, which <em>freezes</em> all of the network weights and prevents them from training.</li>
+<li>Finally, we add a <kbd>GlobalAveragePooling2D</kbd> operation, followed by a new and trainable fully-connected trainable layer at the end of the network.</li>
+</ul>
+</li>
+</ol>
+<p style="padding-left: 60px">The following code implements this:</p>
+<pre style="padding-left: 60px"><span>def </span><span>build_fe_model</span>():<br/><span>    </span><span># create the pretrained part of the network, excluding FC <br/>    layers<br/></span><span>    </span>base_model = tf.keras.applications.ResNet50V2(<span>input_shape</span>=(IMG_SIZE<span>,<br/>    </span>IMG_SIZE<span>, </span><span>3</span>)<span>,</span><span> </span><span>include_top</span>=<span>False,</span><span> </span><span>weights</span>=<span>'imagenet'</span>)<br/><br/>    <span># exclude all model layers from training<br/></span><span>    </span>base_model.trainable = <span>False<br/></span><span><br/></span><span>    </span><span># create new model as a combination of the pretrained net<br/></span><span>    # and one fully connected layer at the top<br/></span><span>    </span><span>return </span>tf.keras.Sequential([<br/>        base_model<span>,<br/></span><span>        </span>tf.keras.layers.GlobalAveragePooling2D()<span>,<br/></span><span>        </span>tf.keras.layers.Dense(<br/>            metadata.features[<span>'label'</span>].num_classes<span>,<br/></span><span>            </span><span>activation</span>=<span>'softmax'</span>)<br/>    ])</pre>
+<ol start="7">
+<li>Next, we'll define the fine-tuning model. The only difference it has from the feature extraction is that we only freeze some of the bottom pretrained network layers (as opposed to all of them). The following is the implementation:</li>
+</ol>
+<pre style="padding-left: 60px"><span>def </span><span>build_ft_model</span>():<br/><span>    </span><span># create the pretrained part of the network, excluding FC <br/>    layers<br/></span><span>    </span>base_model = tf.keras.applications.ResNet50V2(<span>input_shape</span>=(IMG_SIZE<span>, <br/>    </span>IMG_SIZE<span>, </span><span>3</span>)<span>, </span><span>include_top</span>=<span>False, </span><span>weights</span>=<span>'imagenet'</span>)<br/><br/>    <span># Fine tune from this layer onwards<br/></span><span>    </span>fine_tune_at = <span>100<br/></span><span><br/></span><span>    </span><span># Freeze all the layers before the `fine_tune_at` layer<br/></span><span>    </span><span>for </span>layer <span>in </span>base_model.layers[:fine_tune_at]:<br/>        layer.trainable = <span>False<br/></span><span><br/></span><span>    </span><span># create new model as a combination of the pretrained net<br/></span><span>    # and one fully connected layer at the top<br/></span><span>    </span><span>return </span>tf.keras.Sequential([<br/>        base_model<span>,<br/></span><span>        </span>tf.keras.layers.GlobalAveragePooling2D()<span>,<br/></span><span>        </span>tf.keras.layers.Dense(<br/>            metadata.features[<span>'label'</span>].num_classes<span>,<br/></span><span>            </span><span>activation</span>=<span>'softmax'</span>)<br/>    ])</pre>
+<ol start="8">
+<li>Finally, we'll implement the <kbd>train_model</kbd> function, which trains and evaluates the models that are created by either the <kbd>build_fe_model</kbd> or <kbd>build_ft_model</kbd> function:</li>
+</ol>
+<pre style="padding-left: 60px"><span>def </span><span>train_model</span>(model<span>, </span>epochs=<span>5</span>):<br/><span>    </span><span># configure the model for training<br/></span><span>    </span>model.compile(<span>optimizer</span>=tf.keras.optimizers.Adam(<span>lr</span>=<span>0.0001</span>)<span>,<br/></span><span>                  </span><span>loss</span>=<span>'categorical_crossentropy'</span><span>,<br/></span><span>                  </span><span>metrics</span>=[<span>'accuracy'</span>])<br/><br/>    <span># train the model<br/></span><span>    </span>history = model.fit(train_batches<span>,<br/></span><span>                        </span><span>epochs</span>=epochs<span>,<br/></span><span>                        </span><span>steps_per_epoch</span>=metadata.splits[<span>'train'</span>].num_examples // BATCH_SIZE<span>,<br/></span><span>                        </span><span>validation_data</span>=test_batches<span>,<br/></span><span>                        </span><span>validation_steps</span>=metadata.splits[<span>'test'</span>].num_examples // BATCH_SIZE<span>,<br/></span><span>                        </span><span>workers</span>=<span>4</span>)<br/><br/>    <span># plot accuracy<br/></span><span>    </span>test_acc = history.history[<span>'val_accuracy'</span>]<br/><br/>    plt.figure()<br/>    plt.plot(test_acc)<br/>    plt.xticks(<br/>        [i <span>for </span>i <span>in </span><span>range</span>(<span>0</span><span>, </span><span>len</span>(test_acc))]<span>,<br/></span><span>        </span>[i + <span>1 </span><span>for </span>i <span>in </span><span>range</span>(<span>0</span><span>, </span><span>len</span>(test_acc))])<br/>    plt.ylabel(<span>'Accuracy'</span>)<br/>    plt.xlabel(<span>'Epoch'</span>)<br/>    plt.show()</pre>
+<ol start="9">
+<li>We can run either the feature extraction or fine-tuning TL using the following code:
+<ul>
+<li><kbd>train_model(build_ft_model())</kbd></li>
+<li><kbd>train_model(build_fe_model())</kbd></li>
+</ul>
+</li>
+</ol>
+<p>TF will automatically use the machine GPU if one is available; otherwise, it will revert to the CPU. The following diagram shows the accuracy of the networks after five epochs for the two scenarios:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1469 image-border" src="assets/3c73d77d-462f-4bfe-8c5d-2e9e7d7f9c64.png" style="width:40.25em;height:12.50em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Left: Feature extraction TL; right: Fine-tuning TL</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>We started this chapter with a quick recap of CNNs and discussed transposed, depthwise separable, and dilated convolutions. Next, we talked about improving the performance of CNNs by representing the convolution as a matrix multiplication or with the Winograd convolution algorithm. Then, we focused on visualizing CNNs with the help of guided backpropagation and Grad-CAM. Next, we discussed the most popular regularization techniques. Finally, we learned about transfer learning and implemented the same TL task with both PyTorch and TF as a way to compare the two libraries.</p>
+<p>In the next chapter, we'll discuss some of the most popular advanced CNN architectures. </p>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

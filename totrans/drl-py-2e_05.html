@@ -1,0 +1,497 @@
+<html><head></head><body>
+  <div id="_idContainer752">
+    <h1 class="chapterNumber">5</h1>
+    <h1 id="_idParaDest-134" class="chapterTitle">Understanding Temporal Difference Learning</h1>
+    <p class="normal"><strong class="keyword">Temporal difference</strong> (<strong class="keyword">TD</strong>) learning is one of the most popular and widely used model-free methods. The reason for this is that TD learning combines the advantages of both the <strong class="keyword">dynamic programming</strong> (<strong class="keyword">DP</strong>) method and the <strong class="keyword">Monte Carlo</strong> (<strong class="keyword">MC</strong>) method we covered in the previous chapters.</p>
+    <p class="normal">We will begin the chapter by understanding how exactly TD learning is beneficial compared to DP and MC methods. Later, we will learn how to perform the prediction task using TD learning. Going forward, we will learn how to perform TD control tasks with an on-policy TD control method called SARSA and an off-policy TD control method called Q learning.</p>
+    <p class="normal">We will also learn how to find the optimal policy in the Frozen Lake environment using SARSA and the Q learning method. At the end of the chapter, we will compare the DP, MC, and TD methods.</p>
+    <p class="normal">Thus, in this chapter, we will learn about the following topics:</p>
+    <ul>
+      <li class="bullet">TD learning</li>
+      <li class="bullet">TD prediction method</li>
+      <li class="bullet">TD control method</li>
+      <li class="bullet">On-policy TD control – SARSA</li>
+      <li class="bullet">Off-policy TD control – Q learning</li>
+      <li class="bullet">Implementing SARSA and Q learning to find the optimal policy </li>
+      <li class="bullet">The difference between Q learning and SARSA</li>
+      <li class="bullet">Comparing the DP, MC, and TD methods</li>
+    </ul>
+    <h1 id="_idParaDest-135" class="title">TD learning</h1>
+    <p class="normal">The TD learning <a id="_idIndexMarker446"/>algorithm was introduced by Richard S. Sutton in 1988. In the introduction of the chapter, we learned that the reason the TD method became popular is that it combines the advantages of DP and the MC method. But what are those advantages?</p>
+    <p class="normal">First, let's recap quickly the advantages and disadvantages of DP and the MC method.</p>
+    <p class="normal"><strong class="keyword">Dynamic programming</strong>—The advantage of the DP method is that it uses the Bellman equation <a id="_idIndexMarker447"/>to compute the value of a state. That is, we have learned that according to the Bellman equation, the value of a state can be obtained as <a id="_idIndexMarker448"/>the sum of the immediate reward and the discounted value of the next state. This is called bootstrapping. That is, to compute the value of a state, we don't have to wait till the end of the episode, instead, using the Bellman equation, we can estimate the value of a state just based on the value of the next state, and this is called bootstrapping.</p>
+    <p class="normal">Remember how we estimated the value function in DP methods (value and policy iteration)? We estimated the value function (the value of a state) as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_001.png" alt="" style="height: 2.69em;"/></figure>
+    <p class="normal">As you may recollect, we learned that in order to find the value of a state, we didn't have to wait till the end of the episode. Instead, we bootstrap, that is, we estimate the value of the current state <em class="italic">V</em>(<em class="italic">s</em>) by estimating the value of the next state <img src="../Images/B15558_05_002.png" alt="" style="height: 1.2em;"/>.</p>
+    <p class="normal">However, the <a id="_idIndexMarker449"/>disadvantage of DP is that we can apply the DP method only when we know the model dynamics of the environment. That is, DP is a model-based method and we should know the transition probability in order to use it. When we don't know the model dynamics of the environment, we cannot apply the DP method.</p>
+    <p class="normal"><strong class="keyword">Monte Carlo method</strong>—The advantage <a id="_idIndexMarker450"/>of the MC method <a id="_idIndexMarker451"/>is that it is a model-free method, which means that it does not require the model dynamics of the environment to be known in order to estimate the value and Q functions.</p>
+    <p class="normal">However, the disadvantage of the MC method is that in order to estimate the state value or Q value we need to wait until the end of the episode, and if the episode is long then it will cost us a lot of time. Also, we cannot apply MC methods to continuous tasks (non-episodic tasks).</p>
+    <p class="normal">Now, let's get back to TD learning. The TD learning algorithm takes the benefits of the DP and the MC methods into account. So, just like in DP, we perform bootstrapping so that we don't have to wait until the end of an episode to compute the state value or Q value, and just <a id="_idIndexMarker452"/>like the MC method, it is a model-free method and so it does not require the model dynamics of the environment to compute the state value or Q value. Now that we have the basic idea behind the TD learning algorithm, let's get into the details and learn exactly how it works.</p>
+    <p class="normal">Similar to what we learned in <em class="chapterRef">Chapter 4</em>, <em class="italic">Monte Carlo Methods</em>, we can use the TD learning algorithm for both the prediction and control tasks, and so we can categorize TD learning into:</p>
+    <ul>
+      <li class="bullet">TD prediction</li>
+      <li class="bullet">TD control</li>
+    </ul>
+    <p class="normal">We learned <a id="_idIndexMarker453"/>what the prediction and control methods mean in the previous chapter. Let's recap that a bit before going forward.</p>
+    <p class="normal">In the prediction method, a policy is given as an input and we try to predict the value function or Q function using the given policy. If we predict the value function using the given policy, then we can say how good it is for the agent to be in each state if it uses the given policy. That is, we can say what the expected return an agent can get in each state if it acts according to the given policy.</p>
+    <p class="normal">In the control method, we are not given a policy as input, and the goal in the control method is to find the optimal policy. So, we initialize a random policy and then we try to find the optimal policy iteratively. That is, we try to find an optimal policy that gives us the maximum return.</p>
+    <p class="normal">First, let's see how to use TD learning to perform prediction task, and then we will learn how to use TD learning for the control task.</p>
+    <h1 id="_idParaDest-136" class="title">TD prediction</h1>
+    <p class="normal">In the TD <a id="_idIndexMarker454"/>prediction method, the policy is given as input and we try to estimate the value function using the given policy. TD learning bootstraps like DP, so it does not have to wait till the end of the episode, and like the MC method, it does not require the model dynamics of the environment to compute the value function or the Q function. Now, let's see how the update rule of TD learning is designed, taking the preceding advantages into account.</p>
+    <p class="normal">In the MC method, we estimate the value of a state by taking its return:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_003.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">However, a single return value cannot approximate the value of a state perfectly. So, we generate <strong class="keyword">N</strong> episodes and compute the value of a state as the average return of a state across <strong class="keyword">N</strong> episodes:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_04_013.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">But with <a id="_idIndexMarker455"/>the MC method, we need to wait until the end of the episode to compute the value of a state and when the episode is long, it takes a lot of time. One more problem with the MC method is that we cannot apply it to non-episodic tasks (continuous tasks). </p>
+    <p class="normal">So, in TD learning, we make use of bootstrapping and estimate the value of a state as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_005.png" alt="" style="height: 1.2em;"/></figure>
+    <p class="normal">The preceding equation tells us that we can estimate the value of the state by only taking the immediate reward <em class="italic">r</em> and the discounted value of the next state <img src="../Images/B15558_05_006.png" alt="" style="height: 1.2em;"/>. As you may observe from the preceding equation, similar to what we learned in DP methods (value and policy iteration), we perform bootstrapping but here we don't need to know the model dynamics.</p>
+    <p class="normal">Thus, using TD learning, the value of a state is approximated as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_005.png" alt="" style="height: 1.2em;"/></figure>
+    <p class="normal">However, a single value of <img src="../Images/B15558_05_008.png" alt="" style="height: 1.2em;"/> cannot approximate the value of a state perfectly. So, we can take a mean value and instead of taking an arithmetic mean, we can use the incremental mean.</p>
+    <p class="normal">In the MC method, we learned how to use the incremental mean to estimate the value of the state and it given as follows: </p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_009.png" alt="" style="height: 1.29em;"/></figure>
+    <p class="normal">Similarly, here in TD learning, we can use the incremental mean and estimate the value of the state, as shown here:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_010.png" alt="" style="height: 1.2em;"/></figure>
+    <p class="normal">This equation is called the TD learning update rule. As we can observe, the only difference between the TD learning and the MC method is that to compute the value of the state, in the MC method, we use the full return <em class="italic">R</em>, which is computed using the complete episode, whereas in the TD learning method, we use the bootstrap estimate <img src="../Images/B15558_05_011.png" alt="" style="height: 1.2em;"/> so that <a id="_idIndexMarker456"/>we don't have to wait until the end of the episode to compute the value of the state. Thus, we can apply TD learning to non-episodic tasks as well. The following shows the difference between the MC method and TD learning:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_01.png" alt=""/></figure>
+    <p class="packt_figref">Figure 5.1: A comparison between MC and TD learning</p>
+    <p class="normal">Thus, our TD learning update rule is:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_010.png" alt="" style="height: 1.2em;"/></figure>
+    <p class="normal">We learned that <img src="../Images/B15558_05_011.png" alt="" style="height: 1.2em;"/> is an estimate of the value of state <em class="italic">V</em>(<em class="italic">s</em>). So, we can call <img src="../Images/B15558_05_011.png" alt="" style="height: 1.2em;"/> the TD target. Thus, subtracting <em class="italic">V</em>(<em class="italic">s</em>) from <img src="../Images/B15558_05_011.png" alt="" style="height: 1.2em;"/> implies that we are subtracting the predicted value from the target value, and this is usually called the TD error. Okay, what about that <img src="../Images/B15558_05_016.png" alt="" style="height: 0.93em;"/>? It is basically the learning rate, also called the step size. That is:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_18.png" alt=""/></figure>
+    <p class="normal">Our TD <a id="_idIndexMarker457"/>learning update rule basically implies:</p>
+    <p class="center"><em class="italic">Value of a state = value of a state + learning rate (reward + discount factor(value of next state) - value of a state)</em></p>
+    <p class="normal">Now that we have seen the TD learning update rule and how TD learning is used to estimate the value of a state, in the next section, we will look into the TD prediction algorithm and get a clearer understanding of the TD learning method. </p>
+    <h2 id="_idParaDest-137" class="title">TD prediction algorithm</h2>
+    <p class="normal">We learned that, in the prediction task, given a policy, we estimate the value function using the <a id="_idIndexMarker458"/>given policy. So, we can say what the expected return an agent can obtain in each state if it acts according to the given policy.</p>
+    <p class="normal">We learned that the TD learning update rule is given as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_010.png" alt="" style="height: 1.2em;"/></figure>
+    <p class="normal">Thus, using this equation, we can estimate the value function of the given policy. </p>
+    <p class="normal">Before looking into the algorithm directly, for better understanding, first, let's manually calculate and see how exactly the value of a state is estimated using the TD learning update rule.</p>
+    <div class="note">
+      <p class="Information-Box--PACKT-">The upcoming sections are explained with manual calculations, for a better understanding, follow along with a pen and paper.</p>
+    </div>
+    <p class="normal">Let's explore TD prediction with the Frozen Lake environment. We have learned that in the Frozen Lake environment, the goal of the agent is to reach the goal state <strong class="keyword">G</strong> from the starting state <strong class="keyword">S</strong> without visiting the hole states <strong class="keyword">H</strong>. If the agent visits state <strong class="keyword">G</strong>, we assign a reward of 1 and if it visits any other states, we assign a reward of 0. <em class="italic">Figure 5.2</em> shows the Frozen Lake environment:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_02.png" alt=""/></figure>
+    <p class="packt_figref">Figure 5.2: The Frozen Lake environment</p>
+    <p class="normal">We have four actions in our action space, which are <em class="italic">up</em>, <em class="italic">down</em>, <em class="italic">left</em>, and <em class="italic">right</em>, and we have 16 states from <strong class="keyword">S</strong> to <strong class="keyword">G</strong>. Instead of encoding the states and actions into numbers, for easier understanding, let's just keep them as they are. That is, let's just denote each action by the strings <em class="italic">up</em>, <em class="italic">down</em>, <em class="italic">left</em>, and <em class="italic">right</em>, and let's denote each state by their position in the grid. That is, the first state <strong class="keyword">S</strong> is denoted by <strong class="keyword">(1,1) </strong>and the second state <strong class="keyword">F</strong> is denoted by <strong class="keyword">(1,2)</strong> and so on to the last state <strong class="keyword">G</strong>, which is denoted by <strong class="keyword">(4,4)</strong>.</p>
+    <p class="normal">Now, let's <a id="_idIndexMarker459"/>learn how to perform TD prediction in the Frozen Lake environment. We know that in the TD prediction method, we will be given a policy and we predict the value function (state value) using a given policy. Let's suppose we are given the following policy. It basically tells us what action to perform in each state:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_03.png" alt=""/></figure>
+    <p class="packt_figref">Table 5.1: A policy</p>
+    <p class="normal">Now, we will see how to estimate the value function of the preceding policy using the TD learning method. Before going ahead, first, we initialize the values of all the states with random values, as shown here:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_04.png" alt=""/></figure>
+    <p class="packt_figref">Figure 5.3: Initialize the states with random values</p>
+    <p class="normal">Say we <a id="_idIndexMarker460"/>are in state <strong class="keyword">(1,1) </strong>and as per the given policy we take the <em class="italic">right</em> action and move to the next state <strong class="keyword">(1,2)</strong>, and we receive a reward <em class="italic">r</em> of 0. Let's keep the learning rate <img src="../Images/B15558_05_016.png" alt="" style="height: 0.93em;"/> as 0.1 and the discount factor <img src="../Images/B15558_03_190.png" alt="" style="height: 0.93em;"/> as 1 throughout this section. Now, how can we update the value of the state?</p>
+    <p class="normal">Recall the TD update equation:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_010.png" alt="" style="height: 1.2em;"/></figure>
+    <p class="normal">Substituting the value of state <em class="italic">V</em>(<em class="italic">s</em>) with <em class="italic">V</em>(1,1) and the next state <img src="../Images/B15558_05_020.png" alt="" style="height: 1.2em;"/> with <em class="italic">V</em>(1,2) in the preceding equation, we can write:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_021.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">Substituting the reward <em class="italic">r</em> = 0, the learning rate <img src="../Images/B15558_05_022.png" alt="" style="height: 1.11em;"/>, and the discount factor <img src="../Images/B15558_05_023.png" alt="" style="height: 1.11em;"/>, we can write:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_024.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">We can get <a id="_idIndexMarker461"/>the state values from the value table shown earlier. That is, from the preceding value table, we can observe that the value of state <strong class="keyword">(1,1)</strong> is 0.9 and the value of the next state <strong class="keyword">(1,2)</strong> is 0.6. Substituting these values in the preceding equation, we can write:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_025.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">Thus, the value of state <strong class="keyword">(1,1)</strong> becomes:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_026.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">So, we update the value of state <strong class="keyword">(1,1)</strong> as <strong class="keyword">0.87 </strong>in the value table, as <em class="italic">Figure 5.4</em> shows:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_05.png" alt=""/></figure>
+    <p class="packt_figref">Figure 5.4: The value of state (1,1) is updated</p>
+    <p class="normal">Now we <a id="_idIndexMarker462"/>are in state <strong class="keyword">(1,2)</strong>. We select the <em class="italic">right</em> action according to the given policy in state <strong class="keyword">(1,2)</strong> and move to the next state <strong class="keyword">(1,3)</strong> and receive a reward <em class="italic">r</em> of 0. We can compute the value of the state as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_010.png" alt="" style="height: 1.2em;"/></figure>
+    <p class="normal">Substituting the value of state <em class="italic">V</em>(<em class="italic">s</em>) with <em class="italic">V</em>(1,2) and the next state <img src="../Images/B15558_05_028.png" alt="" style="height: 1.2em;"/> with <em class="italic">V</em>(1,3), we can write:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_029.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">Substituting the reward <em class="italic">r</em> = 0, the learning rate <img src="../Images/B15558_05_030.png" alt="" style="height: 1.11em;"/>, and the discount factor <img src="../Images/B15558_05_031.png" alt="" style="height: 1.11em;"/>, we can write:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_032.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">From the preceding value table, we can observe that the value of state <strong class="keyword">(1,2)</strong> is 0.6 and the value of the next state <strong class="keyword">(1,3)</strong> is 0.8, so we can write:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_033.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">Thus, the value of state <strong class="keyword">(1,2)</strong> becomes:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_034.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">So, we update <a id="_idIndexMarker463"/>the value of state <strong class="keyword">(1,2)</strong> to <strong class="keyword">0.62 </strong>in the value table, as <em class="italic">Figure 5.5</em> shows:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_06.png" alt=""/></figure>
+    <p class="packt_figref">Figure 5.5: The value of state (1,2) is updated</p>
+    <p class="normal">Now we are in state <strong class="keyword">(1,3)</strong>. We select the <em class="italic">left</em> action according to our policy and move to the next state <strong class="keyword">(1,2)</strong> and receive a reward <em class="italic">r</em> of 0. We can compute the value of the state as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_010.png" alt="" style="height: 1.2em;"/></figure>
+    <p class="normal">Substituting the value of state <em class="italic">V</em>(<em class="italic">s</em>) with <em class="italic">V</em>(1,3) and the next state <img src="../Images/B15558_05_020.png" alt="" style="height: 1.2em;"/> with <em class="italic">V</em>(1,2), we have:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_037.png" alt="" style="height: 1.29em;"/></figure>
+    <p class="normal">Substituting <a id="_idIndexMarker464"/>the reward <em class="italic">r</em> = 0, the learning rate <img src="../Images/B15558_05_038.png" alt="" style="height: 1.11em;"/>, and the discount factor <img src="../Images/B15558_03_181.png" alt="" style="height: 1.11em;"/>, we can write:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_040.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">Note that we use the updated values in every step, that is, the value of state <strong class="keyword">(1,2)</strong> is updated with 0.62 in the previous step, as shown in the preceding value table. So, we substitute <em class="italic">V</em>(1,2) with 0.62 and <em class="italic">V</em>(1,3) with 0.8:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_041.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">Thus, the value of state <strong class="keyword">(1,3)</strong> becomes:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_042.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">So, we update the value of state <strong class="keyword">(1,3)</strong> to <strong class="keyword">0.782 </strong>in the value table, as <em class="italic">Figure 5.6</em> shows:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_07.png" alt=""/></figure>
+    <p class="packt_figref">Figure 5.6: The value of state (1,3) is updated</p>
+    <p class="normal">Thus, in this way, we compute the value of every state using the given policy. However, computing <a id="_idIndexMarker465"/>the value of the state just for one episode will not be accurate. So, we repeat these steps for several episodes and compute the accurate estimates of the state value (the value function).</p>
+    <p class="normal">The TD prediction algorithm is given as follows:</p>
+    <ol>
+      <li class="numbered">Initialize a value function <em class="italic">V</em>(<em class="italic">s</em>) with random values. A policy <img src="../Images/B15558_03_082.png" alt="" style="height: 0.84em;"/> is given.</li>
+      <li class="numbered">For each episode:<ol>
+          <li class="numbered-l2">Initialize state <em class="italic">s</em></li>
+          <li class="numbered-l2">For each step in the episode:<ol>
+      <li class="bullet-l2" value="1">Perform an action <em class="italic">a</em> in state <em class="italic">s</em> according to given policy <img src="../Images/B15558_04_054.png" alt="" style="height: 0.84em;"/>, get the reward <em class="italic">r</em>, and move to the next state <img src="../Images/B15558_05_045.png" alt="" style="height: 1.2em;"/></li>
+      <li class="bullet-l2">Update the value of the state to <img src="../Images/B15558_05_010.png" alt="" style="height: 1.2em;"/></li>
+      <li class="bullet-l2">Update <img src="../Images/B15558_05_047.png" alt="" style="height: 1.2em;"/> (this step implies we are changing the next state <img src="../Images/B15558_05_048.png" alt="" style="height: 1.2em;"/> to the current state <em class="italic">s</em>)</li>
+      <li class="bullet-l2">If <em class="italic">s</em> is not the terminal state, repeat <em class="italic">steps 1</em> to <em class="italic">4</em></li>
+    </ol></li>
+        </ol>
+      </li>
+    </ol>
+    <p class="normal">Now that <a id="_idIndexMarker466"/>we have learned how the TD prediction method predicts the value function of the given policy, in the next section, let's learn how to implement the TD prediction method to predict the value of states in the Frozen Lake environment.</p>
+    <h3 id="_idParaDest-138" class="title">Predicting the value of states in the Frozen Lake environment</h3>
+    <p class="normal">We have <a id="_idIndexMarker467"/>learned that in the prediction method, the policy is given as an input and we predict the value function using the given policy. So, let's initialize a random policy and predict the value function (state values) of the Frozen Lake environment using the random policy. </p>
+    <p class="normal">First, let's import the necessary libraries:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> gym
+<span class="hljs-keyword">import</span> pandas <span class="hljs-keyword">as</span> pd
+</code></pre>
+    <p class="normal">Now, we create the Frozen Lake environment using Gym:</p>
+    <pre class="programlisting code"><code class="hljs-code">env = gym.make(<span class="hljs-string">'FrozenLake-v0'</span>)
+</code></pre>
+    <p class="normal">Define the random policy, which returns the random action by sampling from the action space:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">random_policy</span><span class="hljs-function">():</span>
+    <span class="hljs-keyword">return</span> env.action_space.sample()
+</code></pre>
+    <p class="normal">Let's define the dictionary for storing the value of states, and we initialize the value of all the states to <code class="Code-In-Text--PACKT-">0.0</code>:</p>
+    <pre class="programlisting code"><code class="hljs-code">V = {}
+<span class="hljs-keyword">for</span> s <span class="hljs-keyword">in</span> range(env.observation_space.n):
+    V[s]=<span class="hljs-number">0.0</span>
+</code></pre>
+    <p class="normal">Initialize the discount factor <img src="../Images/B15558_05_049.png" alt="" style="height: 0.93em;"/> and the learning rate <img src="../Images/B15558_05_050.png" alt="" style="height: 0.93em;"/>:</p>
+    <pre class="programlisting code"><code class="hljs-code">alpha = <span class="hljs-number">0.85</span>
+gamma = <span class="hljs-number">0.90</span>
+</code></pre>
+    <p class="normal">Set the number of episodes and the number of time steps in each episode:</p>
+    <pre class="programlisting code"><code class="hljs-code">num_episodes = <span class="hljs-number">50000</span>
+num_timesteps = <span class="hljs-number">1000</span>
+</code></pre>
+    <h4 class="title">Compute the values of the states</h4>
+    <p class="normal">Now, let's <a id="_idIndexMarker468"/>compute the value function (state values) using the given random policy. </p>
+    <p class="normal">For each episode: </p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(num_episodes):
+</code></pre>
+    <p class="normal">Initialize the state by resetting the environment:</p>
+    <pre class="programlisting code"><code class="hljs-code">    s = env.reset()
+</code></pre>
+    <p class="normal">For every step in the episode:</p>
+    <pre class="programlisting code"><code class="hljs-code">    <span class="hljs-keyword">for</span> t <span class="hljs-keyword">in</span> range(num_timesteps):
+</code></pre>
+    <p class="normal">Select an action according to random policy: </p>
+    <pre class="programlisting code"><code class="hljs-code">        a = random_policy()
+</code></pre>
+    <p class="normal">Perform the selected action and store the next state information: </p>
+    <pre class="programlisting code"><code class="hljs-code">        s_, r, done, _ = env.step(a)
+</code></pre>
+    <p class="normal">Compute the value of the state as <img src="../Images/B15558_05_010.png" alt="" style="height: 1.2em;"/>:</p>
+    <pre class="programlisting code"><code class="hljs-code">        V[s] += alpha * (r + gamma * V[s_]-V[s])
+</code></pre>
+    <p class="normal">Update the next state to the current state <img src="../Images/B15558_05_052.png" alt="" style="height: 1.2em;"/>:</p>
+    <pre class="programlisting code"><code class="hljs-code">        s = s_
+</code></pre>
+    <p class="normal">If the current state is the terminal state, then break: </p>
+    <pre class="programlisting code"><code class="hljs-code">        <span class="hljs-keyword">if</span> done:
+            <span class="hljs-keyword">break</span>
+</code></pre>
+    <p class="normal">After all <a id="_idIndexMarker469"/>the iterations, we will have values of all the states according to the given random policy.</p>
+    <h4 class="title">Evaluating the values of the states </h4>
+    <p class="normal">Now, let's <a id="_idIndexMarker470"/>evaluate our value function (state values). First, let's convert our value dictionary to a pandas data frame for more clarity:</p>
+    <pre class="programlisting code"><code class="hljs-code">df = pd.DataFrame(list(V.items()), columns=[<span class="hljs-string">'state'</span>, <span class="hljs-string">'value'</span>])
+</code></pre>
+    <p class="normal">Before checking the values of the states, let's recollect that in Gym, all the states in the Frozen Lake environment will be encoded into numbers. Since we have 16 states, all the states will be encoded into numbers from 0 to 15 as <em class="italic">Figure 5.7</em> shows:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_08.png" alt=""/></figure>
+    <p class="packt_figref">Figure 5.7: States encoded as numbers</p>
+    <p class="normal">Now, Let's check the value of the states:</p>
+    <pre class="programlisting code"><code class="hljs-code">df
+</code></pre>
+    <p class="normal">The preceding code will print:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_09.png" alt=""/></figure>
+    <p class="packt_figref">Figure 5.8: Value table </p>
+    <p class="normal">As we can observe, we now have the values of all the states. The value of state 14 is high since <a id="_idIndexMarker471"/>we can reach goal state 15 from state 14 easily, and also, as we can see, the values of all the terminal states (hole states and the goal state) are zero.</p>
+    <p class="normal">Note that since we have initialized a random policy, you might get varying results every time you run the previous code.</p>
+    <p class="normal">Now that we have understood how TD learning can be used for prediction tasks, in the next section, we will learn how to use TD learning for control tasks.</p>
+    <h1 id="_idParaDest-139" class="title">TD control</h1>
+    <p class="normal">In the control method, our goal is to find the optimal policy, so we will start off with an initial <a id="_idIndexMarker472"/>random policy and then we will try to find the optimal policy iteratively. In the previous chapter, we learned that the control method can be classified into two categories:</p>
+    <ul>
+      <li class="bullet">On-policy control</li>
+      <li class="bullet">Off-policy control </li>
+    </ul>
+    <p class="normal">We learned what on-policy and off-policy control means in the previous chapter. Let's recap that <a id="_idIndexMarker473"/>a bit before going ahead. In the <strong class="keyword">on-policy control</strong>, the agent behaves using one policy and tries to improve the same policy. That is, in the on-policy method, we generate episodes using one policy and improve the same policy <a id="_idIndexMarker474"/>iteratively to find the optimal policy. In the <strong class="keyword">off-policy control</strong> method, the agent behaves using one policy and tries to improve a different policy. That is, in the off-policy method, we generate episodes using one policy and we try to improve a different policy iteratively to find the optimal policy.</p>
+    <p class="normal">Now, we will learn how to perform control tasks using TD learning. First, we will learn how to perform on-policy TD control and then we will learn about off-policy TD control. </p>
+    <h2 id="_idParaDest-140" class="title">On-policy TD control – SARSA</h2>
+    <p class="normal">In this section, we <a id="_idIndexMarker475"/>will look into the popular on-policy <a id="_idIndexMarker476"/>TD control algorithm called <strong class="keyword">SARSA</strong>, which stands for <strong class="keyword">State-Action-Reward-State-Action</strong>. We know that in TD <a id="_idIndexMarker477"/>control our goal is to find the optimal policy. First, how can we extract a policy? We can extract the policy from the Q function. That is, once we have the Q function then we can extract policy by selecting the action in each state that has the maximum Q value.</p>
+    <p class="normal">Okay, how can we compute the Q function in TD learning? First, let's recall how we compute the value function. In TD learning, the value function is computed as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_010.png" alt="" style="height: 1.2em;"/></figure>
+    <p class="normal">We can just rewrite this update rule in terms of the Q function as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_054.png" alt="" style="height: 1.29em;"/></figure>
+    <p class="normal">Now, we compute the Q function using the preceding TD learning update rule, and then we extract a policy from them. We can also call the preceding update rule as the SARSA update rule.</p>
+    <p class="normal">But wait! In the prediction method, we were given a policy as input, so we acted in the environment using that policy and computed the value function. But here, we don't have a policy as input. So how can we act in the environment?</p>
+    <p class="normal">So, first we initialize the Q function with random values or with zeros. Then we extract a policy from this randomly initialized Q function and act in the environment. Our initial policy will definitely not be optimal as it is extracted from the randomly initialized Q function, but on every episode, we will update the Q function (Q values). So, on every episode, we can use the updated Q function to extract a new policy. Thus, we will obtain the optimal policy after a series of episodes. </p>
+    <p class="normal">One important <a id="_idIndexMarker478"/>point we need to note is that in the SARSA method, instead of making our policy act greedily, we use the epsilon-greedy policy. That is, in a <a id="_idIndexMarker479"/>greedy policy, we always select the action that has the maximum Q value. But, with the epsilon-greedy policy we select a random action with probability epsilon, and we select the best action (the action with the maximum Q value) with probability 1-epsilon.</p>
+    <p class="normal">Before looking into the algorithm directly, for a better understanding, first, let's manually calculate and see how exactly the Q function (Q value) is estimated using the SARSA update rule and how we can find the optimal policy.</p>
+    <p class="normal">Let us consider the same Frozen Lake environment. Before going ahead, we initialize our Q table (Q function) with random values. <em class="italic">Figure 5.9</em> shows the Frozen Lake environment along with the Q table containing random values:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_10.png" alt=""/></figure>
+    <p class="packt_figref">Figure 5.9: The Frozen Lake environment and Q table with random values</p>
+    <p class="normal">Suppose <a id="_idIndexMarker480"/>we are in state<strong class="keyword"> (4,2)</strong>. Now we need to select an action in this state. How can we select an action? We learned that in the SARSA method, we <a id="_idIndexMarker481"/>select an action based on the epsilon-greedy policy. With probability epsilon, we select a random action and with probability 1-epsilon we select the best action (the action that has the maximum Q value). Suppose we use a probability 1-epsilon and select the best action. So, in state <strong class="keyword">(4,2)</strong>, we move <em class="italic">right</em> as it has the highest Q value compared to the other actions, as shown here:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_11.png" alt=""/></figure>
+    <p class="packt_figref">Figure 5.10: Our agent is in state (4,2)</p>
+    <p class="normal">Okay, so, we perform the <em class="italic">right</em> action in state <strong class="keyword">(4,2)</strong> and move to the next state <strong class="keyword">(4,3)</strong> as <em class="italic">Figure 5.11</em> shows:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_12.png" alt=""/></figure>
+    <p class="packt_figref">Figure 5.11: We perform the action with the maximum Q value in state (4,2)</p>
+    <p class="normal">Thus, we moved <em class="italic">right</em> in state<strong class="keyword"> (4,2)</strong> to the next state <strong class="keyword">(4,3) </strong>and received a reward <em class="italic">r</em> of 0. Let's keep <a id="_idIndexMarker482"/>the learning rate <img src="../Images/B15558_05_055.png" alt="" style="height: 0.93em;"/> at 0.1, and the <a id="_idIndexMarker483"/>discount factor <img src="../Images/B15558_05_056.png" alt="" style="height: 0.93em;"/> at 1. Now, how can we update the Q value?</p>
+    <p class="normal">Let recall our SARSA update rule:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_054.png" alt="" style="height: 1.29em;"/></figure>
+    <p class="normal">Substituting the state-action pair <em class="italic">Q</em>(<em class="italic">s</em>,<em class="italic">a</em>) with <em class="italic">Q</em>((4,2), right) and the next state <img src="../Images/B15558_03_001.png" alt="" style="height: 1.2em;"/> with <strong class="keyword">(4,3)</strong> in the preceding equation, we can write:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_059.png" alt="" style="height: 1.29em;"/></figure>
+    <p class="normal">Substituting the reward <em class="italic">r</em> = 0, the learning rate <img src="../Images/B15558_05_030.png" alt="" style="height: 1.11em;"/>, and the discount factor <img src="../Images/B15558_05_061.png" alt="" style="height: 1.11em;"/>, we can write:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_062.png" alt="" style="height: 1.29em;"/></figure>
+    <p class="normal">From the previous Q table, we can observe that the Q value of <em class="italic">Q</em>((4,2), right) is <strong class="keyword">0.8</strong>. Thus, substituting <em class="italic">Q</em>((4,2), right) with <strong class="keyword">0.8</strong>, we can rewrite the preceding equation as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_063.png" alt="" style="height: 1.29em;"/></figure>
+    <p class="normal">Okay, what <a id="_idIndexMarker484"/>about the term <img src="../Images/B15558_05_064.png" alt="" style="height: 1.29em;"/>? As you can see in the preceding equation, we have the term <img src="../Images/B15558_05_064.png" alt="" style="height: 1.29em;"/>, which represents the Q value of the next state-action pair.</p>
+    <p class="normal">Because we <a id="_idIndexMarker485"/>have moved to the next state <strong class="keyword">(4,3)</strong>, we need to select an action in this state in order to compute the Q value of the next state-action pair. So, we use our same epsilon-greedy policy to select the action. That is, we select a random action with a probability of epsilon, or we select the best action that has the maximum Q value with a probability of 1-epsilon.</p>
+    <p class="normal">Suppose we use probability epsilon and select the random action. In state <strong class="keyword">(4,3)</strong>, we select the <em class="italic">right</em> action randomly, as <em class="italic">Figure 5.12</em> shows. As you can see, although the <em class="italic">right</em> action does not have the maximum Q value, we selected it randomly with probability epsilon:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_13.png" alt=""/></figure>
+    <p class="packt_figref">Figure 5.12: We perform a random action in state (4,3)</p>
+    <p class="normal">Thus, now <a id="_idIndexMarker486"/>our update rule becomes:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_066.png" alt="" style="height: 1.29em;"/></figure>
+    <p class="normal">From the <a id="_idIndexMarker487"/>preceding Q table, we can see that the Q value of <strong class="keyword">Q((4,3), right)</strong> is <strong class="keyword">0.9</strong>. Thus, substituting the value of <strong class="keyword">Q((4,3), right)</strong> with <strong class="keyword">0.9</strong>, we can rewrite the above equation as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_067.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">Thus, our Q value becomes:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_068.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">Thus, in this way, we update the Q function by updating the Q value of the state-action pair in each step of the episode. After completing an episode, we extract a new policy from the updated Q function and uses this new policy to act in the environment. (Remember that our policy is always an epsilon-greedy policy). We repeat this steps for several episodes to find the optimal policy. The SARSA algorithm given in the following will help us understand this better. </p>
+    <p class="normal">The SARSA <a id="_idIndexMarker488"/>algorithm is given as follows:</p>
+    <ol>
+      <li class="numbered" value="1">Initialize <a id="_idIndexMarker489"/>a Q function <em class="italic">Q</em>(<em class="italic">s</em>, <em class="italic">a</em>) with random values</li>
+      <li class="numbered">For each episode:<ol>
+          <li class="numbered-l2">Initialize state <em class="italic">s</em></li>
+          <li class="numbered-l2">Extract a policy from <em class="italic">Q</em>(<em class="italic">s</em>, <em class="italic">a</em>) and select an action <em class="italic">a</em> to perform in state <em class="italic">s</em></li>
+          <li class="numbered-l2">For each step in the episode:<ol>
+      <li class="bullet-l2" value="1">Perform the action <em class="italic">a</em> and move to the next state <img src="../Images/B15558_05_069.png" alt="" style="height: 1.2em;"/> and observe the reward <em class="italic">r</em></li>
+      <li class="bullet-l2">In state <img src="../Images/B15558_05_069.png" alt="" style="height: 1.2em;"/>, select the action <img src="../Images/B15558_05_071.png" alt="" style="height: 1.2em;"/> using the epsilon-greedy policy</li>
+      <li class="bullet-l2">Update the Q value to <img src="../Images/B15558_05_072.png" alt="" style="height: 1.2em;"/></li>
+      <li class="bullet-l2">Update <img src="../Images/B15558_05_052.png" alt="" style="height: 1.2em;"/> and <img src="../Images/B15558_05_074.png" alt="" style="height: 1.2em;"/> (update the next state <img src="../Images/B15558_05_075.png" alt="" style="height: 1.2em;"/>-action <img src="../Images/B15558_05_076.png" alt="" style="height: 1.2em;"/> pair to the current state <em class="italic">s</em>-action <em class="italic">a</em> pair)</li>
+      <li class="bullet-l2">If <em class="italic">s</em> is not a terminal state, repeat <em class="italic">steps 1</em> to <em class="italic">5</em></li>
+    </ol></li>
+        </ol>
+      </li>
+    </ol>
+    <p class="normal">Now that we have learned how the SARSA algorithm works, in the next section, let's implement the SARSA algorithm to find the optimal policy.</p>
+    <h3 id="_idParaDest-141" class="title">Computing the optimal policy using SARSA</h3>
+    <p class="normal">Now, let's <a id="_idIndexMarker490"/>implement SARSA to find the optimal policy in the Frozen Lake environment.</p>
+    <p class="normal">First, let's <a id="_idIndexMarker491"/>import the necessary libraries:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> gym
+<span class="hljs-keyword">import</span> random
+</code></pre>
+    <p class="normal">Now, we <a id="_idIndexMarker492"/>create the Frozen Lake environment using Gym:</p>
+    <pre class="programlisting code"><code class="hljs-code">env = gym.make(<span class="hljs-string">'FrozenLake-v0'</span>)
+</code></pre>
+    <p class="normal">Let's define the dictionary for storing the Q value of the state-action pair and initialize the Q value of all the state-action pairs to <code class="Code-In-Text--PACKT-">0.0</code>:</p>
+    <pre class="programlisting code"><code class="hljs-code">Q = {}
+<span class="hljs-keyword">for</span> s <span class="hljs-keyword">in</span> range(env.observation_space.n):
+    <span class="hljs-keyword">for</span> a <span class="hljs-keyword">in</span> range(env.action_space.n):
+        Q[(s,a)] = <span class="hljs-number">0.0</span>
+</code></pre>
+    <p class="normal">Now, let's define the epsilon-greedy policy. We generate a random number from the uniform distribution and if the random number is less than epsilon, we select the random action, else we select the best action that has the maximum Q value:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">epsilon_greedy</span><span class="hljs-function">(</span><span class="hljs-params">state, epsilon</span><span class="hljs-function">):</span>
+    <span class="hljs-keyword">if</span> random.uniform(<span class="hljs-number">0</span>,<span class="hljs-number">1</span>) &lt; epsilon:
+        <span class="hljs-keyword">return</span> env.action_space.sample()
+    <span class="hljs-keyword">else</span>:
+        <span class="hljs-keyword">return</span> max(list(range(env.action_space.n)), key = <span class="hljs-keyword">lambda</span> x: Q[(state,x)])
+</code></pre>
+    <p class="normal">Initialize the discount factor <img src="../Images/B15558_03_005.png" alt="" style="height: 0.93em;"/>, the learning rate <img src="../Images/B15558_05_055.png" alt="" style="height: 0.93em;"/>, and the epsilon value:</p>
+    <pre class="programlisting code"><code class="hljs-code">alpha = <span class="hljs-number">0.85</span>
+gamma = <span class="hljs-number">0.90</span>
+epsilon = <span class="hljs-number">0.8</span>
+</code></pre>
+    <p class="normal">Set the number of episodes and number of time steps in the episode:</p>
+    <pre class="programlisting code"><code class="hljs-code">num_episodes = <span class="hljs-number">50000</span>
+num_timesteps = <span class="hljs-number">1000</span>
+</code></pre>
+    <h4 class="title">Compute the policy</h4>
+    <p class="normal">For each episode:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(num_episodes):
+</code></pre>
+    <p class="normal">Initialize <a id="_idIndexMarker493"/>the state by resetting the environment:</p>
+    <pre class="programlisting code"><code class="hljs-code">    s = env.reset()
+</code></pre>
+    <p class="normal">Select <a id="_idIndexMarker494"/>the action using the epsilon-greedy policy:</p>
+    <pre class="programlisting code"><code class="hljs-code">    a = epsilon_greedy(s,epsilon)
+</code></pre>
+    <p class="normal">For <a id="_idIndexMarker495"/>each step in the episode:</p>
+    <pre class="programlisting code"><code class="hljs-code">    <span class="hljs-keyword">for</span> t <span class="hljs-keyword">in</span> range(num_timesteps):
+</code></pre>
+    <p class="normal">Perform the selected action and store the next state information: </p>
+    <pre class="programlisting code"><code class="hljs-code">        s_, r, done, _ = env.step(a)
+</code></pre>
+    <p class="normal">Select the action <img src="../Images/B15558_05_079.png" alt="" style="height: 1.2em;"/> in the next state <img src="../Images/B15558_03_046.png" alt="" style="height: 1.2em;"/> using the epsilon-greedy policy:</p>
+    <pre class="programlisting code"><code class="hljs-code">        a_ = epsilon_greedy(s_,epsilon) 
+</code></pre>
+    <p class="normal">Compute the Q value of the state-action pair as <img src="../Images/B15558_05_072.png" alt="" style="height: 1.2em;"/>:</p>
+    <pre class="programlisting code"><code class="hljs-code">        Q[(s,a)] += alpha * (r + gamma * Q[(s_,a_)]-Q[(s,a)])
+</code></pre>
+    <p class="normal">Update <img src="../Images/B15558_05_082.png" alt="" style="height: 1.2em;"/> and <img src="../Images/B15558_05_083.png" alt="" style="height: 1.2em;"/> (update the next state <img src="../Images/B15558_03_073.png" alt="" style="height: 1.2em;"/>-action <img src="../Images/B15558_05_076.png" alt="" style="height: 1.2em;"/> pair to the current state <em class="italic">s</em>-action <em class="italic">a</em> pair):</p>
+    <pre class="programlisting code"><code class="hljs-code">        s = s_
+        a = a_
+</code></pre>
+    <p class="normal">If the current state is the terminal state, then break:</p>
+    <pre class="programlisting code"><code class="hljs-code">        <span class="hljs-keyword">if</span> done:
+            <span class="hljs-keyword">break</span>
+</code></pre>
+    <p class="normal">Note that <a id="_idIndexMarker496"/>on every iteration we update the Q function. After <a id="_idIndexMarker497"/>all the iterations, we <a id="_idIndexMarker498"/>will have the optimal Q function. Once we have the optimal Q function then we can extract the optimal policy by selecting the action that has the maximum Q value in each state. </p>
+    <h2 id="_idParaDest-142" class="title">Off-policy TD control – Q learning</h2>
+    <p class="normal">In this section, we will learn the off-policy TD control algorithm called Q learning. It is one of the very <a id="_idIndexMarker499"/>popular algorithms in reinforcement learning, and we will see <a id="_idIndexMarker500"/>that this algorithm keeps coming up in other chapters too. Q learning is an off-policy algorithm, meaning that we use two different policies, one policy for behaving in the environment (selecting an action in the environment) and the other for finding the optimal policy.</p>
+    <p class="normal">We learned that in the SARSA method, we select action <em class="italic">a</em> in state <em class="italic">s</em> using the epsilon-greedy policy, move to the next state <img src="../Images/B15558_03_018.png" alt="" style="height: 1.2em;"/>, and update the Q value using the update rule shown here:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_054.png" alt="" style="height: 1.29em;"/></figure>
+    <p class="normal">In the preceding equation, in order to compute the Q value of next state-action pair, <img src="../Images/B15558_05_088.png" alt="" style="height: 1.2em;"/>, we need to select an action. So, we select the action using the same epsilon-greedy policy and update the Q value of the next state-action pair.</p>
+    <p class="normal">But unlike SARSA, in Q learning, we use two different policies. One is the epsilon-greedy policy and the other is a greedy policy. To select an action in the environment we use an epsilon-greedy policy, but while updating the Q value of the next state-action pair we use a greedy policy.</p>
+    <p class="normal">That is, we <a id="_idIndexMarker501"/>select action <em class="italic">a</em> in state <em class="italic">s</em> using the epsilon-greedy <a id="_idIndexMarker502"/>policy and move to the next state <img src="../Images/B15558_05_048.png" alt="" style="height: 1.2em;"/> and update the Q value using the update rule shown below:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_054.png" alt="" style="height: 1.29em;"/></figure>
+    <p class="normal">In the preceding equation, in order to compute the Q value of the next state-action pair, <img src="../Images/B15558_05_091.png" alt="" style="height: 1.2em;"/>, we need to select an action. Here, we select the action using the greedy policy and update the Q value of the next state-action pair. We know that the greedy policy always selects the action that has the maximum value. So, we can modify the equation to:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_092.png" alt="" style="height: 1.84em;"/></figure>
+    <p class="normal">As we can observe from the preceding equation, the <strong class="keyword">max</strong> operator implies that in state <img src="../Images/B15558_05_048.png" alt="" style="height: 1.2em;"/>, we select the action <img src="../Images/B15558_05_094.png" alt="" style="height: 1.2em;"/> that has the maximum Q value.</p>
+    <p class="normal">Thus, to sum up, in the Q learning method we select an action in the environment using the epsilon-greedy policy, but while computing the Q value of the next state-action pair we use the greedy policy. Thus, update rule of Q learning is given as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_092.png" alt="" style="height: 1.84em;"/></figure>
+    <p class="normal">Let's understand this better by manually calculating the Q value using our Q learning update rule. Let's use the same Frozen Lake <a id="_idIndexMarker503"/>example. We initialize our Q table with random values. <em class="italic">Figure 5.13</em> shows the Frozen Lake environment, along with the Q table containing random values:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_14.png" alt=""/></figure>
+    <p class="packt_figref">Figure 5.13: The Frozen Lake environment with a randomly initialized Q table</p>
+    <p class="normal">Suppose <a id="_idIndexMarker504"/>we are in state <strong class="keyword">(3,2)</strong>. Now, we need to select some action in this state. How can we select an action? We select an action using the epsilon-greedy policy. So, with probability epsilon, we select a random action and with probability 1-epsilon we select the best action that has the maximum Q value. </p>
+    <p class="normal">Say we use probability 1-epsilon and select the best action. So, in state <strong class="keyword">(3,2)</strong>, we select the <em class="italic">down</em> action as it has the highest Q value compared to other actions in that state, as <em class="italic">Figure 5.14</em> shows:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_15.png" alt=""/></figure>
+    <p class="packt_figref">Figure 5.14: We perform the action with the maximum Q value in state (3,2)</p>
+    <p class="normal">Okay, so, we <a id="_idIndexMarker505"/>perform the <em class="italic">down</em> action in state <strong class="keyword">(3,2)</strong> and <a id="_idIndexMarker506"/>move to the next state <strong class="keyword">(4,2)</strong>, as <em class="italic">Figure 5.15</em> shows:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_16.png" alt=""/></figure>
+    <p class="packt_figref">Figure 5.15: We move down to state (4,2)</p>
+    <p class="normal">Thus, we move <em class="italic">down</em> in state<strong class="keyword"> (3,2)</strong> to the next state <strong class="keyword">(4,2) </strong>and receive a reward <em class="italic">r</em> of 0. Let's keep the learning rate <img src="../Images/B15558_05_016.png" alt="" style="height: 0.93em;"/> as 0.1, and the discount factor <img src="../Images/B15558_03_035.png" alt="" style="height: 0.93em;"/> as 1. Now, how can we update the Q value?</p>
+    <p class="normal">Let's recall our Q learning update rule:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_098.png" alt="" style="height: 1.84em;"/></figure>
+    <p class="normal">Substituting the state-action pair <em class="italic">Q</em>(<em class="italic">s</em>,<em class="italic">a</em>) with <em class="italic">Q</em>((3,2), down) and the next state <img src="../Images/B15558_03_018.png" alt="" style="height: 1.2em;"/> with <strong class="keyword">(4,2)</strong> in the preceding equation, we can write:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_100.png" alt="" style="height: 1.84em;"/></figure>
+    <p class="normal">Substituting <a id="_idIndexMarker507"/>the reward, <em class="italic">r</em> = 0, the learning rate <img src="../Images/B15558_05_101.png" alt="" style="height: 1.11em;"/>, and the <a id="_idIndexMarker508"/>discount factor <img src="../Images/B15558_05_102.png" alt="" style="height: 1.11em;"/>, we can write:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_103.png" alt="" style="height: 1.84em;"/></figure>
+    <p class="normal">From the previous Q table, we can observe that the Q value of <em class="italic">Q</em>((3,2), down) is <strong class="keyword">0.8</strong>. Thus, substituting <em class="italic">Q</em>((3,2), down) with <strong class="keyword">0.8</strong>, we can rewrite the preceding equation as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_104.png" alt="" style="height: 1.84em;"/></figure>
+    <p class="normal">As we can observe, in the preceding equation we have the term <img src="../Images/B15558_05_105.png" alt="" style="height: 1.58em;"/>, which represents the Q value of the next state-action pair as we moved to the new state <strong class="keyword">(4,2)</strong>. In order to compute the Q value for the next state, first we need to select an action. Here, we select an action using the greedy policy, that is, the action that has maximum Q value.</p>
+    <p class="normal">As <em class="italic">Figure 5.16</em> shows, the <em class="italic">right</em> action has the maximum Q value in state <strong class="keyword">(4,2)</strong>. So, we select the <em class="italic">right</em> action and update the Q value of the next state-action pair:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_17.png" alt=""/></figure>
+    <p class="packt_figref">Figure 5.16: We perform the action with the maximum Q value in state (4,2)</p>
+    <p class="normal">Thus, now <a id="_idIndexMarker509"/>our update rule becomes:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_106.png" alt="" style="height: 1.29em;"/></figure>
+    <p class="normal">From the <a id="_idIndexMarker510"/>previous Q table, we can observe that the Q value of <em class="italic">Q</em>((4,2), right) is <strong class="keyword">0.8</strong>. Thus, substituting the value of <em class="italic">Q</em>((4,2), right) with <strong class="keyword">0.8</strong>, we can rewrite the above equation as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_107.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">Thus, our Q value becomes:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_108.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">Similarly, we update the Q value for all state-action pairs. That is, we select an action in the environment using an epsilon-greedy policy, and while updating the Q value of the next state-action pair we use the greedy policy. Thus, we update the Q value for every state-action pair.</p>
+    <p class="normal">Thus, in this way, we update the Q function by updating the Q value of the state-action pair in each step of the episode. We will extract a new policy from the updated Q function on every step of the episode and uses this new policy. (Remember that we select an action in the environment using epsilon-greedy policy but while updating Q value of the next state-action pair we use the greedy policy). After several episodes, we will have the optimal Q function. The Q learning algorithm given in the following will help us to understand this better.</p>
+    <p class="normal">The Q learning <a id="_idIndexMarker511"/>algorithm is given as follows:</p>
+    <ol>
+      <li class="numbered" value="1">Initialize a Q function <em class="italic">Q</em>(<em class="italic">s</em>, <em class="italic">a</em>) with random values</li>
+      <li class="numbered">For each episode:<ol>
+          <li class="numbered-l2">Initialize state <em class="italic">s</em></li>
+          <li class="numbered-l2">For each step in the episode:<ol>
+      <li class="bullet-l2" value="1">Extract a policy from <em class="italic">Q</em>(<em class="italic">s</em>, <em class="italic">a</em>) and select an action <em class="italic">a</em> to perform in state <em class="italic">s</em></li>
+      <li class="bullet-l2">Perform the action <em class="italic">a</em>, move to the next state <img src="../Images/B15558_05_109.png" alt="" style="height: 1.2em;"/>, and observe the reward <em class="italic">r</em></li>
+      <li class="bullet-l2">Update the Q value as <img src="../Images/B15558_05_110.png" alt="" style="height: 1.84em;"/></li>
+      <li class="bullet-l2">Update <img src="../Images/B15558_05_111.png" alt="" style="height: 1.2em;"/> (update the next state <img src="../Images/B15558_03_018.png" alt="" style="height: 1.2em;"/> to the current state s)</li>
+      <li class="bullet-l2">If <em class="italic">s</em> is not a terminal state, repeat <em class="italic">steps 1</em> to <em class="italic">5</em></li>
+    </ol></li>
+        </ol>
+      </li>
+    </ol>
+    <p class="normal">Now that we have learned how the Q learning algorithm works, in the next section, let's implement Q learning to find the optimal policy.</p>
+    <h3 id="_idParaDest-143" class="title">Computing the optimal policy using Q learning </h3>
+    <p class="normal">Now, let's <a id="_idIndexMarker512"/>implement Q learning to find the <a id="_idIndexMarker513"/>optimal policy in the Frozen Lake environment.</p>
+    <p class="normal">First, let's import the necessary libraries:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> gym
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> random
+</code></pre>
+    <p class="normal">Now, we create the Frozen Lake environment using Gym:</p>
+    <pre class="programlisting code"><code class="hljs-code">env = gym.make(<span class="hljs-string">'FrozenLake-v0'</span>)
+</code></pre>
+    <p class="normal">Let's define the dictionary for storing the Q values of the state-action pairs, and initialize the Q values of all the state-action pairs to <code class="Code-In-Text--PACKT-">0.0</code>:</p>
+    <pre class="programlisting code"><code class="hljs-code">Q = {}
+<span class="hljs-keyword">for</span> s <span class="hljs-keyword">in</span> range(env.observation_space.n):
+    <span class="hljs-keyword">for</span> a <span class="hljs-keyword">in</span> range(env.action_space.n):
+        Q[(s,a)] = <span class="hljs-number">0.0</span>
+</code></pre>
+    <p class="normal">Now, let's <a id="_idIndexMarker514"/>define the epsilon-greedy policy. We generate a random number from the uniform distribution, and if the random number <a id="_idIndexMarker515"/>is less than epsilon we select the random action, else we select the best action that has the maximum Q value:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">epsilon_greedy</span><span class="hljs-function">(</span><span class="hljs-params">state, epsilon</span><span class="hljs-function">):</span>
+    <span class="hljs-keyword">if</span> random.uniform(<span class="hljs-number">0</span>,<span class="hljs-number">1</span>) &lt; epsilon:
+        <span class="hljs-keyword">return</span> env.action_space.sample()
+    <span class="hljs-keyword">else</span>:
+        <span class="hljs-keyword">return</span> max(list(range(env.action_space.n)), key = <span class="hljs-keyword">lambda</span> x: Q[(state,x)])
+</code></pre>
+    <p class="normal">Initialize the discount factor <img src="../Images/B15558_05_056.png" alt="" style="height: 0.93em;"/>, the learning rate <img src="../Images/B15558_05_055.png" alt="" style="height: 0.93em;"/>, and the epsilon value:</p>
+    <pre class="programlisting code"><code class="hljs-code">alpha = <span class="hljs-number">0.85</span>
+gamma = <span class="hljs-number">0.90</span>
+epsilon = <span class="hljs-number">0.8</span>
+</code></pre>
+    <p class="normal">Set the number of episodes and the number of time steps in the episode:</p>
+    <pre class="programlisting code"><code class="hljs-code">num_episodes = <span class="hljs-number">50000</span>
+num_timesteps = <span class="hljs-number">1000</span>
+</code></pre>
+    <p class="normal">Compute the policy.</p>
+    <p class="normal">For each episode:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(num_episodes):
+</code></pre>
+    <p class="normal">Initialize the state by resetting the environment:</p>
+    <pre class="programlisting code"><code class="hljs-code">    s = env.reset()
+</code></pre>
+    <p class="normal">For each step in the episode:</p>
+    <pre class="programlisting code"><code class="hljs-code">    <span class="hljs-keyword">for</span> t <span class="hljs-keyword">in</span> range(num_timesteps):
+</code></pre>
+    <p class="normal">Select <a id="_idIndexMarker516"/>the action using the epsilon-greedy policy:</p>
+    <pre class="programlisting code"><code class="hljs-code">        a = epsilon_greedy(s,epsilon)
+</code></pre>
+    <p class="normal">Perform <a id="_idIndexMarker517"/>the selected action and store the next state information: </p>
+    <pre class="programlisting code"><code class="hljs-code">        s_, r, done, _ = env.step(a)
+</code></pre>
+    <p class="normal">Now, let's compute the Q value of the state-action pair as <img src="../Images/B15558_05_092.png" alt="" style="height: 1.84em;"/>.</p>
+    <p class="normal">First, select the action <img src="../Images/B15558_05_116.png" alt="" style="height: 1.2em;"/> that has the maximum Q value in the next state <img src="../Images/B15558_03_046.png" alt="" style="height: 1.2em;"/>:</p>
+    <pre class="programlisting code"><code class="hljs-code">        a_ = np.argmax([Q[(s_, a)] <span class="hljs-keyword">for</span> a <span class="hljs-keyword">in</span> range(env.action_space.n)])
+</code></pre>
+    <p class="normal">Now, we can compute the Q value of the state-action pair as:</p>
+    <pre class="programlisting code"><code class="hljs-code">        Q[(s,a)] += alpha * (r + gamma * Q[(s_,a_)]-Q[(s,a)])
+</code></pre>
+    <p class="normal">Update <img src="../Images/B15558_05_118.png" alt="" style="height: 1.2em;"/> (update the next state <img src="../Images/B15558_03_073.png" alt="" style="height: 1.2em;"/> to the current state <em class="italic">s</em>):</p>
+    <pre class="programlisting code"><code class="hljs-code">        s = s_
+</code></pre>
+    <p class="normal">If the <a id="_idIndexMarker518"/>current state is the terminal state, then break:</p>
+    <pre class="programlisting code"><code class="hljs-code">        <span class="hljs-keyword">if</span> done:
+            <span class="hljs-keyword">break</span>
+</code></pre>
+    <p class="normal">After all <a id="_idIndexMarker519"/>the iterations, we will have the optimal Q function. Then we can extract the optimal policy by selecting the action that has the maximum Q value in each state.</p>
+    <h2 id="_idParaDest-144" class="title">The difference between Q learning and SARSA</h2>
+    <p class="normal">Understanding <a id="_idIndexMarker520"/>the difference between Q learning and SARSA is very important. So, let's do a little recap on how Q learning and SARSA differ.</p>
+    <p class="normal">SARSA is <a id="_idIndexMarker521"/>an on-policy algorithm, meaning that we use a single epsilon-greedy policy for selecting an action in the environment and also to compute the Q value of the next state-action pair. The update rule of SARSA is given as follows:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_054.png" alt="" style="height: 1.29em;"/></figure>
+    <p class="normal">Q learning is an off-policy algorithm, meaning that we use an epsilon-greedy policy for selecting an action in the environment, but to compute the Q value of next state-action pair we use a greedy policy. The update rule of Q learning is given as follows:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_05_092.png" alt="" style="height: 1.84em;"/></figure>
+    <h1 id="_idParaDest-145" class="title">Comparing the DP, MC, and TD methods</h1>
+    <p class="normal">So far, we <a id="_idIndexMarker522"/>have learned <a id="_idIndexMarker523"/>several interesting <a id="_idIndexMarker524"/>and important reinforcement <a id="_idIndexMarker525"/>learning algorithms, such as DP (value iteration and policy iteration), MC methods, and TD learning <a id="_idIndexMarker526"/>methods, to find the <a id="_idIndexMarker527"/>optimal policy. These are called the key algorithms in classic reinforcement learning, and understanding the differences between these three algorithms is very important. So, in this section, we will recap the differences between the DP, MC, and TD learning methods.</p>
+    <p class="normal"><strong class="keyword">Dynamic programming</strong> (<strong class="keyword">DP</strong>), that is, the value and policy iteration methods, is a model-based <a id="_idIndexMarker528"/>method, meaning that we compute the optimal policy using the model dynamics of the environment. We cannot apply the DP method when we don't have the model dynamics of the environment.</p>
+    <p class="normal">We <a id="_idIndexMarker529"/>also learned about the <strong class="keyword">Monte Carlo</strong> (<strong class="keyword">MC</strong>) method. MC is a model-free method, meaning that we compute the optimal policy without using the model dynamics of the environment. But one problem we face with the MC method is that it is applicable only to episodic tasks and not to continuous tasks.</p>
+    <p class="normal">We learned <a id="_idIndexMarker530"/>about another interesting model-free method called <strong class="keyword">temporal difference </strong>(<strong class="keyword">TD</strong>) learning. TD learning takes advantage of both DP by bootstrapping and the MC method by being model free.</p>
+    <p class="normal">Many congratulations on learning about all the important reinforcement learning algorithms. In the next chapter, we will look into a case study called the multi-armed bandit problem.</p>
+    <h1 id="_idParaDest-146" class="title">Summary</h1>
+    <p class="normal">We started off the chapter by understanding what TD learning is and how it takes advantage of both DP and the MC method. We learned that, just like DP, TD learning bootstraps, and just like the MC method, TD learning is a model-free method.</p>
+    <p class="normal">Later, we learned how to perform a prediction task using TD learning, and then we looked into the algorithm of the TD prediction method.</p>
+    <p class="normal">Going forward, we learned how to use TD learning for a control task. First, we learned about the on-policy TD control method called SARSA, and then we learned about the off-policy TD control method called Q learning. We also learned how to find the optimal policy in the Frozen Lake environment using the SARSA and Q learning methods.</p>
+    <p class="normal">We also learned the difference between SARSA and Q learning methods. We understood that SARSA is an on-policy algorithm, meaning that we use a single epsilon-greedy policy to select an action in the environment and also to compute the Q value of the next state-action pair, whereas Q learning is an off-policy algorithm, meaning that we use an epsilon-greedy policy to select an action in the environment but to compute the Q value of the next state-action pair we use a greedy policy. At the end of the chapter, we compared the DP, MC, and TD methods.</p>
+    <p class="normal">In the next chapter, we will look into an interesting problem called the multi-armed bandit problem.</p>
+    <h1 id="_idParaDest-147" class="title">Questions</h1>
+    <p class="normal">Let's evaluate our newly acquired knowledge by answering the following questions:</p>
+    <ol>
+      <li class="numbered" value="1">How does TD learning differ from the MC method?</li>
+      <li class="numbered">What is the advantage of using the TD learning method? </li>
+      <li class="numbered">What is TD error?</li>
+      <li class="numbered">What is the update rule of TD learning?</li>
+      <li class="numbered">How does the TD prediction method work?</li>
+      <li class="numbered">What is SARSA?</li>
+      <li class="numbered">How does Q learning differ from SARSA?</li>
+    </ol>
+    <h1 id="_idParaDest-148" class="title">Further reading</h1>
+    <p class="normal">For further information, refer to the following link:</p>
+    <ul>
+      <li class="bullet"><strong class="keyword">Learning to Predict by the Methods of Temporal Differences</strong> by <em class="italic">Richard S. Sutton</em>, available at <a href="https://link.springer.com/content/pdf/10.1007/BF00115009.pdf"><span class="url">https://link.springer.com/content/pdf/10.1007/BF00115009.pdf</span></a></li>
+    </ul>
+  </div>
+</body></html>

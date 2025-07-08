@@ -1,0 +1,352 @@
+<html><head></head><body>
+		<div id="_idContainer179">
+			<h1 id="_idParaDest-147"><em class="italic"><a id="_idTextAnchor156"/>Chapter 8</em>: Self-Attention for Image Generation</h1>
+			<p>You may have heard about some popular <strong class="bold">Natural Language Processing</strong> (<strong class="bold">NLP</strong>) models, such as the Transformer, BERT, or GPT-3. They all have one thing in common – they all use an architecture known as a transformer that is made up of self-attention modules. </p>
+			<p>Self-attention is gaining widespread adoption in computer vision, including classification tasks, which makes it an important topic to master. As we will learn in this chapter, self-attention helps us to capture important features in the image without using deep layers for large effective receptive fields. StyleGAN is great for generating faces, but it will struggle to generate images from ImageNet. </p>
+			<p>In a way, faces are easy to generate, as eyes, noses, and lips all have similar shapes and are in similar positions across various faces. In contrast, the 1,000 classes of ImageNet contain varied objects (dogs, trucks, fish, and pillows, for instance) and backgrounds. Therefore, the discriminator must be more effective at capturing the distinct features of various objects. This is where self-attention comes into play. Using that, with conditional batch normalization and spectral normalization, we will implement a <strong class="bold">Self-Attention GAN</strong> (<strong class="bold">SAGAN</strong>) to generate images based on given class labels. </p>
+			<p>After that, we will use the SAGAN as a base to create a BigGAN. We will add orthogonal regularization and change the method of doing class embedding. BigGANs can generate high-definition images without using ProGAN-like architecture, and they are considered to be state-of-the-art models in class labels conditioning image generation.</p>
+			<p>We will cover the following topics in this chapter:</p>
+			<ul>
+				<li>Spectral normalization</li>
+				<li>Self-attention modules</li>
+				<li>Building a SAGAN</li>
+				<li>Implementing BigGAN</li>
+			</ul>
+			<h1 id="_idParaDest-148"><a id="_idTextAnchor157"/>Technical requirements</h1>
+			<p>The Jupyter notebooks can be found here (<a href="https://github.com/PacktPublishing/Hands-On-Image-Generation-with-TensorFlow-2.0/tree/master/Chapter08">https://github.com/PacktPublishing/Hands-On-Image-Generation-with-TensorFlow-2.0/tree/master/Chapter08</a>):</p>
+			<ul>
+				<li><strong class="source-inline">ch8_sagan.ipynb</strong></li>
+				<li><strong class="source-inline">ch8_big_gan.ipynb</strong></li>
+			</ul>
+			<h1 id="_idParaDest-149"><a id="_idTextAnchor158"/>Spectral normalization</h1>
+			<p>Spectral normalization is an important method to stabilize GAN training and it has been used in a lot of recent state-of-the-art GANs. Unlike batch normalization or other normalization methods that<a id="_idIndexMarker546"/> normalize the activation, spectral normalization normalizes the weights instead. The aim of spectral normalization is to limit the growth of the weights, so the networks adhere to the 1-Lipschitz constraint. This has proved effective in stabilizing GAN training, as we learned in <a href="B14538_03_Final_JM_ePub.xhtml#_idTextAnchor060"><em class="italic">Chapter 3</em></a><em class="italic">, Generative Adversarial Network</em>. </p>
+			<p>We will revise WGANs to give us a better understanding of the idea behind spectral normalization. The WGAN discriminator (also known as the critic) needs to keep its prediction to small numbers to meet the 1-Lipschtiz constraint. WGANs do this by naively clipping the weights to the range of [-0.01, 0.01]. </p>
+			<p>This is not a reliable method as we need to fine-tune the clipping range, which is a hyperparameter. It would be nice if there was a systematic way to enforce the 1-Lipschitz constraint without the use of hyperparameters, and spectral normalization is the tool we need for that. In essence, spectral normalization normalizes the weights by dividing by their spectral norms. </p>
+			<h2 id="_idParaDest-150"><a id="_idTextAnchor159"/>Understanding spectral norm</h2>
+			<p>We will go over some linear algebra to roughly<a id="_idIndexMarker547"/> explain what spectral norm is. You may have learned about eigenvalues and eigenvectors in matrix theory with the following equation:</p>
+			<div>
+				<div id="_idContainer167" class="IMG---Figure">
+					<img src="image/Formula_08_001.jpg" alt=""/>
+				</div>
+			</div>
+			<p>Here <em class="italic">A</em> is a square matrix, <em class="italic">v</em> is the eigenvector, and the <em class="italic">lambda</em> is its eigenvalue. </p>
+			<p>We'll try to understand the terms using a simple example. Let's say that <em class="italic">v</em> is a vector of position <em class="italic">(x, y)</em> and <em class="italic">A</em> is a linear transformation as follows:</p>
+			<div>
+				<div id="_idContainer168" class="IMG---Figure">
+					<img src="image/Formula_08_002.jpg" alt=""/>
+				</div>
+			</div>
+			<p>If we multiply <em class="italic">A</em> with <em class="italic">v</em>, we'll get a new<a id="_idIndexMarker548"/> position with a change of direction as follows:</p>
+			<div>
+				<div id="_idContainer169" class="IMG---Figure">
+					<img src="image/Formula_08_003.jpg" alt=""/>
+				</div>
+			</div>
+			<p>Eigenvectors are vectors that do<a id="_idIndexMarker549"/> not change their directions when <em class="italic">A</em> is applied to them. Instead, they are only scaled by the scalar eigenvalues denoted as lambda. There can be multiple eigenvector-eigenvalue pairs. The square root of the largest eigenvalue is the spectral norm of the matrix. For a non-square matrix, we will need to use a mathematical algorithm<a id="_idIndexMarker550"/> such as <strong class="bold">singular value decomposition</strong> (<strong class="bold">SVD</strong>) to calculate the eigenvalues, which can be computationally costly. </p>
+			<p>Therefore, a power iteration method is employed to speed up the calculation and make it feasible for neural network training. Let's jump in to implement spectral normalization as a weight constraint in TensorFlow.</p>
+			<h2 id="_idParaDest-151"><a id="_idTextAnchor160"/>Implementing spectral normalization</h2>
+			<p>The mathematic algorithm of spectral <a id="_idIndexMarker551"/>normalization as given by T. Miyato et al., 2018, in the <em class="italic">Spectral Normalization For Generative Adversarial Networks</em> paper may appear complex. However, as usual, the software implementation is simpler than what the mathematics looks. </p>
+			<p>The following are the steps to perform spectral normalization:</p>
+			<ol>
+				<li>The weights in the convolutional layer<a id="_idIndexMarker552"/> form a 4-dimensional-tensor, so the first step is to reshape it into a 2D matrix of <em class="italic">W</em>, where we keep the last dimension of the weight. Now the weight has the shape <em class="italic">(H×W, C)</em>. </li>
+				<li>Initialize a vector <em class="italic">u</em> with N(0,1).</li>
+				<li>In a <strong class="source-inline">for</strong> loop, calculate the following:<p>a) Calculate <em class="italic">V = (W</em><span class="superscript">T</span><em class="italic">) U </em>with matrix transpose and matrix multiplication.</p><p>b) Normalize <em class="italic">V</em> with its L2 norm, that is, <em class="italic">V = V/||V||</em><span class="subscript">2</span>.</p><p>c) Calculate <em class="italic">U = WV</em>.</p><p>d) Normalize <em class="italic">U</em> with its L2 norm, that is, <em class="italic">U = U/||U||</em><span class="subscript">2</span>.</p></li>
+				<li>Calculate the spectral norm as <em class="italic">U</em><span class="superscript">T</span><em class="italic">W V</em>.</li>
+				<li>Finally, divide the weights by the spectral norm.</li>
+			</ol>
+			<p>The full code is as follows:</p>
+			<p class="source-code">class SpectralNorm(tf.keras.constraints.Constraint):</p>
+			<p class="source-code">    def __init__(self, n_iter=5):</p>
+			<p class="source-code">        self.n_iter = n_iter</p>
+			<p class="source-code">    def call(self, input_weights):</p>
+			<p class="source-code">        w = tf.reshape(input_weights, (-1, 				 		input_weights.shape[-1]))</p>
+			<p class="source-code">        u = tf.random.normal((w.shape[0], 1))</p>
+			<p class="source-code">        for _ in range(self.n_iter):</p>
+			<p class="source-code">            v = tf.matmul(w, u, transpose_a=True)</p>
+			<p class="source-code">            v /= tf.norm(v)</p>
+			<p class="source-code">            u = tf.matmul(w, v)</p>
+			<p class="source-code">            u /= tf.norm(u)</p>
+			<p class="source-code">        spec_norm = tf.matmul(u, tf.matmul(w, v), 					   transpose_a=True)</p>
+			<p class="source-code">        return input_weights/spec_norm</p>
+			<p>The number of iterations is a hyperparameter, and I found <strong class="source-inline">5</strong> to be sufficient. Spectral normalization can also be implemented<a id="_idIndexMarker553"/> to have a variable to remember the vector <strong class="source-inline">u</strong> rather than starting from random values. This should reduce the number of iterations to <strong class="source-inline">1</strong>. We can now apply spectral normalization by using it as a kernel constraint when defining layers, as in <strong class="source-inline">Conv2D(3, 1, kernel_constraint=SpectralNorm())</strong>. </p>
+			<h1 id="_idParaDest-152"><a id="_idTextAnchor161"/>Self-attention modules</h1>
+			<p>Self-attention modules became <a id="_idIndexMarker554"/>popular with the introduction of an NLP model known as the Transformer. In NLP applications such as language translation, the model often needs to<a id="_idIndexMarker555"/> read sentences word by word to understand them before producing the output. The neural network used prior to the advent of the Transformer was<a id="_idIndexMarker556"/> some variant on the <strong class="bold">recurrent neural network</strong> (<strong class="bold">RNN</strong>), such as <strong class="bold">long short-term memory</strong> (<strong class="bold">LSTM</strong>). The RNN has internal<a id="_idIndexMarker557"/> states to remember words as it reads a sentence. </p>
+			<p>One drawback of that is that<a id="_idIndexMarker558"/> when the number of words increases, the gradients for the first words vanish. That is to say, the words at start of the sentence become less important gradually as the RNN reads more words. </p>
+			<p>The Transformer does things differently. It reads all the words at once and weights the importance of each individual word. Therefore, more attention is given to words that are more important, and hence the name <strong class="bold">attention</strong>. Self-attention is a cornerstone of state-of-the-art NLP models such as BERT and GPT-3. However, NLP is not in the scope of this book. We will now look at the details of how self-attention works in CNN.</p>
+			<h2 id="_idParaDest-153"><a id="_idTextAnchor162"/>Self-attention for computer vision</h2>
+			<p>CNNs are mainly made up of convolutional layers. For a convolutional layer with a kernel size of 3×3, it will only look at 3×3=9 features in the input activation to compute each output feature. It will not look at pixels outside of this range. To capture the pixels outside of this range, we could increase the kernel size slightly to, say, 5×5 or 7×7, but that is still small compared to the feature map size. </p>
+			<p>We will have to move <a id="_idIndexMarker559"/>down one network layer for the convolutional kernel's receptive field to be large enough to capture what we want. As with RNNs, the relative importance of the input features fades as we move down through the network layers. Thus, we can use self-attention to look at every pixel in the feature map and work on what we should pay attention to. </p>
+			<p>We will now look at how the self-attention mechanism works. The first step of self-attention is to project each input feature into<a id="_idIndexMarker560"/> three vectors known as the <strong class="bold">key</strong>, <strong class="bold">query</strong>, and <strong class="bold">value</strong>. We don't see these terms a<a id="_idIndexMarker561"/> lot in computer vision literature, but I thought it would be good<a id="_idIndexMarker562"/> to teach you about them so that you can better understand general self-attention-, Transformer-, or NLP-related literature. The following figure illustrates how attention maps are generated from a query:</p>
+			<div>
+				<div id="_idContainer170" class="IMG---Figure">
+					<img src="image/B14538_08_01.jpg" alt="Figure 8.1 – Illustration of an attention map. (Source: H. Zhang et al., 2019, &#13;&#10;&quot;Self-Attention Generative Adversarial Networks,&quot; https://arxiv.org/abs/1805.08318)"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 8.1 – Illustration of an attention map. (Source: H. Zhang et al., 2019, "Self-Attention Generative Adversarial Networks," https://arxiv.org/abs/1805.08318)</p>
+			<p>On the left is an image with queries marked with dots. The next five images show the attention maps given by the queries. The first attention map on the top queries one eye of the rabbit; the attention map has more white (indicating areas of high importance) around both the eyes and close to complete darkness (for low importance) in other areas. </p>
+			<p>Now, we'll now go over the<a id="_idIndexMarker563"/> technical terms of key, query, and value one by one:</p>
+			<ul>
+				<li>A <strong class="bold">value</strong> is a representation<a id="_idIndexMarker564"/> of the input features. We don't want the self-attention module to look at every single pixel as this will be too computationally expensive and unnecessary. Instead, we are more interested in the local regions of the input activation. Therefore, the value has reduced dimensions from the input features, both in terms of the activation map size (for example, it may be downsampled to have smaller height and width) and the number of channels. For convolutional layer activations, the channel number is reduced by using a 1x1 convolution, and the spatial size is reduced by max-pooling or average pooling.</li>
+				<li><strong class="bold">Keys and queries</strong> are used to compute the<a id="_idIndexMarker565"/> importance of the features of the self-attention map. To <a id="_idIndexMarker566"/>calculate an output feature at location <em class="italic">x</em>, we take query at location <em class="italic">x</em> and compare it with the key at all locations. To illustrate more on this, let's say we have an image of a portrait. <p>When the network is processing one eye of the portrait, it will take its query, which has a semantic meaning of <em class="italic">eye</em>, and check that with the keys of other areas of the portrait. If one of the other areas' keys is <em class="italic">eye</em>, then we know we have found the other eye, and it certainly is something we want to pay attention to so that we can match the eye color. </p><p>To put that into an equation, for feature <em class="italic">0</em>, we calculate a vector of <em class="italic">q0 × k0,  q0 × k1,  q0 × k2</em> and so on to <em class="italic">q0 × kN-1</em>. The vectors are then normalized using softmax so they all sum up to <em class="italic">1.0</em>, which is our attention score. This is used as a weight to perform element-wise multiplication of the value, to give the attention outputs. </p></li>
+			</ul>
+			<p>The SAGAN self-attention module is based on the non-local block (X. Wang et al., 2018, <em class="italic">Non-local Neural Networks</em>, <a href="https://arxiv.org/abs/1711.07971">https://arxiv.org/abs/1711.07971</a>), which was originally designed for video classification. The <a id="_idIndexMarker567"/>authors experimented with different ways of implementing self-attention before settling on the current architecture. The following diagram <a id="_idIndexMarker568"/>shows the attention module in SAGAN, where <strong class="bold">theta</strong> <strong class="bold">θ</strong>, <strong class="bold">phi</strong> <strong class="bold">φ</strong>, and <strong class="bold">g</strong> correspond to key, query, and value:</p>
+			<div>
+				<div id="_idContainer171" class="IMG---Figure">
+					<img src="image/B14538_08_02.jpg" alt="Figure 8.2 – Self-attention module architecture in SAGAN&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 8.2 – Self-attention module architecture in SAGAN</p>
+			<p>Most computation in deep learning is vectorized for speed performance, and it is no different for self-attention. If we ignore the batch dimension for simplicity, the activations after 1×1 convolution will have a shape of (H, W, C). The first step is to reshape it into a 2D matrix with a shape of (H×W, C) and use the matrix multiplication between <em class="italic">θ</em> and <em class="italic">φ</em> to calculate the attention map. In the self-attention module used in SAGAN, there is another 1×1 convolution that is used to restore the channel number to the input channel, followed by scaling with learnable parameters. Furthermore, this is made into a residual block. </p>
+			<h2 id="_idParaDest-154"><a id="_idTextAnchor163"/>Implementing a self-attention module</h2>
+			<p>We will first define<a id="_idIndexMarker569"/> all the 1×1 convolutional layers and weights in the custom layer's <strong class="source-inline">build()</strong>. Please note that we use a spectral normalization function as the kernel constraint for the convolutional layers as follows:</p>
+			<p class="source-code">class SelfAttention(Layer):</p>
+			<p class="source-code">    def __init__(self):</p>
+			<p class="source-code">        super(SelfAttention, self).__init__()</p>
+			<p class="source-code">    def build(self, input_shape):</p>
+			<p class="source-code">        n, h, w, c = input_shape</p>
+			<p class="source-code">        self.n_feats = h * w</p>
+			<p class="source-code">        self.conv_theta = Conv2D(c//8, 1, padding='same', 				     <strong class="bold">kernel_constraint=SpectralNorm()</strong>, 				     name='Conv_Theta')</p>
+			<p class="source-code">        self.conv_phi = Conv2D(c//8, 1, padding='same', 				    <strong class="bold">kernel_constraint=SpectralNorm()</strong>, 				    name='Conv_Phi')</p>
+			<p class="source-code">        self.conv_g = Conv2D(c//2, 1, padding='same',  				    kernel_constraint=SpectralNorm(), 				    name='Conv_G')</p>
+			<p class="source-code">        self.conv_attn_g = Conv2D(c, 1, padding='same', 				    <strong class="bold">kernel_constraint=SpectralNorm()</strong>, 				    name='Conv_AttnG')</p>
+			<p class="source-code">        self.sigma = self.add_weight(shape=[1], 						    initializer='zeros', 						    trainable=True,  						    name='sigma')</p>
+			<p>There are a few things<a id="_idIndexMarker570"/> to note here:</p>
+			<ul>
+				<li>The internal activation can have reduced dimensions to make the computation run faster. The reduced numbers were obtained by the SAGAN authors by experimentation.</li>
+				<li>After every convolution layer, the activation (H, W, C) is reshaped into two- dimensional matrix with the shape (HW, C). We can then use matrix multiplication on the matrices.</li>
+			</ul>
+			<p>The following is the <strong class="source-inline">call()</strong> function of the layer to perform the self-attention operations. We will first calculate <strong class="source-inline">theta</strong>, <strong class="source-inline">phi</strong>, and <strong class="source-inline">g</strong>:</p>
+			<p class="source-code">def call(self, x):</p>
+			<p class="source-code">        n, h, w, c = x.shape</p>
+			<p class="source-code">        theta = self.conv_theta(x)</p>
+			<p class="source-code">        theta = tf.reshape(theta, (-1, self.n_feats, 						  theta.shape[-1]))        </p>
+			<p class="source-code">        phi = self.conv_phi(x)</p>
+			<p class="source-code">        phi = tf.nn.max_pool2d(phi, ksize=2, strides=2, 					    padding='VALID')</p>
+			<p class="source-code">        phi = tf.reshape(phi, (-1, self.n_feats//4, 				   phi.shape[-1]))   </p>
+			<p class="source-code">        g = self.conv_g(x)</p>
+			<p class="source-code">        g = tf.nn.max_pool2d(g, ksize=2, strides=2, 					  padding='VALID')</p>
+			<p class="source-code">        g = tf.reshape(g, (-1, self.n_feats//4,  					g.shape[-1]))</p>
+			<p>We will then calculate the<a id="_idIndexMarker571"/> attention map as follows:</p>
+			<p class="source-code">        attn = tf.matmul(theta, phi, transpose_b=True)        attn = tf.nn.softmax(attn)</p>
+			<p>Finally, we multiply attention map with the query <strong class="source-inline">g</strong> and proceed to produce the final output: </p>
+			<p class="source-code">        attn_g = tf.matmul(attn, g)</p>
+			<p class="source-code">        attn_g = tf.reshape(attn_g, (-1, h, w, 					 attn_g.shape[-1]))</p>
+			<p class="source-code">        attn_g = self.conv_attn_g(attn_g)        </p>
+			<p class="source-code">        output = x + self.sigma * attn_g        </p>
+			<p class="source-code">        return output</p>
+			<p>With the spectral normalization and self-attention layers written, we can now use them to build a SAGAN.</p>
+			<h1 id="_idParaDest-155"><a id="_idTextAnchor164"/>Building a SAGAN</h1>
+			<p>The SAGAN has a simple <a id="_idIndexMarker572"/>architecture that looks like DCGAN's. However, it is a class-conditional GAN that uses class labels to both generate and discriminate between images. In the following figure, each image on each row is generated from different class labels:</p>
+			<div>
+				<div id="_idContainer172" class="IMG---Figure">
+					<img src="image/B14538_08_03.jpg" alt="Figure 8.3 – Images generated by a SAGAN by using different class labels. (Source: A. Brock et al., 2018, &quot;Large Scale GAN Training for High Fidelity Natural Image Synthesis,&quot; https://arxiv.org/abs/1809.11096)&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 8.3 – Images generated by a SAGAN by using different class labels. (Source: A. Brock et al., 2018, "Large Scale GAN Training for High Fidelity Natural Image Synthesis," https://arxiv.org/abs/1809.11096)</p>
+			<p>In this example, we will use the <strong class="source-inline">CIFAR10</strong> dataset, which contains 10 classes of images with a resolution of <a id="_idIndexMarker573"/>32x32. We will deal with the conditioning part later. Now, let's first complete the simplest part – the generator.</p>
+			<h2 id="_idParaDest-156"><a id="_idTextAnchor165"/>Building a SAGAN generator</h2>
+			<p>At a high level, the SAGAN generator <a id="_idIndexMarker574"/>doesn't look very different from other GAN generators: it takes noise as input and goes through a dense layer, followed by multiple levels of upsampling and convolution blocks, to achieve the target image resolution. We start with 4×4 resolution and use three upsampling blocks to reach the final resolution of 32×32, as follows:</p>
+			<p class="source-code">def build_generator(z_dim, n_class):</p>
+			<p class="source-code">    DIM = 64</p>
+			<p class="source-code">    z = layers.Input(shape=(z_dim))</p>
+			<p class="source-code">    labels = layers.Input(shape=(1), dtype='int32')</p>
+			<p class="source-code">    x = Dense(4*4*4*DIM)(z)</p>
+			<p class="source-code">    x = layers.Reshape((4, 4, 4*DIM))(x)   </p>
+			<p class="source-code">    x = layers.UpSampling2D((2,2))(x)</p>
+			<p class="source-code">    x = Resblock(4*DIM, n_class)(x, labels)</p>
+			<p class="source-code">    x = layers.UpSampling2D((2,2))(x)</p>
+			<p class="source-code">    x = Resblock(2*DIM, n_class)(x, labels)</p>
+			<p class="source-code">    <strong class="bold">x = SelfAttention()(x)</strong></p>
+			<p class="source-code">    x = layers.UpSampling2D((2,2))(x)</p>
+			<p class="source-code">    x = Resblock(DIM, n_class)(x, labels)</p>
+			<p class="source-code">    output_image = tanh(Conv2D(3, 3, padding='same')(x))</p>
+			<p class="source-code">    return Model([z, labels], output_image,  			 name='generator')  </p>
+			<p>Despite using different activation dimensions within the self-attention module, its output has the same shape as the input. Thus, this can be inserted anywhere after a convolutional layer. However, it may be overkill to put it at 4×4 resolution when the kernel size is 3×3. So, the self-attention layer is inserted only once in the SAGAN generator at a higher spatial resolution stage to make the most out of the self-attention layer. The same goes<a id="_idIndexMarker575"/> for the discriminator, where the self-attention layer is placed at the lower layer when the spatial resolution is higher.</p>
+			<p>That's all for the generator, if we're doing unconditional image generation. We will need to feed the class labels into the generator so it can create images from the given classes. At the beginning of <a href="B14538_04_Final_JM_ePub.xhtml#_idTextAnchor084"><em class="italic">Chapter 4</em></a><em class="italic">, Image-to-Image Translation</em>, we learned about some common ways of conditioning on labels, but the SAGAN uses a more advanced way; that is, it encodes the class label into learnable parameters in batch normalization. We introduced <strong class="bold">conditional batch normalization</strong> in <a href="B14538_05_Final_JM_ePub.xhtml#_idTextAnchor104"><em class="italic">Chapter 5</em></a><em class="italic">, Style Transfer</em>, and we will now implement it for the SAGAN. </p>
+			<h2 id="_idParaDest-157"><a id="_idTextAnchor166"/>Conditional batch normalization</h2>
+			<p>Throughout much of this book, we have<a id="_idIndexMarker576"/> been complaining about the drawback of using batch normalization in GANs. In <strong class="source-inline">CIFAR10</strong>, there are 10 classes: 6 of them are animals (bird, cat, deer, dog, frog, and horse) and 4 of them are vehicles (airplane, automobile, ship, and truck). Obviously, they look very different –the vehicles tend to have hard and straight edges, while the animals tend to have curvier edges and softer textures. </p>
+			<p>As we have learned regarding style transfer, the activation statistics dictate the image style. Therefore, mixing the batch statistics can create images that look a bit like an animal and a bit like a vehicle – for example, a car-shaped cat. This is because batch normalization uses only one gamma and one beta for an entire batch that's made up of different classes. The problem is resolved if we have a gamma and a beta for each of the styles (classes), and that is exactly what conditional batch normalization is about. It has one gamma and one beta for each class, so there are 10 betas and 10 gammas per layer for the 10 classes in <strong class="source-inline">CIFAR10</strong>.</p>
+			<p>We can now construct the variables required by the conditional batch normalization as follows:</p>
+			<ul>
+				<li>A gamma and a beta with a shape of <em class="italic">(10, C)</em>, where <em class="italic">C</em> is the activation channel number.</li>
+				<li>A moving mean and variance with a shape of <em class="italic">(1, 1, 1, C)</em>. In training, the mean and variance are calculated from a minibatch. During inference, we use the moving averaged values accumulated in training. They are shaped so that the arithmetic operation is broadcast to the N, H, and W dimensions.</li>
+			</ul>
+			<p>The following is the code for <a id="_idIndexMarker577"/>conditional batch normalization:</p>
+			<p class="source-code">class ConditionBatchNorm(Layer):</p>
+			<p class="source-code">    def build(self, input_shape):</p>
+			<p class="source-code">        self.input_size = input_shape</p>
+			<p class="source-code">        n, h, w, c = input_shape        </p>
+			<p class="source-code">        self.gamma = self.add_weight( 						  shape=[self.n_class, c], 						  initializer='ones', 						  trainable=True, 						  name='gamma')        </p>
+			<p class="source-code">        self.beta = self.add_weight( 						 shape=[self.n_class, c], 						 initializer='zeros', 						 trainable=True, 						 name='beta')             </p>
+			<p class="source-code">        self.moving_mean = self.add_weight(shape=[1, 1,  					  1, c], initializer='zeros', 					  trainable=False, 					  name='moving_mean')    </p>
+			<p class="source-code">        self.moving_var = self.add_weight(shape=[1, 1,  					  1, c], initializer='ones',</p>
+			<p class="source-code"> 					  trainable=False, 					  name='moving_var')</p>
+			<p>When we run the conditional batch normalization, we retrieve the correct <strong class="source-inline">beta</strong> and <strong class="source-inline">gamma</strong> for the labels. This is done using <strong class="source-inline">tf.gather(self.beta, labels)</strong>, which is conceptually equivalent to <strong class="source-inline">beta = self.beta[labels]</strong>, as follows:</p>
+			<p class="source-code">def call(self, x, labels, training=False):</p>
+			<p class="source-code">    beta = tf.gather(self.beta, labels)</p>
+			<p class="source-code">    beta = tf.expand_dims(beta, 1)</p>
+			<p class="source-code">    gamma = tf.gather(self.gamma, labels)</p>
+			<p class="source-code">    gamma = tf.expand_dims(gamma, 1)</p>
+			<p>Apart from that, the rest of the <a id="_idIndexMarker578"/>code is identical to batch normalization. Now, we can place the conditional batch normalization in the residual block for the generator:</p>
+			<p class="source-code">class Resblock(Layer):</p>
+			<p class="source-code">    def build(self, input_shape):</p>
+			<p class="source-code">        input_filter = input_shape[-1]</p>
+			<p class="source-code">        self.conv_1 = Conv2D(self.filters, 3, 					  padding='same', 					  name='conv2d_1')</p>
+			<p class="source-code">        self.conv_2 = Conv2D(self.filters, 3, 					  padding='same', 					  name='conv2d_2')</p>
+			<p class="source-code">        self.cbn_1 = ConditionBatchNorm(self.n_class)</p>
+			<p class="source-code">        self.cbn_2 = ConditionBatchNorm(self.n_class)</p>
+			<p class="source-code">        self.learned_skip = False</p>
+			<p class="source-code">        if self.filters != input_filter:</p>
+			<p class="source-code">            self.learned_skip = True</p>
+			<p class="source-code">            self.conv_3 = Conv2D(self.filters, 1, 						padding='same', 						name='conv2d_3')       </p>
+			<p class="source-code">            self.cbn_3 = ConditionBatchNorm(self.n_class)</p>
+			<p>The following is<a id="_idIndexMarker579"/> the runtime code for the forward pass of conditional batch normalization:</p>
+			<p class="source-code">    def call(self, input_tensor, labels):</p>
+			<p class="source-code">        x = self.conv_1(input_tensor)</p>
+			<p class="source-code">        x = self.cbn_1(x, labels)</p>
+			<p class="source-code">        x = tf.nn.leaky_relu(x, 0.2)</p>
+			<p class="source-code">        x = self.conv_2(x)</p>
+			<p class="source-code">        x = self.cbn_2(x, labels)</p>
+			<p class="source-code">        x = tf.nn.leaky_relu(x, 0.2)</p>
+			<p class="source-code">        if self.learned_skip:</p>
+			<p class="source-code">            skip = self.conv_3(input_tensor)</p>
+			<p class="source-code">            skip = self.cbn_3(skip, labels)</p>
+			<p class="source-code">            skip = tf.nn.leaky_relu(skip, 0.2)            </p>
+			<p class="source-code">        else:</p>
+			<p class="source-code">            skip = input_tensor</p>
+			<p class="source-code">        output = skip + x</p>
+			<p class="source-code">        return output</p>
+			<p>The residual block for the discriminator looks similar to the one for the generator but with a couple of differences, as listed here:</p>
+			<ul>
+				<li>There is no normalization.</li>
+				<li>Downsampling happens inside the residual block with average pooling.</li>
+			</ul>
+			<p>Therefore, we won't be showing the code for the discriminator's residual block. We can now proceed to the final building block – the discriminator.</p>
+			<h2 id="_idParaDest-158"><a id="_idTextAnchor167"/>Building the discriminator</h2>
+			<p>The discriminator <a id="_idIndexMarker580"/>uses the self-attention layer as well, and it is placed near the input layers to capture the large activation map. As it is a conditional GAN, we will also use the label in the discriminator to make sure that the generator is producing the correct images matching the classes. The general approach to incorporating label information is to first project the label into the embedding space and then use the embedding at either the input layer or any internal layer. </p>
+			<p>There are two common methods of merging the <a id="_idIndexMarker581"/>embedding with the activation – <strong class="bold">concatenation</strong> and <strong class="bold">element-wise multiplication</strong>. The SAGAN uses architecture that's similar to the projection model by T. Miyato and M. Koyama's <em class="italic">cGANs with Projection Discriminator</em>, as shown at the<a id="_idIndexMarker582"/> bottom right of the following figure:</p>
+			<div>
+				<div id="_idContainer173" class="IMG---Figure">
+					<img src="image/B14538_08_04.jpg" alt="Figure 8.4 – Comparison of several common ways of incorporating labels as conditions in a discriminator. (d) is the one used in the SAGAN. (Redrawn from T. Miyato and M. Koyama's, 2018 &quot;cGANs with Projection Discriminator,&quot; https://arxiv.org/abs/1802.05637)&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 8.4 – Comparison of several common ways of incorporating labels as conditions in a discriminator. (d) is the one used in the SAGAN. (Redrawn from T. Miyato and M. Koyama's, 2018 "cGANs with Projection Discriminator," https://arxiv.org/abs/1802.05637)</p>
+			<p>The label is first projected into embedding space, and then we perform element-wise multiplication with activation just before the dense layer (<strong class="bold">ψ</strong> in the diagram). The result then adds to the dense layer output to give the final prediction as follows:</p>
+			<p class="source-code">def build_discriminator(n_class):</p>
+			<p class="source-code">    DIM = 64</p>
+			<p class="source-code">    input_image = Input(shape=IMAGE_SHAPE)</p>
+			<p class="source-code">    input_labels = Input(shape=(1))</p>
+			<p class="source-code">    embedding = Embedding(n_class, 4*DIM)(input_labels)</p>
+			<p class="source-code">    embedding = Flatten()(embedding)</p>
+			<p class="source-code">    x = ResblockDown(DIM)(input_image) # 16</p>
+			<p class="source-code"><strong class="bold">    x = SelfAttention()(x)</strong></p>
+			<p class="source-code">    x = ResblockDown(2*DIM)(x) # 8</p>
+			<p class="source-code">    x = ResblockDown(4*DIM)(x) # 4</p>
+			<p class="source-code">    x = ResblockDown(4*DIM, False)(x) # 4</p>
+			<p class="source-code">    x = tf.reduce_sum(x, (1, 2))</p>
+			<p class="source-code">    embedded_x  = tf.reduce_sum(x * embedding,  					    axis=1, keepdims=True)</p>
+			<p class="source-code">    output = Dense(1)(x)</p>
+			<p class="source-code">    output += embedded_x</p>
+			<p class="source-code">    return Model([input_image, input_labels],  			  output, name='discriminator')</p>
+			<p>With the models <a id="_idIndexMarker583"/>defined, we can now train the SAGAN.</p>
+			<h2 id="_idParaDest-159"><a id="_idTextAnchor168"/>Training the SAGAN</h2>
+			<p>We will use the standard<a id="_idIndexMarker584"/> GAN training pipeline. The loss function is <strong class="bold">hinge loss</strong> and we will use the <strong class="bold">Adam optimizer</strong>. Different initial learning rates are<a id="_idIndexMarker585"/> used for the generator <em class="italic">(1e-4)</em> and discriminator <em class="italic">(4e-4)</em>. As <strong class="source-inline">CIFAR10</strong> has small images of size 32×32, the training is relatively stable and quick. The original SAGAN was designed for an image resolution of 128×128, but this resolution is still small compared to other training sets that we have used. In the next <a id="_idIndexMarker586"/>section, we will look at some improvements made to the SAGAN for training on bigger datasets with bigger image sizes.</p>
+			<h1 id="_idParaDest-160"><a id="_idTextAnchor169"/>Implementing BigGAN</h1>
+			<p>The BigGAN is an improved <a id="_idIndexMarker587"/>version of the SAGAN. The BigGAN ups the image resolution significantly from 128×128 to 512×512, and it does it without progressive growth of layers! The<a id="_idIndexMarker588"/> following are some sample images generated by BigGAN:</p>
+			<div>
+				<div id="_idContainer174" class="IMG---Figure">
+					<img src="image/B14538_08_05.jpg" alt="Figure 8.5 – Class-conditioned samples generated by BigGAN at 512x512 (Source: A. Brock et al., 2018, &quot;Large Scale GAN Training for High Fidelity Natural Image Synthesis,&quot; https://arxiv.org/abs/1809.11096)&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 8.5 – Class-conditioned samples generated by BigGAN at 512x512 (Source: A. Brock et al., 2018, "Large Scale GAN Training for High Fidelity Natural Image Synthesis," https://arxiv.org/abs/1809.11096)</p>
+			<p>BigGAN is considered the<a id="_idIndexMarker589"/> state-of-the-art class-conditional GAN. We'll now look into the changes and modify the SAGAN code to make ourselves a BigGAN.</p>
+			<h2 id="_idParaDest-161"><a id="_idTextAnchor170"/>Scaling GANs</h2>
+			<p>Older GANs tend to use small batch sizes<a id="_idIndexMarker590"/> as that would produce better-quality images. Now we know that the quality problem was caused by the batch statistics used in batch normalization, and this is addressed by using other normalization techniques. Still, the batch size has remained small as it is physically limited by GPU memory constraints. </p>
+			<p>However, being part of Google has its perks: the DeepMind team, who created the BigGAN, had all the resources they needed. Through experimentation, they found that scaling up GANs helps in producing better results. In BigGAN training, the batch size used was eight times that of the SAGAN; the convolutional channel numbers are also 50% higher. This is where the name BigGAN came from: bigger proved to be better. </p>
+			<p>As a matter of fact, the bulking up of the SAGAN is the main contributor to BigGAN's superior performance, as summarized in the following table:</p>
+			<div>
+				<div id="_idContainer175" class="IMG---Figure">
+					<img src="image/B14538_08_06.jpg" alt="Figure 8.6 – Improvement in Frechet Inception Distance (FID) and Inception Score (IS) by adding features to the SAGAN baseline. The Configurations column shows the features added to the configuration in the previous row. The numbers in brackets show the improvement on the preceding row&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 8.6 – Improvement in Frechet Inception Distance (FID) and Inception Score (IS) by adding features to the SAGAN baseline. The Configurations column shows the features added to the configuration in the previous row. The numbers in brackets show the improvement on the preceding row</p>
+			<p>The table shows the BigGAN's performance when trained on ImageNet. The <strong class="bold">Frechet Inception Distance</strong> (<strong class="bold">FID</strong>) measures the<a id="_idIndexMarker591"/> class variety (the lower the better), while the <strong class="bold">Inception Score</strong> (<strong class="bold">IS</strong>) indicates the image quality (the higher the better). On the left is the <a id="_idIndexMarker592"/>configuration of the network, starting with the SAGAN baseline and adding new features row by row. We can see<a id="_idIndexMarker593"/> that the biggest improvement came from increasing the batch size. This makes sense for improving the FID, as a batch size of 2,048 is larger than the class size of 1,000, making the GAN less likely to overfit to the small number of classes.</p>
+			<p>Increasing the channel size also resulted in significant improvement. The other three features add only a small improvement. Therefore, if you don't have multiple GPUs that can fit a large network and batch size, then you should stick to the SAGAN. If you do have such GPUs or just want to know about the feature upgrades, then let's crack on!</p>
+			<h2 id="_idParaDest-162"><a id="_idTextAnchor171"/>Skipping latent vectors</h2>
+			<p>Traditionally, the latent vector <em class="italic">z</em> goes into the first<a id="_idIndexMarker594"/> dense layer of the generator, followed by a sequence of convolutional and upsampling layers. Although the StyleGAN also has a latent vector that goes only to the first layer of its generator, it has another source of random noise that goes into every resolution of the activation map. This allows the control of style at different resolution levels. </p>
+			<p>By merging the two ideas, the BigGAN split the latent vector into chunks, where each of them goes to different residual blocks in the generator. Later, we will see how that concatenates with the class label for conditional batch normalization. In addition to the default BigGAN, there is another configuration known as BigGAN-deep that is four times deeper. The following <a id="_idIndexMarker595"/>diagram shows their difference in concatenating labels and input noise. We will implement the BigGAN on the left:</p>
+			<div>
+				<div id="_idContainer176" class="IMG---Figure">
+					<img src="image/B14538_08_07.jpg" alt="Figure 8.7 – Two configurations of the generator (Redrawn from A. Brock et al., 2018, &quot;Large Scale GAN Training for High Fidelity Natural Image Synthesis,&quot; https://arxiv.org/abs/1809.11096)&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 8.7 – Two configurations of the generator (Redrawn from A. Brock et al., 2018, "Large Scale GAN Training for High Fidelity Natural Image Synthesis," https://arxiv.org/abs/1809.11096)</p>
+			<p>We will now look at how BigGAN reduces the size of the embedding in conditional batch normalization. </p>
+			<h2 id="_idParaDest-163"><a id="_idTextAnchor172"/>Shared class embedding</h2>
+			<p>In the SAGAN's conditional batch<a id="_idIndexMarker596"/> normalization, there is a matrix of the shape [class number, channel number] for each beta and gamma in every layer. When the number of classes and channels increases, the weight size goes up rapidly too. When trained on the 1,000-class ImageNet with 1,024-channel convolutional layers, this will create over 1 million variables in one normalization layer alone! </p>
+			<p>Therefore, instead of having a weight matrix of 1,000×1,024, the BigGAN first projects the class into an embedding of smaller dimensions, for example, 128, that is shared across all layers. Within the conditional batch normalization, dense layers are used to map the class embedding and noise into betas and gammas. </p>
+			<p>The following code snippet shows the first two layers in the generator:</p>
+			<p class="source-code">z_input = layers.Input(shape=(z_dim))</p>
+			<p class="source-code">z = tf.split(z_input, 4, axis=1) </p>
+			<p class="source-code">labels = layers.Input(shape=(1), dtype='int32')</p>
+			<p class="source-code">y = Embedding(n_class, y_dim)(tf.squeeze(labels, [1]))</p>
+			<p class="source-code">x = Dense(4*4*4*DIM, **g_kernel_cfg)(z[0])</p>
+			<p class="source-code">x = layers.Reshape((4, 4, 4*DIM))(x)</p>
+			<p class="source-code">x = layers.UpSampling2D((2,2))(x)</p>
+			<p class="source-code">y_z = tf.concat((y, z[1]), axis=-1)</p>
+			<p class="source-code">x = Resblock(4*DIM, n_class)(x, y_z)</p>
+			<p>The latent vector with dimensions of 128 is first split into four equal parts, for the dense layer and the residual blocks at three resolutions. The label is projected into a shared embedding that concatenates with the <strong class="source-inline">z</strong> chunk and goes into residual blocks. The residual blocks are unchanged from the SAGAN, but we'll make some small modifications to the conditional batch normalization in the following code. Instead of declaring variables for gamma and beta, we now generate from class labels via dense layers. As usual, we will first define the required layers in <strong class="source-inline">build()</strong> as shown here:</p>
+			<p class="source-code">class ConditionBatchNorm(Layer):</p>
+			<p class="source-code">    def build(self, input_shape):</p>
+			<p class="source-code">        c = input_shape[-1]</p>
+			<p class="source-code"><strong class="bold">        self.dense_beta = Dense(c, **g_kernel_cfg,)</strong></p>
+			<p class="source-code"><strong class="bold">        self.dense_gamma = Dense(c, **g_kernel_cfg,)</strong></p>
+			<p class="source-code">        self.moving_mean = self.add_weight(shape=[1, 1, 1, c],     	                                           initializer='zeros',                                           trainable=False,                                           name='moving_mean')</p>
+			<p class="source-code">        self.moving_var = self.add_weight(shape=[1, 1, 1, c], 	                                          initializer='ones',                                          trainable=False,                                          name='moving_var')</p>
+			<p>At runtime, we will use <a id="_idIndexMarker597"/>dense layers to generate <strong class="source-inline">beta</strong> and <strong class="source-inline">gamma</strong> from the shared embedding. Then, they will be used like normal batch normalization. The code snippet for the dense layer parts are shown here:</p>
+			<p class="source-code">    def call(self, x, z_y, training=False):</p>
+			<p class="source-code"><strong class="bold">        beta = self.dense_beta(z_y)</strong></p>
+			<p class="source-code"><strong class="bold">        gamma = self.dense_gamma(z_y)</strong></p>
+			<p class="source-code"><strong class="bold">        for _ in range(2):</strong></p>
+			<p class="source-code"><strong class="bold">            beta = tf.expand_dims(beta, 1)</strong></p>
+			<p class="source-code">            <strong class="bold">gamma = tf.expand_dims(gamma, 1)</strong></p>
+			<p>We added dense layers to predict <strong class="source-inline">beta</strong> and <strong class="source-inline">gamma</strong> from the latent vector and label embedding. That replaces the large weight variables.</p>
+			<h2 id="_idParaDest-164"><a id="_idTextAnchor173"/>Orthogonal regularization</h2>
+			<p><strong class="bold">Orthogonality</strong> is used extensively in<a id="_idIndexMarker598"/> the BigGAN to<a id="_idIndexMarker599"/> initialize weights and as a weight regularizer. A matrix is said to be orthogonal if multiplication with its transpose will produce an identity matrix. An <strong class="bold">identity matrix</strong> is a matrix with one in the diagonal elements and zero in all<a id="_idIndexMarker600"/> other places. Orthogonality is a good property because the norm of a matrix doesn't change if it is multiplied by an orthogonal matrix. </p>
+			<p>In a deep neural network, the<a id="_idIndexMarker601"/> repeated matrix multiplication can result in exploding or vanishing gradients. Therefore, maintaining orthogonality can improve training. The equation for original orthogonal regularization is as follows:</p>
+			<div>
+				<div id="_idContainer177" class="IMG---Figure">
+					<img src="image/Formula_08_004.jpg" alt=""/>
+				</div>
+			</div>
+			<p>Here <em class="italic">W</em> is the weight reshaped as a matrix and beta is a hyperparameter. As this regularization was found to be limiting, the BigGAN uses a different variant: </p>
+			<div>
+				<div id="_idContainer178" class="IMG---Figure">
+					<img src="image/Formula_08_005.jpg" alt=""/>
+				</div>
+			</div>
+			<p>In this variant, <em class="italic">(1 – I)</em> removes the diagonal elements, which are dot products of the filters. This removes the constraint on the filter's norm and aims to minimize the pairwise cosine similarity between the filters. </p>
+			<p>Orthogonality is closely related to spectral normalization, and both can co-exist in a network. We implemented spectral normalization as a kernel constraint, where the weights are modified directly. Weight regularization calculates the loss from the weights and adds the loss to other losses for backpropagation, hence regularizing the weights in an indirect way. The following code shows how to write a custom regularizer in TensorFlow:</p>
+			<p class="source-code">class OrthogonalReguralizer( 			tf.keras.regularizers.Regularizer):</p>
+			<p class="source-code">    def __init__(self, beta=1e-4):</p>
+			<p class="source-code">        self.beta = beta   </p>
+			<p class="source-code">    def __call__(self, input_tensor):</p>
+			<p class="source-code">        c = input_tensor.shape[-1]</p>
+			<p class="source-code">        w = tf.reshape(input_tensor, (-1, c)) </p>
+			<p class="source-code">        ortho_loss = tf.matmul(w, w, transpose_a=True) *\ 					   (1 -tf.eye(c))</p>
+			<p class="source-code">        return self.beta * tf.norm(ortho_loss)</p>
+			<p class="source-code">    def get_config(self):</p>
+			<p class="source-code">        return {'beta': self.beta}</p>
+			<p>We can then assign the <em class="italic">kernel initializer</em>, <em class="italic">kernel constraint</em>, and <em class="italic">kernel regularizer</em> to the convolution and dense layers. However, adding them to each of the layers can make the code look long<a id="_idIndexMarker602"/> and cluttered. To avoid this, we can put them into a dictionary and pass them as keyword arguments (<strong class="source-inline">kwargs</strong>) into the Keras layers as follows:</p>
+			<p class="source-code">g_kernel_cfg={</p>
+			<p class="source-code">    'kernel_initializer' : \ 				tf.keras.initializers.Orthogonal(),</p>
+			<p class="source-code">    'kernel_constraint' : SpectralNorm(),</p>
+			<p class="source-code">    'kernel_regularizer' : OrthogonalReguralizer()</p>
+			<p class="source-code">}</p>
+			<p class="source-code">Conv2D(1, 1, padding='same', **g_kernel_cfg)</p>
+			<p>As we mentioned earlier, orthogonal regularization has the smallest effect in improving image quality. The beta value of <em class="italic">1e-4</em> was obtained numerically, and you might need to tune it for your dataset. </p>
+			<h1 id="_idParaDest-165"><a id="_idTextAnchor174"/>Summary</h1>
+			<p>In this chapter, we learned about an important network architecture known as self-attention. The effectiveness of the convolutional layer is limited by its receptive field, and self-attention helps to capture important features including activations that are spatially-distanced from conventional convolutional layers. We have learned how to write a custom layer to insert into a SAGAN. The SAGAN is a state-of-the-art class-conditional GAN. We also implemented conditional batch normalization to learn different learnable parameters specific to each class. Finally, we looked at the bulked-up version of the SAGAN known as the BigGAN, which trumps SAGAN's performance significantly in terms of both image resolution and class variation. </p>
+			<p>We have now learned about most, if not all, of the important GANs for image generation. In recent years, two major components have gained popularity in the GAN world – they are AdaIN for the StyleGAN as covered in <a href="B14538_07_Final_JM_ePub.xhtml#_idTextAnchor136"><em class="italic">Chapter 7</em></a><em class="italic">, High Fidelity Face Generation</em> and self-attention for the SAGAN. The Transformer is based on self-attention and has revolutionized NLP, and it's starting to make its way into computer vision. Therefore, it is now a good time to learn about attention-based generative models as this may be how future GANs look. In the next chapter, we will use what we learned about image generation at the end of this chapter to generate a deepfake video.</p>
+		</div>
+	</body></html>

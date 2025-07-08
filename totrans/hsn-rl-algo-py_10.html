@@ -1,0 +1,516 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">DDPG and TD3 Applications</h1>
+                </header>
+            
+            <article>
+                
+<p><span>In the previous chapter, we concluded a comprehensive overview of all the major policy gradient algorithms. Due to their capacity to deal with continuous action spaces, they are applied to very complex and sophisticated control systems. Policy gradient methods can also use a second-order derivative, as is done in TRPO, or use other strategies, in order to limit the policy update by preventing unexpected bad behaviors. However, the main concern when dealing with this type of algorithm is their poor efficiency, in terms of the quantity of experience needed to hopefully master a task. This drawback comes from the on-policy nature of these algorithms, which makes them require new experiences each time the policy is updated. In this chapter, we will introduce a new type of off-policy actor-critic algorithm that learns a target deterministic policy, while exploring the environment with a stochastic policy. We call these methods deterministic policy gradient methods, due to their characteristic of learning a deterministic policy. We'll first show how these algorithms work, and we will also show their close relationship with Q-learning methods. Then, we'll present two deterministic policy gradient algorithms: <strong>deep deterministic policy gradient</strong> (<strong>DDPG</strong>), and a successive version of it, known as <strong>twin delayed deep deterministic policy gradient</strong> (<strong>TD3</strong>). You'll get a sense of their capabilities by implementing and applying them to a new environment. </span></p>
+<p>The following topics will be covered in this chapter:</p>
+<ul>
+<li>Combining policy gradient optimization with Q-learning</li>
+<li>Deep deterministic policy gradient</li>
+<li>Twin delayed deep deterministic policy gradient (TD3)</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Combining policy gradient optimization with Q-learning</h1>
+                </header>
+            
+            <article>
+                
+<p>Throughout this book, we approach two main types of model-free algorithms: the ones based on the gradient of the policy, and the ones based on the value function. <span>From the first family, we saw REINFORCE, actor-critic, PPO, and TRPO. From the second, we saw Q-learning, SARSA, and DQN</span>. As well as the way in which the two families learn a policy (that is, policy gradient algorithms use stochastic gradient ascent toward the steepest increment on the estimated return, and value-based algorithms learn an action value for each state-action to then build a policy), there are key differences that let us prefer one family over the other. These are the on-policy or off-policy nature of the algorithms, and their predisposition to manage large action spaces. We already discussed the differences between on-policy and off-policy in the previous chapters, but it is important to understand them well, in order to actually appreciate the algorithms that will be introduced in this chapter. </p>
+<p>Off-policy learning is able to use previous experiences in order to refine the current policy, despite the fact that that experience comes from a different distribution. DQN benefits from this by storing <span>all the memories that the agent had throughout its life</span> in a replay buffer, and by sampling mini-batches from the buffer to update the target policy. At the opposite end of the spectrum, there is on-policy learning, which requires experience to be gained from the current policy. This means that old experiences cannot be used, and every time the policy is updated, the old data has to be discarded. As a result, because <span>off-policy learning </span>can reuse data multiple times, it requires fewer interactions with the environment in order to learn a task. In cases where the acquisition of new samples is expensive or very difficult to do, this difference matters a lot, and choosing off-policy algorithms could be vital.</p>
+<p>The second factor is a matter of action spaces. As we saw in <a href="4148a47d-a2c7-44da-ba6d-76ae4d8bec2c.xhtml">Chapter 7</a>, <em>TRPO and PPO Implementation</em>, policy gradient algorithms have the ability to deal with very large and continuous action spaces. Unfortunately, the same does not hold true for Q-learning algorithms. To choose an action, they have to perform maximization across all the action space, and whenever this is very large or continuous, it is intractable. Thus, Q-learning algorithms can be applied to arbitrarily complex problems (with a very large state space) but their action space has to be limited. </p>
+<p>In conclusion, none of the previous algorithms are always preferred over others, and the choice is mostly task dependent. Nevertheless, their advantages and disadvantages are quite complementary, and thus <span>the question </span>arises: Is it possible to combine the benefits of both families into a single algorithm?</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Deterministic policy gradient</h1>
+                </header>
+            
+            <article>
+                
+<p>Designing an algorithm that is both off-policy and able to learn stable policies in high-dimensional action spaces is challenging. DQN already solves the problem of learning a stable deep neural network policy in off-policy settings. An approach to making DQN also suitable for continuous actions is to discretize the action space. For example, if an action has values between 0 and 1, a solution could be to discretize it in 11 values (0, 0.1, 0.2,.., 0.9, 1.0), and predict their probabilities using DQN. However, this solution is not manageable with a lot of actions, because the number of possible discrete actions increases exponentially with the degree of freedom of the agent. Moreover, this technique isn't applicable in tasks that need more fine-grained control. Thus, we need to find an alternative.</p>
+<p>A <span>valuable </span>idea is to learn a deterministic actor-critic. It has a close relationship with Q-learning. If you remember, in Q-learning, the best action is chosen in order to maximize the approximated Q-function among all of the possible actions: </p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/37b1947e-366f-4dc0-aae8-cf6d48068ed8.png" style="width:24.92em;height:1.67em;"/></p>
+<p>The idea is to learn a deterministic <img class="fm-editor-equation" src="assets/20d849ba-a9be-4cb2-968d-b246090126c4.png" style="width:2.83em;height:1.50em;"/> policy that approximates <img class="fm-editor-equation" src="assets/fc729a7a-f36c-4f89-bbc2-7503992c48d5.png" style="width:8.50em;height:1.33em;"/>. This overcomes the problem of computing a global maximization at every step, and opens up the possibility of extending it to very high-dimensional and continuous actions. <strong>Deterministic policy gradient</strong> (<strong>DPG</strong>) applies this concept successfully to some simple problems such as Mountain Car, Pendulum, and an octopus arm. After DPG, DDPG expands the ideas of DPG, using deep neural networks as policies and adopting some more careful design choices in order to make the algorithm more stable. A further algorithm, TD3, addresses the problems of high variance, and the overestimation bias that is common in DPG and <span><span>DDPG</span></span>. Both DDPG and TD3 will be explained and developed in the following sections. When we construct a map that categorizes RL algorithms, we place DPG, DDPG, and TD3 in the intersection between policy gradient and Q-learning algorithms, as in the following diagram. For now, let's focus on the foundation of DPGs and how they work:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-2046 image-border" src="assets/89762d73-952a-4a43-8d77-b3fcb11cab5e.png" style="width:32.58em;height:33.75em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Categorization of the model-free RL algorithms developed so far</div>
+<p class="mce-root">The new DPG algorithms combine both Q-learning and policy gradient methods. A parametrized deterministic policy only outputs deterministic values. In continuous contexts, these can be the mean of the actions. The parameters of the policy can then be updated by solving the following equation: </p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/d6adb4b1-9a4f-4a43-97fb-a802b27c8b84.png" style="width:25.17em;height:1.75em;"/></p>
+<p><img class="fm-editor-equation" src="assets/b109059e-ac94-412e-a5c8-01f739c2ed2f.png" style="width:1.58em;height:1.33em;"/> is the parametrized action-value function. Note that deterministic approaches differ from stochastic approaches in the absence of additional noise added to the actions. In PPO and TRPO, we were sampling from a normal distribution, with a mean and a standard deviation. Here, the policy has only a deterministic mean. Going back to the update (8.1), as always, maximization is done with stochastic gradient ascent, which will incrementally improve the policy with small updates. Then, the gradient of the objective function can be computed as follows: </p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/f24630d5-b820-4738-aa15-8dfe748502c4.png" style="width:37.83em;height:2.00em;"/></p>
+<p><img class="fm-editor-equation" src="assets/0655f41b-eb80-4c0a-abfd-6b618e8d6f4a.png" style="width:1.42em;height:1.33em;"/> is the state distribution following the <img class="fm-editor-equation" src="assets/4f702ec5-2725-43d2-a96f-100691224218.png" style="width:0.83em;height:1.08em;"/> policy. This formulation comes from the deterministic policy gradient theorem. It says that the gradient of the objective function is obtained in expectation by following the chain rule that is applied to the Q-function, which is taken with respect to the <img class="fm-editor-equation" src="assets/971e84fa-bf98-4484-bfe2-e8a2adae34da.png" style="width:0.75em;height:1.42em;"/> policy parameters. Using automated differentiable software such as TensorFlow, it's very easy to compute. In fact, the gradient is estimated just by computing the gradient, starting from the Q-values, all the way through the policy, but updating only the parameters of the latter, as shown here: </p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1981 image-border" src="assets/23769543-a8d0-4e93-a3b2-4acefb925995.png" style="width:39.83em;height:11.25em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">An illustration of the DPG theorem</div>
+<div class="packt_infobox"><span>T</span>he gradient<span> is computed starting from the Q-values, but only the policy is updated.</span></div>
+<p>This is a more theoretical result. As we know, deterministic policies don't explore the environment, and thus, they won't find a good solution. To make the DPG off-policy, we need to take a step further, and define the gradient of the objective function in such a way that the expectation follows the distribution of a stochastic exploratory policy:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/b5acbb97-a9a8-453b-8671-e2177990c528.png" style="width:38.50em;height:2.08em;"/></p>
+<p><img class="fm-editor-equation" src="assets/52c37d4d-cd73-4b4c-b4cf-57e938d0f69e.png" style="width:0.75em;height:1.25em;"/> is an exploratory policy, also called a behavior policy. This equation gives the <em>off-policy deterministic policy gradient</em> and gives the estimated gradient with respect to a deterministic policy (<img class="fm-editor-equation" src="assets/e4c50ea5-7487-4062-9df4-0ca08b932f7a.png" style="width:0.83em;height:1.08em;"/>), while generating trajectories that follow a behavior policy (<img class="fm-editor-equation" src="assets/06214d17-b379-4516-8eda-479875d475b5.png" style="width:0.75em;height:1.25em;"/>). Note that, in practice, the behavior policy is just the deterministic policy with additional noise.</p>
+<p><span>Though</span> we have talked about deterministic actor-critic previously, until now, we have only shown how the policy learning takes place. Instead, we are learning both the actor that is represented by the deterministic policy (<img class="fm-editor-equation" src="assets/3d257251-7342-4eff-b411-bd9495d929b6.png" style="width:1.33em;height:1.00em;"/>), and the critic that is represented by the Q-function (<img class="fm-editor-equation" src="assets/d63d86d6-029d-4d74-b710-2c01bcf514c5.png" style="width:1.42em;height:1.17em;"/>). The differentiable action-value function (<img class="fm-editor-equation" src="assets/3e87bdfa-6420-478c-a7d8-417e4ad58fd4.png" style="width:1.42em;height:1.17em;"/>) can easily be learned with the Bellman updates that minimize the Bellman error<br/>
+(<img class="fm-editor-equation" src="assets/175ffab3-52ba-428d-b399-51a73c9d5d9a.png" style="width:17.00em;height:1.33em;"/>), as done in Q-learning algorithms.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Deep deterministic policy gradient</h1>
+                </header>
+            
+            <article>
+                
+<p>If you implemented DPG <span>with the deep neural networks that were</span> presented in the previous section, the algorithm would be very unstable and it wouldn't be capable of learning anything. We encountered a similar problem when we extended Q-learning with deep neural networks. Indeed, to combine DNN and Q-learning in the DQN algorithm, we had to employ some other tricks to stabilize learning. The same holds true for DPG algorithms. These methods are off-policy, just like Q-learning, and as we'll soon see, some ingredients that make deterministic policies work with DNN are similar to the ones used in DQN.</p>
+<p>DDPG <span>(</span><em>Continuous Control with Deep Reinforcement Learning</em><span> </span><span>by Lillicrap, and others: <a href="https://arxiv.org/pdf/1509.02971.pdf">https://arxiv.org/pdf/1509.02971.pdf</a></span><span>) is the</span> first deterministic actor-critic that employs deep neural networks, for learning both the actor and the critic. This model-free, off-policy, actor-critic algorithm extends both DQN and DPG, in that it uses some insight from DQN, such as the replay buffer and the target network, to make DPG work with deep neural networks.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The DDPG algorithm</h1>
+                </header>
+            
+            <article>
+                
+<p>DDPG uses two key ideas, both borrowed from DQN but adapted for the actor-critic case:</p>
+<ul>
+<li><strong>Replay buffer</strong>: All the transitions acquired during the lifetime of the agent are stored in a replay buffer, also called experienced replay. Then, this is used for training the actor and the critic by sampling mini-batches from it.</li>
+<li><strong>Target network</strong>: Q-learning is unstable, since the network that is updated is also the one that is used for computing the target values. If you remember, DQN mitigates this problem by employing a target network that is updated every <em>N</em> iterations (copying the parameters of the online network in the target network). In the DDQN paper, they show that a soft target update works better in this context. With a soft update, the parameters of the target network, <img class="fm-editor-equation" src="assets/f8eea50d-f2cf-4b75-ba6c-7480ad8ae73c.png" style="width:0.92em;height:1.17em;"/>, are partially updated on each step with the parameters of the online network, <img class="fm-editor-equation" src="assets/cc232cb3-2900-4f28-94cb-a03c1289e452.png" style="width:0.58em;height:1.08em;"/>: <img class="fm-editor-equation" src="assets/739b738f-f8c7-4bd2-9e84-ee481c71d182.png" style="width:8.67em;height:1.25em;"/> with <img class="fm-editor-equation" src="assets/28e79dd5-fa6c-4377-bfb1-5fa98b8b7666.png" style="width:3.25em;height:1.08em;"/>. Yes, it may slow the learning, as the target network is changed only partially, but it outweighs the benefit that is derived from the increased instability. The trick of using a target network is used for both the actor and the critic, thereby the parameters of the target critic will also be updated following the soft update: <img class="fm-editor-equation" src="assets/f1ef00e9-1350-46df-b8c5-ecca958a9efa.png" style="width:9.42em;height:1.33em;"/>.</li>
+</ul>
+<p>Note that, from now on, we'll refer to <img class="fm-editor-equation" src="assets/02dc85bc-53da-42d3-8fc7-cf38a36e651f.png" style="width:0.58em;height:1.00em;"/> and <img class="fm-editor-equation" src="assets/93e7cd98-72ad-41ef-a860-d24588e07569.png" style="width:0.75em;height:1.33em;"/> as the parameters of the online actor and the online critic, and to <img class="fm-editor-equation" src="assets/f242af40-2223-4dec-86e5-4fcf14df13b7.png" style="width:0.83em;height:1.08em;"/> and <img class="fm-editor-equation" src="assets/15440789-03c6-4ac7-861d-488d7336fe02.png" style="width:1.08em;height:1.42em;"/> as the parameters of the target actor and the target critic.</p>
+<p><span>A characteristic that DDPG inherits from DQN is the ability to update the actor and the critic for each step taken in the environment. This follows on from the fact that </span>DDPG is off-policy, and learns from the mini-batches that were sampled from the replay buffer. DDPG doesn't have to wait until a sufficiently large batch is gathered from the environment, as would be the case in on-policy stochastic policy gradient methods. </p>
+<p>Previously, we saw how DPG acts according to an exploratory behavior policy, despite that fact that it is still learning a deterministic policy. But, how is this exploratory policy built? In DDPG, the <img class="fm-editor-equation" src="assets/01f396f5-40d7-45cc-b408-b4afb82ca2a6.png" style="width:1.17em;height:1.25em;"/> policy is constructed by adding noise that is sampled from a noise process (<img class="fm-editor-equation" src="assets/daddfb35-8e51-4844-ad03-5e7b14112d30.png" style="width:1.33em;height:1.17em;"/>):</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/cb09642e-9da9-443d-819b-a0996b16e0d0.png" style="width:9.92em;height:1.42em;"/></p>
+<p>The <img class="fm-editor-equation" src="assets/b4e85b8c-e3a8-49ac-8471-a1e1a8a7c064.png" style="width:1.17em;height:1.00em;"/> process will make sure that the environment is sufficiently explored.</p>
+<p>Wrapping up, DDPG learns by cyclically repeating these three steps until convergence occurs:</p>
+<ul>
+<li>The <img class="fm-editor-equation" src="assets/01f396f5-40d7-45cc-b408-b4afb82ca2a6.png" style="width:1.33em;height:1.42em;"/>behavior policy interacts with the environment, collecting observations and rewards from it by storing them in a buffer.</li>
+<li>At each step, the actor and the critic are updated, based on the information held in the mini-batch that was sampled from the buffer. Specifically, the critic is updated by minimizing the mean squared error (MSE) loss between the values that were predicted by the online critic (<img class="fm-editor-equation" src="assets/cf5f868f-73db-4a02-8924-2544d452b30d.png" style="width:1.25em;height:1.17em;"/>), and the target values that were computed using the target policy (<img class="fm-editor-equation" src="assets/1acd4514-f7a6-45e7-bb00-da4703729c8a.png" style="width:1.50em;height:1.00em;"/>) and the target critic (<img class="fm-editor-equation" src="assets/3c00dea5-2d6d-4277-bb06-2c7806fcb611.png" style="width:1.50em;height:1.17em;"/>). Instead, the actor is updated following formula (8.3).</li>
+<li>The target network parameters are updated following the soft update.</li>
+</ul>
+<p>The whole algorithm is summarized in this pseudocode:</p>
+<pre>---------------------------------------------------------------------------------<br/>DDPG Algorithm<br/>---------------------------------------------------------------------------------<br/><br/>Initialize online networks <img class="fm-editor-equation" src="assets/e70f9a18-fa6a-4760-b447-d9afcde02834.png" style="width:1.00em;height:0.83em;"/> and <img class="fm-editor-equation" src="assets/31b9be6c-3b6f-409d-a189-9a24a3aa93c2.png" style="width:1.17em;height:0.83em;"/><br/>Initialize target networks <img class="fm-editor-equation" src="assets/b6b6e4ec-9f76-479b-99fe-c9da25ebe9db.png" style="width:1.33em;height:1.00em;"/> and <img class="fm-editor-equation" src="assets/49db922b-1027-47a0-8e2f-f8137f4e1003.png" style="width:1.50em;height:1.00em;"/> with the same weights as the online networks<br/>Initialize empty replay buffer <img class="fm-editor-equation" src="assets/8251ffcc-ee5c-4e27-af96-982ba9608186.png" style="width:0.67em;height:0.75em;"/><br/>Initialize environment <img class="fm-editor-equation" src="assets/9f34214b-a3b5-4364-9e6c-424ab081fe73.png" style="width:7.50em;height:1.25em;"/><br/><br/><strong>for</strong> <img class="fm-editor-equation" src="assets/07354ee4-c429-4fb6-8850-953daed55964.png" style="width:6.08em;height:0.92em;"/> <strong>do</strong><br/>    <span class="underline">&gt; Run an episode</span><br/>    <strong>while</strong> not d:<br/>        <img class="fm-editor-equation" src="assets/276ea0a3-f214-4a7e-8201-3741c921dc49.png" style="width:4.92em;height:1.33em;"/><br/>        <img class="fm-editor-equation" src="assets/8913d2ef-c476-4ead-ba47-9fd764b88d0b.png" style="width:8.00em;height:1.42em;"/><br/>        <span class="underline">&gt; Store the transition in the buffer</span><br/>        <img class="fm-editor-equation" src="assets/c97810a5-3317-4f31-8c30-b15f024d10d6.png" style="width:9.33em;height:1.17em;"/><br/>        <img class="fm-editor-equation" src="assets/613c5f96-14b5-41e0-9327-a20a252f9d3b.png" style="width:3.75em;height:1.33em;"/><br/><br/>        <span class="underline">&gt; Sample a minibatch</span> <br/>        <img class="fm-editor-equation" src="assets/1198b42f-9638-46e1-a750-8beaeb6849cf.png" style="width:2.50em;height:0.75em;"/><br/>        <span class="underline">&gt; Calculate the target value for every i in b</span><br/>        <img class="fm-editor-equation" src="assets/96108824-f7b7-43e5-8d57-e367eef1b699.png" style="width:17.08em;height:1.58em;"/> (8.4)<br/><br/>        <span class="underline">&gt; Update the critic</span> <br/>        <img class="fm-editor-equation" src="assets/b271a0df-53fe-45f0-bf87-40fdd8a244b5.png" style="width:18.83em;height:2.92em;"/> (8.5)<br/><br/>        <span class="underline">&gt; Update the policy</span><br/>        <img class="fm-editor-equation" src="assets/a62ef58e-9e53-49d8-8ff8-367ea163d533.png" style="width:23.75em;height:3.17em;"/> (8.6)<br/><br/>        <span class="underline">&gt; Targets update</span><br/>        <img class="fm-editor-equation" src="assets/d99bb01c-8452-4f53-87ea-c5de9ea27539.png" style="width:9.25em;height:1.33em;"/><br/>        <img class="fm-editor-equation" src="assets/c8a54c21-dd32-4dfe-b078-05e16cf52992.png" style="width:9.17em;height:1.33em;"/><br/><br/><strong>        </strong><strong>if</strong> <img class="fm-editor-equation" src="assets/22fe89ae-0dee-4c57-8a11-735c23401577.png" style="width:4.00em;height:0.75em;"/>:<br/>            <img class="fm-editor-equation" src="assets/2752638a-2654-487e-84c2-3f76a5682f33.png" style="width:7.75em;height:1.25em;"/></pre>
+<p>With a more clear understanding of the algorithm, we can now start implementing it.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">DDPG implementation</h1>
+                </header>
+            
+            <article>
+                
+<p>The pseudocode that was given in the preceding section already provides a comprehensive view of the algorithm, but from an implementation standpoint, there are a few things that are worth looking at in more depth. Here, we'll show the more interesting features that could also recur in other algorithms. The full code is available in the GitHub repository of the book: <a href="https://github.com/PacktPublishing/Reinforcement-Learning-Algorithms-with-Python">https://github.com/PacktPublishing/Reinforcement-Learning-Algorithms-with-Python</a>.</p>
+<p>Specifically, we'll focus on a few main parts:</p>
+<ul>
+<li>How to build a deterministic actor-critic</li>
+<li>How to do soft updates</li>
+<li>How to optimize a loss function, with respect to only some parameters</li>
+<li>How to calculate the target values</li>
+</ul>
+<p>We defined a deterministic actor and a critic inside a function called <kbd>deterministic_actor_critic</kbd>. This function will be called twice, as we need to create both an online and a target actor-critic. The code is as follows:</p>
+<div>
+<pre><span>def</span><span> </span><span>deterministic_actor_critic</span><span>(</span><span>x</span><span>, </span><span>a</span><span>, </span><span>hidden_sizes</span><span>, </span><span>act_dim</span><span>, </span><span>max_act</span><span>):<br/></span><span>    with</span><span> tf.</span><span>variable_scope</span><span>(</span><span>'</span><span>p_mlp</span><span>'</span><span>):<br/></span><span>        p_means </span><span>=</span><span> max_act </span><span>*</span><span> </span><span>mlp</span><span>(x, hidden_sizes, act_dim, </span><span>last_activation</span><span>=</span><span>tf.tanh)<br/></span><span>    with</span><span> tf.</span><span>variable_scope</span><span>(</span><span>'</span><span>q_mlp</span><span>'</span><span>):<br/></span><span>        q_d </span><span>=</span><span> </span><span>mlp</span><span>(tf.</span><span>concat</span><span>([x,p_means], </span><span>axis</span><span>=-</span><span>1</span><span>), hidden_sizes, </span><span>1</span><span>, </span><span>last_activation</span><span>=</span><span>None</span><span>)<br/></span><span>    with</span><span> tf.</span><span>variable_scope</span><span>(</span><span>'</span><span>q_mlp</span><span>'</span><span>, </span><span>reuse</span><span>=</span><span>True</span><span>): </span><span># reuse the weights<br/></span><span>        q_a </span><span>=</span><span> </span><span>mlp</span><span>(tf.</span><span>concat</span><span>([x,a], </span><span>axis</span><span>=-</span><span>1</span><span>), hidden_sizes, </span><span>1</span><span>, </span><span>last_activation</span><span>=</span><span>None</span><span>)<br/></span><span>    return</span><span> p_means, tf.</span><span>squeeze</span><span>(q_d), tf.</span><span>squeeze</span><span>(q_a)</span></pre></div>
+<p>There are three interesting things happening inside this function. The first is that we are distinguishing between two types of input for the same critic. One that takes <span>a state</span> as the in<span>put, </span>and a <kbd>p_means</kbd> deterministic action is returned by the policy; and the other that takes <span>a state </span>and an arbitrary action <span>as the input</span>. This distinction is needed, because one critic will be used for optimizing the actor, while the other is used for optimizing the critic. Nevertheless, despite these two critics having two different inputs, they are the same neural network, meaning that they share the same parameters. This different use case is accomplished by defining the same variable scope for both instances of the critic, and setting <kbd>reuse=True</kbd> on the second one. This will make sure that the parameters are the same for both definitions, in practice creating only one critic.</p>
+<p>The second observation is that we are defining the actor inside a variable scope called <kbd>p_mlp.</kbd> This is because, later on, we'll need to retrieve only these parameters, and not those of the critic.</p>
+<p>The third observation is that, because the policy has a <kbd>tanh</kbd> function as its final activation layer (to constrain the values to be between -1 and 1) but our actor may need values out of this range, we have to multiply the output by a <kbd>max_act</kbd> factor (this assumes that the minimum and maximum values are opposite, that is, if the maximum allowed value is 3, the minimum is -3).</p>
+<p>Nice! Let's now have a look through the remaining of the computational graph, where we define the placeholders; create the online and target actors, as well as the online and target critics; define the losses; implement the optimizers; and update the target networks.</p>
+<p>We'll start from the creation of the placeholders that we'll need for the observations, the actions, and the target values:</p>
+<div>
+<pre><span>obs_dim </span><span>=</span><span> env.observation_space.shape<br/></span><span>act_dim </span><span>=</span><span> env.action_space.shape</span>
+<br/><span>obs_ph </span><span>=</span><span> </span><span>tf.</span><span>placeholder</span><span>(</span><span>shape</span><span>=</span><span>(</span><span>None</span><span>, obs_dim[</span><span>0</span><span>]), </span><span>dtype</span><span>=</span><span>tf.float32, </span><span>name</span><span>=</span><span>'</span><span>obs</span><span>'</span><span>)<br/></span><span>act_ph </span><span>=</span><span> tf.</span><span>placeholder</span><span>(</span><span>shape</span><span>=</span><span>(</span><span>None</span><span>, act_dim[</span><span>0</span><span>]), </span><span>dtype</span><span>=</span><span>tf.float32, </span><span>name</span><span>=</span><span>'</span><span>act</span><span>'</span><span>)</span>
+<span>y_ph </span><span>=</span><span> tf.</span><span>placeholder</span><span>(</span><span>shape</span><span>=</span><span>(</span><span>None</span><span>,), </span><span>dtype</span><span>=</span><span>tf.float32, </span><span>name</span><span>=</span><span>'</span><span>y</span><span>'</span><span>)</span></pre></div>
+<p>In the preceding code, <kbd>y_ph</kbd> is the placeholder for the target Q-values, <kbd>obs_ph</kbd> for the observations, and <kbd>act_ph</kbd> for the actions.</p>
+<p>We then call the <span>previously defined</span> <kbd>deterministic_actor_critic</kbd> function inside an <kbd>online</kbd> and <kbd>target</kbd> variable scope, so as to differentiate the four neural networks:</p>
+<div>
+<pre><span>with</span><span> tf.</span><span>variable_scope</span><span>(</span><span>'</span><span>online</span><span>'</span><span>):<br/>    </span><span>p_onl, qd_onl, qa_onl </span><span>=</span><span> </span><span>deterministic_actor_critic</span><span>(obs_ph, act_ph, hidden_sizes, act_dim[</span><span>0</span><span>], np.</span><span>max</span><span>(env.action_space.high))<br/><br/></span><span>with</span><span> tf.</span><span>variable_scope</span><span>(</span><span>'</span><span>target</span><span>'</span><span>):<br/>    </span><span>_, qd_tar, _ </span><span>=</span><span> </span><span>deterministic_actor_critic</span><span>(obs_ph, act_ph, hidden_sizes, act_dim[</span><span>0</span><span>], np.</span><span>max</span><span>(env.action_space.high))</span></pre></div>
+<p>The loss of the critic is the MSE loss between the Q-values of the <kbd>qa_onl</kbd> online network, and the <kbd>y_ph</kbd> target action value:</p>
+<div>
+<pre><span>q_loss </span><span>=</span><span> tf.</span><span>reduce_mean</span><span>((qa_onl </span><span>-</span><span> y_ph)</span><span>**</span><span>2</span><span>)</span></pre></div>
+<p>This will be minimized with the Adam optimizer:</p>
+<div>
+<pre><span>q_opt </span><span>=</span><span> tf.train.</span><span>AdamOptimizer</span><span>(cr_lr).</span><span>minimize</span><span>(q_loss</span><span>)</span></pre></div>
+<p><span>With regard to the actor's loss function, it is the opposite sign of the online Q-network. In this case, the online Q-network </span>has the actions chosen by the online deterministic actor <span>as the input</span> (as from formula (8.6), which was defined in the pseudocode of <em>The DDPG algorithm</em> section). Thus, the Q-values are represented by <kbd>qd_onl</kbd>, and the policy loss function is written as follows:</p>
+<div>
+<pre><span>p_loss </span><span>=</span><span> </span><span>-</span><span>tf.</span><span>reduce_mean</span><span>(qd_onl)</span></pre></div>
+<p><span>We took the opposite sign of the objective function, because we have to convert it to a loss function, considering that</span> the optimizers need to minimize a loss function.</p>
+<p>Now, the most important thing to remember here is that, despite computing the gradient from the <kbd>p_loss</kbd> loss function that depends on both the critic and the actor, we only need to update the actor. Indeed, from DPG we know that <img class="fm-editor-equation" src="assets/48dc9da4-7d84-47cf-8d29-860467c03f05.png" style="width:20.92em;height:1.50em;"/>.</p>
+<p>This is accomplished by passing <kbd>p_loss</kbd> to the <kbd>minimize</kbd> method of the optimizer, which specifies the variables that need updating. In this case, we need to update only the variables of the online actor that was defined in the <kbd>online/m_mlp</kbd> variable scope:</p>
+<div>
+<pre><span>p_opt </span><span>=</span><span> tf.train.</span><span>AdamOptimizer</span><span>(ac_lr).</span><span>minimize</span><span>(p_loss, </span><span>var_list</span><span>=</span><span>variables_in_scope</span><span>(</span><span>'</span><span>online/p_mlp</span><span>'</span><span>))</span></pre></div>
+<p>In this way, the computation of the gradient will start from <kbd>p_loss</kbd>, go through the critic's network, and then the actor's network. By the end, only the parameters of the actor will be optimized.</p>
+<p>Now, we have to define the <kbd>variable_in_scope(scope)</kbd> function that returns the variables in the scope named <kbd>scope</kbd>:</p>
+<div>
+<pre><span>def</span><span> </span><span>variables_in_scope</span><span>(</span><span>scope</span><span>):<br/>    </span><span>return</span><span> tf.</span><span>get_collection</span><span>(tf.GraphKeys.</span><span>GLOBAL_VARIABLES</span><span>, scope)</span></pre></div>
+<p>It's now time to look at how the target networks are updated. We can use <kbd>variable_in_scope</kbd> to get the target and online variables of both the actors and the critics, and use the TensorFlow <kbd>assign</kbd> function on the target variables to update them, following the soft update formula:</p>
+<p class="CDPAlignCenter CDPAlign"><br/>
+<img class="fm-editor-equation" src="assets/c41a2d89-d577-4559-ad98-d464d69a4d12.png" style="width:9.25em;height:1.33em;"/></p>
+<p> This is done in the following snippet of code:</p>
+<div>
+<pre><span>update_target </span><span>=</span><span> [target_var.</span><span>assign</span><span>(tau</span><span>*</span><span>online_var </span><span>+</span><span> (</span><span>1</span><span>-</span><span>tau)</span><span>*</span><span>target_var) </span><span>for</span><span> target_var, online_var </span><span>in</span><span> </span><span>zip</span><span>(</span><span>variables_in_scope</span><span>(</span><span>'</span><span>target</span><span>'</span><span>), </span><span>variables_in_scope</span><span>(</span><span>'</span><span>online</span><span>'</span><span>))]<br/></span><span>update_target_op </span><span>=</span><span> tf.</span><span>group</span><span>(</span><span>*</span><span>update_target)</span></pre></div>
+<p>That's it! For the computational graph, that's everything. <span>Pretty straightforward, right? </span>Now we can take a quick look at the main cycle, where the parameters are updated, following the estimated gradient on a finite batch of samples. The interaction of the policy with the environment is standard, with the exception that now the actions that are returned by the policy are deterministic, and we have to add a certain amount of noise in order to <span>adequately</span> explore the environment. Here, we don't provide this part of the code, but you can find the full implementation on GitHub.</p>
+<p>When a minimum amount of experience has been acquired, and the buffer has reached a certain threshold, the optimization of the policy and the critic starts. The steps that follow are those that are summarized in the DDPG pseudocode that was provided in <em>The DDPG algorithm</em> section. These are as follows:</p>
+<ol>
+<li>Sample a mini-batch from the buffer</li>
+<li>Calculate the target action values</li>
+<li>Optimize the critic</li>
+<li>Optimize the actor</li>
+<li>Update the target networks</li>
+</ol>
+<p>All these operations are executed in just a few lines of code: </p>
+<pre><span>    ... <br/>    <br/>    mb_obs, mb_rew, mb_act, mb_obs2, mb_done </span><span>=</span><span> buffer.</span><span>sample_minibatch</span><span>(batch_size)<br/><br/>    q_target_mb </span><span>=</span><span> sess.</span><span>run</span><span>(qd_tar, </span><span>feed_dict</span><span>=</span><span>{obs_ph:mb_obs2})<br/>    y_r </span><span>=</span><span> np.</span><span>array</span><span>(mb_rew) </span><span>+</span><span> discount</span><span>*</span><span>(</span><span>1</span><span>-</span><span>np.</span><span>array</span><span>(mb_done))</span><span>*</span><span>q_target_mb<br/><br/>    _, q_train_loss </span><span>=</span><span> sess.</span><span>run</span><span>([q_opt, q_loss], </span><span>feed_dict</span><span>=</span><span>{obs_ph:mb_obs, y_ph:y_r, act_ph: mb_act})<br/><br/>    _, p_train_loss </span><span>=</span><span> sess.</span><span>run</span><span>([p_opt, p_loss], </span><span>feed_dict</span><span>=</span><span>{obs_ph:mb_obs})<br/><br/>    sess.</span><span>run</span><span>(update_target_op)<br/><br/>     ...<br/></span></pre>
+<p>The first line of code samples a mini-batch of size <kbd>batch_size</kbd>, the second and third lines compute the target action values, as defined in equation (8.4), by running the critic and actor target networks on <kbd>mb_obs2</kbd>, which contains the next states. The fourth line optimizes the critic by feeding the dictionary with the target action values that were just computed, as well as the observations and actions. The fifth line optimizes the actor, and the last one updates the target networks by running <kbd>update_target_op</kbd>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Appling DDPG to BipedalWalker-v2</h1>
+                </header>
+            
+            <article>
+                
+<p>Let's now apply DDPG to a continuous task called BipedalWalker-v2, that is, one of the environments provided by Gym that uses Box2D, a 2D physical engine. A screenshot of this environment follows. The goal is to make the agent walk as fast as possible in rough terrains. A score of 300+ is given for moving until the end, but every application of the motors costs a small amount. The more optimally the agent moves, the less it costs. Furthermore, if the agent falls, it receives a reward of -100. The state consists of 24 float numbers that represent the speeds and the positions of the joints and the hull, and <span><span>LiDar </span></span>rangefinder measurements. The agent is controlled by four continuous actions, with the range [-1,1]. The following is a screenshot of BipedalWalker 2D environment:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1982 image-border" src="assets/3a6d8748-12b2-4a70-a6d7-a3f4ba780551.png" style="width:32.75em;height:19.75em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref"><span>Screenshot of BipedalWalker2d environment</span></div>
+<p>We run DDPG with the hyperparameters that are given in the following table. In the first row, the hyperparameters that are needed to run DDPG are listed, while the corresponding values that are used in this particular case are listed<span> in the second row. Let's refer to the following table:</span></p>
+<table style="border-collapse: collapse;width: 100%" border="1">
+<tbody>
+<tr>
+<td><strong>Hyperparameter</strong></td>
+<td class="CDPAlignCenter CDPAlign">Actor Learning Rate</td>
+<td class="CDPAlignCenter CDPAlign">Critic Learning Rate</td>
+<td class="CDPAlignCenter CDPAlign">DNN architecture</td>
+<td class="CDPAlignCenter CDPAlign">Buffer Size</td>
+<td class="CDPAlignCenter CDPAlign">Batch Size</td>
+<td class="CDPAlignCenter CDPAlign">Tau</td>
+</tr>
+<tr>
+<td><strong>Value</strong></td>
+<td class="CDPAlignCenter CDPAlign">3e-4</td>
+<td class="CDPAlignCenter CDPAlign">4e-4</td>
+<td class="CDPAlignCenter CDPAlign">[64,relu,64,relu]</td>
+<td class="CDPAlignCenter CDPAlign">200000</td>
+<td class="CDPAlignCenter CDPAlign">64</td>
+<td class="CDPAlignCenter CDPAlign">0.003</td>
+</tr>
+</tbody>
+</table>
+<p>During training, we added extra noise in the actions that were predicted by the policy, however, to measure the performance of the algorithm, we run 10 games on a pure deterministic policy (without extra noise) <span>every 10 episodes</span>. The cumulative rewards that is averaged across the 10 games <span>in the function of the timesteps </span>is plotted in the following diagram: </p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1983 image-border" src="assets/8c73c2f1-19ad-4c2d-be39-942a66eb55cc.png" style="width:121.67em;height:73.58em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign">Performance of the DDPG algorithm on BipedalWalker2d-v2</div>
+<div>
+<p><span>From the results, w</span>e can see that the performance is quite unstable, ranging from 250 to less than -100, after only a few thousand steps. <span>It is known that DDPG is unstable and very sensitive to the hyperparameters, but with more careful fine-tuning, the results may be smoother. </span>Nonetheless, we can see that the performance increases in the first 300k steps, reaching an average score of about 100, with peaks of up to 300. </p>
+<p>Additionally, BipedalWalker-v2 is a notoriously difficult environment to solve. Indeed, it is considered solved when the agent obtains an average reward of at least 300 points, on 100 consecutive episodes. With DDPG, we aren't able to reach those performances, but still, we obtained a good policy that is able to make the agent run fairly fast. </p>
+</div>
+<div class="packt_tip">In our implementation, we used a constant exploratory factor. By using a more sophisticated function, you could probably reach a higher performance in fewer iterations. For example, in the DDPG paper, they use an Ornstein-Uhlenbeck process. You can start from this process, if you wish to.</div>
+<p>DDPG is a beautiful example of how deterministic policy can be used in contraposition to stochastic policies. However, because it's been the first of its kind to deal with complex problems, there are many further adjustments that can be applied to it. The next algorithm that is proposed in this chapter, takes DDPG one step further.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Twin delayed deep deterministic policy gradient (TD3)</h1>
+                </header>
+            
+            <article>
+                
+<p>DDPG is regarded as one of the most sample-efficient actor-critic algorithms, but it has been demonstrated to be brittle and sensitive to hyperparameters. Further studies have tried to alleviate these problems, by introducing novel ideas, or by using tricks from other algorithms on top of DDPG. Recently, one algorithm has taken over as a replacement of DDPG: twin delayed deep deterministic policy gradient, or for short, TD3 (the paper is <em>Addressing Function Approximation Error in Actor-Critic Methods</em>: <a href="https://arxiv.org/pdf/1802.09477.pdf">https://arxiv.org/pdf/1802.09477.pdf</a>). We have used the word replacement here, because it's actually a continuation of the DDPG algorithms, with some more ingredients that make it more stable, and more performant.</p>
+<p>TD3 focuses on some of the problems that are also common in other off-policy algorithms. These problems are the overestimation of the value estimate, and high-variance estimates of the gradient. For the former problem, they employ a solution similar to the one used in DQN, and for the latter, they employ two novel solutions. Let's first consider the overestimation bias problem.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Addressing overestimation bias</h1>
+                </header>
+            
+            <article>
+                
+<p>Overestimation bias means that the action values that are predicted by the approximated Q-function are higher than what they should be. Having been widely studied in Q-learning algorithms with discrete actions, this often leads to bad predictions that affect the end performance. Despite being less affected, this problem is also present in DDPG.</p>
+<p>If you remember, the DQN variant that reduces the overestimation of the action values is called double DQN and it proposes two neural networks; one for choosing the action, and one for calculating the Q-value. In particular, the work of the second neural network is done by a frozen target network. This is a sound idea, but as explained in the TD3 paper, it isn't effective on actor-critic methods, as in these methods, the policy changes too slowly. So, they propose a variation called clipped double Q-learning that takes the minimum between the estimates of two different critics (<img class="fm-editor-equation" src="assets/5b045c7e-76d0-452b-ad16-eb1363a7c52a.png" style="width:3.67em;height:1.17em;"/>). Thus, the target value is computed as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/8fb20200-fb00-4814-a4f4-746258e11d85.png" style="width:30.67em;height:2.17em;"/></p>
+<p>On the opposite side, this doesn't prevent an underestimation bias, but it is way less harmful than its overestimation. Clipped double Q-learning can be used in any actor-critic method, and it works following the assumption that the two critics will have different biases.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementation of TD3</h1>
+                </header>
+            
+            <article>
+                
+<p>To put this strategy into code, we have to create two critics with different initializations, compute the target action value as in (8.7), and optimize both critics.</p>
+<div class="packt_infobox">TD3 is applied on the DDPG implementation that we discussed in the previous section. The following snippets are only a portion of the additional code that is needed to implement TD3. The complete implementation is available in the GitHub repository of the book: <a href="https://github.com/PacktPublishing/Hands-On-Reinforcement-Learning-Algorithms-with-Python">https://github.com/PacktPublishing/Hands-On-Reinforcement-Learning-Algorithms-with-Python</a>.</div>
+<p>With regard to the double critic, you have just to create them by calling  <kbd>deterministic_actor_double_critic</kbd><span> </span>twice, once for the target and once for the online networks, as done in DDPG. The code will be similar to this:</p>
+<div>
+<pre><span>def</span><span> </span><span>deterministic_actor_double_critic</span><span>(</span><span>x</span><span>, </span><span>a</span><span>, </span><span>hidden_sizes</span><span>, </span><span>act_dim</span><span>, </span><span>max_act</span><span>):<br/>    </span><span>with</span><span> tf.</span><span>variable_scope</span><span>(</span><span>'</span><span>p_mlp</span><span>'</span><span>):<br/>        </span><span>p_means </span><span>=</span><span> max_act </span><span>*</span><span> </span><span>mlp</span><span>(x, hidden_sizes, act_dim, </span><span>last_activation</span><span>=</span><span>tf.tanh)<br/></span><span>    <br/>    # First critic<br/></span><span>    with</span><span> tf.</span><span>variable_scope</span><span>(</span><span>'</span><span>q1_mlp</span><span>'</span><span>):<br/></span><span>        q1_d </span><span>=</span><span> </span><span>mlp</span><span>(tf.</span><span>concat</span><span>([x,p_means], </span><span>axis</span><span>=-</span><span>1</span><span>), hidden_sizes, </span><span>1</span><span>, </span><span>last_activation</span><span>=</span><span>None</span><span>)<br/></span><span>    with</span><span> tf.</span><span>variable_scope</span><span>(</span><span>'</span><span>q1_mlp</span><span>'</span><span>, </span><span>reuse</span><span>=</span><span>True</span><span>): </span><span># Use the weights of the mlp just defined<br/></span><span>        q1_a </span><span>=</span><span> </span><span>mlp</span><span>(tf.</span><span>concat</span><span>([x,a], </span><span>axis</span><span>=-</span><span>1</span><span>), hidden_sizes, </span><span>1</span><span>, </span><span>last_activation</span><span>=</span><span>None</span><span>)<br/></span><span><br/>    # Second critic<br/></span><span>    with</span><span> tf.</span><span>variable_scope</span><span>(</span><span>'</span><span>q2_mlp</span><span>'</span><span>):<br/></span><span>        q2_d </span><span>=</span><span> </span><span>mlp</span><span>(tf.</span><span>concat</span><span>([x,p_means], </span><span>axis</span><span>=-</span><span>1</span><span>), hidden_sizes, </span><span>1</span><span>, </span><span>last_activation</span><span>=</span><span>None</span><span>)<br/></span><span>    with</span><span> tf.</span><span>variable_scope</span><span>(</span><span>'</span><span>q2_mlp</span><span>'</span><span>, </span><span>reuse</span><span>=</span><span>True</span><span>):<br/></span><span>        q2_a </span><span>=</span><span> </span><span>mlp</span><span>(tf.</span><span>concat</span><span>([x,a], </span><span>axis</span><span>=-</span><span>1</span><span>), hidden_sizes, </span><span>1</span><span>, </span><span>last_activation</span><span>=</span><span>None</span><span>)<br/><br/></span><span>    return</span><span> p_means, tf.</span><span>squeeze</span><span>(q1_d), tf.</span><span>squeeze</span><span>(q1_a), tf.</span><span>squeeze</span><span>(q2_d), tf.</span><span>squeeze</span><span>(q2_a)</span></pre></div>
+<p>The clipped target value (<img class="fm-editor-equation" src="assets/f7156912-91fe-4f61-8ab6-883d68efd60d.png" style="width:15.50em;height:1.50em;"/> (8.7)) is <span>implemented by first running the two target critics that we called</span> <kbd>qa1_tar</kbd> <span>and</span> <kbd>qa2_tar</kbd><span>, and then calculating the minimum between the estimated values, and finally, using it to estimate the target values:</span></p>
+<div>
+<pre><span>            ...            <br/>            </span><span>double_actions </span><span>=</span><span> sess.</span><span>run</span><span>(p_tar, </span><span>feed_dict</span><span>=</span><span>{obs_ph:mb_obs2})<br/><br/>            </span><span>q1_target_mb, q2_target_mb </span><span>=</span><span> sess.</span><span>run</span><span>([qa1_tar,qa2_tar], </span><span>feed_dict</span><span>=</span><span>{obs_ph:mb_obs2, act_ph:double_actions})<br/></span><span>            q_target_mb </span><span>=</span><span> np.</span><span>min</span><span>([q1_target_mb, q2_target_mb], </span><span>axis</span><span>=</span><span>0</span><span>) <br/></span><span>            y_r </span><span>=</span><span> np.</span><span>array</span><span>(mb_rew) </span><span>+</span><span> discount</span><span>*</span><span>(</span><span>1</span><span>-</span><span>np.</span><span>array</span><span>(mb_done))</span><span>*</span><span>q_target_mb<br/>            ..</span></pre></div>
+<p>Next, the critics can be optimized as usual:</p>
+<div>
+<pre><span>            ...<br/>            q1_train_loss, q2_train_loss </span><span>=</span><span> sess.</span><span>run</span><span>([q1_opt, q2_opt], </span><span>feed_dict</span><span>=</span><span>{obs_ph:mb_obs, y_ph:y_r, act_ph: mb_act})<br/>            ...<br/></span></pre></div>
+<p class="mce-root">An important observation to make is that the policy is optimized with respect to only one approximated Q-function, in our case, <img class="fm-editor-equation" src="assets/6337f75c-b73a-4b3c-b2d5-43f5648fa242.png" style="width:1.67em;height:1.17em;"/>. In fact, if you look at the full code, you'll see that <kbd>p_loss</kbd> is defined as <kbd><span>p_loss</span> <span>=</span> <span>-</span><span>tf.</span><span>reduce_mean</span><span>(qd1_onl)</span></kbd>.</p>
+<p class="mce-root"/>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Addressing variance reduction</h1>
+                </header>
+            
+            <article>
+                
+<p>The second, and last, contribution by TD3, is the reduction of the variance. Why is high variance a problem? Well, it provides a noisy gradient, which involves a wrong policy update impacting the performance of the algorithm. The complication of high variance arises in the TD error, which estimates the action values from subsequent states.</p>
+<p>To mitigate this problem, TD3 introduces a delayed policy update, and a target regularization technique. Let's see what they are, and why they work so well.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Delayed policy updates</h1>
+                </header>
+            
+            <article>
+                
+<p>Since high variance is attributed to an inaccurate critic, TD3 proposes to delay the update of the policy until the critic error is small enough. TD3 delays the update in an empirical way, by updating the policy only after a fixed number of iterations. In this manner, the critic has time to learn and stabilize itself, before the policy's optimization takes place. In practice, the policy remains fixed only for a few iterations, typically between 1 and 6. If set to 1, then it is the same as in DDPG. The delayed policy updates can be implemented as follows:</p>
+<pre><span>            ...<br/>            q1_train_loss, q2_train_loss </span><span>=</span><span> sess.</span><span>run</span><span>([q1_opt, q2_opt], </span><span>feed_dict</span><span>=</span><span>{obs_ph:mb_obs, y_ph:y_r, act_ph: mb_act})<br/>            if step_count % policy_update_freq == 0:<br/>                sess.run(p_opt, feed_dict={obs_ph:mb_obs})<br/>                sess.run(update_target_op)<br/>            ...</span></pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Target regularization</h1>
+                </header>
+            
+            <article>
+                
+<p>Critics that update from deterministic actions tend to overfit in narrow peaks. The consequence is an increase in variance. TD3 presents a smoothing regularization technique that adds a clipped noise to a small area near the target action:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/73c8b8d4-6997-43f3-94fc-42a755aee225.png" style="width:16.83em;height:2.92em;"/></p>
+<p>The regularization can be implemented in a function that takes <span>a vector and a scal</span><span>e </span>as arguments<span>: </span></p>
+<div>
+<pre><span>def</span><span> </span><span>add_normal_noise</span><span>(</span><span>x</span><span>, </span><span>noise_scale</span><span>):<br/>    </span><span>return</span><span> x </span><span>+</span><span> np.</span><span>clip</span><span>(np.random.</span><span>normal</span><span>(</span><span>loc</span><span>=</span><span>0.0</span><span>, </span><span>scale</span><span>=</span><span>noise_scale, </span><span>size</span><span>=</span><span>x.shape), </span><span>-</span><span>0.5</span><span>, </span><span>0.5</span><span>)</span></pre></div>
+<p>Then, <kbd>add_normal_noise</kbd> is called after running the target policy, as shown in the following lines of code (the changes with respect to the DDPG implementation are written in bold):</p>
+<pre><span>            ...            <br/>            </span><span>double_actions </span><span>=</span><span> sess.</span><span>run</span><span>(p_tar, </span><span>feed_dict</span><span>=</span><span>{obs_ph:mb_obs2})<br/>            </span><strong><span>double_noisy_actions </span><span>=</span><span> np.</span><span>clip</span><span>(</span><span>add_normal_noise</span></strong><span><strong>(double_actions, target_noise), env.action_space.low, env.action_space.high)</strong><br/><br/>            </span><span>q1_target_mb, q2_target_mb </span><span>=</span><span> sess.</span><span>run</span><span>([qa1_tar,qa2_tar], </span><span>feed_dict</span><span>=</span><span>{obs_ph:mb_obs2, act_ph:<strong>double_noisy_actions</strong>})<br/></span><span>            q_target_mb </span><span>=</span><span> np.</span><span>min</span><span>([q1_target_mb, q2_target_mb], </span><span>axis</span><span>=</span><span>0</span><span>) <br/></span><span>            y_r </span><span>=</span><span> np.</span><span>array</span><span>(mb_rew) </span><span>+</span><span> discount</span><span>*</span><span>(</span><span>1</span><span>-</span><span>np.</span><span>array</span><span>(mb_done))</span><span>*</span><span>q_target_mb<br/>            ..</span></pre>
+<p>We clipped the actions, after having added the extra noise, to make sure that they don't exceed the ranges that were set by the environment.</p>
+<p>Putting everything together, we obtain the algorithm that is shown in the following pseudocode:</p>
+<pre>---------------------------------------------------------------------------------<br/>TD 3 Algorithm<br/>---------------------------------------------------------------------------------<br/><br/>Initialize online networks <img class="fm-editor-equation" src="assets/83273e0a-8614-4e42-a730-a2aac1845894.png" style="width:3.58em;height:1.17em;"/> and <img class="fm-editor-equation" src="assets/20517a68-77a2-4aa5-93b7-275ff02371c8.png" style="width:1.00em;height:0.67em;"/><br/>Initialize target networks <img class="fm-editor-equation" src="assets/8e879788-cb07-4257-84c6-7ee7f8b172e5.png" style="width:3.50em;height:1.25em;"/> and <img class="fm-editor-equation" src="assets/67a316b4-6208-4f4d-a589-9c74cd207ba6.png" style="width:1.75em;height:1.08em;"/> with the same weights as the online networks<br/>Initialize empty replay buffer <img class="fm-editor-equation" src="assets/63a51bd1-0fdf-47ec-bb2e-6ed8abae159b.png" style="width:0.50em;height:0.50em;"/><br/>Initialize environment <img class="fm-editor-equation" src="assets/5b21ff95-4016-402e-9cfd-8de05f96f0e6.png" style="width:8.00em;height:1.42em;"/><br/><br/><strong>for</strong> <img class="fm-editor-equation" src="assets/6fdfb3b4-a2c8-4060-a18e-820be4cb19fb.png" style="width:6.75em;height:1.08em;"/> <strong>do</strong><br/>    <span class="underline">&gt; Run an episode</span><br/>    <strong>while</strong> not d:<br/>        <img class="fm-editor-equation" src="assets/a844d360-a9ba-4a75-8973-8693bed337f1.png" style="width:4.33em;height:1.17em;"/><br/>        <img class="fm-editor-equation" src="assets/64ee5662-ce2e-42a9-b791-ea7c641247b8.png" style="width:6.75em;height:1.25em;"/><br/>        <span class="underline">&gt; Store the transition in the buffer</span><br/>        <img class="fm-editor-equation" src="assets/d1626142-b6aa-46ee-95cd-3a2311b7d3db.png" style="width:8.67em;height:1.00em;"/><br/>        <img class="fm-editor-equation" src="assets/d0301262-5fb7-46b4-92a5-948c73653fcf.png" style="width:4.33em;height:1.50em;"/><br/><br/>        <span class="underline">&gt; Sample a minibatch</span> <br/>        <img class="fm-editor-equation" src="assets/36bfd57e-a705-486a-bf67-c973d3139a94.png" style="width:2.50em;height:0.83em;"/><br/>        <span class="underline">&gt; Calculate the target value for every i in b</span><br/>        <img class="fm-editor-equation" src="assets/8bc3cbd8-b083-48c3-8c6b-140810f81bb3.png" style="width:17.83em;height:3.00em;"/> <br/><br/>        <span class="underline">&gt; Update the critics</span> <br/>        <img class="fm-editor-equation" src="assets/cad3a5ae-421d-4d17-8c37-0f7a2c800a70.png" style="width:18.42em;height:2.67em;"/> <br/>        <img class="fm-editor-equation" src="assets/c3d1bc2b-bcd2-452b-8a94-702363c2772d.png" style="width:19.33em;height:2.83em;"/><br/><br/>        <strong>if</strong> iter % policy_update_frequency == 0:<br/>            <span class="underline">&gt; Update the policy</span><br/>            <img class="fm-editor-equation" src="assets/2371db15-dab7-41bd-8ab0-0524f6e91e05.png" style="width:26.50em;height:3.50em;"/> <br/>            <span class="underline">&gt; Targets update</span><br/>            <img class="fm-editor-equation" src="assets/9f3985f5-6701-495d-bdc1-ad84e4c12cd0.png" style="width:8.67em;height:1.25em;"/><br/>            <img class="fm-editor-equation" src="assets/f800fa2c-6cd5-43e8-8981-50b3256cc24f.png" style="width:9.17em;height:1.25em;"/><br/>            <img class="fm-editor-equation" src="assets/52aaee10-7ef6-4063-8c88-bd9fb58980f3.png" style="width:9.17em;height:1.25em;"/><br/><br/><strong>        if</strong> <img class="fm-editor-equation" src="assets/65935f1b-c9a9-418e-91f5-b16f3bf215e2.png" style="width:5.50em;height:1.17em;"/>:<br/>            <img class="fm-editor-equation" src="assets/e8354618-310a-4d67-8aba-922a02965835.png" style="width:8.08em;height:1.42em;"/></pre>
+<p>That's everything for the TD3 algorithm. Now, you have a clear understanding of all the deterministic and non-deterministic policy gradient methods. Almost all of the model-free algorithms are based on the principles that we explained in these chapters, and if you master them, you will be able to understand and implement all of them.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Applying TD3 to BipedalWalker</h1>
+                </header>
+            
+            <article>
+                
+<p>For a direct comparison of TD3 and DDPG, we tested TD3 in the same environment that we used for DDPG: BipedalWalker-v2. </p>
+<p>The best hyperparameters for TD3 for this environment are listed in this table:</p>
+<table style="border-collapse: collapse;width: 100%" border="1">
+<tbody>
+<tr style="height: 53.4531px">
+<td style="height: 53.4531px"><strong>Hyperparameter</strong></td>
+<td style="height: 53.4531px" class="CDPAlignCenter CDPAlign">Actor l.r.</td>
+<td style="height: 53.4531px" class="CDPAlignCenter CDPAlign">Critic l.r.</td>
+<td style="height: 53.4531px" class="CDPAlignCenter CDPAlign">DNN Architecture</td>
+<td style="height: 53.4531px" class="CDPAlignCenter CDPAlign">Buffer Size</td>
+<td style="height: 53.4531px" class="CDPAlignCenter CDPAlign">Batch Size</td>
+<td style="height: 53.4531px" class="CDPAlignCenter CDPAlign">Tau</td>
+<td style="height: 53.4531px" class="CDPAlignCenter CDPAlign">
+<div>
+<div><span>Policy Update Freq</span></div>
+</div>
+</td>
+<td style="height: 53.4531px" class="CDPAlignCenter CDPAlign">
+<div>
+<div><span>Sigma</span></div>
+</div>
+</td>
+</tr>
+<tr style="height: 32px">
+<td style="height: 32px"><strong>Value</strong></td>
+<td style="height: 32px" class="CDPAlignCenter CDPAlign">4e-4</td>
+<td style="height: 32px" class="CDPAlignCenter CDPAlign">4e-4</td>
+<td style="height: 32px" class="CDPAlignCenter CDPAlign">[64,relu,64,relu]</td>
+<td style="height: 32px" class="CDPAlignCenter CDPAlign">200000</td>
+<td style="height: 32px" class="CDPAlignCenter CDPAlign">64</td>
+<td style="height: 32px" class="CDPAlignCenter CDPAlign">0.005</td>
+<td style="height: 32px" class="CDPAlignCenter CDPAlign">2</td>
+<td style="height: 32px" class="CDPAlignCenter CDPAlign">0.2</td>
+</tr>
+</tbody>
+</table>
+<p>The result is plotted in the following diagram. The curve has a smooth trend, and reaches good results after about 300K steps, with top peaks at 450K steps of training. It arrives very close to the goal of 300 points, but it does not actually gain them:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1984 image-border" src="assets/95708f9b-ea27-40f2-a931-e9fa82d4b29b.png" style="width:121.33em;height:73.42em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref"><span>Performance of the TD3 algorithm on BipedalWalker-v2</span></div>
+<p><span>The time spent finding a good set of hyperparameters for TD3 was less compared to DDPG. And, despite the fact that we are comparing the two algorithms on only one game, we think that it is a good first insight into their differences, in terms of stability and performance. The performance of both DDPG and TD3 on BipedalWalker-v2 are shown here:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-1985 image-border" src="assets/80e1f327-dc9d-48c4-87a8-42e15a32183c.png" style="width:120.92em;height:73.17em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign">DDPG versus TD3 performance comparison</div>
+<div class="packt_tip">If you want to train the algorithms in a harder environment, you can try BipedalWalkerHardcore-v2. It is very similar to BipedalWalker-v2, with the exception that it has <span>ladders, stumps, and pitfalls. Very few algorithms are able to finish and solve this environment. It's also funny to see how the agent fails to pass the obstacles!</span></div>
+<p><span>The superiority of TD3 compared to DDPG is immediately clear, both in terms of the end performance, the rate of improvement, and the stability of the algorithm. </span></p>
+<div class="packt_infobox"><span>For all the color references mentioned in the chapter, please refer to the color images bundle at </span><a href="http://www.packtpub.com/sites/default/files/downloads/9781789131116_ColorImages.pdf">http://www.packtpub.com/sites/default/files/downloads/9781789131116_ColorImages.pdf</a><span>.</span></div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>In this chapter, we approached two different ways in which to solve an RL problem. The first is through the estimation of state-action values that are used to choose the best next action, so-called Q-learning algorithms. The second involves the maximization of the expected reward policy through its gradient. In fact, these methods are called policy gradient methods. In this chapter, we showed the advantages and disadvantages of such approaches, and demonstrated that many of these are complementary. For example, Q-learning algorithms are sample efficient but cannot deal with continuous action. Instead, policy gradient algorithms require more data, but are able to control agents with continuous actions. We then introduced DPG methods that combine Q-learning and policy gradient techniques. In particular, these methods overcome the global maximization of the Q-learning algorithms by predicting a deterministic policy. We also saw how the DPG theorem defines the deterministic policy update through the gradient of the Q-function. </p>
+<p>We learned and implemented two DPG algorithms: DDPG and TD3. Both are off-policy, actor-critic algorithms that can be used in environments with continuous action spaces. TD3 is an upgrade of DDPG that encapsulates a few tricks for the reduction of variance, and to limit the overestimation bias that is common in Q-learning algorithms. </p>
+<p>This chapter concludes the overview of the model-free reinforcement learning algorithms. We took a look at all the best, and most influential algorithms known so far, from SARSA to DQN, and from REINFORCE to PPO, and combined them in algorithms such as DDPG and TD3. These algorithms alone are capable of amazing things, with the right fine-tuning and a large amount of data (see OpenAI Five and AlphaStar). However, this isn't all there is to know about RL. In the next chapter, we move away from model-free algorithms, showing a model-based algorithm whose intent is to reduce the amount of data that is required for learning a task, by learning a model of the environment. In subsequent chapters, we'll also show more advanced techniques, such as imitation learning, new useful RL algorithms such as ESBAS, and non-RL algorithms such as evolutional strategies.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Questions</h1>
+                </header>
+            
+            <article>
+                
+<ol>
+<li>What is the primary limitation of Q-learning algorithms?</li>
+<li>Why are stochastic gradient algorithms sample inefficient?</li>
+<li>How does DPG overcome the maximization problem?</li>
+<li>How does DPG guarantee enough exploration?</li>
+<li>What does DDPG stand for? And what is its main contribution?</li>
+<li>What problems does TD3 propose to minimize?</li>
+<li>What new mechanisms does TD3 employ?</li>
+</ol>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Further reading</h1>
+                </header>
+            
+            <article>
+                
+<p>You can use the following links to learn more:</p>
+<ul>
+<li>If you are interested in the paper that introduced the <strong>Deterministic Policy Gradient</strong> <span>(<strong>DPG</strong>) algorithm</span>, read: <a href="http://proceedings.mlr.press/v32/silver14.pdf">http://proceedings.mlr.press/v32/silver14.pdf</a>.</li>
+<li><span>If you are interested in the paper that introduced the <strong>Deep Deterministic Policy Gradient </strong>(<strong>DDPG</strong>) algorithm, read: <a href="https://arxiv.org/pdf/1509.02971.pdf">https://arxiv.org/pdf/1509.02971.pdf</a>.</span></li>
+<li>The paper that presented <strong>Twin Delayed Deep Deterministic</strong> Policy Gradient (<strong>TD3</strong>) can be found here: <a href="https://arxiv.org/pdf/1802.09477.pdf">https://arxiv.org/pdf/1802.09477.pdf</a></li>
+<li>For a brief overview of all the main policy gradient algorithms, checkout this article by Lilian Weng: <a href="https://lilianweng.github.io/lil-log/2018/04/08/policy-gradient-algorithms.html">https://lilianweng.github.io/lil-log/2018/04/08/policy-gradient-algorithms.html</a>.</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

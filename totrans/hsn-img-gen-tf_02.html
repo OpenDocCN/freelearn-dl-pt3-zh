@@ -1,0 +1,321 @@
+<html><head></head><body>
+		<div id="_idContainer024">
+			<h1 id="_idParaDest-18"><em class="italic"><a id="_idTextAnchor017"/>Chapter 1</em>: Getting Started with Image Generation Using TensorFlow</h1>
+			<p>This book focuses on generating images and videos using unsupervised learning with TensorFlow 2. We assume that you have prior experience in using modern machine learning frameworks, such as TensorFlow 1, to build image classifiers with <strong class="bold">Convolutional Neural Networks</strong> (<strong class="bold">CNNs</strong>). Therefore, we will not be covering the basics of deep learning and CNNs. In this book, we will mainly use high level Keras APIs in TensorFlow 2, which is easy to learn. Nevertheless, we assume that you have no prior knowledge of image generation, and we will go through all that is needed to help you get started with it. The first aspect that you need to know about is <strong class="bold">probability distribution</strong>.</p>
+			<p>Probability distribution is fundamental in machine learning and it is especially important in generative models. Don't worry, I assure you that there aren't any complex mathematical equations in this chapter. We will first learn what probability is and how to use it to generate faces without using any neural networks or complex algorithms. </p>
+			<p>That's right: with the help of only basic math and NumPy code, you'll learn how to create a probabilistic generative model. Following that, you will learn how to use TensorFlow 2 to build a <strong class="bold">PixelCNN</strong> model in order to generate handwritten digits. This chapter is packed with useful information; you will need to read this chapter before jumping to any other chapters.</p>
+			<p>In this chapter, we are going to cover the following main topics:</p>
+			<ul>
+				<li>Understanding probabilities</li>
+				<li>Generating faces with a probabilistic model</li>
+				<li>Building a PixelCNN model from scratch</li>
+			</ul>
+			<h1 id="_idParaDest-19"><a id="_idTextAnchor018"/>Technical requirements </h1>
+			<p>The code can be found here: <a href="https://github.com/PacktPublishing/Hands-On-Image-Generation-with-TensorFlow-2.0/tree/master/Chapter01">https://github.com/PacktPublishing/Hands-On-Image-Generation-with-TensorFlow-2.0/tree/master/Chapter01</a>.</p>
+			<h1 id="_idParaDest-20"><a id="_idTextAnchor019"/>Understanding probabilities</h1>
+			<p>You can't <a id="_idIndexMarker000"/>escape the term <em class="italic">probability</em> in any machine learning literature, and it can be confusing as it can have different meanings in different contexts. Probability is often denoted as <em class="italic">p</em> in mathematical equations, and you see it everywhere in academic papers, tutorials, and blogs. Although it is a concept that is seemingly easy to understand, it can be quite confusing. This is because there are multiple different definitions and interpretations depending on the context. We will use some examples to clarify things. In this section, we will go over the use of probability in the following contexts:</p>
+			<ul>
+				<li>Distribution</li>
+				<li>Belief</li>
+			</ul>
+			<h2 id="_idParaDest-21"><a id="_idTextAnchor020"/>Probability distribution</h2>
+			<p>Say we want to <a id="_idIndexMarker001"/>train a neural network to classify images of cats and dogs and that we found a dataset that contains 600 images of dogs and 400 images of cats. As you may be aware, the data will need to be shuffled before being fed into the neural network. Otherwise, if it sees only images of the same label in a minibatch, the network will get lazy and say all images have the same label without taking the effort to look hard and differentiate between them. If we sampled the dataset randomly, the probabilities could be written as follows:</p>
+			<p><em class="italic">pdata(dog) = 0.6</em></p>
+			<p><em class="italic">pdata(cat) = 0.4</em></p>
+			<p>The probabilities here <a id="_idIndexMarker002"/>refer to the <strong class="bold">data distribution</strong>. In this example, this refers to the ratio of the number of cat and dog images to the total number of images in the dataset. The probability here is static and will not change for a given dataset. </p>
+			<p>When training a deep neural network, the dataset is usually too big to fit into one batch, and we need to break it into multiple minibatches for one epoch. If the dataset is well shuffled, then the <strong class="bold">sampling distribution</strong> of the minibatches will resemble that of the data distribution. If the <a id="_idIndexMarker003"/>dataset is unbalanced, where some classes have a lot more images from one label than another, then the neural network may be biased toward predicting the images it sees more. This is<a id="_idIndexMarker004"/> a form of <strong class="bold">overfitting</strong>. We can therefore sample the data differently to give more weight to the less-represented classes. If we want to balance the classes in sampling, then the sampling probability becomes as follows:</p>
+			<p><em class="italic">psample(dog) = 0.5</em></p>
+			<p><em class="italic">psample(cat) = 0.5</em></p>
+			<p class="callout-heading">Note</p>
+			<p class="callout"><strong class="bold">Probability distribution</strong> <strong class="bold">p(x)</strong> is the <a id="_idIndexMarker005"/>probability of the occurrence of a data point <em class="italic">x</em>. There are two common distributions that are used in machine learning. <strong class="bold">Uniform distribution</strong> is <a id="_idIndexMarker006"/>where every data point has the same chances of occurrence; this is what people normally imply when they say random sampling without specifying the distribution type. <strong class="bold">Gaussian distribution</strong> is another<a id="_idIndexMarker007"/> commonly used distribution. It is so common that people also call it <strong class="bold">normal distribution</strong>. The probabilities peak at the center (mean) and slowly decay on <a id="_idIndexMarker008"/>each side. Gaussian distribution also has nice mathematical properties that make it a favorite of mathematicians. We will see more of that in the next chapter.</p>
+			<h2 id="_idParaDest-22"><a id="_idTextAnchor021"/>Prediction confidence</h2>
+			<p>After several hundred<a id="_idIndexMarker009"/> iterations, the model has finally finished training, and I can't wait to test the new model with an image. The model outputs the following probabilities:</p>
+			<p><em class="italic">p(dog) = 0.6</em></p>
+			<p><em class="italic">p(cat) = 0.4</em></p>
+			<p>Wait, is the AI telling me that this animal is a mixed-breed with 60% dog genes and 40% cat inheritance? Of course not! </p>
+			<p>Here, the probabilities no <a id="_idIndexMarker010"/>longer refer to distributions; instead, they tell us how confident we can be about the predictions, or in other words, how strongly we can believe in the output. Now, this is no longer something you quantify by counting occurrences. If you are absolutely sure that something is a dog, you can put <em class="italic">p(dog) =</em> <em class="italic">1.0</em> and <em class="italic">p(cat) = 0.0</em>. This is <a id="_idIndexMarker011"/>known as <strong class="bold">Bayesian probability</strong>.</p>
+			<p class="callout-heading">Note</p>
+			<p class="callout">The traditional statistics approach sees probability as the chances of the occurrence of an event, for example, the chances of a baby being a certain sex. There has been great debate in the wider statistical field on whether the frequentist or Bayesian method is better, which is beyond the scope of this book. However, the Bayesian method is probably more important in deep learning and <a id="_idIndexMarker012"/>engineering. It has been used to develop many important algorithms, including <strong class="bold">Kalman filtering</strong> to track rocket trajectory. When calculating the projection of a rocket's trajectory, the Kalman filter uses information from both <a id="_idIndexMarker013"/>the <strong class="bold">global positioning system</strong> (<strong class="bold">GPS</strong>) and <strong class="bold">speed sensor</strong>. Both sets of data are noisy, but GPS data is less reliable <a id="_idIndexMarker014"/>initially (meaning less confidence), and hence this data is given less weight in the calculation. We don't need to learn the Bayesian theorem in this book; it's enough to understand that probability can be viewed as a confidence score rather than as frequency. Bayesian probability has also recently been used in searching for hyperparameters for deep neural networks. </p>
+			<p>We have now clarified two main types of probabilities commonly used in general machine learning – distribution and confidence. From now on, we will assume that probability means probability distribution rather than confidence. Next, we will look at a distribution that plays an <a id="_idIndexMarker015"/>exceptionally important role in image generation – <strong class="bold">pixel distribution</strong>.</p>
+			<h2 id="_idParaDest-23"><a id="_idTextAnchor022"/>The joint probability of pixels</h2>
+			<p>Take a look at the <a id="_idIndexMarker016"/>following pictures – can you tell whether they are of dogs or cats? How do you think the classifier will produce the confidence score?</p>
+			<div>
+				<div id="_idContainer007" class="IMG---Figure">
+					<img src="image/B14538_01_01.jpg" alt="Figure 1.1 – Pictures of a cat and a dog&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 1.1 – Pictures of a cat and a dog</p>
+			<p>Are either of these pictures of dogs or cats? Well, the answer is pretty obvious, but at the same time it's not important to what we are going to talk about. When you looked at the pictures, you probably thought in your mind that the first picture was of a cat and the second picture was of a dog. We see the picture as a whole, but that is not what the computer sees. The computer sees <strong class="bold">pixels</strong>.</p>
+			<p class="callout-heading">Note</p>
+			<p class="callout">A pixel <a id="_idIndexMarker017"/>is the smallest spatial unit in digital image, and it represents a single color. You cannot have a pixel where half is black and the other half is white. The most commonly used color scheme is 8-bit RGB, where a pixel is made up of three channels named R (red), G (green), and B (blue). Their values range from 0 to 255 (255 being the highest intensity). For example, a black pixel has a value of [0, 0, 0], while a white pixel is [255, 255, 255]. </p>
+			<p>The simplest way to describe <a id="_idIndexMarker018"/>the <strong class="bold">pixel distribution</strong> of an image is by counting the number of pixels that have different intensity levels from 0 to 255; you can visualize this by plotting a histogram. It is a common tool in digital photography to look at a histogram of separate R, G, and B channels to understand the color balance. Although this can provide some information to us – for example, an image of sky is likely to have many blue pixels, so a histogram may reliably tell us something about that – histograms do not tell us how pixels relate to each other. In other words, a histogram does not contain spatial information, that is, how far a blue pixel is from another blue pixel. We will need a better measure for this kind of thing.</p>
+			<p>Instead of saying <em class="italic">p(x)</em>, where <em class="italic">x</em> is a whole image, we can define <em class="italic">x</em> as <em class="italic">x</em><span class="subscript">1</span><em class="italic">, x</em><span class="subscript">2</span><em class="italic">, x</em><span class="subscript">3</span>,… <em class="italic">x</em><span class="subscript">n</span>. Now, <em class="italic">p(x)</em> can be defined as <a id="_idIndexMarker019"/>the <strong class="bold">joint probability</strong> of pixels <em class="italic">p(x</em><span class="subscript">1</span><em class="italic">, x</em><span class="subscript">2</span><em class="italic">, x</em><span class="subscript">3</span><em class="italic">,… x</em><span class="subscript">n</span><em class="italic">)</em>, where <em class="italic">n</em> is the number of pixels and each pixel is separated by a comma. </p>
+			<p>We will use the following images to illustrate what we mean by joint probability. The following are three images with 2 x 2 pixels that contain binary values, where 0 is black and 1 is white. We will call the top-left pixel <em class="italic">x</em><span class="subscript">1</span>, the top-right pixel <em class="italic">x</em><span class="subscript">2</span>, the bottom-left pixel <em class="italic">x</em><span class="subscript">3</span>, and the bottom-right pixel <em class="italic">x</em><span class="subscript">4</span>:</p>
+			<div>
+				<div id="_idContainer008" class="IMG---Figure">
+					<img src="image/B14538_01_02.jpg" alt="Figure 1.2 – Images with 2 x 2 pixels&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 1.2 – Images with 2 x 2 pi<a id="_idTextAnchor023"/>xels</p>
+			<p>We first calculate <em class="italic">p(x1 = white)</em> by counting the number of white <em class="italic">x</em><span class="subscript">1</span> and dividing it by the total number of the image. Then, we do the same for <em class="italic">x</em><span class="subscript">2</span>, as follows:</p>
+			<p><em class="italic">p(x</em><span class="subscript">1</span><em class="italic"> = white)  = 2 / 3</em></p>
+			<p><em class="italic">p(x</em><span class="subscript">2</span><em class="italic"> = white)  = 0 / 3</em></p>
+			<p>Now we say that <em class="italic">p(x1)</em> and <em class="italic">p(x2)</em> are independent of each other because we calculated them separately. If we calculate the joint probability where both <em class="italic">x1</em> and <em class="italic">x2</em> are black, we get the following:</p>
+			<p><em class="italic">p(x</em><span class="subscript">1</span><em class="italic"> = black, x</em><span class="subscript">2</span><em class="italic"> = black)  = 0 / 3</em></p>
+			<p>We can then calculate the complete joint probability of these two pixels as follows:</p>
+			<p><em class="italic">p(x</em><span class="subscript">1</span><em class="italic"> = black, x</em><span class="subscript">2</span><em class="italic"> = white)  = 0 / 3</em></p>
+			<p><em class="italic">p(x</em><span class="subscript">1</span><em class="italic"> = white, x</em><span class="subscript">2</span><em class="italic"> = black)  = 3 / 3</em></p>
+			<p><em class="italic">p(x</em><span class="subscript">1</span><em class="italic"> = white, x</em><span class="subscript">2</span><em class="italic"> = white)  = 0 / 3</em></p>
+			<p>We'll need to do the same steps 16 times to calculate the complete joint probability of <em class="italic">p(x</em><span class="subscript">1</span><em class="italic">, x</em><span class="subscript">2</span><em class="italic">, x</em><span class="subscript">3</span><em class="italic">, x</em><span class="subscript">4</span><em class="italic">)</em>. Now, we could fully describe the pixel distribution and use that to calculate the marginal distribution, as in <em class="italic">p(x</em><span class="subscript">1</span><em class="italic">, x</em><span class="subscript">2</span><em class="italic">, x</em><span class="subscript">3</span><em class="italic">)</em> or <em class="italic">p(x</em><span class="subscript">1</span><em class="italic">)</em>. However, the calculations required for the joint distribution increase exponentially for RGB values where each pixel has 256 x 256 x 256  = 16,777,216 possibilities. This is where deep neural networks come to the rescue. A neural <a id="_idIndexMarker020"/>network can be trained to learn a pixel data distribution <em class="italic">P</em><span class="subscript">data</span>. Hence, a neural network is our probability model <em class="italic">P</em><span class="subscript">mode<a id="_idTextAnchor024"/>l</span>. </p>
+			<p class="callout-heading">Important Note</p>
+			<p class="callout">The notations we will use in this book are as follows: <em class="italic">capital X</em> for the dataset, <em class="italic">lowercase x</em> for image sampled from the dataset, and <em class="italic">lowercase with subscript x</em><span class="subscript">i</span> for the pixel. </p>
+			<p class="callout">The purpose of image generation is to generate an image that has a pixel distribution <em class="italic">p(x)</em> that resembles <em class="italic">p(X)</em>. For example, an image dataset of oranges will have a high probability of lots of occurrences of orange pixels that are distributed close to each other in a circle. Therefore, before generating image, we will first build a probability model <em class="italic">p</em><span class="subscript">model</span><em class="italic">(x)</em> from real data <em class="italic">p</em><span class="subscript">data</span><em class="italic">(X).</em> After that, we generate images by drawing a sample from <em class="italic">p</em><span class="subscript">model</span><em class="italic">(x)</em>.</p>
+			<h1 id="_idParaDest-24"><a id="_idTextAnchor025"/>Generating faces with a probabilistic model</h1>
+			<p>Alright, enough <a id="_idIndexMarker021"/>mathematics. It is now time to get your hands dirty and<a id="_idIndexMarker022"/> generate your first image. In this section, we will learn how to generate images by sampling from a probabilistic model without even using a neural network.</p>
+			<h2 id="_idParaDest-25"><a id="_idTextAnchor026"/>Mean faces</h2>
+			<p>We will be using the<a id="_idIndexMarker023"/> large-scale CelebFaces Attributes (CelebA) dataset created by The Chinese University of Hong Kong (<a href="http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html">http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html</a>). This can be downloaded directly with Python's <strong class="source-inline">tensorflow_datasets</strong> module within the <strong class="source-inline">ch1_generate_first_image.ipynb</strong> Jupyter notebook, as shown in the following code: </p>
+			<p class="source-code">import tensorflow_datasets as tfds</p>
+			<p class="source-code">import matplotlib.pyplot as plt</p>
+			<p class="source-code">import numpy as np</p>
+			<p class="source-code">ds_train, ds_info = tfds.load('celeb_a', split='test', </p>
+			<p class="source-code">                               shuffle_files=False, </p>
+			<p class="source-code">                               with_info=True)</p>
+			<p class="source-code">fig = tfds.show_examples(ds_info, ds_train)</p>
+			<p>The TensorFlow dataset allows us to preview some examples of images by using the <strong class="source-inline">tfds.show_examples()</strong> API. The following are some samples of male and female celebrities' faces:</p>
+			<div>
+				<div id="_idContainer009" class="IMG---Figure">
+					<img src="image/B14538_01_03.jpg" alt="Figure 1.3 – Sample images from the CelebA dataset&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 1.3 – Sample images from the CelebA dataset</p>
+			<p>As you can see in the<a id="_idIndexMarker024"/> figure, there is a celebrity face in every image. Every picture is unique, with a variety of genders, poses, expressions, and hairstyles; some wear glasses and some don't. Let's see how to exploit the probability distribution of the images to help us create a new face. We'll use one of the simplest statistical methods – the mean, which means taking an average of the pixels from the images. To be more specific, we are averaging the <em class="italic">x</em><span class="subscript">i</span> of every image to calculate the <em class="italic">x</em><span class="subscript">i</span> of a new image. To speed up the processing, we'll use only 2,000 samples from the dataset for this task, as follows:</p>
+			<p class="source-code">sample_size = 2000</p>
+			<p class="source-code">ds_train = ds_train.batch(sample_size)</p>
+			<p class="source-code">features = next(iter(ds_train.take(1)))</p>
+			<p class="source-code">sample_images = features['image']</p>
+			<p class="source-code">new_image = np.mean(sample_images, axis=0)</p>
+			<p class="source-code">plt.imshow(new_image.astype(np.uint8))</p>
+			<p>Ta-dah! That is your<a id="_idIndexMarker025"/> first generated image, and it looks pretty amazing! I initially thought it would look a bit like one of Picasso's paintings, but it turns out that the mean image is quite coherent:</p>
+			<div>
+				<div id="_idContainer010" class="IMG---Figure">
+					<img src="image/B14538_01_04.jpg" alt="Figure 1.4 – The mean face&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 1.4 – The mean face</p>
+			<h2 id="_idParaDest-26"><a id="_idTextAnchor027"/>Conditional probability</h2>
+			<p>The best thing about<a id="_idIndexMarker026"/> the CelebA dataset is that each image is labeled with facial attributes as follows:</p>
+			<div>
+				<div id="_idContainer011" class="IMG---Figure">
+					<img src="image/B14538_01_05.jpg" alt="Figure 1.5 – 40 attributes in the CelebA dataset in alphabetical order&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 1.5 – 40 attributes in the CelebA dataset in alphabetical order</p>
+			<p>We are going to use these attributes to generate a new image. Let's say we want to generate a male image. How do we do that? Instead of calculating the probability of every image, we use only images that have the <strong class="source-inline">Male</strong> attribute set to <strong class="source-inline">true</strong>. We can put it in this way:</p>
+			<p><em class="italic">p(x | y) </em></p>
+			<p>We call this the probability of <em class="italic">x</em> conditioned on <em class="italic">y</em>, or more informally the probability of <em class="italic">x</em> given <em class="italic">y</em>. This is<a id="_idIndexMarker027"/> called <strong class="bold">conditional probability</strong>. In our example, <em class="italic">y</em> is the facial attributes. When we condition on the <strong class="source-inline">Male</strong> attribute, this variable is no longer a random probability; every sample will have the <strong class="source-inline">Male</strong> attribute and we can be certain that every face belongs to a man. The following figure shows new mean faces generated using other attributes as well as <strong class="source-inline">Male</strong>, such as <em class="italic">Male + Eyeglasses</em> and <em class="italic">Male + Eyeglasses + Mustache + Smiling</em>. Notice that as the conditions increase, the number of samples reduces and the mean image also becomes noisier:</p>
+			<div>
+				<div id="_idContainer012" class="IMG---Figure">
+					<img src="image/B14538_01_06.jpg" alt="Figure 1.6 – Adding attributes from left to right. (a) Male (b) Male + Eyeglasses (c) Male + Eyeglasses + Mustache + Smiling"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 1.6 – Adding attributes from left to right. (a) Male (b) Male + Eyeglasses (c) Male + Eyeglasses + Mustache + Smiling</p>
+			<p>You could use the Jupyter notebook to generate a new face by using different attributes, but not every combination produces satisfactory results. The following are some female faces generated with different attributes. The rightmost image is an interesting one. I used attributes of <strong class="source-inline">Female</strong>, <strong class="source-inline">Smiling</strong>, <strong class="source-inline">Eyeglasses</strong>, and <strong class="source-inline">Pointy_Nose</strong>, but it turns out that people with these attributes tend to also have wavy hair, which is an attribute that was excluded in this sample. Visualization can be a useful tool to provide insights into your dataset:</p>
+			<p class="figure-caption"> </p>
+			<div>
+				<div id="_idContainer013" class="IMG---Figure">
+					<img src="image/B14538_01_07.jpg" alt="Figure 1.7 – Female faces with different attributes&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 1.7 – Female faces with different attributes</p>
+			<p class="callout-heading">Tips</p>
+			<p class="callout">Instead of using the mean when generating images, you can try to using the median as well, which may produce a sharper image. Simply replace <strong class="source-inline">np.mean()</strong> with <strong class="source-inline">np.median()</strong>.</p>
+			<h2 id="_idParaDest-27"><a id="_idTextAnchor028"/>Probabilistic generative models</h2>
+			<p>There are three main<a id="_idIndexMarker028"/> goals that we wish to achieve with image-generation algorithms:</p>
+			<ol>
+				<li>Generate images that look like ones in the given dataset.</li>
+				<li>Generate a variety of images.</li>
+				<li>Control the images being generated.</li>
+			</ol>
+			<p>By simply taking the mean of the pixels in an image, we have demonstrated how to achieve goals <em class="italic">1</em> and <em class="italic">3</em>. However, one limitation is that we could only generate one image per condition. That really isn't very effective for an algorithm, generating only one image from hundreds or thousands<a id="_idTextAnchor029"/> of training images. </p>
+			<p>The following chart shows<a id="_idIndexMarker029"/> the distribution of one color channel of an arbitrary pixel in the dataset. The <em class="italic">x</em> mark on the chart is the median value. When we use the mean or median of data, we are always sampling the same point, and therefore there is no variation in the outcome. Is there a way to generate multiple different faces? Yes, we can try to increase the generated image variation by sampling from the entire pixel distribution:</p>
+			<div>
+				<div id="_idContainer014" class="IMG---Figure">
+					<img src="image/B14538_01_08.jpg" alt="Figure 1.8 – The distribution of a pixel's color channel&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 1.8 – The distribution of a pixel's color channel</p>
+			<p>A machine learning textbook will probably ask you to first create a probabilistic model, <strong class="source-inline">pmodel</strong>, by calculating the joint probability of every single pixel. But as the sample space is huge (remember, one RGB pixel can have 16,777,216 different values), it is computationally expensive to implement. Also, because this is a hands-on book, we will draw pixel samples directly from datasets. To create an <em class="italic">x</em><span class="subscript">0</span> pixel in a new image, we randomly sample from an <em class="italic">x</em><span class="subscript">0</span> pixel of all images in the dataset by running the following code:</p>
+			<p class="source-code">new_image = np.zeros(sample_images.shape[1:], dtype=np.uint8)</p>
+			<p class="source-code">for i in range(h):</p>
+			<p class="source-code">    for j in range(w):</p>
+			<p class="source-code">        rand_int = np.random.randint(0, sample_images.shape[0])</p>
+			<p class="source-code">        new_image[i,j] = sample_images[rand_int,i,j]</p>
+			<p>Images were<a id="_idIndexMarker030"/> generated using random sampling. Disappointingly, although there is some variation between the images, they are not that different from each other, and one of our objectives is to be able to generate a variety of faces. Also, the images are noticeably noisier than when using the mean. The reason for this is that the pixel distribution is independent of each other. </p>
+			<p>For example, for a given pixel in the lips, we can reasonably expect the color to be pink or red, and the same goes for the adjacent pixels. Nevertheless, because we are sampling independently from images where faces appear in different locations and poses, this results in color discontinuities between pixels, ultimately giving this noisy result:</p>
+			<div>
+				<div id="_idContainer015" class="IMG---Figure">
+					<img src="image/B14538_01_09.jpg" alt="Figure 1.9 – Images generated by random sampling&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 1.9 – Images generated by random sampl<a id="_idTextAnchor030"/>ing</p>
+			<p class="callout-heading">Tips</p>
+			<p class="callout">You may be wondering why the mean face looks smoother than with random sampling. Firstly, it is because the distance of the mean between pixels is smaller. Imagine a random sampling scenario where one pixel sampled is close to 0 and the next one is close to 255. The mean of these pixels would likely lie somewhere in the middle, and therefore the difference between them would be smaller. On the other hand, pixels in the backgrounds of pictures tend to have a uniform distribution; for example, they could all be part of a blue sky, a white wall, green leaves, and so on. As they are distributed rather evenly across the color spectrum, the mean value is around [127, 127, 127], which happens to be gray. </p>
+			<h2 id="_idParaDest-28"><a id="_idTextAnchor031"/>Parametric modeling</h2>
+			<p>What we just did was use a <a id="_idIndexMarker031"/>pixel histogram as our <strong class="source-inline">pmodel</strong>, but there are a few shortcomings here. Firstly, due to the large sample space, not every possible color exists in our sample distribution. As a result, the generated image will never contain any colors that are not present in the dataset. For instance, we want to be able to generate the full spectrum of skin tones rather than only one very specific shade of brown that exists in the dataset. If you did try to generate faces using conditions, you will have found that not every combination of conditions is possible. For example, for <em class="italic">Mustache + Sideburns + Heavy_Makeup + Wavy_Hair</em>, there simply wasn't a sample that met those conditions!</p>
+			<p>Secondly, the sample spaces increase as we increase the size of the dataset or the image resolution. This can be solved by having a parameterized model. The vertical bar chart in the following figure shows a histogram of 1,000 randomly generated numbers:</p>
+			<div>
+				<div id="_idContainer016" class="IMG---Figure">
+					<img src="image/B14538_01_10.jpg" alt="Figure 1.10 – Gaussian histogram and model&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 1.10 – Gaussian histogram and model</p>
+			<p>We can see <a id="_idIndexMarker032"/>that there are some bars that don't have any value. We can fit a Gaussian model on the data in which the <strong class="bold">Probability Density Function</strong> (<strong class="bold">PDF</strong>) is plotted as a black line. The PDF equation for a Gaussian distribution is as follows:</p>
+			<div>
+				<div id="_idContainer017" class="IMG---Figure">
+					<img src="image/Formula_01_001.jpg" alt=""/>
+				</div>
+			</div>
+			<p>Here, <em class="italic">µ</em> is the mean and <em class="italic">σ</em> is the standard deviation.</p>
+			<p>We <a id="_idTextAnchor032"/>can see that the PDF covers the histogram gap, which means we can generate a probability for the missing numbers. This Gaussian model has only two parameters – the mean and the standard variation. </p>
+			<p>The 1,000 numbers can now be condensed to just two parameters, and we can use this model to draw as many samples as we wish; we are no longer limited to the data we fit the model with. Of course, natural images are complex and could not be described by simple models such as a Gaussian model, or in fact any mathematical models. This is where neural networks come into play. Now we will use a neural network as a parameterized image-generation model where the parameters are the network's weights and biases.</p>
+			<h1 id="_idParaDest-29"><a id="_idTextAnchor033"/>Building a PixelCNN model from scratch</h1>
+			<p>There are three main categories of <a id="_idIndexMarker033"/>deep neural network generative algorithms:</p>
+			<ul>
+				<li><strong class="bold">Generative Adversarial Networks</strong> (<strong class="bold">GANs</strong>)</li>
+				<li><strong class="bold">Variational Autoencoders</strong> (<strong class="bold">VAEs</strong>)</li>
+				<li><strong class="bold">Autoregressive models</strong></li>
+			</ul>
+			<p>VAEs will be introduced in the next chapter, and we will use them in some of our models. The GAN is the main algorithm we will be using in this book, and there are a lot more details about it to come in later chapters. We will introduce the lesser-known <strong class="bold">autoregressive model</strong> family here and focus on VAEs and GANs later in the book. Although it is not so common in image generation, autoregression is still an active area of research, with DeepMind's WaveNet using it to generate realistic audio. In this section, we will introduce autoregressive models and build a <strong class="bold">PixelCNN</strong> model from scratch. </p>
+			<h2 id="_idParaDest-30"><a id="_idTextAnchor034"/>Autoregressive models</h2>
+			<p><em class="italic">Auto</em> here means <em class="italic">self</em>, and <em class="italic">regress</em> in<a id="_idIndexMarker034"/> machine learning terminology means <em class="italic">predict new values</em>. Putting them together, autoregressive means we use a model to predict new data points based on the model's past data points.</p>
+			<p>L<a id="_idTextAnchor035"/>et's recall the probability distribution of an image is <em class="italic">p(x)</em> is joint pixel probability <em class="italic">p(x</em><span class="subscript">1</span><em class="italic">, x</em><span class="subscript">2</span><em class="italic">,… x</em><span class="subscript">n</span><em class="italic">)</em> which is difficult to model due to the high dimensionality. Here, we make an assumption that the value of a pixel depends only on that of the pixel before it. In other words, a pixel is conditioned only on the pixel before it, that is, <em class="italic">p(x</em><span class="subscript">i</span><em class="italic">) = p(x</em><span class="subscript">i</span><em class="italic"> | x</em><span class="subscript">i-1</span><em class="italic">) p(x</em><span class="subscript">i-1</span><em class="italic">)</em>. Without going into the mathematical details, we can approximate the joint probability to be the product of conditional probabilities:</p>
+			<p><em class="italic">p(x) = p(x</em><span class="subscript">n</span><em class="italic">, x</em><span class="subscript">n-1</span><em class="italic">, …, x</em><span class="subscript">2</span><em class="italic">, x</em><span class="subscript">1</span><em class="italic">) </em></p>
+			<p><em class="italic">p(x) = p(x</em><span class="subscript">n</span><em class="italic"> | x</em><span class="subscript">n-1</span><em class="italic">)... p(x</em><span class="subscript">3</span><em class="italic"> | x</em><span class="subscript">2</span><em class="italic">) p(x</em><span class="subscript">2</span><em class="italic"> | x</em><span class="subscript">1</span><em class="italic">) p(x</em><span class="subscript">1</span><em class="italic">)</em></p>
+			<p>To give a concrete example, let's <a id="_idIndexMarker035"/>say we have images that contain only a red apple in roughly the center of the image, and that the apple is surrounded by green leaves. In other words, only two colors are possible: red and green. <em class="italic">x</em><span class="subscript">1</span> is the top-left pixel, so <em class="italic">p(x</em><span class="subscript">1</span><em class="italic">)</em> is the probability of whether the top-left pixel is green or red. If <em class="italic">x</em><span class="subscript">1</span> is green, then the pixel to its right <em class="italic">p(x</em><span class="subscript">2</span><em class="italic">)</em> is likely to be green too, as it's likely to be more leaves. However, it could be red, despite the smaller probability. </p>
+			<p>As we go on, we will eventually hit a red pixel (hooray! We have found our apple!). From that pixel onward, it is likely that the next few pixels are more likely to be red too. We can now see that this is a lot simpler than having to consider all of the pixels together.</p>
+			<h2 id="_idParaDest-31"><a id="_idTextAnchor036"/>PixelRNN</h2>
+			<p><strong class="bold">PixelRNN</strong> was <a id="_idIndexMarker036"/>invented by the Google-acquired DeepMind back in 2016. As the <a id="_idIndexMarker037"/>name <strong class="bold">RNN</strong> (<strong class="bold">Recurrent Neural Network</strong>) suggests, this model uses a type of RNN called <strong class="bold">Long Short-Term Memory</strong> (<strong class="bold">LSTM</strong>) to learn an <a id="_idIndexMarker038"/>image's distribution. It reads the image one row at a time in a step in the LSTM and processes it with a 1D convolution layer, then feeds the activations into subsequent layers to predict pixels for that row. </p>
+			<p>As LSTM is slow to run, it takes a long time to train and generate samples. As a result, it fell out of fashion and there has not been much improvement made to it since its inception. Thus, we will not dwell on it for long and will instead move our attention to a variant, PixelCNN, which was also unveiled in the same paper.</p>
+			<h2 id="_idParaDest-32"><a id="_idTextAnchor037"/>Building a PixelCNN model with TensorFlow 2</h2>
+			<p>PixelCNN<a id="_idIndexMarker039"/> is made up only of convolutional <a id="_idIndexMarker040"/>layers, making it a lot faster than PixelRNN. Here, we will implement a simple PixelCNN model for MNIST. The code can be found in <strong class="source-inline">ch1_pixelcnn.ipynb</strong>.</p>
+			<h3>Input and label</h3>
+			<p>MNIST<a id="_idIndexMarker041"/> consists of 28 x 28 x 1 grayscale images of handwritten digits. It<a id="_idIndexMarker042"/> only has one channel, with 256 levels to depict the shade of gray:</p>
+			<div>
+				<div id="_idContainer018" class="IMG---Figure">
+					<img src="image/B14538_01_11.jpg" alt="Figure 1.11 – MNIST digit examples&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 1.11 – MNIST digit examples</p>
+			<p>In this experiment, we simplify the problem by casting images into binary format with only two possible values: <strong class="source-inline">0</strong> represents black and <strong class="source-inline">1</strong> represents white. The code for this is as follows:</p>
+			<p class="source-code">def binarize(image, label):</p>
+			<p class="source-code">    image = tf.cast(image, tf.float32)</p>
+			<p class="source-code">    image = tf.math.round(image/255.)</p>
+			<p class="source-code">    return image, tf.cast(image, tf.int32)</p>
+			<p>The function expects two inputs – an image and a label. The first two lines of the function cast the image into binary  <strong class="source-inline">float32</strong> format, in other words <strong class="source-inline">0.0</strong> or <strong class="source-inline">1.0</strong>. In this tutorial, we will not use the label information; instead, we cast the binary image into an integer and return it. We don't have to cast it to an integer, but let's just do it to stick to the convention of using an integer for labels. To recap, both the input and the label are binary MNIST images of 28 x 28 x 1; they differ only in data type.</p>
+			<h3>Masking</h3>
+			<p>Unlike <a id="_idIndexMarker043"/>PixelRNN, which reads row by row, PixelCNN slides a convolutional kernel across the image from left to right and from top to bottom. When performing convolution to predict the current pixel, a conventional convolution kernel is able to see the current input pixel together with the pixels surrounding it, including future pixels, and this breaks our conditional probability assumptions. </p>
+			<p>To avoid that, we need to make sure that the CNN doesn't cheat to look at the pixel it is predicting. In other words, we need to make sure that the CNN doesn't see the input pixel <em class="italic">x</em><span class="subscript">i</span> while it is predicting the output pixel <em class="italic">x</em><span class="subscript">i</span>. </p>
+			<p>This is by using a masked convolution, where a mask is applied to the convolutional kernel weights before performing convolution. The following diagram shows a mask for a 7 x 7 kernel, where the weight from the center onward is 0. This blocks the CNN from seeing the pixel it is predicting (the center of the kernel) and all future pixels. This is known as a <strong class="bold">type A mask</strong> and is<a id="_idIndexMarker044"/> applied only to the input layer. As the center pixel is blocked in the first layer, we don't need to hide the center feature anymore in later layers. In fact, we will need to set the kernel center to 1 to enable it to read the features from previous layers. This is known as type B Mask:</p>
+			<div>
+				<div id="_idContainer019" class="IMG---Figure">
+					<img src="image/B14538_01_12.jpg" alt="Figure 1.12 – A 7 x 7 kernel mask&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 1.12 – A 7 x 7 kernel mask (Source: Aäron van den Oord et al., 2016,  Conditional Image Generation with PixelCNN Decoders, <a href="https://arxiv.org/abs/1606.05328">https://arxiv.org/abs/1606.05328</a>)</p>
+			<p>Next, we will learn how to create a custom layer.</p>
+			<h3>Implementing a custom layer</h3>
+			<p>We will <a id="_idIndexMarker045"/>now create a custom layer for the masked convolution. We can create a custom layer in TensorFlow using model subclassing inherited from the base class, <strong class="source-inline">tf.keras.layers.Layer</strong>, as shown in the following code. We will be able to use it just like other Keras layers. The following is the basic structure of the custom layer class:</p>
+			<p class="source-code">class MaskedConv2D(tf.keras.layers.Layer):</p>
+			<p class="source-code">    def __init__(self):</p>
+			<p class="source-code">        ...       </p>
+			<p class="source-code">    def build(self, input_shape):</p>
+			<p class="source-code">        ...</p>
+			<p class="source-code">    def call(self, inputs):</p>
+			<p class="source-code">        ...</p>
+			<p class="source-code">        return output</p>
+			<p><strong class="source-inline">build()</strong> takes the input tensor's shape as an argument, and we will use this information to create variables of the correct shapes. This function runs only once, when the layer is built. We can create a mask by declaring it either as a non-trainable variable or as a constant to let TensorFlow know it does not need to have gradients to backpropagate:</p>
+			<p class="source-code">    def build(self, input_shape):</p>
+			<p class="source-code">        self.w = self.add_weight(shape=[self.kernel,</p>
+			<p class="source-code">                                        self.kernel,</p>
+			<p class="source-code">                                        input_shape[-1],</p>
+			<p class="source-code">                                        self.filters],</p>
+			<p class="source-code">                                initializer='glorot_normal',</p>
+			<p class="source-code">                                trainable=True)</p>
+			<p class="source-code">        self.b = self.add_weight(shape=(self.filters,),</p>
+			<p class="source-code">                                initializer='zeros',</p>
+			<p class="source-code">                                trainable=True)</p>
+			<p class="source-code">        mask = np.ones(self.kernel**2, dtype=np.float32)</p>
+			<p class="source-code">        center = len(mask)//2</p>
+			<p class="source-code">        mask[center+1:] = 0</p>
+			<p class="source-code">        if self.mask_type == 'A':</p>
+			<p class="source-code">            mask[center] = 0</p>
+			<p class="source-code">        mask = mask.reshape((self.kernel, self.kernel, 1, 1))</p>
+			<p class="source-code">        self.mask = tf.constant(mask, dtype='float32')</p>
+			<p><strong class="source-inline">call()</strong> is the <a id="_idIndexMarker046"/>forward pass that performs the computation. In this masked convolutional layer, we multiply the weight by the mask to zero the lower half before performing convolution using the low-level <strong class="source-inline">tf.nn</strong> API:</p>
+			<p class="source-code">    def call(self, inputs):</p>
+			<p class="source-code">        masked_w = tf.math.multiply(self.w, self.mask)</p>
+			<p class="source-code">        output = tf.nn.conv2d(inputs, masked_w, 1, "SAME") +  	                   self.b</p>
+			<p class="source-code">        return output</p>
+			<p class="callout-heading">Tips</p>
+			<p class="callout"><strong class="source-inline">tf.keras.layers</strong> is a high-level API that is easy to use without you needing to know under-the-hood details. However, sometimes we will need to create custom functions using the low-level <strong class="source-inline">tf.nn</strong> API, which requires us to first specify or create the tensors to be used.</p>
+			<h3>Network layers</h3>
+			<p>The <a id="_idIndexMarker047"/>PixelCNN architecture is quite straightforward. After the first 7 x 7 <strong class="source-inline">conv2d</strong> layer with mask A, there are several layers of residual blocks (see the following table) with mask B. To keep the same feature map size of 28 x 28, there is no downsampling; for example, the max pooling and padding in these layers is set to <strong class="source-inline">SAME</strong>. The top features are then fed into two layers of 1 x 1 convolution layers before the output is produced, as seen in the following screenshot:</p>
+			<div>
+				<div id="_idContainer020" class="IMG---Figure">
+					<img src="image/B14538_01_13.jpg" alt="Figure 1.13 – The PixelCNN architecture, showing the layers and output shape&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption"> </p>
+			<p class="figure-caption">Figure 1.13 – The PixelCNN architecture, showing the layers and output shape</p>
+			<p>Residual <a id="_idIndexMarker048"/>blocks are used in many high-performance CNN-based models and were made popular by ResNet, which was invented by Kaiming He et al. in 2015. The following diagram illustrates a variant of residual blocks used in PixelCNN. The<a id="_idIndexMarker049"/> left path is called a <strong class="bold">skip connection path</strong>, which simply passes the features from the previous layer. On the right path are three sequential convolutional layers with filters of 1 x 1, 3 x 3, and 1 x 1. This path optimizes the residuals of the input features, hence the<a id="_idIndexMarker050"/> name <strong class="bold">residual net</strong>:</p>
+			<div>
+				<div id="_idContainer021" class="IMG---Figure">
+					<img src="image/B14538_01_14.jpg" alt="Figure 1.14 – The residual block where h is the number of filters. (Source: Aäron van den Oord et al., Pixel Recurrent Neural Networks)"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 1.14 – The residual block where h is the number of filters. (Source: Aäron van den Oord et al., Pixel Recurrent Neural Networks)</p>
+			<h3>Cross-entropy loss</h3>
+			<p><strong class="bold">Cross-entropy loss</strong>, also <a id="_idIndexMarker051"/>known as <strong class="bold">log loss</strong>, measures<a id="_idIndexMarker052"/> the performance of a model, where the output's <a id="_idIndexMarker053"/>probability is between 0 and 1. The following is the equation for binary cross-entropy loss, where there are only two classes, labels <em class="italic">y</em> can be either 0 or 1, and <em class="italic">p(x)</em> is the model's prediction. The equation is as follows:</p>
+			<div>
+				<div id="_idContainer022" class="IMG---Figure">
+					<img src="image/Formula_01_002.jpg" alt=""/>
+				</div>
+			</div>
+			<p>Let's look at an example where the label is 1, the second term is zero, and the first term is the sum of <em class="italic">log p(x)</em>. The log in the equation is natural log (log<span class="subscript">e</span>) but by convention the base of e is omitted from the equations. If the model is confident that <em class="italic">x</em> belongs to label 1, then <em class="italic">log(1)</em> is zero. On the other hand, if the model wrongly guesses it as label 0 and predicts a low probability of <em class="italic">x</em> being label <em class="italic">1</em>, say <em class="italic">p(x) = 0.1</em>. Then <em class="italic">-log (p(x))</em> becomes higher loss of <em class="italic">2.3</em>. Therefore, minimizing cross-entropy loss will maximize the model's accuracy. This loss function is commonly used in classification models but is also popular among generative models.</p>
+			<p>In PixelCNN, the individual image pixel is used as a label. In our binarized MNIST, we want to predict whether the output pixel is either 0 or 1, which makes this a classification problem with cross-entropy as the loss function. </p>
+			<p>There can be two<a id="_idIndexMarker054"/> output types:</p>
+			<ul>
+				<li>Since there can only be 0 or 1 in a binarized image, we can simplify the network by using <strong class="source-inline">sigmoid()</strong> to predict the probability of a white pixel, that is, <em class="italic">p(x</em><span class="subscript">i</span><em class="italic"> = 1)</em>. The loss function is binary cross-entropy. This is what we will use in our PixelCNN model.</li>
+				<li>Optionally, we could also generalize the network to accept grayscale or RGB images. We can use the <strong class="source-inline">softmax()</strong> activation function to produce <em class="italic">N</em> probabilities for each (sub)pixel. <em class="italic">N</em> will be <em class="italic">2</em> for binarized images, <em class="italic">256</em> for grayscale images, and <em class="italic">3 x 256</em> for RGB images. The loss function is sparse categorical cross-entropy or categorical cross-entropy if the label is one-hot encoded. </li>
+			</ul>
+			<p>Finally, we are now ready to compile and train the neural network. As seen in the following code, we use binary cross-entropy for both <strong class="source-inline">loss</strong> and <strong class="source-inline">metrics</strong> and use <strong class="source-inline">RMSprop</strong> as the optimizer. There are many different optimizers to use, and their main difference comes in how they adjust the learning rate of individual variables based on past statistics. Some optimizers accelerate training but may tend to overshoot and not achieve global minima. There is no one best optimizer to use in all cases, and you are encouraged to try different ones. </p>
+			<p>However, the two optimizers that you will see a lot are <strong class="bold">Adam</strong> and <strong class="bold">RMSprop</strong>. The Adam optimizer<a id="_idIndexMarker055"/> is a popular choice in image generation for its fast learning, while RMSprop<a id="_idIndexMarker056"/> is used frequently by Google to produce state-of-the-art models. </p>
+			<p>The following is used to compile and fit the <strong class="source-inline">pixelcnn</strong> model:</p>
+			<p class="source-code">pixelcnn = SimplePixelCnn()</p>
+			<p class="source-code">pixelcnn.compile(</p>
+			<p class="source-code">    loss = tf.keras.losses.BinaryCrossentropy(),</p>
+			<p class="source-code">    optimizer=tf.keras.optimizers.RMSprop(learning_rate=0.001),</p>
+			<p class="source-code">    metrics=[ tf.keras.metrics.BinaryCrossentropy()])</p>
+			<p class="source-code">pixelcnn.fit(ds_train, epochs = 10, validation_data=ds_test)</p>
+			<p>Next, we will generate a new image from the preceding model.</p>
+			<h3>Sample image</h3>
+			<p>After the training, we can<a id="_idIndexMarker057"/> generate a new image using the model by taking the following steps:</p>
+			<ol>
+				<li value="1">Create an empty tensor with the same shape as the input image and fill it with zeros. Feed this into the network and get <em class="italic">p(x</em><span class="subscript">1</span><em class="italic">)</em>, the probability of the first pixel.</li>
+				<li>Sample from <em class="italic">p(x</em><span class="subscript">1</span><em class="italic">)</em> and assign the sample value to pixel <em class="italic">x</em><span class="subscript">1</span> in the input tensor. </li>
+				<li>Feed the input to the network again and perform step 2 for the next pixel.</li>
+				<li>Repeat steps 2 and 3 until <em class="italic">x</em><span class="subscript">N</span> has been generated.</li>
+			</ol>
+			<p>One major drawback of the autoregressive model is that it is slow because of the need to generate pixel by pixel, which cannot be parallelized. The following images were generated by our simple PixelCNN model after 50 epochs of training. They don't look quite like proper digits yet, but they're starting to take the shape of handwriting strokes. It's quite amazing that we can now generate new images out of thin air (that is, with zero-input tensors). Can you generate better digits by training the model longer and doing some hyperparameter tuning?</p>
+			<div>
+				<div id="_idContainer023" class="IMG---Figure">
+					<img src="image/B14538_01_15.jpg" alt="Figure 1.15 – Some images generated by our PixelCNN model&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 1.15 – Some images generated by our PixelCNN model</p>
+			<p>With that, we have come to the end of the chapter!</p>
+			<h1 id="_idParaDest-33"><a id="_idTextAnchor038"/>Summary</h1>
+			<p>Wow! I think we have learned a lot in this first chapter, from understanding pixel probability distribution to using it to build a probabilistic model to generate images. We learned how to build custom layers with TensorFlow 2 and use them to construct autoregressive PixelCNN models to generate images of handwritten digits. </p>
+			<p>In the next chapter, we will learn how to do representation with VAEs. This time, we will look at pixels from a whole new perspective. We will train a neural network to learn facial attributes, and you'll perform face edits, such as morphing a sad-looking girl into a smiling man with a mustache.</p>
+		</div>
+	</body></html>

@@ -1,0 +1,1245 @@
+<html><head></head><body>
+  <div id="_idContainer079">
+    <h1 class="chapterNumber">3</h1>
+    <h1 id="_idParaDest-50" class="chapterTitle">Named Entity Recognition (NER) with BiLSTMs, CRFs, and Viterbi Decoding </h1>
+    <p class="normal">One of the fundamental building blocks of NLU is <strong class="keyword">Named Entity Recognition</strong> (<strong class="keyword">NER</strong>). The names of people, companies, products, and quantities can be tagged in a piece of text with NER, which is very useful in chatbot applications and many other use cases in information retrieval and extraction. NER will be the main focus of this chapter. Building and training a model capable of doing NER requires several techniques, such as <strong class="keyword">Conditional Random Fields</strong> (<strong class="keyword">CRFs</strong>) and <strong class="keyword">Bi-directional LSTMs</strong> (<strong class="keyword">BiLSTMs</strong>). Advanced TensorFlow techniques like custom layers, losses, and training loops are also used. We will build on the knowledge of BiLSTMs gained from the previous chapter. Specifically, the following will be covered:</p>
+    <ul>
+      <li class="bullet">Overview of NER</li>
+      <li class="bullet">Building an NER tagging model with BiLSTM</li>
+      <li class="bullet">CRFs and Viterbi algorithms</li>
+      <li class="bullet">Building a custom Keras layer for CRFs</li>
+      <li class="bullet">Building a custom loss function in Keras and TensorFlow</li>
+      <li class="bullet">Training a model with a custom training loop</li>
+    </ul>
+    <p class="normal">It all starts with understanding NER, which is the focus of the next section.</p>
+    <h1 id="_idParaDest-51" class="title">Named Entity Recognition </h1>
+    <p class="normal">Given a sentence or a piece of text, the<a id="_idIndexMarker149"/> objective of an NER model is to locate and classify text tokens as named entities in categories such as people's names, organizations and companies, physical locations, quantities, monetary quantities, times, dates, and even protein or DNA sequences. NER should tag the following sentence:</p>
+    <p class="normal"><em class="italic">Ashish paid Uber $80 to go to the Twitter offices in San Francisco.</em></p>
+    <p class="normal">as follows:</p>
+    <p class="normal"><em class="italic">[Ashish]</em><sub class="" style="font-style: italic;">PER</sub><em class="italic"> paid [Uber]</em><sub class="" style="font-style: italic;">ORG</sub><em class="italic"> [$80]</em><sub class="" style="font-style: italic;">MONEY</sub><em class="italic"> to go the [Twitter]</em><sub class="" style="font-style: italic;">ORG</sub><em class="italic"> offices in [San Francisco]</em><sub class="" style="font-style: italic;">LOC</sub><em class="italic">.</em></p>
+    <p class="normal">Here is an example from the Google Cloud Natural Language API, with several additional classes:</p>
+    <figure class="mediaobject"><img src="image/B16252_03_01.png" alt="A screenshot of a cell phone  Description automatically generated"/></figure>
+    <p class="packt_figref">Figure 3.1: An NER example from the Google Cloud Natural Language API</p>
+    <p class="normal">The most common tags are listed in<a id="_idIndexMarker150"/> the table below:</p>
+    <table id="table001-1">
+      <colgroup>
+        <col/>
+        <col/>
+        <col/>
+      </colgroup>
+      <tbody>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Heading--PACKT-">Type</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Heading--PACKT-">Example Tag</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Heading--PACKT-">Example</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Person</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">PER</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-"><em class="italic">Gregory</em> went to the castle.</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Organization</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">ORG</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-"><em class="italic">WHO</em> just issued an epidemic advisory.</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Location</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">LOC</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">She lives in <em class="italic">Seattle</em>.</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Money</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">MONEY</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">You owe me <em class="italic">twenty dollars</em>.</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Percentage</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">PERCENT</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Stocks have risen <em class="italic">10%</em> today.</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Date</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">DATE</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Let's meet on <em class="italic">Wednesday</em>.</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Time</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">TIME</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Is it <em class="italic">5 pm</em> already?</p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="normal">There are different data sets and tagging schemes that can be used to train NER models. Different data sets will have different subsets of the tags listed above. In other domains, there may be additional tags <a id="_idIndexMarker151"/>specific to the domain. The Defence Science Technology Laboratory in the UK created a data set called <strong class="keyword">re3d</strong> (<a href="https://github.com/dstl/re3d"><span class="url">https://github.com/dstl/re3d</span></a>), which has <a id="_idIndexMarker152"/>entity types such as vehicle (Boeing 777), weapon (rifle), and military platform (tank). The availability of adequately sized labeled data sets in various languages is a significant challenge. Here is a link to a good collection <a id="_idIndexMarker153"/>of NER data sets: <a href="https://github.com/juand-r/entity-recognition-datasets"><span class="url">https://github.com/juand-r/entity-recognition-datasets</span></a>. In many use cases, you will need to spend a lot of time collecting and annotating data. For example, if you are building a chatbot for ordering pizza, the entities could be bases, sauces, sizes, and toppings.</p>
+    <p class="normal">There are a few different ways to build an NER model. If the sentence is considered a sequence, then this task can be modeled as a word-by-word labeling task. Hence, models similar to the models used for <strong class="keyword">Part of Speech</strong> (<strong class="keyword">POS</strong>) tagging are applicable. Features can be added to a model to improve labeling. The POS of a word and its neighboring words are the most straightforward features to add. Word shape features that model lowercase letters can add a lot of information, principally because a lot of the entity types deal with proper nouns, such as those for people and organizations. Organization names can be abbreviated. For example, the World Health Organization can be represented as WHO. Note that this feature will only work in languages that distinguish between lowercase and uppercase letters.</p>
+    <p class="normal">Another vital feature<a id="_idIndexMarker154"/> involves checking a word in a <strong class="keyword">gazetteer</strong>. A gazetteer is like a database of important<a id="_idIndexMarker155"/> geographical entities. See <a href="http://geonames.org"><span class="url">geonames.org</span></a> for an example of a data set licensed under Creative Commons. A set of people's names in the USA can be sourced from the US Social Security Administration at <a href="https://www.ssa.gov/oact/babynames/state/namesbystate.zip"><span class="url">https://www.ssa.gov/oact/babynames/state/namesbystate.zip</span></a>. The linked ZIP file has the names of people born in the United States since 1910, grouped by state. Similarly, Dunn and Bradstreet, popularly known as D&amp;B, offers a data set of companies with over 200 million businesses across the world that can be licensed. The biggest challenge with this approach is the complexity of maintaining these lists over time.</p>
+    <p class="normal">In this chapter, we will focus on a model that does not rely on additional external data on top of labelled data for training, like a gazetteer, and also has no dependence on hand-crafted features. We will try to get to as high a level of accuracy as possible using deep neural networks and some additional techniques. The model we will use will be a combination of BiLSTM and a CRF on top. This model is based on the paper titled <em class="italic">Neural Architectures for Named Entity Recognition</em>, written by Guillaume Lample et al. and presented at the NAACL-HTL conference in 2016. This paper was state of the art in 2016 with an F1 <a id="_idIndexMarker156"/>score of 90.94. Currently, the SOTA has an F1-score of 93.5, where the model uses extra training data. These numbers are measured on the CoNLL 2003 English data set. The GMB data set will be used in this chapter. The next section describes this data set.</p>
+    <h2 id="_idParaDest-52" class="title">The GMB data set</h2>
+    <p class="normal">With all the basics in the bag, we <a id="_idIndexMarker157"/>are ready to build a model that classifies NERs. For this task, the <strong class="keyword">Groningen Meaning Bank</strong> (<strong class="keyword">GMB</strong>) data set will be used. This dataset is not considered a gold standard. This means that this data set is built using <a id="_idIndexMarker158"/>automatic tagging software, followed by human raters updating subsets of the data. However, this is a very large and rich data set. This data has a lot of useful annotations that make it quite suitable for training models. It is also constructed from public domain text, making it easy to use for training. The following named entities are tagged in this corpus:</p>
+    <ul>
+      <li class="bullet">geo = Geographical entity</li>
+      <li class="bullet">org = Organization</li>
+      <li class="bullet">per = Person</li>
+      <li class="bullet">gpe = Geopolitical entity</li>
+      <li class="bullet">tim = Time indicator</li>
+      <li class="bullet">art = Artifact</li>
+      <li class="bullet">eve = Event</li>
+      <li class="bullet">nat = Natural phenomenon</li>
+    </ul>
+    <p class="normal">In each of these categories, there can be subcategories. For example, <em class="italic">tim</em> may be further sub-divided and represented as <em class="italic">tim-dow</em> representing a time entity corresponding to a day of the week, or <em class="italic">tim-dat</em>, which represents a date. For this exercise, these sub-entities are going to be aggregated into the eight top-level entities listed above. The number of examples varies widely between the sub-entities. Consequently, the accuracy varies widely due to the lack of enough training data for some of these subcategories.</p>
+    <p class="normal">The data set also provides the NER entity for each word. In many cases, an entity may comprise multiple words. If <em class="italic">Hyde Park</em> is a geographical entity, both words will be tagged as a <em class="italic">geo</em> entity. In terms of training models for NER, there is another way to represent this data that can have a significant impact on the accuracy of the model. This requires the usage of the BIO tagging scheme. In this scheme, the first word of an entity, single word or multi-word, is tagged with <em class="italic">B-{entity tag}</em>. If the entity is multi-word, each successive word would be tagged as <em class="italic">I-{entity tag}</em>. In the example above, <em class="italic">Hyde Park</em> would be tagged as <em class="italic">B-geo I-geo</em>. All these are steps of pre-processing that are required for a data set. All the <a id="_idIndexMarker159"/>code for this example can be found in the <code class="Code-In-Text--PACKT-">NER with BiLSTM and CRF.ipynb</code> notebook in the <code class="Code-In-Text--PACKT-">chapter3-ner-with-lstm-crf</code> folder of the GitHub repository.</p>
+    <p class="normal">Let's get started by loading and processing the data.</p>
+    <h1 id="_idParaDest-53" class="title">Loading the data</h1>
+    <p class="normal">Data can be downloaded<a id="_idIndexMarker160"/> from the University of Groningen website as follows:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># alternate: download the file from the browser and put</span> <span class="hljs-comment"># in the same directory as this notebook</span>
+!wget https://gmb.let.rug.nl/releases/gmb-<span class="hljs-number">2.2.0.</span><span class="hljs-built_in">zip</span>
+!unzip gmb-<span class="hljs-number">2.2.0.</span><span class="hljs-built_in">zip</span>
+</code></pre>
+    <p class="normal">Please note that the data is quite large – over 800MB. If <code class="Code-In-Text--PACKT-">wget</code> is not available on your system, you may use any other tool such as, <code class="Code-In-Text--PACKT-">curl</code> or a browser to download the data set. This step may take some time to complete. If you have a challenge accessing the data set from the University server, you may download a copy from Kaggle: <a href="https://www.kaggle.com/bradbolliger/gmb-v220"><span class="url">https://www.kaggle.com/bradbolliger/gmb-v220</span></a>. Also note that since we are going to be working on large data sets, some of the following steps may take some time to execute. In the world of <strong class="keyword">Natural Language Processing</strong> (<strong class="keyword">NLP</strong>), more training data and training time is key to great results.</p>
+    <div class="note">
+      <p class="Information-Box--PACKT-">All the code for this example can be found in the <code class="Code-In-Text--PACKT-">NER with BiLSTM and CRF.ipynb</code> notebook in the <code class="Code-In-Text--PACKT-">chapter3-ner-with-lstm-crf</code> folder of the GitHub repository.</p>
+    </div>
+    <p class="normal">The data unzips into the <code class="Code-In-Text--PACKT-">gmb-2.2.0</code> folder. The <code class="Code-In-Text--PACKT-">data</code> subfolder has a number of subfolders with different files. <code class="Code-In-Text--PACKT-">README</code> supplied with the data set provides details about the various files and their contents. For this example, we will be using only files named <code class="Code-In-Text--PACKT-">en.tags</code> in various subdirectories. These files are tab-separated files with each word of a sentence in a row. </p>
+    <p class="normal">There are ten columns of information:</p>
+    <ul>
+      <li class="bullet">The token itself</li>
+      <li class="bullet">A POS tag as used in the Penn Treebank (<a href="ftp://ftp.cis.upenn.edu/pub/treebank/doc/tagguide.ps.gz"><span class="url">ftp://ftp.cis.upenn.edu/pub/treebank/doc/tagguide.ps.gz</span></a>)</li>
+      <li class="bullet">A lemma</li>
+      <li class="bullet">A named-entity tag, or 0 if none</li>
+      <li class="bullet">A WordNet word sense number for the respective lemma-POS combinations, or 0 if not applicable (<a href="http://wordnet.princeton.edu"><span class="url">http://wordnet.princeton.edu</span></a>)</li>
+      <li class="bullet">For verbs and prepositions, a list of the VerbNet roles of the arguments in order of combination in the <a id="_idIndexMarker161"/><strong class="keyword">Combinatory Categorial Grammar</strong> (<strong class="keyword">CCG</strong>) derivation, or <code class="Code-In-Text--PACKT-">[]</code> if not applicable (<a href="http://verbs.colorado.edu/~mpalmer/projects/verbnet.html"><span class="url">http://verbs.colorado.edu/~mpalmer/projects/verbnet.html</span></a>)</li>
+      <li class="bullet">Semantic relation in noun-noun compounds, possessive apostrophes, temporal modifiers, and so on. Indicated using a preposition, or 0 if not applicable</li>
+      <li class="bullet">An animacy tag as proposed by Zaenen et al. (2004), or 0 if not applicable (<a href="http://dl.acm.org/citation.cfm?id=1608954"><span class="url">http://dl.acm.org/citation.cfm?id=1608954</span></a>)</li>
+      <li class="bullet">A supertag (lexical category of CCG)</li>
+      <li class="bullet">The lambda-DRS representing the semantics of the token in Boxer's Prolog format</li>
+    </ul>
+    <p class="normal">Out of these fields, we are going to use only the token and the named entity tag. However, we will work through loading the POS tag for a future exercise. The following code gets all the paths for these tags files:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> os
+data_root = <span class="hljs-string">'./gmb-2.2.0/data/'</span>
+fnames = []
+<span class="hljs-keyword">for</span> root, dirs, files <span class="hljs-keyword">in</span> os.walk(data_root):
+    <span class="hljs-keyword">for</span> filename <span class="hljs-keyword">in</span> files:
+        <span class="hljs-keyword">if</span> filename.endswith(<span class="hljs-string">".tags"</span>):
+            fnames.append(os.path.join(root, filename))
+fnames[:<span class="hljs-number">2</span>]
+[<span class="hljs-string">'./gmb-2.2.0/data/p57/d0014/en.tags'</span>, <span class="hljs-string">'./gmb-2.2.0/data/p57/d0382/en.tags'</span>]
+</code></pre>
+    <p class="normal">A few processing steps need to happen. Each file has a number of sentences, with each words in a row. The entire sentence as a sequence and the corresponding sequence of NER tags need to be fed in as inputs while training the model. As mentioned above, the NER tags also need to be simplified to the top-level entities only. Secondly, the NER tags need to be converted to the IOB format. <strong class="keyword">IOB</strong> stands for <strong class="keyword">In-Other-Begin</strong>. These letters are used as a <a id="_idIndexMarker162"/>prefix to the NER tag. The sentence fragment in the table below shows how this scheme works:</p>
+    <table id="table002-1">
+      <colgroup>
+        <col/>
+        <col/>
+        <col/>
+        <col/>
+        <col/>
+        <col/>
+        <col/>
+      </colgroup>
+      <tbody>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Reverend</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Terry</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Jones</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">arrived</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">in</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">New</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">York</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">B-per</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">I-per</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">I-per</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">B-geo</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">I-geo</p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="normal">The table above shows this tagging scheme after processing. Note that New York is one location. As soon as <em class="italic">New</em> is<a id="_idIndexMarker163"/> encountered, it marks the start of the geo NER tag, hence it is assigned B-geo. The next word is <em class="italic">York</em>, which is a continuation of the same geographical entity. For any network, classifying the word <em class="italic">New</em> as the start of the geographical entity is going to be very challenging. However, a BiLSTM network would be able to see the succeeding words, which helps quite a bit with disambiguation. Furthermore, the advantage of IOB tags is that the accuracy of the model improves considerably in terms of detection. This happens because once the beginning of an NER tag is detected, the choices for the next tag become quite limited.</p>
+    <p class="normal">Let's get to the code. First, create a directory to store all the processed files:</p>
+    <pre class="programlisting code"><code class="hljs-code">!mkdir ner  
+</code></pre>
+    <p class="normal">We want to process the tags so that we strip the subcategories of the NER tags out. It would also be nice to collect some stats on the types of tags in the documents:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> csv
+<span class="hljs-keyword">import</span> collections
+ 
+ner_tags = collections.Counter()
+iob_tags = collections.Counter()
+<span class="hljs-keyword">def</span><span class="hljs-functio"> </span><span class="hljs-title">strip_ner_subcat</span><span class="hljs-functio">(</span><span class="hljs-params">tag</span><span class="hljs-functio">):</span>
+    <span class="hljs-comment"># NER tags are of form {cat}-{subcat}</span>
+    <span class="hljs-comment"># eg tim-dow. We only want first part</span>
+    <span class="hljs-keyword">return</span> tag.split(<span class="hljs-string">"-"</span>)[<span class="hljs-number">0</span>]
+</code></pre>
+    <p class="normal">The NER tag and IOB tag counters are set up above. A method for stripping the subcategory out of the NER tags is defined. The next method takes a sequence of tags and converts them into IOB format:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-functio"> </span><span class="hljs-title">iob_format</span><span class="hljs-functio">(</span><span class="hljs-params">ners</span><span class="hljs-functio">):</span>
+    <span class="hljs-comment"># converts IO tags into IOB format</span>
+    <span class="hljs-comment"># input is a sequence of IO NER tokens</span>
+    <span class="hljs-comment"># convert this: O, PERSON, PERSON, O, O, LOCATION, O</span>
+    <span class="hljs-comment"># into: O, B-PERSON, I-PERSON, O, O, B-LOCATION, O</span>
+    iob_tokens = []
+    <span class="hljs-keyword">for</span> idx, token <span class="hljs-keyword">in</span> <span class="hljs-built_in">enumerate</span>(ners):
+        <span class="hljs-keyword">if</span> token != <span class="hljs-string">'O'</span>:  <span class="hljs-comment"># !other</span>
+            <span class="hljs-keyword">if</span> idx == <span class="hljs-number">0</span>:
+                token = <span class="hljs-string">"B-"</span> + token <span class="hljs-comment">#start of sentence</span>
+            <span class="hljs-keyword">elif</span> ners[idx<span class="hljs-number">-1</span>] == token:
+                token = <span class="hljs-string">"I-"</span> + token  <span class="hljs-comment"># continues</span>
+            <span class="hljs-keyword">else</span>:
+                token = <span class="hljs-string">"B-"</span> + token
+        iob_tokens.append(token)
+        iob_tags[token] += <span class="hljs-number">1</span>
+    <span class="hljs-keyword">return</span> iob_tokens
+</code></pre>
+    <p class="normal">Once these two convenience <a id="_idIndexMarker164"/>functions are ready, all the tags files need to be read and processed:</p>
+    <pre class="programlisting code"><code class="hljs-code">total_sentences = <span class="hljs-number">0</span>
+outfiles = []
+<span class="hljs-keyword">for</span> idx, file <span class="hljs-keyword">in</span> <span class="hljs-built_in">enumerate</span>(fnames):
+    <span class="hljs-keyword">with</span> <span class="hljs-built_in">open</span>(file, <span class="hljs-string">'rb'</span>) <span class="hljs-keyword">as</span> content:
+        data = content.read().decode(<span class="hljs-string">'utf-8'</span>).strip()
+        sentences = data.split(<span class="hljs-string">"\n\n"</span>)
+        print(idx, file, <span class="hljs-built_in">len</span>(sentences))
+        total_sentences += <span class="hljs-built_in">len</span>(sentences)
+        
+        <span class="hljs-keyword">with</span> <span class="hljs-built_in">open</span>(<span class="hljs-string">"./ner/"</span>+<span class="hljs-built_in">str</span>(idx)+<span class="hljs-string">"-"</span>+os.path.basename(file), <span class="hljs-string">'w'</span>) <span class="hljs-keyword">as</span> outfile:
+            outfiles.append(<span class="hljs-string">"./ner/"</span>+<span class="hljs-built_in">str</span>(idx)+<span class="hljs-string">"-"</span>+ os.path.basename(file))
+            writer = csv.writer(outfile)
+            
+            <span class="hljs-keyword">for</span> sentence <span class="hljs-keyword">in</span> sentences: 
+                toks = sentence.split(<span class="hljs-string">'\n'</span>)
+                words, pos, ner = [], [], []
+                
+                <span class="hljs-keyword">for</span> tok <span class="hljs-keyword">in</span> toks:
+                    t = tok.split(<span class="hljs-string">"\t"</span>)
+                    words.append(t[<span class="hljs-number">0</span>])
+                    pos.append(t[<span class="hljs-number">1</span>])
+                    ner_tags[t[<span class="hljs-number">3</span>]] += <span class="hljs-number">1</span>
+                    ner.append(strip_ner_subcat(t[<span class="hljs-number">3</span>]))
+                writer.writerow([<span class="hljs-string">" "</span>.join(words), 
+                                 <span class="hljs-string">" "</span>.join(iob_format(ner)), 
+                                 <span class="hljs-string">" "</span>.join(pos)])
+</code></pre>
+    <p class="normal">First, a counter is set for the number of sentences. A list of files written with paths are also initialized. As processed files are written out, their paths are added to the <code class="Code-In-Text--PACKT-">outfiles</code> variable. This list will be used later to load all the data and to train the model. Files are read and split into two empty newline characters. That is the marker for the end of a sentence in the file. Only the<a id="_idIndexMarker165"/> actual words, POS tokens, and NER tokens are used from the file. Once these are collected, a new CSV file is written with three columns: the sentence, a sequence of POS tags, and a sequence of NER tags. This step may take a little while to execute:</p>
+    <pre class="programlisting code"><code class="hljs-code">print(<span class="hljs-string">"total number of sentences: "</span>, total_sentences)
+</code></pre>
+    <pre class="programlisting con"><code class="hljs-con">total number of sentences:  62010
+</code></pre>
+    <p class="normal">To confirm the distribution of the NER tags before and after processing, we can use the following code:</p>
+    <pre class="programlisting code"><code class="hljs-code">print(ner_tags)
+print(iob_tags)
+</code></pre>
+    <pre class="programlisting con"><code class="hljs-con">Counter({'O': 1146068, 'geo-nam': 58388, 'org-nam': 48034, 'per-nam': 23790, 'gpe-nam': 20680, 'tim-dat': 12786, 'tim-dow': 11404, 'per-tit': 9800, 'per-fam': 8152, 'tim-yoc': 5290, 'tim-moy': 4262, 'per-giv': 2413, 'tim-clo': 891, 'art-nam': 866, 'eve-nam': 602, 'nat-nam': 300, 'tim-nam': 146, 'eve-ord': 107, 'org-leg': 60, 'per-ini': 60, 'per-ord': 38, 'tim-dom': 10, 'art-add': 1, 'per-mid': 1})
+Counter({'O': 1146068, 'B-geo': 48876, 'B-tim': 26296, 'B-org': 26195, 'I-per': 22270, 'B-per': 21984, 'I-org': 21899, 'B-gpe': 20436, 'I-geo': 9512, 'I-tim': 8493, 'B-art': 503, 'B-eve': 391, 'I-art': 364, 'I-eve': 318, 'I-gpe': 244, 'B-nat': 238, 'I-nat': 62})
+</code></pre>
+    <p class="normal">As is evident, some tags were very infrequent, like <em class="italic">tim-dom</em>. It would be next to impossible for a network to learn them. Aggregating up one level helps increase the signal for these tags. To check if the entire process completed properly, check that the <code class="Code-In-Text--PACKT-">ner</code> folder has 10,000 files. Now, let us load the processed data to normalize, tokenize, and vectorize it.</p>
+    <h1 id="_idParaDest-54" class="title">Normalizing and vectorizing data</h1>
+    <p class="normal">For this section, <code class="Code-In-Text--PACKT-">pandas</code> and <code class="Code-In-Text--PACKT-">numpy</code> methods will <a id="_idIndexMarker166"/>be used. The first step is to load the <a id="_idIndexMarker167"/>contents of the processed files into one <code class="Code-In-Text--PACKT-">DataFrame</code>:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> glob
+<span class="hljs-keyword">import</span> pandas <span class="hljs-keyword">as</span> pd
+<span class="hljs-comment"># could use `outfiles` param as well</span>
+files = glob.glob(<span class="hljs-string">"./ner/*.tags"</span>)
+data_pd = pd.concat([pd.read_csv(f, header=<span class="hljs-literal">None</span>, 
+                                 names=[<span class="hljs-string">"text"</span>, <span class="hljs-string">"label"</span>, <span class="hljs-string">"pos"</span>]) 
+                <span class="hljs-keyword">for</span> f <span class="hljs-keyword">in</span> files], ignore_index = <span class="hljs-literal">True</span>)
+</code></pre>
+    <p class="normal">This step may take a while given that it is processing 10,000 files. Once the content is loaded, we can check the structure of the <code class="Code-In-Text--PACKT-">DataFrame</code>:</p>
+    <pre class="programlisting code"><code class="hljs-code">data_pd.info()
+</code></pre>
+    <pre class="programlisting con"><code class="hljs-con">&lt;class 'pandas.core.frame.DataFrame'&gt;
+RangeIndex: 62010 entries, 0 to 62009
+Data columns (total 3 columns):
+ #   Column  Non-Null Count  Dtype 
+---  ------  --------------  ----- 
+ 0   text    62010 non-null  object
+ 1   label   62010 non-null  object
+ 2   pos     62010 non-null  object
+dtypes: object(3)
+memory usage: 1.4+ MB
+</code></pre>
+    <p class="normal">Both the text and NER tags need to be tokenized and encoded into numbers for use in training. We are going to be using core methods provided by the <code class="Code-In-Text--PACKT-">keras.preprocessing</code> package. First, the tokenizer will be used to tokenize the text. In this example, the text only needs to be tokenized by white spaces, as it has been broken up already:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment">### Keras tokenizer</span>
+<span class="hljs-keyword">from</span> tensorflow.keras.preprocessing.text <span class="hljs-keyword">import</span> Tokenizer
+text_tok = Tokenizer(filters=<span class="hljs-string">'[\\]^\t\n'</span>, lower=<span class="hljs-literal">False</span>,
+                     split=<span class="hljs-string">' '</span>, oov_token=<span class="hljs-string">'&lt;OOV&gt;'</span>)
+pos_tok = Tokenizer(filters=<span class="hljs-string">'\t\n'</span>, lower=<span class="hljs-literal">False</span>,
+                    split=<span class="hljs-string">' '</span>, oov_token=<span class="hljs-string">'&lt;OOV&gt;'</span>)
+ner_tok = Tokenizer(filters=<span class="hljs-string">'\t\n'</span>, lower=<span class="hljs-literal">False</span>,
+                    split=<span class="hljs-string">' '</span>, oov_token=<span class="hljs-string">'&lt;OOV&gt;'</span>)
+</code></pre>
+    <p class="normal">The default values for the<a id="_idIndexMarker168"/> tokenizer are quite reasonable. However, in this particular case, it is important to only tokenize on spaces and not clean the special characters <a id="_idIndexMarker169"/>out. Otherwise the data will become mis-formatted:</p>
+    <pre class="programlisting code"><code class="hljs-code">text_tok.fit_on_texts(data_pd[<span class="hljs-string">'text'</span>])
+pos_tok.fit_on_texts(data_pd[<span class="hljs-string">'pos'</span>])
+ner_tok.fit_on_texts(data_pd[<span class="hljs-string">'label'</span>])
+</code></pre>
+    <div class="packt_tip">
+      <p class="Tip--PACKT-">Even though we do not use the POS tags, the processing for them is included. Use of the POS tags can have an impact on the accuracy of an NER model. Many NER entities are nouns, for example. However, we will see how to process POS tags but not use them in the model as features. This is left as an exercise to the reader.</p>
+    </div>
+    <p class="normal">This tokenizer has some useful features. It provides a way to restrict the size of the vocabulary by word counts, TF-IDF, and so on. If the <code class="Code-In-Text--PACKT-">num_words</code> parameter is passed with a numeric value, the tokenizer will limit the number of tokens by word frequencies to that number. The <code class="Code-In-Text--PACKT-">fit_on_texts</code> method takes in all the texts, tokenizes them, and constructs dictionaries with tokens that will be used later to tokenize and encode in one go. A convenience function, <code class="Code-In-Text--PACKT-">get_config()</code>, can be called after the tokenizer has been fit on texts to provide information about the tokens:</p>
+    <pre class="programlisting code"><code class="hljs-code">ner_config = ner_tok.get_config()
+text_config = text_tok.get_config()
+print(ner_config)
+</code></pre>
+    <pre class="programlisting con"><code class="hljs-con">{'num_words': None, 'filters': '\t\n', 'lower': False, 'split': ' ', 'char_level': False, 'oov_token': '&lt;OOV&gt;', 'document_count': 62010, 'word_counts': '{"B-geo": 48876, "O": 1146068, "I-geo": 9512, "B-per": 21984, "I-per": 22270, "B-org": 26195, "I-org": 21899, "B-tim": 26296, "I-tim": 8493, "B-gpe": 20436, "B-art": 503, "B-nat": 238, "B-eve": 391, "I-eve": 318, "I-art": 364, "I-gpe": 244, "I-nat": 62}', 'word_docs': '{"I-geo": 7738, "O": 61999, "B-geo": 31660, "B-per": 17499, "I-per": 13805, "B-org": 20478, "I-org": 11011, "B-tim": 22345, "I-tim": 5526, "B-gpe": 16565, "B-art": 425, "B-nat": 211, "I-eve": 201, "B-eve": 361, "I-art": 207, "I-gpe": 224, "I-nat": 50}', 'index_docs': '{"10": 7738, "2": 61999, "3": 31660, "7": 17499, "6": 13805, "5": 20478, "8": 11011, "4": 22345, "11": 5526, "9": 16565, "12": 425, "17": 211, "15": 201, "13": 361, "14": 207, "16": 224, "18": 50}', 'index_word': '{"1": "&lt;OOV&gt;", "2": "O", "3": "B-geo", "4": "B-tim", "5": "B-org", "6": "I-per", "7": "B-per", "8": "I-org", "9": "B-gpe", "10": "I-geo", "11": "I-tim", "12": "B-art", "13": "B-eve", "14": "I-art", "15": "I-eve", "16": "I-gpe", "17": "B-nat", "18": "I-nat"}', 'word_index': '{"&lt;OOV&gt;": 1, "O": 2, "B-geo": 3, "B-tim": 4, "B-org": 5, "I-per": 6, "B-per": 7, "I-org": 8, "B-gpe": 9, "I-geo": 10, "I-tim": 11, "B-art": 12, "B-eve": 13, "I-art": 14, "I-eve": 15, "I-gpe": 16, "B-nat": 17, "I-nat": 18}'}
+</code></pre>
+    <p class="normal">The <code class="Code-In-Text--PACKT-">index_word</code> dictionary <a id="_idIndexMarker170"/>property in the config provides a mapping between IDs and tokens. There is a considerable amount of information in the config. The vocabularies <a id="_idIndexMarker171"/>can be obtained from the config:</p>
+    <pre class="programlisting code"><code class="hljs-code">text_vocab = <span class="hljs-built_in">eval</span>(text_config[<span class="hljs-string">'index_word'</span>])
+ner_vocab = <span class="hljs-built_in">eval</span>(ner_config[<span class="hljs-string">'index_word'</span>])
+print(<span class="hljs-string">"Unique words in vocab:"</span>, <span class="hljs-built_in">len</span>(text_vocab))
+print(<span class="hljs-string">"Unique NER tags in vocab:"</span>, <span class="hljs-built_in">len</span>(ner_vocab))
+</code></pre>
+    <pre class="programlisting con"><code class="hljs-con">Unique words in vocab: 39422
+Unique NER tags in vocab: 18
+</code></pre>
+    <p class="normal">Tokenizing and encoding text and named entity labels is quite easy:</p>
+    <pre class="programlisting code"><code class="hljs-code">x_tok = text_tok.texts_to_sequences(data_pd[<span class="hljs-string">'text'</span>])
+y_tok = ner_tok.texts_to_sequences(data_pd[<span class="hljs-string">'label'</span>])
+</code></pre>
+    <p class="normal">Since sequences are of different sizes, they will all be padded or truncated to a size of 50 tokens. A helper function is used for this task:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># now, pad sequences to a maximum length</span>
+<span class="hljs-keyword">from</span> tensorflow.keras.preprocessing <span class="hljs-keyword">import</span> sequence
+max_len = <span class="hljs-number">50</span>
+x_pad = sequence.pad_sequences(x_tok, padding=<span class="hljs-string">'post'</span>,
+                              maxlen=max_len)
+y_pad = sequence.pad_sequences(y_tok, padding=<span class="hljs-string">'post'</span>,
+                              maxlen=max_len)
+print(x_pad.shape, y_pad.shape)
+</code></pre>
+    <pre class="programlisting con"><code class="hljs-con">(62010, 50) (62010, 50)
+</code></pre>
+    <p class="normal">The last step above<a id="_idIndexMarker172"/> is to ensure that shapes are correct before moving to the next step. Verifying shapes is a very important part of developing code in TensorFlow.</p>
+    <p class="normal">There is an additional step <a id="_idIndexMarker173"/>that needs to be performed on the labels. Since there are multiple labels, each label token needs to be one-hot encoded like so:</p>
+    <pre class="programlisting code"><code class="hljs-code">num_classes = <span class="hljs-built_in">len</span>(ner_vocab) + <span class="hljs-number">1</span>
+Y = tf.keras.utils.to_categorical(y_pad, num_classes=num_classes)
+Y.shape
+</code></pre>
+    <pre class="programlisting con"><code class="hljs-con">(62010, 50, 19)
+</code></pre>
+    <p class="normal">Now, we are ready to build and train a model.</p>
+    <h1 id="_idParaDest-55" class="title">A BiLSTM model</h1>
+    <p class="normal">The first model we will try is a<a id="_idIndexMarker174"/> BiLSTM model. First, the basic constants need to be set up:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Length of the vocabulary </span>
+vocab_size = <span class="hljs-built_in">len</span>(text_vocab) + <span class="hljs-number">1</span> 
+<span class="hljs-comment"># The embedding dimension</span>
+embedding_dim = <span class="hljs-number">64</span>
+<span class="hljs-comment"># Number of RNN units</span>
+rnn_units = <span class="hljs-number">100</span>
+<span class="hljs-comment">#batch size</span>
+BATCH_SIZE=<span class="hljs-number">90</span>
+<span class="hljs-comment"># num of NER classes</span>
+num_classes = <span class="hljs-built_in">len</span>(ner_vocab)+<span class="hljs-number">1</span>
+</code></pre>
+    <p class="normal">Next, a convenience function for instantiating models is defined:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">from</span> tensorflow.keras.layers <span class="hljs-keyword">import</span> Embedding, Bidirectional, LSTM, TimeDistributed, Dense
+dropout=<span class="hljs-number">0.2</span>
+<span class="hljs-keyword">def</span><span class="hljs-functio"> </span><span class="hljs-title">build_model_bilstm</span><span class="hljs-functio">(</span><span class="hljs-params">vocab_size, embedding_dim, rnn_units, batch_size, classes</span><span class="hljs-functio">):</span>
+  model = tf.keras.Sequential([
+    Embedding(vocab_size, embedding_dim, mask_zero=<span class="hljs-literal">True</span>,
+                              batch_input_shape=[batch_size,
+ <span class="hljs-literal">None</span>]),
+    Bidirectional(LSTM(units=rnn_units,
+                           return_sequences=<span class="hljs-literal">True</span>,
+                           dropout=dropout,  
+                           kernel_initializer=\
+                            tf.keras.initializers.he_normal())),
+    <span class="code-highlight"><strong class="hljs-slc">TimeDistributed(Dense(rnn_units, activation=</strong><strong class="hljs-string-slc">'relu'</strong><strong class="hljs-slc">)),</strong></span>
+    Dense(num_classes, activation=<span class="hljs-string">"softmax"</span>)
+  ])
+</code></pre>
+    <p class="normal">We are going to train our own embeddings. The next chapter will talk about using pre-trained embeddings and using them in models. After the embedding layer, there is a BiLSTM layer, followed by a <code class="Code-In-Text--PACKT-">TimeDistributed</code> dense layer. This last layer is different from the sentiment analysis model, where there was only a single unit for binary output. In this problem, for each word in the input sequence, an NER token needs to be predicted. So, the output has as <a id="_idIndexMarker175"/>many tokens as the input sequence. Consequently, output tokens correspond 1-to-1 with input tokens and are classified as one of the NER classes. The <code class="Code-In-Text--PACKT-">TimeDistributed</code> layer provides this capability. The other thing to note in this model is the use of regularization. It is important that the model does not overfit the training data. Since LSTMs have high model capacity, using regularization is very important. Feel free to play with some of these hyperparameters to get a feel for how the model will react.</p>
+    <p class="normal">Now the model can be compiled:</p>
+    <pre class="programlisting code"><code class="hljs-code">model = build_model_bilstm(
+                        vocab_size = vocab_size,
+                        embedding_dim=embedding_dim,
+                        rnn_units=rnn_units,
+                        batch_size=BATCH_SIZE,
+                        classes=num_classes)
+model.summary()
+model.<span class="hljs-built_in">compile</span>(optimizer=<span class="hljs-string">"adam"</span>, loss=<span class="hljs-string">"categorical_crossentropy"</span>,
+ metrics=[<span class="hljs-string">"accuracy"</span>])
+</code></pre>
+    <pre class="programlisting con"><code class="hljs-con">Model: "sequential_1"
+Layer (type)                 Output Shape              Param #   
+=================================================================
+embedding_9 (Embedding)      (90, None, 64)            2523072   
+_________________________________________________________________
+bidirectional_9 (Bidirection (90, None, 200)           132000    
+_________________________________________________________________
+time_distributed_6 (TimeDist (None, None, 100)         20100     
+_________________________________________________________________
+dense_16 (Dense)             (None, None, 19)          1919      
+=================================================================
+Total params: 2,677,091
+Trainable params: 2,677,091
+Non-trainable params: 0
+_________________________________________________________________
+</code></pre>
+    <p class="normal">This simplistic model has<a id="_idIndexMarker176"/> over 2.6 million parameters! </p>
+    <div class="packt_tip">
+      <p class="Tip--PACKT-">If you notice, the bulk of the parameters are coming from the size of the vocabulary. The vocabulary has 39,422 words. This increases the model training time and computational capacity required. One way to reduce this is to make the vocabulary size smaller. The easiest way to do this would be to only consider words that have more than a certain frequency of occurrence or to remove words smaller than a certain number of characters. The vocabulary can also be reduced by converting all characters to lower case. However, in NER, case is a very important feature.</p>
+    </div>
+    <p class="normal">This model is ready for training. The last thing that is needed is to split the data into train and test sets:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># to enable TensorFlow to process sentences properly</span>
+X = x_pad
+<span class="hljs-comment"># create training and testing splits</span>
+total_sentences = <span class="hljs-number">62010</span>
+test_size = <span class="hljs-built_in">round</span>(total_sentences / BATCH_SIZE * <span class="hljs-number">0.2</span>)
+X_train = X[BATCH_SIZE*test_size:]
+Y_train = Y[BATCH_SIZE*test_size:]
+X_test = X[<span class="hljs-number">0</span>:BATCH_SIZE*test_size]
+Y_test = Y[<span class="hljs-number">0</span>:BATCH_SIZE*test_size]
+</code></pre>
+    <p class="normal">Now, the model is ready for training:</p>
+    <pre class="programlisting code"><code class="hljs-code">model.fit(X_train, Y_train, batch_size=BATCH_SIZE, epochs=<span class="hljs-number">15</span>)
+</code></pre>
+    <pre class="programlisting con"><code class="hljs-con">Train on 49590 samples
+Epoch 1/15
+49590/49590 [==============================] - 20s 409us/sample - loss: 0.1736 - accuracy: 0.9113
+<span class="hljs-co -meta">...</span>
+Epoch 8/15
+49590/49590 [==============================] - 15s 312us/sample - loss: 0.0153 - accuracy: 0.9884
+<span class="hljs-co -meta">...</span>
+Epoch 15/15
+49590/49590 [==============================] - 15s 312us/sample - loss: 0.0065 - accuracy: 0.9950
+</code></pre>
+    <p class="normal">Over 15 epochs of training, the<a id="_idIndexMarker177"/> model is doing quite well with over 99% accuracy. Let's see how the model performs on the test set and whether the regularization helped:</p>
+    <pre class="programlisting code"><code class="hljs-code">model.evaluate(X_test, Y_test, batch_size=BATCH_SIZE)
+</code></pre>
+    <pre class="programlisting con"><code class="hljs-con">12420/12420 [==============================] - 3s 211us/sample - loss: 0.0926 - accuracy: 0.9624
+</code></pre>
+    <p class="normal">The model performs well on the test data set, with over 96.5% accuracy. The difference between the train and test accuracies is still there, implying that the model could use some additional regularization. You can play with the dropout variable or add additional dropout layers between the embedding and BiLSTM layers, and between the <code class="Code-In-Text--PACKT-">TimeDistributed</code> layer and the final Dense layer.</p>
+    <p class="normal">Here is an example of a sentence fragment tagged by this model:</p>
+    <table id="table003">
+      <colgroup>
+        <col/>
+        <col/>
+        <col/>
+        <col/>
+        <col/>
+        <col/>
+        <col/>
+        <col/>
+        <col/>
+        <col/>
+        <col/>
+        <col/>
+      </colgroup>
+      <tbody>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Faure</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Gnassingbe</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">said</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">in</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">a</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">speech</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">carried </p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">by</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">state</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">media</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Friday</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Actual</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">B-per</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">I-per</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">B-tim</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Model</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">B-per</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">I-per</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">B-tim</p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="normal">This model is not doing poorly at all. It was able to identify the person and time entities in the sentence.</p>
+    <p class="normal">As good as this model is, it does<a id="_idIndexMarker178"/> not use an important characteristic of named entity tags – a given tag is highly correlated with the tag coming after it. CRFs can take advantage of this information and further improve the accuracy of NER tasks. Let's understand how CRFs work and add them to the network above next.</p>
+    <h1 id="_idParaDest-56" class="title">Conditional random fields (CRFs)</h1>
+    <p class="normal">BiLSTM models look at a <a id="_idIndexMarker179"/>sequence of input words and predict the label for the current word. In making this determination, only the information of previous inputs is considered. Previous predictions play no role in making this decision. However, there is information encoded in the sequence of labels that is being discounted. To illustrate this point, consider a subset of NER tags: <strong class="keyword">O</strong>, <strong class="keyword">B-Per</strong>, <strong class="keyword">I-Per</strong>, <strong class="keyword">B-Geo</strong>, and <strong class="keyword">I-Geo</strong>. This represents two domains of person and geographical entities and an <em class="italic">Other</em> category for everything else. Based on the structure of IOB tags, we know that any <strong class="keyword">I</strong>- tag must be preceded by a <strong class="keyword">B-I</strong> from the same domain. This also implies that an <strong class="keyword">I</strong>- tag cannot be preceded by an <strong class="keyword">O</strong> tag. The following diagram shows the possible state transitions between these tags:</p>
+    <figure class="mediaobject"><img src="image/B16252_03_02.png" alt=""/></figure>
+    <p class="packt_figref">Figure 3.2: Possible NER tag transitions</p>
+    <p class="normal"><em class="italic">Figure 3.2</em> color codes similar types of transitions with the same color. An <strong class="keyword">O</strong> tag can transition only to a <strong class="keyword">B</strong> tag. A <strong class="keyword">B</strong> tag can go to its corresponding <strong class="keyword">I</strong> tag or back to the <strong class="keyword">O</strong> tag. An <strong class="keyword">I</strong> tag can transition back to itself, an <strong class="keyword">O</strong> tag, or a <strong class="keyword">B</strong> tag of a different domain (not represented in the diagram for simplicity). For a set of <strong class="keyword">N</strong> tags, these transitions can be represented by a matrix of dimension <em class="italic">N x N</em>. <em class="italic">P</em><sub class="" style="font-style: italic;">i,j</sub> denotes the possibility of tag <em class="italic">j</em> coming after tag <em class="italic">i</em>. Note that these transition weights can be learned based on the data. Such a learned transition weights <a id="_idIndexMarker180"/>matrix could be used during prediction to consider the entire sequence of predicted labels and make updates to the probabilities. </p>
+    <p class="normal">Here is an illustrative matrix with indicative transition weights:</p>
+    <table id="table004">
+      <colgroup>
+        <col/>
+        <col/>
+        <col/>
+        <col/>
+        <col/>
+        <col/>
+      </colgroup>
+      <tbody>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Heading--PACKT-">From &gt; To</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Heading--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Heading--PACKT-">B-Geo</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Heading--PACKT-">I-Geo</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Heading--PACKT-">B-Org</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Heading--PACKT-">I-Org</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Heading--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">3.28</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">2.20</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.00</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">3.66</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.00</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Heading--PACKT-">B-Geo</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">-0.25</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">-0.10</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">4.06</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.00</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.00</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Heading--PACKT-">I-Geo</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">-0.17</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">-0.61</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">3.51</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.00</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.00</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Heading--PACKT-">B-Org</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">-0.10</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">-0.23</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.00</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">-1.02</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">4.81</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Heading--PACKT-">I-Org</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">-0.33</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">-1.75</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.00</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">-1.38</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">5.10</p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="normal">As per the table above, the weight of the edge connecting I-Org to B-Org has a weight of -1.38, implying that this transition is extremely unlikely to happen. Practically, implementing a CRF has three main steps. The first step is modifying the score generated by the BiLSTM layer and accounting for the transition weights, as shown above. A sequence of predictions</p>
+    <figure class="mediaobject"><img src="image/B16252_03_001.png" alt="" style="max-height:20px;"/></figure>
+    <p class="normal">generated by the BiLSTM layer above for a sequence of <em class="italic">n</em> tags in the space of <em class="italic">k</em> unique tags is available, which operates on an input sequence <em class="italic">X</em>. <em class="italic">P</em> represents a matrix of dimensions <em class="italic">n × k</em>, where the element <em class="italic">P</em><sub class="" style="font-style: italic;">i,j</sub> represents the probability of <em class="italic">j</em><sup class="" style="font-style: italic;">th</sup> tag for output at the position <em class="italic">y</em><sub class="" style="font-style: italic;">i</sub>. Let <em class="italic">A</em> be a square matrix of transition probabilities as shown above, with a dimension of <em class="italic">(k + 2) × (k + 2)</em> where two additional tokens are added for start- and end-of-sentence markers. Element <em class="italic">A</em><sub class="" style="font-style: italic;">i,j</sub> represents the transition probability from <em class="italic">i</em> to tag <em class="italic">j</em>. Using these values, a new score can be calculated like so:</p>
+    <figure class="mediaobject"><img src="image/B16252_03_002.png" alt="" style="max-height:50px;"/></figure>
+    <p class="normal">A softmax can be calculated over all possible tag sequences to get the probability for a given sequence <em class="italic">y</em>:</p>
+    <figure class="mediaobject"><img src="image/B16252_03_003.png" alt="" style="max-height:45px;"/></figure>
+    <p class="normal"><em class="italic">Y</em><sub class="" style="font-style: italic;">X</sub> represents all possible tag<a id="_idIndexMarker181"/> sequences, including those that may not conform to the IOB tag format. To train using this softmax, a log-likelihood can be calculated over this. Through clever use of dynamic programming, a combinatorial explosion can be avoided, and the denominator can be computed quite efficiently.</p>
+    <div class="note">
+      <p class="Information-Box--PACKT-">Only simplistic math is shown to help build an intuition of how this method works. The actual computations will become clear in the custom layer implementation below.</p>
+    </div>
+    <p class="normal">While decoding, the output sequence is the one that has the maximum score among these possible sequences, calculated conceptually using an <code class="Code-In-Text--PACKT-">argmax</code> style function. The Viterbi algorithm is commonly used to implement a dynamic programming solution for decoding. First, let us code the model and the training for it before getting into decoding.</p>
+    <h1 id="_idParaDest-57" class="title">NER with BiLSTM and CRFs</h1>
+    <p class="normal">Implementing a BiLSTM network <a id="_idIndexMarker182"/>with CRFs requires adding a CRF layer on top of the BiLSTM network developed above. However, a CRF is <a id="_idIndexMarker183"/>not a core part of the TensorFlow or Keras layers. It is available through the <code class="Code-In-Text--PACKT-">tensorflow_addons</code> or <code class="Code-In-Text--PACKT-">tfa </code>package. The first step is to install this package:</p>
+    <pre class="programlisting code"><code class="hljs-code">!pip install tensorflow_addons==0.11.2
+</code></pre>
+    <p class="normal">There are many sub-packages, but the convenience functions for the CRF are in the <code class="Code-In-Text--PACKT-">tfa.text</code> subpackage:</p>
+    <figure class="mediaobject"><img src="image/B16252_03_03.png" alt="A screenshot of a cell phone  Description automatically generated"/></figure>
+    <p class="packt_figref">Figure 3.3: tfa.text methods</p>
+    <p class="normal">While low-level methods for implementing the CRF layer are provided, a<a id="_idIndexMarker184"/> high-level layer-like construct is not provided. The implementation of a CRF requires a custom layer, a loss function, and a training loop. Post training, we will look at how to implement a customized inference function that will use Viterbi decoding.</p>
+    <h2 id="_idParaDest-58" class="title">Implementing the custom CRF layer, loss, and model</h2>
+    <p class="normal">Similar to the flow above, there<a id="_idIndexMarker185"/> will be an embedding layer and a BiLSTM layer. The output of the BiLSTM needs to be evaluated with the CRF log-likelihood loss described above. This is the loss that needs to be used to train the model. The first step in implementation is creating a custom layer. Implementing a custom layer in Keras requires subclassing <code class="Code-In-Text--PACKT-">keras.layers.Layer</code>. The main method to be implemented is <code class="Code-In-Text--PACKT-">call()</code>, which takes inputs to the layer, transforms them, and returns the result. Additionally, the constructor to the layer can also set up any parameters that are needed. Let's start with the constructor:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">from</span> tensorflow.keras.layers <span class="hljs-keyword">import</span> Layer
+<span class="hljs-keyword">from</span> tensorflow.keras <span class="hljs-keyword">import</span> backend <span class="hljs-keyword">as</span> K
+<span class="hljs-keyword">class</span><span class="hljs-class"> </span><span class="hljs-title">CRFLayer</span><span class="hljs-class">(</span><span class="hljs-params">Layer</span><span class="hljs-class">):</span>
+  <span class="hljs-string">"""</span>
+<span class="hljs-string">  Computes the log likelihood during training</span>
+<span class="hljs-string">  Performs Viterbi decoding during prediction</span>
+<span class="hljs-string">  """</span>
+  <span class="hljs-keyword">def</span><span class="hljs-functio"> </span><span class="hljs-title">__init__</span><span class="hljs-functio">(</span><span class="hljs-params">self,</span>
+<span class="hljs-params">               label_size, mask_id=</span><span class="hljs-number">0</span><span class="hljs-params">,</span>
+<span class="hljs-params">               trans_params=</span><span class="hljs-literal">None</span><span class="hljs-params">, name=</span><span class="hljs-string">'crf'</span><span class="hljs-params">,</span>
+<span class="hljs-params">               **kwargs</span><span class="hljs-functio">):</span>
+    <span class="hljs-built_in">super</span>(CRFLayer, self).__init__(name=name, **kwargs)
+    self.label_size = label_size
+    self.mask_id = mask_id
+    self.transition_params = <span class="hljs-literal">None</span>
+    
+    <span class="hljs-keyword">if</span> trans_params <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:  <span class="hljs-comment"># not reloading pretrained params</span>
+        self.transition_params = tf.Variable(
+tf.random.uniform(shape=(label_size, label_size)),
+                trainable=<span class="hljs-literal">False</span>)
+    <span class="hljs-keyword">else</span>:
+        self.transition_params = trans_params
+</code></pre>
+    <p class="normal">The main parameters that are needed are:</p>
+    <ul>
+      <li class="bullet"><strong class="keyword">The number of labels and the transition matrix</strong>: As described in the section above, a transition matrix needs to be learned. The dimension of that square matrix is the number of labels. The transition matrix is initialized using the parameters. This transition parameters matrix is not trainable through gradient descent. It is calculated as a consequence of computing the log-likelihoods. The transition parameters matrix can also be passed into this layer if it has been learned in the past.</li>
+      <li class="bullet"><strong class="keyword">The mask id</strong>: Since the sequences are padded, it is important to recover the original sequence lengths for computing transition scores. By convention, a value of 0 is used for the mask, and that is the default. This parameter is set up for future configurability.</li>
+    </ul>
+    <p class="normal">The second method is to compute the<a id="_idIndexMarker186"/> result of applying this layer. Note that as a layer, the CRF layer merely regurgitates the outputs during training time. The CRF layer is useful only during inference. At inference time, it uses the transition matrix and logic to correct the sequences' output by the BiLSTM layers before returning them. For now, this method is quite simple:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-functio"> </span><span class="hljs-title">call</span><span class="hljs-functio">(</span><span class="hljs-params">self, inputs, seq_lengths, training=</span><span class="hljs-literal">None</span><span class="hljs-functio">):</span>
+    
+    <span class="hljs-keyword">if</span> training <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+        training = K.learning_phase()
+    
+    <span class="hljs-comment"># during training, this layer just returns the logits</span>
+    <span class="hljs-keyword">if</span> training:
+        <span class="hljs-keyword">return</span> inputs
+    <span class="hljs-keyword">return</span> inputs  <span class="hljs-comment"># to be replaced later</span>
+</code></pre>
+    <p class="normal">This method takes the inputs as well as a parameter that helps specify if this method is called during training or during inference. If this variable is not passed, it is pulled from the Keras backend. When models are trained with the <code class="Code-In-Text--PACKT-">fit()</code> method, <code class="Code-In-Text--PACKT-">learning_phase()</code> returns <code class="Code-In-Text--PACKT-">True</code>. When the <code class="Code-In-Text--PACKT-">.predict()</code> method is called on a model, this flag is set to <code class="Code-In-Text--PACKT-">false</code>.</p>
+    <p class="normal">As sequences being passed are masked, this layer needs to know the real sequence lengths during inference time for decoding. A variable is passed for it but is unused at this time. Now that the basic CRF layer is ready, let's build the model.</p>
+    <h3 id="_idParaDest-59" class="title">A custom CRF model</h3>
+    <p class="normal">Since the<a id="_idIndexMarker187"/> model builds on a number of preexisting layers in addition to the custom CRF layer above, explicit imports help the readability of the code:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">from</span> tensorflow.keras <span class="hljs-keyword">import</span> Model, Input, Sequential
+<span class="hljs-keyword">from</span> tensorflow.keras.layers <span class="hljs-keyword">import</span> LSTM, Embedding, Dense, TimeDistributed
+<span class="hljs-keyword">from</span> tensorflow.keras.layers <span class="hljs-keyword">import</span> Dropout, Bidirectional
+<span class="hljs-keyword">from</span> tensorflow.keras <span class="hljs-keyword">import</span> backend <span class="hljs-keyword">as</span> K
+</code></pre>
+    <p class="normal">The first step is to define a constructor that will create the various layers and store the appropriate dimensions:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">class</span><span class="hljs-class"> </span><span class="hljs-title">NerModel</span><span class="hljs-class">(</span><span class="hljs-params">tf.keras.Model</span><span class="hljs-class">):</span>
+    <span class="hljs-keyword">def</span><span class="hljs-functio"> </span><span class="hljs-title">__init__</span><span class="hljs-functio">(</span><span class="hljs-params">self, hidden_num, vocab_size, label_size, </span>
+<span class="hljs-params">                 embedding_size, </span>
+<span class="hljs-params">                 name=</span><span class="hljs-string">'BilstmCrfModel'</span><span class="hljs-params">, **kwargs</span><span class="hljs-functio">):</span>
+        <span class="hljs-built_in">super</span>(NerModel, self).__init__(name=name, **kwargs)
+        self.num_hidden = hidden_num
+        self.vocab_size = vocab_size
+        self.label_size = label_size
+        self.embedding = Embedding(vocab_size, embedding_size, 
+                                   mask_zero=<span class="hljs-literal">True</span>, 
+                                   name=<span class="hljs-string">"embedding"</span>)
+        self.biLSTM =Bidirectional(LSTM(hidden_num, 
+                                   return_sequences=<span class="hljs-literal">True</span>), 
+                                   name=<span class="hljs-string">"bilstm"</span>)
+        self.dense = TimeDistributed(tf.keras.layers.Dense(
+                                     label_size), name=<span class="hljs-string">"dense"</span>)
+        self.crf = CRFLayer(self.label_size, name=<span class="hljs-string">"crf"</span>)
+</code></pre>
+    <p class="normal">This constructor takes<a id="_idIndexMarker188"/> in the number of hidden units for the BiLSTM later, the size of words in the vocabulary, the number of NER labels, and the size of the embeddings. Additionally, a default name is set by the constructor, which can be overridden at the time of instantiation. Any additional parameters supplied are passed along as keyword arguments. </p>
+    <p class="normal">During training and prediction, the following method will be called:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-functio"> </span><span class="hljs-title">call</span><span class="hljs-functio">(</span><span class="hljs-params">self, text, labels=</span><span class="hljs-literal">None</span><span class="hljs-params">, training=</span><span class="hljs-literal">None</span><span class="hljs-functio">):</span>
+        seq_lengths = tf.math.reduce_sum(
+tf.cast(tf.math.not_equal(text, <span class="hljs-number">0</span>), dtype=tf.int32), axis=<span class="hljs-number">-1</span>) 
+        
+        <span class="hljs-keyword">if</span> training <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+            training = K.learning_phase()
+        inputs = self.embedding(text)
+        bilstm = self.biLSTM(inputs)
+        logits = self.dense(bilstm)
+        outputs = self.crf(logits, seq_lengths, training)
+        <span class="hljs-keyword">return</span> outputs
+</code></pre>
+    <p class="normal">So, in a few lines of code, we have implemented a customer model using the custom CRF layer developed above. The only thing that we<a id="_idIndexMarker189"/> need now to train this model is a loss function.</p>
+    <h3 id="_idParaDest-60" class="title">A custom loss function for NER using a CRF</h3>
+    <p class="normal">Let's implement the loss function as<a id="_idIndexMarker190"/> part of the CRF layer, encapsulated in a function of the same name. Note that when this function is called, it is usually passed the labels and predicted values. We will model our loss function on the custom loss functions in TensorFlow. Add this code to the CRF layer class:</p>
+    <pre class="programlisting code"><code class="hljs-code">  <span class="hljs-keyword">def</span><span class="hljs-functio"> </span><span class="hljs-title">loss</span><span class="hljs-functio">(</span><span class="hljs-params">self, y_true, y_pred</span><span class="hljs-functio">):</span>
+    y_pred = tf.convert_to_tensor(y_pred)
+    y_true = tf.cast(self.get_proper_labels(y_true), y_pred.dtype)
+    seq_lengths = self.get_seq_lengths(y_true)
+    log_likelihoods, self.transition_params =\ 
+tfa.text.crf_log_likelihood(y_pred,
+               y_true, seq_lengths)
+    <span class="hljs-comment"># save transition params</span>
+    self.transition_params = tf.Variable(self.transition_params, 
+      trainable=<span class="hljs-literal">False</span>)
+    <span class="hljs-comment"># calc loss</span>
+    loss = - tf.reduce_mean(log_likelihoods)
+    <span class="hljs-keyword">return</span> loss
+</code></pre>
+    <p class="normal">This function takes the true labels and predicted labels. Both of these tensors are usually of the shape (batch size, max sequence length, number of NER labels). However, the log-likelihood function in the <code class="Code-In-Text--PACKT-">tfa</code> package expects the labels to be in a (batch size, max sequence length)-shaped tensor. So a convenience function, implemented as part of the CRF layer and shown below, is used to perform the conversion of label shapes:</p>
+    <pre class="programlisting code"><code class="hljs-code">  <span class="hljs-keyword">def</span><span class="hljs-functio"> </span><span class="hljs-title">get_proper_labels</span><span class="hljs-functio">(</span><span class="hljs-params">self, y_true</span><span class="hljs-functio">):</span>
+    shape = y_true.shape
+    <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(shape) &gt; <span class="hljs-number">2</span>:
+        <span class="hljs-keyword">return</span> tf.argmax(y_true, <span class="hljs-number">-1</span>, output_type=tf.int32)
+    <span class="hljs-keyword">return</span> y_true
+</code></pre>
+    <p class="normal">The log-likelihood function also requires the actual sequence lengths for each example. These sequence lengths can be computed from the labels and the mask identifier that was set up in the constructor of this layer (see above). This process is encapsulated in another convenience function, also part of the CRF layer:</p>
+    <pre class="programlisting code"><code class="hljs-code">  <span class="hljs-keyword">def</span><span class="hljs-functio"> </span><span class="hljs-title">get_seq_lengths</span><span class="hljs-functio">(</span><span class="hljs-params">self, matrix</span><span class="hljs-functio">):</span>
+    <span class="hljs-comment"># matrix is of shape (batch_size, max_seq_len)</span>
+    mask = tf.not_equal(matrix, self.mask_id)
+    seq_lengths = tf.math.reduce_sum(
+                                    tf.cast(mask, dtype=tf.int32), 
+                                    axis=<span class="hljs-number">-1</span>)
+    return seq_lengths
+</code></pre>
+    <p class="normal">First, a Boolean mask is <a id="_idIndexMarker191"/>generated from the labels by comparing the value of the label to the mask ID. Then, through casting the Boolean as an integer and summing across the row, the length of the sequence is regenerated. Now, the <code class="Code-In-Text--PACKT-">tfa.text.crf_log_likelihood()</code> function is called to calculate and return the log-likelihoods and the transition matrix. The CRF layer's transition matrix is updated with the transition matrix returned from the function call. Finally, the loss is computed by summing up all the log-likelihoods returned.</p>
+    <p class="normal">At this point, our coded custom model is ready to start training. We will need to set up the data and create a custom training loop.</p>
+    <h2 id="_idParaDest-61" class="title">Implementing custom training</h2>
+    <p class="normal">The model needs to be instantiated <a id="_idIndexMarker192"/>and initialized for training:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Length of the vocabulary </span>
+vocab_size = <span class="hljs-built_in">len</span>(text_vocab) + <span class="hljs-number">1</span> 
+<span class="hljs-comment"># The embedding dimension</span>
+embedding_dim = <span class="hljs-number">64</span>
+<span class="hljs-comment"># Number of RNN units</span>
+rnn_units = <span class="hljs-number">100</span>
+<span class="hljs-comment">#batch size</span>
+BATCH_SIZE=<span class="hljs-number">90</span>
+<span class="hljs-comment"># num of NER classes</span>
+num_classes = <span class="hljs-built_in">len</span>(ner_vocab) + <span class="hljs-number">1</span>
+blc_model = NerModel(rnn_units, vocab_size, num_classes, 
+embedding_dim, dynamic=<span class="hljs-literal">True</span>)
+optimizer = tf.keras.optimizers.Adam(learning_rate=<span class="hljs-number">1e-3</span>)
+</code></pre>
+    <p class="normal">As in past examples, an Adam<a id="_idIndexMarker193"/> optimizer will be used. Next, we will construct <code class="Code-In-Text--PACKT-">tf.data.DataSet</code> from the DataFrames loaded in the BiLSTM section above:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># create training and testing splits</span>
+total_sentences = <span class="hljs-number">62010</span>
+test_size = <span class="hljs-built_in">round</span>(total_sentences / BATCH_SIZE * <span class="hljs-number">0.2</span>)
+X_train = x_pad[BATCH_SIZE*test_size:]
+Y_train = Y[BATCH_SIZE*test_size:]
+X_test = x_pad[<span class="hljs-number">0</span>:BATCH_SIZE*test_size]
+Y_test = Y[<span class="hljs-number">0</span>:BATCH_SIZE*test_size]
+Y_train_int = tf.cast(Y_train, dtype=tf.int32)
+train_dataset = tf.data.Dataset.from_tensor_slices((X_train, Y_train_int))
+train_dataset = train_dataset.batch(BATCH_SIZE, drop_remainder=<span class="hljs-literal">True</span>)
+</code></pre>
+    <p class="normal">Roughly 20% of the data is reserved for testing. The rest is used for training.</p>
+    <p class="normal">To implement a custom training loop, TensorFlow 2.0 exposes a gradient tape. This allows low-level management of the main steps required for training any model with gradient descent. These steps are:</p>
+    <ol>
+      <li class="numbered">Computing the forward pass predictions</li>
+      <li class="numbered">Computing the loss when these predictions are compared with the labels</li>
+      <li class="numbered">Computing the gradients for the trainable parameters based on the loss and then using the optimizer to adjust the weights</li>
+    </ol>
+    <p class="normal">Let us train this model for 5 epochs and watch the loss as training progresses. Compare this to the 15 epochs of training for the previous model. The custom training loop is shown below:</p>
+    <pre class="programlisting code"><code class="hljs-code">loss_metric = tf.keras.metrics.Mean()
+epochs = <span class="hljs-number">5</span>
+<span class="hljs-comment"># Iterate over epochs.</span>
+<span class="hljs-keyword">for</span> epoch <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(epochs):
+    print(<span class="hljs-string">'Start of epoch %d'</span> % (epoch,))
+    <span class="hljs-comment"># Iterate over the batches of the dataset.</span>
+    <span class="hljs-keyword">for</span> step, (text_batch, labels_batch) <span class="hljs-keyword">in</span> <span class="hljs-built_in">enumerate</span>(
+train_dataset):
+        labels_max = tf.argmax(labels_batch, <span class="hljs-number">-1</span>, 
+output_type=tf.int32)
+        <span class="hljs-keyword">with</span> tf.GradientTape() <span class="hljs-keyword">as</span> tape:
+            <span class="code-highlight"><strong class="hljs-slc">logits = blc_model(text_batch, training=</strong><strong class="hljs-literal-slc">True</strong><strong class="hljs-slc">)</strong></span>
+            loss = blc_model.crf.loss(labels_max, logits)
+            grads = tape.gradient(loss, 
+blc_model.trainable_weights)
+            optimizer.apply_gradients(<span class="hljs-built_in">zip</span>(grads, 
+blc_model.trainable_weights))
+            
+            loss_metric(loss)
+        <span class="hljs-keyword">if</span> step % <span class="hljs-number">50</span> == <span class="hljs-number">0</span>:
+          print(<span class="hljs-string">'step %s: mean loss = %s'</span> % 
+(step, loss_metric.result()))
+</code></pre>
+    <p class="normal">A metric is created to keep track<a id="_idIndexMarker194"/> of the average loss over time. For 5 epochs, inputs and labels are pulled from the training data set, one batch at a time. Using <code class="Code-In-Text--PACKT-">tf.GradientTape()</code> to keep track of the operations, the steps outlined in the bullets above are implemented. Note that we pass the trainable variable manually as this is a custom training loop. Finally, the loss metric is printed every 50<sup class="Superscript--PACKT-">th</sup> step to show training progress. This yields the results below, which have been abbreviated:</p>
+    <pre class="programlisting con"><code class="hljs-con">Start of epoch 0
+step 0: mean loss = tf.Tensor(71.14853, shape=(), dtype=float32)
+step 50: mean loss = tf.Tensor(31.064453, shape=(), dtype=float32)
+<span class="hljs-co -meta">...</span>
+Start of epoch 4
+step 0: mean loss = tf.Tensor(4.4125915, shape=(), dtype=float32)
+step 550: mean loss = tf.Tensor(3.8311224, shape=(), dtype=float32)
+</code></pre>
+    <p class="normal">Given we implemented a custom training loop, without requiring a compilation of the model, we could not obtain a summary of the model parameters before. To get an idea of the size of the model, a summary can be obtained now:</p>
+    <pre class="programlisting code"><code class="hljs-code">blc_model.summary()
+</code></pre>
+    <pre class="programlisting con"><code class="hljs-con">Model: "BilstmCrfModel"
+_________________________________________________________________
+Layer (type)                 Output Shape              Param #   
+=================================================================
+embedding (Embedding)        multiple                  2523072   
+_________________________________________________________________
+bilstm (Bidirectional)       multiple                  132000    
+_________________________________________________________________
+dense (TimeDistributed)      multiple                  3819      
+_________________________________________________________________
+crf (CRFLayer)               multiple                  361       
+=================================================================
+Total params: 2,659,252
+Trainable params: 2,658,891
+Non-trainable params: 361
+_________________________________________________________________
+</code></pre>
+    <p class="normal">It is comparable in size to the previous model but has some untrainable parameters. These are coming from the<a id="_idIndexMarker195"/> transition matrix. The transition matrix is not learned through gradient descent. Thus, they are classified as non-trainable parameters.</p>
+    <p class="normal">However, training loss is hard to interpret. To compute accuracy, we need to implement decoding, which is the focus of the next section. For the moment, let's assume that decoding is available and examine the results of training for 5 epochs. For illustration purposes, here is a sentence from the test set with the results pulled at the end of the first epoch and at the end of five epochs.</p>
+    <p class="normal">The example sentence is:</p>
+    <pre class="programlisting gen"><code class="hljs">Writing in The Washington Post newspaper , Mr. Ushakov also 
+said it is inadmissible to move in the direction of demonizing Russia .
+</code></pre>
+    <p class="normal">The corresponding true label is:</p>
+    <pre class="programlisting gen"><code class="hljs">O O B-org I-org I-org O O B-per B-org O O O O O O O O O O O O B-geo O
+</code></pre>
+    <p class="normal">This is a difficult example for NER with <em class="italic">The Washington Post</em> as a three-word organization, where the first word is very common and used in multiple contexts, and the second word is also the name of a geographical location. Also note the imperfect labels of the GMB data set, where the second tag of the name <em class="italic">Ushakov</em> is tagged as an organization. At the end of the first epoch of training, the model predicts:</p>
+    <pre class="programlisting gen"><code class="hljs">O O O B-geo I-org O O B-per I-per O O O O O O O O O O O O B-geo O 
+</code></pre>
+    <p class="normal">It gets confused <a id="_idIndexMarker196"/>by the organization not being where it expects it to be. It also shows that it hasn't learned the transition probabilities by putting an I-org tag after a B-geo tag. However, it does not make a mistake in the person portion. Unfortunately for the model, it will not get credit for this great prediction of the person tag, and due to imperfect labels, it will still count as a miss. The result after five epochs of training is better than the original:</p>
+    <pre class="programlisting gen"><code class="hljs">O O B-org I-org I-org O O B-per I-per O O O O O O O O O O O O B-geo O 
+</code></pre>
+    <p class="normal">This is a great result, given the limited amount of training we have done. Now, let's see how we can decode the sentence in the CRF layer to <a id="_idIndexMarker197"/>get these sequences. The algorithm used for decoding is called the Viterbi decoder.</p>
+    <h1 id="_idParaDest-62" class="title">Viterbi decoding</h1>
+    <p class="normal">A straightforward way to predict the <a id="_idIndexMarker198"/>sequence of labels is to output the label that has the highest activation from the previous layers of the network. However, this could be sub-optimal as it assumes that each label prediction is independent of the previous or successive predictions. The Viterbi algorithm is used to take the predictions for each word in the sequence and apply a maximization algorithm so that the output sequence has the highest likelihood. In future chapters, we will see another way of accomplishing the same objective through beam search. Viterbi decoding involves maximizing over the entire sequence as opposed to optimizing at each word of the sequence. To illustrate this algorithm and way of thinking, let's take an example of a sentence of 5 words, and a set of 3 labels. These labels could be O, B-geo, and I-geo as an example.</p>
+    <p class="normal">This algorithm needs the transition matrix values between labels. Recall that this was generated and stored in the custom CRF layer above. Let's say that the matrix looks like so:</p>
+    <table id="table005">
+      <colgroup>
+        <col/>
+        <col/>
+        <col/>
+        <col/>
+        <col/>
+      </colgroup>
+      <tbody>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Heading--PACKT-">From &gt; To</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Heading--PACKT-">Mask</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Heading--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Heading--PACKT-">B-geo</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Heading--PACKT-">I-geo</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Mask</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.6</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.3</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.2</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.01</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">O</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.8</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.5</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.6</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.01</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">B-geo</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.2</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.4</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.01</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.7</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">I-geo</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.3</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.4</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.01</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">0.5</p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="normal">To explain how the algorithm works, the figure shown below will be used:</p>
+    <figure class="mediaobject"><img src="image/B16252_03_04.png" alt=""/></figure>
+    <p class="packt_figref">Figure 3.4: Steps in the Viterbi decoder</p>
+    <p class="normal">The sentence starts from the left. Arrows from the start of the word to the first token represent the probability of the transition between the two tokens. The numbers on the arrows should match the values in the transition matrix above. Within the circles denoting labels, scores<a id="_idIndexMarker199"/> generated by the neural network, the BiLSTM model, in our case, are shown for the first word. These scores need to be added together to give the final score of the words. Note that we switched the terminology from probabilities to scores as normalization is not being performed for this particular example.</p>
+    <h2 id="_idParaDest-63" class="title">The probability of the first word label</h2>
+    <p class="normal">Score <a id="_idIndexMarker200"/>of <em class="italic">O</em>: 0.3 (transition score) + 0.2 (activation score) = 0.5</p>
+    <p class="normal">Score of <em class="italic">B-geo</em>: 0.2 (transition score) + 0.3 (activation score) = 0.5</p>
+    <p class="normal">Score of <em class="italic">I-geo</em>: 0.01 (transition score) + 0.01 (activation score) = 0.02</p>
+    <p class="normal">At this point, it is equally likely that an <em class="italic">O</em> or <em class="italic">B-geo</em> tag will be the starting tag. Let's consider the next tag and calculate the scores using the same approach for the following sequences:</p>
+    <table id="table006">
+      <colgroup>
+        <col/>
+        <col/>
+      </colgroup>
+      <tbody>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">(<em class="italic">O</em>, <em class="italic">B-geo</em>) = 0.6 + 0.3 = 0.9</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">(<em class="italic">B-geo</em>, <em class="italic">O</em>) = 0.4 + 0.3 = 0.7</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">(<em class="italic">O</em>, <em class="italic">I-geo</em>) = 0.01+ 0.25 = 0.26</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">(<em class="italic">B-geo</em>, <em class="italic">B-geo</em>) = 0.01 + 0.3 = 0.31</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">(<em class="italic">O</em>, <em class="italic">O</em>) = 0.5 + 0.3 = 0.8</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">(<em class="italic">B-geo</em>, <em class="italic">I-geo</em>) = 0.7 + 0.25 = 0.95</p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="normal">This process is called the forward pass. It should<a id="_idIndexMarker201"/> also be noted, even though this is a contrived example, that activations at a given input may not be the best predictor of the right label for that word once the previous labels have been considered. If the sentence was only two words, then the scores for various sequences could be calculated by summing by each step:</p>
+    <table id="table007">
+      <colgroup>
+        <col/>
+        <col/>
+      </colgroup>
+      <tbody>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">(<em class="italic">Start</em>, <em class="italic">O</em>, <em class="italic">B-Geo</em>) = 0.5 + 0.9 = 1.4</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">(<em class="italic">Start</em>, <em class="italic">B-Geo</em>, <em class="italic">O</em>) = 0.5 + 0.7 = 1.2</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">(<em class="italic">Start</em>, <em class="italic">O</em>, <em class="italic">O</em>) = 0.5 + 0.8 = 1.3</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">(<em class="italic">Start</em>, <em class="italic">B-geo</em>, <em class="italic">B-geo</em>) = 0.5 + 0.31 = 0.81</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">(<em class="italic">Start</em>, <em class="italic">O</em>, <em class="italic">I-Geo</em>) = 0.5 + 0.26 = 0.76</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">(<em class="italic">Start</em>, <em class="italic">B-geo</em>, <em class="italic">I-geo</em>) = 0.5 + 0.95) = 1.45</p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="normal">If only the activation scores were considered, the most probable sequences would be either (<em class="italic">Start</em>, <em class="italic">B-geo</em>, <em class="italic">O</em>) or (<em class="italic">Start</em>, <em class="italic">B-geo</em>, <em class="italic">B-geo</em>). However, using the transition scores along with the activations means that the sequence with the highest probability is (<em class="italic">Start</em>, <em class="italic">B-geo</em>, <em class="italic">I-geo</em>) in this example. While the forward pass gives the highest score of the entire sequence given the last token, the backward pass process would reconstruct the sequence that resulted in this highest score. This is essentially the Viterbi algorithm, which uses dynamic programming to<a id="_idIndexMarker202"/> perform these steps in an efficient manner.</p>
+    <p class="normal">Implementing this algorithm is aided by the fact the core computation is provided as a method in the <code class="Code-In-Text--PACKT-">tfa</code> package. This decoding step will be implemented in the <code class="Code-In-Text--PACKT-">call()</code> method of the CRF layer implemented above. Modify this method to look like so:</p>
+    <pre class="programlisting code"><code class="hljs-code">  <span class="hljs-keyword">def</span><span class="hljs-functio"> </span><span class="hljs-title">call</span><span class="hljs-functio">(</span><span class="hljs-params">self, inputs, seq_lengths, training=</span><span class="hljs-literal">None</span><span class="hljs-functio">):</span>
+    <span class="hljs-keyword">if</span> training <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+        training = K.learning_phase()
+    
+    <span class="hljs-comment"># during training, this layer just returns the logits</span>
+    <span class="hljs-keyword">if</span> training:
+        <span class="hljs-keyword">return</span> inputs
+    
+    <span class="code-highlight"><strong class="hljs-comment-slc"># viterbi decode logic to return proper </strong></span>
+    <span class="code-highlight"><strong class="hljs-comment-slc"># results at inference</strong></span>
+    <span class="code-highlight"><strong class="hljs-slc">_, max_seq_len, _ = inputs.shape</strong></span>
+    <span class="code-highlight"><strong class="hljs-slc">seqlens = seq_lengths</strong></span>
+    <span class="code-highlight"><strong class="hljs-slc">paths = []</strong></span>
+    <span class="code-highlight"><strong class="hljs-keyword-slc">for</strong><strong class="hljs-slc"> logit, text_len </strong><strong class="hljs-keyword-slc">in</strong><strong class="hljs-slc"> </strong><strong class="hljs-built_inn-slc">zip</strong><strong class="hljs-slc">(inputs, seqlens):</strong></span>
+        <span class="code-highlight"><strong class="hljs-slc">viterbi_path, _ = tfa.text.viterbi_decode(logit[:text_len], </strong></span>
+                                              <span class="code-highlight"><strong class="hljs-slc">self.transition_params)</strong></span>
+        <span class="code-highlight"><strong class="hljs-slc">paths.append(self.pad_viterbi(viterbi_path, max_seq_len))</strong></span>
+    <span class="code-highlight"><strong class="hljs-keyword-slc">return</strong><strong class="hljs-slc"> tf.convert_to_tensor(paths)</strong></span>
+</code></pre>
+    <p class="normal">The new lines added have been highlighted. The <code class="Code-In-Text--PACKT-">viterbi_decode()</code> method takes the activations from the previous layers and the transition matrix along with the maximum sequence length to compute the path with the highest score. This score is also returned, but we ignore it for our <a id="_idIndexMarker203"/>purposes of inference. This process needs to be performed for each sequence in the batch. Note that this method returns sequences on different lengths. This makes it harder to convert into tensors, so a utility function is used to pad the returned sequences:</p>
+    <pre class="programlisting code"><code class="hljs-code">  <span class="hljs-keyword">def</span><span class="hljs-functio"> </span><span class="hljs-title">pad_viterbi</span><span class="hljs-functio">(</span><span class="hljs-params">self, viterbi, max_seq_len</span><span class="hljs-functio">):</span>
+    <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(viterbi) &lt; max_seq_len:
+        viterbi = viterbi + [self.mask_id] * \
+                                (max_seq_len - <span class="hljs-built_in">len</span>(viterbi))
+    <span class="hljs-keyword">return</span> viterbi
+</code></pre>
+    <div class="packt_tip">
+      <p class="Tip--PACKT-">A dropout layer works<a id="_idIndexMarker204"/> completely opposite to the way this CRF layer works. A dropout layer modifies the inputs only during training time. During inference, it merely passes all the inputs through.</p>
+      <p class="Tip--PACKT-">Our CRF layer works in the exact opposite fashion. It passes the inputs through during training, but it transforms inputs using the Viterbi decoder during inference time. Note the use of the <code class="Code-In-Text--PACKT-">training</code> parameter to control the behavior.</p>
+    </div>
+    <p class="normal">Now that the layer is modified and ready, the model needs to be re-instantiated and trained. Post-training, inference can be performed like so:</p>
+    <pre class="programlisting code"><code class="hljs-code">Y_test_int = tf.cast(Y_test, dtype=tf.int32)
+test_dataset = tf.data.Dataset.from_tensor_slices((X_test,
+                                                   Y_test_int))
+test_dataset = test_dataset.batch(BATCH_SIZE, drop_remainder=<span class="hljs-literal">True</span>)
+out = blc_model.predict(test_dataset.take(<span class="hljs-number">1</span>))
+</code></pre>
+    <p class="normal">This will run inference on a small batch of testing data. Let's check the result for the example sentence:</p>
+    <pre class="programlisting code"><code class="hljs-code">text_tok.sequences_to_texts([X_test[<span class="hljs-number">2</span>]])
+</code></pre>
+    <pre class="programlisting con"><code class="hljs-con">['Writing in The Washington Post newspaper , Mr. Ushakov also said it is inadmissible to move in the direction of demonizing Russia . &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt; &lt;OOV&gt;']
+</code></pre>
+    <p class="normal">As we can see in the highlighted output, the results are better than the actual data!</p>
+    <pre class="programlisting code"><code class="hljs-code">print(<span class="hljs-string">"Ground Truth: "</span>, 
+ner_tok.sequences_to_texts([tf.argmax(Y_test[<span class="hljs-number">2</span>], 
+                                     <span class="hljs-number">-1</span>).numpy()]))
+print(<span class="hljs-string">"Prediction: "</span>, ner_tok.sequences_to_texts([out[<span class="hljs-number">2</span>]]))
+</code></pre>
+    <pre class="programlisting con"><code class="hljs-con">Ground Truth:  ['O O B-org I-org I-org O O <span class="code-highlight"><strong class="hljs-con-slc">B-per B-org</strong></span> O O O O O O O O O O O O B-geo O &lt;OOV&gt; &lt;SNIP&gt; &lt;OOV&gt;']
+Prediction:  ['O O B-org I-org I-org O O <span class="code-highlight"><strong class="hljs-con-slc">B-per I-per</strong></span> O O O O O O O O O O O O B-geo O &lt;OOV&gt; &lt;SNIP&gt; &lt;OOV&gt;']
+</code></pre>
+    <p class="normal">To get a sense of the<a id="_idIndexMarker205"/> accuracy of the training, a custom method needs to be implemented. This is shown below:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-functio"> </span><span class="hljs-title">np_precision</span><span class="hljs-functio">(</span><span class="hljs-params">pred, true</span><span class="hljs-functio">):</span>
+    <span class="hljs-comment"># expect numpy arrays</span>
+    <span class="hljs-keyword">assert</span> pred.shape == true.shape
+    <span class="hljs-keyword">assert</span> <span class="hljs-built_in">len</span>(pred.shape) == <span class="hljs-number">2</span>
+    mask_pred = np.ma.masked_equal(pred, <span class="hljs-number">0</span>)
+    mask_true = np.ma.masked_equal(true, <span class="hljs-number">0</span>)
+    acc = np.equal(mask_pred, mask_true)
+    <span class="hljs-keyword">return</span> np.mean(acc.compressed().astype(<span class="hljs-built_in">int</span>))
+</code></pre>
+    <p class="normal">Using <code class="Code-In-Text--PACKT-">numpy</code>'s <code class="Code-In-Text--PACKT-">MaskedArray</code> feature, the predictions and labels are compared and converted to an integer array, and the mean is calculated to compute the accuracy:</p>
+    <pre class="programlisting code"><code class="hljs-code">np_precision(out, tf.argmax(Y_test[:BATCH_SIZE], <span class="hljs-number">-1</span>).numpy())
+</code></pre>
+    <pre class="programlisting con"><code class="hljs-con">0.9664461247637051
+</code></pre>
+    <p class="normal">This is a pretty accurate model, just after 5 epochs of training and with very simple architecture, all while using embeddings that are trained from scratch. A recall metric can also be implemented in a similar fashion. A BiLSTM-only model, shown earlier, took 15 epochs of training to get to a similar accuracy!</p>
+    <p class="normal">This completes the implementation of an NER model using BiLSTMs and CRFs. If this is interesting and you would like to continue working on this, look for the CoNLL 2003 data set for NER. Even today, papers are being published that aim to improve the accuracy of the models based on that data set.</p>
+    <h1 id="_idParaDest-64" class="title">Summary</h1>
+    <p class="normal">We have covered quite a lot of ground in this chapter. NER and its importance in the industry were explained. To build NER models, BiLSTMs and CRFs are needed. Using BiLSTMs, which we learned about in the previous chapter while building a sentiment classification model, we built a first version of a model that can label named entities. This model was further improved using CRFs. In the process of building these models, we covered the use of the TensorFlow DataSet API. We also built advanced models for CRF mode by building a custom Keras layer, a custom model, custom loss function, and a custom training loop.</p>
+    <p class="normal">Thus far, we have trained embeddings for tokens in the models. A considerable amount of lift can be achieved by using pre-trained embeddings. In the next chapter, we'll focus on the concept of transfer learning and the use of pre-trained embeddings like BERT.</p>
+  </div>
+</body></html>

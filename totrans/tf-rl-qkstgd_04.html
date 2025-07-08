@@ -1,0 +1,491 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Double DQN, Dueling Architectures, and Rainbow</h1>
+                </header>
+            
+            <article>
+                
+<p>We discussed the <strong>Deep Q-Network</strong> (<strong>DQN</strong>) algorithm in the previous chapter, coded it in Python and TensorFlow, and trained it to play Atari Breakout. In DQN, the same Q-network was used to select and evaluate an action. This, unfortunately, is known to overestimate the Q values, which results in over-optimistic estimates for the values. To mitigate this, DeepMind released another paper where it proposed the decoupling of the action selection and action evaluation. This is the crux of the <strong>Double DQN</strong> (<strong>DDQN</strong>) architectures, which we will investigate in this chapter. </p>
+<p>Even later, DeepMind released another paper where they proposed the Q-network architecture with two output values, one representing the value, <em>V(s)</em>, and the other the advantage of taking an action at the given state, <em>A(s,a)</em>. DeepMind then combined these two to compute the <em>Q(s,a)</em> action-value, instead of directly determining it as done in DQN and DDQN. These Q-network architectures are referred to as the <strong>dueling</strong> network architectures, as the neural network now has dual output values, <em>V(s)</em> and <em>A(s,a)</em>, which are later combined to obtain <em>Q(s,a)</em>. We will also see these dueling networks in this chapter.</p>
+<p>Another extension we will also consider in this chapter are <strong>Rainbow networks</strong>, which are a blend of several different ideas fused into one algorithm.</p>
+<p>The topics that will be covered in this chapter are the following:</p>
+<ul>
+<li>Learning the theory behind DDQN</li>
+<li>Coding DDQN and training it to play Atari Breakout</li>
+<li>Evaluating the performance of DDQN on Atari Breakout</li>
+<li>Understanding dueling network architectures</li>
+</ul>
+<ul>
+<li>Coding dueling network architecture and training it to play Atari Breakout</li>
+<li>Evaluating the performance of dueling architectures on Atari Breakout</li>
+<li>Understanding Rainbow networks</li>
+<li>Running a Rainbow network on Dopamine</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Technical requirements</h1>
+                </header>
+            
+            <article>
+                
+<p>To successfully complete this chapter, knowledge of the following will help significantly:</p>
+<ul>
+<li>Python (2 or 3)</li>
+<li>NumPy</li>
+<li>Matplotlib</li>
+<li>TensorFlow (version 1.4 or higher)</li>
+<li>Dopamine (we will discuss this in more detail later)</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding Double DQN </h1>
+                </header>
+            
+            <article>
+                
+<p>DDQN is an extension to DQN, where we use the target network in the Bellman update. Specifically, in DDQN, we evaluate the target network's Q function using the action that would be greedy maximization of the primary network's Q function. First, we will use the vanilla DQN target for the Bellman equation update step, then, we will extend to DDQN for the same Bellman equation update step; this is the crux of the DDQN algorithm. We will then code DDQN in TensorFlow to play Atari Breakout. Finally, we will compare and contrast the two algorithms: DQN and DDQN. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Updating the Bellman equation
+</h1>
+                </header>
+            
+            <article>
+                
+<p>In vanilla DQN, the target for the Bellman update is this:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/8c173c74-a2f2-4790-aec1-5e9aaca83a53.png" style="width:16.75em;height:2.25em;"/></p>
+<p><em>θ<sub>t</sub></em><span> </span>represents the model parameters of the target network. This is known to over-predict <em>Q,</em> and so the change made in DDQN is to replace this target value, <em>y<sub>t</sub></em><span>, </span>with this:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/b33dc1c6-5089-4349-b253-78997a943795.png" style="width:20.25em;height:2.17em;"/></p>
+<p>We must distinguish between the Q-network parameters, <em>θ</em>, and the target network model parameters, <em>θ<sub>t</sub></em>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Coding DDQN and training to play Atari Breakout</h1>
+                </header>
+            
+            <article>
+                
+<p>We will now code DDQN in TensorFlow to play Atari Breakout. As before, we have three Python files:</p>
+<ul>
+<li><kbd>funcs.py</kbd></li>
+<li><kbd>model.py</kbd></li>
+<li><kbd>ddqn.py</kbd></li>
+</ul>
+<p><kbd>funcs.py</kbd> and <kbd>model.py</kbd> are the same as used before for DQN in <a href="1bf60e32-a842-4f5c-b7be-c1dc50a43c1e.xhtml" target="_blank">Chapter 3</a>, <em>Deep Q-Network (DQN)</em>. The <kbd>ddqn.py</kbd> file is the only code where we need to make changes to implement DDQN. We will use the same <kbd>dqn.py</kbd> file from the previous chapter and make changes to it to code DDQN. So, let's first copy the <kbd>dqn.py</kbd> file from before and rename it <kbd>ddqn.py</kbd>.  </p>
+<p>We will summarize the changes we will make to <kbd>ddqn.py</kbd>, which are actually quite minimal. We will still not delete the DQN-related lines of code in the file, and instead, use <kbd>if</kbd> loops to choose between the two algorithms. This helps to use one code for both algorithms, which is a better way to code. </p>
+<p>First, we create a variable called <kbd>ALGO</kbd>, which will store one of two strings: <kbd>DQN</kbd> or <kbd>DDQN</kbd>, which is where we specify which of the two algorithms to use:</p>
+<pre>ALGO = "DDQN" #"DQN" # DDQN</pre>
+<p>Then, in the lines of code where we evaluate the targets for the mini-batch, we use <kbd>if</kbd> loops to decide whether the algorithm to use is DQN or DDQN and accordingly compute the targets as follows. Note that, in DQN, the <kbd>greedy_q</kbd> variable stores the Q value corresponding to the greedy action taking, that is, the largest Q value in the target network, which is computed using <kbd>np.amax()</kbd> and then used to compute the target variable, <kbd>targets_batch</kbd>.</p>
+<p>In DDQN, on the other hand, we compute the action corresponding to the maximum Q in the primary Q-network, which we store in <kbd>greedy_q</kbd> and evaluate using <kbd>np.argmax()</kbd>. Then, we use <kbd>greedy_q</kbd> (which represents an action now) in the target network Q values. Note that, for Terminal time steps, that is, <kbd>done = True</kbd>, we should not consider the next state and likewise, for non-Terminal steps, <kbd>done = False</kbd>, and here we consider the next step. This is easily accomplished using <kbd>np.invert().astype(np.float32)</kbd> on <kbd>done_batch</kbd>. The following lines of code show DDQN:</p>
+<pre># calculate q values and targets <br/><br/>if (ALGO == 'DQN'): <br/><br/>   q_values_next = target_net.predict(sess, next_states_batch)<br/>   greedy_q = np.amax(q_values_next, axis=1) <br/>   targets_batch = reward_batch + np.invert(done_batch).astype(np.float32) * gamma * greedy_q<br/><br/>elif (ALGO == 'DDQN'):<br/>                 <br/>   q_values_next = q_net.predict(sess, next_states_batch)<br/>   greedy_q = np.argmax(q_values_next, axis=1)<br/>   q_values_next_target = target_net.predict(sess, next_states_batch)<br/>   targets_batch = reward_batch + np.invert(done_batch).astype(np.float32) * gamma * q_values_next_target[np.arange(batch_size), greedy_q]</pre>
+<p>That's it for <kbd>ddqn.py</kbd>. We will now evaluate it on Atari Breakout.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Evaluating the performance of DDQN on Atari Breakout</h1>
+                </header>
+            
+            <article>
+                
+<p>We will now evaluate the performance of DDQN on Atari Breakout. <span>Here, we will plot the performance of our DDQN algorithm on Atari Breakout using the <kbd>performance.txt</kbd> file that we wrote in the code. We will use <kbd>matplotlib</kbd> to plot two graphs as explained in the following.</span></p>
+<p>In the following screenshot, we present the number of time steps per episode on Atari Breakout using DDQN and its exponentially weighted moving average. As evident, the peak number of time steps is ~2,000 for many episodes toward the end of the training, with one episode where it exceeded even 3,000 time steps! The moving average is approximately 1,500 time steps toward the end of the training:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-536 image-border" src="assets/29cdcfd8-86bb-4826-9dfe-3da46f587773.png" style="width:27.17em;height:20.25em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign"><span>Figure 1: Number of time steps per episode for Atari Breakout using DDQN</span></div>
+<p>In the following screenshot, we show the total rewards received per episode versus the time number of the global time step. The peak episode reward is over 350, with the moving average near 150. Interestingly, the moving average (in orange) is still increasing toward the end, which means you can run the training even longer to see further gains. This is left to the interested reader:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-537 image-border" src="assets/ad3e8213-a62c-4ff0-a258-57ad53d8cbb3.png" style="width:28.17em;height:21.00em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Figure 2: Total episode reward versus time step for Atari Breakout using DDQN</div>
+<div class="packt_infobox">Note that, due to RAM constraints (16 GB), we used a replay buffer size of 300,000 only. If the user has access to more RAM power, a bigger replay buffer size can be used—for example, 500,000 to 1,000,000, which can result in even better scores.</div>
+<p>As we can see, the DDQN agent is learning to play Atari Breakout well. The moving average of the episode rewards is constantly going up, which means you can train longer to obtain even higher rewards. This upward trend in the episode reward demonstrates the efficacy of the DDQN algorithm for such problems.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding dueling network architectures</h1>
+                </header>
+            
+            <article>
+                
+<p>We will now understand the use of dueling network architectures. In DQN and DDQN, and other DQN variants in the literature, the focus was primarily on algorithms, that is, how to efficiently and stably update the value function neural networks. While this is crucial for developing robust RL algorithms, a parallel but complementary direction to advance the field is to also innovate and develop novel neural network architectures that are well suited for model-free RL. This is precisely the concept behind dueling network architectures, another contribution from DeepMind.</p>
+<p>The steps involved in dueling architectures are as follows:</p>
+<ol>
+<li>Dueling network architecture figure; compare with standard DQN</li>
+<li>Computing <em>Q(s,a)</em></li>
+<li>Subtracting the average of the advantage from the <kbd>advantage</kbd> function</li>
+</ol>
+<p>As we saw in the previous chapter, the output of the Q-network in DQN is <em>Q(s,a)</em>, the action-value function. In dueling networks, the Q-network instead has two output values: the <kbd>state value</kbd> function, <em>V(s)</em>, and the <kbd>advantage</kbd> function, <em>A(s,a)</em>. You can then combine them to compute the <kbd>state-action value</kbd> function, <em>Q(s,a)</em>. This has the advantage that the network need not learn the <kbd>value</kbd> function for every action at every state. This is particularly useful in states where the actions do not affect the environment.</p>
+<p>For instance, if the agent is a car driving on a straight road with no traffic, no action is necessary and so <em>V(s)</em> alone will suffice in these states. On the other hand, if the road suddenly curves or other cars come into the vicinity of the agent, then the agent needs to take actions and so, in these states, the <kbd>advantage</kbd> function comes into play to find the incremental returns a given action can provide over the <kbd>state value</kbd> function. This is the intuition behind separating the estimation of <em>V(s)</em> and <em>A(s,a)</em> in the same network by using two different branches, and later combining them.</p>
+<p>Refer to the following diagram for a schematic showing a comparison of the standard DQN network and the dueling network architectures:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-578 image-border" src="assets/e364fe22-6475-4485-981c-8b25a530f2ec.png" style="width:27.25em;height:22.92em;"/><br/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Figure 3: Schematic of the standard DQN network (top) and the dueling network architecture (bottom)</div>
+<p>You can compute the <kbd>action-value</kbd> function <em>Q(s,a)</em> as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/8c8ad6f8-0b44-43a8-a37f-8a2edbd99f2d.png" style="width:10.92em;height:1.17em;"/></p>
+<p>However, this is not unique in that you can have an amount, <em>δ</em>, over-predicted in <em>V(s)</em> and the same amount, <em>δ</em>, under-predicted in <em>A(s,a)</em>. This makes the neural network predictions unidentifiable. To circumvent this problem, the authors of the dueling network paper recommend the following way to combine <em>V(s)</em> and <em>A(s,a)</em>:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/773c5473-e05f-4c28-ab5f-412c4e10a57a.png" style="width:28.92em;height:2.83em;"/> </p>
+<p><em>|A|</em> represents the number of actions and <em>θ</em> is the neural network parameters that are shared between the <em>V(s)</em> and <em>A(s,a)</em> streams; in addition, <em>α</em> and <em>β</em> are used to denote the neural network parameters in the two different streams, that is, in the <em>A(s,a)</em> and <em>V(s)</em> streams, respectively. Essentially, in the preceding equation, we subtract the average <kbd>advantage</kbd> function from the <kbd>advantage</kbd> function and sum it to the <kbd>state value</kbd> function to obtain <em>Q(s,a)</em>.</p>
+<div class="packt_infobox">This is the link to the dueling network architectures paper: <a href="https://arxiv.org/abs/1511.06581">https://arxiv.org/abs/1511.06581</a>.<a href="https://arxiv.org/abs/1511.06581"/></div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Coding dueling network architecture and training it to play Atari Breakout</h1>
+                </header>
+            
+            <article>
+                
+<p>We will now code the dueling network architecture and train it to learn to play Atari Breakout. For the dueling network architecture, we require the following codes:</p>
+<ul>
+<li><kbd>model.py</kbd></li>
+<li><kbd>funcs.py</kbd></li>
+<li><kbd>dueling.py</kbd></li>
+</ul>
+<p>We will use <kbd>funcs.py</kbd>, which was used earlier for DDQN, so we reuse it. The <kbd>dueling.py</kbd> code is also identical to <kbd>ddqn.py</kbd> (which was used earlier, so we just rename and reuse it). The only changes to be made are in <kbd>model.py</kbd>. We copy the same <kbd>model.py</kbd> file from DDQN and summarize here the changes to be made for the dueling network architecture. The steps involved are the following.</p>
+<p>We first create a Boolean variable called <kbd>DUELING</kbd> in <kbd>model.py</kbd> and assign it to <kbd>True</kbd> if using dueling network architecture; otherwise, it is assigned to <kbd>False</kbd>:</p>
+<pre>DUELING = True # False</pre>
+<p>We will write the code with an <kbd>if</kbd> loop so that the <kbd>DUELING</kbd> variable, if <kbd>False</kbd>, will use the earlier code we used in DDQN, and if <kbd>True</kbd>, we will use the dueling network. We will use the <kbd>flattened</kbd> object that is the flattened version of the output of the convolutional layers to create two sub-neural network streams. We send <kbd>flattened</kbd> separately into two different fully connected layers with <kbd>512</kbd> neurons, using the <kbd>relu</kbd> activation function and the <kbd>winit</kbd> weights initializer defined earlier; the output values of these fully connected layers are called <kbd>valuestream</kbd> and <kbd>advantagestream</kbd>, respectively:</p>
+<pre>if (not DUELING):<br/><br/>     # Q(s,a)<br/>     self.predictions = tf.contrib.layers.fully_connected(fc1, len(self.VALID_ACTIONS), activation_fn=None, weights_initializer=winit)<br/><br/> else:<br/><br/>     # Deuling network<br/>     # branch out into two streams using flattened (i.e., ignore fc1 for Dueling DQN)<br/><br/>     valuestream = tf.contrib.layers.fully_connected(flattened, 512, activation_fn=tf.nn.relu, weights_initializer=winit) <br/>     advantagestream = tf.contrib.layers.fully_connected(flattened, 512, activation_fn=tf.nn.relu, weights_initializer=winit) </pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Combining V and A to obtain Q</h1>
+                </header>
+            
+            <article>
+                
+<p>The <kbd>advantagestream</kbd> object is passed into a fully connected layer with a number of neurons equal to the number of actions, that is, <kbd>len(self.VALID_ACTIONS)</kbd>. Likewise, the <kbd>valuestream</kbd> object is passed into a fully connected layer with one neuron. Note that we do not use an activation function for computing the <kbd>advantage</kbd> and <kbd>state value</kbd> functions, as they can be positive or negative (<kbd>relu</kbd> will set all negative values to zero!). Finally, we combine the advantage and value streams using <kbd>tf.subtract()</kbd> to subtract the advantage and the mean of the <kbd>advantage</kbd> function. The mean is computed using <kbd>tf.reduce_mean()</kbd> on the <kbd>advantage</kbd> function:</p>
+<pre># A(s,a)<br/>self.advantage = tf.contrib.layers.fully_connected(advantagestream, len(self.VALID_ACTIONS), activation_fn=None, weights_initializer=winit)<br/><br/># V(s)<br/>self.value = tf.contrib.layers.fully_connected(valuestream, 1, activation_fn=None, weights_initializer=winit)<br/><br/># Q(s,a) = V(s) + (A(s,a) - 1/|A| * sum A(s,a'))<br/>self.predictions = self.value + tf.subtract(self.advantage, tf.reduce_mean(self.advantage, axis=1, keep_dims=True))</pre>
+<p>That's it for coding dueling network architectures. We will train an agent with the dueling network architecture and evaluate its performance on Atari Breakout. Note that we can use the dueling architecture in conjunction with either DQN or DDQN. That is to say that we only changed the neural network architecture, not the actual Bellman update, and so the dueling architecture works with both DQN and DDQN.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Evaluating the performance of dueling architectures on Atari Breakout </h1>
+                </header>
+            
+            <article>
+                
+<p>We will now evaluate the performance of dueling architectures on Atari Breakout. <span>Here, we will plot the performance of our dueling network architecture with DDQN on Atari Breakout using the <kbd>performance.txt</kbd> file that we wrote during the training of the agent. We will use <kbd>matplotlib</kbd> to plot two graphs as explained in the following.</span></p>
+<p>In the following screenshot, we present the number of time steps per episode on Atari Breakout using DDQN (in blue) and its exponentially weighted moving average (in orange). As evident, the peak number of time steps is ~2,000 for many episodes toward the end of the training, with a few episodes even exceeding 4,000 time steps! The moving average is approximately 1,500 time steps toward the end of the training:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-539 image-border" src="assets/21bc1175-c1e7-4a36-a128-aed5bff0c893.png" style="width:26.25em;height:19.33em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Figure 4: Number of time steps per episode on Atari Breakout using dueling network architecture and DDQN</div>
+<p>In the following screenshot, we show the total rewards received per episode versus the time number of the global time step. The peak episode reward is over 400, with the moving average near 220. We also note that the moving average (in orange) is still increasing toward the end, which means you can run the training even longer to obtain further gains. Overall, the average rewards are higher with the dueling network architecture vis-a-vis the non-dueling counterparts, and so it is strongly recommended to use these dueling architectures: </p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-540 image-border" src="assets/447de67c-abb0-4983-8c94-fac145c6a658.png" style="width:28.75em;height:21.25em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Figure 5: Total episode reward received versus global time step number for Atari Breakout using dueling network architecture and<span> </span>DDQN</div>
+<div class="packt_infobox">Note that, due to RAM constraints (16 GB), we used a replay buffer size of only 300,000. If the user has access to more RAM power, a bigger replay buffer size can be used—for example, 500,000 to 1,000,000, which can result in even better scores.</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding Rainbow networks</h1>
+                </header>
+            
+            <article>
+                
+<p>We will now move on to <strong>Rainbow networks</strong>, which is a confluence of several different DQN improvements. Since the original DQN paper, several different improvements were proposed with notable success. This motivated DeepMind to combine several different improvements into an integrated agent, which they refer to as the <strong>Rainbow DQN</strong>. Specifically, six different DQN improvements are combined into one integrated Rainbow DQN agent. These six improvements are summarized as follows:</p>
+<ul>
+<li>DDQN</li>
+<li>Dueling network architecture</li>
+<li>Prioritized experience replay</li>
+<li>Multi-step learning</li>
+<li>Distributional RL</li>
+<li>Noisy nets</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">DQN improvements</h1>
+                </header>
+            
+            <article>
+                
+<p><span>We have already seen DDQN and dueling network architectures and have coded them in TensorFlow. The rest of the improvements are described in the following sections.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Prioritized experience replay </h1>
+                </header>
+            
+            <article>
+                
+<p><span>We used a replay buffer where all of the samples have an equal probability of being sampled. This, however, is not very efficient, as some samples are more important than others. This is the motivation behind prioritized experience replay, where samples that have a higher <strong>Temporal Difference</strong> (<strong>TD</strong>) error are sampled with a higher probability than others. The first time a sample is added to the replay buffer, it is set a maximum priority value so as to ensure that all samples in the buffer are sampled at least once. Thereafter, the TD error is used to determine the probability of the experience to be sampled, which we compute as this:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/180e299e-e33a-4a27-b859-2b8afcd62782.png" style="width:23.75em;height:2.33em;"/></p>
+<p>Whereas the previous <em>r</em> is the reward, <em>θ</em> is the primary Q-network model parameters, and <em>θ<sup>t</sup></em><span> </span>is the target network parameters. <em>ω</em> is a positive hyper-parameter that determines the shape of the distribution.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Multi-step learning</h1>
+                </header>
+            
+            <article>
+                
+<p>In Q-learning, we accumulate a single reward and use the greedy action at the next step. Alternatively, you can also use multi-step targets and compute an <em>n</em>-step return from a single state:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/91f444c4-3846-43ab-b7ac-bf3bf367131e.png" style="width:10.75em;height:4.17em;"/></p>
+<p>Then, the <em>n</em>-step return, <em>r<sub>t</sub><sup>(n)</sup></em><span> , </span>is used in the Bellman update and is known to lead to faster learning.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Distributional RL</h1>
+                </header>
+            
+            <article>
+                
+<p>In <strong>distributional RL</strong>, we learn to approximate the distribution of returns instead of the expected return. This is mathematically complicated, is beyond the scope of this book, and is not discussed further.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Noisy nets</h1>
+                </header>
+            
+            <article>
+                
+<p>In some games (such as Montezuma's revenge), ε-greedy does not work well, as many actions need to be executed before the first reward is received. Under this setting, the use of a noisy linear layer that combined a deterministic and a noisy stream is recommended, shown as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/041b0d30-df4e-44e6-9b32-a81183b3f968.png" style="width:27.17em;height:1.75em;"/></p>
+<p>Here, <em>x</em> is the input, <em>y</em> is the output, and <em>b</em> and <em>W</em> are the biases and weights in the deterministic stream; <em>b<sup>noisy</sup></em><span> </span>and <em>W<sup>noisy</sup></em><span> </span>are the biases and weights, respectively, in the noisy stream; and <em>ε<sup>b</sup></em><span> </span>and <em>ε<sup>W</sup></em><span> </span>are random variables and are applied as element-wise product to the biases and weights, respectively, in the noisy stream. The network may choose to ignore the noisy stream in some regions of the state space and may use them otherwise, as required. This allows for a state-determined exploration strategy.</p>
+<p>We will not be coding the full Rainbow DQN, as it is exhaustive. Instead, we will use an open source framework called Dopamine to train a Rainbow DQN agent, which will be discussed in the next section.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Running a Rainbow network on Dopamine</h1>
+                </header>
+            
+            <article>
+                
+<p>In 2018, some engineers at Google released an open source, lightweight, TensorFlow-based framework for training RL agents, called <strong>Dopamine</strong>. Dopamine, as you may already know, is the name of an organic chemical that plays an important role in the brain. We will use Dopamine to run Rainbow.</p>
+<p>The Dopamine framework is based on four design principles:</p>
+<ul>
+<li>Easy experimentation</li>
+<li>Flexible development</li>
+<li>Compact and reliable</li>
+<li>Reproducible</li>
+</ul>
+<p>To download Dopamine from GitHub, type the following command in a Terminal:</p>
+<pre><strong>git clone https://github.com/google/dopamine.git</strong></pre>
+<p class="mce-root">We can test whether Dopamine was successfully installed by typing the following commands into a Terminal:</p>
+<pre><strong>cd dopamine</strong><br/><strong>export PYTHONPATH=${PYTHONPATH}:.</strong><br/><strong>python tests/atari_init_test.py</strong></pre>
+<p>The output of this will look something like the following:</p>
+<pre>2018-10-27 23:08:17.810679: I tensorflow/core/platform/cpu_feature_guard.cc:141] Your CPU supports instructions that this TensorFlow binary was not compiled to use: SSE4.1 SSE4.2 AVX AVX2 FMA<br/>2018-10-27 23:08:18.079916: I tensorflow/stream_executor/cuda/cuda_gpu_executor.cc:897] successful NUMA node read from SysFS had negative value (-1), but there must be at least one NUMA node, so returning NUMA node zero<br/>2018-10-27 23:08:18.080741: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1392] Found device 0 with properties: <br/>name: GeForce GTX 1060 with Max-Q Design major: 6 minor: 1 memoryClockRate(GHz): 1.48<br/>pciBusID: 0000:01:00.0<br/>totalMemory: 5.93GiB freeMemory: 5.54GiB<br/>2018-10-27 23:08:18.080783: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1471] Adding visible gpu devices: 0<br/>2018-10-27 23:08:24.476173: I tensorflow/core/common_runtime/gpu/gpu_device.cc:952] Device interconnect StreamExecutor with strength 1 edge matrix:<br/>2018-10-27 23:08:24.476247: I tensorflow/core/common_runtime/gpu/gpu_device.cc:958] 0 <br/>2018-10-27 23:08:24.476273: I tensorflow/core/common_runtime/gpu/gpu_device.cc:971] 0: N <br/>2018-10-27 23:08:24.476881: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1084] Created TensorFlow device (/job:localhost/replica:0/task:0/device:GPU:0 with 5316 MB memory) -&gt; physical GPU (device: 0, name: GeForce GTX 1060 with Max-Q Design, pci bus id: 0000:01:00.0, compute capability: 6.1)<br/>.<br/>.<br/>.<br/>Ran 2 tests in 8.475s<br/><br/>OK</pre>
+<p>You should see <kbd>OK</kbd> at the end to confirm that everything went well with the download.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Rainbow using Dopamine</h1>
+                </header>
+            
+            <article>
+                
+<p>To run Rainbow DQN, type the following command into a Terminal:</p>
+<pre><strong>python -um dopamine.atari.train --agent_name=rainbow --base_dir=/tmp/dopamine --gin_files='dopamine/agents/rainbow/configs/rainbow.gin'</strong></pre>
+<p>That's it. Dopamine will start training Rainbow DQN and print out training statistics on the screen, as well as save checkpoint files. The configuration file is stored in the following path:</p>
+<pre><strong>dopamine/dopamine/agents/rainbow/configs/rainbow.gin</strong></pre>
+<p>It looks like the following code. <kbd>game_name</kbd> is set to <kbd>Pong</kbd> as default; feel free to try other Atari games. The number of agent steps for training is set in <kbd>training_steps</kbd>, and for evaluation in <kbd>evaluation_steps</kbd>. In addition, it introduces stochasticity to the training by using the concept of sticky actions, where the most recent action is repeated multiple times with a probability of 0.25. That is, if a uniform random number (computed using NumPy's <kbd>np.random.rand()</kbd>) is &lt; 0.25, the most recent action is repeated; otherwise, a new action is taken from the policy.</p>
+<p>The sticky action is a new method of introducing stochasticity to the learning:</p>
+<pre># Hyperparameters follow Hessel et al. (2018), except for sticky_actions,<br/># which was False (not using sticky actions) in the original paper.<br/>import dopamine.agents.rainbow.rainbow_agent<br/>import dopamine.atari.run_experiment<br/>import dopamine.replay_memory.prioritized_replay_buffer<br/>import gin.tf.external_configurables<br/><br/>RainbowAgent.num_atoms = 51<br/>RainbowAgent.vmax = 10.<br/>RainbowAgent.gamma = 0.99<br/>RainbowAgent.update_horizon = 3<br/>RainbowAgent.min_replay_history = 20000 # agent steps<br/>RainbowAgent.update_period = 4<br/>RainbowAgent.target_update_period = 8000 # agent steps<br/>RainbowAgent.epsilon_train = 0.01<br/>RainbowAgent.epsilon_eval = 0.001<br/>RainbowAgent.epsilon_decay_period = 250000 # agent steps<br/>RainbowAgent.replay_scheme = 'prioritized'<br/>RainbowAgent.tf_device = '/gpu:0' # use '/cpu:*' for non-GPU version<br/>RainbowAgent.optimizer = @tf.train.AdamOptimizer()<br/><br/># Note these parameters are different from C51's.<br/>tf.train.AdamOptimizer.learning_rate = 0.0000625<br/>tf.train.AdamOptimizer.epsilon = 0.00015<br/><br/>Runner.game_name = 'Pong'<br/># Sticky actions with probability 0.25, as suggested by (Machado et al., 2017).<br/>Runner.sticky_actions = True<br/>Runner.num_iterations = 200<br/>Runner.training_steps = 250000 # agent steps<br/>Runner.evaluation_steps = 125000 # agent steps<br/>Runner.max_steps_per_episode = 27000 # agent steps<br/><br/>WrappedPrioritizedReplayBuffer.replay_capacity = 1000000<br/>WrappedPrioritizedReplayBuffer.batch_size = 32</pre>
+<p>Feel free to experiment with the hyperparameters and see how the learning is affected. This is a very nice way to ascertain the sensitivity of the different hyperparameters on the learning of the RL agent.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>In this chapter, we were introduced to DDQN, dueling network architectures, and the Rainbow DQN. We extended our previous DQN code to DDQN and dueling architectures and tried it out on Atari Breakout. We can clearly see that the average episode rewards are higher with these improvements, and so these improvements are a natural choice to use. Next, we also saw Google's Dopamine and used it to train a Rainbow DQN agent. Dopamine has several other RL algorithms, and the user is encouraged to dig deeper and try out these other RL algorithms as well.</p>
+<p>This chapter was a good deep dive into the DQN variants, and we really covered a lot of mileage as far as coding of RL algorithms is involved. In the next chapter, we will learn about our next RL algorithm called <strong>Deep Deterministic Policy Gradient</strong> (<strong>DDPG</strong>), which is our first Actor-Critic RL algorithm and our first continuous action space RL algorithm.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Questions</h1>
+                </header>
+            
+            <article>
+                
+<ol>
+<li>Why does DDQN perform better than DQN?</li>
+<li>How does the dueling network architecture help in the training?</li>
+<li>Why does prioritized experience replay speed up the training?</li>
+<li>How do sticky actions help in the training?</li>
+</ol>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Further reading</h1>
+                </header>
+            
+            <article>
+                
+<ul>
+<li>The DDQN paper, <em>Deep Reinforcement Learning with Double Q-learning</em>, by Hado van Hasselt, Arthur Guez<em>,</em> and David Silver can be obtained from the following link, and the interested reader is recommended to read it: <a href="https://arxiv.org/abs/1509.06461" target="_blank">https://arxiv.org/abs/1509.06461</a></li>
+<li><em>Rainbow: Combining Improvements in Deep Reinforcement Learning</em>, Matteo Hessel, Joseph Modayil, Hado van Hasselt, Tom Schaul, Georg Ostrovski, Will Dabney, Dan Horgan, Bilal Piot, Mohammad Azar, and David Silver, arXiv:1710.02298 (the Rainbow DQN): <a href="https://arxiv.org/abs/1710.02298" target="_blank">https://arxiv.org/abs/1710.02298</a></li>
+</ul>
+<ul>
+<li><em>Prioritized Experience Replay</em>, Tom Schaul, John Quan, Ioannis Antonoglou, David Silver, arXiv:1511.05952: <a href="https://arxiv.org/abs/1511.05952" target="_blank">https://arxiv.org/abs/1511.05952</a></li>
+<li><em>Multi-Step Reinforcement Learning: A Unifying Algorithm</em>, Kristopher de Asis, J Fernando Hernandez-Garcia, G Zacharias Holland, Richard S Sutton: <a href="https://arxiv.org/pdf/1703.01327.pdf" target="_blank">https://arxiv.org/pdf/1703.01327.pdf</a><a href="https://arxiv.org/pdf/1703.01327.pdf" target="_blank"/></li>
+<li><em>Noisy Networks for Exploration,</em> by Meire Fortunato, Mohammad Gheshlaghi Azar, Bilal Piot, Jacob Menick, Ian Osband, Alex Graves, Vlad Mnih, Remi Munos, Demis Hassabis, Olivier Pietquin, Charles Blundell, and Shane Legg, arXiv:1706.10295: <a href="https://arxiv.org/abs/1706.10295" target="_blank">https://arxiv.org/abs/1706.10295</a><a href="https://arxiv.org/abs/1706.10295" target="_blank"/></li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

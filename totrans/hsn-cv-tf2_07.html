@@ -1,0 +1,1223 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Object Detection Models</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">From self-driving cars to content moderation, detecting objects and their position in an image is a canonical task in computer vision. In this chapter, we will introduce techniques used for <strong>object detection</strong>. We will detail the architecture of two of the most prevalent models among the current state of the art—<strong>You Only Look Once</strong> (<strong>YOLO</strong>) and <strong>Regions with Convolutional Neural Networks</strong> (<strong>R-CNN</strong>).<span><br/></span></p>
+<p>The following topics will be covered in this chapter:</p>
+<ul>
+<li>The history of object detection techniques</li>
+<li>The main object detection approaches</li>
+<li>Implementing fast object detection using YOLO architecture</li>
+<li>Improving object detection using Faster R-CNN architecture</li>
+<li>Using Faster R-CNN with the TensorFlow Object Detection API</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Technical requirements</h1>
+                </header>
+            
+            <article>
+                
+<p><span>The code for this chapter is available in the form of notebooks at <a href="https://github.com/PacktPublishing/Hands-On-Computer-Vision-with-TensorFlow-2/tree/master/Chapter05">https://github.com/PacktPublishing/Hands-On-Computer-Vision-with-TensorFlow-2/tree/master/Chapter05</a>.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Introducing object detection</h1>
+                </header>
+            
+            <article>
+                
+<p>Object detection was briefly introduced in <a href="3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml">Chapter 1</a>, <em>Computer Vision and Neural Networks</em>. In this section, we will cover its history, as well as the core technical concepts.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Background</h1>
+                </header>
+            
+            <article>
+                
+<p>Object detection, also called <strong>object localization</strong>, is the process of detecting objects and their <strong>bounding boxes</strong> in an image. A bounding box is the smallest rectangle of an image that fully contains an object.</p>
+<p>A common input for an object detection algorithm is an image. A common output is a list of bounding boxes and object classes. For each bounding box, the model outputs the corresponding predicted class and its confidence.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Applications</h1>
+                </header>
+            
+            <article>
+                
+<p>The applications of object detection are numerous and cover many industries. For instance, object detection can be used for the following purposes:</p>
+<ul>
+<li>In self-driving cars, to locate other vehicles and pedestrians</li>
+<li>For content moderation, to locate forbidden objects and their respective size</li>
+<li>In health, to locate tumors or dangerous tissue using radiographs</li>
+<li>In manufacturing, for assembly robots to put together or repair products</li>
+<li>In the security industry, to detect threats or count people</li>
+<li>In wildlife conservation, to monitor an animal population</li>
+</ul>
+<p>These are just a few examples—more and more applications are being discovered every day as object localization becomes more powerful.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Brief history</h1>
+                </header>
+            
+            <article>
+                
+<p>Historically, object detection relied on a classical computer vision technique: <strong>image descriptors</strong>. To detect an object, for instance, a bike, you would start with several pictures of this object. Descriptors corresponding to the bike would be extracted from the image. Those descriptors would represent specific parts of the bike. When looking for this object, the algorithm would attempt to find the descriptors again in the target images.</p>
+<p>To locate the bike in the image, the most commonly used technique was the <strong>floating window</strong>. Small rectangular areas of the images are examined, one after the other. The part with the most matching descriptors would be considered to be the one containing the object. Over time, many variations were used.</p>
+<p class="mce-root">This technique presented a few advantages: it was robust to rotation and color changes, it did not require a lot of training data, and it worked with most objects. However, the level of accuracy was not satisfactory.</p>
+<p class="mce-root">While neural networks were already in use in the early 1990s (for detecting faces, hands, or text in images), they started outperforming the descriptor technique <span>on the ImageNet challenge </span><span>by a very large margin in the early 2010s.</span></p>
+<p>Since then, performance has been improving steadily. Performance refers to how good the algorithm is at the following things:</p>
+<ul>
+<li><strong>Bounding box precision</strong>: Providing the correct bounding box (not too large or too narrow)</li>
+<li><strong>Recall</strong>: Finding all the objects (not missing any objects)</li>
+<li><strong>Class precision</strong>: Outputting the correct class for each object (not mistaking a cat for a dog)</li>
+</ul>
+<p>Performance improvement also means that the models are getting faster and faster at computing results (for a specific input image size and at a specific computing power). While early models took considerable time (more than a few seconds) to detect objects, they can now be used in real time. In the context of computer vision, real time usually means more than five detections per second.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Evaluating the performance of a model</h1>
+                </header>
+            
+            <article>
+                
+<p>To compare different object detection models, we need common evaluation metrics. For a given test set, we run each model and gather its predictions. We use the predictions and the ground truth to compute an evaluation metric. In this section, we will have a look at the metrics used to evaluate object detection models.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Precision and recall</h1>
+                </header>
+            
+            <article>
+                
+<p>While they are usually not used to evaluate object detection models, <strong>precision</strong> and <strong>recall</strong> serve as a basis to compute other metrics. A good understanding of precision and recall is, therefore, essential.</p>
+<p>To measure precision and recall, we first need to compute the following for each image:</p>
+<ul>
+<li><strong>The number of</strong> <strong>true positives</strong>: <strong>True positives</strong> (<strong>TP</strong>) determine how many predictions match with a ground truth box of the same class.</li>
+<li><strong>The number of false positives</strong>: <strong>False positives</strong> (<strong>FP</strong>) determine how many predictions do not match with a ground truth box of the same class.</li>
+<li><strong>The number of</strong> <strong>false negatives</strong>: <strong>False negatives</strong> (<strong>FN</strong>) determine how many ground truths do not have a matching prediction.</li>
+</ul>
+<p>Then, precision and recall are defined as follows:</p>
+<p style="padding-left: 180px"><img src="assets/5464f034-f644-497d-a77f-ab28ca5437ae.png" style="width:11.58em;height:5.33em;"/></p>
+<p>Notice that if the predictions exactly match all the ground truths, there will not be any false positives or false negatives. Therefore, precision and recall will be equal to 1, a perfect score. If a model too often predicts the presence of an object based on non-robust features, precision will deteriorate because there will be many false positives. On the contrary, if a model is too strict and considers an object detected only when precise conditions are met, recall will suffer because there will be many false negatives.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Precision-recall curve</h1>
+                </header>
+            
+            <article>
+                
+<p><strong>Precision-recall curve</strong> is used in many machine learning problems. The general idea is to visualize the precision and the recall of the model at each <strong>threshold of confidence</strong>. With every bounding box, our model will output a confidence—a number between 0 and 1 characterizing how confident the model is that a prediction is correct.</p>
+<p>Because we do not want to keep the less confident predictions, we usually remove those below a certain threshold, 𝑇. For instance, if 𝑇 = 0.4, we will not consider any prediction with a confidence below this number.</p>
+<p>Moving the threshold has an impact on precision and on recall:</p>
+<ul>
+<li><strong>If T is close to 1</strong>: Precision will be high, but the recall will be low. As we filter out many objects, we miss a lot of them—recall shrinks. As we only keep confident predictions, we do not have many false positives—precision rises.</li>
+<li><strong>If T is close to 0</strong>: Precision will be low, but the recall will be high. As we keep most predictions, we will not have any false negatives—recall rises. As our model is less confident in its predictions, we will have many false positives—precision shrinks.</li>
+</ul>
+<p>By computing the precision and the recall at each threshold value between 0 and 1, we can obtain a precision-recall curve, as shown here:</p>
+<p class="CDPAlignCenter CDPAlign"><img src="assets/2a65d1ce-2626-4dfb-b798-106009cd4eaf.png"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign"><span>Figure 5.1: </span>Precision-Recall curve</div>
+<div class="packt_tip">Choosing a threshold is a trade-off between accuracy and recall. If a model is detecting pedestrians, we will pick a high recall in order not to miss any passers-by, even if it means stopping the car for no valid reason from time to time. If a model is detecting investment opportunities, we will pick a high precision to avoid choosing the wrong opportunities, even if it means missing some.</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Average precision and mean average precision</h1>
+                </header>
+            
+            <article>
+                
+<p>While the precision-recall curve can tell us a lot about the model, it is often more convenient to have a single number. <strong>Average precision</strong> (<strong>AP</strong>) corresponds to the area under the curve. Since it is always <span><span>contained </span></span>in a one-by-one rectangle, AP is always between 0 and 1.</p>
+<p>Average precision gives information about the performance of a model for a single class. To get a global score, we use <strong>mean Average Precision</strong> (<strong>mAP</strong>). This corresponds to the mean of the average precision for each class. If the dataset has 10 classes, we will compute the average precision for each class and take the average of those numbers.</p>
+<div class="packt_infobox">Mean average precision is used in at least two object detection challenges—<strong>PASCAL Visual Object Classes</strong> (usually referred to as <strong>Pascal VOC</strong>), and <strong>Common Objects in Context</strong> (usually referred to as <strong>COCO</strong>). The latter is larger and contains more classes; therefore, the scores obtained are usually lower than for the former.</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Average precision threshold</h1>
+                </header>
+            
+            <article>
+                
+<p>We mentioned earlier that true and false positives were defined by the number of predictions matching or not matching the ground truth boxes. However, how do you decide when a prediction and the ground truth are matching? A common metric is the <strong>Jaccard index</strong>, which measures how well two sets overlap (in our case, the sets of pixels represented by the boxes). Also known as <strong>Intersection over Union</strong> (<strong>IoU</strong>), it is defined as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/7c274090-cac1-480c-b08a-93c2adb684e7.png" style="width:17.50em;height:2.25em;"/></p>
+<p>|𝐴| and |𝐵| are the <strong>cardinality</strong> of each set; that is, the number of elements they each contain. 𝐴 ⋂ 𝐵 is the intersection of the two sets, and therefore the numerator |𝐴 ⋂ 𝐵| represents the number of elements they have in common. Similarly, 𝐴 ⋃ 𝐵 is the union of the sets (as seen in the following diagram), and therefore the denominator |𝐴 ⋃ 𝐵| represents the total number of elements the two sets cover together:</p>
+<p class="CDPAlignCenter CDPAlign"><img src="assets/d55b879f-d640-4d10-a5eb-5af732559f3a.png" style="width:18.67em;height:15.58em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign"><span>Figure 5.2: </span>Intersection and union of boxes illustrated</div>
+<p>Why compute such a fraction and not just use the intersection? While the intersection would provide a good indicator of how much two sets/boxes overlap, this value is absolute and not relative. Therefore, two big boxes would probably overlap by many more pixels than two small boxes. This is why this ratio is used—it will always be between 0 (if the two boxes do not overlap) and 1 (if two boxes overlap completely).</p>
+<p>When computing the average precision, we say that two boxes overlap if their IoU is above a certain threshold. The threshold usually chosen is <em>0.5</em>.</p>
+<div class="packt_tip">For the Pascal VOC challenge, 0.5 is also used—we say that we use mAP@0.5 (pronounced <em>mAP</em> <em>at 0.5</em>). For the COCO challenge, a slightly different metric is used—mAP@[0.5:0.95]. This means that we compute mAP@0.5, mAP@0.55, ..., <em>mAP</em>@0.95, and take the average. Averaging over IoUs rewards models with better localization.</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">A fast object detection algorithm – YOLO</h1>
+                </header>
+            
+            <article>
+                
+<p>While the acronym may make you smile, YOLO is one of the fastest object detection algorithms available. The latest version, YOLOv3, can run at more than 170 <strong>frames per second</strong> (<strong>FPS</strong>) on a modern GPU for an image size of <em>256 </em>× <em>256</em>. In this section, we will introduce the theoretical concept behind its architecture.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Introducing YOLO</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">First released in 2015, YOLO outperformed almost all other object detection architectures, both in terms of speed and accuracy. Since then, the architecture has been improved several times. In this chapter, we will draw our knowledge from the following three papers:</p>
+<ul>
+<li><em>You Only Look Once: Unified, real-time object detection (2015)</em>, Joseph Redmon, Santosh Divvala, Ross Girshick, and Ali Farhadi</li>
+<li><em>YOLO9000: Better, Faster, Stronger (2016)</em>, Joseph Redmon and Ali Farhadi</li>
+<li><em>YOLOv3: An Incremental Improvement (2018)</em>, Joseph Redmon and Ali Farhadi</li>
+</ul>
+<p>For the sake of clarity and simplicity, we will not describe all the small details that allow YOLO to reach its maximum performance. Instead, we will focus on the general architecture of the network. We'll provide an implementation of YOLO so that you can compare our architecture with code. It is available in the chapter's repository.</p>
+<p>This implementation has been designed to be easy to read and understand. We invite those readers who wish to acquire a deep understanding of the architecture to first read this chapter and then refer to the original papers and the implementation.</p>
+<div class="packt_infobox">The main author of the YOLO paper maintains a deep learning framework called <strong>Darknet</strong> (<a href="https://github.com/pjreddie/darknet">https://github.com/pjreddie/darknet</a>). This hosts the official implementation of YOLO and can be used to reproduce the paper's results. It is coded in C++ and is not based on TensorFlow.</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Strengths and limitations of YOLO</h1>
+                </header>
+            
+            <article>
+                
+<p>YOLO is known for its speed. However, it has been recently outperformed in terms of accuracy by <strong>Faster R-CNN</strong> (covered later in this chapter). Moreover, due to the way it detects objects, YOLO struggles with smaller objects. For instance, it would have trouble detecting single birds from a flock. As with most deep learning models, it also struggles to properly detect objects that deviate too much from the training set (unusual aspect ratios or appearance). Nevertheless, the architecture is constantly evolving, and those issues are being worked on.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">YOLO's main concepts</h1>
+                </header>
+            
+            <article>
+                
+<p>The core idea of YOLO is this: <strong>reframing object detection as a single regression problem</strong>. What does this mean? Instead of using a sliding window or another complex technique, we will divide the input into a <em>w × h</em> grid, as represented in this diagram:</p>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p class="CDPAlignCenter CDPAlign"><img src="assets/266bcb07-9913-4888-a3d2-8a2bfcab7b6c.png" style="width:20.42em;height:20.42em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign"><span>Figure 5.3: An e</span>xample involving a plane taking off. Here, w = 5, h = 5, and B = 2, meaning, in total, 5 × 5 × 2 = 50 potential boxes, but only 2 are shown in the image</div>
+<p>For each part of the grid, we will define <em>B</em> bounding boxes. Then, our only task will be to predict the following <span>for each bounding box</span>:</p>
+<ul>
+<li>The center of the box</li>
+<li>The width and height of the box</li>
+<li>The probability that this box contains an object</li>
+<li>The class of said object</li>
+</ul>
+<p>Since all those predictions are numbers, we have therefore transformed the object detection problem into a regression problem.</p>
+<div class="packt_tip">It is important to make a distinction between the grid cells that divide the pictures into equal parts (<em>w</em> × <em>h</em> parts to be precise) and the bounding boxes that will locate the objects. Each grid cell contains <em>B</em> bounding boxes. Therefore, there will be <em>w</em> × <em>h</em> × <em>B</em> possible bounding boxes in the end.</div>
+<p> </p>
+<p class="mce-root"/>
+<p>In practice, the concepts used by YOLO are a bit more complex than this. What if there are several objects in one part of the grid? What if an object overlaps several parts of the grid? More importantly, how do we choose a loss to train our model? We will now have a deeper look at YOLO architecture.</p>
+<p class="mceNonEditable"/>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Inferring with YOLO</h1>
+                </header>
+            
+            <article>
+                
+<p>Because the architecture of the model can be quite hard to understand in one go, we will split the model into two parts—inference and training. <strong>Inference</strong> is the process of taking an image input and computing results. <strong>Training</strong> is the process of learning the weights of the model. When implementing a model from scratch, inference cannot be used before the model is trained. But, for the sake of simplicity, we are going to start with inference.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The YOLO backbone</h1>
+                </header>
+            
+            <article>
+                
+<p>Like most image detection models, YOLO is based on a <strong>backbone model</strong>. The role of this model is to extract meaningful features from the image that will be used by the final layers. This is why the backbone is also called the <strong>feature extractor</strong>, a concept introduced in <a href="061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml">Chapter 4</a>, <em>Influential Classification Tools</em>. The general YOLO architecture is depicted here:</p>
+<p class="CDPAlignCenter CDPAlign"><img src="assets/18e34cb2-6234-4212-8ca4-d06843d049df.png" style="width:33.42em;height:12.67em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref"><span>Figure 5.4: </span>YOLO architecture summarized. Note that the backbone is exchangeable and that its architecture may vary</div>
+<p>While any architecture can be chosen as a feature extractor, the YOLO paper employs a custom architecture. The performance of the final model depends heavily on the choice of the feature extractor's architecture.</p>
+<p>The final layer of the backbone outputs a feature volume of size <em>w</em> × <em>h</em> × <em>D</em>, where <em>w</em> × <em>h</em> is the size of the grid and <em>D</em> is the depth of the feature volume. For instance, for VGG-16, <em>D = 512</em>.</p>
+<p class="mce-root"/>
+<p>The size of the grid, <em>w</em> × <em>h</em>, depends on two factors:</p>
+<ul>
+<li><strong>The stride of the complete feature extractor</strong>: For VGG-16, the stride is 16, meaning that the feature volume output will be 16 times smaller than the input image.</li>
+<li><strong>The size of the input image:</strong> Since the feature volume's size is proportional to the size of the image, the smaller the input, the smaller the grid.</li>
+</ul>
+<p>YOLO's final layer accepts the feature volume as an input. It is composed of convolutional filters of size <em>1</em> × <em>1</em>. As seen in <a href="061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml">Chapter 4</a>, <em>Influential Classification Tools</em>, a convolutional layer of size <em>1</em> × <em>1</em> can be used to change the depth of the feature volume without affecting its spatial structure.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">YOLO's layers output</h1>
+                </header>
+            
+            <article>
+                
+<p>YOLO's final output is a <em>w</em> × <em>h</em> × <em>M</em> matrix, where <em>w</em> × <em>h</em> is the size of the grid, and <em>M</em> corresponds to the formula <em>B</em> × <em>(C + 5)</em>, where the following applies:</p>
+<ul>
+<li>
+<p><em>B</em> is the number of bounding boxes per grid cell.</p>
+</li>
+<li>
+<p><em>C</em> is the number of classes (in our example, we will use 20 classes).</p>
+</li>
+</ul>
+<p>Notice that we add <em>5</em> to the number of classes. This is because, for each bounding box, we need to predict <em>(C + 5)</em> numbers:</p>
+<ul>
+<li>
+<p><em>t<sub>x</sub></em> and <em>t<sub>y</sub></em> will be used to compute the coordinates of the center of the bounding box.</p>
+</li>
+<li>
+<p><em>t<sub>w</sub></em> and <em>t<sub>h</sub></em> will be used to compute the width and height of the bounding box.</p>
+</li>
+<li>
+<p><em>c</em> is the confidence that an object is in the bounding box.</p>
+</li>
+<li>
+<p><em>p1</em>, <em>p2</em>, ..., and <em>pC</em> are the probability that the bounding box contains an object of class <em>1</em>, <em>2</em>, ..., <em>C</em> (where <em>C = 20</em> in our example).</p>
+</li>
+</ul>
+<p>This diagram summarizes how the output matrix appears:</p>
+<p class="CDPAlignCenter CDPAlign"><img src="assets/6eb909f6-a8e5-40ef-b202-9763d8637aec.png" style="width:38.00em;height:20.92em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign"><span>Figure 5.5: Final matrix output of YOLO. In this example, <em>B = 5</em>, <em>C = 20</em>, <em>w = 13,</em> and <em>h = 13</em>. The size is 13 × 13 × 125<br/></span></div>
+<p>Before we explain how to use this matrix to compute the final bounding boxes, we need to introduce an important concept—<strong>anchor boxes</strong>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Introducing anchor boxes</h1>
+                </header>
+            
+            <article>
+                
+<p>We mentioned that <em>t<sub>x</sub></em>, <em>t<sub>y</sub></em>, <em>t<sub>w</sub></em>, and <em>t<sub>h</sub></em> are used to compute the bounding box coordinates. Why not ask the network to output the coordinates directly (<em>x</em>, <em>y</em>, <em>w</em>, and <em>h</em>)? In fact, that is how it was done in YOLO v1. Unfortunately, this resulted in a lot of errors because objects vary in size.</p>
+<p>Indeed, if most of the objects in the train dataset are big, the network will tend to predict <em>w</em> and <em>h</em> as being very large. And when using the trained model on small objects, it will often fail. To fix this problem, YOLO v2 introduced <strong>anchor boxes</strong>.</p>
+<p class="mce-root"/>
+<p>Anchor boxes (also called <strong>priors</strong>) are a set of bounding box sizes that are decided upon before training the network. For instance, when training a neural network to detect pedestrians, tall and narrow anchor boxes would be picked. An example is shown here:</p>
+<p class="CDPAlignCenter CDPAlign"><img src="assets/776b173e-60b2-45e3-8f90-1b96f67f2ae5.png" style="width:34.08em;height:17.00em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign"><span>Figure 5.6: </span>On the left are the three bounding box sizes picked to detect pedestrians. On the right is how we adapt one of the bounding boxes to match a pedestrian</div>
+<p>A set of anchor boxes is usually small—from 3 to 25 different sizes in practice. As those boxes cannot <span>exactly </span>match all the objects, the network is used to refine the closest anchor box. In our example, we fit the pedestrian in the image with the closest anchor box and use the neural network to correct the height of the anchor box. This is what <em>t<sub>x</sub></em>, <em>t<sub>y</sub></em>, <em>t<sub>w</sub></em>, and <em>t<sub>h</sub></em> correspond to—<strong>corrections to the anchor box</strong>.</p>
+<p>When they were first introduced in the literature, anchor boxes were picked manually. Usually, nine box sizes were used:</p>
+<ul>
+<li>Three squares (small, medium, and large)</li>
+<li>Three horizontal rectangles (small, medium, and large)</li>
+<li>Three vertical rectangles (small, medium, and large)</li>
+</ul>
+<p>However, in the YOLOv2 paper, the authors recognized that the sizes of anchor boxes are different for each dataset. Therefore, before training the model, they recommend analyzing the data to pick the size of the anchor boxes. To detect pedestrians, as previously, vertical rectangles would be used. To detect apples, square anchor boxes would be used.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">How YOLO refines anchor boxes</h1>
+                </header>
+            
+            <article>
+                
+<p>In practice, YOLOv2 computes each final bounding box's coordinates using the following formulas:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/3043125d-8af4-4a95-b9df-5ffa624f1859.png" style="width:10.42em;height:6.00em;"/></p>
+<p>The terms of the preceding equation can be explained as follows:</p>
+<ul>
+<li><em>t<sub>x</sub> , t<sub>y</sub> , t<sub>w</sub> ,</em> and <em>t</em><sub><em>h</em> </sub> are the outputs from the last layer.</li>
+<li><em>b<sub>x</sub> , b<sub>y</sub> , b<sub>w</sub> ,</em> and<em>  b<sub>h</sub></em> are the position and size of the predicted bounding box, respectively.</li>
+<li><em>p<sub>w</sub></em> and <em>p<sub>h</sub></em> represent the original size of the anchor box.</li>
+<li><em>c<sub>x</sub></em> and <em>c</em><sub><em>y</em></sub> are the coordinates of the current grid cell (they will be (0,0) for the top-left box, (w - 1,0) for the top-right box, and (0, h - 1) for the bottom-left box).</li>
+<li><em>exp</em> is the exponential function.</li>
+<li><em>sigmoid</em> is the sigmoid function, described in <a href="3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml">Chapter 1</a>, <em>Computer Vision and Neural Networks</em>.</li>
+</ul>
+<p>While this formula may seem complex, this diagram may help to clarify matters:</p>
+<p class="CDPAlignCenter CDPAlign"><img src="assets/37cbf53f-ae4f-4945-9b9f-d2ed447467de.png" style="width:38.92em;height:19.50em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign"><span>Figure 5.7: </span>How YOLO refines and positions anchor boxes</div>
+<p>In the preceding diagram, we see that on the left, the solid line is the anchor box, and the dotted line is the refined bounding box. On the right, the dot is the center of the bounding box.</p>
+<p>The output of the neural network, a matrix with raw numbers, needs to be transformed into a list of bounding boxes. A simplified version of the code would look like this:</p>
+<pre>boxes = []<br/>for row in range(grid_height):<br/>    for col in range(grid_width):<br/>        for b in range(num_box):<br/>            tx, ty, tw, th = network_output[row, col, b, :4]<br/>            box_confidence = network_output[row, col, b, 4]<br/>            classes_scores = network_output[row, col, b, 5:]<br/><br/>            bx = sigmoid(tx) + col<br/>            by = sigmoid(ty) + row<br/><br/>            # anchor_boxes is a list of dictionaries containing the size of each anchor<br/>            bw = anchor_boxes[b]['w'] * np.exp(tw)<br/>            bh = anchors_boxes[b]['h'] * np.exp(th)<br/><br/>            boxes.append((bx, by, bw, bh, box_confidence, classes_scores))</pre>
+<p>This code needs to be run for every inference in order to compute bounding boxes for an image. Before we can display the boxes, we need one more post-processing operation.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Post-processing the boxes</h1>
+                </header>
+            
+            <article>
+                
+<p>We end up with the coordinates and the size of the predicted bounding boxes, as well as the confidence and the class probabilities. All we have to do now is to multiply the confidence by the class probabilities and threshold them in order to <span>only </span>keep high probabilities:</p>
+<pre># Confidence is a float, classes is an array of size NUM_CLASSES<br/>final_scores = box_confidence * classes_scores<br/><br/>OBJECT_THRESHOLD = 0.3<br/># filter will be an array of booleans, True if the number is above threshold<br/>filter = classes_scores &gt;= OBJECT_THRESHOLD<br/><br/>filtered_scores = class_scores * filter</pre>
+<p>Here is an example of this operation with a simple sample, with a threshold of <kbd>0.3</kbd> and a box confidence (for this specific box) of <kbd>0.5</kbd>:</p>
+<table style="border-collapse: collapse;width: 759px;height: 102px" border="1">
+<tbody>
+<tr>
+<td style="width: 148.55px" class="CDPAlignLeft CDPAlign">
+<p><strong>CLASS_LABELS</strong></p>
+</td>
+<td style="width: 148.55px" class="CDPAlignCenter CDPAlign">
+<p><em>dog</em></p>
+</td>
+<td style="width: 148.55px" class="CDPAlignCenter CDPAlign">
+<p><em>airplane</em></p>
+</td>
+<td style="width: 148.533px" class="CDPAlignCenter CDPAlign">
+<p><em>bird</em></p>
+</td>
+<td style="width: 149.417px" class="CDPAlignCenter CDPAlign">
+<p><em>elephant</em></p>
+</td>
+</tr>
+<tr>
+<td style="width: 148.55px" class="CDPAlignLeft CDPAlign">
+<p><strong>classes_scores</strong></p>
+</td>
+<td style="width: 148.55px" class="CDPAlignCenter CDPAlign">
+<p>0.7</p>
+</td>
+<td style="width: 148.55px" class="CDPAlignCenter CDPAlign">
+<p>0.8</p>
+</td>
+<td style="width: 148.533px" class="CDPAlignCenter CDPAlign">
+<p>0.001</p>
+</td>
+<td style="width: 149.417px" class="CDPAlignCenter CDPAlign">
+<p>0.1</p>
+</td>
+</tr>
+<tr>
+<td style="width: 148.55px" class="CDPAlignLeft CDPAlign">
+<p class="mce-root"><strong>final_scores</strong></p>
+</td>
+<td style="width: 148.55px" class="CDPAlignCenter CDPAlign">
+<p>0.35</p>
+</td>
+<td style="width: 148.55px" class="CDPAlignCenter CDPAlign">
+<p>0.4</p>
+</td>
+<td style="width: 148.533px" class="CDPAlignCenter CDPAlign">
+<p>0.0005</p>
+</td>
+<td style="width: 149.417px" class="CDPAlignCenter CDPAlign">
+<p>0.05</p>
+</td>
+</tr>
+<tr>
+<td style="width: 148.55px" class="CDPAlignLeft CDPAlign">
+<p><strong>filtered_scores</strong></p>
+</td>
+<td style="width: 148.55px" class="CDPAlignCenter CDPAlign">
+<p>0.35</p>
+</td>
+<td style="width: 148.55px" class="CDPAlignCenter CDPAlign">
+<p>0.4</p>
+</td>
+<td style="width: 148.533px" class="CDPAlignCenter CDPAlign">
+<p>0</p>
+</td>
+<td style="width: 149.417px" class="CDPAlignCenter CDPAlign">
+<p>0</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p> </p>
+<p>Then, if <kbd>filtered_scores</kbd> contains non-null values, this means we have at least one class above the threshold. We keep the class with the highest score:</p>
+<pre>class_id = np.argmax(filtered_scores)<br/>class_label = CLASS_LABELS[class_id]</pre>
+<p>In our example, <kbd>class_label</kbd> would be <em>airplane</em>.</p>
+<p>Once we have applied this filtering to all of the bounding boxes in the grid, we end up with all the information we need to draw the predictions. The following photograph shows what we would obtain by doing so:</p>
+<p class="CDPAlignCenter CDPAlign"><img src="assets/fe6e18ee-9cb9-4659-89cf-852764887aa2.png" style="width:26.17em;height:25.33em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref"><span>Figure 5.8: </span>Example of the raw bounding box output being drawn over the image</div>
+<p>Numerous bounding boxes are overlapping. As the plane is covering several grid cells, it has been detected more than once. To correct this, we need one last step in our post-processing pipeline—<strong>non-maximum suppression</strong> (<strong>NMS</strong>).</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">NMS</h1>
+                </header>
+            
+            <article>
+                
+<p>The idea of NMS is to remove boxes that overlap the box with the highest probability. We therefore remove boxes that are <strong>non-maximum</strong>. To do so, we sort all the boxes by probability, taking the ones with the highest probability first. Then, for each box, we compute the IoU with all the other boxes.</p>
+<p>After computing the IoU between a box and the other boxes<span>,</span><span> </span><span>we remove the ones with an IoU above a certain threshold (the threshold is usually around 0.5-0.9).</span></p>
+<p>With pseudo-code, this is what NMS would look like:</p>
+<pre>sorted_boxes = sort_boxes_by_confidence(boxes)<br/>ids_to_suppress = []<br/><br/>for maximum_box in sorted_boxes:<br/>    for idx, box in enumerate(boxes):<br/>        iou = compute_iou(maximum_box, box)<br/>        if iou &gt; iou_threshold:<br/>            ids_to_suppress.append(idx)<br/><br/>processed_boxes = np.delete(boxes, ids_to_suppress)</pre>
+<div class="packt_infobox">In practice, TensorFlow provides its own implementation of NMS, <kbd>tf.image.non_max_suppression(boxes, ...)</kbd> (refer to the documentation at <a href="https://www.tensorflow.org/api_docs/python/tf/image/non_max_suppression">https://www.tensorflow.org/api_docs/python/tf/image/non_max_suppression</a>), which we recommend using (it is well optimized and offers useful options). Also note that NMS is used in most object detection model post-processing pipelines.</div>
+<p class="mce-root"/>
+<p>After performing NMS, we obtain a much better result with a single bounding box, as illustrated in the following photograph:</p>
+<p class="CDPAlignCenter CDPAlign"><img src="assets/6d43a0d2-d97b-4cad-9353-09a301e13916.png" style="width:30.25em;height:29.92em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign"><span>Figure 5.9: </span>Example of the bounding boxes drawn over the image after NMS</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">YOLO inference summarized</h1>
+                </header>
+            
+            <article>
+                
+<p>Putting it all together, the YOLO inference comprises several smaller steps. YOLO's architecture is illustrated in the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img src="assets/dec87acc-3dd0-47e1-abf8-8c9f58fef318.png"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign"><span>Figure 5.10: </span>YOLO's architecture. In this example, we use two bounding boxes per grid cell</div>
+<p>The YOLO inference process can be summarized as follows:</p>
+<ol>
+<li>Accept an input image and compute a feature volume using a CNN backbone.</li>
+<li>Use a convolutional layer to compute anchor box corrections, objectness scores, and class probabilities.</li>
+<li>Using this output, compute the coordinates of the bounding boxes.</li>
+<li>Filter out the boxes with a low threshold, and post-process the remaining ones using NMS.</li>
+</ol>
+<p>At the conclusion of this process, we end up with the final predictions.</p>
+<div class="packt_infobox">Since the whole process is composed of convolutions and filtering operations, the network can accept images of any size and any ratio. Hence, it is very flexible.</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Training YOLO</h1>
+                </header>
+            
+            <article>
+                
+<p>We have outlined the process of inference for YOLO. Using pretrained weights provided online, it is possible to instantiate a model directly and generate predictions. However, you might want to train a model on a specific dataset. In this section, we will go through the training procedure of YOLO.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">How the YOLO backbone is trained</h1>
+                </header>
+            
+            <article>
+                
+<p>As we mentioned earlier, the YOLO model is composed of two main parts—the backbone and the YOLO head. Many architectures can be used for the backbone. Before training the full model, the backbone is trained on a traditional classification task with the aid of ImageNet using the transfer learning technique detailed in <a href="061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml">Chapter 4</a>, <em>Influential Classification Tools</em>. While we could train YOLO from scratch, it would take much more time to do so.</p>
+<p>Keras makes it very easy to use a pretrained backbone for our network:</p>
+<pre>input_image = Input(shape=(IMAGE_H, IMAGE_W, 3))<br/>true_boxes = Input(shape=(1, 1, 1, TRUE_BOX_BUFFER , 4))<br/><br/>inception = InceptionV3(input_shape=(IMAGE_H, IMAGE_W,3), weights='imagenet', include_top=False)<br/><br/>features = inception(input_image)<br/>GRID_H, GRID_W =  inception.get_output_shape_at(-1)[1:3]<br/># print(grid_h, grid_w)<br/>output = Conv2D(BOX * (4 + 1 + CLASS), <br/>                        (1, 1), strides=(1,1), <br/>                        padding='same', <br/>                        name='DetectionLayer', <br/>                        kernel_initializer='lecun_normal')(features)<br/><br/>output = Reshape((GRID_H, GRID_W, BOX, 4 + 1 + CLASS))(output)</pre>
+<p>In our implementation, we will employ the architecture presented in the YOLO paper because it yields the best results. However, if you were to run your model on a mobile, you might want to use a smaller model.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">YOLO loss</h1>
+                </header>
+            
+            <article>
+                
+<p>As the output of the last layer is quite unusual, the corresponding loss will also be. Actually, the YOLO loss is notoriously complex. To explain it, we will break the loss into several parts, each corresponding to one kind of output returned by the last layer. The network predicts multiple kinds of information:</p>
+<ul>
+<li>The bounding box coordinates and size</li>
+<li>The confidence that an object is in the bounding box</li>
+<li>The scores for the classes</li>
+</ul>
+<p>The general idea of the loss is that we want it to be high when the error is high. The loss will penalize the incorrect values. However, we only want to do so when it makes sense—if a bounding box contains no objects, we do not want to penalize its coordinates as they will not be used anyway.</p>
+<div class="packt_tip">The implementation details of neural networks are usually not available in the source paper. Therefore, they will vary from one implementation to another. What we are outlining here is an implementation suggestion, not an absolute reference. We suggest reading the code from existing implementations to understand how the loss is calculated.</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Bounding box loss</h1>
+                </header>
+            
+            <article>
+                
+<p>The first part of the loss helps the network learn the weights to predict the bounding box coordinates and size:</p>
+<p style="padding-left: 30px"><img src="assets/db3d3535-c2a2-4c13-8121-b753b3c96264.png" style="width:48.50em;height:3.75em;"/></p>
+<p>While this equation may seem scary at first, this part is actually relatively simple. Let's break it down:</p>
+<ul>
+<li>λ (lambda) is the weighting of the loss—it reflects how much importance we want to give to bounding box coordinates during training.</li>
+<li>∑ (capital sigma) means that we sum what is right after them. In this case, we sum for each part of the grid (from i = 0 to <em>i = S<sup>2</sup></em>) and for each box in this part of the grid (from 0 to B).</li>
+<li><em>1<sup>obj</sup></em> (<em>indicator function</em> for objects) is a function equal to 1 when the i<sup>th</sup> part of the grid and the j<sup>th</sup> bounding box are <strong>responsible</strong> for an object. We will explain what responsible means in the next paragraph.</li>
+<li><em>x<sub>i</sub></em>, <em>y<sub>i</sub></em>, <em>w<sub>i</sub></em>, and <em>h<sub>i</sub></em>  correspond to the bounding box size and coordinates. We take the difference between the predicted value (the output of the network) and the target value (also called the <strong>ground truth</strong>). Here, the predicted value has a hat (<kbd>ˆ</kbd>).</li>
+<li>We square the difference to make sure it is positive.</li>
+<li>Notice that we take the square root of w<sub>i</sub> and h<sub>i</sub>. We do so to make sure errors for small bounding boxes are penalized more heavily than errors for big bounding boxes.</li>
+</ul>
+<p>The key part of this loss is the <strong>indicator function</strong>. The coordinates will be correct if, and only if, the box is responsible for detecting an object. For each object in the image, the difficult part is determining which bounding box is responsible for it. For YOLOv2, the anchor box with the highest IoU with the detected object is deemed responsible. The rationale here is to make each anchor box specialize in one type of object.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Object confidence loss</h1>
+                </header>
+            
+            <article>
+                
+<p>The second part of the loss teaches the network to learn the weights to predict whether a bounding box contains an object:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/28a418fd-60cd-4562-a00a-79ebdddfff3f.png" style="width:28.08em;height:3.50em;"/></p>
+<p>We have already covered most of the symbols in this function. The remaining ones are as follows:</p>
+<ul>
+<li><strong>C<sub>ij</sub></strong>: The confidence that the box, <em>j</em>, in the part, <em>i</em>, of the grid contains an object (of any kind)</li>
+<li><strong>1<sup>noobj</sup>  (indicator function for no object)</strong>: A function equal to 1 when the <em>i</em><sup>th</sup> part of the grid and the <em>j</em><sup>th</sup> bounding box are <em>not responsible</em> for an object</li>
+</ul>
+<p>A naive approach to compute <em>1<sup>noobj</sup></em>  is  <em>(1 - 1<sup>obj</sup>)</em>. However, if we do so, it can cause some problems during training. Indeed, we have many bounding boxes on our grid. When determining that one of them is responsible for a specific object, there may have been other suitable candidates for this object. We do not want to penalize the objectness score of those other good candidates that also fit the object. Therefore, <em>1<sup>noobj</sup></em>  is defined as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/3c2f6c72-c27f-4116-b1a0-dcf00b38d25c.png" style="width:71.33em;height:3.58em;"/></p>
+<p>In practice, for each bounding box at position (<em>i</em>, <em>j</em>), the IoU with regard to each of the ground truth boxes is computed. If the IoU is over a certain threshold (usually 0.6), 1<sup>noobj</sup> is set to 0. The rationale behind this idea is to avoid punishing boxes that contain objects but are not responsible for said object.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Classification loss</h1>
+                </header>
+            
+            <article>
+                
+<p>The final part of the loss, the classification loss, ensures that the network learns to predict the proper class for each bounding box:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/4e8f99f7-0dac-45f7-9782-af77f2c0a604.png" style="width:14.58em;height:3.75em;"/></p>
+<p>This loss is very similar to the one presented in <a href="3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml">Chapter 1</a>, <em>Computer Vision and Neural Networks</em>. Note that while the loss presented in the YOLO paper is the L2 loss, many implementations use cross-entropy. This part of the loss ensures that correct object classes are predicted.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Full YOLO loss</h1>
+                </header>
+            
+            <article>
+                
+<p><strong>Full YOLO loss</strong> is the sum of the three losses previously detailed. By combining the three terms, the loss penalizes the error for bounding box coordinate refinement, objectness scores, and class prediction. By backpropagating the error, we are able to train the YOLO network to predict correct bounding boxes.</p>
+<div class="packt_tip">In the book's GitHub repository, readers will find a simplified implementation of the YOLO network. In particular, the implementation contains a heavily commented loss function.</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Training techniques</h1>
+                </header>
+            
+            <article>
+                
+<p>Once the loss has been properly defined, YOLO can be trained using backpropagation. However, to make sure the loss does not diverge and to obtain good performance, we will detail a few training techniques:</p>
+<ul>
+<li>Augmentation (explained in <a href="337ec077-c215-4782-b56c-beae4d94d718.xhtml">Chapter 7</a>, <em>Training on Complex and Scarce Datasets</em>) and dropout (explained in <a href="dd1d3406-d506-4690-bf13-e5e0584ea9d1.xhtml">Chapter 3</a>, <em>Modern Neural Networks</em>) are used. Without these two techniques, the network would overfit on the training data and would not be able to generalize much.</li>
+<li>Another technique is <strong>multi-scale training</strong>. Every <em>n</em> batches, the network's input is changed to a different size. This forces the network to learn to predict with accuracy across a variety of input dimensions.</li>
+</ul>
+<ul>
+<li>Like most detection networks, YOLO is pretrained on an image classification task.</li>
+<li>While not mentioned in the paper, the official YOLO implementation uses <strong>burn-in</strong>—the learning rate is reduced at the beginning of training to avoid a loss explosion.</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Faster R-CNN – a powerful object detection model</h1>
+                </header>
+            
+            <article>
+                
+<p>The main benefit of YOLO is its speed. While it can achieve very good results, it is now outperformed by more complex networks. <strong>Faster Region with Convolutional Neural Networks</strong> (<strong>Faster R-CNN</strong>) is considered state of the art at the time of writing. It is also quite fast, reaching 4-5 FPS on a modern GPU. In this section, we will explore its architecture.</p>
+<p>The Faster R-CNN architecture was engineered over several years of research. More precisely, it was built incrementally from two architectures—R-CNN and Fast R-CNN. In this section, we will focus on the latest architecture, Faster R-CNN:</p>
+<ul>
+<li><em>Faster R-CNN: towards real-time object detection with region proposal networks (2015)</em>, Shaoqing Ren, Kaiming He, Ross Girshick, and Jian Sun</li>
+</ul>
+<p>This paper draws a lot of knowledge from the two previous designs. Therefore, some of the architecture details can be found in the following papers:</p>
+<ul>
+<li><em>Rich feature hierarchies for accurate object detection and semantic segmentation (2013)</em>, Ross Girshick, Jeff Donahue, Trevor Darrell, and Jitendra Mali</li>
+<li><em>Fast R-CNN (2015)</em>, Ross Girshick</li>
+</ul>
+<div class="packt_tip">Just as with YOLO architecture, we recommend reading this chapter first and then having a look at the papers to get a deeper understanding. In this chapter, we will use the same notations as in the papers.</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Faster R-CNN's general architecture</h1>
+                </header>
+            
+            <article>
+                
+<p>YOLO is considered a single-shot detector—as its name implies, each pixel of the image is analyzed once. This is the reason for its very high speed. To obtain more accurate results, Faster R-CNN works in two stages:</p>
+<ol>
+<li>The first stage is to extract a <strong>region of interest</strong> (<strong>RoI</strong>, or RoIs in the plural form). An RoI is an area of the input image that may contain an object. For each image, the first step generates about 2,000 RoIs<strong>.</strong></li>
+<li>The second stage is the <strong>classification step</strong> (sometimes referred to as the <strong>detection step</strong>). W<span>e resize</span> each of the 2,000 RoIs to a square to fit the input of a convolutional network. We then use the CNN to classify the RoI.</li>
+</ol>
+<div class="packt_infobox">In R-CNN and Fast R-CNN, regions of interest are generated using a technique called <strong>selective search</strong>. This will not be covered here because it was removed from the Faster R-CNN paper on account of its slowness. Moreover, selective search does not involve any deep learning techniques.</div>
+<p>As the two parts of Faster R-CNN are independent, we will cover each one separately. We will then cover the training details of the full model.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Stage 1 – Region proposals</h1>
+                </header>
+            
+            <article>
+                
+<p>Regions of interest are generated using the <strong>region proposal network</strong> (<strong>RPN</strong>). To generate RoIs, the RPN uses convolutional layers. Therefore, it can be implemented on the GPU and is very fast.</p>
+<p>The RPN architecture shares quite a lot of features with YOLO's architecture:</p>
+<ul>
+<li>It also uses anchor boxes—in the Faster R-CNN paper, nine anchor sizes are used (three vertical rectangles, three horizontal rectangles, and three squares).</li>
+<li>It can use any backbone to generate the feature volume.</li>
+<li>It uses a grid, and the size of the grid depends on the size of the feature volume.</li>
+<li>Its last layer outputs numbers that allow the anchor box to be refined into a proper bounding box fitting the object.</li>
+</ul>
+<p>However, the architecture is not completely identical to YOLO's. The RPN accepts an image as input and outputs regions of interest. Each region of interest consists of a bounding box and an objectness probability. To generate those numbers, a CNN is used to extract a feature volume. The feature volume is then used to generate the regions, coordinates, and probabilities. The <span>RPN architecture is illustrated in the </span>following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img src="assets/2b7a4bb9-19a3-4de6-b361-a9e97eadd515.png"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign"><span>Figure 5.11: </span>RPN architecture summary</div>
+<p>The step-by-step process represented in <em>Figure 5.11</em> is as follows:</p>
+<ol>
+<li>The network accepts an image as input and applies several convolutional layers.</li>
+<li>It outputs a feature volume. A convolutional filter is applied over the feature volume. Its size is <em>3</em> × <em>3</em> × <em>D</em>, where <em>D</em> is the depth of the feature volume (<em>D = 512</em> in our example).</li>
+<li>At each position in the feature volume, the filter generates an intermediate <em>1</em> × <em>D</em> vector.</li>
+<li>Two sibling <em>1</em> × <em>1</em> convolutional layers compute the objectness scores and the bounding box coordinates. There are two objectness scores for each of the <em>k</em> bounding boxes. There are also four floats that will be used to refine the coordinates of the anchor boxes.</li>
+</ol>
+<p>After post-processing, the final output is a list of RoIs. At this step, no information about the class of the object is generated, only about its location. During the next step, classification, we will classify the objects and refine the bounding boxes.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Stage 2 – Classification</h1>
+                </header>
+            
+            <article>
+                
+<p>The second part of Faster R-CNN is <strong>classification</strong>. It outputs the final bounding boxes and accepts two inputs—the list of RoIs from the previous step (RPN), and a feature volume computed from the input image.</p>
+<div class="packt_infobox">Since most of the classification stage architecture comes from the previous paper, Fast R-CNN, it is sometimes referred to with the same name. Therefore, Faster R-CNN can be regarded as a combination of RPN and Fast R-CNN.</div>
+<p>The classification part can work with any feature volume corresponding to the input image. However, as feature maps have already been computed in the previous region-proposal step, they are simply reused here. This technique has two benefits:</p>
+<ul>
+<li><strong>Sharing the weights</strong>: If we were to use a different CNN, we would have to store the weights for two backbones—one for the RPN, and one for the classification.</li>
+<li><strong>Sharing the computation</strong>: For one input image, we only compute one feature volume instead of two. As this operation is the most expensive of the whole network, not having to run it twice allows for a consequent gain in computational performance.</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Faster R-CNN architecture</h1>
+                </header>
+            
+            <article>
+                
+<p>The second stage of Faster R-CNN accepts the feature maps from the first stage, as well as the list of RoIs. For each RoI, convolutional layers are applied to obtain class predictions and <strong>bounding box refinement</strong> information. The operations are represented here:</p>
+<p class="CDPAlignCenter CDPAlign"><img src="assets/aa0b02c5-788f-4935-9266-12fbee0b6000.png" style="width:35.83em;height:15.42em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign"><span>Figure 5.12: </span>Architecture summary of Faster R-CNN</div>
+<p>Step by step, the process is as follows:</p>
+<ol>
+<li>Accept the feature maps and the RoIs from the RPN step. The RoIs generated in the original image coordinate system are converted into the feature map coordinate system. In our example, the stride of the CNN is 16. Therefore, their coordinates are divided by 16.</li>
+<li>Resize each RoI to make it fit the input of the fully connected layers.</li>
+<li>Apply the fully connected layer. It is very similar to the final layers of any convolutional network. We obtain a feature vector.</li>
+<li>Apply two different convolutional layers. One handles the classification (called <strong>cls</strong>) and the other handles the refinement of the RoI (called <strong>rgs</strong>).</li>
+</ol>
+<p>The final results are the class scores and bounding box refinement floats that we will be able to post-process to generate the final output of the model.</p>
+<div class="packt_infobox">The size of the feature volume depends on the size of the input and the architecture of the CNN. For instance, for VGG-16, the <span>size of the </span>feature volume is <em>w</em> × <em>h</em> × <em>512</em>, where <em>w = input_width/16</em> and <em>h = input_height/16</em>. We say that VGG-16 has a stride of 16 because one pixel in the feature map equals 16 pixels in the input image.</div>
+<div>
+<p>While convolutional networks can accept inputs of any size (as they use a sliding window over the image), the final fully connected layer (between steps 2 and 3) accepts a feature volume of a fixed size as an input. And since region proposals are of different sizes (a vertical rectangle for a person, a square for an apple...), this makes the final layer impossible to use as is.</p>
+<p>To circumvent that, a technique was introduced in Fast R-CNN—<strong>region of interest pooling</strong> (<strong>RoI</strong> <strong>pooling</strong>). This converts a variable-size area of the feature map into a fixed-size area. The resized feature area can then be passed to the final classification layers.</p>
+</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">RoI pooling</h1>
+                </header>
+            
+            <article>
+                
+<p>The goal of the RoI pooling layer is simple—to take a part of the activation map of variable size and convert it into a fixed size. The input activation map sub-window is of size <em>h × w</em>. The target activation map is of size <em>H</em> × <em>W</em>. RoI pooling works by dividing its input into a grid where each cell is of size <em>h/H</em> × <em>w/W</em>.</p>
+<p>Let's use an example. If the input is of size <em>h</em> × <em>w = 5 </em>× <em>4</em>, and the target activation map is of size <em>H</em> × <em>W = 2</em> × <em>2</em>, then each cell should be of size <em>2.5</em> × <em>2</em>. Because we can only use integers, we will make some cells of size <em>3</em> × <em>2</em> and others of size <em>2</em> × <em>2</em>. Then, we will take the maximum of each cell:</p>
+<p class="CDPAlignCenter CDPAlign"><img src="assets/c10a0d84-1b1d-4139-9ef1-f9ffc8c49095.png" style="width:29.33em;height:20.00em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign"><span>Figure 5.13: </span>Example of RoI pooling with an RoI of size 5 × 4 (from B3 to E7) and an output of size 2 × 2 (from J4 to K5)</div>
+<div class="packt_tip">An RoI pooling layer is very similar to a max-pooling layer. The difference is that RoI pooling works with inputs of variable size, while max-pooling works with a fixed size only. RoI pooling is sometimes referred to as <strong>RoI max-pooling</strong>.</div>
+<p>In the original R-CNN paper, RoI pooling had not yet been introduced. Therefore, each RoI was extracted from the original image, resized, and directly passed to the convolutional network. Since there were around 2,000 RoIs, it was extremely slow. The <em>Fast</em> in Fast R-CNN comes from the huge speedup introduced by the RoI pooling layer.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Training Faster R-CNN</h1>
+                </header>
+            
+            <article>
+                
+<p>Before we explain how to train the network, let's have a look at the full architecture of Faster R-CNN:</p>
+<p class="CDPAlignCenter CDPAlign"><img src="assets/c4d852b4-bffc-49e3-9c77-0d5c54b0c056.png"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign"><span>Figure 5.14: </span>Full architecture of Faster R-CNN. Note that it can work with any input size</div>
+<p>Because of its unique architecture, Faster R-CNN cannot be trained like a regular CNN. If each of the two parts of the network were trained separately, the feature extractors of each part would not share the same weights. In the next section, we will explain the training of each section and how to make the two sections share the convolutional weights.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Training the RPN</h1>
+                </header>
+            
+            <article>
+                
+<p>The input of the RPN is an image, and the output is a list of RoIs. As we saw previously, there are <em>H</em> × <em>W</em> × <em>k</em> proposals for each image (where <em>H</em> and <em>W</em> represent the size of a feature map and <em>k</em> is the number of anchors). At this step, the class of the object is not yet considered.</p>
+<p>It would be difficult to train all the proposals at once—since images are mostly made of background, most of the proposals would be trained to predict <em>background</em>. As a consequence, the network would learn to always predict background. Instead, a sampling technique is favored.</p>
+<p>Mini-batches of 256 ground truth anchors are built; 128 of them are positive (they contain an object), and the other 128 are negative (they only contain background). If there are fewer than 128 positive samples in the image, all the positive samples available are used and the batch is filled with negative samples.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The RPN loss</h1>
+                </header>
+            
+            <article>
+                
+<p>The RPN loss is simpler than YOLO's. It is composed of two terms:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/aed32ea7-fda1-442a-84b6-6b7f5b3f8862.png" style="width:28.67em;height:2.83em;"/></p>
+<p>The <span>terms in the </span>preceding equation can be explained as follows:</p>
+<ul>
+<li><em>i</em> is the index of an anchor in a training batch.</li>
+<li><em>p<sub>i</sub></em> is the probability of the anchor being an object. <em>p<sub>i</sub>*</em> is the ground truth—it's 1 if the anchor is "positive"; otherwise, it's 0.</li>
+<li><em>t<sub>i</sub></em> is the vector representing coordinate refinement; <em>t<sub>i</sub>*</em> is the ground truth.</li>
+<li><em>N<sub>cls</sub></em> is the number of ground truth anchors in the training mini-batch.</li>
+<li><em>N<sub>reg</sub></em> is the number of possible anchor locations.</li>
+<li><em>L<sub>cls</sub></em> is the log loss over two classes (object and background).</li>
+<li><em>λ</em> is a balancing parameter to balance the two parts of the loss.</li>
+</ul>
+<p>Finally, the loss is composed of <em>L<sub>reg</sub>(t<sub>i</sub>, t<sub>i</sub>*) = R(t<sub>i</sub> - t<sub>i</sub>*)</em>, where R is the <em>smooth</em> L1 loss function, defined as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/e47ce6d0-1db7-40fa-b1d2-f385079918e9.png" style="width:18.67em;height:2.92em;"/></p>
+<p>The <em>smooth<sub>L1</sub></em> function was introduced as a replacement for the L2 loss used <span>previously</span>. When the error was too important, the L2 loss would become too large, causing training instability.</p>
+<p>Just as with YOLO, the regression loss is used only for anchor boxes that contain an object thanks to the <em>p<sub>i</sub>*</em> term. The two parts are divided by <em>N<sub>cls</sub></em> and <em>N<sub>reg</sub></em>. Those two values are called <strong>normalization terms</strong>—if we were to change the size of mini-batches, the loss would not lose its equilibrium.</p>
+<p>Finally, lambda is a balancing parameter. In the paper configuration, <em>N<sub>cls</sub> ~= 256</em> and <em>N<sub>reg</sub> ~= 2,400</em>. The authors set <em>λ</em> to 10 so that the two terms have the same total weight.</p>
+<p>In summary, similar to YOLO, the loss penalizes the following:</p>
+<ul>
+<li>The error in objectness classification with the first term</li>
+<li>The error in bounding box refinement with the second term</li>
+</ul>
+<p>However, contrary to YOLO's loss, it does not deal with object classes bceause the RPN only predicts RoIs. Apart from the loss and the way mini-batches are constructed, the RPN is trained like any other network using backpropagation.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Fast R-CNN loss</h1>
+                </header>
+            
+            <article>
+                
+<p>As stated earlier, the second stage of Faster R-CNN is also referred to as Fast R-CNN. Therefore, its loss is often referenced as the Fast R-CNN loss. While the formulation of the Fast R-CNN loss is different to the RPN loss, it is very similar in essence:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/4f9b7e1d-4c9c-4cdb-9b7a-985a6e11a49d.png" style="width:28.08em;height:1.67em;"/></p>
+<p>The terms in the preceding equation can be explained as follows:</p>
+<ul>
+<li><em>L<sub>cls</sub>(p,u)</em> is the log loss between the ground truth class, <em>u</em>, and the class probabilities, <em>p</em>.</li>
+<li><em>L<sub>loc</sub>(t<sup>u</sup>, v)</em> is the same loss as L<sub>reg</sub> in the RPN loss.</li>
+<li><em>λ[u ≥ 1]</em> is equal to 1 when u <span class="ILfuVd">≥</span> 1 and 0 otherwise.</li>
+</ul>
+<p>During Fast R-CNN training, we always use a background class with <em>id = 0</em>. Indeed, the RoIs may contain background regions, and it is important to classify them as such. The term <em>λ[u ≥ 1]</em> avoids penalizing the bounding box error for background boxes. For all the other classes, since <em>u</em> will be above <em>0</em>, we will penalize the error.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Training regimen</h1>
+                </header>
+            
+            <article>
+                
+<p>As described earlier, sharing the weights between the two parts of the network allows the model to be faster (as the CNN is only applied once) and lighter. In the Faster R-CNN paper, the recommended training procedure is called <strong>4-step alternating training</strong>. A simplified version of this procedure goes like this:</p>
+<ol>
+<li>Train the RPN so that it predicts acceptable RoIs.</li>
+<li>Train the classification part using the output of the trained RPN. At the end of the training, the RPN and the classification part have different convolutional weights since they have been trained separately.</li>
+<li>Replace the RPN's CNN with the classification's CNN so that they now share convolutional weights. Freeze the shared CNN weights. Train the RPN's last layers again.</li>
+<li>Train the classification's last layer using the output of the RPN again.</li>
+</ol>
+<p>At the end of this process, we obtain a trained network with the two parts sharing the convolutional weights.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">TensorFlow Object Detection API</h1>
+                </header>
+            
+            <article>
+                
+<p>As Faster R-CNN is always improving, we do not provide a reference implementation with this book. Instead, we recommend using the <span>TensorFlow Object Detection API</span>. It offers an implementation of Faster R-CNN that's maintained by contributors and by the TensorFlow team. It offers pretrained models and code to train your own model.</p>
+<p>The Object Detection API is not part of the core TensorFlow library, but is available in a separate repository, which was introduced in <a href="061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml">Chapter 4</a>, <em>Influential Classification Tools</em>: <a href="https://github.com/tensorflow/models/tree/master/research/object_detection">https://github.com/tensorflow/models/tree/master/research/object_detection</a>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using a pretrained model</h1>
+                </header>
+            
+            <article>
+                
+<p>The object detection API comes with several pretrained models trained on the COCO dataset. The models vary in architecture—while they are all based on Faster R-CNN, they use different parameters and backbones. This has an impact on inference speed and performance. A rule of thumb is that the inference time grows with the mean average precision.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Training on a custom dataset</h1>
+                </header>
+            
+            <article>
+                
+<p>It is also possible to train a model to detect objects that are not in the COCO dataset. To do so, a large amount of data is needed. In general, it is recommended to have at least 1,000 samples per object class. To generate a training set, training images need to be manually annotated by drawing the bounding boxes around them.</p>
+<p>Using the Object Detection API does not involve writing Python code. Instead, the architecture is defined using configuration files. We recommend starting from an existing configuration and working from there to obtain good performance. A walk-through is available in this chapter's repository.</p>
+<p class="mce-root"/>
+<p class="mce-root"/>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>We covered the architecture of two object detection models. The first one, YOLO, is known for its inference speed. We went through the general architecture and how inference works, as well as the training procedure. We also detailed the loss used to train the model. The second one, Faster R-CNN, is known for its state-of-the-art performance. We analyzed the two stages of the network and how to train them. <span>We also described how to use Faster R-CNN through the TensorFlow Object Detection API</span>.</p>
+<p>In the next chapter, we will extend object detection further by learning how to segment images into meaningful parts, as well as how to transform and enhance them.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Questions</h1>
+                </header>
+            
+            <article>
+                
+<ol>
+<li>What is the difference between a bounding box, an anchor box, and a ground truth box?</li>
+<li>What is the role of the feature extractor?</li>
+<li>What model should be favored, YOLO or Faster R-CNN?</li>
+<li>What does the use of anchor boxes entail?</li>
+</ol>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Further reading</h1>
+                </header>
+            
+            <article>
+                
+<ul>
+<li><em>Mastering OpenCV 4</em> (<a href="https://www.packtpub.com/application-development/mastering-opencv-4-third-edition">https://www.packtpub.com/application-development/mastering-opencv-4-third-edition</a>),<em> </em>by<em> </em>Roy Shilkrot and David Millán Escrivá, contains practical computer vision projects, including advanced object detection techniques.<em><br/>
+<br/></em></li>
+<li><em>OpenCV 4 Computer Vision Application Programming Cookbook</em> (<a href="https://www.packtpub.com/application-development/opencv-4-computer-vision-application-programming-cookbook-fourth-edition">https://www.packtpub.com/application-development/opencv-4-computer-vision-application-programming-cookbook-fourth-edition</a>), by David Millán Escrivá and Robert Laganiere, covers classical object descriptors as well as object detection concepts.</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

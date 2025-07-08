@@ -1,0 +1,457 @@
+<html><head></head><body>
+		<div id="_idContainer110">
+			<h1 id="_idParaDest-78"><em class="italic"><a id="_idTextAnchor084"/>Chapter 4</em>: Image-to-Image Translation</h1>
+			<p>In part one of the book, we learned to generate photorealistic images with VAE and GANs. The generative models can turn some simple random noise into high-dimensional images with complex distribution! However, the generation processes are unconditional, and we have fine control over the images to be generated. If we use MNIST as an example, we will not know which digit will be generated; it is a bit of a lottery. Wouldn't it be nice to be able to tell GAN what we want it to generate? This is what we will learn in this chapter.</p>
+			<p>We will first learn to build a <strong class="bold">conditional GAN</strong> (<strong class="bold">cGAN</strong>) that allows us to specify the class of images to generate. This lays the foundation for more complex networks that follow. We will learn to build a GAN known as <strong class="bold">pix2pix</strong> to perform <strong class="bold">image-to-image translation</strong>, or <strong class="bold">image translation</strong> for short. This will enable a lot of cool applications such as converting sketches to real images. After that, we will build <strong class="bold">CycleGAN</strong>, an upgrade from pix2pix that could turn a horse into a zebra and then back to a horse! Finally, we will build <strong class="bold">BicyleGAN</strong>, to translate not only high quality but also diversified images with different styles. The following topics will be covered in this chapter:</p>
+			<ul>
+				<li>Conditional GANs</li>
+				<li>Image translation with pix2pix</li>
+				<li>Unpaired image translation with CycleGAN</li>
+				<li>Diversifying translation with BicycleGAN</li>
+			</ul>
+			<p>The following topics will be covered in this chapter:</p>
+			<p>In this chapter, we will reuse code and network blocks from <a href="B14538_03_Final_JM_ePub.xhtml#_idTextAnchor060"><em class="italic">Chapter 3</em></a>, <em class="italic">Generative Adversarial Network</em>, such as upsampling and downsampling blocks of DCGAN. This will allow us to focus on higher-level architectures of new GANS and to cover more GANs in this chapter. The latter three GANs were created in chronological order and share many common blocks. Thus, you should read them in order, beginning with pix2pix, followed by CycleGAN, and finishing with BicycleGAN, which will make a lot more sense than jumping to BicycleGAN, which is the most complex model in this book so far.</p>
+			<h1 id="_idParaDest-79"><a id="_idTextAnchor085"/>Technical requirements</h1>
+			<p>The Jupyter notebooks can be found at the following link:</p>
+			<p><a href="https://github.com/PacktPublishing/Hands-On-Image-Generation-with-TensorFlow-2.0/tree/master/Chapter04">https://github.com/PacktPublishing/Hands-On-Image-Generation-with-TensorFlow-2.0/tree/master/Chapter04</a>. </p>
+			<p>The notebooks used in this chapter are as follows:</p>
+			<ul>
+				<li><strong class="source-inline">ch4_cdcgan_mnist.ipynb</strong></li>
+				<li><strong class="source-inline">ch4_cdcgan_fashion_mnist.ipynb</strong></li>
+				<li><strong class="source-inline">ch4_pix2pix.ipynb</strong></li>
+				<li><strong class="source-inline">ch4_cyclegan_facade.ipynb</strong></li>
+				<li><strong class="source-inline">ch4_cyclegan_horse2zebra.ipynb</strong></li>
+				<li><strong class="source-inline">ch4_bicycle_gan.ipynb</strong></li>
+			</ul>
+			<h1 id="_idParaDest-80"><a id="_idTextAnchor086"/>Conditional GANs</h1>
+			<p>The first goal of a<a id="_idIndexMarker236"/> generative model is to be able to produce good quality images. Then we would like to be able to have some control over the images that are to be generated. </p>
+			<p>In <a href="B14538_01_Final_JM_ePub.xhtml#_idTextAnchor017"><em class="italic">Chapter 1</em></a>, <em class="italic">Getting Started with Image Generation Using TensorFlow</em>, we learned about conditional probability and generated faces with certain attributes using a simple conditional probabilistic model. In that model, we generated a smiling face by forcing the model to only sample from the images that had a smiling face. When we condition on something, that thing will always be present and will no longer be a variable with random probability. You can also see that the probability of having those conditions is set to <em class="italic">1</em>. </p>
+			<p>To enforce the condition on a neural network is simple. We simply need to show the labels to the network during training and inference. For example, if we want the generator to generate the digit 1, we will need to present the label of 1 in addition to the usual random noise as input to the generator. There are several ways of implementing it. The following diagram shows one implementation as it appeared in the <em class="italic">Conditional Generative Adversarial Nets</em> paper that first<a id="_idIndexMarker237"/> introduced the idea of cGAN:</p>
+			<div>
+				<div id="_idContainer084" class="IMG---Figure">
+					<img src="image/B14538_04_01.jpg" alt="Figure 4.1 – Condition by concatenating labels and inputs&#13;&#10;(Redrawn from: M. Mirza, S. Osindero, 2014, Conditional Generative Adversarial Nets – https://arxiv.org/abs/1411.1784)"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.1 – Condition by concatenating labels and inputs (Redrawn from: M. Mirza, S. Osindero, 2014, Conditional Generative Adversarial Nets – https://arxiv.org/abs/1411.1784)</p>
+			<p>In unconditional GAN, the generator input is only the latent vector <em class="italic">z</em>. In conditional GAN, the latent vector <em class="italic">z</em> joins with a one-hot encoded input label <em class="italic">y</em> to form a longer vector, as shown in the preceding diagram. The following table shows one-hot encoding using <strong class="source-inline">tf.one_hot()</strong>:</p>
+			<div>
+				<div id="_idContainer085" class="IMG---Figure">
+					<img src="image/B14538_04_02.jpg" alt="Figure 4.2 – Table showing one-hot encoding for classes of 10 in TensorFlow&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.2 – Table showing one-hot encoding for classes of 10 in TensorFlow</p>
+			<p>One-hot encoding converts a label into a vector with dimensions equal to the number of classes. The vectors have all zeros, apart from one unique position that is filled with 1. Some machine learning frameworks use a different order of 1 in the vector; for example, class label <strong class="source-inline">0</strong> is encoded as <strong class="source-inline">0000000001</strong> where the <strong class="source-inline">1</strong> is in the right-most position. The order doesn't matter as long as they are consistently used in both training and inference. This is <a id="_idIndexMarker238"/>because one-hot encoding is only used to represent categorical classes and does not have semantic meaning. </p>
+			<h2 id="_idParaDest-81"><a id="_idTextAnchor087"/>Implementing a conditional DCGAN</h2>
+			<p>Now, let's implement a<a id="_idIndexMarker239"/> conditional DCGAN on MNIST. We have implemented a DCGAN in <a href="B14538_02_Final_JM_ePub.xhtml#_idTextAnchor039"><em class="italic">Chapter 2</em></a>, <em class="italic">Variational Autoencoder</em>, and therefore we extend the network by adding the conditional bits. The notebook for this exercise is <strong class="source-inline">ch4_cdcgan_mnist.ipynb</strong>. </p>
+			<p>Let's first look at the generator:</p>
+			<p>The first step is to one-hot encode the class label. As <strong class="source-inline">tf.one_hot</strong>([1], 10) will create a shape of (1, 10), we'll need to reshape it to a 1D vector of (10) so that we can concatenate with the latent vector <strong class="source-inline">z</strong>:</p>
+			<p class="source-code">input_label = layers.Input(shape=1, dtype=tf.int32, 	 	 	                           name='ClassLabel')        </p>
+			<p class="source-code">        one_hot_label = tf.one_hot(input_label, 			                                   self.num_classes)</p>
+			<p class="source-code">        one_hot_label = layers.Reshape((self.num_classes,))	                                       (one_hot_label)</p>
+			<p>The next step is to join the vectors together by using the <strong class="source-inline">Concatenate</strong> layer. By default, concatenation happens across the last dimension (axis=-1). Therefore, concatenating latent variables with a shape of (<strong class="source-inline">batch_size</strong>, 100) with one-hot labels of (<strong class="source-inline">batch_size</strong>, 10) will produce a tensor shape of (<strong class="source-inline">batch_size</strong>, 110). The code is as follows:</p>
+			<p class="source-code">        input_z = layers.Input(shape=self.z_dim, 	 	      	                               name='LatentVector')</p>
+			<p class="source-code">        generator_input = layers.Concatenate()([input_z, </p>
+			<p class="source-code">                                                one_hot_label])</p>
+			<p>That is the only change required for the generator. As we have already covered the details of DCGAN architecture, I won't be repeating them in here. For a quick recap, the input will go through a dense layer, followed by several upsampling and convolutional layers to generate an image with a shape of (32, 32, 3), as shown in the following model diagram:</p>
+			<div>
+				<div id="_idContainer086" class="IMG---Figure">
+					<img src="image/B14538_04_03.jpg" alt="Figure 4.3 – Generator model diagram of a conditional DCGAN&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.3 – Generator model diagram of a conditional DCGAN</p>
+			<p>The next step is to inject the label into the discriminator as it is not enough that the discriminator is able to tell whether the image is real or fake, but also to tell whether it is the correct image. </p>
+			<p>The original cGAN uses <a id="_idIndexMarker240"/>only dense layers in the network. The input image is flattened and concatenates with a one-hot encoded class label. However, this doesn't work well with DCGAN as the first layer of the discriminator is a convolutional layer that is expecting a 2D image as input. If we use the same approach, we will end up with an input vector of 32×32×1 + 10 = 1,034, and that can't be reshaped to a 2D image. We will need another way to project the one-hot vector into a tensor of the correct shape. </p>
+			<p>One way to do this is to use a dense layer to project the one-hot vector into the shape of an input image (32,32,1), and concatenate it to produce a shape of (32, 32, 2). The first color channel will be our grayscale image, and the second channel will be the projected one-hot labels. Again, the rest of the discriminator network is unchanged, as shown in the following model summary: </p>
+			<div>
+				<div id="_idContainer087" class="IMG---Figure">
+					<img src="image/B14538_04_04.jpg" alt="Figure 4.4 – Inputs to discriminator of a conditional DCGAN&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.4 – Inputs to discriminator of a conditional DCGAN</p>
+			<p>As we have seen, the<a id="_idIndexMarker241"/> only change made to networks is by adding another path that takes class labels as input. The last remaining bit to do before starting the model training is to add the additional label class into the model's input. To create a model with multiple inputs, we pass a list of input layers as follows:</p>
+			<p class="source-code">discriminator = Model([input_image, input_label], output]</p>
+			<p>Similarly, we pass a list of <strong class="source-inline">images</strong> and <strong class="source-inline">labels</strong> in the same order when performing a forward pass:</p>
+			<p class="source-code">pred_real = discriminator([real_images, class_labels])</p>
+			<p>During training, we create random labels for the generator as follows:</p>
+			<p class="source-code">fake_class_labels = tf.random.uniform((batch_size), 						minval=0, maxval=10, 						dtype=tf.dtypes.int32)</p>
+			<p class="source-code">fake_images = generator.predict([latent_vector, 						fake_class_labels])</p>
+			<p>We use a DCGAN training pipeline and loss function. Here are samples of the digits generated by conditioning on the input labels from 0 to 9: </p>
+			<div>
+				<div id="_idContainer088" class="IMG---Figure">
+					<img src="image/B14538_04_05.jpg" alt="Figure 4.5 – Hand-written digits generated by a conditional DCGAN&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.5 – Hand-written digits generated by a conditional DCGAN</p>
+			<p>We can also train cDCGAN on Fashion-MNIST without any change. The result samples are as follows:</p>
+			<div>
+				<div id="_idContainer089" class="IMG---Figure">
+					<img src="image/B14538_04_06.jpg" alt="Figure 4.6 – Image generated by a conditional DCGAN&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.6 – Image generated by a conditional DCGAN</p>
+			<p>Conditional GAN<a id="_idIndexMarker242"/> works really well on MNIST and Fashion-MNIST! Next, we will look at different ways of applying the class conditions on GANs.</p>
+			<h2 id="_idParaDest-82"><a id="_idTextAnchor088"/>Variants of cGAN</h2>
+			<p>We implemented<a id="_idIndexMarker243"/> conditional DCGAN by one-hot encoding the labels, passing it through a dense layer (for discriminator), and concatenating the input layer. The<a id="_idIndexMarker244"/> implementation is simple and gives good results. We will introduce a few other popular methods of implementing conditional GANs and you are encouraged to implement the code on your own to try them out.</p>
+			<h3>Using the embedding layer</h3>
+			<p>One popular implementation is to<a id="_idIndexMarker245"/> replace one-hot encoding and the dense layer with the <strong class="source-inline">embedding</strong> layer. The embedding layer takes categorical values as input, and the output is a vector, such as a dense layer. In other words, it has the same input and output shapes as the <strong class="source-inline">label-&gt;one-hot-encoding-&gt;dense</strong> block. The code snippet is shown here:</p>
+			<p class="source-code">encoded_label = tf.one_hot(input_label, self.num_classes)</p>
+			<p class="source-code">embedding = layers.Dense(32 * 32 * 1, activation=None)\ 				  (encoded_label) </p>
+			<p class="source-code">embedding = layers.Embedding(self.num_classes, 					  32*32*1)(input_label)</p>
+			<p>Both methods<a id="_idIndexMarker246"/> produce similar results, albeit the <strong class="source-inline">embedding</strong> layer is more computationally efficient as the size of the one-hot vector can grow quickly for large numbers of classes. Embedding is used extensively to encode words due to a large number of vocabularies. For small classes such as MNIST, the computational advantage is negligible. </p>
+			<h3>Element-wise multiplication</h3>
+			<p>Concatenating a latent vector <a id="_idIndexMarker247"/>with an input image increases the dimensions and the first layer of the network. Instead of concatenating, we could also perform element-wise multiplication of the label embedding with the original network input and keep the original input shape. The origin of this approach is unclear. However, a few industry experts carried out experiments on <strong class="bold">Natural Language Processing</strong> tasks and found this method to outperform that of one-hot encoding. The code snippet to perform element-wise multiplication between an image and embedding is as follows:</p>
+			<p class="source-code">x = layers.Multiply()([input_image, embedding])</p>
+			<p>Combining the preceding code with the embedding layer gives us the following graph, as implemented in <strong class="source-inline">ch4_cdcgan_fashion_mnist.ipynb</strong>:</p>
+			<div>
+				<div id="_idContainer090" class="IMG---Figure">
+					<img src="image/B14538_04_07.jpg" alt="Figure 4.7 – Implementation of cDCGAN using embedding and element-wise multiplication&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.7 – Implementation of cDCGAN using embedding and element-wise multiplication</p>
+			<p>Next, we will see wh<a id="_idIndexMarker248"/>y inserting labels into the intermediate layer is popular.</p>
+			<h3>Inserting labels in the intermediate layer</h3>
+			<p>Instead of inserting<a id="_idIndexMarker249"/> the label into the first layer of the network, we can choose to do this in the intermediate layer. This approach is popular for generators with encoder-decoder architectures, where the label is inserted into a layer that is close to the end of the encoder with the smallest dimensions. Some insert the label embedding toward the discriminator output, so the majority of the discriminator can focus on deciding whether the images look real. The only part of the last few layers' capacity is used in deciding whether the image matches the label. </p>
+			<p>We will learn how to insert label embedding into intermediate and normalization layers when we implement advanced models in <a href="B14538_08_Final_JM_ePub.xhtml#_idTextAnchor156"><em class="italic">Chapter 8</em></a><em class="italic">, Self-Attention for Image Generation</em>. We have now understood how to use class labels conditioned to generate images. For the rest of the chapter, we will use an image as a condition to perform image-to-image translation.</p>
+			<h1 id="_idParaDest-83"><a id="_idTextAnchor089"/>Image translation with pix2pix</h1>
+			<p>The introduction of pix2pix<a id="_idIndexMarker250"/> in 2017 caused quite a stir, not only within the research community, but also the wider population. This can be attributed in <a id="_idIndexMarker251"/>part to the <a href="https://affinelayer.com/pixsrv/">https://affinelayer.com/pixsrv/</a> website, which<a id="_idIndexMarker252"/> puts the models online and allows people to translate their sketches into cats, shoes, and bags. You should try it too! The following screenshot is taken from their website to give you a glimpse of how it works:</p>
+			<div>
+				<div id="_idContainer091" class="IMG---Figure">
+					<img src="image/B14538_04_08.jpg" alt="Figure 4.8 – Application of turning a sketch of a cat into a real image&#13;&#10; (Source: https://affinelayer.com/pixsrv/)&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.8 – Application of turning a sketch of a cat into a real image  (Source: https://affinelayer.com/pixsrv/)</p>
+			<p>Pix2pix came from a research paper entitled <em class="italic">Image-to-Image Translation with Conditional Adversarial Networks</em>. From the paper title, we can tell that pix2pix is a conditional GAN that performs image-to-image translation. The model can be trained to perform general image translation, but we will need to have image pairs in the dataset. In our pix2pix implementation, we will translate masks of building façades into realistic-looking building façades, as shown here:</p>
+			<div>
+				<div id="_idContainer092" class="IMG---Figure">
+					<img src="image/B14538_04_09.jpg" alt="Figure 4.9 – Mask and real image of a building façade&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.9 – Mask and real image of a building façade</p>
+			<p>In the preceding<a id="_idIndexMarker253"/> screenshot, the picture on the left shows an example of the semantic segmentation mask used as input of pix2pix where the building parts are encoded in different colors. On the right is the target real image of a building façade.</p>
+			<h2 id="_idParaDest-84"><a id="_idTextAnchor090"/>Discarding random noise</h2>
+			<p>In all the GANs we have<a id="_idIndexMarker254"/> learned so far, we always sample from random distribution as input to the generator. We require that randomness, otherwise the generator will produce deterministic outputs and fail to learn data distribution. Pix2pix breaks away from that tradition by removing random noise from GANs. As the authors pointed out in the <em class="italic">Image-to-Image Translation with Conditional Adversarial Networks</em> paper, they could not get the conditional GAN to work with an image and noise as input as the GAN would simply ignore the noise. </p>
+			<p>As a result, the authors turned to the use of dropout in generator layers to provide randomness. A side effect is that this is minor randomness; hence, little variations are seen in the output and they tend to look similar in styles. This problem is overcome with BicycleGAN, which we will learn about later.</p>
+			<h2 id="_idParaDest-85"><a id="_idTextAnchor091"/>U-Net as a generator</h2>
+			<p>The notebook for this tutorial is <strong class="source-inline">ch4_pix2pix.ipynb</strong>. The architecture of generators and <a id="_idIndexMarker255"/>discriminators is rather different from DCGAN and we will go through each of them in detail. Without the use of random noise as input, all that is left to the generator input is the input image that is used as the condition. Thus, both the input and output are an image of the same shape, which is (256, 256, 3) in our examples. Pix2pix uses U-Net, which is an encoder-decoder-like architecture similar to an autoencoder, but with skip connections between the encoder and decoder. Following is the architecture diagram of the original U-Net:</p>
+			<div>
+				<div id="_idContainer093" class="IMG---Figure">
+					<img src="image/B14538_04_10.jpg" alt="Figure 4.10 – Original U-Net architecture (Source: O. Ronneberger et al., 2015, “U-Net: Convolutional Networks for Biomedical Image Segmentation” – https://arxiv.org/abs/1505.04597)"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.10 – Original U-Net architecture (Source: O. Ronneberger et al., 2015, “U-Net: Convolutional Networks for Biomedical Image Segmentation” – https://arxiv.org/abs/1505.04597)</p>
+			<p>In <a href="B14538_02_Final_JM_ePub.xhtml#_idTextAnchor039"><em class="italic">Chapter 2</em></a><em class="italic">, Variational Autoencoder</em>, we saw how an autoencoder downsamples a high-dimension input image into low-dimension latent variables before upsampling it back to the original size. During the downsampling process, the high frequency content of images (the texture details) is lost. As a result, the restored image can appear to be blurry. By passing the <a id="_idIndexMarker256"/>high spatial resolution content from an encoder to a decoder via the skip connections, the decoder could capture and generate those details to make the images look sharper. As a matter of fact, U-Net was first used to translate medical images into semantic segmentation masks, which is the reverse of what we are trying to do in this chapter. </p>
+			<p>To make the construction of the generator easier, we first write a function to create a block for downsampling with a default stride of <strong class="source-inline">2</strong>. This consists of convolution and optional normalization, <strong class="source-inline">activation</strong>, and <strong class="source-inline">dropout</strong> layers, as follows: </p>
+			<p class="source-code">def downsample(self, channels, kernels, strides=2, 		    norm=True, activation=True, dropout=False):</p>
+			<p class="source-code">    initializer = tf.random_normal_initializer(0., 0.02)</p>
+			<p class="source-code">    block = tf.keras.Sequential()</p>
+			<p class="source-code">    block.add(layers.Conv2D(channels, kernels, 		   strides=strides, padding='same', 		   use_bias=False, 		   kernel_initializer=initializer))</p>
+			<p class="source-code">    if norm:</p>
+			<p class="source-code">        block.add(layers.BatchNormalization())              </p>
+			<p class="source-code">    if activation:</p>
+			<p class="source-code">        block.add(layers.LeakyReLU(0.2)) </p>
+			<p class="source-code">    if dropout:</p>
+			<p class="source-code">        block.add(layers.Dropout(0.5))</p>
+			<p class="source-code">    return block</p>
+			<p>The <strong class="source-inline">upsample</strong> block is similar, but with an additional <strong class="source-inline">UpSampling2D</strong> before <strong class="source-inline">Conv2D</strong> and has<a id="_idIndexMarker257"/> strides of <strong class="source-inline">1</strong>, as follows:</p>
+			<p class="source-code">def upsample(self, channels, kernels, strides=1,  		  norm=True, activation=True, dropout=False):</p>
+			<p class="source-code">    initializer = tf.random_normal_initializer(0., 0.02)</p>
+			<p class="source-code">    block = tf.keras.Sequential()</p>
+			<p class="source-code">    block.add(layers.UpSampling2D((2,2)))</p>
+			<p class="source-code">    block.add(layers.Conv2D(channels, kernels, 		   strides=strides, padding='same', 		   use_bias=False, 		   kernel_initializer=initializer))</p>
+			<p class="source-code">    if norm:</p>
+			<p class="source-code">        block.add(InstanceNormalization())              </p>
+			<p class="source-code">    if activation:</p>
+			<p class="source-code">        block.add(layers.LeakyReLU(0.2)) </p>
+			<p class="source-code">    if dropout:</p>
+			<p class="source-code">        block.add(layers.Dropout(0.5))</p>
+			<p class="source-code">    return block</p>
+			<p>We will first construct the downsampling path, where the feature map sizes are halved after every downsampling block as follows. It is important to note the output shapes as we will need to match those with the upsampling path for skip connections as follows:</p>
+			<p class="source-code">input_image = layers.Input(shape=image_shape)</p>
+			<p class="source-code">down1 = self.downsample(DIM, 4, norm=False)(input_image) # 128</p>
+			<p class="source-code">down2 = self.downsample(2*DIM, 4)(down1) # 64</p>
+			<p class="source-code">down3 = self.downsample(4*DIM, 4)(down2) # 32</p>
+			<p class="source-code">down4 = self.downsample(4*DIM, 4)(down3) # 16</p>
+			<p class="source-code">down5 = self.downsample(4*DIM, 4)(down4) # 8</p>
+			<p class="source-code">down6 = self.downsample(4*DIM, 4)(down5) # 4</p>
+			<p class="source-code">down7 = self.downsample(4*DIM, 4)(down6) # 2</p>
+			<p>In the upsampling path, we<a id="_idIndexMarker258"/> concatenate the previous layer's output with a skip connection from the downsampling path to form input to the <strong class="source-inline">upsample</strong> block. We use <strong class="source-inline">dropout</strong> in the first three layers as follows:</p>
+			<p class="source-code">up6 = self.upsample(4*DIM, 4, dropout=True)(down7) # 4,4*DIM</p>
+			<p class="source-code">concat6 = layers.Concatenate()([up6, down6])   </p>
+			<p class="source-code">up5 = self.upsample(4*DIM, 4, dropout=True)(concat6) </p>
+			<p class="source-code">concat5 = layers.Concatenate()([up5, down5])  </p>
+			<p class="source-code">up4 = self.upsample(4*DIM, 4, dropout=True)(concat5) </p>
+			<p class="source-code">concat4 = layers.Concatenate()([up4, down4])  </p>
+			<p class="source-code">up3 = self.upsample(4*DIM, 4)(concat4) </p>
+			<p class="source-code">concat3 = layers.Concatenate()([up3, down3]) </p>
+			<p class="source-code">up2 = self.upsample(2*DIM, 4)(concat3) </p>
+			<p class="source-code">concat2 = layers.Concatenate()([up2, down2])  </p>
+			<p class="source-code">up1 = self.upsample(DIM, 4)(concat2) </p>
+			<p class="source-code">concat1 = layers.Concatenate()([up1, down1])  </p>
+			<p class="source-code">output_image = tanh(self.upsample(3, 4, norm=False, 				activation=None)(concat1))</p>
+			<p>This last layer of the generator is Conv2D, with a channel size of 3 to match the image channel numbers. Like DCGAN, we<a id="_idIndexMarker259"/> normalize the images to the range of [-1, +1], using <strong class="source-inline">tanh</strong> as the activation function, and binary cross-entropy as the loss function. </p>
+			<h2 id="_idParaDest-86"><a id="_idTextAnchor092"/>Loss functions</h2>
+			<p>Pix2pix uses standard GAN loss<a id="_idIndexMarker260"/> functions of binary cross-entropy for both the generator and discriminator, just like DCGAN. Now that we have a target image to generate, we can therefore add L1 reconstruction loss to the generator. In the paper, the ratio of the reconstruction loss to binary cross-entropy is set to 100:1. The following code snippet shows how to compile combined generator-discriminator with losses:</p>
+			<p class="source-code">LAMBDA = 100</p>
+			<p class="source-code">self.model.compile(loss = ['bce','mae'],</p>
+			<p class="source-code">                   optimizer = Adam(2e-4, 0.5, 0.9999),</p>
+			<p class="source-code">                   loss_weights=[1, LAMBDA])</p>
+			<p><strong class="source-inline">bce</strong> stands<a id="_idIndexMarker261"/> for <strong class="bold">binary cross-entropy loss</strong>, while <strong class="source-inline">mae</strong> stands for <strong class="bold">mean absolute entropy loss</strong>, or is more<a id="_idIndexMarker262"/> commonly known<a id="_idIndexMarker263"/> as <strong class="bold">L1 loss</strong>. </p>
+			<h2 id="_idParaDest-87"><a id="_idTextAnchor093"/>Implementing a PatchGAN discriminator</h2>
+			<p>Researchers found<a id="_idIndexMarker264"/> that L2 or L1 loss produces blurry results on image generation problems. Although they fail to encourage high-frequency crispness, they can capture low-frequency content well. We can see low-frequency information as content, such as the building structures, while high-frequency information provides the style information, such as the fine-detail textures and colors of building façades. To capture high-frequency information, a new discriminator known as PatchGAN was used. Don't be misled by its name; PatchGAN is not a GAN but a <strong class="bold">Convolutional Neural Network</strong> (<strong class="bold">CNN</strong>). </p>
+			<p>The conventional GAN discriminator looks at the entire image and judges whether that entire image is real or fake. Instead of looking at the entire image, PatchGAN looks at patches of images, hence the name. The receptive field of a convolutional layer is the number of input points that are mapped to one output point or, in other words, represents the size of the convolutional kernel. For a kernel size of N×N, each output of the layer is mapped to N×N pixels of the input tensor.</p>
+			<p>As we go<a id="_idIndexMarker265"/> deeper along the network, the next layer gets to see a larger patch of input images and the effective receptive field of the output increases. The default PatchGAN is designed to have an effective field of 70×70. The original PatchGAN has an output shape of 30×30 due to the careful padding, but we will use only the 'same' padding to give the output shape of 29×29. Each of the 29×29 patches looks at different and overlapping 70x70 patches of input images. </p>
+			<p>In other words, the discriminator tries to predict whether each of the patches is real or fake. By zooming into local patches, the discriminator is encouraged to look at high-frequency information of the images. To summarize, we use L1 reconstruction loss to capture the low-frequency content, and PatchGAN to encourage high-frequency-style details. </p>
+			<p>PatchGAN is simply a CNN and can be implemented using several downsampling blocks as shown in the following code. We will use the notation A to refer to the input (source) image, and B for the output (target) image. Like cGAN, the discriminator requires two inputs – the condition, which is image A, and the output image B, which can be a real one from the dataset or a fake one from the generator. We concatenate the two images together at the beginning of the discriminator, hence, PatchGAN looks at both image A (condition) and image B (output image or fake image) together to decide whether it is real or fake. The code is as follows:</p>
+			<p class="source-code">def build_discriminator(self):</p>
+			<p class="source-code">    DIM = 64</p>
+			<p class="source-code">    model = tf.keras.Sequential(name='discriminators') </p>
+			<p class="source-code">    input_image_A = layers.Input(shape=image_shape)</p>
+			<p class="source-code">    input_image_B = layers.Input(shape=image_shape)</p>
+			<p class="source-code">    x = layers.Concatenate()([input_image_A, 					   input_image_B])</p>
+			<p class="source-code">    x = self.downsample(DIM, 4, norm=False)(x) </p>
+			<p class="source-code">    x = self.downsample(2*DIM, 4)(x) </p>
+			<p class="source-code">    x = self.downsample(4*DIM, 4)(x) </p>
+			<p class="source-code">    x = self.downsample(8*DIM, 4, strides=1)(x) </p>
+			<p class="source-code">    output = layers.Conv2D(1, 4, activation='sigmoid')(x)</p>
+			<p class="source-code">    return Model([input_image_A, input_image_B], output)     </p>
+			<p>The discriminator model summary is as follows:</p>
+			<div>
+				<div id="_idContainer094" class="IMG---Figure">
+					<img src="image/B14538_04_11.jpg" alt="Figure 4.11 – Discriminator model summary&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.11 – Discriminator model summary</p>
+			<p>Note that the output<a id="_idIndexMarker266"/> layer has the shape of (<em class="italic">29, 29, 1)</em>. Therefore, we will create labels that match its output shape as follows:</p>
+			<p class="source-code">real_labels = tf.ones((batch_size, self.patch_size, 				 self.patch_size, 1))</p>
+			<p class="source-code">fake_labels = tf.zeros((batch_size, self.patch_size, 				  self.patch_size, 1))</p>
+			<p class="source-code">fake_images = self.generator.predict(real_images_A)</p>
+			<p class="source-code">pred_fake = self.discriminator([real_images_A, 						fake_images])</p>
+			<p class="source-code">pred_real = self.discriminator([real_images_A, 						real_images_B])</p>
+			<p>Now we are<a id="_idIndexMarker267"/> ready to train pix2pix. </p>
+			<h2 id="_idParaDest-88"><a id="_idTextAnchor094"/>Training pix2pix</h2>
+			<p>It was well known<a id="_idIndexMarker268"/> as a result of the invention of pix2pix that batch normalization is bad for image generation as the statistics from the batch of images tend to make the generated images look more similar and blurrier. The pix2pix authors noticed that generated images look better when the batch size is set to <strong class="source-inline">1</strong>. When the batch size is <strong class="source-inline">1</strong>, batch normalization <a id="_idIndexMarker269"/>becomes a special case of <strong class="bold">instance normalization</strong>, but the latter can be applied for any batch size. To recap on normalization, for an image batch with a shape of (N, H, W, C), batch normalization uses statistics across (N, H, W), while instance normalization uses statistics from individual images across dimensions (H,W). This prevents the statistics from other images from creeping in.</p>
+			<p>Therefore, to get good results, we can either use batch normalization with a batch size of <strong class="source-inline">1</strong>, or we replace it with instance normalization. Instance normalization is not available as a standard Keras layer at the time of writing, perhaps this hasn't gained mainstream usage beyond image generation. However, instance normalization is available from the <strong class="source-inline">tensorflow_addons</strong> module. After importing from the module, it is a drop-in replacement for batch normalization:</p>
+			<p class="source-code">from tensorflow_addons.layers import InstanceNormalization</p>
+			<p>We train pix2pix using a DCGAN pipeline and it is surprisingly easy to train compared with DCGAN. This is because the probability distribution to cover an input image is narrower than the one from random noise. The following images show the image samples after 100 epochs of training. The image on the left is the segmentation mask, the middle one is the ground truth, and the one on the right is generated:</p>
+			<div>
+				<div id="_idContainer095" class="IMG---Figure">
+					<img src="image/B14538_04_12.jpg" alt="Figure 4.12 – Images generated by pix2pix after 100 epochs of training. Left: Input mask. Middle: Ground truth. Right: Generated image "/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.12 – Images generated by pix2pix after 100 epochs of training. Left: Input mask. Middle: Ground truth. Right: Generated image </p>
+			<p>Images generated by pix2pix capture the image content correctly due to the large weight (lambda=100) of reconstruction loss. For example, the doors and windows are almost always in the correct places and correct shapes. However, it lacks variation in styles as the generated<a id="_idIndexMarker270"/> buildings have mostly the same color, as are the styles of windows. This is due to the absence of random noise in the model as mentioned earlier and acknowledged by the authors. Nevertheless, pix2pix opens the floodgates for image-to-image translation using GAN. </p>
+			<h1 id="_idParaDest-89"><a id="_idTextAnchor095"/>Unpaired image translation with CycleGAN</h1>
+			<p>CycleGAN was created by the <a id="_idIndexMarker271"/>same research group who invented pix2pix. CycleGAN could train with unpaired images using two generators and two discriminators. However, by using pix2pix as a foundation, CycleGAN is actually quite simple to implement once you understand how the cycle consistency loss works. Before this, let's try to understand the advantage of CycleGAN over pix2pix in the following sections.</p>
+			<h2 id="_idParaDest-90"><a id="_idTextAnchor096"/>Unpaired dataset</h2>
+			<p>One drawback of pix2pix is that it<a id="_idIndexMarker272"/> requires a paired training dataset. For some applications, we can create a dataset rather easily. A grayscale-to-color images dataset and vice-versa is probably the simplest to create using any image processing software libraries such as OpenCV or Pillow. Similarly, we could also easily create sketches from real images using edge detection techniques. For a photo-to-artistic-painting dataset, we can use neural style transfer (we'll cover this in <a href="B14538_05_Final_JM_ePub.xhtml#_idTextAnchor104"><em class="italic">Chapter 5</em></a>, <em class="italic">Style Transfer</em>) to create artistic painting from real images. </p>
+			<p>However, there are some datasets that cannot be automated, such as day-to-night scenes. Some have to be labeled manually, which can be expensive to do, such as the segmentation masks for building façades. Then, some image pairs are simply impossible to collect or create, such as a horse-to-zebra image translation. This is where CycleGAN excels as it does not require paired data. CycleGAN could train on unpaired datasets and then translate images in either direction!</p>
+			<h2 id="_idParaDest-91"><a id="_idTextAnchor097"/>Cycle consistency loss</h2>
+			<p>In a generative model, the<a id="_idIndexMarker273"/> generator translates from domain A (source) to domain B (target), for example, from orange to apple. By conditioning on the image from A (orange), the generator creates images with pixel distributions of B (apple). However, this does not guarantee that those images are paired in a meaningful way. </p>
+			<p>We will use language translation as an analogy. Let's assume you are tourist in a foreign country and you ask a local to help translate an English sentence into the local language and she replies with a beautifully sounding sentence. OK, it does sound real, but is the translation correct? You walk down the street and ask another person to explain that sentence into English. If that translation matches your original English sentence, then we know the<a id="_idIndexMarker274"/> translation was correct. </p>
+			<p>Using the same concept, CycleGAN adopts a translation cycle to ensure that the mapping is correct in both directions. The following diagram shows the architecture of CycleGAN that forms a cycle between two generators:</p>
+			<div>
+				<div id="_idContainer096" class="IMG---Figure">
+					<img src="image/B14538_04_13.jpg" alt="Figure 4.13 – Architecture of CycleGAN. (The solid arrows show the flow of the forward cycle, while the dashed arrow path is not used in the forward cycle but is drawn to show the overall connections between blocks.)"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.13 – Architecture of CycleGAN. (The solid arrows show the flow of the forward cycle, while the dashed arrow path is not used in the forward cycle but is drawn to show the overall connections between blocks.)</p>
+			<p>In the preceding diagram, we have image domain <strong class="bold">A</strong> on the left and domain <strong class="bold">B</strong> on the right. The procedure that is<a id="_idIndexMarker275"/> followed is listed here:</p>
+			<p><strong class="bold">GAB</strong> is a generator that translates from <strong class="bold">A</strong> to fake <strong class="bold">B</strong>; the generated image then goes to the discriminator <strong class="bold">DB</strong>. This is the standard GAN data path. Next, the fake image <strong class="bold">B</strong> is translated back into domain <strong class="bold">A</strong> via <strong class="bold">GBA</strong> and that completes the forward path. At this point, we have a reconstructed image, <strong class="bold">A</strong>. If the translations went perfectly, then it should look identical to the source image <strong class="bold">A</strong>.</p>
+			<p>We also <a id="_idIndexMarker276"/>come across <strong class="bold">cycle consistency loss</strong>, which is an L1 loss between the source image and the reconstructed image. Similarly, for the backward path, we start the cycle by translating from domain <strong class="bold">B</strong> to <strong class="bold">A</strong>. </p>
+			<p>In training, we show CycleGAN with two images from domains <strong class="bold">A</strong> and <strong class="bold">B</strong>, respectively. It performs forward and backward paths to learn bidirectional translation. We will be looking at how to implement CycleGAN from scratch in the <strong class="source-inline">ch4_cyclegan_facade.ipynb</strong> notebook.</p>
+			<p>CycleGAN also<a id="_idIndexMarker277"/> uses what is known as <strong class="bold">identity loss</strong>, which is equivalent to the reconstruction loss of pix2pix. <strong class="bold">GAB</strong> translates image <strong class="bold">A</strong> into the fake <strong class="bold">B</strong>, while the forward identity loss is the L1 distance between the fake <strong class="bold">B</strong> and the real <strong class="bold">B</strong>. Similarly, there is also a backward identity loss in the reverse direction. With façade datasets, the weight of identity loss should be set to low. This is because some of the real images in this dataset have parts of their images blacked out. This dataset was meant to let a machine learning algorithm guess the missing pixels. Thus, we use a low weight to discourage the network from translating the blackout. </p>
+			<h2 id="_idParaDest-92"><a id="_idTextAnchor098"/>Building CycleGAN models</h2>
+			<p>We will now build<a id="_idIndexMarker278"/> the discriminators and generators of CycleGAN. The discriminator is PatchGAN, like pix2pix, with two changes. First, the discriminator only sees the images from its domain and thus, only one image inputs into discriminators rather than both images from A and B. In other words, the discriminators only need to judge whether the<a id="_idIndexMarker279"/> images are real or fake in their own domain. </p>
+			<p>Second, sigmoid is removed from the output layer. This is because CycleGAN uses a different adversarial <a id="_idIndexMarker280"/>loss function called <strong class="bold">least-squares loss</strong>. We haven't covered LSGAN in this book, but it is sufficient to know that this loss is more stable than <strong class="bold">log-loss</strong>, and we can implement it using the Keras <strong class="bold">mean squared loss</strong> (<strong class="bold">MSE</strong>) function. We train <a id="_idIndexMarker281"/>discriminators with the usual training step as follows:</p>
+			<p class="source-code">def build_discriminator(self):</p>
+			<p class="source-code">    DIM = 64</p>
+			<p class="source-code">    input_image = layers.Input(shape=image_shape)</p>
+			<p class="source-code">    x = self.downsample(DIM, 4, norm=False)(input_image) # 128</p>
+			<p class="source-code">    x = self.downsample(2*DIM, 4)(x) # 64</p>
+			<p class="source-code">    x = self.downsample(4*DIM, 4)(x) # 32</p>
+			<p class="source-code">    x = self.downsample(8*DIM, 4, strides=1)(x) # 29</p>
+			<p class="source-code">    output = layers.Conv2D(1, 4)(x)</p>
+			<p>For the generator, the original CycleGAN uses a residual block for improved performance, but we will reuse U-Net from pix2pix, so we can focus more on CycleGAN's high-level architecture and training steps.</p>
+			<p>Now, let's instantiate two pairs of generators and discriminators:</p>
+			<p class="source-code">self.discriminator_B = self.build_discriminator()</p>
+			<p class="source-code">self.discriminator_A = self.build_discriminator()</p>
+			<p class="source-code">self.generator_AB = self.build_generator()</p>
+			<p class="source-code">self.generator_BA = self.build_generator()</p>
+			<p>Here comes the core of CycleGAN, which is to implement the combined model to train generators. All we need to do is to follow the arrows in the architecture diagram to feed input into the <a id="_idIndexMarker282"/>generator to generate a fake image that goes to the discriminator and cycles back as follows:</p>
+			<p class="source-code">image_A = layers.Input(shape=input_shape)</p>
+			<p class="source-code">image_B = layers.Input(shape=input_shape)</p>
+			<p class="source-code"># forward</p>
+			<p class="source-code">fake_B = self.generator_AB(image_A)</p>
+			<p class="source-code">discriminator_B_output = self.discriminator_B(fake_B)</p>
+			<p class="source-code">reconstructed_A = self.generator_BA(fake_B)</p>
+			<p class="source-code"># backward</p>
+			<p class="source-code">fake_A = self.generator_BA(image_B)</p>
+			<p class="source-code">discriminator_A_output = self.discriminator_A(fake_A)</p>
+			<p class="source-code">reconstructed_B = self.generator_AB(fake_A)</p>
+			<p class="source-code"># identity</p>
+			<p class="source-code">identity_B = self.generator_AB(image_A)</p>
+			<p class="source-code">identity_A = self.generator_BA(image_B)</p>
+			<p>The final step is to create a model with those inputs and outputs:</p>
+			<p class="source-code">self.model = Model(inputs=[image_A, image_B],</p>
+			<p class="source-code">                   outputs=[discriminator_B_output,  </p>
+			<p class="source-code">                            discriminator_A_output,</p>
+			<p class="source-code">                            reconstructed_A,</p>
+			<p class="source-code">                            reconstructed_B,</p>
+			<p class="source-code">                            identity_A, identity_B</p>
+			<p class="source-code">                            ])</p>
+			<p>Then, we need to assign correct losses and weights to them. As mentioned earlier, we use <strong class="source-inline">mae</strong> (L1 loss) for cycle <a id="_idIndexMarker283"/>consistency loss and <strong class="source-inline">mse</strong> (mean squared error) for adversarial loss, as follows:</p>
+			<p class="source-code">self.LAMBDA = 10</p>
+			<p class="source-code">self.LAMBDA_ID = 5</p>
+			<p class="source-code">self.model.compile(loss = ['mse','mse', 'mae','mae',                           'mae','mae'],</p>
+			<p class="source-code">                   optimizer = Adam(2e-4, 0.5),</p>
+			<p class="source-code">                   loss_weights=[1, 1, </p>
+			<p class="source-code">                                 self.LAMBDA, self.LAMBDA,</p>
+			<p class="source-code">                                 self.LAMBDA_ID,  						self.LAMBDA_ID])</p>
+			<p>In each training step, we first train both discriminators in both directions, from A to B and from B to A. The <strong class="source-inline">train_discriminator()</strong> function includes training with fake and real images as follows:</p>
+			<p class="source-code"># train discriminator</p>
+			<p class="source-code">d_loss_AB = self.train_discriminator(“AB”, real_images_A, 							real_images_B)</p>
+			<p class="source-code">d_loss_BA = self.train_discriminator(“BA”, real_images_B, 							real_images_A)    </p>
+			<p>This is followed by training generators. The inputs are real images A and B. With regard to the labels, the first pair is real/fake labels, the second pair is the cycle reconstructed images, and the last pair is for identity loss:</p>
+			<p class="source-code"># train generator</p>
+			<p class="source-code">combined_loss = self.model.train_on_batch(</p>
+			<p class="source-code">                   [real_images_A, real_images_B], </p>
+			<p class="source-code">                   [real_labels, real_labels,</p>
+			<p class="source-code">                    real_images_A, real_images_B,</p>
+			<p class="source-code">                    real_images_A, real_images_B</p>
+			<p class="source-code"> 		   ])</p>
+			<p>Then we can<a id="_idIndexMarker284"/> start training. </p>
+			<h2 id="_idParaDest-93"><a id="_idTextAnchor099"/>Analysis of CycleGAN</h2>
+			<p>The following are <a id="_idIndexMarker285"/>some of the building façades generated by CycleGAN:</p>
+			<div>
+				<div id="_idContainer097" class="IMG---Figure">
+					<img src="image/B14538_04_14.jpg" alt="Figure 4.14 – Building façades generated by CycleGAN&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.14 – Building façades generated by CycleGAN</p>
+			<p>Although they look good, they<a id="_idIndexMarker286"/> are not necessarily better than pix2pix. The strength of CycleGAN compared to pix2pix lies in its ability to train on unpaired data. In order to test this, I have created <strong class="source-inline">ch4_cyclegan_horse2zebra.ipynb</strong> to train it on unpaired horse and zebra images. Just so you know, training on unpaired images is a lot harder. Therefore, have fun trying! The following images show image-to-image translation between horses and zebras:</p>
+			<div>
+				<div id="_idContainer098" class="IMG---Figure">
+					<img src="image/B14538_04_15.jpg" alt="Figure 4.15 – Translation between horse and zebra&#13;&#10;(Source: J-Y. Zhu et al., “Unpaired Image-to-Image Translation Using Cycle-Consistent Adversarial Networks” – https://arxiv.org/abs/1703.10593)"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.15 – Translation between horse and zebra (Source: J-Y. Zhu et al., “Unpaired Image-to-Image Translation Using Cycle-Consistent Adversarial Networks” – https://arxiv.org/abs/1703.10593)</p>
+			<p>Pix2pix and CycleGAN are popular GANs that are used by many. However, they both have one shortcoming; that is the image outputs almost always look identical. For example, if we were to <a id="_idIndexMarker287"/>perform zebra-to-horse translation, the horse will always have the same skin color. This is due to the inherent nature of GANs that learns to reject the randomness of noise. In the next section, we will look at how BicycleGAN solves this problem to generate richer variations of images.</p>
+			<h1 id="_idParaDest-94"><a id="_idTextAnchor100"/>Diversifying translation with BicyleGAN</h1>
+			<p>Both Pix2pix and CycleGAN <a id="_idIndexMarker288"/>came from the <strong class="bold">Berkeley AI Research</strong> (<strong class="bold">BAIR</strong>) laboratory at UC Berkeley. They are popular and have a number of tutorials and blogs about them online, including on the official TensorFlow site. BicycleGAN is what I see as the last of the image-to-image translation trilogy from that research group. However, you don't find a lot of example code online, perhaps due to its complexity. </p>
+			<p>In order to build the most advanced network in this book up to this point, we will throw in all the knowledge you have acquired in this chapter, plus the last two chapters. Maybe that is why it is regarded as advanced by many. Don't worry; you already have all the prerequisite knowledge. Let's jump in!</p>
+			<h2 id="_idParaDest-95"><a id="_idTextAnchor101"/>Understanding architecture</h2>
+			<p>Before jumping straight<a id="_idIndexMarker289"/> into implementation, let me give you an overview of BicycleGAN. From the name, you may naturally think that BicycleGAN is an upgrade of CycleGAN by adding another cycle (from unicycle to bicycle). No, it is not! It has nothing to do with CycleGAN; it is rather an improvement to pix2pix. </p>
+			<p>As mentioned earlier, pix2pix is a one-to-one mapping where the output is always the same for a given input. The authors tried to add noise to the generator input, but it simply ignores the noise and fails to create variations in the output image. Therefore, they searched for a method where the generator does not ignore the noise, but instead uses the noise to generate diversified images, hence, one-to-many mapping. </p>
+			<p>In the following screenshot, we can see different models and configurations related to BicycleGAN. Diagram <em class="italic">(a)</em> is the configuration for inference where image <strong class="bold">A</strong> is combined with input noise to generate image <strong class="bold">B</strong>. This is essentially the cGAN at the beginning of the chapter, except for the role reversal between image <strong class="bold">A</strong> and noise. In cGAN, noise plays the leading role, with 100 dimensions and a condition of 10 class labels. In BicyleGAN, image <strong class="bold">A</strong> with a<a id="_idIndexMarker290"/> shape of (256, 256, 3) is the condition, while the noise sampled from latent <em class="italic">z</em> has a dimension of 8. <em class="italic">Figure (b)</em> is the training configuration for <em class="italic">pix2pix + noise</em>. The two configurations at the bottom of the diagram are used by BicycleGAN, and we will look at these shortly:</p>
+			<div>
+				<div id="_idContainer099" class="IMG---Figure">
+					<img src="image/B14538_04_16.jpg" alt="Figure 4.16 – Models within BicycleGAN&#13;&#10;(Source: J-Y. Zhu, “Toward Multimodal Image-to-Image Translation” – https://arxiv.org/abs/1711.11586)&#13;&#10;"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.16 – Models within BicycleGAN (Source: J-Y. Zhu, “Toward Multimodal Image-to-Image Translation” – https://arxiv.org/abs/1711.11586)</p>
+			<p>The main concept of BicycleGAN is to find a relation between the latent code <em class="italic">z</em> and the target image <strong class="bold">B</strong>, so the generator <a id="_idIndexMarker291"/>can learn to generate a different image <strong class="bold">B</strong> when given a different <em class="italic">z</em>. BicycleGAN does it by combining the two methods, <strong class="bold">cVAE-GAN</strong> and <strong class="bold">cLR-GAN</strong>, as shown in the preceding diagram.</p>
+			<h3>cVAE-GAN</h3>
+			<p>Let's go over some background to <strong class="bold">VAE-GAN</strong>. The authors of VAE-GAN argue that L1 loss is not a good metric for<a id="_idIndexMarker292"/> measuring the visual perception of an image. If the image moves a few pixels to the right, it may look no different to the human eye, but can result in a large L1 loss. Why not let a network learn what is the appropriate objective function to use? Indeed, they use GAN's discriminator to learn the objective function to tell whether the fake image looks real and use VAE as a generator. As a result, the generated images appear sharper. If we look at <em class="italic">Figure (c)</em> from the preceding diagram and ignore image <strong class="bold">A</strong>, that is a VAE-GAN. With <strong class="bold">A</strong> as a condition, it becomes a conditional cVAE-GAN. The training steps are as follows:</p>
+			<ol>
+				<li>The VAE encodes the real image <strong class="bold">B</strong> into latent code of a multivariate Gaussian mean and log variance, and then samples from them to create noise input. This flow is the standard VAE workflow. Please refer to <a href="B14538_02_Final_JM_ePub.xhtml#_idTextAnchor039"><em class="italic">Chapter 2</em></a>, <em class="italic">Variational Autoencoder</em>, for a refresher. </li>
+				<li>Now with the condition <strong class="bold">A</strong>, the noise sampled from the latent vector <em class="italic">z</em> is used to generate a fake image <strong class="bold">B</strong>. </li>
+			</ol>
+			<p>The information flow is <img src="image/Formula_04_001.png" alt=""/> (the solid lined arrow in <em class="italic">Figure (c)</em>). There are three loses:</p>
+			<ul>
+				<li><img src="image/Formula_04_002.png" alt=""/>: Adversarial loss</li>
+				<li><img src="image/Formula_04_003.png" alt=""/>: L1 reconstruction loss</li>
+				<li><img src="image/Formula_04_004.png" alt=""/>: KL divergence loss</li>
+			</ul>
+			<h3>cLR-GAN</h3>
+			<p>The theory behind<a id="_idIndexMarker293"/> Conditional Latent Regressor GAN is beyond the scope of this book. However, we will focus on how this is applied in BicycleGAN. In cVAE-GAN, we encode a real image <em class="italic">B</em> to provide the ground truth of a latent vector and sample from it. However, cLR-GAN does things differently by first letting the generator generate a fake image <em class="italic">B</em> from random noise, and then encoding the fake image <em class="italic">B</em> and seeing how it deviates from the input random noise. </p>
+			<p>The forward steps are as follows:</p>
+			<ol>
+				<li value="1">Like cGAN, we randomly generate some noise, and then concatenate with image <em class="italic">A</em> to generate a fake image <em class="italic">B</em>. </li>
+				<li>Then we use the same encoder from VAE-GAN to encode the fake image <em class="italic">B</em> into latent vectors. </li>
+				<li>We then sample <em class="italic">z</em> from encoded latent vectors, and compute the point loss with the input noise <em class="italic">z</em>. </li>
+			</ol>
+			<p>The flow is <img src="image/Formula_04_005.png" alt=""/> (solid lined arrow in <em class="italic">Figure (d)</em>). There are two losses as follows:</p>
+			<ul>
+				<li><img src="image/Formula_04_006.png" alt=""/>: Adversarial loss</li>
+				<li><img src="image/Formula_04_007.png" alt=""/>: L1 loss between noise <em class="italic">N(z)</em> and the encoded mean</li>
+			</ul>
+			<p>By combining these two flows, we got a bijection cycle between the output and the latent space. The <em class="italic">bi</em> in BicycleGAN comes from <em class="italic">bijection</em>, which is a mathematical term that roughly means one-to-one <a id="_idIndexMarker294"/>mapping and is reversible. In this case, BicycleGAN maps the output to a latent space, and similarly from the latent space to the output. The total loss is as follows:</p>
+			<div>
+				<div id="_idContainer107" class="IMG---Figure">
+					<img src="image/Formula_04_008.jpg" alt=""/>
+				</div>
+			</div>
+			<p>Where <em class="italic">λ=10</em>, <em class="italic">λ</em><span class="subscript">latent</span><em class="italic"> = 0.5</em>, and <em class="italic">λ</em><span class="subscript">latent</span><em class="italic">=0.01</em> are used in the default configuration. </p>
+			<p>Now that we understand the BicycleGAN architecture and loss functions, we can now go on to implement them.</p>
+			<h2 id="_idParaDest-96"><a id="_idTextAnchor102"/>Implementing BicycleGAN</h2>
+			<p>We will use the <strong class="source-inline">ch4_bicycle_gan.ipynb</strong> notebook <a id="_idIndexMarker295"/>here. There are three types of networks in BicycleGAN – the generator, discriminator, and encoder. We will reuse the discriminator (PatchGAN) from pix2pix and the <a id="_idIndexMarker296"/>encoder from VAE from <a href="B14538_02_Final_JM_ePub.xhtml#_idTextAnchor039"><em class="italic">Chapter 2</em></a>,<em class="italic"> Variational Autoencoder</em>. The encoder is bulked up with more filters and deeper layers as the input image size is larger. The code can look slightly different, but essentially the concept is the same as before. The original BicycleGAN uses two PatchGANs with effective receptive fields of 70x70 and 140x140. </p>
+			<p>For simplicity, we'll use only one 70x70 PatchGAN. Using a separate discriminator for cVAE-GAN and cLR-GAN improves image quality, meaning we have four networks in total – the generator, encoder, and two discriminators.</p>
+			<h3>Inserting latent code into the generator</h3>
+			<p>The authors tried two methods of inserting latent code into the generator, one involving concatenating<a id="_idIndexMarker297"/> with the input image, and the other involving inserting it into other layers in the downsampling path of the generator, as shown in the following diagram. It was found that the former works well. Let's implement this simple method: </p>
+			<div>
+				<div id="_idContainer108" class="IMG---Figure">
+					<img src="image/B14538_04_17.jpg" alt="Figure 4.17 – Different ways of injecting z into the generator (Redrawn from: J-Y. Zhu, “Toward Multimodal Image-to-Image Translation” – https://arxiv.org/abs/1711.11586)"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.17 – Different ways of injecting z into the generator (Redrawn from: J-Y. Zhu, “Toward Multimodal Image-to-Image Translation” – https://arxiv.org/abs/1711.11586)</p>
+			<p>As we have learned at the beginning of this chapter, there are several ways to join the input and conditions of different shapes. BicycleGAN's method is to repeat the latent code multiple times and concatenate with the input image. </p>
+			<p>Let's use a concrete example. In BicycleGAN, the latent code length is 8. We draw 8 samples from noise distribution, and each sample is repeated H×W times to form a tensor with the shape of (H,W,8). In other words, in each of the 8 channels, its (H, W) feature map is made up of the same repeated number from that channel. The following is the code snippet of <strong class="source-inline">build_generator()</strong>, which shows the tiling and concatenation of latent code. The remainder of the code is the same as the pix2pix generator:</p>
+			<p class="source-code">input_image = layers.Input(shape=image_shape, 					name='input_image')</p>
+			<p class="source-code">input_z = layers.Input(shape=(self.z_dim,), name='z') </p>
+			<p class="source-code">z = layers.Reshape((1,1, self.z_dim))(input_z)</p>
+			<p class="source-code">z_tiles = tf.tile(z, [self.batch_size, self.input_shape[0], 				self.input_shape[1], self.z_dim])</p>
+			<p class="source-code">x = layers.Concatenate()([input_image, z_tiles])</p>
+			<p>The next step is to<a id="_idIndexMarker298"/> create two models, cVAE-GAN and cLR-GAN, to incorporate the networks and create the forward path flow.</p>
+			<h3>cVAE-GAN</h3>
+			<p>Here is the code to create <a id="_idIndexMarker299"/>a model for cVAE-GAN. This is the implementation of the forward pass, as mentioned earlier:</p>
+			<p class="source-code">images_A_1 = layers.Input(shape=input_shape,  				     name='ImageA_1')</p>
+			<p class="source-code">images_B_1 = layers.Input(shape=input_shape, 					name='ImageB_1') </p>
+			<p class="source-code">z_encode, self.mean_encode, self.logvar_encode = \ 						self.encoder(images_B_1)</p>
+			<p class="source-code">fake_B_encode = self.generator([images_A_1, z_encode])</p>
+			<p class="source-code">encode_fake = self.discriminator_1(fake_B_encode)</p>
+			<p class="source-code">encode_real = self.discriminator_1(images_B_1)</p>
+			<p class="source-code">kl_loss =  - 0.5 * tf.reduce_sum(1 + self.logvar_encode - \</p>
+			<p class="source-code">                            tf.square(self.mean_encode) - \</p>
+			<p class="source-code"> 					 tf.exp(self.logvar_encode)) </p>
+			<p class="source-code">self.cvae_gan = Model(inputs=[images_A_1, images_B_1],</p>
+			<p class="source-code">                      outputs=[encode_real, encode_fake, fake_B_encode, kl_loss])</p>
+			<p>We include the KL divergence loss in the model as opposed to that in the custom loss function. This is simpler and more efficient as <strong class="source-inline">kl_loss</strong> can be calculated directly from the mean and log variance without needing external labels to be passed in from a training step.</p>
+			<h3>cLR-GAN</h3>
+			<p>Here is the implementation<a id="_idIndexMarker300"/> of cLR-GAN. One thing to note is that this has different inputs to images A and B that are separate from cVAE-GAN:</p>
+			<p class="source-code">images_A_2 = layers.Input(shape=input_shape, 					name='ImageA_2')</p>
+			<p class="source-code">images_B_2 = layers.Input(shape=input_shape, 					name='ImageB_2')</p>
+			<p class="source-code">z_random = layers.Input(shape=(self.z_dim,), name='z') </p>
+			<p class="source-code">fake_B_random = self.generator([images_A_2, z_random])</p>
+			<p class="source-code">_, mean_random, _ = self.encoder(fake_B_random)</p>
+			<p class="source-code">random_fake = self.discriminator_2(fake_B_random)</p>
+			<p class="source-code">random_real = self.discriminator_2(images_B_2)      </p>
+			<p class="source-code">self.clr_gan = Model(inputs=[images_A_2, images_B_2, 					  z_random], </p>
+			<p class="source-code">                     outputs=[random_real, random_fake, 			     mean_random])</p>
+			<p>Alright, we now have the models defined. The next step is to implement the training step.</p>
+			<h3>Training step</h3>
+			<p>Both models train together in <a id="_idIndexMarker301"/>one step, but with different image pairs. Therefore, in each training step, we fetch the data twice, once for each model. Some do it by creating data pipelines that load the batch size twice and then split them into two halves, as shown in the following code snippet:</p>
+			<p class="source-code">images_A_1, images_B_1 = next(data_generator)</p>
+			<p class="source-code">images_A_2, images_B_2 = next(data_generator)</p>
+			<p class="source-code">self.train_step(images_A_1, images_B_1, images_A_2, 			images_B_2)</p>
+			<p>Previously, we used two different methods to perform the training step. One is to define and compile a Keras model with an optimizer and loss function, and then call <strong class="source-inline">train_on_batch()</strong> to perform the training step. This is simple and works well on well-defined models. Alternatively, we can also use <strong class="source-inline">tf.GradientTape</strong> to allow finer control of the gradients and update. We have been using both of them in our models, where we use <strong class="source-inline">train_on_batch()</strong> for the generator and <strong class="source-inline">tf.GradientTape</strong> for the discriminator.</p>
+			<p>The purpose was to familiarize<a id="_idIndexMarker302"/> ourselves with both methods so that if we need to implement complex training steps with low-level code, we know how to do it, and now is the time. BicycleGAN has two models that share a generator and encoder, but we update them using different combinations of loss functions, which make the <strong class="source-inline">train_on_batch</strong> method unfeasible without modifying the original settings. Therefore, we will combine both the generator and discriminator of both models into a single training step using <strong class="source-inline">tf.GradientTape</strong> as follows:</p>
+			<ol>
+				<li value="1">The first step is to perform a forward pass and collect the outputs from both models:<p class="source-code">def train_step(self, images_A_1, images_B_1, 			     images_A_2, images_B_2):</p><p class="source-code">    z = tf.random.normal((self.batch_size,  				    self.z_dim))    </p><p class="source-code">    real_labels = tf.ones((self.batch_size, 					self.patch_size, 					self.patch_size, 1))</p><p class="source-code">    fake_labels = tf.zeros((self.batch_size, 					 self.patch_size, 					 self.patch_size, 1)) </p><p class="source-code">    with tf.GradientTape() as tape_e, 	    tf.GradientTape() as tape_g,\ 	    tf.GradientTape() as tape_d1,\ 	    tf.GradientTape() as tape_d2:</p><p class="source-code">        encode_real, encode_fake, fake_B_encode,\ 		kl_loss = self.cvae_gan([images_A_1, 						   images_B_1])</p><p class="source-code">        random_real, random_fake, mean_random = \ 		     self.clr_gan([images_A_2, images_B_2, z])</p></li>
+				<li>Next, we backpropagate <a id="_idIndexMarker303"/>and update the discriminators:<p class="source-code">self.d1_loss = self.mse(real_labels, encode_real) + \ 		    self.mse(fake_labels, encode_fake) </p><p class="source-code">gradients_d1 = tape_d1.gradient(self.d1_loss, 		 self.discriminator_1.trainable_variables)</p><p class="source-code">self.optimizer_d1.apply_gradients(zip(gradients_d1, 		self.discriminator_1.trainable_variables))</p><p class="source-code">self.d2_loss = self.mse(real_labels, random_real) +\ 			self.mse(fake_labels, random_fake) </p><p class="source-code">gradients_d2 = tape_d2.gradient(self.d2_loss, 	      self.discriminator_2.trainable_variables)</p><p class="source-code">self.optimizer_d2.apply_gradients(zip(gradients_d2, 		self.discriminator_2.trainable_variables))</p></li>
+				<li>Then we calculate the losses from the models' outputs. Similar to CycleGAN, BicycleGAN also uses the LSGAN loss function, which is the mean squared error:<p class="source-code">self.LAMBDA_IMAGE = 10</p><p class="source-code">self.LAMBDA_LATENT = 0.5</p><p class="source-code">self.LAMBDA_KL = 0.01</p><p class="source-code">self.gan_1_loss = self.mse(real_labels, encode_fake)</p><p class="source-code">self.gan_2_loss = self.mse(real_labels, random_fake)</p><p class="source-code">self.image_loss = self.LAMBDA_IMAGE * self.mae( 				    images_B_1, fake_B_encode)</p><p class="source-code">self.kl_loss = self.LAMBDA_KL*kl_loss</p><p class="source-code">self.latent_loss = self.LAMBDA_LATENT *self.mae(z, 							 mean_random)</p></li>
+				<li>Finally, there is the<a id="_idIndexMarker304"/> update to the generator's and encoder's weights. The L1 latent code loss is only used to update the generator, and not the encoder. It was found that optimizing them simultaneously for the loss would encourage them to hide information relating to the latent code and not learn meaningful modes. Therefore, we calculate separate losses for the generator and encoder and update the weights accordingly:<p class="source-code">encoder_loss = self.gan_1_loss + self.gan_2_loss +\ 			self.image_loss + self.kl_loss</p><p class="source-code">generator_loss = encoder_loss + self.latent_loss</p><p class="source-code">gradients_generator = tape_g.gradient(generator_loss, 	 	 	 self.generator.trainable_variables)</p><p class="source-code">self.optimizer_generator.apply_gradients(zip( 			gradients_generator, 			self.generator.trainable_variables))</p><p class="source-code">gradients_encoder = tape_e.gradient(encoder_loss, 			self.encoder.trainable_variables)</p><p class="source-code">self.optimizer_encoder.apply_gradients(zip( 			gradients_encoder, 			self.encoder.trainable_variables))</p></li>
+			</ol>
+			<p>There you go. You can now train your BicycleGAN. There are two datasets you can choose from in the notebook – building façades or edges to shoes. The shoe dataset has simpler images and therefore is easier to train. The following images are examples from the original BicycleGAN paper. The first real image on the left is the ground truth and the four images on the right are generated ones:</p>
+			<div>
+				<div id="_idContainer109" class="IMG---Figure">
+					<img src="image/B14538_04_18.jpg" alt="Figure 4.18 – Examples of transforming sketches to images with a variety of styles. Source: J-Y. Zhu, “Toward Multimodal Image-to-Image Translation”"/>
+				</div>
+			</div>
+			<p class="figure-caption">Figure 4.18 – Examples of transforming sketches to images with a variety of styles. Source: J-Y. Zhu, “Toward Multimodal Image-to-Image Translation”</p>
+			<p>You may struggle to<a id="_idIndexMarker305"/> notice the difference between them on this grayscale page because their differences are mainly in color. It captures the structure of the shoes and bags almost perfectly, but not so much in terms of the fine details. </p>
+			<h1 id="_idParaDest-97"><a id="_idTextAnchor103"/>Summary</h1>
+			<p>We began this chapter by learning how the basic cGAN enforces the class label as a condition to generate MNIST. We implemented two different ways of injecting the condition, one being to one-hot encode the class labels to a dense layer, reshape them to match the channel dimensions of the input noise, and then concatenate them together. The other way is to use the <strong class="source-inline">embedding</strong> layer and element-wise multiplication.</p>
+			<p>Next, we learned to implement pix2pix, a special type of condition GAN for image-to-image translation. It uses PatchGAN as a discriminator, which looks at patches of images to encourage fine details or high-frequency components in the generated image. We also learned about a popular network architecture, U-Net, that has been used for various applications. Although pix2pix can generate high-quality image translation, the image is one-to-one mapping without diversification of the output. This is due to the removal of input noise. This was overcome by BicycleGAN, which learned the mapping between the latent code and the output image so that the generator doesn't ignore the input noise. With that, we are one step closer toward multimodal image translation. </p>
+			<p>In the timeline between pix2pix and BicycleGAN, CycleGAN was invented. Its two generators and two discriminators use the cycle consistency loss to allow training with unpaired data. In total, we have implemented four GANs in this chapter and they are not easy ones. Well done! In the next chapter, we will look at style transfer, which entangles an image into content code and style code. This has had a profound influence on the development of new GANs.</p>
+		</div>
+	</body></html>

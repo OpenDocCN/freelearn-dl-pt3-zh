@@ -1,0 +1,759 @@
+<html><head></head><body>
+  <div id="_idContainer124">
+    <h1 class="chapterNumber">10</h1>
+    <h1 id="_idParaDest-278" class="chapterTitle">Transformers</h1>
+    <p class="normal">Transformers are deep learning architectures introduced by Google in 2017 that are designed to process sequential data for downstream tasks such as translation, question answering, or text summarization. In this manner, they aim to solve a similar problem to RNNs discussed in <em class="chapterRef">Chapter 9</em>, <em class="italic">Recurrent Neural Networks</em>, but Transformers have a significant advantage as they do not require processing the data in order. Among other advantages, this allows a higher degree of parallelization and therefore faster training. </p>
+    <p class="normal">Due to their flexibility, Transformers can be pretrained on large bodies of unlabeled data and then finetuned for other tasks. Two main groups of such pretrained models are <strong class="keyword">Bidirectional Encoder Representations from Transformers</strong> (<strong class="keyword">BERTs</strong>) and <strong class="keyword">Generative Pretrained Transformers</strong> (<strong class="keyword">GPTs</strong>). </p>
+    <p class="normal">In this chapter, we will cover the following topics: </p>
+    <ul>
+      <li class="bullet">Text generation</li>
+      <li class="bullet">Sentiment analysis</li>
+      <li class="bullet">Text classification: sarcasm detection</li>
+      <li class="bullet">Question answering</li>
+    </ul>
+    <p class="normal">We'll begin by demonstrating the text generation capabilities of GPT-2 – one of the most popular Transformer architectures usable by a broader audience. While sentiment analysis can be handled by RNNs as well (as demonstrated in the previous chapter), it is the generative capabilities that most clearly demonstrate the impact of introducing Transformers into the Natural Language Processing stack. </p>
+    <h1 id="_idParaDest-279" class="title">Text generation</h1>
+    <p class="normal">The first GPT model <a id="_idIndexMarker552"/>was introduced in a 2018 paper by Radford et al. from OpenAI – it demonstrated how a generative language model can acquire knowledge and process long-range dependencies thanks to pretraining on a large, diverse corpus of contiguous text. Two successor models (trained on more extensive corpora) were released in the following years: GPT-2 in 2019 (1.5 billion parameters) and GPT-3 in 2020 (175 billion parameters). In order to strike a balance between demonstration capabilities and computation requirements, we will be working with GPT-2 – as of the time of writing, access to the GPT-3 API is limited.</p>
+    <p class="normal">We'll begin by demonstrating <a id="_idIndexMarker553"/>how to generate your own text based on a prompt given to the GPT-2 model without any finetuning.</p>
+    <h2 id="_idParaDest-280" class="title">How do we go about it?</h2>
+    <p class="normal">We will be making use of the excellent Transformers library created by Hugging Face (<a href="https://huggingface.co/"><span class="url">https://huggingface.co/</span></a>). It abstracts away several components of the building process, allowing us to focus on the model performance and intended performance. </p>
+    <p class="normal">As usual, we begin by loading the required packages:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment">#get deep learning basics</span>
+<span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+</code></pre>
+    <p class="normal">One of the advantages of the Transformers library – and a reason for its popularity, undoubtedly – is how easily we can download a specific model (and also define the appropriate tokenizer):</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">from</span> transformers <span class="hljs-keyword">import</span> TFGPT2LMHeadModel, GPT2Tokenizer
+tokenizer = GPT2Tokenizer.from_pretrained(<span class="hljs-string">"gpt2-large"</span>)
+GPT2 = TFGPT2LMHeadModel.from_pretrained(<span class="hljs-string">"gpt2-large"</span>, pad_token_id=tokenizer.eos_token_id)
+</code></pre>
+    <p class="normal">It is usually a good idea to fix the random seed to ensure the results are reproducible:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># settings</span>
+<span class="hljs-comment">#for reproducability</span>
+SEED = <span class="hljs-number">34</span>
+tf.random.set_seed(SEED)
+<span class="hljs-comment">#maximum number of words in output text</span>
+MAX_LEN = <span class="hljs-number">70</span>
+</code></pre>
+    <p class="normal">For a proper description of the decoder architecture within Transformers, please refer to the <em class="italic">See also</em> section at the end of this section – for now, let us focus on the fact that how we decode is one of the most important decisions when using a GPT-2 model. Below, we review some of the methods that can be utilized.</p>
+    <p class="normal">With <strong class="keyword">greedy search</strong>, the word with the highest probability is predicted as the next word in the sequence:</p>
+    <pre class="programlisting code"><code class="hljs-code">input_sequence = <span class="hljs-string">"There are times when I am really tired of people, but I feel lonely too."</span>
+</code></pre>
+    <p class="normal">Once we have our <a id="_idIndexMarker554"/>input sequence, we encode it and then call a <code class="Code-In-Text--PACKT-">decode</code> method: </p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># encode context the generation is conditioned on</span>
+input_ids = tokenizer.encode(input_sequence, return_tensors=<span class="hljs-string">'tf'</span>)
+<span class="hljs-comment"># generate text until the output length (which includes the context length) reaches 70</span>
+greedy_output = GPT2.generate(input_ids, max_length = MAX_LEN)
+print(<span class="hljs-string">"Output:\n"</span> + <span class="hljs-number">100</span> * <span class="hljs-string">'-'</span>)
+print(tokenizer.decode(greedy_output[<span class="hljs-number">0</span>], skip_special_tokens = <span class="hljs-literal">True</span>))
+Output:
+----------------------------------------------------------------------------------------------------
+There are times when I am really tired of people, but I feel lonely too. I feel like I'm alone in the world. I feel like I'm alone in my own body. I feel like I'm alone in my own mind. I feel like I'm alone in my own heart. I feel like I'm alone in my own mind
+</code></pre>
+    <p class="normal">As you can see, the results leave some room for improvement: the model starts repeating itself, because the high-probability words mask the less-likely ones so they cannot explore more diverse combinations.</p>
+    <p class="normal">A simple remedy is <strong class="keyword">beam search</strong>: we <a id="_idIndexMarker555"/>keep track of the alternative variants, so that more comparisons are possible:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># set return_num_sequences &gt; 1</span>
+beam_outputs = GPT2.generate(
+    input_ids, 
+    max_length = MAX_LEN, 
+    num_beams = <span class="hljs-number">5</span>, 
+    no_repeat_ngram_size = <span class="hljs-number">2</span>, 
+    num_return_sequences = <span class="hljs-number">5</span>, 
+    early_stopping = <span class="hljs-literal">True</span>
+)
+print(<span class="hljs-string">''</span>)
+print(<span class="hljs-string">"Output:\n"</span> + <span class="hljs-number">100</span> * <span class="hljs-string">'-'</span>)
+<span class="hljs-comment"># now we have 5 output sequences</span>
+<span class="hljs-keyword">for</span> i, beam_output <span class="hljs-keyword">in</span> enumerate(beam_outputs):
+      print(<span class="hljs-string">"{}: {}"</span>.format(i, tokenizer.decode(beam_output, skip_special_      tokens=<span class="hljs-literal">True</span>)))
+Output:
+----------------------------------------------------------------------------------------------------
+0: There are times when I am really tired of people, but I feel lonely too. I don't know what to do with myself."
+"I feel like I can't do anything right now," she said. "I'm so tired."
+1: There are times when I am really tired of people, but I feel lonely too. I don't know what to do with myself."
+"I feel like I can't do anything right now," she says. "I'm so tired."
+2: There are times when I am really tired of people, but I feel lonely too. I don't know what to do with myself."
+"I feel like I can't do anything right now," she says. "I'm not sure what I'm supposed to be doing with my life."
+3: There are times when I am really tired of people, but I feel lonely too. I don''t know what to do with myself.""
+"I feel like I can't do anything right now," she says. "I'm not sure what I'm supposed to be doing."
+4: There are times when I am really tired of people, but I feel lonely too. I don't know what to do with myself."
+"I feel like I can't do anything right now," she says. "I'm not sure what I should do."
+</code></pre>
+    <p class="normal">This is definitely more diverse – the message is the same, but at least the formulations look a little different from a style point of view.</p>
+    <p class="normal">Next, we can explore sampling – indeterministic decoding. Instead of following a strict path to find the end text with the highest probability, we rather randomly pick the next word by its conditional probability distribution. This approach risks producing incoherent ramblings, so <a id="_idIndexMarker556"/>we make use of the <code class="Code-In-Text--PACKT-">temperature</code> parameter, which affects the probability mass distribution:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># use temperature to decrease the sensitivity to low probability candidates</span>
+sample_output = GPT2.generate(
+                             input_ids, 
+                             do_sample = <span class="hljs-literal">True</span>, 
+                             max_length = MAX_LEN, 
+                             top_k = <span class="hljs-number">0</span>, 
+                             temperature = <span class="hljs-number">0.2</span>
+)
+print(<span class="hljs-string">"Output:\n"</span> + <span class="hljs-number">100</span> * <span class="hljs-string">'-'</span>)
+print(tokenizer.decode(sample_output[<span class="hljs-number">0</span>], skip_special_tokens = <span class="hljs-literal">True</span>))
+Output:
+----------------------------------------------------------------------------------------------------
+There are times when I am really tired of people, but I feel lonely too. I feel like I'm alone in my own world. I feel like I'm alone in my own life. I feel like I'm alone in my own mind. I feel like I'm alone in my own heart. I feel like I'm alone in my own
+</code></pre>
+    <p class="normal">Waxing poetic a bit. What happens if we increase the temperature?</p>
+    <pre class="programlisting code"><code class="hljs-code">sample_output = GPT2.generate(
+                             input_ids, 
+                             do_sample = <span class="hljs-literal">True</span>, 
+                             max_length = MAX_LEN, 
+                             top_k = <span class="hljs-number">0</span>, 
+                             temperature = <span class="hljs-number">0.8</span>
+)
+print(<span class="hljs-string">"Output:\n"</span> + <span class="hljs-number">100</span> * <span class="hljs-string">'-'</span>)
+print(tokenizer.decode(sample_output[<span class="hljs-number">0</span>], skip_special_tokens = <span class="hljs-literal">True</span>))
+Output:
+----------------------------------------------------------------------------------------------------
+There are times when I am really tired of people, but I feel lonely too. I find it strange how the people around me seem to be always so nice. The only time I feel lonely is when I'm on the road. I can't be alone with my thoughts.
+What are some of your favourite things to do in the area
+</code></pre>
+    <p class="normal">This is getting more interesting, although it still feels a bit like a train of thought – which is perhaps to be expected, given the content of our prompt. Let's explore some more ways to tune the output.</p>
+    <p class="normal">In <strong class="keyword">Top-K sampling</strong>, the top <em class="italic">k</em> most <a id="_idIndexMarker557"/>likely next words are selected and the entire probability mass is shifted to these <em class="italic">k</em> words. So instead of increasing the chances of high-probability words <a id="_idIndexMarker558"/>occurring and decreasing the chances of low-probability words, we just remove low-probability words altogether:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment">#sample from only top_k most likely words</span>
+sample_output = GPT2.generate(
+                             input_ids, 
+                             do_sample = <span class="hljs-literal">True</span>, 
+                             max_length = MAX_LEN, 
+                             top_k = <span class="hljs-number">50</span>
+)
+print(<span class="hljs-string">"Output:\n"</span> + <span class="hljs-number">100</span> * <span class="hljs-string">'-'</span>)
+print(tokenizer.decode(sample_output[<span class="hljs-number">0</span>], skip_special_tokens = <span class="hljs-literal">True</span>), <span class="hljs-string">'...'</span>)
+Output:
+----------------------------------------------------------------------------------------------------
+There are times when I am really tired of people, but I feel lonely too. I go to a place where you can feel comfortable. It's a place where you can relax. But if you're so tired of going along with the rules, maybe I won't go. You know what? Maybe if I don't go, you won''t ...
+</code></pre>
+    <p class="normal">This seems like a step in the right direction. Can we do better?</p>
+    <p class="normal">Top-P sampling (also known as <a id="_idIndexMarker559"/>nucleus sampling) is similar to Top-K, but <a id="_idIndexMarker560"/>instead of choosing the top <em class="italic">k</em> most likely words, we choose the smallest set of words whose total probability is larger than <em class="italic">p</em>, and then the entire probability mass is shifted to the words in this set. The main difference here is that with Top-K sampling, the size of the set of words is <a id="_idIndexMarker561"/>static (obviously), whereas in Top-P sampling, the size of the set can change. To use this sampling method, we just set <code class="Code-In-Text--PACKT-">top_k = 0</code> and choose a <code class="Code-In-Text--PACKT-">top_p</code> value:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment">#sample only from 80% most likely words</span>
+sample_output = GPT2.generate(
+                             input_ids, 
+                             do_sample = <span class="hljs-literal">True</span>, 
+                             max_length = MAX_LEN, 
+                             top_p = <span class="hljs-number">0.8</span>, 
+                             top_k = <span class="hljs-number">0</span>
+)
+print(<span class="hljs-string">"Output:\n"</span> + <span class="hljs-number">100</span> * <span class="hljs-string">'-'</span>)
+print(tokenizer.decode(sample_output[<span class="hljs-number">0</span>], skip_special_tokens = <span class="hljs-literal">True</span>), <span class="hljs-string">'...'</span>)
+Output:
+----------------------------------------------------------------------------------------------------
+There are times when I am really tired of people, but I feel lonely too. I feel like I should just be standing there, just sitting there. I know I'm not a danger to anybody. I just feel alone." ...
+</code></pre>
+    <p class="normal">We can combine both approaches:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment">#combine both sampling techniques</span>
+sample_outputs = GPT2.generate(
+                              input_ids,
+                              do_sample = <span class="hljs-literal">True</span>, 
+                              max_length = <span class="hljs-number">2</span>*MAX_LEN,                              <span class="hljs-comment">#to test how long we can generate and it be coherent</span>
+                              <span class="hljs-comment">#temperature = .7,</span>
+                              top_k = <span class="hljs-number">50</span>, 
+                              top_p = <span class="hljs-number">0.85</span>, 
+                              num_return_sequences = <span class="hljs-number">5</span>
+)
+print(<span class="hljs-string">"Output:\n"</span> + <span class="hljs-number">100</span> * <span class="hljs-string">'-'</span>)
+<span class="hljs-keyword">for</span> i, sample_output <span class="hljs-keyword">in</span> enumerate(sample_outputs):
+    print(<span class="hljs-string">"{}: {}..."</span>.format(i, tokenizer.decode(sample_output, skip_    special_tokens = <span class="hljs-literal">True</span>)))
+    print(<span class="hljs-string">''</span>)
+Output:
+----------------------------------------------------------------------------------------------------
+0: There are times when I am really tired of people, but I feel lonely too. I don't feel like I am being respected by my own country, which is why I am trying to change the government."
+In a recent video posted to YouTube, Mr. Jaleel, dressed in a suit and tie, talks about his life in Pakistan and his frustration at his treatment by the country's law enforcement agencies. He also describes how he met a young woman from California who helped him organize the protest in Washington.
+"She was a journalist who worked with a television channel in Pakistan," Mr. Jaleel says in the video. "She came to my home one day,...
+1: There are times when I am really tired of people, but I feel lonely too. It's not that I don't like to be around other people, but it's just something I have to face sometimes.
+What is your favorite thing to eat?
+The most favorite thing I have eaten is chicken and waffles. But I love rice, soups, and even noodles. I also like to eat bread, but I like it a little bit less.
+What is your ideal day of eating?
+It varies every day. Sometimes I want to eat at home, because I'm in a house with my family. But then sometimes I just have to have some sort...
+2: There are times when I am really tired of people, but I feel lonely too. I think that there is something in my heart that is trying to be a better person, but I don't know what that is."
+So what can be done?
+"I want people to take the time to think about this," says Jorja, who lives in a small town outside of Boston.
+She has been thinking a lot about her depression. She wants to make a documentary about it, and she wants to start a blog about it.
+"I want to make a video to be a support system for people who are going through the same thing I was going through...
+3: There are times when I am really tired of people, but I feel lonely too.
+I want to be able to take good care of myself. I am going to be a very good person, even if I am lonely.
+So, if it's lonely, then I will be happy. I will be a person who will be able to have good care of myself.
+I have made this wish.
+What is my hope? What is my goal? I want to do my best to be able to meet it, but…
+"Yuu, what are you saying, Yuu?"
+"Uwa, what is it?"
+I...
+4: There are times when I am really tired of people, but I feel lonely too. The only person I really love is my family. It's just that I'm not alone."
+-Juan, 24, a student
+A study from the European Economic Area, a free trade area between the EU and Iceland, showed that there are 2.3 million EU citizens living in Iceland. Another survey in 2014 showed that 1.3 million people in Iceland were employed.
+The government is committed to making Iceland a country where everyone can live and work.
+"We are here to help, not to steal," said one of the people who drove up in a Volkswagen.
+...
+</code></pre>
+    <p class="normal">Clearly, the more-sophisticated method's settings can give us pretty impressive results. Let's explore this avenue more – we'll use the prompts taken from OpenAI's GPT-2 website, where they feed them to a full-sized GPT-2 model. This comparison will give us an idea of how well we <a id="_idIndexMarker562"/>are doing with a local (smaller) model compared to a full one that was used for the original demos:</p>
+    <pre class="programlisting code"><code class="hljs-code">MAX_LEN = <span class="hljs-number">500</span>
+prompt1 = <span class="hljs-string">'In a shocking finding, scientist discovered a herd of unicorns living in a remote, previously unexplored valley, in the Andes Mountains. Even more surprising to the researchers was the fact that the unicorns spoke perfect English.'</span>
+input_ids = tokenizer.encode(prompt1, return_tensors=<span class="hljs-string">'tf'</span>)
+sample_outputs = GPT2.generate(
+                              input_ids,
+                              do_sample = <span class="hljs-literal">True</span>, 
+                              max_length = MAX_LEN,                              <span class="hljs-comment">#to test how long we can generate and it be coherent</span>
+                              <span class="hljs-comment">#temperature = .8,</span>
+                              top_k = <span class="hljs-number">50</span>, 
+                              top_p = <span class="hljs-number">0.85</span> 
+                              <span class="hljs-comment">#num_return_sequences = 5</span>
+)
+print(<span class="hljs-string">"Output:\n"</span> + <span class="hljs-number">100</span> * <span class="hljs-string">'-'</span>)
+<span class="hljs-keyword">for</span> i, sample_output <span class="hljs-keyword">in</span> enumerate(sample_outputs):
+    print(<span class="hljs-string">"{}: {}..."</span>.format(i, tokenizer.decode(sample_output, skip_    special_tokens = <span class="hljs-literal">True</span>)))
+    print(<span class="hljs-string">''</span>)
+Output:
+----------------------------------------------------------------------------------------------------
+0: In a shocking finding, scientist discovered a herd of unicorns living in a remote, previously unexplored valley, in the Andes Mountains. Even more surprising to the researchers was the fact that the unicorns spoke perfect English.
+This is the first time a herd of unicorns have been discovered in the Andes Mountains, a vast region stretching from the Himalayas to the Andes River in Bolivia.
+According to the BBC, the unicorns were spotted by a small group of researchers on a private expedition, but they were the only ones that came across the bizarre creatures.
+It was later learned that these were not the wild unicorns that were spotted in the wild in recent years, but rather a domesticated variety of the species.
+Although they do not speak English, they do carry their own unique language, according to the researchers, who have named it "Ungla."
+The herd of unicorns, which was discovered by a small group of researchers, is the first of its kind discovered in the Andes Mountains. It is thought that the herd of wild unicorns were introduced to the area hundreds of years ago by a local rancher who was attempting to make a profit from the animals.
+Although they do not speak English, they do carry their own unique language, according to the researchers, who have named it "Ungla."
+The researchers claim that the unicorns have only been sighted in the Andes Mountains, where they can be seen throughout the mountains of South America.
+While the unicorns do not speak English, they do carry their own unique language, according to the researchers, who have named it "Ungla."
+Ungla is a highly intelligent, cooperative species with a high level of social and cognitive complexity, and is capable of displaying sophisticated behaviors.
+They are a particularly unique species, because they are capable of surviving in extreme conditions for long periods of time and without being fed or watered.
+The team believes that the species was probably domesticated in the Andes Mountains, where it could not survive in its natural habitat.
+"We can see from the genetics that the animals were probably domesticated in the Andes Mountains where they could not survive in their natural habitat and with water and food sources," said Professor David Catt, from the University of Cambridge, who led the study.
+"So these were animals that would have been...
+</code></pre>
+    <p class="normal">For comparison, this is the output from a complete model:</p>
+    <h2 id="_idParaDest-281" class="title">Output:</h2>
+    <p class="normal">0<em class="italic">: In a </em><em class="italic"><a id="_idIndexMarker563"/></em><em class="italic">shocking finding, scientist discovered a herd of unicorns living in a remote, previously unexplored valley, in the Andes Mountains. Even more surprising to the researchers was the fact that the unicorns spoke perfect English.</em></p>
+    <p class="normal"><em class="italic">"This is not only a scientific finding; it is also a very important finding because it will enable us to further study the </em><em class="italic"><a id="_idIndexMarker564"/></em><em class="italic">phenomenon," said Dr. Jorge Llamas, from the </em><strong class="" style="font-style: italic;">National Institute of Anthropology and History</strong><em class="italic"> (</em><strong class="" style="font-style: italic;">INAH</strong><em class="italic">) in Colombia, in a statement.</em></p>
+    <p class="normal"><em class="italic">"We have previously found that humans have used human voices to communicate with the animals. In this case, the animals are communicating with us. In other words, this is a breakthrough in the field of animal communication," added Llamas...</em></p>
+    <p class="normal"><em class="italic">In another example, it seems like the trepidations of the model authors were justified: GPT-2 can in fact generate fake news stories.</em></p>
+    <pre class="programlisting code"><code class="hljs-code">prompt2 = <span class="hljs-string">'Miley Cyrus was caught shoplifting from Abercrombie and Fitch on Hollywood Boulevard today.'</span>
+input_ids = tokenizer.encode(prompt2, return_tensors=<span class="hljs-string">'tf'</span>)
+sample_outputs = GPT2.generate(
+                              input_ids,
+                              do_sample = <span class="hljs-literal">True</span>, 
+                              max_length = MAX_LEN,                              <span class="hljs-comment">#to test how long we can generate and it be coherent</span>
+                              <span class="hljs-comment">#temperature = .8,</span>
+                              top_k = <span class="hljs-number">50</span>, 
+                              top_p = <span class="hljs-number">0.85</span>
+                              <span class="hljs-comment">#num_return_sequences = 5</span>
+)
+print(<span class="hljs-string">"Output:\n"</span> + <span class="hljs-number">100</span> * <span class="hljs-string">'-'</span>)
+<span class="hljs-keyword">for</span> i, sample_output <span class="hljs-keyword">in</span> enumerate(sample_outputs):
+    print(<span class="hljs-string">"{}: {}..."</span>.format(i, tokenizer.decode(sample_output, skip_    special_tokens = <span class="hljs-literal">True</span>)))
+    print(<span class="hljs-string">''</span>)
+Output:
+----------------------------------------------------------------------------------------------------
+0: Miley Cyrus was caught shoplifting from Abercrombie and Fitch on Hollywood Boulevard today. In a video captured by one of her friends, the singer is seen grabbing her bag, but then quickly realizing the merchandise she has to leave is too expensive to be worth a $1.99 purchase.
+The video has already gone viral, and while the celebrity is certainly guilty of breaking the law (even if she can't be accused of stealing for a second time), there's one aspect of the situation that should make the most sense. It's just like the shopping situation in the movie The Fast and the Furious, where Michael Corleone is caught in possession of counterfeit designer clothing.
+This time around, though, the situation involves Cyrus. It's not a copy, per se. It's actually a replica, a pair of a black and white Nike Air Force 1s, a colorway she wore in her music video.
+It seems that the actress is caught by a friend who had gotten her a pair of those sneakers when she was in school, so this is no surprise to her. After all, there was a video of her stealing from her own store back in 2012, when she was a freshman at New York University.
+It's not that there's anything wrong with the product. If the merchandise is in good shape, that's all that matters. But there are a few things that should come to mind when it comes to these shoes.
+For one, the fabric is incredibly thin. The fabric is so thin that the upper actually makes the shoes look like they're made of leather. There's even a thin layer of plastic between the upper and the shoe.
+Secondly, the material isn't even a shoe. It's just a piece of leather. It's not actually a leather shoe at all, even though it's made of the same material as the other items on the show. It's just a piece of leather. And it's not the kind of leather that would actually hold up in a fight.
+This is something that should be familiar to anyone who's ever shopped at the store. If you go into the store looking for a pair of new Nike Air Force 1s, and the salesperson is just selling you a piece of leather, you're going to get disappointed. That's the nature of these shoes.
+In addition to the aforementioned "stolen" footwear, Miley Cyrus...
+</code></pre>
+    <h2 id="_idParaDest-282" class="title">Output:</h2>
+    <p class="normal"><em class="italic">0: Miley Cyrus was caught shoplifting from Abercrombie and Fitch on Hollywood Boulevard today. The star </em><em class="italic"><a id="_idIndexMarker565"/></em><em class="italic">was spotted trying on three dresses before attempting to walk out of the store.</em></p>
+    <p class="normal"><em class="italic">Abercrombie is one of a number of stores the star has frequented.</em></p>
+    <p class="normal"><em class="italic">The singer was spotted walking into Abercrombie &amp; Fitch in West Hollywood just after noon this afternoon before leaving the store.</em></p>
+    <p class="normal"><em class="italic">The star is currently in the middle of a tour of Australia and New Zealand for her X Factor appearance on February 28....</em></p>
+    <p class="normal">What about riffing off literature classics like Tolkien?</p>
+    <pre class="programlisting code"><code class="hljs-code">prompt3 = <span class="hljs-string">'Legolas and Gimli advanced on the orcs, raising their weapons with a harrowing war cry'</span>
+input_ids = tokenizer.encode(prompt3, return_tensors=<span class="hljs-string">'tf'</span>)
+sample_outputs = GPT2.generate(
+                              input_ids,
+                              do_sample = <span class="hljs-literal">True</span>, 
+                              max_length = MAX_LEN,                              <span class="hljs-comment">#to test how long we can generate and it be coherent</span>
+                              <span class="hljs-comment">#temperature = .8,</span>
+                              top_k = <span class="hljs-number">50</span>, 
+                              top_p = <span class="hljs-number">0.85</span> 
+                              <span class="hljs-comment">#num_return_sequences = 5</span>
+)
+print(<span class="hljs-string">"Output:\n"</span> + <span class="hljs-number">100</span> * <span class="hljs-string">'-'</span>)
+<span class="hljs-keyword">for</span> i, sample_output <span class="hljs-keyword">in</span> enumerate(sample_outputs):
+    print(<span class="hljs-string">"{}: {}..."</span>.format(i, tokenizer.decode(sample_output, skip_    special_tokens = <span class="hljs-literal">True</span>)))
+    print(<span class="hljs-string">''</span>)
+Output:
+----------------------------------------------------------------------------------------------------
+0: Legolas and Gimli advanced on the orcs, raising their weapons with a harrowing war cry, and they roared their battle cries as they charged the orcs with their spears and arrows. They reached the front of the line, where the enemy were gathered, and they fell upon them with a hail of fire and arrows, slaying many orcs and wounding others. The battle raged on for a long time, and eventually the two sides met and fought for a long time more. The orcs fell and the two armies were victorious. The orcs were killed and the two armies were victorious.
+The two armies fought one last time in battle. Gimli slew many of the orcs and led his men to safety. They went to the city and took it. When they returned, Sauron's servants were waiting to kill them. The two armies fought again, and the battle raged on for a long time more. Gimli slew many of the orcs and led his men to safety. They went to the city and took it. When they returned, Sauron's servants were waiting to kill them. The two armies fought again, and the battle raged on for a long time more. Gimli slew many of the orcs and led his men to safety. They went to the city and took it. When they returned, Sauron's servants were waiting to kill them. The two armies fought again, and the battle raged on for a long time more. Gimli slew many of the orcs and led his men to safety. They went to the city and took it. When they returned, Sauron's servants were waiting to kill them. The two armies fought again, and the battle raged on for a long time more. Gimli slew many of the orcs and led his men to safety. They went to the city and took it. When they returned, Sauron's servants were waiting to kill them. The two armies fought again, and the battle raged on for a long time more. Gimli slew many of the orcs and led his men to safety. They went to the city and took it. When they returned, Sauron's servants were waiting to kill them. The two armies fought again, and the battle raged on for a long time more. Gimli slew many of the orcs and led his men to safety. They went to the city and took it. When they returned, Sauron's servants were waiting to kill them. The two armies fought again, and the battle raged on for a...
+</code></pre>
+    <h2 id="_idParaDest-283" class="title">Output:</h2>
+    <p class="normal"><em class="italic">0: Legolas and Gimli advanced on the orcs, raising their weapons with a harrowing war cry.</em></p>
+    <p class="normal"><em class="italic">Then the orcs </em><em class="italic"><a id="_idIndexMarker566"/></em><em class="italic">made their move.</em></p>
+    <p class="normal"><em class="italic">The Great Orc Warband advanced at the sound of battle. They wore their weapons proudly on their chests, and they looked down upon their foes.</em></p>
+    <p class="normal"><em class="italic">In the distance, the orcs could be heard shouting their orders in a low voice.</em></p>
+    <p class="normal"><em class="italic">But the battle was not yet over. The orcs' axes and hammers slammed into the enemy ranks as though they were an army of ten thousand warriors, and their axes made the orcs bleed.</em></p>
+    <p class="normal"><em class="italic">In the midst of the carnage, the Elven leader Aragorn cried out: "Come, brave. Let us fight the orcs!"</em></p>
+    <p class="normal">As you can see from the examples above, a GPT-2 model working out of the box (without finetuning) can already generate plausible-looking long-form text. Assessing the future impact of this technology on the field of communication remains an open and highly controversial issue: on the one hand, there is fully justified fear of fake news proliferation (see the Miley Cyrus story above). This is particularly concerning because large-scale automated detection of generated text is an extremely challenging topic. On the other hand, GPT-2 text <a id="_idIndexMarker567"/>generation capabilities can be helpful for creative types: be it style experimentation or parody, an AI-powered writing assistant can be a tremendous help. </p>
+    <h2 id="_idParaDest-284" class="title">See also</h2>
+    <p class="normal">There are multiple excellent resources <a id="_idIndexMarker568"/>online for text generation with GPT-2:</p>
+    <ul>
+      <li class="bullet">The original OpenAI post that introduced the model: <p class="bullet-para"><a href="https://openai.com/blog/better-language-models/ "><span class="url">https://openai.com/blog/better-language-models/</span></a></p>
+      </li>
+      <li class="bullet">Top GPT-2 open source projects:<p class="bullet-para"><a href="https://awesomeopensource.com/projects/gpt-2 "><span class="url">https://awesomeopensource.com/projects/gpt-2</span></a></p>
+      </li>
+      <li class="bullet">Hugging Face documentation: <p class="bullet-para"><a href="https://huggingface.co/blog/how-to-generate "><span class="url">https://huggingface.co/blog/how-to-generate</span></a></p>
+        <p class="bullet-para"><a href="https://huggingface.co/transformers/model_doc/gpt2.html "><span class="url">https://huggingface.co/transformers/model_doc/gpt2.html</span></a></p>
+      </li>
+    </ul>
+    <h1 id="_idParaDest-285" class="title">Sentiment analysis</h1>
+    <p class="normal">In this section, we'll <a id="_idIndexMarker569"/>demonstrate how DistilBERT – a lightweight version of BERT – can be <a id="_idIndexMarker570"/>used to handle a common problem of sentiment analysis. We <a id="_idIndexMarker571"/>will be using data from a Kaggle competition (<a href="https://www.kaggle.com/c/tweet-sentiment-extraction"><span class="url">https://www.kaggle.com/c/tweet-sentiment-extraction</span></a>): given a tweet and the sentiment (positive, neutral, or negative), participants needed to identify the part of the tweet that defines that sentiment. Sentiment analysis is typically employed in business as part of a system that helps data analysts gauge public opinion, conduct detailed market research, and track customer experience. An important application is medical: the effect of different treatments on patients' moods can be evaluated based on their communication patterns.</p>
+    <h2 id="_idParaDest-286" class="title">How do we go about it?</h2>
+    <p class="normal">As usual, we begin by loading the necessary packages.</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> pandas <span class="hljs-keyword">as</span> pd
+<span class="hljs-keyword">import</span> re
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+np.random.seed(<span class="hljs-number">0</span>)
+<span class="hljs-keyword">import</span> matplotlib.pyplot <span class="hljs-keyword">as</span> plt
+%matplotlib inline
+<span class="hljs-keyword">import</span> keras
+<span class="hljs-keyword">from</span> keras.preprocessing.sequence <span class="hljs-keyword">import</span> pad_sequences
+<span class="hljs-keyword">from</span> keras.layers <span class="hljs-keyword">import</span> Input, Dense, LSTM, GRU, Embedding
+<span class="hljs-keyword">from</span> keras.layers <span class="hljs-keyword">import</span> Activation, Bidirectional, GlobalMaxPool1D, GlobalMaxPool2D, Dropout
+<span class="hljs-keyword">from</span> keras.models <span class="hljs-keyword">import</span> Model
+<span class="hljs-keyword">from</span> keras <span class="hljs-keyword">import</span> initializers, regularizers, constraints, optimizers, layers
+<span class="hljs-keyword">from</span> keras.preprocessing <span class="hljs-keyword">import</span> text, sequence
+<span class="hljs-keyword">from</span> keras.callbacks <span class="hljs-keyword">import</span> ModelCheckpoint
+<span class="hljs-keyword">from</span> keras.callbacks <span class="hljs-keyword">import</span> EarlyStopping
+<span class="hljs-keyword">from</span> keras.optimizers <span class="hljs-keyword">import</span> RMSprop, adam
+<span class="hljs-keyword">import</span> nltk
+<span class="hljs-keyword">from</span> nltk.corpus <span class="hljs-keyword">import</span> stopwords
+<span class="hljs-keyword">from</span> nltk.tokenize <span class="hljs-keyword">import</span> word_tokenize
+<span class="hljs-keyword">from</span> nltk.stem <span class="hljs-keyword">import</span> WordNetLemmatizer,PorterStemmer
+<span class="hljs-keyword">import</span> seaborn <span class="hljs-keyword">as</span> sns
+<span class="hljs-keyword">import</span> transformers
+<span class="hljs-keyword">from</span> transformers <span class="hljs-keyword">import</span> AutoTokenizer
+<span class="hljs-keyword">from</span> tokenizers <span class="hljs-keyword">import</span> BertWordPieceTokenizer
+<span class="hljs-keyword">from</span> keras.initializers <span class="hljs-keyword">import</span> Constant
+<span class="hljs-keyword">from</span> keras.wrappers.scikit_learn <span class="hljs-keyword">import</span> KerasClassifier
+<span class="hljs-keyword">from</span> sklearn.model_selection <span class="hljs-keyword">import</span> GridSearchCV
+<span class="hljs-keyword">from</span> sklearn.metrics <span class="hljs-keyword">import</span> accuracy_score
+<span class="hljs-keyword">from</span> collections <span class="hljs-keyword">import</span> Counter
+stop=set(stopwords.words(<span class="hljs-string">'english'</span>))
+<span class="hljs-keyword">import</span> os
+</code></pre>
+    <p class="normal">In order <a id="_idIndexMarker572"/>to streamline the code, we define some helper <a id="_idIndexMarker573"/>functions for cleaning the text: we remove website links, starred-out NSFW terms, and emojis. </p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">basic_cleaning</span><span class="hljs-function">(</span><span class="hljs-params">text</span><span class="hljs-function">):</span>
+    text=re.sub(<span class="hljs-string">r'https?://www\.\S+\.com'</span>,<span class="hljs-string">''</span>,text)
+    text=re.sub(<span class="hljs-string">r'[^A-Za-z|\s]'</span>,<span class="hljs-string">''</span>,text)
+    text=re.sub(<span class="hljs-string">r'\*+'</span>,<span class="hljs-string">'swear'</span>,text) <span class="hljs-comment">#capture swear words that are **** out</span>
+    <span class="hljs-keyword">return</span> text
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">remove_html</span><span class="hljs-function">(</span><span class="hljs-params">text</span><span class="hljs-function">):</span>
+    html=re.compile(<span class="hljs-string">r'&lt;.*?&gt;'</span>)
+    <span class="hljs-keyword">return</span> html.sub(<span class="hljs-string">r''</span>,text)
+<span class="hljs-comment"># Reference : https://gist.github.com/slowkow/7a7f61f495e3dbb7e3d767f97bd7304b</span>
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">remove_emoji</span><span class="hljs-function">(</span><span class="hljs-params">text</span><span class="hljs-function">):</span>
+    emoji_pattern = re.compile(<span class="hljs-string">"["</span>
+                           <span class="hljs-string">u"\U0001F600-\U0001F64F"</span>  <span class="hljs-comment"># emoticons</span>
+                           <span class="hljs-string">u"\U0001F300-\U0001F5FF"</span>  <span class="hljs-comment"># symbols &amp; pictographs</span>
+                           <span class="hljs-string">u"\U0001F680-\U0001F6FF"</span>  <span class="hljs-comment"># transport &amp; map symbols</span>
+                           <span class="hljs-string">u"\U0001F1E0-\U0001F1FF"</span>  <span class="hljs-comment"># flags (iOS)</span>
+                           <span class="hljs-string">u"\U00002702-\U000027B0"</span>
+                           <span class="hljs-string">u"\U000024C2-\U0001F251"</span>
+                           <span class="hljs-string">"]+"</span>, flags=re.UNICODE)
+    <span class="hljs-keyword">return</span> emoji_pattern.sub(<span class="hljs-string">r''</span>, text)
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">remove_multiplechars</span><span class="hljs-function">(</span><span class="hljs-params">text</span><span class="hljs-function">):</span>
+    text = re.sub(<span class="hljs-string">r'(.)\1{3,}'</span>,<span class="hljs-string">r'\1'</span>, text)
+    <span class="hljs-keyword">return</span> text
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">clean</span><span class="hljs-function">(</span><span class="hljs-params">df</span><span class="hljs-function">):</span>
+    <span class="hljs-keyword">for</span> col <span class="hljs-keyword">in</span> [<span class="hljs-string">'text'</span>]:<span class="hljs-comment">#,'selected_text']:</span>
+        df[col]=df[col].astype(str).apply(<span class="hljs-keyword">lambda</span> x:basic_cleaning(x))
+        df[col]=df[col].astype(str).apply(<span class="hljs-keyword">lambda</span> x:remove_emoji(x))
+        df[col]=df[col].astype(str).apply(<span class="hljs-keyword">lambda</span> x:remove_html(x))
+        df[col]=df[col].astype(str).apply(<span class="hljs-keyword">lambda</span> x:remove_multiplechars(x))
+    <span class="hljs-keyword">return</span> df
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">fast_encode</span><span class="hljs-function">(</span><span class="hljs-params">texts, tokenizer, chunk_size=</span><span class="hljs-number">256</span><span class="hljs-params">, maxlen=</span><span class="hljs-number">128</span><span class="hljs-function">):</span>    
+    tokenizer.enable_truncation(max_length=maxlen)
+    tokenizer.enable_padding(max_length=maxlen)
+    all_ids = []
+    
+    <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(<span class="hljs-number">0</span>, len(texts), chunk_size):
+        text_chunk = texts[i:i+chunk_size].tolist()
+        encs = tokenizer.encode_batch(text_chunk)
+        all_ids.extend([enc.ids <span class="hljs-keyword">for</span> enc <span class="hljs-keyword">in</span> encs])
+    
+    <span class="hljs-keyword">return</span> np.array(all_ids)
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">preprocess_news</span><span class="hljs-function">(</span><span class="hljs-params">df,stop=stop,n=</span><span class="hljs-number">1</span><span class="hljs-params">,col=</span><span class="hljs-string">'text'</span><span class="hljs-function">):</span>
+    <span class="hljs-string">'''Function to preprocess and create corpus'''</span>
+    new_corpus=[]
+    stem=PorterStemmer()
+    lem=WordNetLemmatizer()
+    <span class="hljs-keyword">for</span> text <span class="hljs-keyword">in</span> df[col]:
+        words=[w <span class="hljs-keyword">for</span> w <span class="hljs-keyword">in</span> word_tokenize(text) <span class="hljs-keyword">if</span> (w <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> stop)]
+       
+        words=[lem.lemmatize(w) <span class="hljs-keyword">for</span> w <span class="hljs-keyword">in</span> words <span class="hljs-keyword">if</span>(len(w)&gt;n)]
+     
+        new_corpus.append(words)
+        
+    new_corpus=[word <span class="hljs-keyword">for</span> l <span class="hljs-keyword">in</span> new_corpus <span class="hljs-keyword">for</span> word <span class="hljs-keyword">in</span> l]
+    <span class="hljs-keyword">return</span> new_corpus
+</code></pre>
+    <p class="normal">Load the data.</p>
+    <pre class="programlisting code"><code class="hljs-code">df = pd.read_csv(<span class="hljs-string">'/kaggle/input/tweet-sentiment-extraction/train.csv'</span>)
+df.head()
+</code></pre>
+    <figure class="mediaobject"><img src="../Images/B16254_10_1.png" alt="Obraz zawierający stół  Opis wygenerowany automatycznie"/></figure>
+    <p class="packt_figref">Figure 10.1: Sample of the tweet sentiment analysis data</p>
+    <p class="normal">The snapshot above demonstrates a sample of the data we will focus our analysis on: the complete text, the key phrase, and its associated sentiment (positive, negative, or neutral).</p>
+    <p class="normal">We proceed with fairly standard preprocessing of the data:</p>
+    <ol>
+      <li class="numbered"><code class="Code-In-Text--PACKT-">basic_cleaning</code> – to remove website URLs and non-characters and to replace * swear words with the word swear.</li>
+      <li class="numbered"><code class="Code-In-Text--PACKT-">remove_html</code>.</li>
+      <li class="numbered"><code class="Code-In-Text--PACKT-">remove_emojis</code>.</li>
+      <li class="numbered"><code class="Code-In-Text--PACKT-">remove_multiplechars</code> – this is for when there are more than 3 characters in a row in a word, for example, wayyyyy. The function removes all but one of the letters.</li>
+    </ol>
+    <pre class="programlisting code"><code class="hljs-code">df.dropna(inplace=<span class="hljs-literal">True</span>)
+df_clean = clean(df)
+</code></pre>
+    <p class="normal">As for <a id="_idIndexMarker574"/>labels, we one-hot encode the <a id="_idIndexMarker575"/>targets, tokenize them, and convert them into sequences.</p>
+    <pre class="programlisting code"><code class="hljs-code">df_clean_selection = df_clean.sample(frac=<span class="hljs-number">1</span>)
+X = df_clean_selection.text.values
+y = pd.get_dummies(df_clean_selection.sentiment)
+tokenizer = text.Tokenizer(num_words=<span class="hljs-number">20000</span>)
+tokenizer.fit_on_texts(list(X))
+list_tokenized_train = tokenizer.texts_to_sequences(X)
+X_t = sequence.pad_sequences(list_tokenized_train, maxlen=<span class="hljs-number">128</span>)
+</code></pre>
+    <p class="normal">DistilBERT is a light version of BERT: it has 40 pct fewer parameters, but achieves 97% of the performance. For the purpose of this recipe, we will use it primarily for its tokenizer and an embedding matrix. Although the matrix is trainable, we shall not utilize this option, in order to reduce the training time. </p>
+    <pre class="programlisting code"><code class="hljs-code">tokenizer = transformers.AutoTokenizer.from_pretrained(<span class="hljs-string">"distilbert-base-uncased"</span>)  <span class="hljs-comment">## change it to commit</span>
+<span class="hljs-comment"># Save the loaded tokenizer locally</span>
+save_path = <span class="hljs-string">'/kaggle/working/distilbert_base_uncased/'</span>
+<span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> os.path.exists(save_path):
+    os.makedirs(save_path)
+tokenizer.save_pretrained(save_path)
+<span class="hljs-comment"># Reload it with the huggingface tokenizers library</span>
+fast_tokenizer = BertWordPieceTokenizer(<span class="hljs-string">'distilbert_base_uncased/vocab.txt'</span>, lowercase=<span class="hljs-literal">True</span>)
+fast_tokenizer
+X = fast_encode(df_clean_selection.text.astype(str), fast_tokenizer, maxlen=<span class="hljs-number">128</span>)
+transformer_layer = transformers.TFDistilBertModel.from_pretrained(<span class="hljs-string">'distilbert-base-uncased'</span>)
+embedding_size = <span class="hljs-number">128</span> input_ = Input(shape=(<span class="hljs-number">100</span>,)) 
+inp = Input(shape=(<span class="hljs-number">128</span>, )) 
+embedding_matrix=transformer_layer.weights[<span class="hljs-number">0</span>].numpy() 
+x = Embedding(embedding_matrix.shape[<span class="hljs-number">0</span>], embedding_matrix.shape[<span class="hljs-number">1</span>],embeddings_initializer=Constant(embedding_matrix),trainable=<span class="hljs-literal">False</span>)(inp) 
+</code></pre>
+    <p class="normal">We <a id="_idIndexMarker576"/>proceed with the usual steps for <a id="_idIndexMarker577"/>defining a model.</p>
+    <pre class="programlisting code"><code class="hljs-code">x = Bidirectional(LSTM(<span class="hljs-number">50</span>, return_sequences=<span class="hljs-literal">True</span>))(x) 
+x = Bidirectional(LSTM(<span class="hljs-number">25</span>, return_sequences=<span class="hljs-literal">True</span>))(x) 
+x = GlobalMaxPool1D()(x) x = Dropout(<span class="hljs-number">0.5</span>)(x) 
+x = Dense(<span class="hljs-number">50</span>, activation=<span class="hljs-string">'relu'</span>, kernel_regularizer=<span class="hljs-string">'L1L2'</span>)(x) 
+x = Dropout(<span class="hljs-number">0.5</span>)(x) 
+x = Dense(<span class="hljs-number">3</span>, activation=<span class="hljs-string">'softmax'</span>)(x) 
+model_DistilBert = Model(inputs=[inp], outputs=x)
+model_DistilBert.compile(loss=<span class="hljs-string">'categorical_crossentropy'</span>,optimizer=<span class="hljs-string">'adam'</span>,metrics=[<span class="hljs-string">'accuracy'</span>])
+model_DistilBert.summary()
+Model: "model_1"
+_________________________________________________________________
+Layer (type)                 Output Shape              Param #   
+=================================================================
+input_2 (InputLayer)         (None, 128)               0         
+_________________________________________________________________
+embedding_1 (Embedding)      (None, 128, 768)          23440896  
+_________________________________________________________________
+bidirectional_1 (Bidirection (None, 128, 100)          327600    
+_________________________________________________________________
+bidirectional_2 (Bidirection (None, 128, 50)           25200     
+_________________________________________________________________
+global_max_pooling1d_1 (Glob (None, 50)                0         
+_________________________________________________________________
+dropout_1 (Dropout)          (None, 50)                0         
+_________________________________________________________________
+dense_1 (Dense)              (None, 50)                2550      
+_________________________________________________________________
+dropout_2 (Dropout)          (None, 50)                0         
+_________________________________________________________________
+dense_2 (Dense)              (None, 3)                 153       
+=================================================================
+Total params: 23,796,399
+Trainable params: 355,503
+Non-trainable params: 23,440,896
+_________________________________________________________________
+</code></pre>
+    <p class="normal">We <a id="_idIndexMarker578"/>can now fit <a id="_idIndexMarker579"/>the model:</p>
+    <pre class="programlisting code"><code class="hljs-code">model_DistilBert.fit(X,y,batch_size=<span class="hljs-number">32</span>,epochs=<span class="hljs-number">10</span>,validation_split=<span class="hljs-number">0.1</span>)
+Train on 24732 samples, validate on 2748 samples
+Epoch 1/10
+24732/24732 [==============================] - 357s 14ms/step - loss: 1.0516 - accuracy: 0.4328 - val_loss: 0.8719 - val_accuracy: 0.5466
+Epoch 2/10
+24732/24732 [==============================] - 355s 14ms/step - loss: 0.7733 - accuracy: 0.6604 - val_loss: 0.7032 - val_accuracy: 0.6776
+Epoch 3/10
+24732/24732 [==============================] - 355s 14ms/step - loss: 0.6668 - accuracy: 0.7299 - val_loss: 0.6407 - val_accuracy: 0.7354
+Epoch 4/10
+24732/24732 [==============================] - 355s 14ms/step - loss: 0.6310 - accuracy: 0.7461 - val_loss: 0.5925 - val_accuracy: 0.7478
+Epoch 5/10
+24732/24732 [==============================] - 347s 14ms/step - loss: 0.6070 - accuracy: 0.7565 - val_loss: 0.5817 - val_accuracy: 0.7529
+Epoch 6/10
+24732/24732 [==============================] - 343s 14ms/step - loss: 0.5922 - accuracy: 0.7635 - val_loss: 0.5817 - val_accuracy: 0.7584
+Epoch 7/10
+24732/24732 [==============================] - 343s 14ms/step - loss: 0.5733 - accuracy: 0.7707 - val_loss: 0.5922 - val_accuracy: 0.7638
+Epoch 8/10
+24732/24732 [==============================] - 343s 14ms/step - loss: 0.5547 - accuracy: 0.7832 - val_loss: 0.5767 - val_accuracy: 0.7627
+Epoch 9/10
+24732/24732 [==============================] - 346s 14ms/step - loss: 0.5350 - accuracy: 0.7870 - val_loss: 0.5767 - val_accuracy: 0.7584
+Epoch 10/10
+24732/24732 [==============================] - 346s 14ms/step - loss: 0.5219 - accuracy: 0.7955 - val_loss: 0.5994 - val_accuracy: 0.7580
+</code></pre>
+    <p class="normal">As we can <a id="_idIndexMarker580"/>see from the above output, the <a id="_idIndexMarker581"/>model converges quite rapidly and achieves a reasonable accuracy of 76% on the validation set already after 10 iterations. Further finetuning of hyperparameters and longer training can improve the performance, but even at this level, a trained model – for example, through the use of TensorFlow Serving – can provide a valuable addition to the sentiment analysis logic of a business application.</p>
+    <h2 id="_idParaDest-287" class="title">See also</h2>
+    <p class="normal">The best starting point is <a id="_idIndexMarker582"/>the documentation by Hugging Face: <a href="https://curiousily.com/posts/sentiment-analysis-with-bert-and-hugging-face-using-pytorch-and-python/"><span class="url">https://curiousily.com/posts/sentiment-analysis-with-bert-and-hugging-face-using-pytorch-and-python/</span></a>.</p>
+    <h1 id="_idParaDest-288" class="title">Open-domain question answering</h1>
+    <p class="normal">Given a passage of text <a id="_idIndexMarker583"/>and a question related to that text, the idea of <strong class="keyword">Question Answering</strong> (<strong class="keyword">QA</strong>) is to <a id="_idIndexMarker584"/>identify the subset of the passage that answers the question. It is one of many tasks where Transformer architectures have been applied successfully. The Transformers library has a number of pretrained models for QA that can be applied even in the absence of a dataset to finetune on (a form of zero-shot learning). </p>
+    <p class="normal">However, different models might fail at different examples and it might be useful to examine the reasons. In this section, we'll demonstrate <a id="_idIndexMarker585"/>the TensorFlow 2.0 GradientTape functionality: it allows <a id="_idIndexMarker586"/>us to record operations on a set of variables we want to perform automatic differentiation on. To explain the model's output on a given input, we can:</p>
+    <ul>
+      <li class="bullet">One-hot encode the input – unlike integer tokens (typically used in this context), a one-hot-encoding representation is differentiable</li>
+      <li class="bullet">Instantiate GradientTape and watch our input variable</li>
+      <li class="bullet">Compute a forward pass through the model</li>
+      <li class="bullet">Get the gradients of the output of interest (for example, a specific class logit) with respect to the <em class="italic">watched</em> input</li>
+      <li class="bullet">Use the normalized gradients as explanations</li>
+    </ul>
+    <p class="normal">The code in this section is adapted from the results published by Fast Forward Labs: <a href="https://experiments.fastforwardlabs.com/"><span class="url">https://experiments.fastforwardlabs.com/</span></a>.</p>
+    <h2 id="_idParaDest-289" class="title">How do we go about it?</h2>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> os
+<span class="hljs-keyword">import</span> zipfile
+<span class="hljs-keyword">import</span> shutil
+<span class="hljs-keyword">import</span> urllib.request
+<span class="hljs-keyword">import</span> logging
+<span class="hljs-keyword">import</span> lzma
+<span class="hljs-keyword">import</span> json
+<span class="hljs-keyword">import</span> matplotlib.pyplot <span class="hljs-keyword">as</span> plt
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> pandas <span class="hljs-keyword">as</span> pd
+<span class="hljs-keyword">import</span> time
+<span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+<span class="hljs-keyword">from</span> transformers <span class="hljs-keyword">import</span> AutoTokenizer, TFAutoModelForQuestionAnswering, TFBertForMaskedLM, TFBertForQuestionAnswering
+</code></pre>
+    <p class="normal">As usual, we <a id="_idIndexMarker587"/>need some boilerplate: begin <a id="_idIndexMarker588"/>with a function for fetching pretrained QA models.</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">get_pretrained_squad_model</span><span class="hljs-function">(</span><span class="hljs-params">model_name</span><span class="hljs-function">):</span>
+    
+    model, tokenizer = <span class="hljs-literal">None</span>, <span class="hljs-literal">None</span>
+    
+    <span class="hljs-keyword">if</span> model_name == <span class="hljs-string">"distilbertsquad1"</span>:        
+        tokenizer = AutoTokenizer.from_pretrained(<span class="hljs-string">"distilbert-base-cased-distilled-squad"</span>,use_fast=<span class="hljs-literal">True</span>)
+        model = TFBertForQuestionAnswering.from_pretrained(<span class="hljs-string">"distilbert-base-cased-distilled-squad"</span>, from_pt=<span class="hljs-literal">True</span>)
+    
+    <span class="hljs-keyword">elif</span> model_name == <span class="hljs-string">"distilbertsquad2"</span>: 
+        tokenizer = AutoTokenizer.from_pretrained(<span class="hljs-string">"twmkn9/distilbert-base-uncased-squad2"</span>,use_fast=<span class="hljs-literal">True</span>)
+        model = TFAutoModelForQuestionAnswering.from_pretrained(<span class="hljs-string">"twmkn9/distilbert-base-uncased-squad2"</span>, from_pt=<span class="hljs-literal">True</span>)
+    
+    <span class="hljs-keyword">elif</span> model_name == <span class="hljs-string">"bertsquad2"</span>: 
+        tokenizer = AutoTokenizer.from_pretrained(<span class="hljs-string">"deepset/bert-base-cased-squad2"</span>,use_fast=<span class="hljs-literal">True</span>)
+        model = TFBertForQuestionAnswering.from_pretrained(<span class="hljs-string">"deepset/bert-base-cased-squad2"</span>, from_pt=<span class="hljs-literal">True</span>)
+    
+    <span class="hljs-keyword">elif</span> model_name == <span class="hljs-string">"bertlargesquad2"</span>: 
+        tokenizer = AutoTokenizer.from_pretrained(<span class="hljs-string">"bert-base-uncased"</span>,use_fast=<span class="hljs-literal">True</span>)
+        model = TFBertForQuestionAnswering.from_pretrained(<span class="hljs-string">"deepset/bert-large-uncased-whole-word-masking-squad2"</span>, from_pt=<span class="hljs-literal">True</span>)
+    
+    <span class="hljs-keyword">elif</span> model_name == <span class="hljs-string">"albertbasesquad2"</span>: 
+        tokenizer = AutoTokenizer.from_pretrained(<span class="hljs-string">"twmkn9/albert-base-v2-squad2"</span>,use_fast=<span class="hljs-literal">True</span>)
+        model = TFBertForQuestionAnswering.from_pretrained(<span class="hljs-string">"twmkn9/albert-base-v2-squad2"</span>, from_pt=<span class="hljs-literal">True</span>)
+    
+    <span class="hljs-keyword">elif</span> model_name == <span class="hljs-string">"distilrobertasquad2"</span>: 
+        tokenizer = AutoTokenizer.from_pretrained(<span class="hljs-string">"twmkn9/distilroberta-base-squad2"</span>,use_fast=<span class="hljs-literal">True</span>)
+        model = TFBertForQuestionAnswering.from_pretrained(<span class="hljs-string">"twmkn9/</span>
+<span class="hljs-string">distilroberta-base-squad2"</span>, from_pt=<span class="hljs-literal">True</span>)
+    
+    <span class="hljs-keyword">elif</span> model_name == <span class="hljs-string">"robertasquad2"</span>: 
+        tokenizer = AutoTokenizer.from_pretrained(<span class="hljs-string">"deepset/roberta-base-squad2"</span>,use_fast=<span class="hljs-literal">True</span>)
+        model = TFAutoModelForQuestionAnswering.from_pretrained(<span class="hljs-string">"deepset/roberta-base-squad2"</span>, from_pt=<span class="hljs-literal">True</span>)
+    
+    <span class="hljs-keyword">elif</span> model_name == <span class="hljs-string">"bertlm"</span>:
+        
+        tokenizer = AutoTokenizer.from_pretrained(<span class="hljs-string">"bert-base-uncased"</span>,                                                  use_fast=<span class="hljs-literal">True</span>)
+        model = TFBertForMaskedLM.from_pretrained(<span class="hljs-string">"bert-base-uncased"</span>,                                                   from_pt=<span class="hljs-literal">True</span>)
+    <span class="hljs-keyword">return</span> model, tokenizer
+</code></pre>
+    <p class="normal">Identify the span of the answer.</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">get_answer_span</span><span class="hljs-function">(</span><span class="hljs-params">question, context, model, tokenizer</span><span class="hljs-function">):</span> 
+    inputs = tokenizer.encode_plus(question, context, return_tensors=<span class="hljs-string">"tf"</span>, add_special_tokens=<span class="hljs-literal">True</span>, max_length=<span class="hljs-number">512</span>) 
+    answer_start_scores, answer_end_scores = model(inputs)  
+    answer_start = tf.argmax(answer_start_scores, axis=<span class="hljs-number">1</span>).numpy()[<span class="hljs-number">0</span>] 
+    answer_end = (tf.argmax(answer_end_scores, axis=<span class="hljs-number">1</span>) + <span class="hljs-number">1</span>).numpy()[<span class="hljs-number">0</span>]  
+    print(tokenizer.convert_tokens_to_string(inputs[<span class="hljs-string">"input_ids"</span>][<span class="hljs-number">0</span>][answer_start:answer_end]))
+    <span class="hljs-keyword">return</span> answer_start, answer_end
+</code></pre>
+    <p class="normal">We <a id="_idIndexMarker589"/>need some functions for <a id="_idIndexMarker590"/>data preparation.</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">clean_tokens</span><span class="hljs-function">(</span><span class="hljs-params">gradients, tokens, token_types</span><span class="hljs-function">):</span>
+  
+    <span class="hljs-string">"""</span>
+<span class="hljs-string">      Clean the tokens and gradients gradients</span>
+<span class="hljs-string">      Remove "[CLS]","[CLR]", "[SEP]" tokens</span>
+<span class="hljs-string">      Reduce (mean) gradients values for tokens that are split ##</span>
+<span class="hljs-string">    """</span>
+    
+    token_holder = []
+    token_type_holder = []    
+    gradient_holder = []     
+    i = <span class="hljs-number">0</span>
+    
+    <span class="hljs-keyword">while</span> i &lt; len(tokens):
+        <span class="hljs-keyword">if</span> (tokens[i] <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> [<span class="hljs-string">"[CLS]"</span>,<span class="hljs-string">"[CLR]"</span>, <span class="hljs-string">"[SEP]"</span>]):
+            token = tokens[i]              
+            conn = gradients[i]               
+            token_type = token_types[i]
+            
+            <span class="hljs-keyword">if</span> i &lt; len(tokens)<span class="hljs-number">-1</span> :
+                <span class="hljs-keyword">if</span> tokens[i+<span class="hljs-number">1</span>][<span class="hljs-number">0</span>:<span class="hljs-number">2</span>] == <span class="hljs-string">"##"</span>:
+                    token = tokens[i]
+                    conn = gradients[i]  
+                    j = <span class="hljs-number">1</span>
+                    <span class="hljs-keyword">while</span> i &lt; len(tokens)<span class="hljs-number">-1</span> <span class="hljs-keyword">and</span> tokens[i+<span class="hljs-number">1</span>][<span class="hljs-number">0</span>:<span class="hljs-number">2</span>] == <span class="hljs-string">"##"</span>:                        
+                        i +=<span class="hljs-number">1</span> 
+                        token += tokens[i][<span class="hljs-number">2</span>:]
+                        conn += gradients[i]   
+                        j+=<span class="hljs-number">1</span>
+                    conn = conn /j 
+            token_holder.append(token)
+            token_type_holder.append(token_type)
+            gradient_holder.append(conn)
+    
+        i +=<span class="hljs-number">1</span>
+  
+    <span class="hljs-keyword">return</span>  gradient_holder,token_holder, token_type_holder
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">get_best_start_end_position</span><span class="hljs-function">(</span><span class="hljs-params">start_scores, end_scores</span><span class="hljs-function">):</span>
+    
+    answer_start = tf.argmax(start_scores, axis=<span class="hljs-number">1</span>).numpy()[<span class="hljs-number">0</span>] 
+    answer_end = (tf.argmax(end_scores, axis=<span class="hljs-number">1</span>) + <span class="hljs-number">1</span>).numpy()[<span class="hljs-number">0</span>] 
+    <span class="hljs-keyword">return</span> answer_start, answer_end
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">get_correct_span_mask</span><span class="hljs-function">(</span><span class="hljs-params">correct_index, token_size</span><span class="hljs-function">):</span>
+    
+    span_mask = np.zeros((<span class="hljs-number">1</span>, token_size))
+    span_mask[<span class="hljs-number">0</span>, correct_index] = <span class="hljs-number">1</span>
+    span_mask = tf.constant(span_mask, dtype=<span class="hljs-string">'float32'</span>)
+    
+    <span class="hljs-keyword">return</span> span_mask 
+ 
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">get_embedding_matrix</span><span class="hljs-function">(</span><span class="hljs-params">model</span><span class="hljs-function">):</span>
+    
+    <span class="hljs-keyword">if</span> <span class="hljs-string">"DistilBert"</span> <span class="hljs-keyword">in</span> type(model).__name__:
+        <span class="hljs-keyword">return</span> model.distilbert.embeddings.word_embeddings
+    <span class="hljs-keyword">else</span>:
+        <span class="hljs-keyword">return</span> model.bert.embeddings.word_embeddings
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">get_gradient</span><span class="hljs-function">(</span><span class="hljs-params">question, context, model, tokenizer</span><span class="hljs-function">):</span> 
+    
+    <span class="hljs-string">"""Return gradient of input (question) wrt to model output span prediction </span>
+<span class="hljs-string">      Args:</span>
+<span class="hljs-string">          question (str): text of input question</span>
+<span class="hljs-string">          context (str): text of question context/passage</span>
+<span class="hljs-string">          model (QA model): Hugging Face BERT model for QA transformers.modeling_tf_distilbert.TFDistilBertForQuestionAnswering, transformers.modeling_tf_bert.TFBertForQuestionAnswering</span>
+<span class="hljs-string">          tokenizer (tokenizer): transformers.tokenization_bert.BertTokenizerFast </span>
+<span class="hljs-string">      Returns:</span>
+<span class="hljs-string">            (tuple): (gradients, token_words, token_types, answer_text)</span>
+<span class="hljs-string">    """</span>
+    embedding_matrix = get_embedding_matrix(model)  
+    encoded_tokens =  tokenizer.encode_plus(question, context, add_special_tokens=<span class="hljs-literal">True</span>, return_token_type_ids=<span class="hljs-literal">True</span>, return_tensors=<span class="hljs-string">"tf"</span>)
+    token_ids = list(encoded_tokens[<span class="hljs-string">"input_ids"</span>].numpy()[<span class="hljs-number">0</span>])
+    vocab_size = embedding_matrix.get_shape()[<span class="hljs-number">0</span>]
+    <span class="hljs-comment"># convert token ids to one hot. We can't differentiate wrt to int token ids hence the need for one hot representation</span>
+    token_ids_tensor = tf.constant([token_ids], dtype=<span class="hljs-string">'int32'</span>)
+    token_ids_tensor_one_hot = tf.one_hot(token_ids_tensor, vocab_size) 
+  
+ 
+    <span class="hljs-keyword">with</span> tf.GradientTape(watch_accessed_variables=<span class="hljs-literal">False</span>) <span class="hljs-keyword">as</span> tape:
+        
+        <span class="hljs-comment"># (i) watch input variable</span>
+        tape.watch(token_ids_tensor_one_hot)
+ 
+        <span class="hljs-comment"># multiply input model embedding matrix; allows us do backprop wrt one hot input </span>
+        inputs_embeds = tf.matmul(token_ids_tensor_one_hot,embedding_matrix)  
+        <span class="hljs-comment"># (ii) get prediction</span>
+        start_scores,end_scores = model({<span class="hljs-string">"inputs_embeds"</span>: inputs_embeds, <span class="hljs-string">"token_type_ids"</span>: encoded_tokens[<span class="hljs-string">"token_type_ids"</span>], <span class="hljs-string">"attention_mask"</span>: encoded_tokens[<span class="hljs-string">"attention_mask"</span>] })
+        answer_start, answer_end = get_best_start_end_position(start_scores, end_scores)
+        start_output_mask = get_correct_span_mask(answer_start, len(token_ids))
+        end_output_mask = get_correct_span_mask(answer_end, len(token_ids))
+        <span class="hljs-comment"># zero out all predictions outside of the correct span positions; we want to get gradients wrt to just these positions</span>
+        predict_correct_start_token = tf.reduce_sum(start_scores *                                                     start_output_mask)
+        predict_correct_end_token = tf.reduce_sum(end_scores *                                                   end_output_mask) 
+        <span class="hljs-comment"># (iii) get gradient of input with respect to both start and end output</span>
+        gradient_non_normalized = tf.norm(
+            tape.gradient([predict_correct_start_token, predict_correct_end_token], token_ids_tensor_one_hot),axis=<span class="hljs-number">2</span>)
+        <span class="hljs-comment"># (iv) normalize gradient scores and return them as "explanations"</span>
+        gradient_tensor = (
+            gradient_non_normalized /
+            tf.reduce_max(gradient_non_normalized)
+        )
+        gradients = gradient_tensor[<span class="hljs-number">0</span>].numpy().tolist()
+        token_words = tokenizer.convert_ids_to_tokens(token_ids) 
+        token_types = list(encoded_tokens[<span class="hljs-string">"token_type_ids"</span>].numpy()[<span class="hljs-number">0</span>])
+        answer_text = tokenizer.decode(token_ids[answer_start:answer_end])
+        <span class="hljs-keyword">return</span>  gradients,  token_words, token_types,answer_text
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">explain_model</span><span class="hljs-function">(</span><span class="hljs-params">question, context, model, tokenizer, explain_method = </span><span class="hljs-string">"gradient"</span><span class="hljs-function">):</span>    
+    <span class="hljs-keyword">if</span> explain_method == <span class="hljs-string">"gradient"</span>:        
+        <span class="hljs-keyword">return</span> get_gradient(question, context, model, tokenizer)
+</code></pre>
+    <p class="normal">And finally plotting:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">plot_gradients</span><span class="hljs-function">(</span><span class="hljs-params">tokens, token_types, gradients, title</span><span class="hljs-function">):</span> 
+    
+    <span class="hljs-string">""" Plot  explanations</span>
+<span class="hljs-string">    """</span>
+    plt.figure(figsize=(<span class="hljs-number">21</span>,<span class="hljs-number">3</span>)) 
+    xvals = [ x + str(i) <span class="hljs-keyword">for</span> i,x <span class="hljs-keyword">in</span> enumerate(tokens)]
+    colors =  [ (<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>, c) <span class="hljs-keyword">for</span> c,t <span class="hljs-keyword">in</span> zip(gradients, token_types) ]
+    edgecolors = [ <span class="hljs-string">"black"</span> <span class="hljs-keyword">if</span> t==<span class="hljs-number">0</span> <span class="hljs-keyword">else</span> (<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>, c)  <span class="hljs-keyword">for</span> c,t <span class="hljs-keyword">in</span> zip(gradients, token_types) ]
+    <span class="hljs-comment"># colors =  [  ("r" if t==0 else "b")  for c,t in zip(gradients, token_types) ]    </span>
+    plt.tick_params(axis=<span class="hljs-string">'both'</span>, which=<span class="hljs-string">'minor'</span>, labelsize=<span class="hljs-number">29</span>)    
+    p = plt.bar(xvals, gradients, color=colors, linewidth=<span class="hljs-number">1</span>, edgecolor=edgecolors)    
+    plt.title(title)     
+    p=plt.xticks(ticks=[i <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(len(tokens))], labels=tokens, fontsize=<span class="hljs-number">12</span>,rotation=<span class="hljs-number">90</span>)
+</code></pre>
+    <p class="normal">We'll <a id="_idIndexMarker591"/>compare the performance of a <a id="_idIndexMarker592"/>small set of models across a range of questions. </p>
+    <pre class="programlisting code"><code class="hljs-code">questions = [
+    { "question": "what is the goal of the fourth amendment?  ", "context": "The Fourth Amendment of the U.S. Constitution provides that '[t]he right of the people to be secure in their persons, houses, papers, and effects, against unreasonable searches and seizures, shall not be violated, and no Warrants shall issue, but upon probable cause, supported by Oath or affirmation, and particularly describing the place to be searched, and the persons or things to be seized.'The ultimate goal of this provision is to protect people's right to privacy and freedom from unreasonable intrusions by the government. However, the Fourth Amendment does not guarantee protection from all searches and seizures, but only those done by the government and deemed unreasonable under the law." },
+    { "question": ""what is the taj mahal made of?", "context": "The Taj Mahal is an ivory-white marble mausoleum on the southern bank of the river Yamuna in the Indian city of Agra. It was commissioned in 1632 by the Mughal emperor Shah Jahan (reigned from 1628 to 1658) to house the tomb of his favourite wife, Mumtaz Mahal; it also houses the tomb of Shah Jahan himself. The tomb is the centrepiece of a 17-hectare (42-acre) complex, which includes a mosque and a guest house, and is set in formal gardens bounded on three sides by a crenellated wall. Construction of the mausoleum was essentially completed in 1643, but work continued on other phases of the project for another 10 years. The Taj Mahal complex is believed to have been completed in its entirety in 1653 at a cost estimated at the time to be around 32 million rupees, which in 2020 would be approximately 70 billion rupees (about U.S. $916 million). The construction project employed some 20,000 artisans under the guidance of a board of architects led by the court architect to the emperor. The Taj Mahal was designated as a UNESCO World Heritage Site in 1983 for being the jewel of Muslim art in India and one of the universally admired masterpieces of the world's heritage. It is regarded by many as the best example of Mughal architecture and a symbol of India's rich history. The Taj Mahal attracts 7–8 million visitors a year and in 2007, it was declared a winner of the New 7 Wonders of the World (2000–2007) initiative." },
+    { "question": "Who ruled macedonia ", "context": "Macedonia was an ancient kingdom on the periphery of Archaic and Classical Greece, and later the dominant state of Hellenistic Greece. The kingdom was founded and initially ruled by the Argead dynasty, followed by the Antipatrid and Antigonid dynasties. Home to the ancient Macedonians, it originated on the northeastern part of the Greek peninsula. Before the 4th century BC, it was a small kingdom outside of the area dominated by the city-states of Athens, Sparta and Thebes, and briefly subordinate to Achaemenid Persia" },
+    { "question": "what are the symptoms of COVID-19", "context": "COVID-19 is the infectious disease caused by the most recently discovered coronavirus. This new virus and disease were unknown before the outbreak began in Wuhan, China, in December 2019. The most common symptoms of COVID-19 are fever, tiredness, and dry cough. Some patients may have aches and pains, nasal congestion, runny nose, sore throat or diarrhea. These symptoms are usually mild and begin gradually. Some people become infected but don't develop any symptoms and don't feel unwell. Most people (about 80%) recover from the disease without needing special treatment. Around 1 out of every 6 people who gets COVID-19 becomes seriously ill and develops difficulty breathing. Older people, and those with underlying medical problems like high blood pressure, heart problems or diabetes, are more likely to develop serious illness. People with fever, cough and difficulty breathing should seek medical attention." },
+]
+model_names = [<span class="hljs-string">"distilbertsquad1"</span>,<span class="hljs-string">"distilbertsquad2"</span>,<span class="hljs-string">"bertsquad2"</span>,<span class="hljs-string">"bertlargesquad2"</span>]
+result_holder = []
+<span class="hljs-keyword">for</span> model_name <span class="hljs-keyword">in</span> model_names:
+    bqa_model, bqa_tokenizer = get_pretrained_squad_model(model_name)
+    
+    <span class="hljs-keyword">for</span> row <span class="hljs-keyword">in</span> questions:
+        
+        start_time = time.time() 
+        question, context = row[<span class="hljs-string">"question"</span>], row[<span class="hljs-string">"context"</span>] 
+        gradients, tokens, token_types, answer  = explain_model(question, context, bqa_model, bqa_tokenizer) 
+        elapsed_time = time.time() - start_time
+        result_holder.append({<span class="hljs-string">"question"</span>: question,  <span class="hljs-string">"context"</span>:context, <span class="hljs-string">"answer"</span>: answer, <span class="hljs-string">"model"</span>: model_name, <span class="hljs-string">"runtime"</span>: elapsed_time})
+result_df = pd.DataFrame(result_holder)
+</code></pre>
+    <p class="normal">Format <a id="_idIndexMarker593"/>the results for easier <a id="_idIndexMarker594"/>inspection.</p>
+    <pre class="programlisting code"><code class="hljs-code">question_df = result_df[result_df[<span class="hljs-string">"model"</span>] == <span class="hljs-string">"bertsquad2"</span>].reset_index()[[<span class="hljs-string">"question"</span>]]
+df_list = [question_df]
+<span class="hljs-keyword">for</span> model_name <span class="hljs-keyword">in</span> model_names:
+    
+    sub_df = result_df[result_df[<span class="hljs-string">"model"</span>] == model_name].reset_index()[[<span class="hljs-string">"answer"</span>, <span class="hljs-string">"runtime"</span>]]
+    sub_df.columns = [ (col_name + <span class="hljs-string">"_"</span> + model_name)  <span class="hljs-keyword">for</span> col_name <span class="hljs-keyword">in</span>                                                             sub_df.columns]
+    df_list.append(sub_df)
+    
+jdf = pd.concat(df_list, axis=<span class="hljs-number">1</span>)
+answer_cols = [<span class="hljs-string">"question"</span>] + [col <span class="hljs-keyword">for</span> col <span class="hljs-keyword">in</span> jdf.columns <span class="hljs-keyword">if</span> <span class="hljs-string">'answer'</span> <span class="hljs-keyword">in</span> col]
+jdf[answer_cols]
+</code></pre>
+    <figure class="mediaobject"><img src="../Images/B16254_10_2.png" alt="Obraz zawierający stół  Opis wygenerowany automatycznie"/></figure>
+    <p class="packt_figref">Figure 10.2: Sample records demonstrating the answers generated by different models</p>
+    <p class="normal">As we can <a id="_idIndexMarker595"/>observe from the results <a id="_idIndexMarker596"/>data, even on this sample dataset there are marked differences between the models:</p>
+    <ul>
+      <li class="bullet">DistilBERT (SQUAD1) can answer 5/8 questions, 2 correct</li>
+      <li class="bullet">DistilBERT (SQUAD2) can answer 7/8 questions, 7 correct </li>
+      <li class="bullet">BERT base can answer 5/8 questions, 5 correct </li>
+      <li class="bullet">BERT large can answer 7/8 questions, 7 correct</li>
+    </ul>
+    <pre class="programlisting code"><code class="hljs-code">runtime_cols = [col <span class="hljs-keyword">for</span> col <span class="hljs-keyword">in</span> jdf.columns <span class="hljs-keyword">if</span> <span class="hljs-string">'runtime'</span> <span class="hljs-keyword">in</span> col] 
+mean_runtime = jdf[runtime_cols].mean()
+print(<span class="hljs-string">"Mean runtime per model across 4 question/context pairs"</span>)
+print(mean_runtime)
+Mean runtime per model across 4 question/context pairs
+runtime_distilbertsquad1    0.202405
+runtime_distilbertsquad2    0.100577
+runtime_bertsquad2          0.266057
+runtime_bertlargesquad2     0.386156
+dtype: float64
+</code></pre>
+    <p class="normal">Based on the results above, we can gain some insight into the workings of BERT-based QA models:</p>
+    <ul>
+      <li class="bullet">In a situation where a BERT model fails to produce an answer (for example, it only gives CLS), almost none of the input tokens have high normalized gradient scores. This suggests room for improvement in terms of the metrics used – going beyond explanation scores and potentially combining them with model confidence scores to gain a more complete overview of the situation.</li>
+      <li class="bullet">Analyzing the performance difference between the base and large variants of the BERT <a id="_idIndexMarker597"/>model suggests that the <a id="_idIndexMarker598"/>trade-off (better performance versus longer inference time) should be investigated further. </li>
+      <li class="bullet">Taking into account the potential issues with our selection of the evaluation dataset, a possible conclusion is that DistilBERT (trained on SQuAD2) performs better than base BERT – which highlights issues around using SQuAD1 as a benchmark.</li>
+    </ul>
+  </div>
+</body></html>

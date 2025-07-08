@@ -1,0 +1,816 @@
+<html><head></head><body>
+  <div id="_idContainer115">
+    <h1 class="chapterNumber">8</h1>
+    <h1 id="_idParaDest-238" class="chapterTitle">Convolutional Neural Networks</h1>
+    <p class="normal"><strong class="keyword">Convolutional Neural Networks</strong> (<strong class="keyword">CNNs</strong>) are responsible for the major breakthroughs in image recognition made in the past few years. In this chapter, we will cover the following topics:</p>
+    <ul>
+      <li class="bullet">Implementing a simple CNN</li>
+      <li class="bullet">Implementing an advanced CNN</li>
+      <li class="bullet">Retraining existing CNN models</li>
+      <li class="bullet">Applying StyleNet and the neural style project</li>
+      <li class="bullet">Implementing DeepDream</li>
+    </ul>
+    <div class="packt_tip">
+      <p class="Tip--PACKT-">As a reminder, the reader can find all of the code for this chapter available online here: <a href="https://github.com/PacktPublishing/Machine-Learning-Using-TensorFlow-Cookbook"><span class="url">https://github.com/PacktPublishing/Machine-Learning-Using-TensorFlow-Cookbook</span></a>, as well as the Packt repository: <a href="https://github.com/PacktPublishing/Machine-Learning-Using-TensorFlow-Cookbook"><span class="url">https://github.com/PacktPublishing/Machine-Learning-Using-TensorFlow-Cookbook</span></a>.</p>
+    </div>
+    <h1 id="_idParaDest-239" class="title">Introduction</h1>
+    <p class="normal">In the previous chapters, we discussed <strong class="keyword">Dense Neural Networks</strong> (<strong class="keyword">DNNs</strong>) in which each neuron of a layer is connected to each neuron of the adjacent layer. In this chapter, we will focus on a special type of neural network that performs well for image classification: CNNs.</p>
+    <p class="normal">A CNN is<a id="_idIndexMarker431"/> a combination of two components: a feature extractor module followed by a trainable classifier. The first component includes a stack of convolution, activation, and pooling layers. A DNN does the classification. Each neuron in a layer is connected to those in the next layer.</p>
+    <p class="normal">In mathematics, a convolution<a id="_idIndexMarker432"/> is a function that is applied over the output of another function. In our case, we will consider using a matrix multiplication (filter) across an image. For our purposes, we find an image to be a matrix of numbers. These numbers may represent pixels or even image attributes. The convolution operation we will apply to these matrices involves moving a filter of fixed width across the image and using element-wise multiplication to get our result.</p>
+    <p class="normal">See the following diagram for a conceptual understanding of how image convolution can work:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_08_01.png" alt=""/></figure>
+    <p class="packt_figref">Figure 8.1: Application of a 2x2 convolutional filter across a 5x5 input matrix producing a new 4x4 feature layer</p>
+    <p class="normal">In <em class="italic">Figure 8.1</em>, we see how a convolutional filter applied across an image (length by width by depth) operates to create a new feature layer. Here, we have a <em class="italic">2x2</em> convolutional filter, working in the valid spaces of the <em class="italic">5x5</em> input with a stride of 1 in both directions. The result is a <em class="italic">4x4</em> matrix. This new feature layer highlights the areas in the input image that activate the filter the most.</p>
+    <p class="normal">CNNs also have other operations that fulfill more requirements, such as introducing non-linearities (ReLU), or aggregating parameters (max pooling, average pooling), and other similar operations. The preceding diagram is an example of applying a convolution operation on a <em class="italic">5x5 </em>array with the convolutional filter being a <em class="italic">2x2</em> matrix. The step size is 1 and we only consider valid placements. The trainable variables in this operation will be the <em class="italic">2x2</em> filter weights. </p>
+    <p class="normal">After a convolution, it is common to follow up with an aggregation operation, such as max pooling. The pooling operation<a id="_idIndexMarker433"/> goal is to reduce the number of parameters, computation loads, and memory usage. The maximum pooling preserves only the strongest features. </p>
+    <p class="normal">The following diagram provides an example of how max pooling operates. In this example, it has a <em class="italic">2x2</em> region with a stride of 2 in both directions:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_08_02.png" alt=""/></figure>
+    <p class="packt_figref">Figure 8.2: Application of a max pooling operation on a 4x4 input image</p>
+    <p class="normal"><em class="italic">Figure 8.2</em> shows how a max pooling operation<a id="_idIndexMarker434"/> could operate. Here, we have a <em class="italic">2x2</em> window, running on the valid spaces of a <em class="italic">4x4</em> input with a stride of 2 in both directions. The result is a <em class="italic">2x2</em> matrix, which is simply the maximum value of each region.</p>
+    <p class="normal">Although we will start by creating our own CNN for image recognition, I recommend using existing architectures, as we will do in the remainder of the chapter.</p>
+    <p class="normal">It is common to take a pre-trained network and retrain it with a new dataset and a new fully connected layer at the end. This method is beneficial because we don't have to train a model from scratch; we just have to fine-tune a pre-trained model for our novel task. We will illustrate it in the <em class="italic">Retraining existing CNN models</em> recipe later in the chapter, where we will retrain an existing architecture to improve on our CIFAR-10 predictions.</p>
+    <p class="normal">Without any further delay, let's start immediately with how to implement a simple CNN.</p>
+    <h1 id="_idParaDest-240" class="title">Implementing a simple CNN</h1>
+    <p class="normal">In this recipe, we will <a id="_idIndexMarker435"/>develop a CNN based on the LeNet-5 architecture, which was first introduced in 1998 by Yann LeCun et al. for handwritten and machine-printed character recognition. </p>
+    <figure class="mediaobject"><img src="../Images/B16254_08_03.png" alt="LeNet-5 Original Image from Paper"/></figure>
+    <p class="packt_figref">Figure 8.3: LeNet-5 architecture – Original image published in [LeCun et al., 1998]</p>
+    <p class="normal">This architecture consists of two sets of CNNs composed of convolution-ReLU-max pooling operations used for feature extraction, followed by a flattening layer and two fully connected layers to classify the images.</p>
+    <p class="normal">Our goal will be to improve <a id="_idIndexMarker436"/>upon our accuracy in predicting MNIST digits.</p>
+    <h2 id="_idParaDest-241" class="title">Getting ready</h2>
+    <p class="normal">To access the MNIST data, Keras provides a package (<code class="Code-In-Text--PACKT-">tf.keras.datasets</code>) that has excellent dataset-loading functionalities. (Note that TensorFlow also provides its own collection of ready-to-use datasets with the TF Datasets API.) After loading the data, we will set up our model variables, create the model, train the model in batches, and then visualize loss, accuracy, and some sample digits.</p>
+    <h2 id="_idParaDest-242" class="title">How to do it...</h2>
+    <p class="normal"> Perform the following steps:</p>
+    <ol>
+      <li class="numbered">First, we'll load the necessary libraries and start a graph session:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> matplotlib.pyplot <span class="hljs-keyword">as</span> plt
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf 
+</code></pre>
+      </li>
+      <li class="numbered">Next, we will load the data and reshape the images in a four-dimensional matrix:
+        <pre class="programlisting code"><code class="hljs-code">(x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data() 
+<span class="hljs-comment"># Reshape</span>
+x_train = x_train.reshape(<span class="hljs-number">-1</span>, <span class="hljs-number">28</span>, <span class="hljs-number">28</span>, <span class="hljs-number">1</span>)
+x_test = x_test.reshape(<span class="hljs-number">-1</span>, <span class="hljs-number">28</span>, <span class="hljs-number">28</span>, <span class="hljs-number">1</span>)
+<span class="hljs-comment">#Padding the images by 2 pixels</span>
+x_train = np.pad(x_train, ((<span class="hljs-number">0</span>,<span class="hljs-number">0</span>),(<span class="hljs-number">2</span>,<span class="hljs-number">2</span>),(<span class="hljs-number">2</span>,<span class="hljs-number">2</span>),(<span class="hljs-number">0</span>,<span class="hljs-number">0</span>)), <span class="hljs-string">'constant'</span>)
+x_test = np.pad(x_test, ((<span class="hljs-number">0</span>,<span class="hljs-number">0</span>),(<span class="hljs-number">2</span>,<span class="hljs-number">2</span>),(<span class="hljs-number">2</span>,<span class="hljs-number">2</span>),(<span class="hljs-number">0</span>,<span class="hljs-number">0</span>)), <span class="hljs-string">'constant'</span>)
+ 
+</code></pre>
+        <div class="note">
+          <p class="Information-Box--PACKT-">Note that the MNIST dataset downloaded here includes training and test datasets. These datasets are composed of the grayscale images (integer arrays with shape (num_sample, 28,28)) and the labels (integers in the range 0-9). We pad the images by 2 pixels since in the LeNet-5 paper input images were <em class="italic">32x32</em>.</p>
+        </div>
+      </li>
+      <li class="numbered">Now, we will set the <a id="_idIndexMarker437"/>model parameters. Remember that the depth of the image (number of channels) is 1 because these images are grayscale. We'll also set up a seed to have reproducible results:
+        <pre class="programlisting code"><code class="hljs-code">image_width = x_train[<span class="hljs-number">0</span>].shape[<span class="hljs-number">0</span>]
+image_height = x_train[<span class="hljs-number">0</span>].shape[<span class="hljs-number">1</span>]
+num_channels = <span class="hljs-number">1</span> <span class="hljs-comment"># grayscale = 1 channel</span>
+seed = <span class="hljs-number">98</span>
+np.random.seed(seed)
+tf.random.set_seed(seed)
+</code></pre>
+      </li>
+      <li class="numbered">We'll declare our training data variables and our test data variables. We will have different batch sizes for training and evaluation. You may change these, depending on the physical memory that is available for training and evaluating:
+        <pre class="programlisting code"><code class="hljs-code">batch_size = <span class="hljs-number">100</span>
+evaluation_size = <span class="hljs-number">500</span>
+epochs = <span class="hljs-number">300</span>
+eval_every = <span class="hljs-number">5</span>
+</code></pre>
+      </li>
+      <li class="numbered">We'll normalize our images to change the values of all pixels to a common scale:
+        <pre class="programlisting code"><code class="hljs-code">x_train = x_train / <span class="hljs-number">255</span>
+x_test = x_test/ <span class="hljs-number">255</span>
+</code></pre>
+      </li>
+      <li class="numbered">Now we'll declare our model. We will have the feature extractor module composed of two convolutional/ReLU/max pooling layers followed by the classifier with fully connected layers. Also, to get the classifier to work, we flatten the output of the feature extractor module so we can use it in the classifier. Note that we use a softmax activation function at the last layer of the classifier. Softmax turns <a id="_idIndexMarker438"/>numeric output (logits) into probabilities that sum to one:
+        <pre class="programlisting code"><code class="hljs-code">input_data = tf.keras.Input(dtype=tf.float32, shape=(image_width,image_height, num_channels), name=<span class="hljs-string">"INPUT"</span>)
+<span class="hljs-comment"># First Conv-ReLU-MaxPool Layer</span>
+conv1 = tf.keras.layers.Conv2D(filters=<span class="hljs-number">6</span>,
+                               kernel_size=<span class="hljs-number">5</span>,
+                               padding=<span class="hljs-string">'VALID'</span>,
+                               activation=<span class="hljs-string">"relu"</span>,
+                               name=<span class="hljs-string">"C1"</span>)(input_data)
+max_pool1 = tf.keras.layers.MaxPool2D(pool_size=<span class="hljs-number">2</span>,
+                                      strides=<span class="hljs-number">2</span>, 
+                                      padding=<span class="hljs-string">'SAME'</span>,
+                                      name=<span class="hljs-string">"S1"</span>)(conv1)
+<span class="hljs-comment"># Second Conv-ReLU-MaxPool Layer</span>
+conv2 = tf.keras.layers.Conv2D(filters=<span class="hljs-number">16</span>,
+                               kernel_size=<span class="hljs-number">5</span>,
+                               padding=<span class="hljs-string">'VALID'</span>,
+                               strides=<span class="hljs-number">1</span>,
+                               activation=<span class="hljs-string">"relu"</span>,
+                               name=<span class="hljs-string">"C3"</span>)(max_pool1)
+max_pool2 = tf.keras.layers.MaxPool2D(pool_size=<span class="hljs-number">2</span>,
+                                      strides=<span class="hljs-number">2</span>, 
+                                      padding=<span class="hljs-string">'SAME'</span>,
+                                      name=<span class="hljs-string">"S4"</span>)(conv2)
+<span class="hljs-comment"># Flatten Layer</span>
+flatten = tf.keras.layers.Flatten(name=<span class="hljs-string">"FLATTEN"</span>)(max_pool2)
+<span class="hljs-comment"># First Fully Connected Layer</span>
+fully_connected1 = tf.keras.layers.Dense(units=<span class="hljs-number">120</span>,
+                                         activation=<span class="hljs-string">"relu"</span>,
+                                         name=<span class="hljs-string">"F5"</span>)(flatten)
+<span class="hljs-comment"># Second Fully Connected Layer</span>
+fully_connected2 = tf.keras.layers.Dense(units=<span class="hljs-number">84</span>,
+                                         activation=<span class="hljs-string">"relu"</span>,
+                                         name=<span class="hljs-string">"F6"</span>)(fully_connected1)
+<span class="hljs-comment"># Final Fully Connected Layer</span>
+final_model_output = tf.keras.layers.Dense(units=<span class="hljs-number">10</span>,
+                                           activation=<span class="hljs-string">"softmax"</span>,
+                                           name=<span class="hljs-string">"OUTPUT"</span>
+                                           )(fully_connected2)
+    
+model = tf.keras.Model(inputs= input_data, outputs=final_model_output)
+   
+</code></pre>
+      </li>
+      <li class="numbered">Next, we will compile <a id="_idIndexMarker439"/>the model using an Adam (Adaptive Moment Estimation) optimizer. Adam uses adaptive learning rates and momentum that allow us to get to local minima faster, and so converge faster. As our targets are integers and not in a one-hot-encoded format, we will use the sparse categorical cross-entropy loss function. Then we will also add an accuracy metric to determine how accurate the model is on each batch:
+        <pre class="programlisting code"><code class="hljs-code">model.compile(
+    optimizer=<span class="hljs-string">"adam"</span>, 
+    loss=<span class="hljs-string">"sparse_categorical_crossentropy"</span>,
+    metrics=[<span class="hljs-string">"accuracy"</span>] 
+</code></pre>
+      </li>
+      <li class="numbered">Next, we print a string summary of our network:
+        <pre class="programlisting code"><code class="hljs-code">model.summary()
+</code></pre>
+        <figure class="mediaobject"><img src="../Images/B16254_08_04.png" alt=""/></figure>
+        <p class="packt_figref"> Figure 8.4: The LeNet-5 architecture</p>
+        <p class="bullet-para">The LeNet-5 model has 7 layers and contains 61,706 trainable parameters. So, let's go to train the model.</p>
+      </li>
+      <li class="numbered">We can now start <a id="_idIndexMarker440"/>training our model. We loop through the data in randomly chosen batches. Every so often, we choose to evaluate the model on the train and test batches and record the accuracy and loss. We can see that, after 300 epochs, we quickly achieve 96-97% accuracy on the test data:
+        <pre class="programlisting code"><code class="hljs-code">train_loss = []
+train_acc = []
+test_acc = []
+<span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(epochs):
+    rand_index = np.random.choice(len(x_train), size=batch_size)
+    rand_x = x_train[rand_index]
+    rand_y = y_train[rand_index]
+    
+    history_train = model.train_on_batch(rand_x, rand_y)
+    
+    <span class="hljs-keyword">if</span> (i+<span class="hljs-number">1</span>) % eval_every == <span class="hljs-number">0</span>:
+        eval_index = np.random.choice(len(x_test), size=evaluation_size)
+        eval_x = x_test[eval_index]
+        eval_y = y_test[eval_index]
+        
+        history_eval = model.evaluate(eval_x,eval_y)
+        
+        <span class="hljs-comment"># Record and print results</span>
+        train_loss.append(history_train[<span class="hljs-number">0</span>])
+        train_acc.append(history_train[<span class="hljs-number">1</span>])
+        test_acc.append(history_eval[<span class="hljs-number">1</span>])
+        acc_and_loss = [(i+<span class="hljs-number">1</span>), history_train
+ [<span class="hljs-number">0</span>], history_train[<span class="hljs-number">1</span>], history_eval[<span class="hljs-number">1</span>]]
+        acc_and_loss = [np.round(x,<span class="hljs-number">2</span>) <span class="hljs-keyword">for</span> x <span class="hljs-keyword">in</span> acc_and_loss]
+        print(<span class="hljs-string">'Epoch # {}. Train Loss: {:.2f}. Train Acc (Test Acc): {:.2f} ({:.2f})'</span>.format(*acc_and_loss)) 
+</code></pre>
+      </li>
+      <li class="numbered">This results <a id="_idIndexMarker441"/>in the following output:
+        <pre class="programlisting code"><code class="hljs-code">Epoch # 5. Train Loss: 2.19. Train Acc (Test Acc): 0.23 (0.34)
+Epoch # 10. Train Loss: 2.01. Train Acc (Test Acc): 0.59 (0.58)
+Epoch # 15. Train Loss: 1.71. Train Acc (Test Acc): 0.74 (0.73)
+Epoch # 20. Train Loss: 1.32. Train Acc (Test Acc): 0.73 (0.77)
+ ...
+Epoch # 290. Train Loss: 0.18. Train Acc (Test Acc): 0.95 (0.94)
+Epoch # 295. Train Loss: 0.13. Train Acc (Test Acc): 0.96 (0.96)
+Epoch # 300. Train Loss: 0.12. Train Acc (Test Acc): 0.95 (0.97)
+</code></pre>
+      </li>
+      <li class="numbered">The following is the code to plot the loss and accuracy using <code class="Code-In-Text--PACKT-">Matplotlib</code>:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Matlotlib code to plot the loss and accuracy</span>
+eval_indices = range(<span class="hljs-number">0</span>, epochs, eval_every)
+<span class="hljs-comment"># Plot loss over time</span>
+plt.plot(eval_indices, train_loss, <span class="hljs-string">'k-'</span>)
+plt.title(<span class="hljs-string">'Loss per Epoch'</span>)
+plt.xlabel(<span class="hljs-string">'Epoch'</span>)
+plt.ylabel(<span class="hljs-string">'Loss'</span>)
+plt.show()
+<span class="hljs-comment"># Plot train and test accuracy</span>
+plt.plot(eval_indices, train_acc, <span class="hljs-string">'k-'</span>, label=<span class="hljs-string">'Train Set Accuracy'</span>)
+plt.plot(eval_indices, test_acc, <span class="hljs-string">'r--'</span>, label=<span class="hljs-string">'Test Set Accuracy'</span>)
+plt.title(<span class="hljs-string">'Train and Test Accuracy'</span>)
+plt.xlabel(<span class="hljs-string">'Epoch'</span>)
+plt.ylabel(<span class="hljs-string">'Accuracy'</span>)
+plt.legend(loc=<span class="hljs-string">'lower right'</span>)
+plt.show() 
+</code></pre>
+        <p class="bullet-para">We then get the following plots:</p>
+        <figure class="mediaobject"><img src="../Images/B16254_08_05.png" alt=""/></figure>
+        <p class="packt_figref">Figure 8.5: The left plot is the train and test set accuracy across our 300 training epochs. The right plot is the softmax loss value over 300 epochs.</p>
+      </li>
+      <li class="numbered">If we want to <a id="_idIndexMarker442"/>plot a sample of the latest batch results, here is the code to plot a sample consisting of six of the latest results:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Plot some samples and their predictions</span>
+actuals = y_test[<span class="hljs-number">30</span>:<span class="hljs-number">36</span>]
+preds = model.predict(x_test[<span class="hljs-number">30</span>:<span class="hljs-number">36</span>])
+predictions = np.argmax(preds,axis=<span class="hljs-number">1</span>)
+images = np.squeeze(x_test[<span class="hljs-number">30</span>:<span class="hljs-number">36</span>])
+Nrows = <span class="hljs-number">2</span>
+Ncols = <span class="hljs-number">3</span>
+<span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(<span class="hljs-number">6</span>):
+    plt.subplot(Nrows, Ncols, i+<span class="hljs-number">1</span>)
+    plt.imshow(np.reshape(images[i], [<span class="hljs-number">32</span>,<span class="hljs-number">32</span>]), cmap=<span class="hljs-string">'Greys_r'</span>)
+    plt.title(<span class="hljs-string">'Actual: '</span> + str(actuals[i]) + <span class="hljs-string">' Pred: '</span> + str(predictions[i]),
+                               fontsize=<span class="hljs-number">10</span>)
+    frame = plt.gca()
+    frame.axes.get_xaxis().set_visible(<span class="hljs-literal">False</span>)
+    frame.axes.get_yaxis().set_visible(<span class="hljs-literal">False</span>)
+plt.show() 
+</code></pre>
+        <p class="bullet-para">We get the<a id="_idIndexMarker443"/> following output for the code above:</p>
+        <figure class="mediaobject"> <img src="../Images/B16254_08_06.png" alt="/var/folders/6z/j6f33tds3v7dv8tryfqnxf5m0000gn/T/com.microsoft.Word/Content.MSO/46B36DDA.tmp"/></figure>
+      </li>
+    </ol>
+    <p class="packt_figref">Figure 8.6: A plot of six random images with the actual and predicted values in the title. The lower-left picture was predicted to be a 6, when in fact it is a 4.</p>
+    <p class="normal">Using a simple CNN, we achieved a good result in accuracy and loss for this dataset.</p>
+    <h2 id="_idParaDest-243" class="title">How it works...</h2>
+    <p class="normal">We increased our <a id="_idIndexMarker444"/>performance on the MNIST dataset and built a model that quickly achieves about 97% accuracy while training from scratch. Our features extractor module is a combination of convolutions, ReLU, and max pooling. Our classifier is a stack of fully connected layers. We trained in batches of size 100 and looked at the accuracy and loss across the epochs. Finally, we also plotted six random digits and found that the model prediction fails to predict one image. The model predicts a 6 when in fact it's a 4.</p>
+    <p class="normal">CNN does very well with image recognition. Part of the reason for this is that the convolutional layer creates its low-level features that are activated when they come across a part of the image that is important. This type of model creates features on its own and uses them for prediction.</p>
+    <h2 id="_idParaDest-244" class="title">There's more...</h2>
+    <p class="normal">In the past few years, CNN models have made vast strides in image recognition. Many novel ideas are being explored and new architectures are discovered very frequently. A vast repository of scientific papers in this field is a repository website called arXiv.org (<a href="https://arxiv.org/"><span class="url">https://arxiv.org/</span></a>), which is created and maintained by Cornell University. arXiv.org includes some very recent articles in many areas, including computer science and computer science subfields such as computer vision and image recognition (<a href="https://arxiv.org/list/cs.CV/recent"><span class="url">https://arxiv.org/list/cs.CV/recent</span></a>).</p>
+    <h2 id="_idParaDest-245" class="title">See also</h2>
+    <p class="normal">Here is a list of some great <a id="_idIndexMarker445"/>resources you can use to learn about CNNs:</p>
+    <ul>
+      <li class="bullet">Stanford University has a great wiki here: <a href="http://scarlet.stanford.edu/teach/index.php/An_Introduction_to_Convolutional_Neural_Networks"><span class="url">http://scarlet.stanford.edu/teach/index.php/An_Introduction_to_Convolutional_Neural_Networks</span></a></li>
+      <li class="bullet"><em class="italic">Deep Learning</em> by Michael Nielsen, found here: <a href="http://neuralnetworksanddeeplearning.com/chap6.html"><span class="url">http://neuralnetworksanddeeplearning.com/chap6.html</span></a></li>
+      <li class="bullet"><em class="italic">An Introduction to Convolutional Neural Networks</em> by Jianxin Wu, found here: <a href="https://pdfs.semanticscholar.org/450c/a19932fcef1ca6d0442cbf52fec38fb9d1e5.pdf"><span class="url">https://pdfs.semanticscholar.org/450c/a19932fcef1ca6d0442cbf52fec38fb9d1e5.pdf</span></a></li>
+      <li class="bullet"><em class="italic">LeNet-5, convolutional neural networks</em> by Yann LeCun: <a href="http://yann.lecun.com/exdb/lenet/"><span class="url">http://yann.lecun.com/exdb/lenet/</span></a></li>
+      <li class="bullet"><em class="italic">Gradient-Based Learning Applied to Document Recognition</em> by Yann LeCun et al.: <a href="http://yann.lecun.com/exdb/publis/pdf/lecun-01a.pdf"><span class="url">http://yann.lecun.com/exdb/publis/pdf/lecun-01a.pdf</span></a></li>
+    </ul>
+    <h1 id="_idParaDest-246" class="title">Implementing an advanced CNN</h1>
+    <p class="normal">It is crucial to be able to<a id="_idIndexMarker446"/> extend CNN models for image recognition so that we understand how to increase the depth of the network. This way, we may increase the accuracy of our predictions if we have enough data. Extending the depth of CNN networks is done in a standard fashion: we just repeat the convolution, max pooling, and ReLU in series until we are satisfied with the depth. Many of the more accurate image recognition networks operate in this fashion.</p>
+    <p class="normal">Loading and preprocessing data may cause a big headache: most image datasets will be too large to fit into memory, but image preprocessing will be needed to improve the performance of the model. What we can do with TensorFlow is use the <code class="Code-In-Text--PACKT-">tf.data</code> API to create an input pipeline. This API contains a set of utilities for loading and preprocessing data. Using it, we will instantiate a <code class="Code-In-Text--PACKT-">tf.data.Dataset</code> object from the CIFAR-10 dataset (downloaded through the Keras dataset API <code class="Code-In-Text--PACKT-">tf.keras.datasets</code>), combine consecutive elements of this dataset into batches, and apply transformations to each image. Also, with image recognition data, it is common to randomly perturb the image before sending it through for training. Here, we will randomly crop, flip, and change the brightness.</p>
+    <h2 id="_idParaDest-247" class="title">Getting ready</h2>
+    <p class="normal">In this recipe, we will implement a more advanced method of reading image data and use a larger CNN to do image recognition on the CIFAR-10 dataset (<a href="https://www.cs.toronto.edu/~kriz/cifar.html"><span class="url">https://www.cs.toronto.edu/~kriz/cifar.html</span></a>). This dataset has 60,000 <em class="italic">32x32</em> images that fall into exactly one of 10 possible classes. The potential labels for the pictures are airplane, automobile, bird, cat, deer, dog, frog, horse, ship, and truck. Please also refer to the first bullet point in the <em class="italic">See also</em> section.</p>
+    <p class="normal">The official TensorFlow <code class="Code-In-Text--PACKT-">tf.data</code> tutorial is available under the <em class="italic">See also </em>section at the end of this recipe.</p>
+    <h2 id="_idParaDest-248" class="title">How to do it...</h2>
+    <p class="normal">Perform the following steps:</p>
+    <ol>
+      <li class="numbered" value="1">To start with, we load the necessary libraries:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> matplotlib.pyplot <span class="hljs-keyword">as</span> plt
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+<span class="hljs-keyword">from</span> tensorflow <span class="hljs-keyword">import</span> keras
+</code></pre>
+      </li>
+      <li class="numbered">Now we'll declare some dataset and model parameters and then some image transformation parameters, such as what size the random cropped images will take:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Set dataset and model parameters</span>
+batch_size = <span class="hljs-number">128</span>
+buffer_size= <span class="hljs-number">128</span>
+epochs=<span class="hljs-number">20</span>
+<span class="hljs-comment">#Set transformation parameters</span>
+crop_height = <span class="hljs-number">24</span>
+crop_width = <span class="hljs-number">24</span>
+</code></pre>
+      </li>
+      <li class="numbered">Now we'll get the train and test images from the CIFAR-10 dataset using the <code class="Code-In-Text--PACKT-">keras.datasets</code> API. This API provides few toy datasets where data fits in memory, so the data is expressed in NumPy arrays (the core Python library for scientific computing):
+        <pre class="programlisting code"><code class="hljs-code">(x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
+</code></pre>
+      </li>
+      <li class="numbered">Next, we'll create a<a id="_idIndexMarker447"/> train and a test TensorFlow dataset from the NumPy arrays using <code class="Code-In-Text--PACKT-">tf.data.Dataset</code>, so we can build a flexible and efficient pipeline for images using the <code class="Code-In-Text--PACKT-">tf.data</code> API:
+        <pre class="programlisting code"><code class="hljs-code">dataset_train = tf.data.Dataset.from_tensor_slices((x_train, y_train))
+dataset_test = tf.data.Dataset.from_tensor_slices((x_test, y_test))
+</code></pre>
+      </li>
+      <li class="numbered">We'll define a reading function that will load and distort the images slightly for training with TensorFlow's built-in image modification functions:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Define CIFAR reader</span>
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">read_cifar_files</span><span class="hljs-function">(</span><span class="hljs-params">image, label</span><span class="hljs-function">):</span>
+    final_image = tf.image.resize_with_crop_or_pad(image, crop_width, crop_height)
+    final_image = image / <span class="hljs-number">255</span>
+    <span class="hljs-comment"># Randomly flip the image horizontally, change the brightness and contrast</span>
+    final_image = tf.image.random_flip_left_right(final_image)
+    final_image = tf.image.random_brightness(final_image,max_delta=<span class="hljs-number">0.1</span>)
+    final_image = tf.image.random_contrast(final_image,lower=<span class="hljs-number">0.5</span>, upper=<span class="hljs-number">0.8</span>)
+    <span class="hljs-keyword">return</span> final_image, label
+</code></pre>
+      </li>
+      <li class="numbered">Now that we have an<a id="_idIndexMarker448"/> image pipeline function and two TensorFlow datasets, we can initialize both the training image pipeline and the test image pipeline:
+        <pre class="programlisting code"><code class="hljs-code">dataset_train_processed = dataset_train.shuffle(buffer_size).batch(batch_size).map(read_cifar_files)
+dataset_test_processed = dataset_test.batch(batch_size).map(<span class="hljs-keyword">lambda</span> image,label: read_cifar_files(image, label, <span class="hljs-literal">False</span>))
+</code></pre>
+        <div class="note">
+          <p class="Information-Box--PACKT-">Note that, in this example, our input data fits in memory so we use the <code class="Code-In-Text--PACKT-">from_tensor_slices()</code> method to convert all the images into <code class="Code-In-Text--PACKT-">tf.Tensor</code>. But the <code class="Code-In-Text--PACKT-">tf.data</code> API allows processing large datasets that do not fit in memory. The iteration over the dataset happens in a streaming fashion.</p>
+        </div>
+      </li>
+      <li class="numbered">Next, we can create our sequential model. The model we will use has two convolutional layers followed by three fully connected layers. The two convolutional layers will create 64 features each. The first fully connected layer will connect the second convolutional layer with 384 hidden nodes. The second fully connected operation will connect those 384 hidden nodes to 192 hidden nodes. The final hidden layer operation will then connect the 192 nodes to the 10 output classes we are trying to predict. We will use the softmax function at the last layer because a picture can only take on exactly one category, so the output should be a probability distribution over the 10 targets:
+        <pre class="programlisting code"><code class="hljs-code">model = keras.Sequential(
+    [# First Conv-ReLU-Conv-ReLU-MaxPool Layer
+     tf.keras.layers.Conv2D(input_shape=[32,32,3],
+                            filters=32,
+                            kernel_size=3,
+                            padding='SAME',
+                            activation="relu",
+                            kernel_initializer='he_uniform',
+                            name="C1"),
+    tf.keras.layers.Conv2D(filters=32,
+                           kernel_size=3,
+                           padding='SAME',
+                           activation="relu",
+                           kernel_initializer='he_uniform',
+                           name="C2"),
+     tf.keras.layers.MaxPool2D((2,2),
+                               name="P1"),
+     tf.keras.layers.Dropout(0.2),
+    # Second Conv-ReLU-Conv-ReLU-MaxPool Layer
+     tf.keras.layers.Conv2D(filters=64,
+                            kernel_size=3,
+                            padding='SAME',
+                            activation="relu",
+                            kernel_initializer='he_uniform',
+                            name="C3"),
+    tf.keras.layers.Conv2D(filters=64,
+                           kernel_size=3,
+                           padding='SAME',
+                           activation="relu",
+                           kernel_initializer='he_uniform',
+                           name="C4"),
+     tf.keras.layers.MaxPool2D((2,2),
+                               name="P2"),
+     tf.keras.layers.Dropout(0.2),
+    # Third Conv-ReLU-Conv-ReLU-MaxPool Layer
+     tf.keras.layers.Conv2D(filters=128,
+                            kernel_size=3,
+                            padding='SAME',
+                            activation="relu",
+                            kernel_initializer='he_uniform',
+                            name="C5"),
+    tf.keras.layers.Conv2D(filters=128,
+                           kernel_size=3,
+                           padding='SAME',
+                           activation="relu",
+                           kernel_initializer='he_uniform',
+                           name="C6"),
+     tf.keras.layers.MaxPool2D((2,2),
+                               name="P3"),
+     tf.keras.layers.Dropout(0.2),
+     # Flatten Layer
+     tf.keras.layers.Flatten(name="FLATTEN"),
+     # Fully Connected Layer
+     tf.keras.layers.Dense(units=128,
+                           activation="relu",
+                           name="D1"),
+    tf.keras.layers.Dropout(0.2),
+    # Final Fully Connected Layer
+    tf.keras.layers.Dense(units=10,
+                          activation="softmax",
+                          name="OUTPUT")
+    ])
+</code></pre>
+      </li>
+      <li class="numbered">Now we'll compile our model. Our loss will be the categorical cross-entropy loss. We add an accuracy metric that takes in the predicted logits from the model and the actual targets and returns the accuracy for recording statistics on the train/test sets. We also run the summary method to print a summary page:
+        <pre class="programlisting code"><code class="hljs-code">model.compile(loss=<span class="hljs-string">"sparse_categorical_crossentropy"</span>,
+    metrics=[<span class="hljs-string">"accuracy"</span>]
+)
+model.summary()
+</code></pre>
+        <figure class="mediaobject"><img src="../Images/B16254_08_07.png" alt=""/></figure>
+        <p class="packt_figref">Figure 8.7: The model summary is composed of 3 VGG blocks (a VGG – Visual Geometry Group – block is a sequence of convolutional layers, followed by a max pooling layer for spatial downsampling), followed by a classifier.</p>
+      </li>
+      <li class="numbered">We now fit the<a id="_idIndexMarker449"/> model, looping through our training and test input pipelines. We will save the training loss and the test accuracy:
+        <pre class="programlisting code"><code class="hljs-code">history = model.fit(dataset_train_processed, 
+                    validation_data=dataset_test_processed, 
+                    epochs=epochs)
+</code></pre>
+      </li>
+      <li class="numbered">Finally, here is some <code class="Code-In-Text--PACKT-">Matplotlib</code> code that will plot the loss and test accuracy throughout the training:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Print loss and accuracy</span>
+<span class="hljs-comment"># Matlotlib code to plot the loss and accuracy</span>
+epochs_indices = range(<span class="hljs-number">0</span>, <span class="hljs-number">10</span>, <span class="hljs-number">1</span>)
+<span class="hljs-comment"># Plot loss over time</span>
+plt.plot(epochs_indices, history.history[<span class="hljs-string">"loss"</span>], <span class="hljs-string">'k-'</span>)
+plt.title(<span class="hljs-string">'Softmax Loss per Epoch'</span>)
+plt.xlabel(<span class="hljs-string">'Epoch'</span>)
+plt.ylabel(<span class="hljs-string">'Softmax Loss'</span>)
+plt.show()
+<span class="hljs-comment"># Plot accuracy over time</span>
+plt.plot(epochs_indices, history.history[<span class="hljs-string">"val_accuracy"</span>], <span class="hljs-string">'k-'</span>)
+plt.title(<span class="hljs-string">'Test Accuracy per Epoch'</span>)
+plt.xlabel(<span class="hljs-string">'Epoch'</span>)
+plt.ylabel(<span class="hljs-string">'Accuracy'</span>)
+plt.show() 
+</code></pre>
+        <p class="bullet-para">We get the following <a id="_idIndexMarker450"/>plots for this recipe:</p>
+        <figure class="mediaobject"><img src="../Images/B16254_08_08.png" alt=""/></figure>
+      </li>
+    </ol>
+    <p class="packt_figref">Figure 8.8: The training loss is on the left and the test accuracy is on the right. For the CIFAR-10 image recognition CNN, we were able to achieve a model that reaches around 80% accuracy on the test set.</p>
+    <h2 id="_idParaDest-249" class="title">How it works...</h2>
+    <p class="normal">After we downloaded the <a id="_idIndexMarker451"/>CIFAR-10 data, we established an image pipeline. We used this train and test pipeline to try to predict the correct category of the images. By the end, the model had achieved around 80% accuracy on the test set. We can achieve better accuracy by using more data, fine-tuning the optimizers, or adding more epochs.</p>
+    <h2 id="_idParaDest-250" class="title">See also</h2>
+    <ul>
+      <li class="bullet">For more information<a id="_idIndexMarker452"/> about the CIFAR-10 dataset, please see <em class="italic">Learning Multiple Layers of Features from Tiny Images</em>, Alex Krizhevsky, 2009: <a href="https://www.cs.toronto.edu/~kriz/learning-features-2009-TR.pdf"><span class="url">https://www.cs.toronto.edu/~kriz/learning-features-2009-TR.pdf</span></a>.</li>
+      <li class="bullet">The<a id="_idIndexMarker453"/> <code class="Code-In-Text--PACKT-">tf.data</code> TensorFlow tutorial: <a href="https://www.tensorflow.org/guide/data"><span class="url">https://www.tensorflow.org/guide/data</span></a>.</li>
+      <li class="bullet">Introduction to <a id="_idIndexMarker454"/>Keras for Engineers (data loading and preprocessing): <a href="https://keras.io/getting_started/intro_to_keras_for_engineers/#data-loading-amp-preprocessing"><span class="url">https://keras.io/getting_started/intro_to_keras_for_engineers/#data-loading-amp-preprocessing</span></a>.</li>
+    </ul>
+    <h1 id="_idParaDest-251" class="title">Retraining existing CNN models</h1>
+    <p class="normal">Training a new image<a id="_idIndexMarker455"/> recognition model from scratch requires a lot of time and computational power. If we can take a pre-trained network and retrain it with our images, it may save us computational time. For this recipe, we will show how to use a pre-trained TensorFlow image recognition model and fine-tune it to work on a different set of images.</p>
+    <p class="normal">We will illustrate how to use transfer learning from a pre-trained network for CIFAR-10. The idea is to reuse the weights and structure of the prior model from the convolutional layers and retrain the fully connected layers at the top of the <a id="_idIndexMarker456"/>network. This method<a id="_idIndexMarker457"/> is called <strong class="keyword">fine-tuning</strong>.</p>
+    <h2 id="_idParaDest-252" class="title">Getting ready</h2>
+    <p class="normal">The CNN network<a id="_idIndexMarker458"/> we are going to employ uses a very popular architecture called <strong class="keyword">Inception</strong>. The Inception CNN model was created by Google and has performed very well on many image recognition benchmarks. For details, see the paper referenced in the second bullet point of the <em class="italic">See also</em> section.</p>
+    <p class="normal">The main Python script we will cover shows how to get CIFAR-10 image data and transform it into the Inception retraining format. After that, we will reiterate how to train the Inception v3 network on our images.</p>
+    <h2 id="_idParaDest-253" class="title">How to do it... </h2>
+    <p class="normal">Perform the following steps:</p>
+    <ol>
+      <li class="numbered" value="1">We'll start by loading the necessary libraries:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+<span class="hljs-keyword">from</span> tensorflow <span class="hljs-keyword">import</span> keras
+<span class="hljs-keyword">from</span> tensorflow.keras.applications.inception_v3 <span class="hljs-keyword">import</span> InceptionV3
+<span class="hljs-keyword">from</span> tensorflow.keras.applications.inception_v3 <span class="hljs-keyword">import</span> preprocess_input, decode_predictions
+</code></pre>
+      </li>
+      <li class="numbered">We'll now set the <a id="_idIndexMarker459"/>parameters used later by the <code class="Code-In-Text--PACKT-">tf.data.Dataset</code> API:
+        <pre class="programlisting code"><code class="hljs-code">batch_size = <span class="hljs-number">32</span>
+buffer_size= <span class="hljs-number">1000</span>
+</code></pre>
+      </li>
+      <li class="numbered">Now, we'll download the CIFAR-10 data, and we'll also declare the 10 categories to reference when saving the images later on:
+        <pre class="programlisting code"><code class="hljs-code">(x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
+objects = [<span class="hljs-string">'airplane'</span>, <span class="hljs-string">'automobile'</span>, <span class="hljs-string">'bird'</span>, <span class="hljs-string">'cat'</span>, <span class="hljs-string">'deer'</span>,
+           <span class="hljs-string">'dog'</span>, <span class="hljs-string">'frog'</span>, <span class="hljs-string">'horse'</span>, <span class="hljs-string">'ship'</span>, <span class="hljs-string">'truck'</span>]
+</code></pre>
+      </li>
+      <li class="numbered">Then, we'll initialize the data pipeline using <code class="Code-In-Text--PACKT-">tf.data.Dataset</code> for the train and test datasets:
+        <pre class="programlisting code"><code class="hljs-code">dataset_train = tf.data.Dataset.from_tensor_slices((x_train, y_train))
+dataset_test = tf.data.Dataset.from_tensor_slices((x_test, y_test))
+</code></pre>
+      </li>
+      <li class="numbered">Inception v3 is pretrained on the ImageNet dataset, so our CIFAR-10 images must match the format of these images. The width and height expected should be no smaller than 75, so we will resize our images to <em class="italic">75x75</em> spatial size. Then, the images should be normalized, so we will apply the inception preprocessing task (the <code class="Code-In-Text--PACKT-">preprocess_input</code> method) on each image.
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">preprocess_cifar10</span><span class="hljs-function">(</span><span class="hljs-params">img, label</span><span class="hljs-function">):</span>
+    img = tf.cast(img, tf.float32)
+    img = tf.image.resize(img, (<span class="hljs-number">75</span>, <span class="hljs-number">75</span>))
+<span class="hljs-keyword">return</span> tf.keras.applications.inception_v3.preprocess_input(img) , label
+dataset_train_processed = dataset_train.shuffle(buffer_size).batch(batch_size).map(preprocess_cifar10)
+dataset_test_processed = dataset_test.batch(batch_size).map(preprocess_cifar10)
+</code></pre>
+      </li>
+      <li class="numbered">Now, we will create <a id="_idIndexMarker460"/>our model based on the InceptionV3 model. We will load the InceptionV3 model using the <code class="Code-In-Text--PACKT-">tensorflow.keras.applications</code> API. This API contains pre-trained deep learning models that can be used for prediction, feature extraction, and fine-tuning. Then, we will load the weights without the classification head.
+        <pre class="programlisting code"><code class="hljs-code">inception_model = InceptionV3(
+    include_top=<span class="hljs-literal">False</span>,
+    weights=<span class="hljs-string">"imagenet"</span>,
+    input_shape=(<span class="hljs-number">75</span>,<span class="hljs-number">75</span>,<span class="hljs-number">3</span>)
+)
+</code></pre>
+      </li>
+      <li class="numbered">We build our own model on top of the InceptionV3 model by adding a classifier with three fully connected layers.
+        <pre class="programlisting code"><code class="hljs-code">x = inception_model.output
+x= keras.layers.GlobalAveragePooling2D()(x)
+x = keras.layers.Dense(<span class="hljs-number">1024</span>, activation=<span class="hljs-string">"relu"</span>)(x)
+x = keras.layers.Dense(<span class="hljs-number">128</span>, activation=<span class="hljs-string">"relu"</span>)(x)
+output = keras.layers.Dense(<span class="hljs-number">10</span>, activation=<span class="hljs-string">"softmax"</span>)(x)
+model=keras.Model(inputs=inception_model.input, outputs = output)
+</code></pre>
+      </li>
+      <li class="numbered">We'll set the base layers in Inception as not trainable. Only the classifier weights will be updated during the back-propagation phase (not the Inception weights):
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">for</span> inception_layer <span class="hljs-keyword">in</span> inception_model.layers:
+    inception_layer.trainable= <span class="hljs-literal">False</span>
+</code></pre>
+      </li>
+      <li class="numbered">Now we'll compile our model. Our loss will be the categorical cross-entropy loss. We add an accuracy metric that takes in the predicted logits from the model and the actual targets and returns the accuracy for recording statistics on the train/test sets:
+        <pre class="programlisting code"><code class="hljs-code">model.compile(optimizer=<span class="hljs-string">"adam"</span>, loss=<span class="hljs-string">"sparse_categorical_crossentropy"</span>, metrics=[<span class="hljs-string">"accuracy"</span>])
+</code></pre>
+      </li>
+      <li class="numbered">We'll now fit the <a id="_idIndexMarker461"/>model, looping through our training and test input pipelines:
+        <pre class="programlisting code"><code class="hljs-code">model.fit(x=dataset_train_processed , 
+          validation_data=dataset_test_processed)
+  
+</code></pre>
+      </li>
+      <li class="numbered">By the end, the model had achieved around 63% accuracy on the test set:
+        <pre class="programlisting code"><code class="hljs-code">loss: 1.1316 - accuracy: 0.6018 - val_loss: 1.0361 - val_accuracy: 0.6366...
+  
+</code></pre>
+      </li>
+    </ol>
+    <h2 id="_idParaDest-254" class="title">How it works...</h2>
+    <p class="normal">After we downloaded the CIFAR-10 data, we established an image pipeline to convert the images into the required Inception format. We added a classifier on top of the InceptionV3 model and trained it to predict the correct category of the CIFAR-10 images. By the end, the model had achieved around 63% accuracy on the test set. Remember that we are fine-tuning the model and retraining the fully connected layers at the top to fit our 10-category data.</p>
+    <h2 id="_idParaDest-255" class="title">See also</h2>
+    <ul>
+      <li class="bullet">TensorFlow <a id="_idIndexMarker462"/>Inception-v3 documentation: <a href="https://www.tensorflow.org/api_docs/python/tf/keras/applications/inception_v3"><span class="url">https://www.tensorflow.org/api_docs/python/tf/keras/applications/inception_v3</span></a></li>
+      <li class="bullet">Keras Applications <a id="_idIndexMarker463"/>documentation: <a href="https://keras.io/api/applications/"><span class="url">https://keras.io/api/applications/</span></a></li>
+      <li class="bullet">GoogLeNet <a id="_idIndexMarker464"/>Inception-v3 paper: <a href="https://arxiv.org/abs/1512.00567"><span class="url">https://arxiv.org/abs/1512.00567</span></a></li>
+    </ul>
+    <h1 id="_idParaDest-256" class="title">Applying StyleNet and the neural style project</h1>
+    <p class="normal">Once we have an<a id="_idIndexMarker465"/> image recognition CNN trained, we can use the network itself for some interesting data and image processing. StyleNet is a procedure that attempts to learn an image style from one picture and apply it to a second picture while keeping the second image structure (or content) intact. To do so, we have to find intermediate CNN nodes that correlate strongly with a style, separately from the content of the image.</p>
+    <p class="normal">StyleNet is a procedure that takes two images and applies the style of one image to the content of the second image. It is based on a famous paper by Leon Gatys in 2015, <em class="italic">A Neural Algorithm of Artistic Style </em>(refer to the first bullet point under the next <em class="italic">See also</em> section). The authors found a property in some CNNs containing intermediate layers. Some of them seem to encode the style of a picture, and some others its content. To this end, if we train the style layers on the style picture and the content layers on the original image, and back-propagate those calculated losses, we can change the original image to be more like the style image.</p>
+    <h2 id="_idParaDest-257" class="title">Getting ready</h2>
+    <p class="normal">This recipe is an adapted version of the official TensorFlow neural style transfer, which is available under the <em class="italic">See also</em> section at the end of this recipe.</p>
+    <p class="normal">To accomplish this, we will use the <a id="_idIndexMarker466"/>network recommended by Gatys in <em class="italic">A Neural Algorithm of Artistic Style</em>; called <strong class="keyword">imagenet-vgg-19</strong>.</p>
+    <h2 id="_idParaDest-258" class="title">How to do it...</h2>
+    <p class="normal">Perform the <a id="_idIndexMarker467"/>following steps:</p>
+    <ol>
+      <li class="numbered" value="1">First, we'll start our Python script by loading the necessary libraries:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> imageio
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">from</span> skimage.transform <span class="hljs-keyword">import</span> resize
+<span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+<span class="hljs-keyword">import</span> matplotlib.pyplot <span class="hljs-keyword">as</span> plt
+<span class="hljs-keyword">import</span> matplotlib <span class="hljs-keyword">as</span> mpl
+<span class="hljs-keyword">import</span> IPython.display <span class="hljs-keyword">as</span> display
+<span class="hljs-keyword">import</span> PIL.Image
+</code></pre>
+      </li>
+      <li class="numbered">Then we can <a id="_idIndexMarker468"/>declare the locations of our two images: the original image and the style image. For our purposes, we will use the cover image of this book for the original image; for the style image, we will use <em class="italic">Starry Night </em>by Vincent van Gogh. Feel free to use any two pictures you want here. If you choose to use these pictures, they are available on the book's GitHub site, <a href="https://github.com/PacktPublishing/Machine-Learning-Using-TensorFlow-Cookbook"><span class="url">https://github.com/PacktPublishing/Machine-Learning-Using-TensorFlow-Cookbook</span></a> (navigate to the StyleNet section):
+        <pre class="programlisting code"><code class="hljs-code">content_image_file = <span class="hljs-string">'images/book_cover.jpg'</span> 
+style_image_file = <span class="hljs-string">'images/starry_night.jpg'</span> 
+</code></pre>
+      </li>
+      <li class="numbered">Now we'll load the two images with <code class="Code-In-Text--PACKT-">scipy</code> and change the style image to fit the content image dimensions:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Read the images</span>
+content_image = imageio.imread(content_image_file)
+style_image = imageio.imread(style_image_file)
+content_image = tf.image.convert_image_dtype(content_image, tf.float32)
+style_image = tf.image.convert_image_dtype(style_image, tf.float32)
+<span class="hljs-comment"># Get shape of target and make the style image the same</span>
+target_shape = content_image.shape
+style_image = resize(style_image, target_shape) 
+</code></pre>
+      </li>
+      <li class="numbered">Then, we'll display the<a id="_idIndexMarker469"/> content and style images:
+        <pre class="programlisting code"><code class="hljs-code">mpl.rcParams[<span class="hljs-string">'figure.figsize'</span>] = (<span class="hljs-number">12</span>,<span class="hljs-number">12</span>)
+mpl.rcParams[<span class="hljs-string">'axes.grid'</span>] = <span class="hljs-literal">False</span>
+plt.subplot(<span class="hljs-number">1</span>, <span class="hljs-number">2</span>, <span class="hljs-number">1</span>)
+plt.imshow(content_image)
+plt.title(<span class="hljs-string">"Content Image"</span>)
+plt.subplot(<span class="hljs-number">1</span>, <span class="hljs-number">2</span>, <span class="hljs-number">2</span>)
+plt.imshow(style_image)
+plt.title(<span class="hljs-string">"Style Image"</span>)
+</code></pre>
+        <figure class="mediaobject"><img src="../Images/B16254_08_09.png" alt="/var/folders/6z/j6f33tds3v7dv8tryfqnxf5m0000gn/T/com.microsoft.Word/Content.MSO/B6B0CA0A.tmp"/></figure>
+        <p class="packt_figref">Figure 8.9: Example content and style images</p>
+      </li>
+      <li class="numbered">Now, we will load<a id="_idIndexMarker470"/> the VGG-19 model pre-trained on ImageNet without the classification head. We will use the <code class="Code-In-Text--PACKT-">tensorflow.keras.applications</code> API. This API contains pre-trained deep learning models that <a id="_idIndexMarker471"/>can be used for prediction, feature extraction, and fine-tuning.
+        <pre class="programlisting code"><code class="hljs-code">vgg = tf.keras.applications.VGG19(include_top=<span class="hljs-literal">False</span>, weights=<span class="hljs-string">'imagenet'</span>)
+vgg.trainable = <span class="hljs-literal">False</span>
+</code></pre>
+      </li>
+      <li class="numbered">Next, we'll display the VGG-19 architecture:
+        <pre class="programlisting code"><code class="hljs-code">[layer.name <span class="hljs-keyword">for</span> layer <span class="hljs-keyword">in</span> vgg.layers]
+</code></pre>
+      </li>
+      <li class="numbered">In neural style transfer, we want to apply the style of one image to the content of another image. A CNN is composed of several convolutional and pooling layers. The convolutional layers extract complex features and the pooling layers give spatial information. Gatys' paper recommends a few strategies for assigning intermediate layers to the content and style images. While we should keep <code class="Code-In-Text--PACKT-">block4_conv2</code> for the content image, we can try different combinations of the other <code class="Code-In-Text--PACKT-">blockX_conv1</code> layer outputs for the style image:
+        <pre class="programlisting code"><code class="hljs-code">content_layers = [<span class="hljs-string">'block4_conv2'</span>, <span class="hljs-string">'block5_conv2'</span>]
+style_layers = [<span class="hljs-string">'block1_conv1'</span>, <span class="hljs-string">'block2_conv1'</span>, <span class="hljs-string">'block3_conv1'</span>, <span class="hljs-string">'block4_conv1'</span>, <span class="hljs-string">'block5_conv1'</span>]
+num_content_layers = len(content_layers)
+num_style_layers = len(style_layers)
+</code></pre>
+      </li>
+      <li class="numbered">While the values of the intermediate feature maps represent the content of an image, the style can be described by the means and correlations across these feature maps. Here, we define the Gram matrix to capture the style of an image. The Gram matrix measures the degree of correlation between each of the feature maps. This computation is done on each intermediate feature map and gets only information about the texture of an image. Note that we lose information about its spatial structure.
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">gram_matrix</span><span class="hljs-function">(</span><span class="hljs-params">input_tensor</span><span class="hljs-function">):</span>
+  result = tf.linalg.einsum(<span class="hljs-string">'bijc,bijd-&gt;bcd'</span>, input_tensor, input_tensor)
+  input_shape = tf.shape(input_tensor)
+  num_locations = tf.cast(input_shape[<span class="hljs-number">1</span>]*input_shape[<span class="hljs-number">2</span>], tf.float32)
+  <span class="hljs-keyword">return</span> result/(num_locations)
+</code></pre>
+      </li>
+      <li class="numbered">Next, we<a id="_idIndexMarker472"/> build a model that returns style and content dictionaries that<a id="_idIndexMarker473"/> contain the name of each layer and associated content/style tensors. The Gram matrix is applied on the style layers:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">class</span><span class="hljs-class"> </span><span class="hljs-title">StyleContentModel</span><span class="hljs-class">(</span><span class="hljs-params">tf.keras.models.Model</span><span class="hljs-class">):</span>
+  <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">__init__</span><span class="hljs-function">(</span><span class="hljs-params">self, style_layers, content_layers</span><span class="hljs-function">):</span>
+    super(StyleContentModel, self).__init__()
+    self.vgg = tf.keras.applications.VGG19(include_top=<span class="hljs-literal">False</span>, weights=<span class="hljs-string">'imagenet'</span>)
+    outputs = [vgg.get_layer(name).output <span class="hljs-keyword">for</span> name <span class="hljs-keyword">in</span> style_layers + content_layers]
+    self.vgg = tf.keras.Model([vgg.input], outputs)
+    self.style_layers = style_layers
+    self.content_layers = content_layers
+    self.num_style_layers = len(style_layers)
+    self.vgg.trainable = <span class="hljs-literal">False</span>
+  <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">call</span><span class="hljs-function">(</span><span class="hljs-params">self, inputs</span><span class="hljs-function">):</span>
+    <span class="hljs-string">"Expects float input in [0,1]"</span>
+    inputs = inputs*<span class="hljs-number">255.0</span>
+    inputs = inputs[tf.newaxis, :]
+    preprocessed_input = tf.keras.applications.vgg19.preprocess_input(inputs)
+    outputs = self.vgg(preprocessed_input)
+    style_outputs, content_outputs = (outputs[:self.num_style_layers], 
+                                                            outputs[self.num_style_layers:])
+    style_outputs = [gram_matrix(style_output)
+                     <span class="hljs-keyword">for</span> style_output <span class="hljs-keyword">in</span> style_outputs]
+    content_dict = {content_name:value 
+                    <span class="hljs-keyword">for</span> content_name, value 
+                    <span class="hljs-keyword">in</span> zip(self.content_layers, content_outputs)}
+    style_dict = {style_name:value
+                  <span class="hljs-keyword">for</span> style_name, value
+                  <span class="hljs-keyword">in</span> zip(self.style_layers, style_outputs)}
+    
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">'content'</span>:content_dict, <span class="hljs-string">'style'</span>:style_dict}
+</code></pre>
+      </li>
+      <li class="numbered">Set the <a id="_idIndexMarker474"/>style and content target values. They will be used in the loss<a id="_idIndexMarker475"/> computation:
+        <pre class="programlisting code"><code class="hljs-code">extractor = StyleContentModel(style_layers, content_layers)
+style_targets = extractor(style_image)[<span class="hljs-string">'style'</span>]
+content_targets = extractor(content_image)[<span class="hljs-string">'content'</span>]
+</code></pre>
+      </li>
+      <li class="numbered">Adam and LBFGS usually have the same error and converge quickly but LBFGS is better than Adam with larger images. While the paper recommends using LBFGS, as our images are small, we will choose the Adam optimizer.
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment">#Optimizer configuration</span>
+learning_rate = <span class="hljs-number">0.05</span>
+beta1 = <span class="hljs-number">0.9</span>
+beta2 = <span class="hljs-number">0.999</span>
+opt = tf.optimizers.Adam(learning_rate=learning_rate, beta_1=beta1, beta_2=beta2)
+</code></pre>
+      </li>
+      <li class="numbered">Next, we compute the total loss as a weighted sum of the content and the style losses:
+        <pre class="programlisting code"><code class="hljs-code">content_weight = <span class="hljs-number">5.0</span>
+style_weight = <span class="hljs-number">1.0</span>
+</code></pre>
+      </li>
+      <li class="numbered">The content<a id="_idIndexMarker476"/> loss will compare our original image and our current image (through the content layer features). The style loss will compare the style features we have pre-computed with the style features from the input image. The third and final loss term will help smooth out the image. We use total variation loss here to penalize dramatic changes in neighboring pixels, as follows:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">style_content_loss</span><span class="hljs-function">(</span><span class="hljs-params">outputs</span><span class="hljs-function">):</span>
+    style_outputs = outputs[<span class="hljs-string">'style'</span>]
+    content_outputs = outputs[<span class="hljs-string">'content'</span>]
+    style_loss = tf.add_n([tf.reduce_mean((style_outputs[name]-style_targets[name])**<span class="hljs-number">2</span>) 
+                           <span class="hljs-keyword">for</span> name <span class="hljs-keyword">in</span> style_outputs.keys()])
+    style_loss *= style_weight / num_style_layers
+    content_loss = tf.add_n([tf.reduce_mean((content_outputs[name]-content_targets[name])**<span class="hljs-number">2</span>) 
+                          <span class="hljs-keyword">for</span> name <span class="hljs-keyword">in</span> content_outputs.keys()])
+    content_loss *= content_weight / num_content_layers
+    loss = style_loss + content_loss
+    <span class="hljs-keyword">return</span> loss
+</code></pre>
+      </li>
+      <li class="numbered">Next, we declare <a id="_idIndexMarker477"/>a utility function. As we have a float image, we need to keep the pixel values between 0 and 1:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">clip_0_1</span><span class="hljs-function">(</span><span class="hljs-params">image</span><span class="hljs-function">):</span>
+  <span class="hljs-keyword">return</span> tf.clip_by_value(image, clip_value_min=<span class="hljs-number">0.0</span>, clip_value_max=<span class="hljs-number">1.0</span>)
+</code></pre>
+      </li>
+      <li class="numbered">Now, we declare another utility function to convert a tensor to an image:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">tensor_to_image</span><span class="hljs-function">(</span><span class="hljs-params">tensor</span><span class="hljs-function">):</span>
+  tensor = tensor*<span class="hljs-number">255</span>
+  tensor = np.array(tensor, dtype=np.uint8)
+  <span class="hljs-keyword">if</span> np.ndim(tensor)&gt;<span class="hljs-number">3</span>:
+    <span class="hljs-keyword">assert</span> tensor.shape[<span class="hljs-number">0</span>] == <span class="hljs-number">1</span>
+    tensor = tensor[<span class="hljs-number">0</span>]
+  <span class="hljs-keyword">return</span> PIL.Image.fromarray(tensor)
+</code></pre>
+      </li>
+      <li class="numbered">Next, we use <a id="_idIndexMarker478"/>gradient tape to run the gradient descent, generate <a id="_idIndexMarker479"/>our new image, and display it, as follows:
+        <pre class="programlisting code"><code class="hljs-code">epochs = <span class="hljs-number">100</span>
+image = tf.Variable(content_image)
+<span class="hljs-keyword">for</span> generation <span class="hljs-keyword">in</span> range(epochs):
+    
+    <span class="hljs-keyword">with</span> tf.GradientTape() <span class="hljs-keyword">as</span> tape:
+        outputs = extractor(image)
+        loss = style_content_loss(outputs)
+    grad = tape.gradient(loss, image)
+    opt.apply_gradients([(grad, image)])
+    image.assign(clip_0_1(image))
+    print(<span class="hljs-string">"."</span>, end=<span class="hljs-string">''</span>)
+display.display(tensor_to_image(image))
+</code></pre>
+        <figure class="mediaobject"><img src="../Images/B16254_08_10.png" alt=""/></figure>
+      </li>
+    </ol>
+    <p class="packt_figref">Figure 8.10: Using the StyleNet algorithm to combine the book cover image with Starry Night </p>
+    <p class="bullet-para">Note that a different style of emphasis can be used by changing the content and style weighting.</p>
+    <h2 id="_idParaDest-259" class="title">How it works...</h2>
+    <p class="normal">We first loaded the <a id="_idIndexMarker480"/>two images, then loaded the pre-trained network weights and assigned <a id="_idIndexMarker481"/>layers to the content and style images. We calculated three loss functions: a content image loss, a style loss, and a total variation loss. Then we trained random noise pictures to use the style of the style image and the content of the original image. Style transfer can be used in photo and video editing applications, games, art, virtual reality, and so on. For example, at the 2019 Game Developers Conference, Google introduced Stadia to change a game's art in real time. A clip of it live in action is <a id="_idIndexMarker482"/>available under the last bullet of the <em class="italic">See also</em> section at the <a id="_idIndexMarker483"/>end of this recipe.</p>
+    <h2 id="_idParaDest-260" class="title">See also</h2>
+    <ul>
+      <li class="bullet"><em class="italic">A Neural Algorithm of Artistic Style</em> by Gatys, Ecker, Bethge. 2015: <a href="https://arxiv.org/abs/1508.06576"><span class="url">https://arxiv.org/abs/1508.06576</span></a></li>
+      <li class="bullet">A well-recommended video of a presentation by Leon Gatys at CVPR 2016 (<em class="italic">Computer Vision and Pattern Recognition</em>) can be viewed here: <a href="https://www.youtube.com/watch?v=UFffxcCQMPQ"><span class="url">https://www.youtube.com/watch?v=UFffxcCQMPQ</span></a> </li>
+      <li class="bullet">To view the original TensorFlow code for the neural style transfer process, please see <a href="https://www.tensorflow.org/tutorials/generative/style_transfer"><span class="url">https://www.tensorflow.org/tutorials/generative/style_transfer</span></a></li>
+      <li class="bullet">To go deeper inside the theory, please see <a href="https://towardsdatascience.com/neural-style-transfer-tutorial-part-1-f5cd3315fa7f"><span class="url">https://towardsdatascience.com/neural-style-transfer-tutorial-part-1-f5cd3315fa7f</span></a></li>
+      <li class="bullet">Google Stadia – Style Transfer ML: <a href="https://stadiasource.com/article/2/Stadia-Introducing-Style-Transfer-ML-GDC2019"><span class="url">https://stadiasource.com/article/2/Stadia-Introducing-Style-Transfer-ML-GDC2019</span></a></li>
+    </ul>
+    <h1 id="_idParaDest-261" class="title">Implementing DeepDream</h1>
+    <p class="normal">Another use for trained <a id="_idIndexMarker484"/>CNNs is exploiting the fact that some intermediate nodes detect features of labels (for instance, a cat's ear, or a bird's feather). Using this fact, we can find ways to transform any image to reflect those node features for any node we choose. This recipe is an adapted version of the official TensorFlow DeepDream tutorial (refer to the first bullet point in the next <em class="italic">See also</em> section). Feel free to visit the Google AI blog post written by DeepDream's creator, named Alexander Mordvintsev (second bullet point in the next <em class="italic">See also</em> section). The hope is that we can prepare you to use the DeepDream algorithm to explore CNNs, and features created in them.</p>
+    <h2 id="_idParaDest-262" class="title">Getting ready</h2>
+    <p class="normal">Originally, this technique was invented to better understand how a CNN sees. The goal of DeepDream is to over-interpret the patterns that the model detects and generate inspiring visual content with surreal patterns. This algorithm is a new kind of psychedelic art.</p>
+    <h2 id="_idParaDest-263" class="title">How to do it...</h2>
+    <p class="normal">Perform the following steps:</p>
+    <ol>
+      <li class="numbered" value="1">To get started with <a id="_idIndexMarker485"/>DeepDream, we'll start by loading the necessary libraries:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> PIL.Image
+<span class="hljs-keyword">import</span> imageio
+<span class="hljs-keyword">import</span> matplotlib.pyplot <span class="hljs-keyword">as</span> plt
+<span class="hljs-keyword">import</span> matplotlib <span class="hljs-keyword">as</span> mpl
+<span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+<span class="hljs-keyword">import</span> IPython.display <span class="hljs-keyword">as</span> display
+</code></pre>
+      </li>
+      <li class="numbered">We'll prepare the image to dreamify. We'll read the original image, reshape it to 500 maximum dimensions, and display it:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Read the images	</span>
+original_img_file = path + <span class="hljs-string">'images/book_cover.jpg'</span> 
+original_img = imageio.imread(original_img_file)
+<span class="hljs-comment"># Reshape to 500 max dimension</span>
+new_shape = tf.cast((<span class="hljs-number">500</span>, <span class="hljs-number">500</span> * original_img.shape[<span class="hljs-number">1</span>] / original_img.shape[<span class="hljs-number">0</span>]), tf.int32)
+original_img = tf.image.resize(original_img, new_shape, method=<span class="hljs-string">'nearest'</span>).numpy()
+<span class="hljs-comment"># Display the image</span>
+mpl.rcParams[<span class="hljs-string">'figure.figsize'</span>] = (<span class="hljs-number">20</span>,<span class="hljs-number">6</span>)
+mpl.rcParams[<span class="hljs-string">'axes.grid'</span>] = <span class="hljs-literal">False</span>
+plt.imshow(original_img)
+plt.title(<span class="hljs-string">"Original Image"</span>)
+</code></pre>
+      </li>
+      <li class="numbered">We'll load the Inception model pre-trained on ImageNet without the classification head. We will use the <code class="Code-In-Text--PACKT-">tf.keras.applications</code> API:
+        <pre class="programlisting code"><code class="hljs-code">inception_model = tf.keras.applications.InceptionV3(include_top=<span class="hljs-literal">False</span>, weights=<span class="hljs-string">'imagenet'</span>) 
+</code></pre>
+      </li>
+      <li class="numbered">We summarize the model. We can note that the Inception model is quite large:
+        <pre class="programlisting code"><code class="hljs-code">inception_model.summary()
+</code></pre>
+      </li>
+      <li class="numbered">Next, we will select the convolutional layers to use for DeepDream processing later. In a CNN, the earlier layers extract basic features such as edges, shapes, textures, and so on, while the deeper layers extract high-level features such as clouds, trees, or birds. To create a DeepDream image, we will focus on the layers where the convolutions are mixed. Now, we'll create the feature extraction<a id="_idIndexMarker486"/> model with the two mixed layers as outputs:
+        <pre class="programlisting code"><code class="hljs-code">names = [<span class="hljs-string">'mixed3'</span>, <span class="hljs-string">'mixed5'</span>]
+layers = [inception_model.get_layer(name).output <span class="hljs-keyword">for</span> name <span class="hljs-keyword">in</span> names]
+deep_dream_model = tf.keras.Model(inputs=inception_model.input, outputs=layers)
+</code></pre>
+      </li>
+      <li class="numbered">Now we will define the loss function that returns the sum of all output layers:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">compute_loss</span><span class="hljs-function">(</span><span class="hljs-params">img, model</span><span class="hljs-function">):</span>
+  <span class="hljs-comment"># Add a dimension to the image to have a batch of size 1.</span>
+  img_batch = tf.expand_dims(img, axis=<span class="hljs-number">0</span>)
+  <span class="hljs-comment"># Apply the model to the images and get the outputs to retrieve the activation.</span>
+  layer_activations = model(img_batch)
+  
+  <span class="hljs-comment"># Compute the loss for each layer</span>
+  losses = []
+  <span class="hljs-keyword">for</span> act <span class="hljs-keyword">in</span> layer_activations:
+    loss = tf.math.reduce_mean(act)
+    losses.append(loss)
+  <span class="hljs-keyword">return</span>  tf.reduce_sum(losses) 
+</code></pre>
+      </li>
+      <li class="numbered">We declare two utility functions that undo the scaling and display a processed image:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">deprocess</span><span class="hljs-function">(</span><span class="hljs-params">img</span><span class="hljs-function">):</span>
+  img = <span class="hljs-number">255</span>*(img + <span class="hljs-number">1.0</span>)/<span class="hljs-number">2.0</span>
+  <span class="hljs-keyword">return</span> tf.cast(img, tf.uint8)
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">show</span><span class="hljs-function">(</span><span class="hljs-params">img</span><span class="hljs-function">):</span>
+  display.display(PIL.Image.fromarray(np.array(img)))
+</code></pre>
+      </li>
+      <li class="numbered">We'll now apply the <a id="_idIndexMarker487"/>gradient ascent process. In DeepDream, we don't minimize the loss using gradient descent, but we maximize the activation of these layers by maximizing their loss via gradient ascent. So, we'll over-interpret the patterns that the model detects, and we'll generate inspiring visual content with surreal patterns:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">run_deep_dream</span><span class="hljs-function">(</span><span class="hljs-params">image, steps=</span><span class="hljs-number">100</span><span class="hljs-params">, step_size=</span><span class="hljs-number">0.01</span><span class="hljs-function">):</span>
+    <span class="hljs-comment"># Apply the Inception preprocessing</span>
+    image = tf.keras.applications.inception_v3.preprocess_input(image)
+    image = tf.convert_to_tensor(image)
+    loss = tf.constant(<span class="hljs-number">0.0</span>)
+    <span class="hljs-keyword">for</span> n <span class="hljs-keyword">in</span> tf.range(steps):
+        <span class="hljs-comment"># We use gradient tape to track TensorFlow computations</span>
+        <span class="hljs-keyword">with</span> tf.GradientTape() <span class="hljs-keyword">as</span> tape:
+            <span class="hljs-comment"># We use watch to force TensorFlow to track the image</span>
+            tape.watch(image)
+            <span class="hljs-comment"># We compute the loss</span>
+            loss = compute_loss(image, deep_dream_model)
+        <span class="hljs-comment"># Compute the gradients</span>
+        gradients = tape.gradient(loss, image)
+        <span class="hljs-comment"># Normalize the gradients.</span>
+        gradients /= tf.math.reduce_std(gradients) + <span class="hljs-number">1e-8</span> 
+        
+        <span class="hljs-comment"># Perform the gradient ascent by directly adding the gradients to the image</span>
+        image = image + gradients*step_size
+        image = tf.clip_by_value(image, <span class="hljs-number">-1</span>, <span class="hljs-number">1</span>)
+        <span class="hljs-comment"># Display the intermediate image</span>
+        <span class="hljs-keyword">if</span> (n % <span class="hljs-number">100</span> ==<span class="hljs-number">0</span>):
+            display.clear_output(wait=<span class="hljs-literal">True</span>)
+            show(deprocess(image))
+            <span class="hljs-keyword">print</span> (<span class="hljs-string">"Step {}, loss {}"</span>.format(n, loss))
+    <span class="hljs-comment"># Display the final image</span>
+    result = deprocess(image)
+    display.clear_output(wait=<span class="hljs-literal">True</span>)
+    show(result)
+    <span class="hljs-keyword">return</span> result
+ 
+</code></pre>
+      </li>
+      <li class="numbered">Then, we will run <a id="_idIndexMarker488"/>DeepDream on the original image:
+        <pre class="programlisting code"><code class="hljs-code">dream_img = run_deep_dream(image=original_img, 
+                           steps=<span class="hljs-number">100</span>, step_size=<span class="hljs-number">0.01</span>)
+</code></pre>
+        <p class="bullet-para">The output is as follows:</p>
+        <figure class="mediaobject"><img src="../Images/B16254_08_11.png" alt="/var/folders/6z/j6f33tds3v7dv8tryfqnxf5m0000gn/T/com.microsoft.Word/Content.MSO/DFE47502.tmp"/></figure>
+        <p class="packt_figref">Figure 8.11: DeepDream applied to the original image</p>
+        <p class="bullet-para">While the result <a id="_idIndexMarker489"/>is good, it could be better! We notice that the image output is noisy; the patterns seem to be applied at the same granularity and the output is in low resolution.</p>
+      </li>
+      <li class="numbered">To make images better, we can use the concept of octaves. We perform gradient ascent on the same image resized multiple times (each step of increasing the size of an image is an octave improvement). Using this process, the detected features at a smaller scale could be applied to patterns at higher scales with more details.
+        <pre class="programlisting code"><code class="hljs-code">OCTAVE_SCALE = <span class="hljs-number">1.30</span>
+image = tf.constant(np.array(original_img))
+base_shape = tf.shape(image)[:<span class="hljs-number">-1</span>]
+float_base_shape = tf.cast(base_shape, tf.float32)
+<span class="hljs-keyword">for</span> n <span class="hljs-keyword">in</span> range(<span class="hljs-number">-2</span>, <span class="hljs-number">3</span>):
+    <span class="hljs-comment"># Increase the size of the image</span>
+    new_shape = tf.cast(float_base_shape*(OCTAVE_SCALE**n), tf.int32)
+    image = tf.image.resize(image, new_shape).numpy()
+    <span class="hljs-comment"># Apply deep dream</span>
+    image = run_deep_dream(image=image, steps=<span class="hljs-number">50</span>, step_size=<span class="hljs-number">0.01</span>)
+<span class="hljs-comment"># Display output</span>
+display.clear_output(wait=<span class="hljs-literal">True</span>)
+image = tf.image.resize(image, base_shape)
+image = tf.image.convert_image_dtype(image/<span class="hljs-number">255.0</span>, dtype=tf.uint8)
+show(image)
+</code></pre>
+        <p class="bullet-para">The output is as follows:</p>
+        <figure class="mediaobject"><img src="../Images/B16254_08_12.png" alt="/var/folders/6z/j6f33tds3v7dv8tryfqnxf5m0000gn/T/com.microsoft.Word/Content.MSO/AE675C60.tmp"/></figure>
+      </li>
+    </ol>
+    <p class="packt_figref">Figure 8.12: DeepDream with the concept of octaves applied to the original image</p>
+    <p class="normal">By using the concept <a id="_idIndexMarker490"/>of octaves, things get rather interesting: the output is less noisy and the network amplifies the patterns it sees better.</p>
+    <h2 id="_idParaDest-264" class="title">There's more...</h2>
+    <p class="normal">We urge the reader to use the official DeepDream<a id="_idIndexMarker491"/> tutorials as a source of further information, and also to visit the original Google research blog post on DeepDream (refer to the following <em class="italic">See also</em> section).</p>
+    <h2 id="_idParaDest-265" class="title">See also</h2>
+    <ul>
+      <li class="bullet">The TensorFlow tutorial on DeepDream: <a href="https://www.tensorflow.org/tutorials/generative/deepdream"><span class="url">https://www.tensorflow.org/tutorials/generative/deepdream</span></a></li>
+      <li class="bullet">The original Google research blog post on DeepDream: <a href="https://research.googleblog.com/2015/06/inceptionism-going-deeper-into-neural.html"><span class="url">https://research.googleblog.com/2015/06/inceptionism-going-deeper-into-neural.html</span></a></li>
+    </ul>
+  </div>
+</body></html>

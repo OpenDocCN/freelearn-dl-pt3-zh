@@ -1,0 +1,1016 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Sequence-to-Sequence Models and Attention</h1>
+                </header>
+            
+            <article>
+                
+<p>In <a href="379a4f7b-48da-40f2-99d6-ee57a7a5dcca.xhtml">Chapter 7</a>, <em>Understanding Recurrent Networks, </em>we outlined several types of recurrent models, depending on the input-output combinations. One of them is <strong>indirect many-to-many</strong> or <strong>sequence-to-sequence</strong> (<strong>seq2seq</strong>), <span>where an input sequence</span><span> is transformed into another, different output sequence, not necessarily with the same len</span>gth as the input. Ma<span>chine translation is the most popular type of seq2seq task. The input sequences are the words of a sentence in one language and the output sequences are the words of the same sentence translated into another language. For example, we can translate the English sequence <strong>tourist attraction</strong> to the German <strong>touristenattraktion</strong>. Not only is the output sentence a different length, but </span><span>there is no direct correspondence between the elements of the input and output sequences. In particular, one output element corresponds to a combination of two input elements.</span></p>
+<p><span>Machine</span><span> </span>translation<span> </span><span>that's implemented with a single neural network is called</span><span> </span><strong>neural machine translation</strong> (<strong>NMT</strong>). <span>Other types of indirect many-to-many tasks include </span>speech recognition, where we take <span>different time frames of an audio input and convert them into a text transcript, q</span>uestion-answering chatbots, where the input sequences are the words of a textual question and the output sequence is the answer to that question, and t<span>ext summarization, where the input is a text document and the output is a short summary of the text's contents. </span></p>
+<p>In this chapter, we'll introduce the <span>attention mechanism—</span>a new type of algorithm for seq2seq tasks. It allows direct access to any element of the input sequence. This is unlike a <strong>recurrent neural network</strong> (<strong>RNN</strong>), which summarizes the whole sequence in a single hidden state vector and prioritizes recent sequence elements over older ones.</p>
+<p>This chapter will cover the following topics:</p>
+<ul>
+<li>Introducing seq2seq models</li>
+<li>Seq2seq with attention</li>
+<li>Understanding transformers</li>
+<li>Transformer language models:
+<ul>
+<li>Bidirectional encoder representations from transformers</li>
+<li>Transformer-XL</li>
+<li>XLNet</li>
+</ul>
+</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Introducing seq2seq models</h1>
+                </header>
+            
+            <article>
+                
+<p><span>Seq2seq, or encoder-decoder </span><span>(see <em>Sequence to Sequence Learning with Neural Networks</em> at </span><span><a href="https://arxiv.org/abs/1409.3215">https://arxiv.org/abs/1409.3215</a>), models </span><span>use RNNs in a way that's especially suited for solving tasks with indirect many-to-many relationships between the input and the output. A similar model was also proposed in another pioneering paper, <em>Learning Phrase Representations using RNN Encoder-Decoder for Statistical Machine Translation</em> (go to <a href="https://arxiv.org/abs/1406.1078">https://arxiv.org/abs/1406.1078</a> for more information). </span>The following is a diagram of the seq2seq model<span>. The input sequence [<strong>A</strong>, <strong>B</strong>, <strong>C</strong>, <strong>&lt;EOS&gt;</strong>] is decoded into the output sequence [<strong>W</strong>, <strong>X</strong>, <strong>Y</strong>, <strong>Z</strong>, <strong>&lt;EOS&gt;</strong>]:</span></p>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1319 image-border" src="assets/9541434b-efa7-46c2-8efb-1b06cafc3664.png" style="width:89.25em;height:19.17em;"/></div>
+<div class="packt_figref CDPAlignCenter CDPAlign">A seq2seq model <span>case by </span>https://arxiv.org/abs/1409.3215</div>
+<p>The model consists of two parts: an<span> </span>encoder<span> </span>and a decoder. <span>Here's how the inference part works:</span></p>
+<ul>
+<li>The encoder is an RNN. The original paper uses LSTM, but GRU or other types would also work. Taken by itself, the encoder works in the usual way—it reads the input sequence, one step at a time,<span><span> and updates its internal state after each step. The encoder will stop reading the input sequence once a special <strong>&lt;EOS&gt;</strong>—end of sequence—symbol is reached. If we assume that we use a textual sequence, we'll use word-embedding vectors as the encoder input at each step, and the <strong>&lt;EOS&gt;</strong> symbol signals the end of a sentence. The encoder output is discarded and has no role in the seq2seq model, as we're only interested in the hidden encoder state.</span></span></li>
+<li>Once the<span> </span>encoder<span> </span>is finished, we'll signal the decoder so that it can start generating the output sequence with a special <strong>&lt;GO&gt;</strong> input signal. The encoder is also an RNN (LSTM or GRU). The link between the encoder and the decoder is the most recent <span>encoder internal state vector </span><strong>h</strong><em><sub>t </sub></em>(also known as the <strong>thought vector</strong>), which is fed as the recurrence relation at the first decoder step. The decoder output<span> </span><em>y<sub>t+1</sub></em> at step<span> </span><em>t+1</em><span> </span>is one element of the output sequence. We'll use it as an input at step<span> </span><em>t+2</em>, then we'll generate new output, and so on (this type of model is called <strong>autoregressive</strong>). In the case of textual sequences, the decoder output is a softmax over all the words in the vocabulary. At each step, we take the word with the highest probability and we feed it as input to the next step. Once <span><strong>&lt;EOS&gt;</strong></span> <span>becomes</span> the most probable symbol, the decoding is finished. </li>
+</ul>
+<p>The training of the model is supervised, and the model needs to know both the input sequence and its corresponding target output sequence (for example, the same text in multiple languages). We feed the input sequence to the decoder, generate the thought vector <em>h</em><sub><em>t</em></sub>, and use it to initiate the output sequence generation from the decoder. However, the decoder uses a process called <strong>teacher forcing</strong>—the decoder input at step <em>t</em> is not the decoder output of step <em>t-1</em>. Instead, the input at step <em>t</em> is always the correct character from the target sequence at step <em>t-1</em>. For example, let's say that the correct target sequence until step <em>t</em> is [<strong>W</strong>, <strong>X</strong>, <strong>Y</strong>], but the current decoder-generated output sequence is [<strong>W</strong>, <strong>X</strong>, <strong>Z</strong>]. With teacher forcing, the decoder input at step <em>t+1</em> will be <strong>Y</strong> instead of <strong>Z</strong>. In other words, the decoder learns to generate target values [t+1, ...] given target values [..., t]. We can think of this in the following way: the decoder input is the target sequence, while its output (target values) is the same sequence, but shifted one position to the right. </p>
+<p><span>To summarize, the seq2seq model solves the problem of varying input/output sequence lengths by encoding the input sequence in a fixed-length state vector and then using this vector as a base to generate the output sequence. </span><span>We can formalize this by saying that it tries to maximize the following probability:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/5570a5ca-5687-4458-bbb3-9677b184229b.png" style="width:26.67em;height:3.83em;"/></p>
+<p>This is equivalent to the following:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/3fe60f77-417e-41e6-99bc-352fcf22bcbe.png" style="width:40.25em;height:1.50em;"/></p>
+<p>Let's look at the elements of this formula in more detail:</p>
+<ul>
+<li><img class="fm-editor-equation" src="assets/d7e7a462-5bf5-461e-ad23-3381b31c85e3.png" style="width:10.33em;height:1.08em;"/>is the conditional probability where <img class="fm-editor-equation" src="assets/c8b1de2d-651e-47df-8338-35ba46c96a00.png" style="width:4.50em;height:1.00em;"/> is the input sequence with length<span> </span><em>T</em><span> </span>and <img class="fm-editor-equation" src="assets/ae11b1ef-58db-42da-9d92-6b94eccdf07f.png" style="width:4.67em;height:1.00em;"/> is the output sequence with length<span> </span><em>T'.</em></li>
+<li>The element <em>v<span> </span></em>is the fixed-length encoding of the input sequence (the thought vector).</li>
+<li><img class="fm-editor-equation" src="assets/8dc7f5de-0839-409a-874f-846a787889bb.png" style="width:9.42em;height:1.17em;"/>is the probability of an output word<span> </span><em>y<sub>T'</sub></em><span> </span>given prior words<span> </span><em>y</em>, as well as the vector<span> </span><em>v.</em></li>
+</ul>
+<p>The original seq2seq paper introduces a few<span> </span>tricks<span> </span>to enhance the training and performance of the model:</p>
+<ul>
+<li><span>The encoder and decoder are two separate LSTMs. In the case of NMTs, this makes it possible to train different decoders with the same encoder.</span></li>
+<li><span>The experiments of the authors of the paper demonstrated that stacked LSTMs perform better than the ones with a single layer.</span></li>
+<li>The input sequence is fed to the decoder in reverse. For example, <strong>ABC</strong> -&gt; <strong>WXYZ</strong> would become <strong>CBA</strong> -&gt; <strong>WXYZ</strong>. There is no clear explanation of why this works, but the authors have shared their intuition: since this is a step-by-step model, if the sequences were in normal order, each source word in the source sentence would be far from its corresponding word in the output sentence. If we reverse the input sequence, the average distance between input/output words won't change, but the first input words will be very close to the first output words. This will help the model to establish better <em>communication</em> between the input and output sequences. </li>
+<li><span>Besides <strong>&lt;EOS&gt;</strong> and <strong>&lt;GO&gt;</strong>, the model also uses the following two special symbols (we've already encountered them in the <em>Implementing text classification</em> section of </span><a href="379a4f7b-48da-40f2-99d6-ee57a7a5dcca.xhtml">Chapter 7</a>, <em>Understanding Recurrent Networks</em>):
+<ul>
+<li class="mce-root"><strong>&lt;UNK&gt;</strong>—<strong>unknown</strong>: This is used to replace rare words so that the vocabulary size doesn't grow too large.</li>
+<li class="mce-root"><strong>&lt;PAD&gt;</strong>: For performance reasons, we have to train the model with sequences of a fixed length. However, this contradicts the real-world training data, where the sequences can have arbitrary lengths. To solve this, <span>shorter</span><span> </span>sequences are filled with the special &lt;PAD&gt; symbol.</li>
+</ul>
+</li>
+</ul>
+<p>Now that we've introduced the base seq2seq model architecture, we'll learn how to extend it with the attention mechanism.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Seq2seq with attention</h1>
+                </header>
+            
+            <article>
+                
+<p>The decoder has to generate the entire output sequence based<span> </span>solely<span> </span>on the thought vector. For this to work, the thought vector has to encode all of the information of the input sequence; however, the encoder is an RNN, and we can expect that its hidden state will carry more information about the latest sequence elements than the earliest. Using LSTM cells and reversing the input helps, but cannot prevent it entirely. <span>Because of this, the thought vector becomes something of a bottleneck. As a result, the </span>seq2seq model works well for short sentences, but the performance deteriorates for longer ones.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Bahdanau attention</h1>
+                </header>
+            
+            <article>
+                
+<p>We can solve this problem with the help of the <strong>attention mechanism</strong> <span>(see <em>Neural Machine Translation by Jointly Learning to Align and Translate</em> at </span><span><a href="https://arxiv.org/abs/1409.0473">https://arxiv.org/abs/1409.0473</a>), an extension of the seq2seq model</span>, that provides a way for the decoder to work with all encoder hidden states, not just the last one.</p>
+<div class="packt_tip"><span> </span><span>The type of attention mechanism in this section is called Bahdanau attention, after the author of the original paper.</span></div>
+<p class="mce-root"/>
+<p>Besides solving the bottleneck problem, the attention mechanism has some other advantages. For one, the immediate access to all previous states helps to prevent the vanishing gradients problem. It also allows for some<span> </span>interpretability of the results because we can see what parts of the input the decoder was focusing on.</p>
+<p>The following diagram shows how attention works:</p>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1320 image-border" src="assets/9b2651a9-4318-4b95-bcac-ed0e55d74bdc.png" style="width:26.67em;height:20.50em;"/></div>
+<div class="CDPAlignCenter CDPAlign packt_figref">Attention mechanism</div>
+<p>Don't worry—it looks scarier than it actually is. We'll go through this diagram from top to bottom: the attention mechanism works by plugging an additional<span> </span><strong>context vector</strong> <strong>c</strong><em><sub>t</sub></em> between the encoder and the decoder. The hidden decoder state<span> </span><strong>s</strong><em><sub>t</sub></em><span> </span>at time<span> </span><em>t</em><span> </span>is now a function not only of the hidden state and decoder output at step<span> </span><em>t-1</em>, but also of the context vector<span> </span><strong>c</strong><em><sub>t</sub></em>:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/6ea7c879-71db-4d71-b835-5f96b75842cb.png" style="width:12.25em;height:1.58em;"/></p>
+<p><span>Each decoder step has a unique context vector, and the context vector for one decoder step is just </span><strong>a weighted sum of all encoder hidden states</strong>. In <span>this way, the encoder has access to all input sequence states at each output step</span><span> </span><em>t</em><span>, which removes the necessity</span> <span>to encode all information of the source sequence into a fixed-length vector, as the regular seq2seq model does</span><span>:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/eaeedfcf-489c-46b3-a647-835ea61754ec.png" style="width:7.83em;height:3.83em;"/></p>
+<p>Let's discuss this formula in more detail:</p>
+<ul>
+<li><strong>c</strong><em><sub>t</sub></em><span> is the context vector for a decoder output step</span><span> </span><em>t</em><span> out of </span><em>T'</em><span>, </span><span>the total output.</span></li>
+<li><strong>h</strong><em><sub>i</sub></em><span> </span><span>is the hidden state of encoder step</span><span> </span><em>i</em><span> </span><span>out of</span><span> </span><em>T</em><span> </span><span>total input steps.</span></li>
+<li><em>α<sub>t,i</sub></em><span> </span>is the scalar weight associated with <em>h<sub>i</sub></em> in the context of the current decoder step<span> </span><em>t</em>.</li>
+</ul>
+<p><span>Note that <em>α<sub>t,i</sub></em> is unique for both the encoder and decoder steps—that is,</span> the input sequence states will have different weights depending on the current output step. For example, <span>if the input and output sequences have lengths of 10, then the weights will be represented by a 10 × 10 matrix for a total of 100 weights.</span> This means that the attention mechanism will focus the attention (get it?) of the decoder on different parts of the input sequence, depending on the current state of the output sequence. <span>If <em>α</em></span><em><sub>t,i</sub></em><span> is large, then the decoder will pay a lot of attention to <strong>h</strong><em><sub>i</sub></em> at step <em>t.</em></span> </p>
+<p><span>But how do we compute the weights </span><span><em>α</em></span><em><sub>t,i</sub></em><span>? First, we</span><span> </span>should<span> </span><span>mention that the sum of all </span><span><em>α</em></span><em><sub>t,i</sub></em> <span>for a decoder at step</span><span> </span><em>t</em><span> </span><span>is 1. We can implement this with a softmax operation on top of the attention mechanism:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/e30f5a17-9dc2-4066-a71d-54d47e36b21b.png" style="width:11.00em;height:3.58em;"/></p>
+<p>Here, <em>e<sub>t,k</sub></em><span> </span>is an alignment model, which indicates how well the input sequence elements around position<span> </span><em>k</em><span> </span>match (or align with) the output at position<span> </span><em>t</em>. This score (represented by the weight <span><em>α</em></span><em><sub>t,i</sub></em>) is based on the previous decoder state<span> </span><strong>s</strong><em><sub>t-1</sub></em><span> </span>(we use <strong>s</strong><em><sub>t-1</sub></em><span> </span>because we have not computed <strong>s</strong><em><sub>t</sub></em> yet), as well as the encoder state<span> </span><strong>h</strong><em><sub>i</sub></em>:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/3ba517d8-c552-4d8e-b078-a8bfc6c728de.png" style="width:8.92em;height:1.50em;"/></p>
+<p>Here, <em>a</em> (and not alpha) is a differentiable function, which is trained with backpropagation together with the rest of the system. Different functions satisfy these requirements, but the authors of the paper chose the so-called <strong>additive attention</strong>, which combines <strong>s</strong><em><sub>t-1</sub></em> and <strong>h</strong><em><sub>i</sub></em> with the help of addition. It exists in two flavors:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/10f7fde3-06d9-4d0a-afb9-4140c7d0aa12.png" style="width:20.17em;height:2.67em;"/></p>
+<p><span>In the first formula, <strong>W</strong> is a weight matrix, applied over the</span> concatenated vect<span>or</span>s <strong>s</strong><em><sub>t-1</sub></em> a<span>n</span>d <strong>h</strong><sub><em>i</em></sub>, and<span> <strong>v</strong> is a weight vector. The second formula is similar, but this time we have separate fully connected layers (the weight matrices <strong>W</strong><em><sub>1</sub></em> and <strong>W</strong><em><sub>2</sub></em>) and we sum <strong>s</strong><em><sub>t-1</sub></em> and <strong>h</strong><em><sub>i</sub></em>. In both cases, the alignment model can be represented as a simple feed-forward network with one hidden layer. </span></p>
+<p>Now that we know the formulas for<span> </span><strong>c</strong><em><sub>t</sub></em><span> </span>and <span><em>α</em></span><em><sub>t,i</sub></em>, let's replace the latter in the former:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/57362bc4-26be-4976-9bf4-4e5af81241f7.png" style="width:19.83em;height:3.83em;"/></p>
+<p>As a conclusion, let's summarize the attention algorithm in a step-by-step manner as follows:</p>
+<ol>
+<li>Feed the encoder with the input sequence and compute the set of hidden states <sub><img class="fm-editor-equation" src="assets/36ae53cd-e2be-4faf-aa02-08d992c75345.png" style="width:9.58em;height:1.17em;"/></sub>.</li>
+<li><span>Compute</span><span> the alignment scores</span> <sub><img class="fm-editor-equation" src="assets/61cc9e65-e8ca-42d7-a2b4-d31ee99edd10.png" style="width:6.92em;height:1.17em;"/></sub><span>, which use the decoder state from the preceding step </span><strong>s</strong><em><sub>t-1</sub></em><span>. If <em>t = 1</em>, we'll use the last encoder state <strong>h</strong><em><sub>T</sub></em> as the initial hidden state.</span></li>
+<li>Compute the weights <sub><img class="fm-editor-equation" src="assets/42518a65-1b9e-40f0-b9fc-afca0e8d184d.png" style="width:10.75em;height:1.33em;"/></sub>.</li>
+<li>Compute the context vector <sub><img class="fm-editor-equation" src="assets/50970d59-6f4e-4aed-b40b-a8b4d038d0c6.png" style="width:6.33em;height:1.25em;"/></sub>.</li>
+<li>Compute the hidden state <sub><img class="fm-editor-equation" src="assets/ebac8f8c-6818-4c34-aa52-b1d048a40d5d.png" style="width:14.83em;height:1.25em;"/></sub>, based on the concatenated vectors <strong>s</strong><em><sub>t-1</sub></em> and <strong>c</strong><em><sub>t</sub></em> and the previous decoder output <em>y<sub>t-1</sub></em>. At this point, we can compute the final output <em>y<sub>t</sub></em>. In the case where we need to classify the next word, we'll use the softmax output <sub><img class="fm-editor-equation" src="assets/df54b439-ccf4-4204-8fcc-2610d646d756.png" style="width:8.83em;height:1.17em;"/></sub>, where <strong>W</strong><em><sub>y</sub></em> is a weight matrix.</li>
+<li>Repeat steps 2–6 until the end of the sequence. </li>
+</ol>
+<p>Next, we'll introduce a slightly improved attention mechanism called Luong attention.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Luong attention</h1>
+                </header>
+            
+            <article>
+                
+<p><strong>Luong attention</strong> (see <em>Effective Approaches to Attention-based Neural Machine Translation</em> at <a href="https://arxiv.org/abs/1508.04025">https://arxiv.org/abs/1508.04025</a>) introduces several improvements over Bahdanau attention. Most notably, the alignment scores <em>e<sub>t</sub></em> depend on the decoder hidden state <em>s<sub>t</sub></em>, as opposed to <em>s<sub>t-1</sub></em> in Bahdanau attention. To better understand this, let's compare the two algorithms:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1321 image-border" src="assets/817dea7b-4a83-4aa9-8bdc-fcbdc90f1d31.png" style="width:33.92em;height:12.33em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Left: Bahdanau attention; right: Luong attention</div>
+<p>Let's go through a step-by-step execution of Luong attention:</p>
+<ol>
+<li>Feed the encoder with the input sequence and compute the set of encoder hidden states <sub><span><img class="fm-editor-equation" src="assets/e077b276-6efe-457f-9515-1137e39fe84a.png" style="width:9.58em;height:1.17em;"/></span></sub>.</li>
+<li><span>Compute the decoder hidden state <sub><img class="fm-editor-equation" src="assets/15429df0-ec77-4db3-a7b0-fdba1e708867.png" style="width:11.92em;height:1.17em;"/></sub></span><span> based on the previous decoder hidden state </span><strong>s</strong><em><sub>t-1</sub></em><span> and the previous decoder output <em>y<sub>t-1 </sub></em>(not the context vector, though).</span></li>
+<li><span>Compute</span><span> the alignment scores</span> <sub><img class="fm-editor-equation" src="assets/13b6047a-f0ae-48be-8286-48c486aa6214.png" style="width:6.08em;height:1.17em;"/></sub><span>, which use the decoder state from the current step </span><strong>s</strong><em><sub>t</sub></em><span><span>. </span></span>Besides additive attention, the Luong attention paper also proposes two types of<span> </span><strong>multiplicative attention</strong><span>:</span>
+<ul>
+<li><sub><img class="fm-editor-equation" src="assets/da9a4ee6-5e97-4197-8d1a-b4889312b65f.png" style="width:4.83em;height:1.33em;"/></sub>: The basic dot product without any parameters. In this case, the vectors<span> </span><strong>s</strong><span> </span>and<span> </span><strong>h</strong><span> </span>need to have the same sizes.</li>
+<li><sub><img class="fm-editor-equation" src="assets/00643d6d-4cb3-4a6f-a4d6-44ca0b9b31a2.png" style="width:6.92em;height:1.33em;"/></sub>: Here,<span> </span><strong>W</strong><em><sub>m</sub></em><span> </span>is a trainable weight matrix of the attention layer.</li>
+</ul>
+</li>
+</ol>
+<p style="padding-left: 60px"><span>T</span><span>he multiplication of</span> <span>the</span> <span>vectors as an alignment score measurement has an intuitive explanation—as we mentioned in </span><a href="b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml">Chapter 1</a>, <em>The Nuts and Bolts of Neural Networks</em><span>, the dot product acts as a similarity measure between vectors. Therefore, if the vectors are similar (that is, aligned), the result of the multiplication will be a large value and the</span> <span>attention will be focused on the current </span><em>t,i</em><span> relationship.</span></p>
+<ol start="4">
+<li>Compute the weights <img class="fm-editor-equation" src="assets/8b5847aa-c2ed-484e-b48c-68230e89b406.png" style="width:10.75em;height:1.33em;"/>.</li>
+<li>Compute the context vector <img class="fm-editor-equation" src="assets/52730a94-6d3f-4332-929e-966ca7ea7ccf.png" style="width:6.75em;height:1.33em;"/>.</li>
+<li>Compute the vector <img class="fm-editor-equation" src="assets/d449d1ea-a54f-4e81-ac54-248fea0f30b8.png" style="width:11.00em;height:1.33em;"/> based on the concatenated vectors <strong>c</strong><em><sub>t</sub></em> and <strong>s</strong><em><sub>t</sub></em>. <span>At this point, we can compute the final output </span><em>y<sub>t</sub></em><span>. In the case of classification, we'll use softmax</span> <img class="fm-editor-equation" src="assets/24925d51-6840-4e05-be25-d62447da0b5c.png" style="width:10.17em;height:1.33em;"/><span>, where </span><strong>W</strong><em><sub>y</sub></em><span> is a weight matrix.</span></li>
+<li>Repeat steps 2–7 <span>until the end of the sequence. </span></li>
+</ol>
+<p class="mce-root"/>
+<p>Next, let's discuss some more attention variants. <span>We'll start with </span><strong>hard</strong> and <strong>soft attention</strong><span>, which relates to the way we compute the context vector</span> <strong>c</strong><em><sub>t</sub></em><span>. So far, we've described soft attention, where</span> <strong>c</strong><em><sub>t</sub></em> <span>is a weighted sum of all hidden states of the input sequence. With hard attention, we still compute the weights </span><span><em>α</em></span><em><sub>t,i</sub></em><span>, but we only take the hidden state</span> <strong>h</strong><em><sub>imax</sub></em> <span>with the maximum associated weight</span><span> </span><span><em>α</em></span><em><sub>t,imax</sub></em><span>. Then, the selected state </span><strong>h</strong><em><sub>imax</sub></em> <span>serves as the context vector. At first, hard attention seems a little counter-intuitive—after all this effort to enable the decoder to have access to all input states, why limit it to a single state again? However, hard attention was first introduced in the context of image-recognition tasks, where the input sequence represents different regions of the same image. In such cases, it makes more sense to choose between multiple regions or a single region. </span><span>Unlike soft attention, hard attention is a stochastic process, which is nondifferentiable. Therefore, the backward phase uses some tricks to work (this goes beyond the scope of this book).</span></p>
+<p><strong>Local attention</strong> represents a compromise between soft and hard attention. Whereas these mechanisms take into account either all input hidden vectors (global) or just a single input vector, local attention takes a window of vectors, surrounding a given input sequence location, and then applies soft attention over this window only. But how do we determine the center of the window<span> </span><em>p<sub>t</sub></em><span> (known as the <strong>aligned position</strong>), based on the current output step <em>t</em></span>? The easiest way is to assume that the source and target sequences are roughly monotonically aligned—that is,<span> to set </span><em>p<sub>t</sub><span> </span>= t—</em>following the logic that the input and output sequence positions relate to the same thing.</p>
+<p>Next, we'll summarize what we have learned so far by introducing a general form of the attention mechanism.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">General attention</h1>
+                </header>
+            
+            <article>
+                
+<p><span>Although we've discussed the attention mechanism in the context of NMT, it is a general deep-learning technique that can be applied to any seq2seq task. Let's assume that we are working with hard attention. In this case, we can think of the vector </span><strong>s</strong><em><sub>t-1</sub></em><span> as a <strong>query</strong> executed against a database of key-value pairs, where the <strong>keys</strong> are vectors and the hidden states </span><strong>h</strong><em><sub>i</sub></em><span> are the <strong>values. </strong>These are often abbreviated as <strong>Q</strong>, <strong>K</strong>, and <strong>V</strong>, and you can think of them as matrices of vectors. The keys <strong>Q</strong> and the values <strong>V</strong> of Luong and Bahdanau attention are the same vector—that is, these attention models are more like <strong>Q</strong>/<strong>V</strong>, rather than <strong>Q</strong>/<strong>K</strong>/<strong>V</strong>. The general attention mechanism uses all three components. </span></p>
+<p><span>The following diagram illustrates this new general attention:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1322 image-border" src="assets/c2cf2330-9fe7-4553-b2db-b6a0e1cbb4df.png" style="width:34.42em;height:15.00em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">General attention</div>
+<p><span>When we execute the query (<strong>q</strong> <em>=</em> <strong>s</strong><em><sub>t-1</sub></em>) against the database, we'll receive a single match—the key <strong>k</strong><em><sub>imax </sub></em>with the maximum weight <em>α</em><em><sub>t,imax</sub></em>. Hidden behind this key is the vector <strong>v</strong><em><sub>imax</sub> = </em><strong>h</strong><em><sub>imax</sub></em>, which is the actual value we're interested in. But what about soft attention, where all values participate? We can think in the same query/key/value terms, but instead of a single value, the query results are all values with different weights. We can write a generalized attention formula (based on the context vector <strong>c</strong><em><sub>t</sub></em> formula) using the new notation:</span></p>
+<p style="padding-left: 90px"><img src="assets/bc2289ef-df6d-4c70-a593-7b6c7637f45d.png" style="width:31.00em;height:7.08em;"/></p>
+<p><span>In this generic attention, the queries, keys, and vectors of the database are not necessarily related in a sequential fashion. In other words, the database doesn't have to consist of the hidden RNN states at different steps, but could contain any kind of information instead. This concludes our introduction to the theory behind seq2seq models. We'll use this knowledge in the following section, where we'll implement a simple seq2seq NMT example.</span></p>
+<p class="mce-root"/>
+<p class="mce-root"/>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementing seq2seq with attention</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll use PyTorch 1.3.1 to implement a simple NMT example with the help of a seq2seq attention model. To clarify, we'll implement a seq2seq attention model, like the one we introduced in the <em>Introducing</em> <em>seq2seq models</em> <span>section, </span>and we'll extend it with Luong attention. The model encoder will take as input a text sequence (sentence) in one language and the decoder will output the corresponding sequence translated into another language. </p>
+<div class="packt_infobox"><span>We'll only show the most relevant parts of the code, but t</span><span>he full example is available</span> at <a href="https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter08/nmt_rnn_attention">https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter08/nmt_rnn_attention</a><span>. This example is partially based on the PyTorch tutorial at </span><a href="https://github.com/pytorch/tutorials/blob/master/intermediate_source/seq2seq_translation_tutorial.py">https://github.com/pytorch/tutorials/blob/master/intermediate_source/seq2seq_translation_tutorial.py</a><span>. </span></div>
+<p>Let's start with the training set. It consists of a large list of sentences in both French and English, stored in a text file. The <kbd>NMTDataset </kbd><span>class</span><span> (a subclass of</span> <kbd>torch.utils.data.Dataset</kbd><span>) implements the necessary data preprocessing. It creates a vocabulary with integer indexes of all possible words in the dataset. For the sake of simplicity, we won't use embedding vectors, and we'll feed the words to the network with their numerical representation. Also, we won't split the dataset into training and testing parts, as our goal is to demonstrate the work of the seq2seq model. The </span><kbd>NMTDataset</kbd><span> class outputs source-target tuple sentences, where each sentence is represented by a 1D tensor of indexes of the words in that sentence.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementing the encoder</h1>
+                </header>
+            
+            <article>
+                
+<p>Next, let's continue with implementing the encoder.</p>
+<p>We'll start with the constructor:</p>
+<pre><span>class </span>EncoderRNN(torch.nn.Module):<span><br/></span><span>    </span><span>def </span><span>__init__</span>(<span>self</span><span>, </span>input_size<span>, </span>hidden_size):<br/>        <span>super</span>(EncoderRNN<span>, </span><span>self</span>).<span>__init__</span>()<br/>        <span>self</span>.input_size = input_size<br/>        <span>self</span>.hidden_size = hidden_size<br/><br/>        <span># Embedding for the input words<br/></span><span>        </span><span>self</span>.embedding = torch.nn.Embedding(input_size<span>, </span>hidden_size)<br/><br/>        <span># The actual rnn sell<br/></span><span>        </span><span>self</span>.rnn_cell = torch.nn.GRU(hidden_size<span>, </span>hidden_size)</pre>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p class="mceNonEditable"/>
+<p>The entry point is the <kbd>self.embedding</kbd> module. It will take the index of each word and it will return its assigned embedding vector. We will not use pretrained word vectors (such as GloVe), but nevertheless, the concept of embedding vectors is the same—it's just that we'll initialize them with random values and we'll train them along the way with the rest of the model. Then, we have the <kbd>torch.nn.GRU</kbd> RNN cell itself.</p>
+<p>Next, let's implement the <kbd>EncoderRNN.forward</kbd> method (please bear in mind the indentation):</p>
+<pre><span>def </span><span>forward</span>(<span>self</span><span>, </span>input<span>, </span>hidden):<br/><span>    </span><span># Pass through the embedding<br/></span><span>    </span>embedded = <span>self</span>.embedding(input).view(<span>1</span><span>, </span><span>1</span><span>, </span>-<span>1</span>)<br/>    output = embedded<br/><br/>    <span># Pass through the RNN<br/></span><span>    </span>output<span>, </span>hidden = <span>self</span>.rnn_cell(output<span>, </span>hidden)<br/>    <span>return </span>output<span>, </span>hidden</pre>
+<p>It represents the processing of a sequence element. First, we obtain the <kbd>embedded</kbd> word vector and then we feed it to the RNN cell. </p>
+<p>We'll also implement the <kbd>EncoderRNN.init_hidden</kbd> method, which creates an empty tensor with the same size as the hidden RNN state. This tensor serves as the first RNN hidden state at the beginning of the sequence <span>(please bear in mind the indentation)</span>:</p>
+<pre><span>def </span><span>init_hidden</span>(<span>self</span>):<br/>    <span>return </span>torch.zeros(<span>1</span><span>, </span><span>1</span><span>, </span><span>self</span>.hidden_size<span>, </span><span>device</span>=device)</pre>
+<p>Now that we've implemented the encoder, let's continue with the decoder implementation.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementing the decoder</h1>
+                </header>
+            
+            <article>
+                
+<p>Let's implement the <kbd>DecoderRNN</kbd> class—a basic decoder without attention. Again, we'll start with the constructor:</p>
+<pre><span>class </span>DecoderRNN(torch.nn.Module):<br/><span><br/>    </span><span>def </span><span>__init__</span>(<span>self</span><span>, </span>hidden_size<span>, </span>output_size):<br/>        <span>super</span>(DecoderRNN<span>, </span><span>self</span>).<span>__init__</span>()<br/>        <span>self</span>.hidden_size = hidden_size<br/>        <span>self</span>.output_size = output_size<br/><br/>        <span># Embedding for the current input word<br/></span><span>        </span><span>self</span>.embedding = torch.nn.Embedding(output_size<span>, </span>hidden_size)<br/><br/>        <span># decoder cell<br/></span><span>        </span><span>self</span>.gru = torch.nn.GRU(hidden_size<span>, </span>hidden_size)<br/><br/>        <span># Current output word<br/></span><span>        </span><span>self</span>.out = torch.nn.Linear(hidden_size<span>, </span>output_size)<br/>        <span>self</span>.log_softmax = torch.nn.LogSoftmax(<span>dim</span>=<span>1</span>)</pre>
+<p>It's similar to the encoder—we have the initial <kbd>self.embedding</kbd> word embedding and the <kbd>self.gru</kbd> GRU cell. We also have the <span>fully connected</span><span> </span><kbd>self.out</kbd><span> layer with</span> <kbd>self.log_softmax</kbd><span> activation, which will output the predicted word in the sequence. </span></p>
+<p>We'll continue with the <kbd>DecoderRNN.forward</kbd> method <span>(please bear in mind the indentation)</span>:</p>
+<pre>    def forward(self, input, hidden, _):<br/>        # Pass through the embedding<br/>        embedded = self.embedding(input).view(1, 1, -1)<br/>        embedded = torch.nn.functional.relu(embedded)<br/><br/>        # Pass through the RNN cell<br/>        output, hidden = self.rnn_cell(embedded, hidden)<br/><br/>        # Produce output word<br/>        output = self.log_softmax(self.out(output[0]))<br/>        return output, hidden, _</pre>
+<p>It starts with the <kbd>embedded</kbd> vector, which serves as input to the RNN cell. The module returns both its new <kbd>hidden</kbd> state and the <kbd>output</kbd> tensor, which represents the predicted word. The method accepts the void argument <kbd>_</kbd>, so it could match the interface of the attention decoder, which we'll implement in the next section.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementing the decoder with attention</h1>
+                </header>
+            
+            <article>
+                
+<p>Next, we'll implement the <kbd>AttnDecoderRNN</kbd> decoder with Luong attention. This also works in combination with <kbd>EncoderRNN</kbd>.</p>
+<p>We'll start with the <kbd><span>AttnDecoderRNN.</span>__init__</kbd> method:</p>
+<pre><span>class </span>AttnDecoderRNN(torch.nn.Module):<br/><span>    </span><span>def </span><span>__init__</span>(<span>self</span><span>, </span>hidden_size<span>, </span>output_size<span>, </span>max_length=MAX_LENGTH<span>,<br/>    </span>dropout=<span>0.1</span>):<br/>        <span>super</span>(AttnDecoderRNN<span>, </span><span>self</span>).<span>__init__</span>()<br/>        <span>self</span>.hidden_size = hidden_size<br/>        <span>self</span>.output_size = output_size<br/>        <span>self</span>.max_length = max_length<br/><br/>        <span># Embedding for the input word<br/></span><span>        </span><span>self</span>.embedding = torch.nn.Embedding(<span>self</span>.output_size<span>,<br/>        </span><span>self</span>.hidden_size)<br/><br/>        <span>self</span>.dropout = torch.nn.Dropout(dropout)<br/><br/>        <span># Attention portion<br/></span><span>        </span><span>self</span>.attn = torch.nn.Linear(<span>in_features</span>=<span>self</span>.hidden_size<span>,<br/></span><span>                                    </span><span>out_features</span>=<span>self</span>.hidden_size)<br/><br/>        <span>self</span>.w_c = torch.nn.Linear(<span>in_features</span>=<span>self</span>.hidden_size * <span>2</span><span>,<br/></span><span>                                   </span><span>out_features</span>=<span>self</span>.hidden_size)<br/><br/>        <span># RNN<br/></span><span>        </span><span>self</span>.rnn_cell = torch.nn.GRU(<span>input_size</span>=<span>self</span>.hidden_size<span>,<br/></span><span>                                     </span><span>hidden_size</span>=<span>self</span>.hidden_size)<br/><br/>        <span># Output word<br/></span><span>        </span><span>self</span>.w_y = torch.nn.Linear(<span>in_features</span>=<span>self</span>.hidden_size<span>,<br/></span><span>                                   </span><span>out_features</span>=<span>self</span>.output_size)</pre>
+<p>As usual, we have <kbd>self.embedding</kbd>, but this time, we'll also add <kbd>self.dropout</kbd> to prevent overfitting. The fully connected <kbd>self.attn</kbd> and <kbd>self.w_c</kbd> <span>layers </span><span>relate to the attention mechanism, and we'll learn how to use them when we look at the <kbd>AttnDecoderRNN.forward</kbd> method, which comes next. </span><span><kbd> AttnDecoderRNN.forward</kbd> implements</span><span> the Luong attention algorithm we described in</span><span> the </span><em>Seq2seq with attention</em><span> </span><span>section. </span><span>Let's start with the method declaration and parameter preprocessing:</span></p>
+<pre><span>def </span><span>forward</span>(<span>self</span><span>, </span>input<span>, </span>hidden<span>, </span>encoder_outputs):<br/>    embedded = <span>self</span>.embedding(input).view(<span>1</span><span>, </span><span>1</span><span>, </span>-<span>1</span>)<br/>    embedded = <span>self</span>.dropout(embedded)</pre>
+<p><span>Next, we'll compute the current hidden state (</span><kbd>hidden</kbd><span> = </span><strong>s</strong><em><sub>t</sub></em><span>). Please bear in mind the indentation, as this code is still part of the <kbd>AttnDecoderRNN.forward</kbd> method:</span></p>
+<pre><span>    </span>rnn_out<span>, </span>hidden = <span>self</span>.rnn_cell(embedded<span>, </span>hidden)</pre>
+<p><span>Then, we'll compute the alignment scores (</span><kbd>alignment_scores</kbd><span> = </span><em>e<sub>t,i</sub></em><span>), following the multiplicative attention formula. Here, <kbd>torch.mm</kbd> is the matrix multiplic</span>ation and <kbd>encoder_outputs</kbd> is t<span>he encoder outputs (surprise!):</span></p>
+<pre><span>    </span>alignment_scores = torch.mm(<span>self</span>.attn(hidden)[<span>0</span>]<span>, </span>encoder_outputs.t())</pre>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p><span>Next, we'll compute softmax over the scores to produce the attention weights (</span><kbd>attn_weights</kbd><span> = </span><em>a<sub>t,i</sub></em><span>): </span></p>
+<pre><span>    </span>attn_weights = torch.nn.functional.softmax(alignment_scores<span>, </span><span>dim</span>=<span>1</span>)</pre>
+<p><span>Then, we'll compute the context vector (</span><kbd>c_t</kbd><span> = </span><strong>c</strong><em><sub>t</sub></em><span>) following the attention formula:</span></p>
+<pre><span>    </span>c_t = torch.mm(attn_weights<span>, </span>encoder_outputs)</pre>
+<p>Next, we'll compute the modified state vector (<kbd>hidden_s_t</kbd><span> </span>=<span> </span><img class="fm-editor-equation" src="assets/e679dcd7-79cf-4eed-abe6-a71dc56c242f.png" style="width:1.42em;height:1.58em;"/>) by concatenating the current hidden state and the context vector: </p>
+<pre><span>    </span>hidden_s_t = torch.cat([hidden[<span>0</span>]<span>, </span>c_t]<span>, </span><span>dim</span>=<span>1</span>)<br/><span>    </span>hidden_s_t = torch.tanh(<span>self</span>.w_c(hidden_s_t))</pre>
+<p>Finally, we'll compute the next predicted word:</p>
+<pre><span>    </span>output = torch.nn.functional.log_softmax(<span>self</span>.w_y(hidden_s_t)<span>, </span><span>dim</span>=<span>1</span>)</pre>
+<p><span>We should note that </span><kbd>torch.nn.functional.log_softmax</kbd><span> applies the logarithm after a regular softmax. This activation function works in combination with the negative log-likelihood loss function </span><kbd>torch.nn.NLLLoss</kbd><span>.</span></p>
+<p>Finally, the method returns <kbd>output</kbd>,<span> </span><kbd>hidden</kbd>, and<span> </span><kbd>attn_weights</kbd>. L<span>ater,</span><span> w</span><span>e'll use </span><kbd>attn_weights</kbd><span> </span><span>to visualize the attention between the input and output sentences (the method </span><span><kbd>AttnDecoderRNN.forward</kbd> ends here)</span><span>:</span></p>
+<pre>    <span>return </span>output<span>, </span>hidden<span>, </span>attn_weights</pre>
+<p>Next, let's look at the training process.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Training and evaluation</h1>
+                </header>
+            
+            <article>
+                
+<p>Next, let's implement the <kbd>train</kbd> function. It's similar to other such functions that we've implemented in previous chapters; however, it takes into account the sequential nature of the input and the teacher forcing principle we described in the <em>Seq2eq with attention</em> section. For the sake of simplicity, we'll only train with a single sequence at a time (a mini batch of size 1). </p>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p>First, we'll initiate the iteration over the training set, set up initial sequence tensors, and reset the gradients:</p>
+<pre><span>def </span><span>train</span>(encoder<span>, </span>decoder<span>, </span>loss_function<span>, </span>encoder_optimizer<span>, </span>decoder_optimizer<span>, </span>data_loader<span>, </span>max_length=MAX_LENGTH):<br/>    print_loss_total = <span>0<br/></span><span><br/></span><span>    </span><span># Iterate over the dataset<br/></span><span>    </span><span>for </span>i<span>, </span>(input_tensor<span>, </span>target_tensor) <span>in </span><span>enumerate</span>(data_loader):<br/>        input_tensor = input_tensor.to(device).squeeze(<span>0</span>)<br/>        target_tensor = target_tensor.to(device).squeeze(<span>0</span>)<br/><br/>        encoder_hidden = encoder.init_hidden()<br/><br/>        encoder_optimizer.zero_grad()<br/>        decoder_optimizer.zero_grad()<br/><br/>        input_length = input_tensor.size(<span>0</span>)<br/>        target_length = target_tensor.size(<span>0</span>)<br/><br/>        encoder_outputs = torch.zeros(max_length<span>, </span>encoder.hidden_size<span>, </span><span>device</span>=device)<br/><br/>        loss = torch.Tensor([<span>0</span>]).squeeze().to(device)</pre>
+<p>The encoder and decoder parameters are instances of <kbd>EncoderRNN</kbd> and <kbd>AttnDecoderRNN</kbd> (or <kbd>DecoderRNN</kbd>), <kbd>loss_function</kbd> represents the loss (in our case, <kbd>torch.nn.NLLLoss</kbd>), <kbd>encoder_optimizer</kbd> and <kbd>decoder_optimizer</kbd> <span>(the names speak for themselves)</span> are instances of <kbd>torch.optim.Adam</kbd>, and <kbd>data_loader</kbd> is a <kbd>torch.utils.data.DataLoader</kbd>, which wraps an instance of <kbd>NMTDataset</kbd>. </p>
+<p>Next, we'll do the actual training:</p>
+<pre><span>with </span>torch.set_grad_enabled(<span>True</span>):<br/>    <span># Pass the sequence through the encoder and store the hidden states<br/>    at each step<br/></span><span>    </span><span>for </span>ei <span>in </span><span>range</span>(input_length):<br/>        encoder_output<span>, </span>encoder_hidden = encoder(<br/>            input_tensor[ei]<span>, </span>encoder_hidden)<br/>        encoder_outputs[ei] = encoder_output[<span>0</span><span>, </span><span>0</span>]<br/><br/>    <span># Initiate decoder with the GO_token<br/></span><span>    </span>decoder_input = torch.tensor([[GO_token]]<span>, </span><span>device</span>=device)<br/><br/>    <span># Initiate the decoder with the last encoder hidden state<br/></span><span>    </span>decoder_hidden = encoder_hidden<br/><br/>    <span># Teacher forcing: Feed the target as the next input<br/></span><span>    </span><span>for </span>di <span>in </span><span>range</span>(target_length):<br/>        decoder_output<span>, </span>decoder_hidden<span>, </span>decoder_attention = decoder(<br/>            decoder_input<span>, </span>decoder_hidden<span>, </span>encoder_outputs)<br/>        loss += loss_function(decoder_output<span>, </span>target_tensor[di])<br/>        decoder_input = target_tensor[di]  <span># Teacher forcing<br/></span><span><br/></span><span>    </span>loss.backward()<br/><br/>    encoder_optimizer.step()<br/>    decoder_optimizer.step()</pre>
+<p>Let's discuss this in more detail:</p>
+<ul>
+<li>We feed the full sequence to the encoder and save the hidden states in the <kbd>encoder_outputs</kbd> list.</li>
+<li>We initiate the decoder sequence with <kbd>GO_token</kbd> as input.</li>
+<li>We use the decoder to generate new elements of the sequence. Following the teacher forcing principle, the <kbd>decoder</kbd> input at each step comes from the real target sequence <kbd>decoder_input = target_tensor[di]</kbd>.</li>
+<li>We train the encoder and decoder with <kbd>encoder_optimizer.step()</kbd> and <kbd>decoder_optimizer.step()</kbd>, respectively.</li>
+</ul>
+<p>Similar to <kbd>train</kbd>, we have an <kbd>evaluate</kbd> function, which takes an input sequence and returns its translated counterpart and its accompanying attention scores. We won't include the full implementation here, but we'll focus on the encoder/decoder part. Instead of teacher forcing, the <kbd>decoder</kbd> input at each step is the output word of the previous step:</p>
+<pre><span># Initiate the decoder with the last encoder hidden state<br/></span>decoder_input = torch.tensor([[GO_token]]<span>, </span><span>device</span>=device)  <span># GO<br/></span><span><br/></span><span># Initiate the decoder with the last encoder hidden state<br/></span>decoder_hidden = encoder_hidden<br/><br/>decoded_words = []<br/>decoder_attentions = torch.zeros(max_length<span>, </span>max_length)<br/><br/><span># Generate the output sequence (opposite to teacher forcing)<br/></span><span>for </span>di <span>in </span><span>range</span>(max_length):<br/>    decoder_output<span>, </span>decoder_hidden<span>, </span>decoder_attention = decoder(<br/>        decoder_input<span>, </span>decoder_hidden<span>, </span>encoder_outputs)<br/>    decoder_attentions[di] = decoder_attention.data<br/><br/>    <span># Obtain the output word index with the highest probability<br/></span><span>    </span>_<span>, </span>topi = decoder_output.data.topk(<span>1</span>)<br/>    <span>if </span>topi.item() != EOS_token:<br/>        decoded_words.append(dataset.output_lang.index2word[topi.item()])<br/>    <span>else</span>:<br/>        <span>break<br/></span><span><br/></span><span>    </span><span># Use the latest output word as the next input<br/></span><span>    </span>decoder_input = topi.squeeze().detach()</pre>
+<p>When we run the full program, it will display several example translations. It will also display a map of the attention scores between the elements of the input and output sequences, such as the following:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1323 image-border" src="assets/57dbbe1f-33ff-4d26-878f-43736c8bbdbc.png" style="width:32.83em;height:26.17em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Translation attention scores</div>
+<p><span>For example, we can see that the output word</span> <strong>she</strong> <span>focuses its attention to the input word</span> <strong>elle</strong> <span>(<em>she</em> in French). If we didn't have the attention mechanism and only relied on the last encoder hidden state to initiate the translation, the output could have been</span> <strong>She's five years younger than me</strong><span> just as easily. Since the word</span> <strong>elle</strong> <span>is furthest away from the end of the sentence, it would have been hard to encode it within the last encoder hidden state alone.</span></p>
+<p>In the next section, we'll leave the RNNs behind and we'll introduce the transformer—a seq2seq model, based solely on the attention mechanism.</p>
+<p class="mce-root"/>
+<p class="mce-root"/>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding transformers</h1>
+                </header>
+            
+            <article>
+                
+<p>We spent the better part of this chapter touting the advantages of the attention mechanism. But we still use attention in the context of RNNs—in that sense, it works as an addition on top of the core recurrent nature of these models. Since attention is so good, is there a way to use it on its own without the RNN part? It turns out that there is. The paper <em>Attention is all you need</em> (<a href="https://arxiv.org/abs/1706.03762">https://arxiv.org/abs/1706.03762</a>) introduces a new architecture called <strong>transformer</strong> with encoder and decoder that relies solely on the attention mechanism. First, we'll focus our attention on the transformer attention <span>(</span><span>pun intended)</span> mechanism. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The transformer attention</h1>
+                </header>
+            
+            <article>
+                
+<p>Before focusing on the entire model, let's take a look at how the transformer attention is implemented:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1324 image-border" src="assets/2b40b98c-6f83-42e5-b820-385222bc3d9e.png" style="width:34.42em;height:18.67em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Left: Scaled dot product (multiplicative) attention; right: Multihead attention; source: https://arxiv.org/abs/1706.03762</div>
+<p>The transformer uses dot product attention (the left-hand side diagram of the preceding diagram), which follows the general attention procedure we introduced in the <em>Seq2seq with attention</em> section (as we have already mentioned, it is not restricted to RNN models). We can define it with the following formula:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/bd082d35-cc07-4e3a-990d-b8ae2c53ed87.png" style="width:17.75em;height:2.75em;"/></p>
+<p class="mce-root"><span>In practice, we'll compute the attention function over a set of queries simultaneously, packed in a matrix </span><strong>Q</strong><span>. In this scenario, the keys </span><strong>K</strong><span>, the values </span><strong>V</strong><span>, and the result are also matrices. Let's discuss the steps of the formula in more detail:</span></p>
+<ol>
+<li>Match the query <strong>Q</strong> and the database (keys <strong>K</strong>) with matrix multiplication to produce the alignment scores <img class="fm-editor-equation" src="assets/8e75d95c-8656-4199-8c56-132eba392711.png" style="width:2.42em;height:1.25em;"/>. Let's assume that we want to match <em>m</em> different queries to a database of <em>n</em> values and the query-key vector length is <em>d<sub>k</sub></em>. Then, we have the matrix <img class="fm-editor-equation" src="assets/24eda6ec-aad0-4707-b605-6d259b18c5f0.png" style="width:4.50em;height:1.17em;"/>with one <em>d<sub>k</sub></em>-dimensional query per row for <em>m</em> total rows. Similarly, we have the matrix <img class="fm-editor-equation" src="assets/8ae0030f-f2ea-4afd-9f1b-89a992250772.png" style="width:5.00em;height:1.17em;"/> with <span>one </span><em>d<sub>k</sub></em><span>-dimensional key per row for </span><em>n</em><span> total rows. Then, the output matrix will have <img class="fm-editor-equation" src="assets/ddc8548b-714a-461f-baac-c51a1e44f9f1.png" style="width:5.67em;height:1.17em;"/>, where one row contains the alignment scores of a single query over all keys of the database:</span></li>
+</ol>
+<p style="padding-left: 60px" class="CDPAlignLeft CDPAlign"><img class="aligncenter size-full wp-image-1686 image-border" src="assets/3be3cb9d-c46e-48d5-a46d-198ee13549ae.png" style="width:37.17em;height:7.67em;"/></p>
+<p style="padding-left: 60px" class="CDPAlignLeft CDPAlign"><span>In other words, we can match multiple queries against multiple database keys in a single matrix-matrix multiplication. In the context of NMT, we can compute the alignment scores of all words of the target sentence over all words of the source sentence in the same way. </span></p>
+<ol start="2">
+<li>Scale the <span>alignment scores</span> with <img class="fm-editor-equation" src="assets/c494b8f8-a1fd-45e5-a1d6-affc6656a87a.png" style="width:2.67em;height:1.25em;"/>, where <em>d<sub>k</sub></em><span> is the vector size of the key vectors in the matrix </span><strong>K</strong><span>, which is also equal to the size of the query vectors in</span> <strong>Q</strong> <span>(analogously, </span><em>d<sub>v</sub></em> <span>is the vector size of the key vectors</span> <strong>V</strong><span>). The authors of the paper suspect that for large values of </span><em>d<sub>k</sub></em><span>, the dot product grows large in magnitude and pushes the softmax in regions with extremely small gradients, which leads to the infamous vanishing gradients problem, hence the need to scale the results.</span></li>
+<li>Compute the attention scores with the softmax operation along the rows of the matrix (we'll talk about the mask operation later):</li>
+</ol>
+<p style="padding-left: 90px"><img src="assets/2a1a4321-f434-4fa4-8e63-5d7f839cd57d.png" style="width:34.33em;height:7.33em;"/></p>
+<p class="mce-root"/>
+<ol start="4">
+<li>Compute the final attention vector by multiplying the attention scores with the values <strong>V</strong><em>:</em></li>
+</ol>
+<p><img src="assets/d5492e4a-d60b-49c0-8f3e-0b8736697dcb.png" style="width:55.50em;height:7.33em;"/></p>
+<p>We can adapt this mechanism to work with both hard and soft attention. </p>
+<p>The authors also propose <strong>multihead attention </strong>(see the right-hand side diagram of the <span>preceding diagram</span><span>). Instead of a single attention function with</span> <em>d<sub>model</sub></em><span>-dimensional keys, we </span><span>linearly</span><span> </span><span>project</span> <span>the keys, queries, and values</span> <em>h</em> <span>times to produce</span> <em>h</em> <span>different</span> <em>d<sub>k</sub>-</em><span>,</span> <em>d<sub>k</sub>-</em><span>, and</span> <em>d<sub>v</sub>-</em><span>dimensional projections of these values. Then, we apply separate parallel attention functions (or heads) over the newly created vectors, which yield a single </span><em>d<sub>v</sub></em><span>-dimensional output for each head. Finally, we concatenate the head outputs to produce the final attention result. M</span><span>ultihead attention allows each head to attend to different elements of the sequence. At the same time, the model combines the outputs of the heads in a</span> single cohesive representation. M<span>ore precisely, we can define this with the following formula:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/1e7fc963-7dde-4a07-92dc-79b54b4ac1af.png" style="width:24.42em;height:2.67em;"/></p>
+<p>Let's look at this in more detail, starting with the heads:</p>
+<ol>
+<li>Each head receives the linearly projected versions of the initial <strong>Q</strong>, <strong>K</strong>, and <strong>V</strong>. The projections are computed with the learnable weight matrices <strong>W</strong><em><sub>i</sub><sup>Q</sup></em>, <span><strong>W</strong><em><sub>i</sub><sup>K</sup></em>, and <strong>W</strong><em><sub>i</sub><sup>V</sup></em> respectively. Note that we have a separate set of weights for each component (<strong>Q</strong>, <strong>K</strong>, <strong>V</strong>) and for each head <em>i</em>. To satisfy the transformation from <em>d<sub>model</sub></em> to and <em>d<sub>k</sub></em> and <em>d<sub>v</sub></em>, the dimensions of these matrices are <img class="fm-editor-equation" src="assets/3e533bd3-439d-473e-907b-9c257ed57d38.png" style="width:7.58em;height:1.67em;"/>,<img class="fm-editor-equation" src="assets/bf9a3dd8-8d40-4d35-b6bf-68434a50e2de.png" style="width:9.08em;height:1.75em;"/>, and <img class="fm-editor-equation" src="assets/4ef902f8-bfe6-4a4a-a979-fcdd6c51b215.png" style="width:8.58em;height:1.67em;"/>.</span></li>
+<li>Once<span> <strong>Q</strong>, <strong>K</strong>, and <strong>V</strong></span> are transformed, we can compute the attention of each head using the regular attention model we described at the beginning of this section.</li>
+<li>The final attention result is the linear projection (the weight matrix<span> </span><strong>W</strong><em><sup>O</sup></em> of learnable weights) over the concatenated head outputs head<sub>i</sub>.</li>
+</ol>
+<p><span>So far, we've demonstrated attention for different input and output sequences. For example, we've seen that in NMT each word of the translated sentence relates to the words of the source sentence. T</span>he transformer model also relies on <strong>self-attention</strong> (or intra-attention), where the query <strong>Q</strong> belongs to the same dataset as the keys <strong>K</strong> and vectors <strong>V</strong> of the query database. In other words, in self-attention, the source and the target are the same sequence (in our case, the same sentence). The benefit of self-attention is not immediately obvious, as there is no direct task to apply it to. On an intuitive level, it allows us to see the relationship between words of the same sequence. For example, the following diagram shows the multihead self-attention of <span>the verb <em>making</em> (</span>different colors represent different heads). Many of the attention heads attend to a distant dependency of<span> <em>making</em></span>, completing the phrase <em>making ... more difficult</em>:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1325 image-border" src="assets/21108f32-fd44-4c77-bcc4-45213f630e0b.png" style="width:18.42em;height:36.58em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">An example of multihead self-attention. Sourc<span>e:</span><span> </span>https://arxiv.org/abs/1706.03762 <a href="https://arxiv.org/abs/1706.03762"/></div>
+<p>The transformer model uses self-attention as a replacement of the encoder/decoder RNNs, but more on that in the next section.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The transformer model</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Now that we are familiar with multihead attention, let's focus on the full transformer model, starting with the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1326 image-border" src="assets/362b20db-2833-4ecb-b33c-28711065b014.png" style="width:19.25em;height:28.00em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">The transformer model architecture. The left-hand side shows the encoder and the right-hand side shows the decoder;<span> source: </span>https://arxiv.org/abs/1706.03762</div>
+<p>It looks scary, but fret not—it's easier than it seems. We'll start with the encoder (the left-hand component of the preceding diagram):</p>
+<ul>
+<li>It begins with an input sequence of one-hot-encoded words, which are transformed into <em>d<sub>model</sub></em>-dimensional embedding vectors. The embedding vectors are further multiplied by <img class="fm-editor-equation" src="assets/5ec0c397-cafb-43e7-92c8-0e5f2accc144.png" style="width:4.25em;height:1.75em;"/>.</li>
+<li>The transformer doesn't use RNNs, and therefore, it has to convey the positional information of each sequence element in some other way. We can do this explicitly by <span>augmenting each embedding vector with positional encoding. In short, the positional encoding is a vector with the same length <em>d<sub>model </sub></em>as the embedding vector. The positional vector is added (elementwise) to the embedding vector and the result is propagated further in the encoder. The authors of the paper introduce the following function for each element <em>i</em> of the positional vector, when the current word has the position <em>pos</em> in the sequence:</span></li>
+</ul>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/f608ed47-8a47-4419-af06-cc22dbb6d3ff.png" style="width:18.17em;height:5.00em;"/></p>
+<p style="padding-left: 60px">Each dimension of the positional encoding corresponds to a sinusoid. The wavelengths form a geometric progression from 2π to 10000 · 2π. The authors hypothesize that this function would allow the model to easily learn to attend by relative positions, since, for any fixed offset <em>k</em>, <em>PE<sub>pos+k</sub></em> can be represented as a linear function of <em>PE<sub>pos</sub></em>.</p>
+<ul>
+<li>The rest of the encoder is composed of a stack of <em>N = 6</em> identical blocks. Each block has two sublayers:
+<ul>
+<li>A multihead self-attention mechanism, like the one we described in the section titled <em>The transformer attention</em>. Since the self-attention mechanism works across the whole input sequence, the encoder is <strong>bidirectional</strong> by design. Some algorithms use only the encoder transformer part and are referred to as <strong>transformer encoder</strong>.</li>
+<li>A simple, fully connected, feed-forward network, which is defined by the following formula:</li>
+</ul>
+</li>
+</ul>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/b6c24f77-e176-47d3-ac92-12e1e910c157.png" style="width:15.50em;height:1.08em;"/></p>
+<p style="padding-left: 150px"><span>The network is applied to each sequence element <em>x</em> separately. It uses the same set of parameters (<strong>W</strong><em><sub>1</sub></em>, <strong>W</strong><em><sub>2</sub></em>, <em>b<sub>1</sub></em>, and <em>b<sub>2</sub></em>) across different positions, but different parameters across the different encoder blocks.</span></p>
+<p class="mce-root"/>
+<p style="padding-left: 60px">Each sublayer <span>(both the multihead attention and feed-forward network)</span> has a residual connection around itself and ends with normalization over the sum of that connection and its own output and the residual connection. Therefore, the output of each sublayer is as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/59208993-0830-4b6b-b328-6a6198dff280.png" style="width:11.58em;height:1.00em;"/></p>
+<p style="padding-left: 60px">The normalization technique is described in the paper <em>Layer Normalization</em> (<a href="https://arxiv.org/abs/1607.06450">https://arxiv.org/abs/1607.06450</a>).</p>
+<p class="CDPAlignLeft CDPAlign">Next, let's look at the decoder, which is somewhat similar to the encoder:</p>
+<ul>
+<li class="CDPAlignLeft CDPAlign">The input at step <em>t</em> is the decoder's own predicted output word at step <em>t-1</em>. The input word uses the same embedding vectors and positional encoding as the encoder.</li>
+<li><span>The decoder continues with a stack of </span><em>N = 6</em><span> identical blocks, which are somewhat similar to the encoder blocks. Each block consists of three sublayers and each sublayer employs residual connections and normalization. The sublayers are:</span>
+<ul>
+<li><span>A multihead self-attention mechanism. The encoder self-attention can attend to all elements of the sequence, regardless of whether they come before or after the target element. But the decoder has only a partially generated target sequence. Therefore, the self-attention here can only attend to the preceding sequence elements. This is implemented by <strong>masking out</strong> (setting to −∞) all values in the input of the softmax, which correspond to illegal connections:</span></li>
+</ul>
+</li>
+</ul>
+<p style="padding-left: 30px"><img src="assets/537f17ea-f0a1-445f-ad32-d658dc974616.png" style="width:41.25em;height:8.33em;"/></p>
+<p style="padding-left: 150px"><span>The masking makes the decoder <strong>unidirectional</strong> (unlike the bidirectional encoder). Algorithms that work with the decoder are referred to as <strong>transformer decoder algorithms</strong>.</span></p>
+<ul>
+<li style="list-style-type: none">
+<ul>
+<li>A regular attention mechanism, where the queries come from the previous decoder layer, and the keys and values come from the previous sublayer, which represents the processed decoder output at step <em>t-1</em>. This allows every position in the decoder to attend over all positions in the input sequence. This mimics the typical encoder-decoder attention mechanisms, which we discussed in the <em>Seq2seq with attention</em> section.</li>
+<li>A feed-forward network, which is similar to the one in the encoder.</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>The decoder ends with a fully connected layer, followed by a softmax, which produces the most probable next word of the sentence.</li>
+</ul>
+<p>The transformer uses dropout as a regularization technique. It adds <span>dropout to the output of each sublayer before it is added to the sublayer input and normalized. It also applies dropout to</span><span> the sums of the embeddings and the positional encodings in both the encoder and decoder stacks.</span></p>
+<p>Finally, let's summarize the benefits of self-attention over the RNN attention models we discussed in the <em>Seq2seq with attention</em> section. The key advantage of the self-attention mechanism is the immediate access to all elements of the input sequence, as opposed to the bottleneck thought vector of the RNN models. Additionally—the following is a direct quote from the paper—a self-attention layer connects all positions with a constant number of sequentially executed operations, whereas a recurrent layer requires <em>O(n)</em> sequential operations.</p>
+<p>In terms of computational complexity, self-attention layers are faster than recurrent layers when the sequence length <em>n</em> is smaller than the representation dimensionality <em>d</em>, which is most often the case with sentence representations used by state-of-the-art models in machine translations, such as word-piece (see <em>Google's Neural Machine Translation System: Bridging the Gap between Human and Machine Translation</em> at <a href="https://arxiv.org/abs/1609.08144">https://arxiv.org/abs/1609.08144</a>) and byte-pair (see <em>Neural Machine Translation of Rare Words with Subword Units</em> at <a href="https://arxiv.org/abs/1508.07909">https://arxiv.org/abs/1508.07909</a>) representations. To improve computational performance for tasks involving very long sequences, self-attention could be restricted to considering only a neighborhood of size <em>r</em> in the input sequence centered around the respective output position.</p>
+<p>This concludes our theoretical description of transformers. In the next section, we'll implement a transformer from scratch.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementing transformers</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll implement the transformer model with the help of PyTorch 1.3.1. As the example is relatively complex, we'll simplify it by using a basic training dataset: we'll train the model to copy a randomly generated sequence of integer values—that is, the source and the target sequence are the same and the transformer will learn to replicate the input sequence as the output. We won't include the full source code, but you can find it at <a href="https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter08/transformer.py">https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter08/transformer.py</a>.</p>
+<div class="packt_tip">This example is based on <a href="https://github.com/harvardnlp/annotated-transformer">https://github.com/harvardnlp/annotated-transformer</a>. Let's also note that PyTorch 1.2 has introduced native transformer modules (the documentation is available at <a href="https://pytorch.org/docs/master/nn.html#transformer-layers">https://pytorch.org/docs/master/nn.html#transformer-layers</a>). Still, in this section we'll implement the transformer from scratch to understand it better.</div>
+<p>First, we'll start with the utility function <kbd>clone</kbd>, which takes an instance of <kbd>torch.nn.Module</kbd> and produces <kbd>n</kbd> identical deep copies of the same module (excluding the original source instance):</p>
+<pre><span>def </span><span>clones</span>(module: torch.nn.Module<span>, </span>n: <span>int</span>):<br/><span>    </span><span>return </span>torch.nn.ModuleList([copy.deepcopy(module) <span>for </span>_ <span>in </span><span>range</span>(n)])</pre>
+<p>With this short introduction, let's continue with the implementation of multihead attention.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Multihead attention</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll implement multihead attention by following the definitions from the <em>The transformer attention</em><span> section. We'll start with the implementation of the regular scaled dot product attention:</span></p>
+<pre><span>def </span><span>attention</span>(query<span>, </span>key<span>, </span>value<span>, </span>mask=<span>None, </span>dropout=<span>None</span>):<br/>    <span>"""Scaled Dot Product Attention"""<br/></span><span>    </span>d_k = query.size(-<span>1</span>)<br/><br/>    <span># 1) and 2) Compute the alignment scores with scaling<br/></span><span>    </span>scores = torch.matmul(query<span>, </span>key.transpose(-<span>2</span><span>, </span>-<span>1</span>)) / math.sqrt(d_k)<br/>    <span>if </span>mask <span>is not None</span>:<br/>        scores = scores.masked_fill(mask == <span>0</span><span>, </span>-<span>1e9</span>)<br/><br/>    <span># 3) Compute the attention scores (softmax)<br/></span><span>    </span>p_attn = torch.nn.functional.softmax(scores<span>, </span><span>dim</span>=-<span>1</span>)<br/><br/>    <span>if </span>dropout <span>is not None</span>:<br/>        p_attn = dropout(p_attn)<br/><br/>    <span># 4) Apply the attention scores over the values<br/></span><span>    </span><span>return </span>torch.matmul(p_attn<span>, </span>value)<span>, </span>p_attn</pre>
+<p>As a reminder, this function implements the formula <sub><img class="fm-editor-equation" src="assets/f1f24071-0946-4744-8b95-de6569c39aca.png" style="width:15.33em;height:1.08em;"/></sub>, where <strong>Q</strong> = <kbd>query</kbd>, <strong>K</strong> = <kbd>key</kbd>, and <strong>V</strong> = <kbd>value</kbd>. If a <kbd>mask</kbd> is available, it will also be applied.</p>
+<p>Next, we'll implement the multihead attention mechanism as <kbd>torch.nn.Module</kbd>. As a reminder, the implementation follows the following formula:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/46de1649-0510-4bba-9367-953964022efd.png" style="width:22.08em;height:2.42em;"/></p>
+<p>We'll start with the <kbd>__init__</kbd> method:</p>
+<pre><span>class </span>MultiHeadedAttention(torch.nn.Module):<br/>    <span>def </span><span>__init__</span>(<span>self</span><span>, </span>h<span>, </span>d_model<span>, </span>dropout=<span>0.1</span>):<br/>        <span>"""<br/></span><span>        </span><span>:param</span><span> h: number of heads<br/></span><span>        </span><span>:param</span><span> d_model: query/key/value vector length<br/></span><span>        """<br/></span><span>        </span><span>super</span>(MultiHeadedAttention<span>, </span><span>self</span>).<span>__init__</span>()<br/>        <span>assert </span>d_model % h == <span>0<br/></span><span>        </span><span># We assume d_v always equals d_k<br/></span><span>        </span><span>self</span>.d_k = d_model // h<br/>        <span>self</span>.h = h<br/><br/>        <span># Create 4 fully connected layers<br/></span><span>        # 3 for the query/key/value projections<br/></span><span>        # 1 to concatenate the outputs of all heads<br/></span><span>        </span><span>self</span>.fc_layers = clones(torch.nn.Linear(d_model<span>, </span>d_model)<span>, </span><span>4</span>)<br/>        <span>self</span>.attn = <span>None<br/></span><span>        </span><span>self</span>.dropout = torch.nn.Dropout(<span>p</span>=dropout)</pre>
+<div class="packt_tip">Note that we use the <kbd>clones</kbd> function to create four identical, fully connected <kbd>self.fc_layers</kbd>. We'll use three of them for the <strong>Q</strong>/<strong>K</strong>/<strong>V</strong> linear projections— <sub><img class="fm-editor-equation" src="assets/6c2d3e70-f1e8-4854-a624-e9390c0427db.png" style="width:7.58em;height:1.33em;"/></sub>. The fourth fully connected layer is to merge the concatenated results of the outputs of the different heads <strong>W</strong><em><sup>O</sup></em>. We'll store the current attention results in the <kbd>self.attn</kbd> property.</div>
+<p>Next, let's implement the <kbd>MultiHeadedAttention.forward</kbd> method (please bear in mind the indentation):</p>
+<pre><span>def </span><span>forward</span>(<span>self</span><span>, </span>query<span>, </span>key<span>, </span>value<span>, </span>mask=<span>None</span>):<br/>    <span>if </span>mask <span>is not None</span>:<br/>        <span># Same mask applied to all h heads.<br/></span><span>        </span>mask = mask.unsqueeze(<span>1</span>)<br/><br/>    batch_samples = query.size(<span>0</span>)<br/><br/>    <span># 1) Do all the linear projections in batch from d_model =&gt; h x d_k<br/></span><span>    </span>projections = <span>list</span>()<br/>    <span>for </span>l<span>, </span>x <span>in </span><span>zip</span>(<span>self</span>.fc_layers<span>, </span>(query<span>, </span>key<span>, </span>value)):<br/>        projections.append(<br/>            l(x).view(batch_samples<span>, </span>-<span>1</span><span>, </span><span>self</span>.h<span>, </span><span>self</span>.d_k).transpose(<span>1</span><span>, </span><span>2</span>)<br/>        )<br/><br/>    query<span>, </span>key<span>, </span>value = projections<br/><br/>    <span># 2) Apply attention on all the projected vectors in batch.<br/></span><span>    </span>x<span>, </span><span>self</span>.attn = attention(query<span>, </span>key<span>, </span>value<span>,<br/></span><span>                             </span><span>mask</span>=mask<span>,<br/></span><span>                             </span><span>dropout</span>=<span>self</span>.dropout)<br/><br/>    <span># 3) "Concat" using a view and apply a final linear.<br/></span><span>    </span>x = x.transpose(<span>1</span><span>, </span><span>2</span>).contiguous() \<br/>        .view(batch_samples<span>, </span>-<span>1</span><span>, </span><span>self</span>.h * <span>self</span>.d_k)<br/><br/>    <span>return </span><span>self</span>.fc_layers[-<span>1</span>](x)</pre>
+<p>We iterate over the <strong>Q</strong>/<strong>K</strong>/<strong>V</strong> vectors and their reference projection <kbd>self.fc_layers</kbd> and produce the <strong>Q</strong>/<strong>K</strong>/<strong>V</strong> <kbd>projections</kbd> with the following snippet:</p>
+<pre>l(x).view(batch_samples<span>, </span>-<span>1</span><span>, </span><span>self</span>.h<span>, </span><span>self</span>.d_k).transpose(<span>1</span><span>, </span><span>2</span>)</pre>
+<p>Then, we apply the regular attention over the projections using the <kbd>attention</kbd> function we first defined, and finally, we concatenate the outputs of multiple heads and return the results. Now that we've implemented multihead attention, let's continue by implementing the encoder.</p>
+<p class="mce-root"/>
+<p class="mce-root"/>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Encoder</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll implement the encoder, which is composed of several different subcomponents. Let's start with the main definition and then dive into more details:</p>
+<pre><span>class </span>Encoder(torch.nn.Module):<br/><span>    </span><span>def </span><span>__init__</span>(<span>self</span><span>, </span>block: EncoderBlock<span>, </span>N: int):<br/>        <span>super</span>(Encoder<span>, </span><span>self</span>).<span>__init__</span>()<br/>        <span>self</span>.blocks = clones(block<span>, </span>N)<br/>        <span>self</span>.norm = LayerNorm(block.size)<br/><br/>    <span>def </span><span>forward</span>(<span>self</span><span>, </span>x<span>, </span>mask):<br/>        <span>"""Iterate over all blocks and normalize"""<br/></span><span>        </span><span>for </span>layer <span>in </span><span>self</span>.blocks:<br/>            x = layer(x<span>, </span>mask)<br/><br/>        <span>return </span><span>self</span>.norm(x)</pre>
+<p>It is fairly straightforward: the encoder is composed of <kbd>self.blocks</kbd>: <kbd>N</kbd> stacked instances of <kbd>EncoderBlock</kbd>, where each serves as input for the next. They are followed by <kbd>LayerNorm</kbd> normalization <kbd>self.norm</kbd> (we discussed these concepts in the <em>The transformer model</em> section<span>). The</span> <kbd>forward</kbd> <span>method takes as input the data tensor</span> <kbd>x</kbd> <span>and an instance of </span><kbd>mask</kbd><span>, which blocks some of the input sequence elements. As we discussed in the</span> <em>The transformer model</em> section<span>, the mask is only relevant to the decoder part of the model, where the future elements of the sequence are not available yet. In the encoder, the mask exists only as a placeholder.</span></p>
+<p>We'll omit the definition of <kbd>LayerNorm</kbd> (it's enough to know that it's a normalization at the end of the encoder) and we'll focus on <kbd>EncoderBlock</kbd> instead:</p>
+<pre>class EncoderBlock(torch.nn.Module):<br/>    def __init__(self,<br/>                 size: int,<br/>                 self_attn: MultiHeadedAttention,<br/>                 ffn: PositionwiseFFN,<br/>                 dropout=0.1):<br/>        super(EncoderBlock, self).__init__()<br/>        self.self_attn = self_attn<br/>        self.ffn = ffn<br/><br/>        # Create 2 sub-layer connections<br/>        # 1 for the self-attention<br/>        # 1 for the FFN<br/>        self.sublayers = clones(SublayerConnection(size, dropout), 2)<br/>        self.size = size<br/><br/>    def forward(self, x, mask):<br/>        x = self.sublayers[0](x, lambda x: self.self_attn(x, x, x, mask))<br/>        return self.sublayers[1](x, self.ffn)</pre>
+<p>As a reminder, each encoder block consists of two sublayers (<kbd>self.sublayers</kbd> instantiated with the familiar <kbd>clones</kbd> function): a multihead self-attention <kbd>self_attn</kbd> (an instance of <kbd>MultiHeadedAttention</kbd>), followed by a simple fully connected network <kbd>ffn</kbd> (an instance of <kbd>PositionwiseFFN</kbd>). Each sublayer is wrapped by its residual connection, which is implemented with the <kbd>SublayerConnection</kbd> class:</p>
+<pre><span>class </span>SublayerConnection(torch.nn.Module):<br/><span>    </span><span>def </span><span>__init__</span>(<span>self</span><span>, </span>size<span>, </span>dropout):<br/>        <span>super</span>(SublayerConnection<span>, </span><span>self</span>).<span>__init__</span>()<br/>        <span>self</span>.norm = LayerNorm(size)<br/>        <span>self</span>.dropout = torch.nn.Dropout(dropout)<br/><br/>    <span>def </span><span>forward</span>(<span>self</span><span>, </span>x<span>, </span>sublayer):<br/><span>        </span><span>return </span>x + <span>self</span>.dropout(sublayer(<span>self</span>.norm(x)))</pre>
+<p>The residual connection also includes normalization and dropout (according to the definition). As a reminder, it follows the formula <sub><img class="fm-editor-equation" src="assets/56ef0b5c-6430-44ef-b14b-aadb5badca9f.png" style="width:15.42em;height:1.33em;"/></sub>, but <span>for code simplicity, the </span><kbd>self.norm</kbd><span> comes first rat</span>her than last. The <kbd>SublayerConnection.forward</kbd> phrase takes as input the data tensor <kbd>x</kbd> and <kbd>sublayer</kbd>, which is an instance of either <kbd>MultiHeadedAttention</kbd> or <kbd>PositionwiseFFN</kbd>. We can see this dynamic in the <kbd>EncoderBlock.forward</kbd> method. </p>
+<p>The only component we haven't defined yet is <kbd>PositionwiseFFN</kbd>, which implements the formula <sub><img class="fm-editor-equation" src="assets/a255961a-4105-4c24-9971-41d393304341.png" style="width:16.67em;height:1.17em;"/></sub>. Let's add this missing piece:</p>
+<pre><span>class </span>PositionwiseFFN(torch.nn.Module):<br/><span>    </span><span>def </span><span>__init__</span>(<span>self</span><span>, </span>d_model: <span>int</span><span>, </span>d_ff: <span>int</span><span>, </span>dropout=<span>0.1</span>):<br/>        <span>super</span>(PositionwiseFFN<span>, </span><span>self</span>).<span>__init__</span>()<br/>        <span>self</span>.w_1 = torch.nn.Linear(d_model<span>, </span>d_ff)<br/>        <span>self</span>.w_2 = torch.nn.Linear(d_ff<span>, </span>d_model)<br/>        <span>self</span>.dropout = torch.nn.Dropout(dropout)<br/><br/>    <span>def </span><span>forward</span>(<span>self</span><span>, </span>x):<br/>        <span>return </span><span>self</span>.w_2(<span>self</span>.dropout(torch.nn.functional.relu(<span>self</span>.w_1(x))))</pre>
+<p>We have now implemented the encoder and all its building blocks. In the next section, we'll continue with the decoder definition.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Decoder</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll implement the decoder. It follows a pattern that is very similar to the encoder:</p>
+<pre><span>class </span>Decoder(torch.nn.Module):<br/><span>    </span><span>def </span><span>__init__</span>(<span>self</span><span>, </span>block: DecoderBlock<span>, </span>N: <span>int</span><span>, </span>vocab_size: <span>int</span>):<br/>        <span>super</span>(Decoder<span>, </span><span>self</span>).<span>__init__</span>()<br/>        <span>self</span>.blocks = clones(block<span>, </span>N)<br/>        <span>self</span>.norm = LayerNorm(block.size)<br/>        <span>self</span>.projection = torch.nn.Linear(block.size<span>, </span>vocab_size)<br/><br/>    <span>def </span><span>forward</span>(<span>self</span><span>, </span>x<span>, </span>encoder_states<span>, </span>source_mask<span>, </span>target_mask):<br/>        <span>for </span>layer <span>in </span><span>self</span>.blocks:<br/>            x = layer(x<span>, </span>encoder_states<span>, </span>source_mask<span>, </span>target_mask)<br/><br/>        x = <span>self</span>.norm(x)<br/><br/>        <span>return </span>torch.nn.functional.log_softmax(<span>self</span>.projection(x)<span>, </span><span>dim</span>=-<span>1</span>)</pre>
+<p>It consists of <kbd>self.blocks</kbd>: <kbd>N</kbd> instances of <kbd>DecoderBlock</kbd>, where the output of each block serves as input to the next. These are followed by the <kbd>self.norm</kbd> normalization (an instance of <kbd>LayerNorm</kbd>). Finally, to produce the most probable word, the decoder has an additional fully connected layer with softmax activation. <span>N</span>ote that the <kbd>Decoder.forward</kbd> me<span>thod takes an additional parameter </span><kbd>encoder_states</kbd><span>, which represents the attention vector of the encoder. The <kbd>encoder_states</kbd> are then passed to the <kbd>DecoderBlock</kbd> instances. </span></p>
+<p>Next, let's implement the <kbd>DecoderBlock</kbd>:</p>
+<pre><span>class </span>DecoderBlock(torch.nn.Module):<br/><span>    </span><span>def </span><span>__init__</span>(<span>self</span><span>,<br/></span><span>                 </span>size: <span>int</span><span>,<br/></span><span>                 </span>self_attn: MultiHeadedAttention<span>,<br/></span><span>                 </span>encoder_attn: MultiHeadedAttention<span>,<br/></span><span>                 </span>ffn: PositionwiseFFN<span>,<br/></span><span>                 </span>dropout=<span>0.1</span>):<br/>        <span>super</span>(DecoderBlock<span>, </span><span>self</span>).<span>__init__</span>()<br/>        <span>self</span>.size = size<br/>        <span>self</span>.self_attn = self_attn<br/>        <span>self</span>.encoder_attn = encoder_attn<br/>        <span>self</span>.ffn = ffn<br/><br/>        <span># Create 3 sub-layer connections<br/></span><span>        # 1 for the self-attention<br/></span><span>        # 1 for the encoder attention<br/></span><span>        # 1 for the FFN<br/></span><span>        </span><span>self</span>.sublayers = clones(SublayerConnection(size<span>, </span>dropout)<span>, </span><span>3</span>)<br/><br/>    <span>def </span><span>forward</span>(<span>self</span><span>, </span>x<span>, </span>encoder_states<span>, </span>source_mask<span>, </span>target_mask):<br/>        x = <span>self</span>.sublayers[<span>0</span>](x<span>, lambda </span>x: <span>self</span>.self_attn(x<span>, </span>x<span>, </span>x<span>, </span>target_mask))<br/>        x = <span>self</span>.sublayers[<span>1</span>](x<span>, lambda </span>x: <span>self</span>.encoder_attn(x<span>, </span>encoder_states<span>, </span>encoder_states<span>, </span>source_mask))<br/>        <span>return </span><span>self</span>.sublayers[<span>2</span>](x<span>, </span><span>self</span>.ffn)</pre>
+<p>This is similar to <kbd>EncoderBlock</kbd>, but with one substantial difference: whereas <kbd>EncoderBlock</kbd> relies <span>only </span>on the self-attention mechanism, here we combine self-attention with the regular attention coming from the encoder. This is reflected in <span>the </span><kbd>encoder_attn</kbd><span> module and later the </span><kbd>encoder_states</kbd><span> parameter of the <kbd>forward</kbd> method, as well as </span>the additional <kbd>SublayerConnection</kbd> for the encoder attention values. We can see the combination of multiple attention mechanisms in the <kbd>DecoderBlock.forward</kbd> method. Note that <kbd>self.self_attn</kbd> uses <kbd>x</kbd> for both query/key/value, while <kbd>self.encoder_attn</kbd> uses <kbd>x</kbd> as a query and <kbd>encoder_states</kbd> for keys and values. In this way, the regular attention establishes the link between the encoder and the decoder. </p>
+<p>This concludes the decoder implementation. We'll proceed with building the full transformer model in the next section.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Putting it all together</h1>
+                </header>
+            
+            <article>
+                
+<p>We'll continue with the main <kbd>EncoderDecoder</kbd> class:</p>
+<pre><span>class </span>EncoderDecoder(torch.nn.Module):<br/><span>    </span><span>def </span><span>__init__</span>(<span>self</span><span>,<br/></span><span>                 </span>encoder: Encoder<span>,<br/></span><span>                 </span>decoder: Decoder<span>,<br/></span><span>                 </span>source_embeddings: torch.nn.Sequential<span>,<br/></span><span>                 </span>target_embeddings: torch.nn.Sequential):<br/>        <span>super</span>(EncoderDecoder<span>, </span><span>self</span>).<span>__init__</span>()<br/>        <span>self</span>.encoder = encoder<br/>        <span>self</span>.decoder = decoder<br/>        <span>self</span>.source_embeddings = source_embeddings<br/>        <span>self</span>.target_embeddings = target_embeddings<br/><br/>    <span>def </span><span>forward</span>(<span>self</span><span>, </span>source<span>, </span>target<span>, </span>source_mask<span>, </span>target_mask):<br/><span>        </span>encoder_output = <span>self</span>.encoder(<br/>            <span>x</span>=<span>self</span>.source_embeddings(source)<span>,<br/></span><span>            </span><span>mask</span>=source_mask)<br/><br/>        <span>return </span><span>self</span>.decoder(<br/>            <span>x</span>=<span>self</span>.target_embeddings(target)<span>,<br/></span><span>            </span><span>encoder_states</span>=encoder_output<span>,<br/></span><span>            </span><span>source_mask</span>=source_mask<span>,<br/></span><span>            </span><span>target_mask</span>=target_mask)</pre>
+<p>It combines the <kbd>Encoder</kbd>, <kbd>Decoder</kbd>, and <kbd>source_embeddings/target_embeddings</kbd> (we'll focus on the embeddings later in this section). The <kbd>EncoderDecoder.forward</kbd> method takes the source sequence and feeds it to <kbd>self.encoder</kbd>. Then, <kbd><span>self.decoder</span></kbd><span> takes its input from the preceding output step <kbd>x=self.target_embeddings(target)</kbd></span>,<span> the encoder states <kbd>encoder_states=encoder_output</kbd>, and the source and target masks. With these inputs, it produces the predicted next element (word) of the sequence, which is also the return value of the <kbd>forward</kbd> method.</span></p>
+<p>Next, we'll implement the <kbd>build_model</kbd> function, which combines everything we've implemented so far into one coherent model:</p>
+<pre><span>def </span><span>build_model</span>(source_vocabulary: <span>int</span><span>,<br/></span><span>                </span>target_vocabulary: <span>int</span><span>,<br/></span><span>                </span>N=<span>6</span><span>, </span>d_model=<span>512</span><span>, </span>d_ff=<span>2048</span><span>, </span>h=<span>8</span><span>, </span>dropout=<span>0.1</span>):<br/>    <span>"""Build the full transformer model"""<br/></span><span>    </span>c = copy.deepcopy<br/>    attn = MultiHeadedAttention(h<span>, </span>d_model)<br/>    ff = PositionwiseFFN(d_model<span>, </span>d_ff<span>, </span>dropout)<br/>    position = PositionalEncoding(d_model<span>, </span>dropout)<br/><br/>    model = EncoderDecoder(<br/>        <span>encoder</span>=Encoder(EncoderBlock(d_model<span>, </span>c(attn)<span>, </span>c(ff)<span>, </span>dropout)<span>, </span>N)<span>,<br/></span><span>        </span><span>decoder</span>=Decoder(DecoderBlock(d_model<span>, </span>c(attn)<span>, </span>c(attn)<span>,</span>c(ff)<span>,<br/>                                    </span>dropout)<span>, </span>N<span>, </span>target_vocabulary)<span>,<br/></span><span>        </span><span>source_embeddings</span>=torch.nn.Sequential(<br/>            Embeddings(d_model<span>, </span>source_vocabulary)<span>, </span>c(position))<span>,<br/></span><span>        </span><span>target_embeddings</span>=torch.nn.Sequential(<br/>            Embeddings(d_model<span>, </span>target_vocabulary)<span>, </span>c(position)))<br/><br/>    <span># This was important from their code.<br/></span><span>    # Initialize parameters with Glorot / fan_avg.<br/></span><span>    </span><span>for </span>p <span>in </span>model.parameters():<br/>        <span>if </span>p.dim() &gt; <span>1</span>:<br/>            torch.nn.init.xavier_uniform_(p)<br/><br/>    <span>return </span>model</pre>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p>Besides the familiar <kbd>MultiHeadedAttention</kbd> and <kbd>PositionwiseFFN</kbd>, we also create the <kbd>position</kbd> variable (an instance of the <kbd>PositionalEncoding</kbd> class). This class implements the sinusoidal positional encoding we described in the <em>The</em> <em>transformer model</em> section (we won't include the full implementation here). Now let's focus on the <kbd>EncoderDecoder</kbd> instantiation: we are already familiar with the encoder and the decoder, so there are no surprises there. But the embeddings are a tad more interesting. The following code instantiates the source embeddings (but this is also valid for the target ones):</p>
+<pre><span>source_embeddings</span>=torch.nn.Sequential(Embeddings(d_model<span>, </span>source_vocabulary)<span>, </span>c(position))</pre>
+<p>We can see that they are a sequential list of two components:</p>
+<ul>
+<li>An instance of the <kbd>Embeddings</kbd> class, which is simply a combination of <kbd>torch.nn.Embedding</kbd> further multiplied by <sub><img class="fm-editor-equation" src="assets/139f1f87-f470-4ddd-bc21-128a4113a83a.png" style="width:3.25em;height:1.33em;"/></sub> (we'll omit the class definition here)</li>
+<li>Positional encoding <kbd>c(position)</kbd>, which adds the positional sinusoidal data to the embedding vector</li>
+</ul>
+<p>Once we have the input data preprocessed in this way, it can serve as input to the core part of the encoder/decoder.</p>
+<p>This concludes our implementation of the transformer. <span>Our goal with this example was to provide a supplement to the theoretical base of the </span><span>sections</span><span> called </span><em>The transformer attention</em><span> and </span><em>The transformer model</em><span>. Therefore, we have focused on the most relevant parts of the code and omitted</span> <span>a few</span> <em>ordinary</em> <span>code sections, chief among them the</span> <kbd>RandomDataset</kbd><span> data generator for random numerical sequences and the</span> <kbd>train_model</kbd> <span>function, which implements the training. Nevertheless, </span><span>I would encourage the reader to run through the full example step by step so that they can gain a better understanding of the way the transformer works. </span></p>
+<p><span>In the next section, we'll talk about some of the state-of-the-art language models based on the attention mechanisms we have introduced so far.</span></p>
+<p class="mce-root"/>
+<p class="mce-root"/>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Transformer language models</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">In <a href="fe6a42c9-f18e-4c2b-9a82-99ec53e727ca.xhtml">Chapter 6</a>, <em>Language</em> <em>Modeling</em>, we introduced several different language models (word2vec, Gl<span>oVe, and fastText) that </span><span>use </span><span>the context of a word (its surrounding words) to create word vectors (embeddings). </span><span>These models share some common properties:</span></p>
+<ul>
+<li>They are context-free (I know it contradicts the previous statement) because <span>they create a single global word vector of each word based on all its occurrences in the training text. For example, <em>lead</em> can have completely different meanings in the phrases <em>lead the way</em> and <em>lead atom</em>, yet the model will try to embed both meanings in the same word vector.</span></li>
+<li>They are position-free because they don't take into account the order of the contextual words when training for the embedding vectors.</li>
+</ul>
+<p>In contrast, it's possible to create transformer-based language models, which are both context- and position-dependent. These models will produce different word vectors for each unique context of the word, taking into account both the current context words and their positions. This leads to a conceptual difference between the classic and transformer-based models. Since a model such as word2vec creates static context- and position-free embedding vectors, we can discard the model and only use the vectors in subsequent downstream tasks. But the transformer model creates dynamic vectors based on the context, and therefore, we have to include it as part of the task pipeline.</p>
+<p>In the following sections, we'll discuss some of the most recent transformer-based models.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Bidirectional encoder representations from transformers</h1>
+                </header>
+            
+            <article>
+                
+<p>The <strong>bidirectional encoder representations from transformers</strong> (<strong>BERT</strong>) (see <em>BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding </em>at <a href="https://arxiv.org/abs/1810.04805">https://arxiv.org/abs/1810.04805</a>) model has a very descriptive name. Let's look at some of the elements that are mentioned:</p>
+<ul>
+<li>Encoder representations: This model uses only the output of the multilayer encoder part of the transformer architecture we described in the <em>The transformer model</em> section.</li>
+<li>Bidirectional: The encoder has an inherent bidirectional nature.</li>
+</ul>
+<p class="mce-root"/>
+<p>To gain some perspective, let's denote the number of transformer blocks with<span> </span><em>L</em>, the hidden size with<span> </span><em>H</em><span> </span>(previously denoted with<span> </span><em>d<sub>model</sub></em>), and the number of self-attention heads with<span> </span><em>A</em>. The authors of the paper experimented with two BERT configurations: BE<span>RT<sub>BASE</sub> (<em>L </em>= 12, <em>H </em>= 768, <em>A </em>= 12, total parameters = 110M) and BERT<sub>LARGE</sub> (<em>L </em>= 24, <em>H </em>= 1024, </span><span><em>A </em>= 16, total parameters = 340M). </span></p>
+<p><span>To better understand the BERT framework, we'll start with the training, which has two steps:</span></p>
+<ol>
+<li><strong>Pretraining</strong>: The model is trained on unlabeled data over different pretraining tasks.</li>
+<li><strong>Fine-tuning</strong>: The model is initialized with the pretrained parameters and then all parameters are fine-tuned over the labeled dataset of the specific downstream task.</li>
+</ol>
+<p>We can see the steps in the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1328 image-border" src="assets/0600cac1-7eab-4671-b730-54e10104037c.png" style="width:46.83em;height:17.58em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Left: Pretraining; Right: Fine-tuning Source: https://arxiv.org/abs/1810.04805</div>
+<p>These diagrams will serve as references through the next sections, so stay tuned for more details. For now, it's enough for us to know that <strong>Tok N</strong> represents the one-hot-encoded input tokens, <em>E</em> represents the token embeddings, and <em>T</em> represents the model output vector.</p>
+<p>Now that we have an overview of BERT, let's look at its components.</p>
+<p class="mce-root"/>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Input data representation</h1>
+                </header>
+            
+            <article>
+                
+<p>Before going into each training step, let's discuss the input and output data representations, which are shared by the two steps. <span>Somewhat similar to fastText (see</span> <a href="fe6a42c9-f18e-4c2b-9a82-99ec53e727ca.xhtml">Chapter 6</a>, <em>Language Modeling</em><span>), BERT uses a data-driven tokenization algorithm called WordPiece (</span><a href="https://arxiv.org/abs/1609.08144">https://arxiv.org/abs/1609.08144</a><span>). This means that, instead of a vocabulary of full words, it creates a vocabulary of subword tokens in an iterative process until that vocabulary reaches a predetermined size (in the case of BERT, the size is 30,000 tokens). This approach has two main advantages:</span></p>
+<ul>
+<li><span>It allows us to control the size of the dictionary.</span></li>
+<li><span>It handles unknown words by assigning them to the closest existing dictionary subword token.</span></li>
+</ul>
+<p><span>BERT can handle a variety of downstream tasks. To do so, the authors introduced a special-input data representation, which can unambiguously represent the following as a single-input sequence of tokens:</span></p>
+<ul>
+<li><span>A single sentence (for example, in classification tasks, such as sentiment analysis)</span></li>
+<li><span>A pair of sentences (for example, in question-answering problems)</span></li>
+</ul>
+<p><span>Here, <em>sentence</em> not only refers to a linguistic sentence, but can mean any contiguous text of arbitrary length. </span></p>
+<p>The model uses two special tokens:</p>
+<ul>
+<li>The first token of every sequence is always a special classification token (<kbd>[CLS]</kbd>). The hidden state corresponding to this token is used as the aggregate sequence representation for classification tasks. For example, if we want to apply sentiment analysis over the sequence, the output corresponding to the <kbd>[CLS]</kbd> input token will represent the sentiment (positive/negative) output of the model.</li>
+<li>Sentence pairs are packed together into a single sequence. The second special token<span> (<kbd>[SEP]</kbd>) marks the boundary between the two input sentences (in the case that we have two</span>). We further differentiate the sentences with the help of an additional learned segmentation embedding for every token indicating whether it belongs to sentence A or sentence B. Therefore, the input embeddings are the sum of the token embeddings, the segmentation embeddings, and the position embeddings. Here, the token and position embeddings serve the same purpose as they do in the regular transformer.</li>
+</ul>
+<p class="mce-root"/>
+<p>The following diagram displays the special tokens, as well as the input embeddings:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1330 image-border" src="assets/1cafb5c9-2644-4b5a-b454-de3021a73aec.png" style="width:42.92em;height:12.92em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">BERT input representation; the input embeddings are the sum of the token embeddings, the segmentation embeddings, and the position embeddings. Source: https://arxiv.org/abs/1810.04805</div>
+<p><span>Now that we know how the input is processed, let's look at the pretraining step.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Pretraining</h1>
+                </header>
+            
+            <article>
+                
+<p>The pretraining step is illustrated on the left-hand side of the diagram in the <em>Bidirectional encoder representations from transformers</em> section. The authors of the paper trained the BERT model using two unsupervised training tasks: <strong>masked language modeling</strong> (<strong>MLM</strong>) and <strong>next sentence prediction</strong> (<strong>NSP</strong>).</p>
+<p>We'll start with MLM, where the model is presented with an input sequence and its goal is to predict a missing word in that sequence. In this case,<span> BERT acts as a <strong>denoising autoencoder</strong> in the sense that it tries to reconstruct its intentionally corrupted input.</span> <span>MLM is similar in nature to the CBOW objective of the word2vec model (see <a href="fe6a42c9-f18e-4c2b-9a82-99ec53e727ca.xhtml">Chapter 6</a>, </span><em>Language Modeling</em><span>).</span><span> </span>To solve this task, the BERT encoder output is extended with a fully connected layer with softmax activation to produce the most probable word, given the input sequence. Each input sequence is modified by randomly masking 15% (according to the paper) of the WordPiece tokens.<span> </span>To better understand this, we'll use an example from the paper itself: assuming that the unlabeled sentence is <em>my dog is hairy</em>, and that, during the random masking procedure, we chose the fourth token (which corresponds to <kbd>hairy</kbd>), our masking procedure can be further illustrated by the following points:</p>
+<ul>
+<li><strong>80% of the time</strong>: Replace the word with the <kbd>[MASK]</kbd> token—for example, <em>my dog is hairy</em> → <em>my dog is</em> <kbd>[MASK]</kbd>.</li>
+<li><strong>10% of the time</strong>: Replace the word with a random word—for example, <em>my dog is hairy</em> → <em>my dog is apple</em>.</li>
+<li><strong>10% of the time</strong>: Keep the word unchanged <em>my dog is hairy</em> → <em>my dog is hairy</em>. The purpose of this is to bias the representation toward the actual observed word.</li>
+</ul>
+<div class="packt_infobox"><span>Because the model is bidirectional, the <kbd>[MASK]</kbd> token can appear at any position in the input sequence. At the same time, the model will use the full sequence to predict the missing word. This is opposed to unidirectional autoregressive models (we'll discuss these in the following sections), which always try to predict the next word from all preceding words, thereby avoiding the need to have <kbd>[MASK]</kbd> tokens.</span></div>
+<p><span>There are two main reasons why we need this 80/10/10 distribution:</span></p>
+<ul>
+<li><span>The <kbd>[MASK]</kbd> token creates a mismatch between pretraining and fine-tuning (we'll discuss this in the next section)</span>, since it only appears in the former but not in the latter—that is, the fine-tuning task will present the model with input sequences without the <kbd>[MASK]</kbd> token. Yet, the model was pretrained to expect sequences with <kbd>[MASK],</kbd> which might lead to undefined behavior.</li>
+<li>BERT assumes that the predicted tokens are independent of each other. To understand this, let's imagine that the model tries to reconstruct the input sequence <em>I went</em> <kbd>[MASK]</kbd> <em>with my</em> <kbd>[MASK]</kbd>. BERT can predict the sentence <span><em>I went cycling with my bicycle</em>, which is a valid sentence. But because the model does not relate the two masked words, nothing prevents it </span>from predicting <em>I went swimming with my bicycle</em>, which is not valid. </li>
+</ul>
+<p>With the 80/10/10 distribution, the <kbd>transformer</kbd> encoder does not know which words it will be asked to predict or which have been replaced by random words, so it is forced to keep a distributional contextual representation of every input token. Additionally, because random replacement only occurs for 1.5% of all tokens (that is, 10% of 15%), this does not seem to harm the model's language-understanding ability. </p>
+<p>One disadvantage of MLM is that, because the model only predicts 15% of the words in each batch, it might converge more slowly than pretraining models that use all words. </p>
+<p>Next, let's continue with NSP. The authors argue that many important downstream tasks, such as <strong>question answering</strong> (<strong>QA</strong>) and <strong>natural language inference</strong> (<strong>NLI</strong>), are based on understanding the relationship between two sentences, which is not directly captured by language modeling.</p>
+<p class="mce-root"/>
+<div class="packt_infobox CDPAlignLeft CDPAlign">Natural language inference determines whether a sentence, which represents a <strong>hypothesis</strong>, is either true (entailment), false (contradiction), or undetermined (neutral) given another sentence, called a <strong>premise</strong>. The following table shows some examples:<br/>
+<br/>
+<table style="border-collapse: collapse;width: 100%" border="1">
+<tbody>
+<tr style="height: 17px">
+<td style="height: 17px" class="CDPAlignCenter CDPAlign"><strong>Premise</strong></td>
+<td style="height: 17px" class="CDPAlignCenter CDPAlign"><strong>Hypothesis</strong></td>
+<td style="height: 17px" class="CDPAlignCenter CDPAlign"><strong>Label</strong></td>
+</tr>
+<tr style="height: 15.4219px">
+<td style="height: 15.4219px" class="CDPAlignCenter CDPAlign">I am running</td>
+<td style="height: 15.4219px" class="CDPAlignCenter CDPAlign">I am sleeping</td>
+<td style="height: 15.4219px" class="CDPAlignCenter CDPAlign">contradiction</td>
+</tr>
+<tr style="height: 17px">
+<td style="height: 17px" class="CDPAlignCenter CDPAlign">I am running</td>
+<td style="height: 17px" class="CDPAlignCenter CDPAlign">I am listening to music</td>
+<td style="height: 17px" class="CDPAlignCenter CDPAlign">neutral</td>
+</tr>
+<tr style="height: 17px">
+<td style="height: 17px" class="CDPAlignCenter CDPAlign">I am running</td>
+<td style="height: 17px" class="CDPAlignCenter CDPAlign">I am training</td>
+<td style="height: 17px" class="CDPAlignCenter CDPAlign">entailment</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>In order to train a model that understands sentence relationships, we pretrain for a next-sentence prediction task that can be trivially generated from any monolingual corpus. Specifically, each input sequence consists of a starting <kbd>[CLS]</kbd> token, followed by two concatenated sentences, A and B, which are separated by the <kbd>[SEP]</kbd> token (see the diagram in the <em>Bidirectional encoder representations from transformers</em> section). When choosing the sentences A and B for each pretraining example, 50% of the time, B is the actual next sentence that follows A (labeled as <kbd>IsNext</kbd>), and 50% of the time, it is a random sentence from the corpus (labeled as <kbd>NotNext</kbd>). As we mentioned, the model outputs the <kbd>IsNext</kbd>/<kbd>NotNext</kbd> <span>labels on the <kbd>[CLS]</kbd> corresponding input.</span></p>
+<p>The NSP task is illustrated using the following example:</p>
+<ul>
+<li><kbd>[CLS]</kbd> <em>the man went to</em> <kbd>[MASK]</kbd> <em>store</em> <kbd>[SEP]</kbd> <em>he bought a gallon</em> <kbd>[MASK]</kbd> <em>milk [SEP]</em> with the label <kbd>IsNext</kbd>. </li>
+<li><kbd>[CLS]</kbd> <em>the man</em> <kbd>[MASK]</kbd> <em>to the store</em> <kbd>[SEP]</kbd> <em>penguins</em> <kbd>[MASK]</kbd> <em>are flight ##less birds</em> <kbd>[SEP]</kbd> with the label <kbd>NotNext</kbd>. Note the use of the <em><span>##less</span></em> <span>token, which is the result of the WordPiece tokenization algorithm.</span></li>
+</ul>
+<p>Next, let's look at the fine-tuning step.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Fine-tuning</h1>
+                </header>
+            
+            <article>
+                
+<p>The fine-tuning task follows the pretraining task, and apart from the input preprocessing, the two steps are very similar. Instead of creating a masked sequence, we simply feed the BERT model with the task-specific unmodified input and output and fine-tune all the parameters in an end-to-end fashion. Therefore, the model that we use in the fine-tuning phase is the same model that we'll use in the actual production environment.</p>
+<p>The following diagram shows how to solve several different types of task with BERT:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1331 image-border" src="assets/4ba45881-2a02-4dba-9f4f-c22fb3da7ffe.png" style="width:45.00em;height:36.92em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">BERT applications for different tasks; <span>source: </span>https://arxiv.org/abs/1810.04805</div>
+<p>Let's discuss them:</p>
+<ul>
+<li>The top-left scenario illustrates how to use <strong>BERT</strong> for sentence-pair classification tasks, such as <span><span>NLI. In short, we feed the model with two concatenated sentences and only look at the <kbd>[CLS]</kbd> token output classification, which will output the model result. For example, in an NLI task, the goal is to predict whether the second sentence is an entailment, a contradiction, or neutral with respect to the first one.</span></span></li>
+<li>The top-right scenario illustrates how to use <strong>BERT</strong> for single-sentence classification tasks, such as sentiment analysis. This is very similar to the sentence-pair classification.</li>
+<li>The bottom-left scenario illustrates how to use <strong>BERT</strong> on the <strong>Stanford Question Answering Dataset</strong> (<strong>SQuAD</strong> v1.1, <a href="https://rajpurkar.github.io/SQuAD-explorer/explore/1.1/dev/">https://rajpurkar.github.io/SQuAD-explorer/explore/1.1/dev/</a>). Given that sequence A is a question and sequence B is a passage from Wikipedia, which contains the answer, the goal is to predict the text span (start and end) of the answer within this passage. We introduce two new vectors: a start vector <img class="fm-editor-equation" src="assets/920325e6-3871-4031-844c-3196fe8d17b6.png" style="width:3.42em;height:1.08em;"/> and an end vector <img class="fm-editor-equation" src="assets/d37a6783-26fe-4ba4-84d0-504cab4d82c2.png" style="width:3.50em;height:1.08em;"/>, where <em>H</em> is the hidden size of the model. The probability of each word <em>i</em> as being the start (or end) of the answer span is computed as a dot product between its output vector <em>T<sub>i</sub></em> and <em>S</em> (or <em>E</em>), followed by a softmax over all the words of the sequence <em>B</em>: <img class="fm-editor-equation" src="assets/2b598dd9-c691-4be3-87aa-16a2a2153ce3.png" style="width:5.25em;height:2.08em;"/>. The score of a candidate span starting from position <em>i</em> and spanning to <em>j</em> is computed as <img class="fm-editor-equation" src="assets/911c7f71-5ac0-4cc0-af14-3b5662add47f.png" style="width:5.75em;height:1.08em;"/>. The output candidate is the one with the maximum score, where <img class="fm-editor-equation" src="assets/7caa20c6-d192-4825-9a7b-e444a051d85f.png" style="width:2.08em;height:1.00em;"/>. </li>
+<li>The bottom-right scenario illustrates how to use <strong>BERT</strong> for <strong>named entity recognition</strong> (<strong>NER</strong>), where each input token is classified as some type of entity. </li>
+</ul>
+<p>This concludes our section dedicated to the BERT model. As a reminder, it is based on the transformer encoder. In the next section, we'll discuss transformer decoder models.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Transformer-XL</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll talk about an improvement over the vanilla transformer, called transformer-XL, where XL stands for extra long (see <em>Transformer-X</em><em>L: Attentive Language Models Beyond a Fixed-Length Context </em>at <a href="https://arxiv.org/abs/1901.02860">https://arxiv.org/abs/1901.02860</a>). To understand the need to improve the regular transformer, let's discuss some of its limitations, one of which comes from the nature of the transformer itself. An RNN-based model has the (at least theoretical) ability to convey information about sequences of arbitrary length, because the internal RNN state is adjusted based on all previous inputs. But the transformer's self-attention doesn't have such a recurrent component, and is restricted entirely within the bounds of the current input sequence. If we had infinite memory and computation, a simple solution would be to process the entire context sequence. But in practice, we have limited resources, and so we split the entire text into smaller segments and train the model only within each segment, as image <span><strong>(a)</strong> in </span><span>the following diagram shows:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1332 image-border" src="assets/2acf4b82-935f-4f9e-a94a-b0a3b4e615ef.png" style="width:94.83em;height:22.67em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Illustration of the training (a) and evaluation (b) of a regular transformer with an input sequence of length 4; note the use of the unidirectional transformer decoder. Source: https://arxiv.org/abs/1901.02860</div>
+<p>The horizontal axis represents the input sequence [<em>x<sub>1</sub>,..., x<sub>4</sub></em>] and the vertical axis represents the stacked decoder blocks. Note that element <em>x<sub>i</sub></em> can only attend to the elements <img class="fm-editor-equation" src="assets/6625a637-0e08-4d99-b338-aed9728d4b6c.png" style="width:2.75em;height:1.33em;"/>. That's because t<span>ransformer-XL is based on the transformer decoder (and doesn't include the encoder), unlike BERT, which is based on the encoder. Therefore, the transformer-XL decoder is not the same as the decoder in the <em>full</em> encoder-decoder transformer, because it doesn't have access to the encoder state, as the regular decoder does. In that sense, the transformer-XL decoder is very similar to a general transformer encoder, with the exception that it's unidirectional, because of the input sequence mask. Transformer-XL is an example of an <strong>autoregressive model</strong>.</span></p>
+<p><span>As the preceding diagram demonstrates, the largest possible dependency length is upper-bounded by the segment length, and although the attention mechanism helps prevent vanishing gradients by allowing immediate access to all elements of the sequence, the transformer cannot fully exploit this advantage, because of the limited input segment. Furthermore, the text is usually split by selecting a consecutive chunk of symbols without respecting the sentence or any other semantic boundary, which the authors of the paper refer to as context fragmentation. To quote the paper itself, the model lacks the contextual information needed to well predict the first few symbols, leading to inefficient optimization and inferior performance. </span></p>
+<p>Another issue of the vanilla transformer is manifested during evaluation, as shown on the right-hand side of the preceding diagram. At each step, the model takes the full sequence as input, but only makes a single prediction. To predict the next output, the transformer is shifted right with a single position, yet the new segment (which is the same as the last segment, except for the last value) has to be processed from scratch over the full input sequence.</p>
+<p>Now that we've identified some problems with the transformer model, let's look at how to solve them.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Segment-level recurrence with state reuse</h1>
+                </header>
+            
+            <article>
+                
+<p>Transformer-XL introduces a recurrence relationship in the transformer model. During training, the model caches its state for the current segment, and when it processes the next segment, it has access to that cached (but fixed) value, as we can see in the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1333 image-border" src="assets/78c7fc5c-275f-4ccc-975d-d483648c44ac.png" style="width:91.33em;height:20.67em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Illustration of the training (a) and evaluation (b) of transformer-XL with an input sequence length of 4. Source: https://arxiv.org/abs/1901.02860</div>
+<p>During training, the gradient is not propagated through the cached segment. Let's formalize this concept (we'll use the notation from the paper, which might differ slightly from the previous notations in this chapter). We'll denote two consecutive segments of length <em>L</em> with <img class="fm-editor-equation" src="assets/003a82a2-0d66-4b95-80cc-9cb61ceba9e2.png" style="width:9.42em;height:1.33em;"/> and <img class="fm-editor-equation" src="assets/3886154f-f4ae-43c9-bb52-0fa177d943bc.png" style="width:14.08em;height:1.50em;"/> and the <em>n</em>th block hidden state of the <em>τ</em>th segment with <img class="fm-editor-equation" src="assets/daf9b9a2-2b97-4d63-8cfe-f485f3c9b0a8.png" style="width:4.83em;height:1.42em;"/>, where <em>d</em> is the hidden dimension (equivalent to <em>d<sub>model</sub></em>). To clarify, <img class="fm-editor-equation" src="assets/58e25d25-edae-43f1-a5f7-2e996e7e1ea8.png" style="width:1.25em;height:1.25em;"/> is a matrix with <em>L</em> rows, where each row contains the <em>d</em>-dimensional <span>self-attention vector of each element of the input sequence. </span>Then, the <em>n</em>th layer hidden state of the <span><em>τ+1</em>th segment is produced by going through the following steps:</span></p>
+<p style="padding-left: 90px" class="mce-root"><img src="assets/65d7d9bf-1a70-4dda-8f8d-aabd242822fe.png" style="width:32.50em;height:6.08em;"/></p>
+<p class="mce-root"/>
+<p>Here, <img class="fm-editor-equation" src="assets/e009eb26-3070-427c-ae4c-13af2a325006.png" style="width:2.50em;height:1.17em;"/> refers to the stop gradient, <strong>W<sub>*</sub></strong> refers to the model parameters (previously denoted with <strong>W<sup>*</sup></strong>), and <img class="fm-editor-equation" src="assets/03843f17-dd65-4127-bcbd-feeabc108c61.png" style="width:9.08em;height:1.33em;"/> refers to the concatenation of the two hidden sequences along the length dimension. To clarify, the concatenated hidden sequences is a matrix with <em>2L</em> rows, where each row contains the <em>d</em><span>-dimensional </span><span>self-attention vector of one element of the combined input sequences τ and τ+1. The paper does a great job of explaining the intricacies of the preceding formulas, so the following explanation contains some direct quotes. Compared to the standard transformer, the critical difference lies in that the key <img class="fm-editor-equation" src="assets/2ca40428-2d70-45a3-a648-aa3985b7e98b.png" style="width:2.42em;height:1.33em;"/> and value <img class="fm-editor-equation" src="assets/20bc5956-58c1-45ca-9d59-71039a1c984a.png" style="width:2.25em;height:1.25em;"/> are conditioned on the extended context <img class="fm-editor-equation" src="assets/30c22b63-cdf9-46c8-99c3-3aa9814c8edd.png" style="width:2.17em;height:1.67em;"/>, and so <img class="fm-editor-equation" src="assets/f357cf76-93ea-47cc-85dd-6e7ddc6f9047.png" style="width:1.92em;height:1.25em;"/> is cached from the previous segment (shown with the green paths in the preceding diagram). With this recurrence mechanism applied to every two consecutive segments of a corpus, it essentially creates a segment-level recurrence in the hidden states. As a result, the effective context that is utilized can go way beyond just two segments. However, note that the recurrent dependency between <img class="fm-editor-equation" src="assets/c6363dc1-ba34-4cde-bda6-d93e1538e439.png" style="width:1.75em;height:1.08em;"/> and <img class="fm-editor-equation" src="assets/fa984b5b-8e02-45f4-93b0-d88ed5e5c12c.png" style="width:1.75em;height:1.17em;"/> shifts one layer downward per segment. Consequently, the largest possible dependency length grows linearly with respect to the number of layers as well as the segment length—that is, <em>O</em>(<em>N</em> × <em>L</em>), as visualized by the shaded area of the preceding diagram.</span></p>
+<p>Besides achieving extra-long context and resolving fragmentation, another benefit that comes with the recurrence scheme is significantly faster evaluation. Specifically, during evaluation, the representations from the previous segments can be reused instead of being computed from scratch, as in the case of the vanilla model.</p>
+<p>Finally, note that the recurrence scheme does not need to be restricted to only the previous segment. In theory, we can cache as many previous segments as the GPU memory allows and reuse all of them as the extra context when processing the current segment.</p>
+<p>The recurrence scheme will require a new way to encode the positions of the sequence elements. Let's look at this topic next. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Relative positional encodings</h1>
+                </header>
+            
+            <article>
+                
+<p>The vanilla transformer input is augmented with sinusoidal positional encodings (see the <em>The transformer model</em> section), which are relevant only within the current segment. The following formula shows how to schematically compute the states <img class="fm-editor-equation" src="assets/8351dc62-260f-4636-934e-bab20e8af900.png" style="width:1.08em;height:1.00em;"/> and <img class="fm-editor-equation" src="assets/6ebf6a61-eff6-4c68-9cc9-7d92b83d1d0c.png" style="width:2.00em;height:1.08em;"/> with the current positional encodings:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/8fbe4d9a-d78a-48ba-8dcb-d0dc5e377eff.png" style="width:13.92em;height:3.00em;"/></p>
+<p class="mce-root"/>
+<p class="mce-root">Here, <img class="fm-editor-equation" src="assets/a8944859-bec6-40db-90f6-2b25713b139c.png" style="width:4.58em;height:1.25em;"/> is the word-embedding sequence of <em>s<sub>τ</sub></em>, and <em>f</em> is the transformation function. We can see that we use the same positional encoding <img class="fm-editor-equation" src="assets/6b6471ad-550b-4c79-8b34-42141e5f1c36.png" style="width:1.75em;height:0.83em;"/> for both <img class="fm-editor-equation" src="assets/1664f782-bb9f-4a20-b780-ccd4107ae4b3.png" style="width:1.50em;height:1.08em;"/> and <img class="fm-editor-equation" src="assets/34dcfc74-e58d-493a-8cf2-08e627b08b38.png" style="width:1.75em;height:0.92em;"/>. Because of this, the model cannot distinguish between the positions of two elements of the same position within the different sequences <img class="fm-editor-equation" src="assets/a7aeb32f-02b8-470d-8d9d-0475875c6a1f.png" style="width:1.92em;height:1.08em;"/> and <img class="fm-editor-equation" src="assets/4ae0fb1b-6338-42b2-8568-32bab59a85b1.png" style="width:3.25em;height:1.17em;"/>. To avoid this, the authors of the paper propose a new type of <strong>relative</strong> positional encoding scheme. They made the observation that when a query vector (or matrix of queries) <img class="fm-editor-equation" src="assets/59cab96e-f966-4809-92da-5595bd43f68b.png" style="width:1.67em;height:1.17em;"/> attends to key vectors <img class="fm-editor-equation" src="assets/fc82f157-e241-443c-a3ae-fcfeef222bd3.png" style="width:2.75em;height:1.17em;"/>, it does not need to know the absolute position of each key vector to identify the temporal order of the segment. Instead, it is enough to know the relative distance between each key vector <img class="fm-editor-equation" src="assets/95f61cdd-49ac-49f6-a8e4-21e00433e065.png" style="width:1.75em;height:1.08em;"/> and itself <img class="fm-editor-equation" src="assets/50ee0566-d28e-41d5-952e-a995dcb752f3.png" style="width:1.67em;height:1.17em;"/>—that is <em>i−j</em>.</p>
+<p class="mce-root">The proposed solution is to create a set of relative positional encodings <img class="fm-editor-equation" src="assets/ecdc4134-f80d-4b20-a418-57dcff1d65fd.png" style="width:5.83em;height:1.17em;"/>, where each cell of the <em>i</em>th row indicates the relative distance between the <em>i</em>th element and the rest of the elements of the sequence. <strong>R</strong> uses the same sinusoidal formula as before, but this time, with relative instead of absolute positions. This relative distance is injected dynamically (as opposed to being part of the input preprocessing), which makes it possible for the query vector to distinguish between the positions of<span> </span><img class="fm-editor-equation" src="assets/a7aeb32f-02b8-470d-8d9d-0475875c6a1f.png" style="width:2.17em;height:1.25em;"/><span> and </span><img class="fm-editor-equation" src="assets/4ae0fb1b-6338-42b2-8568-32bab59a85b1.png" style="width:3.25em;height:1.17em;"/>. To understand this, let's start with the product absolute position attention formula from the <em>The transformer attention</em> section, <span>which can be decomposed as follows:</span></p>
+<p style="padding-left: 180px"><img src="assets/d2cea46c-2833-4f4e-a1c6-1ec5b577e235.png" style="width:16.08em;height:5.75em;"/></p>
+<p>Let's discuss the components of this formula:</p>
+<ol>
+<li>Indicates how much word <em>i</em> attends to word <em>j</em>, regardless of their current position (content-based addressing)—for example, how much the word <em>tire</em> relates to the word <em>car</em>.</li>
+<li>Reflects how much word <em>i</em> attends to the word in position <em>j</em>, regardless of what that word is<span> (content-dependent positional bias)—f</span>or example, if the word <em>i</em> is <em>cream</em>, we may want to check the probability that word <em>j = i - 1</em> is <em>ice</em>.</li>
+<li>This step is the opposite of step 2. </li>
+<li>Indicates how much a word in position <em>i</em> should attend to a word in position <em>j</em>, regardless of what the two words are (global-positioning bias)—for example, this value could be low for positions that are far apart.</li>
+</ol>
+<p>In transformer-XL, this formula is modified to include the relative positional embeddings:</p>
+<p style="padding-left: 180px"><img src="assets/3fffcb4d-ad6d-430d-a538-58aa25e8f47d.png" style="width:17.92em;height:5.67em;"/></p>
+<p>Let's outline the changes with respect to the absolute position formula:</p>
+<ul>
+<li>Replace all appearances of the absolute positional embedding <em>U<sub>j</sub></em> for computing key vectors in terms (2) and (4) with its relative counterpart <em>R<sub>i−j</sub></em>.</li>
+<li>Replace the query <img class="fm-editor-equation" src="assets/f2b094b1-2640-4acd-93fe-8c489139064b.png" style="width:2.67em;height:1.17em;"/> in term (3) with a trainable parameter <img class="fm-editor-equation" src="assets/763e3944-4c5c-481c-9578-3f64d6a4dfc7.png" style="width:3.00em;height:1.08em;"/>. The reasoning behind this is that the query vector is the same for all query positions; therefore, the attentive bias toward different words should remain the same regardless of the query position. Similarly, a trainable parameter <img class="fm-editor-equation" src="assets/b913a4dc-a09e-4ef8-8f5b-ae5b247722b5.png" style="width:2.50em;height:0.92em;"/> substitutes <img class="fm-editor-equation" src="assets/327fa6b0-167d-434f-bad7-6835c4303d18.png" style="width:2.08em;height:0.92em;"/> in term (4).</li>
+<li>Separate <strong>W</strong><em><sub>K</sub></em> into two weight matrices <strong>W</strong><em><sub>K,E</sub></em> and <strong>W</strong><em><sub>K,R</sub></em> to produce separate content-based and position-based key vectors.</li>
+</ul>
+<p>To recap, the segment-level recurrence and relative positional encodings are the main improvements of transformer-XL over the vanilla transformer. In the next section, we'll look at yet another improvement of transformer-XL.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">XLNet</h1>
+                </header>
+            
+            <article>
+                
+<p>The authors note that <span>bidirectional</span> models with <span>denoising autoencoding pretraining </span>(such as BERT) achieve better performance compared to unidirectional autoregressive models (such as transformer-XL). But as we mentioned in the <em>Pretraining</em> subsection of the <em>Bidirectional encoder representations from transformers</em> section, the <kbd>[MASK]</kbd> token introduces a discrepancy between the pretraining and fine-tuning steps. To overcome these limitations, the authors of transformer-XL propose XLNet<span> (see <em>XLNet: Generalized Autoregressive Pretraining for Language Understanding </em>at </span><a href="https://arxiv.org/abs/1906.08237">https://arxiv.org/abs/1906.08237</a><span>): a generalized <strong>autoregressive</strong> pretraining mechanism that enables learning bidirectional contexts by maximizing the expected likelihood over all permutations of the factorization order. To clarify, </span><span>XLNet builds upon the transformer decoder model of transformer-XL and introduces a smart permutation-based mechanism for bidirectional context flow within the autoregressive pretraining step.</span></p>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p>The following diagram illustrates how the model processes the same input sequence with different factorization orders. Specifically, it shows a transformer decoder with two stacked blocks and segment-level recurrence (the <strong>mem</strong> fields):</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1334 image-border" src="assets/9bd20c60-51c4-4d3d-aebc-427ac09eed57.png" style="width:72.17em;height:54.50em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Predicting <em>x<sub>3</sub></em> over the same input sequence with four different factorization orders. Source: https://arxiv.org/abs/1906.08237 <a href="https://arxiv.org/abs/1906.08237"/></div>
+<p>There are <em>T</em>! different orders to perform a valid autoregressive factorization over a sequence of length <em>T</em>. Let's assume that we have an input sequence of [<em>x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub>, x<sub>4</sub></em>] with length 4. The diagram shows four of the possible 4! = 24 factorization orders of that sequence (starting clockwise from the top-left corner): <span>[</span><em>x<sub>3</sub>, x<sub>2</sub>, x<sub>4</sub>, x<sub>1</sub></em><span>], [<em>x<sub>2</sub>, x<sub>4</sub>, x<sub>3</sub>, x<sub>1</sub></em>], [<em>x<sub>4</sub>, x<sub>3</sub>, x<sub>1</sub>, x<sub>2</sub></em>], and [<em>x<sub>1</sub>, x<sub>4</sub>, x<sub>2</sub>, x<sub>3</sub></em>]. Remember that the autoregressive model allows the current element to attend only to the preceding elements of the sequence. Therefore, under normal circumstances, <em>x<sub>3</sub></em> would be able to attend only to <em>x<sub>1</sub></em> and <em>x<sub>2</sub></em>. But the XLNet algorithm trains the model not only with the regular sequence, but also with different factorization orders of that sequence. Therefore, the model will <em>see</em> all four factorization orders as well as the original input. For example, with [<em>x<sub>3</sub>, x<sub>2</sub>, x<sub>4</sub>, x<sub>1</sub></em>], <em>x<sub>3</sub></em> will not be able to attend to any of the other elements, because it's the first one. Alternatively, with [<em>x<sub>2</sub>, x<sub>4</sub>, x<sub>3</sub>, x<sub>1</sub></em>], <em>x<sub>3</sub></em> will be able to attend to <em>x<sub>2</sub></em> and <em>x<sub>4</sub></em>. Under the previous circumstances, <em>x<sub>4</sub></em> would have been inaccessible. The black arrows in the diagram indicate the elements that <em>x<sub>3</sub></em> can attend to, depending on the factorization order (the unavailable elements have no arrows).</span></p>
+<p>But how can this work, and what is the point of the training when the sequence will lose its meaning if it's not in its natural order? To answer this, let's remember that the transformer has no implicit recurrent mechanism, and instead, we convey the position of the elements with the explicit positional encodings. Let's also remember that in the regular transformer decoder, we use the self-attention mask to limit the access to the sequence elements following the current one. When we feed a sequence with another factorization order, say <span>[</span><em>x<sub>2</sub>, x<sub>4</sub>, x<sub>3</sub>, x<sub>1</sub></em><span>], the elements of the sequence will maintain their original positional encoding and the transformer will not lose their correct order. In fact, the input is still the original sequence [<em>x<sub>1</sub>, x<sub>2</sub>, x<sub>3</sub>, x<sub>4</sub></em>], but with an <strong>altered attention mask</strong> to provide access only to elements <em>x<sub>2</sub></em> and <em>x<sub>4</sub></em>.</span></p>
+<p>To formalize this concept<span>, let's introduce some notations: </span><img class="fm-editor-equation" src="assets/3a1b5515-8dcb-4562-a081-af1fa4ceadf2.png" style="width:1.33em;height:1.00em;"/><span> is the set of all possible permutations of the length-<em>T</em> index sequence [1, 2, . . . , <em>T</em>]; </span><img class="fm-editor-equation" src="assets/8a903d12-8bac-423c-a8e6-3df5d4cee11e.png" style="width:2.67em;height:0.83em;"/><span> is one permutation of </span><img class="fm-editor-equation" src="assets/3e93fec1-aaa9-44e0-9a1b-1011ba46b66f.png" style="width:1.25em;height:0.92em;"/><span>; </span><img class="fm-editor-equation" src="assets/26099f4b-c07a-4e06-a6ba-6ab9a2bbe328.png" style="width:1.00em;height:0.92em;"/><span> is the </span><em>t</em><span>th element of that permutation; </span><img class="fm-editor-equation" src="assets/40c6c4da-6249-46ba-b758-3c5904d09767.png" style="width:1.50em;height:0.83em;"/><span> are the first </span><em>t-1</em><span> elements of that permutation, and <img class="fm-editor-equation" src="assets/2abdc5f8-5de3-429e-af1a-b29d5266370c.png" style="width:5.17em;height:1.17em;"/></span><span> is the probability distribution of the next word <img class="fm-editor-equation" src="assets/9b448615-aa0e-4e5e-9684-593bb672c733.png" style="width:1.58em;height:1.08em;"/></span><span>, given the current permutation </span><img class="fm-editor-equation" src="assets/3b46504a-f316-4cf4-b448-dcd9ca95e065.png" style="width:2.08em;height:0.83em;"/><span> (the autoregressive task, which is the output of the model), where θ are the model parameters. Then, the permutation language modeling objective is as follows:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/68a26555-aaca-4e73-bdad-7aaad53dd649.png" style="width:16.25em;height:3.67em;"/></p>
+<p>It samples different factorization orders of the input sequence one at a time and attempts to maximize the probability <img class="fm-editor-equation" src="assets/715f3a1e-4047-41f6-9dd9-23af7a3786bb.png" style="width:1.17em;height:0.92em;"/>—that is, to increase the chance of the model to predict the correct word. The parameters θ are shared across all factorization orders; therefore, the model will be able to see every possible element <img class="fm-editor-equation" src="assets/585d38cf-1b5b-4953-872f-6e839aec3abc.png" style="width:3.25em;height:1.17em;"/>, thereby emulating bidirectional context. At the same time, this is still an autoregressive function, which doesn't need <kbd>[MASK]</kbd> tokens.</p>
+<p>We need one more piece to fully utilize the permutation-based pretraining. We'll start by defining the <span>probability distribution of the next word </span><img class="fm-editor-equation" src="assets/5799d957-0303-4627-be58-7984f859a9c5.png" style="width:1.50em;height:1.08em;"/><span>, given the current permutation </span><img class="fm-editor-equation" src="assets/0a1a99a8-7bb7-41f7-ae26-dc6b87be0247.png" style="width:2.08em;height:0.83em;"/><span> (the autoregressive task, which is the output of the model)</span> <img class="fm-editor-equation" src="assets/1abef19f-67ad-4069-8b73-379d19a45b19.png" style="width:5.42em;height:1.17em;"/>, which is simply the softmax output of the model:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/ba32b664-9c7b-4447-837c-8d61e7de2889.png" style="width:23.92em;height:3.33em;"/></p>
+<p>Here, <img class="fm-editor-equation" src="assets/b9123cb8-acb5-4793-b2a8-5b424dadacb3.png" style="width:1.92em;height:1.17em;"/> acts as the query and <img class="fm-editor-equation" src="assets/5e4e171d-48b8-4143-9a62-9938cd9309f9.png" style="width:4.08em;height:1.25em;"/> is the hidden representation produced by the transformer after the proper masking, which acts as the key-value database. </p>
+<p>Next, let's assume that we have two factorization orders <img class="fm-editor-equation" src="assets/a1d6ae4d-fc14-4d73-abb8-22182e3e58da.png" style="width:8.17em;height:1.25em;"/> and <img class="fm-editor-equation" src="assets/cee30934-7d1d-4415-97e9-76e18ed54cc8.png" style="width:8.17em;height:1.25em;"/>, where the first two elements are the same and the second two are swapped. Let's also assume that <em>t = 3—</em>that is, the model has to predict the third element of the sequence. Since <img class="fm-editor-equation" src="assets/177c0cfc-ffe1-497b-ad7c-39b542595b68.png" style="width:3.83em;height:1.33em;"/>, <span>we can see that <img class="fm-editor-equation" src="assets/651f9b80-ff5e-498d-b921-9c3a06ce647d.png" style="width:3.83em;height:1.17em;"/> will be the same in both cases. Therefore, <img class="fm-editor-equation" src="assets/9aac910e-9bcd-425f-ab54-708546ddc45c.png" style="width:13.58em;height:1.33em;"/>. But this is not a valid result, because in the first case, the model should predict <em>x<sub>4</sub></em> and in the second, <em>x<sub>1</sub></em>. Let's remember that although we predict <em>x<sub>1</sub></em> and <em>x<sub>4</sub></em> in position 3, they still maintain their original positional encodings. Therefore, we can alter the current formula to include the positional information for the predicted element (which will be different for <em>x<sub>1</sub></em> and <em>x<sub>4</sub></em>), but exclude the actual word. In other words, we can modify the task of the model from <em>predict the next word</em> to <em>predict the next word, given that we know its position</em>. In this way, the formula for the two-sample factorization orders will be different. The modified formula is as follows:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/6dd9628b-fd10-48df-b4f6-8556ead937ac.png" style="width:23.33em;height:3.00em;"/></p>
+<p><span>Here, <img class="fm-editor-equation" src="assets/9996236e-51b9-4e90-8f7c-b15b9f2e8da6.png" style="width:1.17em;height:1.00em;"/> is the</span> <span>new transformer function, which also includes</span><span> the pos</span><span>itional information</span> <img class="fm-editor-equation" src="assets/c4e80685-bb95-4c5f-9758-0bd6a64a85b6.png" style="width:1.17em;height:1.08em;"/>. The authors of the paper propose a special mechanism called two-stream self-attention to solve this. As the name suggests, it consists of two combined attention mechanisms:</p>
+<ul>
+<li>Content representation <sub><img class="fm-editor-equation" src="assets/ceef0807-aa8b-47c3-b1bf-fd581358f7e6.png" style="width:3.75em;height:1.17em;"/></sub>, which is the attention mechanism we are already familiar with. This representation encodes both the context and the content <sub><img class="fm-editor-equation" src="assets/c8cd3e08-f801-4f64-b2d5-cde6db23b1dd.png" style="width:1.58em;height:1.08em;"/></sub> itself.</li>
+<li>Query representation <img style="font-size: 1em;width:5.00em;height:1.17em;" class="fm-editor-equation" src="assets/e6387d63-4dbd-4c88-b999-b2ee6b4794d7.png"/><span>, which only has access to the contextual information </span><img style="font-size: 1em;width:2.50em;height:1.00em;" class="fm-editor-equation" src="assets/550a6616-0477-4b3a-99e6-30a58743f86a.png"/><span> and the position</span> <img style="font-size: 1em;width:1.00em;height:0.92em;" class="fm-editor-equation" src="assets/bbe2dc8d-31f8-46e5-91e4-b026d1092c31.png"/><span>, but not the content</span> <span><sub><img class="fm-editor-equation" src="assets/ba4e9b81-5a07-44f2-8011-1451697da9ea.png" style="width:1.33em;height:0.92em;"/></sub></span><span>, as we mentioned previously.</span></li>
+</ul>
+<p>I would encourage you to check the original paper for more details. In the next section, we'll implement a basic example of a transformer language model.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Generating text with a transformer language model</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll implement a basic text-generation example with the help of the <kbd>transformers</kbd> 2.1.1 <span>library</span> (<a href="https://huggingface.co/transformers/">https://huggingface.co/transformers/</a>), released by Hugging Face. This is a well-maintained and popular open source package that implements different transformer language models, including BERT, transformer-XL, XLNet, OpenAI GPT, GPT-2, and others. We'll use a pretrained transformer-XL model to generate new text based on an initial input sequence. The goal is to give you a brief taste of the library:</p>
+<ol>
+<li>Let's start with the imports:</li>
+</ol>
+<pre style="padding-left: 60px"><span>import </span>torch<br/><span>from </span>transformers <span>import </span>TransfoXLLMHeadModel<span>, </span>TransfoXLTokenizer</pre>
+<p style="padding-left: 60px">The <kbd>TransfoXLLMHeadModel</kbd> and <kbd>TransfoXLTokenizer</kbd> phrases are the implementations of the transformer-XL language model and its corresponding tokenizer. </p>
+<ol start="2">
+<li>Next, we'll initialize the device and instantiate the <kbd>model</kbd> and the <kbd>tokenizer</kbd>. Note that we'll use the <kbd>transfo-xl-wt103</kbd> pretrained set of parameters, available in the library:</li>
+</ol>
+<pre style="padding-left: 60px">device = torch.device(<span>"cuda:0" </span><span>if </span>torch.cuda.is_available() <span>else </span><span>"cpu"</span>)<br/><br/><span># Instantiate pre-trained model-specific tokenizer and the model itself<br/></span>tokenizer = TransfoXLTokenizer.from_pretrained(<span>'transfo-xl-wt103'</span>)<br/>model = TransfoXLLMHeadModel.from_pretrained(<span>'transfo-xl-wt103'</span>).to(device)</pre>
+<ol start="3">
+<li>Then, we'll specify the initial sequence, tokenize it, and turn it into a model-compatible input <kbd>tokens_tensor</kbd>, which contains a list of tokens:</li>
+</ol>
+<pre style="padding-left: 60px">text = <span>"The company was founded in"<br/></span>tokens_tensor = \<br/>    torch.tensor(tokenizer.encode(text)) \<br/>        .unsqueeze(<span>0</span>) \<br/>        .to(device)</pre>
+<ol start="4">
+<li>Next, we'll use this token to initiate a loop, where the model will generate new tokens of the sequence:</li>
+</ol>
+<pre style="padding-left: 60px">mems = <span>None  </span><span># recurrence mechanism<br/></span><span><br/></span>predicted_tokens = <span>list</span>()<br/><span>for </span>i <span>in </span><span>range</span>(<span>50</span>):  <span># stop at 50 predicted tokens<br/></span><span>    # Generate predictions<br/></span><span>    </span>predictions<span>, </span>mems = model(tokens_tensor<span>, </span><span>mems</span>=mems)<br/><br/>    <span># Get most probable word index<br/></span><span>    </span>predicted_index = torch.topk(predictions[<span>0</span><span>, </span>-<span>1</span><span>, </span>:]<span>, </span><span>1</span>)[<span>1</span>]<br/><br/>    <span># Extract the word from the index<br/></span><span>    </span>predicted_token = tokenizer.decode(predicted_index)<br/><br/>    <span># break if [EOS] reached<br/></span><span>    </span><span>if </span>predicted_token == tokenizer.eos_token:<br/>        <span>break<br/></span><span><br/></span><span>    </span><span># Store the current token<br/></span><span>    </span>predicted_tokens.append(predicted_token)<br/><br/>    <span># Append new token to the existing sequence<br/></span><span>    </span>tokens_tensor = torch.cat((tokens_tensor<span>, </span>predicted_index.unsqueeze(<span>1</span>))<span>, </span><span>dim</span>=<span>1</span>)</pre>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p class="mceNonEditable"/>
+<p class="mceNonEditable"/>
+<p style="padding-left: 60px">We start the loop with the initial sequence of tokens <kbd>tokens_tensor</kbd>. The model uses this to generate the <kbd>predictions</kbd> (a softmax over all tokens of the vocabulary) and <kbd>mems</kbd> (a variable that stores the previous hidden decoder state for the recurrence relation). We extract the index of the most probable word <kbd>predicted_index</kbd> and we convert it to a vocabulary token <kbd>predicted_token</kbd>. Then, we append it to the existing <kbd>tokens_tensor</kbd> and initiate the loop again with the new sequence. The loop ends either after 50 tokens or when the special <kbd>[EOS]</kbd> token is reached.</p>
+<ol start="5">
+<li>Finally, we'll display the result:</li>
+</ol>
+<pre style="padding-left: 60px"><span>print</span>(<span>'Initial sequence: ' </span>+ text)<br/><span>print</span>(<span>'Predicted output: ' </span>+ <span>" "</span>.join(predicted_tokens))</pre>
+<p style="padding-left: 60px">The output of the program is as follows:</p>
+<pre style="padding-left: 60px">Initial sequence: The company was founded in<br/>Predicted output: the United States .</pre>
+<p>With this example, we conclude a long chapter about attention models.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>In this chapter, we focused on seq2seq models and the attention mechanism. First, we discussed and implemented a regular recurrent encoder-decoder seq2seq model and learned how to complement it with the attention mechanism. Then, we talked about and implemented a purely attention-based type of model called a <strong>transformer</strong>. We also defined multihead attention in their context. Next, we discussed transformer language models (such as BERT, transformerXL, and XLNet). Finally, we implemented a simple text-generation example using the <kbd>transformers</kbd> library. </p>
+<p>This chapter concludes our series of chapters with a focus on natural language processing. In the next chapter, we'll talk about some new trends in deep learning that aren't fully matured yet but hold great potential for the future.</p>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

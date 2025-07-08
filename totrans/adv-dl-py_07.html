@@ -1,0 +1,780 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Generative Models</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">In the previous two chapters (<a href="433225cc-e19a-4ecb-9874-8de71338142d.xhtml">Chapter 4</a>,<em> </em><span><em>Advanced Convolutional Networks</em>, and</span> <a href="9ac88546-8662-4b23-aa96-7eb00f48fedb.xhtml">Chapter 5</a>, <em>Object Detection and Image Segmentation</em><span>)</span>, we focused on supervised computer vision problems, such as classification and object detection. I<span>n this chapter,</span> <span>we'll discuss how to create new images with the help of unsupervised neural networks. </span>After all, it's a lot better knowing that you don't need labeled data. More specifically, we'll talk about generative models.</p>
+<p>This chapter will cover the following topics:</p>
+<ul>
+<li>Intuition and justification of generative models</li>
+<li>Introduction to <strong>Variational Autoencoders</strong> (<strong>VAEs</strong>) </li>
+<li>Introduction to <strong>Generative Adversarial Networks</strong> (<strong><span>GANs</span></strong>)</li>
+<li>Types of GAN</li>
+<li>Introducing to artistic style transfer</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Intuition and justification of generative models</h1>
+                </header>
+            
+            <article>
+                
+<p>So far, we've used neural networks as<span> </span><strong>discriminative models</strong>. This simply<span> </span>means<span> </span>that, given input data, a discriminative model will map it to a certain label (in other words, a classification). A typical example is the classification of MNIST images in 1 of 10 digit classes, where the neural network maps input data features (pixel intensities) to the digit label. We can also say this in another way: a discriminative<span> </span>model<span> </span>gives us the probability of <sub><img class="fm-editor-equation" src="assets/b238f670-d7e7-44c2-8206-3eef71a5182a.png" style="width:0.58em;height:1.00em;"/></sub> (class), given <sub><img class="fm-editor-equation" src="assets/d7261168-d220-4861-80e7-8703f5e681a0.png" style="width:0.92em;height:0.92em;"/></sub> (input). In the case of MNIST, this is the probability of the digit when given the pixel intensities of the image.</p>
+<p>On the other hand, a generative model learns how classes are distributed. You can think of it as the opposite of what the discriminative model does. Instead of predicting the class probability, <sub><img class="fm-editor-equation" src="assets/2a4f73c5-6ad5-4785-b1aa-0d2305853f43.png" style="width:0.58em;height:0.92em;"/></sub>, given certain input features, it tries to predict the probability of the input features when given a class, <sub><img class="fm-editor-equation" src="assets/0f43e650-3720-4ac8-a1a3-f729a3edd573.png" style="width:0.58em;height:1.00em;"/> </sub>- <sub><img class="fm-editor-equation" src="assets/74f689dd-1cca-47e1-9348-0b06933bde17.png" style="width:4.67em;height:1.00em;"/></sub>. For example, a generative model will be able to create an image of a handwritten digit when given the digit class. Since we only have 10 classes, it will be able to generate just 10 images. However, we've only used this example to illustrate this concept. In reality, the <sub><img class="fm-editor-equation" src="assets/6e740484-c601-46eb-9648-9c3ca3d93f76.png" style="width:0.67em;height:1.08em;"/></sub> <em>class</em> could be an arbitrary tensor of values, and the model would be able to generate an unlimited number of images with different features. If you don't understand this now, don't worry; we'll <span><span>look at </span></span>many examples throughout this chapter.</p>
+<div class="packt_infobox">Throughout this chapter, we'll denote probability distribution with a lower-case <em>p</em>, rather than the usual upper-case <em>P</em> that we used in the previous chapters. We are doing this to follow the convention that has been established in the context of VAEs and <span>GANs</span>. While writing this book, I couldn't find a definitive reason to use lower-case, but one possible explanation is that <em>P</em> denotes the probability of events, while <em>p</em> denotes the probability of the mass (or density) functions of a random variable.</div>
+<p>Two of the most popular ways to use<span> </span>neural<span> </span>networks in a generative way is via VAEs and<span> </span>GANs. In the next section, we'll introduce VAEs.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Introduction to VAEs</h1>
+                </header>
+            
+            <article>
+                
+<p>To understand VAEs, we need to talk about regular<span> </span>autoencoders. An autoencoder is a feed-forward neural network that tries to reproduce its input. In other words, the target value (label) of an autoencoder is equal to the input data, <strong>y</strong><em><sup>i</sup><span> </span>=</em> <strong>x</strong><em><sup>i</sup></em>, where<span> </span><em>i</em><span> </span>is the sample index. <span>We can formally say that it tries to learn an identity function, <sub><img class="fm-editor-equation" src="assets/1f499b17-4a29-411c-b7cc-4102c4f87f1c.png" style="width:6.08em;height:1.17em;"/></sub></span> <span>(a function that repeats its input).</span><span> </span>Since our labels are just input data, the autoencoder is an unsupervised algorithm.</p>
+<p>The following diagram represents an autoencoder:</p>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1282 image-border" src="assets/7ab06d46-2566-4471-ad60-891eeedf7a21.png" style="width:32.92em;height:31.83em;"/></div>
+<div class="packt_figref CDPAlignCenter CDPAlign">An autoencoder</div>
+<p>An autoencoder consists of input, hidden (or bottleneck), and output layers. Similar to U-Net (<a href="9ac88546-8662-4b23-aa96-7eb00f48fedb.xhtml">Chapter 4</a><em>, Object Detection and Image Segmentation</em>), we can think of the autoencoder as a virtual composition of two components:</p>
+<ul>
+<li><strong>Encoder</strong>: Maps the input data to the network's internal representation. For the sake of simplicity, in this example the encoder is a single, fully connected hidden bottleneck layer. <span>The internal state is just its activation vector. </span>In general, the encoder can have multiple hidden layers, including convolutional ones.</li>
+<li><strong>Decoder</strong>: Tries to reconstruct the input from the network's internal data representation. The decoder can also have a complex structure that typically mirrors the encoder. While U-Net tries to translate the input image into a target image of some other domain (for example, a segmentation map), the autoencoder simply tries to reconstruct its input.</li>
+</ul>
+<p>We can train the autoencoder by minimizing a loss function, which is known as the <strong>reconstruction</strong> <strong>error</strong>,<strong> <sub><img class="fm-editor-equation" src="assets/59cf2229-1f46-4abc-9e7f-12cf96347b03.png" style="width:4.58em;height:1.17em;"/></sub></strong>. It measures the distance between the original input and its reconstruction. We can<span> </span>minimize<span> </span>it in the usual way, that is, with gradient descent and backpropagation. Depending on the approach we use, we can use either use <strong>mean square error</strong> (<strong>MSE</strong>) or binary cross-entropy (such as cross-entropy, but with two classes) as reconstruction errors.</p>
+<p>At this point, you may be wondering what the point of the autoencoder is since it just repeats its input. However, we aren't interested in the network output, but in its internal data representation (which<span> </span><span>is also known as representation in the</span><span> </span><strong>latent space</strong>)<span>. The latent space contains hidden data features that are not directly observed but are inferred by the algorithm instead.</span><span> </span>The key is that the bottleneck layer has fewer neurons than the input/output ones. There are two main reasons for this:</p>
+<ul>
+<li><span>Because the network tries to reconstruct its input from a smaller feature space, it learns</span><span> </span><span>a compact representation of the data. You can think of this as compression (but not lossless).</span></li>
+<li><span>By using fewer neurons, the network is forced to learn only the most important features of the data. To illustrate this concept, let's look at denoising autoencoders, where we intentionally use corrupted input data, but non-corrupted target data during training. For example, if we train a denoising autoencoder to reconstruct MNIST images, we can introduce noise by setting the max intensity (white) to random pixels of the image (as shown in the following screenshot). To minimize the loss with the noiseless target, the autoencoder is forced to look beyond the noise in the input and learn only the important features of the data. However, if the network had more hidden neurons than input, it might overfit on the noise. With the additional constraint of fewer hidden neurons, it can only try to ignore the noise. Once trained, we can use a denoising autoencoder to remove the noise from real images:</span></li>
+</ul>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1283 image-border" src="assets/7e476cb7-0952-4ef5-a08c-0778be517c82.png" style="width:29.08em;height:13.75em;"/></div>
+<div class="packt_figref CDPAlignCenter CDPAlign">Denoising autoencoder input and target</div>
+<p>The encoder maps each input sample to the latent space, where each attribute of the latent representation has a discrete value. This means that an input sample can have only one latent representation. Therefore, the decoder can reconstruct the input in only one possible way. In other words, we can generate a single reconstruction of one input sample. <span>But we don't want this. Instead, we want to generate new images that are different from the original ones.</span> VAEs are one possible solution to this task<span>.</span></p>
+<p><span>A VAE can describe a latent representation in probabilistic terms. That is, instead of discrete values, we'll have a probability distribution for each latent attribute, making the latent space continuous. This makes it easier for random sampling and interpolation. Let's illustrate this with an example. Imagine that we are trying to encode an image of a vehicle and our latent representation is a vector, <strong>z</strong>, with <em>n</em> elements (<em>n</em> neurons in the bottleneck layer). Each element represents one vehicle property, such as length, height, and width (as shown in the following diagram).</span></p>
+<p><span>Say that the average vehicle length is four meters. Instead of the fixed value, the VAE can decode this property as a normal distribution with a mean of 4 (the same applies for the others). Then, the decoder can choose to sample a latent variable from the range of its distribution. For example, it can reconstruct a longer and lower vehicle compared to the input. By doing this, the VAE can generate an unlimited number of modified versions of the input:</span></p>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1284 image-border" src="assets/ca7963b1-63c9-4dfe-acec-3412d9b389b4.png" style="width:66.33em;height:20.08em;"/></div>
+<div class="packt_figref CDPAlignCenter CDPAlign">An example of a variational encoder sampling different values from the distribution ranges of the latent variables</div>
+<p>Let's formalize this:</p>
+<ul>
+<li>
+<p>The goal of the encoder is to approximate the real probability distribution, <img class="fm-editor-equation" src="assets/1a3c9132-2603-4a19-a100-3b9ffb3f270a.png" style="width:2.00em;height:1.25em;"/>, where <strong>z</strong><span> is the latent space representation</span>. However, it does so indirectly by inferring <img class="fm-editor-equation" src="assets/731217cc-21d3-498b-a99e-66c5d60d5ddb.png" style="width:1.67em;height:1.00em;"/> from the conditional probability distribution of various samples, <img class="fm-editor-equation" src="assets/f9ae7213-2ff8-4851-b65a-ac6c51503a03.png" style="width:2.50em;height:1.00em;"/>, where <strong>x</strong> is the <span>input data</span>.<span> In other words, the encoder tries to learn the probability distribution of </span><strong>z</strong><span>, given the</span> input data, <strong>x</strong><span>.</span> We'll denote the encoder's approximation of <img class="fm-editor-equation" src="assets/447524c7-6c0e-4a74-9e66-2351ba3595f7.png" style="width:2.42em;height:1.00em;"/> with <img class="fm-editor-equation" src="assets/987d3cac-ffcf-4c5c-8763-91cc83c75624.png" style="width:2.67em;height:1.00em;"/><span>, where <em>φ</em> are the weights of the network. The encoder output is a probability distribution (for example, Gaussian) over the possible values of <strong>z</strong>, which could have been generated by <strong>x</strong>. During training, we continuously update the weights, <em>φ</em>, to bring <img class="fm-editor-equation" src="assets/73ef9a85-0440-413a-a935-5a8a41a5e66d.png" style="width:2.67em;height:1.00em;"/><em> </em>closer to the real <img class="fm-editor-equation" src="assets/c80bd4e2-4ee1-4571-93ed-63d288c45a17.png" style="width:2.58em;height:1.00em;"/><em>.</em></span></p>
+</li>
+<li>
+<p>The goal of the decoder is to approximate the real probability distribution, <img class="fm-editor-equation" src="assets/e6ee0e0b-6516-405c-8cd4-d91e35893f01.png" style="width:2.42em;height:1.00em;"/>. <span>In other words, the decoder tries to learn the conditional probability distribution of the data, </span><em>x</em><span>, given the latent representation, </span><strong>z</strong><span>. We'll denote the decoder's approximation of the real probability distribution with</span> <img class="fm-editor-equation" src="assets/3087226a-ff1d-475b-b8a9-645b704cb330.png" style="width:2.83em;height:1.00em;"/> , where <em>θ</em> is the decoder weights<span>. The process starts by s</span>ampling <strong>z</strong> stochastically (randomly) from the probability distribution (for example, Gaussian). Then, <strong>z</strong> is sent through the decoder, whose<span> </span><span>output is a probability distribution over the possible corresponding values of <em>x</em>. During training, we continuously update the weights, <em>θ</em>, to bring <img class="fm-editor-equation" src="assets/063bdfe0-14c3-4117-96d6-858379046b64.png" style="width:2.83em;height:1.00em;"/><em> </em>closer to the real <img class="fm-editor-equation" src="assets/bdb62cc6-5642-48ba-80cf-367f36e30fdd.png" style="width:2.42em;height:1.00em;"/><em>.</em></span></p>
+</li>
+</ul>
+<p>The VAE uses a special type of loss function with two terms:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/375738b8-6acf-4617-b579-8eb9ff731667.png" style="width:31.33em;height:1.75em;"/></p>
+<p>The first is the Kullback-Leibler divergence (<a href="b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml"/><a href="b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml">Chapter 1</a>, <em>The Nuts and Bolts of Neural Networks</em>) between the probability distribution, <img class="fm-editor-equation" src="assets/0a69f896-e2f3-4a73-a147-e7e14a41870f.png" style="width:2.67em;height:1.00em;"/>,<span> </span>and the expected probability distribution, <img class="fm-editor-equation" src="assets/feeaa04b-54f9-4ce2-b225-29dbcaf4d4a8.png" style="width:1.58em;height:1.00em;"/>. In this context, it measures how much information is lost when we use <img class="fm-editor-equation" src="assets/0141d506-ca77-486d-9793-10b0cf619839.png" style="width:2.67em;height:1.00em;"/> to represent <img class="fm-editor-equation" src="assets/03768c4c-840a-46b2-a849-0b935a8c36ea.png" style="width:1.67em;height:1.00em;"/> (in other words, how close the two distributions are). It encourages the autoencoder to explore different reconstructions. The second is the reconstruction loss, which measures the difference between the original input and its reconstruction. The more they differ, the more it increases. Therefore, it encourages the autoencoder to reconstruct data in a better way.</p>
+<p>To implement this, the bottleneck layer won't directly output latent state variables. Instead, it will output two vectors, which describe the<span> </span><strong>mean</strong><span> </span>and<span> </span><strong>variance</strong><span> </span>of the distribution of each latent variable:</p>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1285 image-border" src="assets/0d2e5729-4a36-4ee0-b2e3-4bd93d3a5c2b.png" style="width:47.00em;height:14.67em;"/></div>
+<div class="packt_figref CDPAlignCenter CDPAlign">Variational encoder sampling</div>
+<p>Once we have the mean and variance distributions, we can sample a state, <strong>z</strong>, from the latent variable distributions and pass it through the decoder for reconstruction. But we can't celebrate yet. This presents us with another problem: backpropagation doesn't work over random processes such as the one we have here. Fortunately, we can solve this with the so-called<span> </span><strong>reparameterization trick</strong>. First, we'll<span> </span>sample<span> </span>a random vector, <span>ε, with the same dimensions as <strong>z</strong> </span>from a<span> </span>Gaussian<span> </span>distribution (the <span>ε</span><span> </span>circle<span> </span><span>in</span><span> </span><span class="MathJax"><span class="math"><span><span class="mrow"><span class="mi">the preceding diagram). Then, we'll shift it by</span></span></span></span></span><span> </span>the latent distribution's mean, <span class="MathJax"><span class="MJX_Assistive_MathML">μ</span></span><span>, </span>and scale it by the latent distribution's variance, <span class="MathJax"><span class="math"><span><span class="mrow"><span class="mi">σ:</span></span></span></span></span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/966588f8-306a-4935-b6e9-9ddfa2b931e5.png" style="width:7.17em;height:1.17em;"/></p>
+<p class="mce-root">In this way, we'll be able to optimize the mean and variance (red arrows) and we'll omit the random generator from the backward pass. At the same time, the sampled data will have the properties of the original distribution. Now that we've introduced VAEs, we'll learn how to implement one.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Generating new MNIST digits with VAE</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll learn how a VAE can<span> </span>generate<span> </span>new digits for the<span> </span>MNIST<span> </span>dataset. We'll use<span> </span>Keras under TF 2.0.0<span> </span>to do so. We chose MNIST because it will illustrate VAE's generative capabilities well.</p>
+<div class="packt_tip">The code in this section is partially based on <a href="https://github.com/keras-team/keras/blob/master/examples/variational_autoencoder.py">https://github.com/keras-team/keras/blob/master/examples/variational_autoencoder.py</a>.</div>
+<p> </p>
+<p>Let's go through the implementation, step by step:</p>
+<ol>
+<li>Let's start with the imports. We'll use the Keras module, which is integrated in TF:</li>
+</ol>
+<pre style="padding-left: 60px"><span>import </span>matplotlib.pyplot <span>as </span>plt<br/><span>from </span>matplotlib.markers <span>import </span>MarkerStyle<br/><span>import </span>numpy <span>as </span>np<br/><span>import </span>tensorflow <span>as </span>tf<br/><span>from </span>tensorflow.keras <span>import </span>backend <span>as </span>K<br/><span>from </span>tensorflow.keras.layers <span>import </span>Lambda<span>, </span>Input<span>, </span>Dense<br/><span>from </span>tensorflow.keras.losses <span>import </span>binary_crossentropy<br/><span>from </span>tensorflow.keras.models <span>import </span>Model</pre>
+<ol start="2">
+<li>
+<p>Now, we will instantiate the MNIST dataset. Recall that in <a href="d94e220f-820e-40da-8bb5-9593e0790b21.xhtml"/><a href="d94e220f-820e-40da-8bb5-9593e0790b21.xhtml">Chapter 2</a><em>, Understanding Convolutional Networks</em>, we implemented a transfer learning example with TF/Keras, where we used the <kbd>tensorflow_datasets</kbd> module to load the CIFAR-10 dataset. In this example, we'll use the <kbd>keras.datasets</kbd> module to load MNIST, which also works:</p>
+</li>
+</ol>
+<pre style="padding-left: 60px">(x_train<span>, </span>y_train)<span>, </span>(x_test<span>, </span>y_test) = tf.keras.datasets.mnist.load_data()<br/><br/>image_size = x_train.shape[<span>1</span>] * x_train.shape[<span>1</span>]<br/>x_train = np.reshape(x_train<span>, </span>[-<span>1</span><span>, </span>image_size])<br/>x_test = np.reshape(x_test<span>, </span>[-<span>1</span><span>, </span>image_size])<br/>x_train = x_train.astype(<span>'float32'</span>) / <span>255<br/></span>x_test = x_test.astype(<span>'float32'</span>) / <span>255<br/></span></pre>
+<ol start="3">
+<li>Next, we'll implement the<span> </span><kbd>build_vae</kbd><span> </span>function, which will build the VAE:
+<ul>
+<li>We'll have separate access to the encoder, decoder, and the full network. The function will return them as a tuple.</li>
+<li>The bottleneck layer will have only<span> </span><kbd>2</kbd><span> </span>neurons <span>(that is, we'll have only <kbd>2</kbd> latent variables)</span>. In this way, we'll be able to display the latent distribution as a 2D plot.</li>
+<li>The encoder/decoder will contain a single intermediate (hidden) fully-connected layer with<span> </span><kbd>512</kbd><span> </span>neurons. This is not a convolutional network.</li>
+<li>We'll use cross-entropy reconstruction loss and KL divergence.</li>
+</ul>
+</li>
+</ol>
+<p style="padding-left: 60px">The following shows how this is implemented globally:</p>
+<pre style="padding-left: 60px"><span>def </span><span>build_vae</span>(intermediate_dim=<span>512</span><span>, </span>latent_dim=<span>2</span>):<br/><span>   </span><span># encoder first<br/></span><span>    </span>inputs = Input(<span>shape</span>=(image_size<span>,</span>)<span>, </span><span>name</span>=<span>'encoder_input'</span>)<br/>    x = Dense(intermediate_dim<span>, </span><span>activation</span>=<span>'relu'</span>)(inputs)<br/><br/>    <span># latent mean and variance<br/></span><span>    </span>z_mean = Dense(latent_dim<span>, </span><span>name</span>=<span>'z_mean'</span>)(x)<br/>    z_log_var = Dense(latent_dim<span>, </span><span>name</span>=<span>'z_log_var'</span>)(x)<br/><br/>    <span># Reparameterization trick for random sampling<br/></span><span>    # Note the use of the Lambda layer<br/></span><span>    # At runtime, it will call the sampling function<br/></span><span>    </span>z = Lambda(sampling<span>, </span><span>output_shape</span>=(latent_dim<span>,</span>)<span>, <br/>    </span><span>name</span>=<span>'z'</span>)([z_mean<span>, </span>z_log_var])<br/><br/>    <span># full encoder encoder model<br/></span><span>    </span>encoder = Model(inputs<span>, </span>[z_mean<span>, </span>z_log_var<span>, </span>z]<span>, </span><span>name</span>=<span>'encoder'</span>)<br/>    encoder.summary()<br/><br/>    <span># decoder<br/></span><span>    </span>latent_inputs = Input(<span>shape</span>=(latent_dim<span>,</span>)<span>, </span><span>name</span>=<span>'z_sampling'</span>)<br/>    x = Dense(intermediate_dim<span>, </span><span>activation</span>=<span>'relu'</span>)(latent_inputs)<br/>    outputs = Dense(image_size<span>, </span><span>activation</span>=<span>'sigmoid'</span>)(x)<br/><br/>    <span># full decoder model<br/></span><span>    </span>decoder = Model(latent_inputs<span>, </span>outputs<span>, </span><span>name</span>=<span>'decoder'</span>)<br/>    decoder.summary()<br/><br/>    <span># VAE model<br/></span><span>    </span>outputs = decoder(encoder(inputs)[<span>2</span>])<br/>    vae = Model(inputs<span>, </span>outputs<span>, </span><span>name</span>=<span>'vae'</span>)<br/><br/>    <span># Loss function<br/></span><span>    # we start with the reconstruction loss<br/></span><span>    </span>reconstruction_loss = binary_crossentropy(inputs<span>, </span>outputs) *<br/>    image_size<br/><br/>    <span># next is the KL divergence<br/></span><span>    </span>kl_loss = <span>1 </span>+ z_log_var - K.square(z_mean) - K.exp(z_log_var)<br/>    kl_loss = K.sum(kl_loss<span>, </span><span>axis</span>=-<span>1</span>)<br/>    kl_loss *= -<span>0.5<br/></span><span><br/></span><span>    </span><span># we combine them in a total loss<br/></span><span>    </span>vae_loss = K.mean(reconstruction_loss + kl_loss)<br/>    vae.add_loss(vae_loss)<br/><br/>    <span>return </span>encoder<span>, </span>decoder<span>, </span>vae</pre>
+<ol start="4">
+<li>Immediately tied to the network definition is the<span> </span><kbd>sampling</kbd><span> </span>function, which implements a random sampling of latent vectors <kbd>z</kbd> from the Gaussian unit (this is the reparameterization trick we introduced in the <em>Introduction to VAEs</em> section):</li>
+</ol>
+<pre style="padding-left: 60px"><span>def </span><span>sampling</span>(args: <span>tuple</span>):<br/>    <span>"""<br/></span><span>    </span><span>:param</span><span> args: (tensor, tensor) mean and log of variance of <br/>    q(z|x)<br/></span><span>    """<br/></span><span><br/></span><span>    </span><span># unpack the input tuple<br/></span><span>    </span>z_mean<span>, </span>z_log_var = args<br/><br/>    <span># mini-batch size<br/></span><span>    </span>mb_size = K.shape(z_mean)[<span>0</span>]<br/><br/>    <span># latent space size<br/></span><span>    </span>dim = K.int_shape(z_mean)[<span>1</span>]<br/><br/>    <span># random normal vector with mean=0 and std=1.0<br/></span><span>    </span>epsilon = K.random_normal(<span>shape</span>=(mb_size<span>, </span>dim))<br/><br/>    <span>return </span>z_mean + K.exp(<span>0.5 </span>* z_log_var) * epsilon</pre>
+<ol start="5">
+<li>Now, we need to implement the<span> </span><kbd>plot_latent_distribution</kbd><span> </span>function. It collects the latent representations of all the images in the test set and displays them over a 2D plot. We can do this because our network has only two latent variables (for the two axes of the plot). Note that to implement this we only need the <kbd>encoder</kbd>:</li>
+</ol>
+<pre style="padding-left: 60px"><span>def </span><span>plot_latent_distribution</span>(encoder<span>, </span>x_test<span>, </span>y_test<span>, </span>batch_size=<span>128</span>):<br/><span>    </span>z_mean<span>, </span>_<span>, </span>_ = encoder.predict(x_test<span>, </span><span>batch_size</span>=batch_size)<br/>    plt.figure(<span>figsize</span>=(<span>6</span><span>, </span><span>6</span>))<br/><br/>    markers = (<span>'o'</span><span>, </span><span>'x'</span><span>, </span><span>'^'</span><span>, </span><span>'&lt;'</span><span>, </span><span>'&gt;'</span><span>, </span><span>'*'</span><span>, </span><span>'h'</span><span>, </span><span>'H'</span><span>, </span><span>'D'</span><span>, </span><span>'d'</span><span>,<br/>    </span><span>'P'</span><span>, </span><span>'X'</span><span>, </span><span>'8'</span><span>, </span><span>'s'</span><span>, </span><span>'p'</span>)<br/><br/>    <span>for </span>i <span>in </span>np.unique(y_test):<br/>        plt.scatter(z_mean[y_test == i<span>, </span><span>0</span>]<span>, </span>z_mean[y_test == i<span>, </span><span>1</span>]<span>,<br/></span><span>                                marker</span>=MarkerStyle(markers[i]<span>, <br/></span><span>                                fillstyle</span>=<span>'none'</span>)<span>,<br/></span><span>                                edgecolors</span>=<span>'black'</span>)<br/><br/>    plt.xlabel(<span>"z[0]"</span>)<br/>    plt.ylabel(<span>"z[1]"</span>)<br/>    plt.show()</pre>
+<ol start="6">
+<li>Next, we will implement the<span> </span><kbd>plot_generated_images</kbd><span> </span><span>function. </span>It will sample <kbd>n*n</kbd> vectors,<span> </span><kbd>z</kbd><span>, </span>in a<span> </span><kbd>[-4, 4]</kbd><span> </span>range for each of the two latent variables. Next, it will<span> </span>generate<span> </span>images based on the sampled vectors and display them in a 2D grid. Note<span> </span>that<span> </span>to do this we only need the <kbd>decoder</kbd>:</li>
+</ol>
+<pre style="padding-left: 60px"><span>def </span><span>plot_generated_images</span>(decoder):<br/><span>    </span><span># display a nxn 2D manifold of digits<br/></span><span>    </span>n = <span>15<br/></span><span>    </span>digit_size = <span>28<br/></span><span><br/></span><span>    </span>figure = np.zeros((digit_size * n<span>, </span>digit_size * n))<br/>    <span># linearly spaced coordinates corresponding to the 2D plot<br/></span><span>    # of digit classes in the latent space<br/></span><span>    </span>grid_x = np.linspace(-<span>4</span><span>, </span><span>4</span><span>, </span>n)<br/>    grid_y = np.linspace(-<span>4</span><span>, </span><span>4</span><span>, </span>n)[::-<span>1</span>]<br/><br/>    <span># start sampling z1 and z2 in the ranges grid_x and grid_y<br/></span><span>    </span><span>for </span>i<span>, </span>yi <span>in </span><span>enumerate</span>(grid_y):<br/>        <span>for </span>j<span>, </span>xi <span>in </span><span>enumerate</span>(grid_x):<br/>            z_sample = np.array([[xi<span>, </span>yi]])<br/>            x_decoded = decoder.predict(z_sample)<br/>            digit = x_decoded[<span>0</span>].reshape(digit_size<span>, </span>digit_size)<br/>            slice_i = <span>slice</span>(i * digit_size<span>, </span>(i + <span>1</span>) * digit_size)<br/>            slice_j = <span>slice</span>(j * digit_size<span>, </span>(j + <span>1</span>) * digit_size)<br/>            figure[slice_i<span>, </span>slice_j] = digit<br/><br/>    <span># plot the results<br/></span><span>    </span>plt.figure(<span>figsize</span>=(<span>6</span><span>, 5</span>))<br/>    start_range = digit_size // <span>2<br/></span><span>    </span>end_range = n * digit_size + start_range + <span>1<br/></span><span>    </span>pixel_range = np.arange(start_range<span>, </span>end_range<span>, </span>digit_size)<br/>    sample_range_x = np.round(grid_x<span>, </span><span>1</span>)<br/>    sample_range_y = np.round(grid_y<span>, </span><span>1</span>)<br/>    plt.xticks(pixel_range<span>, </span>sample_range_x)<br/>    plt.yticks(pixel_range<span>, </span>sample_range_y)<br/>    plt.xlabel(<span>"z[0]"</span>)<br/>    plt.ylabel(<span>"z[1]"</span>)<br/>   plt.imshow(figure<span>, </span><span>cmap</span>=<span>'Greys_r'</span>)<br/>    plt.show()</pre>
+<ol start="7">
+<li>Now, run the entirety of the code. We'll use the Adam optimizer (introduced in<span> </span><a href="b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml">Chapter 1</a>,<em> The Nuts and Bolts of Neural Networks</em>) to train the network for 50 epochs:</li>
+</ol>
+<pre style="padding-left: 60px">if __name__ == '__main__':<br/>    encoder, decoder, vae = build_vae()<br/><br/>    vae.compile(optimizer='adam')<br/>    vae.summary()<br/><br/>    vae.fit(x_train,<br/>            epochs=50,<br/>            batch_size=128,<br/>            validation_data=(x_test, None))<br/><br/>    plot_latent_distribution(encoder, x_test, y_test,<br/>                                      batch_size=128)<br/><br/>    plot_generated_images(decoder)</pre>
+<ol start="8">
+<li>If everything goes to plan, once the training is over, we'll see the latent distribution for each digit class for all the test images. The left and bottom axes represent the<span> </span><kbd>z<sub>1</sub></kbd><span> </span><span>and</span><span> </span><kbd>z<sub>2</sub></kbd><span> </span><span>latent variables. Different marker shapes represent different digit classes:</span></li>
+</ol>
+<div class="CDPAlignCenter CDPAlign packt_figref"><img class="aligncenter size-full wp-image-1286 image-border" src="assets/f973f0aa-9c8b-4034-ada5-6c70f9d98baa.png" style="width:29.17em;height:28.17em;"/></div>
+<div class="CDPAlignCenter CDPAlign packt_figref">The latent distributions of the MNIST test images</div>
+<ol start="9">
+<li>Next, we'll look at the images that were generated by<span> </span><kbd>plot_generated_images</kbd>. The axes<span> </span>represent<span> </span>the particular latent distribution, <kbd>z</kbd>, that was used for each image:</li>
+</ol>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1287 image-border" src="assets/9b6f48b1-6347-4cc5-a5d2-ce4e5f088f34.png" style="width:22.83em;height:21.83em;"/></div>
+<div class="CDPAlignCenter CDPAlign packt_figref">Images generated by the VAE</div>
+<p>This concludes our description of VAEs. In the next section, we'll discuss GANs—arguably the most popular family of generative models.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Introduction to GANs</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll talk about arguably the<span> </span>most<span> </span>popular generative model today: the GAN framework. It was first introduced in 2014 in the landmark paper<span> </span><em>Generative Adversarial Nets </em>(<a href="http://papers.nips.cc/paper/5423-generative-adversarial-nets.pdf">http://papers.nips.cc/paper/5423-generative-adversarial-nets.pdf</a>). The GAN framework can work with any type of data, but its most popular application by far is to generate images, and we'll discuss them in this context only. Let's see how it works:</p>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1288 image-border" src="assets/7c414189-7fd7-4213-8d98-b6d11719c1f8.png" style="width:27.67em;height:5.00em;"/></div>
+<div class="CDPAlignCenter CDPAlign packt_figref">A GAN system</div>
+<p>A GAN is a system of two components (neural networks):</p>
+<ul>
+<li><strong>Generator</strong>: This is the generative model itself. It takes a<span> </span>probability<span> </span>distribution (random noise) as input and tries to generate a realistic output image. Its purpose is similar to the decoder part of the VAE.</li>
+<li><strong>Discriminator</strong>: This takes two<span> </span>alternating<span> </span>inputs: real images of the training dataset or generated fake samples from the generator. It tries to determine whether the input image comes from the real images or the generated ones.</li>
+</ul>
+<p>The two networks are trained together as a system. On the one hand, the discriminator tries to get better at distinguishing between real and fake images. On the other hand, the generator tries to output more realistic images so that it can <em>deceive</em> the discriminator into thinking that the generated images are real. To use the analogy in the original paper, you can think of the generator as a team of counterfeiters, trying to produce fake currency. Conversely, the discriminator acts as a police officer, trying to capture the fake money, and the two are constantly trying to deceive each other (hence the name adversarial). The ultimate goal of the system is to make the generator so good that the discriminator can't distinguish between real and fake images. Even though the discriminator performs classification, a GAN is still unsupervised, since we don't need labels for the images. In the next section, we'll discuss the process of training in the context of the GAN framework.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Training GANs</h1>
+                </header>
+            
+            <article>
+                
+<p><span>Our main goal is for the generator to produce realistic images, and the GAN framework is a vehicle for that goal. </span>We'll train the generator and the<span> </span>discriminator<span> </span>separately and sequentially (one after the other) and alternate between the two phases multiple times.</p>
+<p>Before going into more detail, let's use the following diagram to introduce some notations:</p>
+<ul>
+<li>We'll denote the generator with <img class="fm-editor-equation" src="assets/bcbbfa02-24dc-4482-b07e-8dd60e1fd713.png" style="width:3.67em;height:1.25em;"/> <span>, where </span><img style="font-size: 1em;width:0.92em;height:1.17em;" class="fm-editor-equation" src="assets/22bb18a4-d9b9-4556-a55a-c818717dac5a.png"/> <span>is the network weights and <strong>z</strong></span> is the latent vector, which serves as an input to the generator. Think of it as a random seed value to kickstart the image-generation process. <span>It is similar to the latent vector in VAEs. <strong>z</strong> </span>has a probability distribution, <img class="fm-editor-equation" src="assets/e32bcba0-3230-458b-9a75-ba2001ad4ab5.png" style="width:2.08em;height:1.00em;"/>, which is usually random normal or random uniform. <span>The generator outputs fake samples, <strong>x</strong></span>, <span>with a probability distribution of</span> <span><img class="fm-editor-equation" src="assets/3d4a4e6e-4f50-4a75-bc4b-61e2a9191eea.png" style="width:2.00em;height:1.00em;"/></span><span>. You can think of <img class="fm-editor-equation" src="assets/7c9715b8-cb69-47a8-bcf0-b40d631cb7d4.png" style="width:2.08em;height:1.00em;"/></span> <span><span>as the probability distribution of the real data according to the generator.</span></span></li>
+<li>We'll denote the discriminator with <img class="fm-editor-equation" src="assets/d2aeadec-72da-4c67-9ce4-3cdf4b4c2168.png" style="width:3.17em;height:1.00em;"/>, where <img class="fm-editor-equation" src="assets/3e467c31-98b4-4b30-a4db-baec41b4d099.png" style="width:1.17em;height:1.33em;"/> is the network weights. It takes either real data<span> </span><span>with the <img class="fm-editor-equation" src="assets/d381bc4e-4576-48cd-8f6c-825cc69e46c4.png" style="width:5.08em;height:1.08em;"/> distribution</span> or generated samples, <img class="fm-editor-equation" src="assets/e1542f41-298c-44aa-ae40-6e0fcea895de.png" style="width:3.92em;height:1.08em;"/><span>, as input. The discriminator is a binary classifier that outputs whether the input image is part of the real (network output 1) or the generated data (network output 0).</span></li>
+<li>During training, we'll denote the discriminator and generator loss functions with<img class="fm-editor-equation" src="assets/b9f92315-ed74-4577-a08b-781e7c1a4ddb.png" style="width:2.00em;height:1.17em;"/> and <img class="fm-editor-equation" src="assets/39905801-6028-4091-90d6-6d318e06f2ad.png" style="width:1.67em;height:1.00em;"/> , respectively.</li>
+</ul>
+<p>The following is a more detailed diagram of a GAN framework:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1289 image-border" src="assets/3e65a493-05b1-43fa-8f9d-4b24b32fd6e1.png" style="width:46.42em;height:15.08em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref"><span>A detailed example of a GAN</span></div>
+<p>GAN training is different compared to training a regular DNN because we have two networks. <span>We can think of it as a sequential minimax zero-sum game of two players (generator and discriminator):</span></p>
+<ul>
+<li><strong>Sequential</strong>: This means that the players take<span> </span>turns<span> </span>after one another, similar to chess or tic-tac-toe (as opposed to simultaneously). First, <span>the discriminator tries to minimize </span><img class="fm-editor-equation" src="assets/2c43645e-8a20-4d89-a7e4-9d0464cb1aa8.png" style="width:1.83em;height:1.08em;"/><span>, but it can only do so by adjusting the weights, </span><img class="fm-editor-equation" src="assets/13edf7a3-eec0-46e6-8180-7dfac3b1fae0.png" style="width:1.08em;height:1.25em;"/><span>. Next, the generator tries to minimize </span><img class="fm-editor-equation" src="assets/d7aa480b-9b21-4494-9186-b50a577d937b.png" style="width:1.83em;height:1.08em;"/><span>, but it can only adjust the weights, </span><img style="font-size: 1em;width:1.17em;height:1.50em;" class="fm-editor-equation" src="assets/7a5ffc5f-0c61-4633-9950-bbf71baff3cd.png"/>.<span> We repeat this process multiple times.</span></li>
+<li><strong>Zero-sum</strong>: This means that the gains or<span> </span>losses<span> </span>of one player are balanced by the gains or losses of the opposite player. That is, the sum of the generator's loss and the discriminator's loss is always 0:</li>
+</ul>
+<p class="CDPAlignCenter CDPAlign"><img style="font-size: 1em;text-align: center;width:7.00em;height:1.42em;" class="fm-editor-equation" src="assets/9d13c209-7820-4a67-8eb5-47fab1eda918.png"/></p>
+<ul>
+<li><strong>Minimax</strong>: This means that the strategy of the first<span> </span>player<span> </span>(generator) is to <strong>minimize</strong> the opponent's (discriminator) <strong>maximum</strong><span> </span>score (hence the name). When we tra<span>in the discriminator, it becomes better at distinguishing between real and fake samples (minimizing <img class="fm-editor-equation" src="assets/3642e1bc-6d13-438e-9b8c-a6ff3f7d5eec.png" style="width:1.67em;height:1.00em;"/>). Next, when we train the generator, it tries to step up to the level of the new and improved discriminator (we minimize <img class="fm-editor-equation" src="assets/b7c64658-7d82-43a6-a7b4-68478bc67d01.png" style="width:2.00em;height:1.17em;"/> , which is equivalent to maximizing <img class="fm-editor-equation" src="assets/935102ba-8da5-4087-819f-bacdebb515a6.png" style="width:2.08em;height:1.25em;"/>). The two networks are in constant competition. </span>We'll denote the minimax game with the following formula, where <img style="color: #333333;width:0.92em;height:1.08em;" class="fm-editor-equation" src="assets/909d5f59-d3b0-4185-ab8f-1aa5e7eefa6e.png"/> <span>is the loss function:</span></li>
+</ul>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/820971ea-bce7-4624-b374-b4c5722a920c.png" style="width:8.67em;height:1.92em;"/></p>
+<p style="padding-left: 60px">Let's assume that, after a number of training steps<span>, both </span><img class="fm-editor-equation" src="assets/47781deb-e5d3-49dd-be70-af2cf4d31eb1.png" style="width:2.00em;height:1.17em;"/> <span>and </span><img class="fm-editor-equation" src="assets/35578969-ec91-43d8-902c-c900a29b99a6.png" style="width:2.00em;height:1.17em;"/> <span>will be at some local minimum. Here, </span>the solution to the minimax game is called the Nash equilibrium. A Nash equilibrium happens when one of the actors doesn't change its action, regardless of what the other actor may do. A Nash equilibrium in a GAN framework happens when the generator becomes so good that the discriminator<span> </span><span>is no longer able to distinguish between generated and real samples. That is, the discriminator</span><span> </span>output will always be half, regardless of the presented input.</p>
+<p>Now that we have had an overview of GANs, let's discuss how to train them. We'll start with the discriminator and then we'll continue with the generator.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Training the discriminator</h1>
+                </header>
+            
+            <article>
+                
+<p>The discriminator is a classification neural<span> </span>network<span> </span>and we can train it in the usual way, that is, using gradient descent and backpropagation. However, the training set is composed of real and generated samples. Let's learn how to incorporate that in the training process:</p>
+<ol>
+<li>Depending on the input sample (real or fake), we have two paths:
+<ul>
+<li>Select the sample from the real data, <img class="fm-editor-equation" src="assets/5d97e04f-dfdf-4558-a5f9-bb2a5660b9dc.png" style="width:5.08em;height:1.08em;"/>, and use it to produce <img class="fm-editor-equation" src="assets/3d5522f8-1f33-450b-b459-0c47b862181b.png" style="width:2.08em;height:1.08em;"/>.</li>
+<li>Generate a fake sample, <img class="fm-editor-equation" src="assets/d6b3f32c-cbcf-4eca-a9c8-b5fd2e5459d3.png" style="width:3.92em;height:1.08em;"/>. <span>Here, the generator and discriminator work as a single network. </span><span>We start with a random vector, <strong>z</strong></span><span>, which we use to produce the generated sample,<img class="fm-editor-equation" src="assets/7e3fa3c3-4644-4293-9205-05b28d7d22b3.png" style="width:2.00em;height:1.08em;"/>. Then, we</span><span> </span><span>use it as input to the discriminator to produce the final output, <img class="fm-editor-equation" src="assets/7bb391a2-3cb9-46cb-bdaa-3c3897a2067c.png" style="width:3.25em;height:1.00em;"/>.</span></li>
+</ul>
+</li>
+<li>Next, we compute the loss function, which reflects the duality of the training data (more on that later).</li>
+</ol>
+<ol start="3">
+<li>Finally, we backpropagate the error gradient and update the weights. <span>Although the two networks work together, the generator weights, <img class="fm-editor-equation" src="assets/557fb571-01a9-4f5f-8ad0-df9f2ed4e42f.png" style="width:1.08em;height:1.33em;"/>, will be locked and we'll only update the discriminator weights, <img class="fm-editor-equation" src="assets/1f4c5681-dfb1-4e14-bad0-a050832ee537.png" style="width:1.17em;height:1.25em;"/>. This ensures that we'll improve the discriminatory performance by making it better, as opposed to making the generator worse.</span></li>
+</ol>
+<p>To understand discriminator loss, let's recall the formula for cross-entropy loss:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/53a958ee-004a-4cb1-906a-d213fe2ea6be.png" style="width:15.67em;height:3.33em;"/></p>
+<p>Here, <img class="fm-editor-equation" src="assets/a44a36e6-b6ab-4220-9773-d625d3437bc7.png" style="width:2.08em;height:1.08em;"/> <span>is the estimated probability of the output belonging to the <em>i</em>-th class (out of <em>n</em> total classes) and <img class="fm-editor-equation" src="assets/77505bad-5b15-4195-8331-f92ca37df667.png" style="width:2.00em;height:1.00em;"/> is the actual probability. For the sake of simplicity, we'll assume that we apply the formula over a single training sample. </span>In the case of binary classification, this formula can be simplified, as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/a5101d66-76fb-4c3c-8aec-feb244019a92.png" style="width:23.42em;height:1.17em;"/></p>
+<div class="packt_tip"><span>When the target probabilities are <sub><img class="fm-editor-equation" src="assets/976fe21a-8bf0-488f-8a35-5c6d987e44ef.png" style="width:6.08em;height:1.17em;"/></sub></span> <span>(one-hot-encoding), one of the loss terms is always <em>0</em>.</span></div>
+<p>We can expand the formula for a mini-batch of <em>m</em> samples:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/adf53eaf-b140-4666-8e44-8d0aa532bfb1.png" style="width:34.75em;height:3.83em;"/></p>
+<ol start="9"/>
+<p>Knowing all this, let's define the discriminator loss:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/e2b14266-f49c-4547-bcf8-0c08f77f04e5.png" style="width:36.50em;height:3.08em;"/></p>
+<p class="CDPAlignLeft CDPAlign">Although it seems complex, this is just cross-entropy loss for a binary classifier with some GAN-specific bells and whistles. Let's discuss them:</p>
+<ul>
+<li><span>The two components of the loss reflect the two possible classes (real or fake), which are equal in number in the training set.</span></li>
+<li><img class="fm-editor-equation" src="assets/774af71b-1b7e-4819-a8d7-029827c60db7.png" style="width:10.58em;height:1.92em;"/><span>is the loss when the input is sampled from real data. Ideally, in such cases, we'll have </span><img style="font-size: 1em;width:4.17em;height:1.17em;" class="fm-editor-equation" src="assets/e5b468c6-1f4b-4095-b86e-7fb2dadcac50.png"/><span>. </span></li>
+<li>In this context, <span>the expectation term, <img class="fm-editor-equation" src="assets/aaf721e7-7573-481c-92f9-7493b78a36c8.png" style="width:4.92em;height:1.42em;"/>,</span><span> implies that <strong>x</strong></span><span> </span><span>is sampled from</span><span> <img class="fm-editor-equation" src="assets/8cfa008d-275e-4f8a-9505-f162889529d1.png" style="width:3.75em;height:1.33em;"/></span><span>. </span><span>In essence, this part of the loss means that, when we sample <strong>x</strong></span><span> from <img class="fm-editor-equation" src="assets/a610dfc5-80da-410c-b7d3-307d39038478.png" style="width:4.33em;height:1.42em;"/></span><span>, we expect the discriminator output,<img class="fm-editor-equation" src="assets/14cd182d-42d2-4146-9fff-0623d9941f5c.png" style="width:4.25em;height:1.25em;"/></span><span>. Finally, 0.5 is</span><span> </span><span>the</span><span> </span><span>cumulative class probability of the real data, <img class="fm-editor-equation" src="assets/802ad000-4795-4002-9ab3-464a238be1cb.png" style="width:4.08em;height:1.42em;"/></span><span>, since it comprises exactly half of the whole set.</span></li>
+</ul>
+<ul>
+<li><img class="fm-editor-equation" src="assets/f5860c78-954b-4743-ba11-b2fc0031a8d7.png" style="width:11.83em;height:1.50em;"/>is the loss when the input is sampled from generated data. Here, we can make the same observations that we made with the real data component. However, this term is maximized when <img class="fm-editor-equation" src="assets/8a323555-d661-467a-9932-7ddbe32ccc1a.png" style="width:6.17em;height:1.25em;"/>.</li>
+</ul>
+<p>To summarize, the discriminator loss will be zero when <img class="fm-editor-equation" src="assets/e4936295-2648-4560-b427-e2bb43070f70.png" style="width:3.92em;height:1.08em;"/> for all <img class="fm-editor-equation" src="assets/d3842269-6022-4eef-8a98-63ce3536015e.png" style="width:5.17em;height:1.08em;"/> and <img class="fm-editor-equation" src="assets/6d5ad66b-f88b-4f2e-bce5-4904241f8664.png" style="width:3.67em;height:1.08em;"/> for all generated <img class="fm-editor-equation" src="assets/515c08e1-d0bb-4b8e-9d68-1451ab7698c1.png" style="width:3.83em;height:1.08em;"/> <span>(or <img class="fm-editor-equation" src="assets/9e0d2db1-d438-43d9-a894-9d2065079a42.png" style="width:3.92em;height:1.08em;"/></span>).</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Training the generator</h1>
+                </header>
+            
+            <article>
+                
+<p>We'll train the generator by making it better at<span> </span>deceiving<span> </span>the discriminator. To do this, we'll need both networks, similar to the way we trained the discriminator with fake samples:</p>
+<ol>
+<li>We start with a random latent vector, <strong>z</strong>, and feed it through both the generator and discriminator to produce the output, <img class="fm-editor-equation" src="assets/a51a9fe6-0b01-4404-a7f3-a15015fa4528.png" style="width:3.50em;height:1.08em;"/>.</li>
+<li>The loss function is the same as the discriminator loss. However, our goal here is to maximize rather than minimize it, since we want to deceive the discriminator.</li>
+<li>In the backward pass, the discriminator weights, <img class="fm-editor-equation" src="assets/04ebd62f-9d63-4b2c-ac18-15b1a60677c5.png" style="width:1.08em;height:1.17em;"/>, are locked and we can only adjust <img style="font-size: 1em;width:0.92em;height:1.17em;" class="fm-editor-equation" src="assets/dd4cbf8b-b4d8-4e6e-8cbd-506c388294f0.png"/>. This forces us to maximize the discriminator loss by making the generator better, instead of making the discriminator worse.</li>
+</ol>
+<p><span>You may have noticed that, in this phase, we only use generated data. Since the discriminator weights are locked, we can ignore the part of the loss function that deals with real data. Therefore, we can simplify it to the following:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/b29f63c3-b5b4-4280-87dd-5a723926da2e.png" style="width:17.00em;height:1.83em;"/></p>
+<p><span>The derivative (gradient) of this formula is <img class="fm-editor-equation" src="assets/8f81c792-2138-4c3f-9231-384a6e0d4d2d.png" style="width:6.00em;height:2.17em;"/></span><span>, which can be seen in the following diagram as an uninterrupted line. </span>This imposes a limitation on the training. Early on, when the discriminator can easily distinguish between real and fake samples (<img class="fm-editor-equation" src="assets/f4f3790d-88d5-4cc1-abfb-72979964c0f3.png" style="width:5.33em;height:1.08em;"/>), the gradient will be close to zero. This will result in little learning of the weights, <img style="font-size: 1em;width:0.83em;height:1.00em;" class="fm-editor-equation" src="assets/d9fa8f2a-dacd-40bf-96df-4ff3a5556821.png"/> (another manifestation of the vanishing gradient problem):</p>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1290 image-border" src="assets/ce5af7d3-6d16-499d-9e0f-1bbb38116cff.png" style="width:26.17em;height:19.67em;"/></div>
+<div class="CDPAlignCenter CDPAlign packt_figref">Gradients of the two generator loss functions</div>
+<p>We can solve this issue by using a different loss function:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/b0de4813-b13a-44f5-9051-6e99ef0395d3.png" style="width:13.92em;height:1.67em;"/></p>
+<p>The derivative of this function is displayed in the preceding diagram with a dashed line.<span> </span><span>This loss is still minimized when <img class="fm-editor-equation" src="assets/fa89da70-a3a3-4e4d-9971-2e91e28cb23a.png" style="width:5.75em;height:1.17em;"/></span> <span>and when the gradient is large; that is, when the generator underperforms. With this loss, the game is no longer zero-sum, but this won't have a practical effect on the GAN framework. Now, we have all the ingredients we need to define the GAN training algorithm. We'll do this in the next section.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Putting it all together</h1>
+                </header>
+            
+            <article>
+                
+<p>With our newfound knowledge, we can<span> </span>define<span> </span>the minimax objective in full:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/aece5d87-490b-4419-9fd4-795396f47338.png" style="width:27.92em;height:2.08em;"/></p>
+<p>In short, the generator tries to minimize the objective, while the discriminator tries to maximize it. Note that, while the discriminator should minimize its loss, the minimax objective is a negative of the discriminator loss, and therefore the discriminator has to maximize it.</p>
+<p>The following step-by-step training algorithm was introduced by the authors of the GAN framework.</p>
+<p>Repeat this for a number of iterations:</p>
+<ol start="1">
+<li>Repeat for<span> </span><em>k</em><span> </span>steps, where<span> </span><em>k</em><span> </span>is a hyperparameter:
+<ul>
+<li>Sample a mini-batch of<span> </span><em>m</em><span> </span>random samples from the latent space,<img class="fm-editor-equation" src="assets/ccb1ce7f-ea61-44fd-a73b-5e4e74e2a3f5.png" style="width:13.00em;height:1.50em;"/></li>
+<li>Sample a mini-batch of<span> </span><em>m</em><span> </span>samples from the real data,<img class="fm-editor-equation" src="assets/63b32472-2b4f-4365-a961-ddb74222380a.png" style="width:15.08em;height:1.50em;"/></li>
+<li>Update the discriminator weights, <img class="fm-editor-equation" src="assets/35d83794-8b1e-4ded-a95d-705dbaa266ab.png" style="width:1.08em;height:1.17em;"/>, by ascending the stochastic gradient of its cost:</li>
+</ul>
+</li>
+</ol>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/85093089-8bab-4a0c-a6b4-25c55e90ab02.png" style="width:23.75em;height:3.50em;"/></p>
+<ol start="2">
+<li>Sample a mini-batch of<span> </span><em>m</em><span> </span>random samples from the latent space,<img class="fm-editor-equation" src="assets/76bef6d4-3429-4816-ab7d-42970437865f.png" style="width:13.00em;height:1.50em;"/>.</li>
+<li>Update the generator by descending the stochastic gradient of its cost:</li>
+</ol>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/92b4f00d-9be0-4105-9221-7a7ce2ec0eda.png" style="width:16.00em;height:3.58em;"/></p>
+<p style="padding-left: 60px">Alternatively, we can use the updated cost function we introduced in the <em>Training the generator</em> section:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/3de6492b-30bf-4e87-bc3f-1093600c06ca.png" style="width:15.25em;height:3.67em;"/></p>
+<p>Now that we know how to train GANs, let's discuss some of the problems we may face while training them.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Problems with training GANs</h1>
+                </header>
+            
+            <article>
+                
+<p>Training GAN models has some major pitfalls:</p>
+<ul>
+<li><span>The gradient descent algorithm is designed to find the minimum of the loss function, rather than the Nash equilibrium, which is not the same thing. As a result, sometimes the training may fail to converge and could oscillate instead.</span></li>
+<li><span>Recall that the discriminator output is a sigmoid function that represents the probability of the example being real or fake. If the discriminator becomes too good at this task, the probability output will converge to either 0 or 1 at every training sample. This would mean that the error gradient will always be 0, which will prevent the generator from learning anything. On the other hand, if the discriminator is bad at recognizing fakes from real images, it will backpropagate the wrong information to the generator. Therefore, the discriminator shouldn't be either too good or too bad for the training to succeed. In practice, this means that we cannot train it until convergence.</span></li>
+<li><strong>Mode collapse</strong> <span>is a problem where the generator can generate a limited number of images (or even just one), regardless of the latent input vector value. To understand why this happens, let's focus on a single generator training episode that tries to minimize</span> <sub><img class="fm-editor-equation" src="assets/5719dc8c-46a6-42d6-a170-76372b3fc78c.png" style="width:10.42em;height:1.25em;"/></sub><span> while the weights of the discriminator are fixed. In other words, the generator tries to generate a fake image, </span><strong>x</strong><sup>*</sup><span>, so that</span> <sub><img class="fm-editor-equation" src="assets/3c3cd4f4-708a-4f2c-b986-8ffd203afe57.png" style="width:8.33em;height:1.58em;"/></sub><span>. However, the loss function does not force the generator to create a unique image, </span><strong>x</strong><sup>*</sup><span>, for different values of the input latent vector. That is, the training can modify the generator in a way where it completely decouples the generated image, </span><strong>x</strong><sup>*</sup><span>, from the latent vector value and, at the same time, still minimize the loss function. For example, a GAN for generating new MNIST images could only generate the number 4, regardless of the input. Once we update the discriminator, the previous value, </span><strong>x</strong><sup>*</sup><span>, may not be optimal anymore, which would force the generator to generate new and different images. Nevertheless, mode collapse may recur in different stages of the training process.</span></li>
+</ul>
+<p>Now that we are familiar with the GAN framework, we'll discuss several different types of GAN.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Types of GAN</h1>
+                </header>
+            
+            <article>
+                
+<p><span>Since the GAN framework was</span><span> </span>first<span> </span><span>introduced, a lot of new variations have emerged. In fact, there are so many new GANs now that, in order to stand out, the authors have come up with creative</span><span> </span><span>GAN</span><span> </span><span>names, such as</span><span> </span><span>BicycleGAN, DiscoGAN, GANs for LIFE, and ELEGANT. In the next few sections, we'll discuss some of them. All of the examples have been implemented with TensorFlow 2.0 and Keras. </span></p>
+<div class="packt_tip">The code for DCGAN, CGAN, WGAN, and CycleGAN is partially inspired by <a href="https://github.com/eriklindernoren/Keras-GAN">https://github.com/eriklindernoren/Keras-GAN</a>. You can find the full implementations of all the examples in this chapter at <a href="https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter05">https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter05</a>.</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Deep Convolutional GAN</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll implement the <strong>Deep Convolutional GAN</strong><span> </span><span>(</span><strong>DCGAN</strong>, <em>Unsupervised Representation Learning with Deep Convolutional Generative Adversarial Networks</em>,<strong> <a href="https://arxiv.org/abs/1511.06434">https://arxiv.rg/abs/1511.06434</a></strong><span>). </span>In the original GAN<span> </span>framework<span> </span>proposal, the authors only<span> used </span><span>fully-connected</span><span> </span>networks. In contrast, in DCGANs both the generator and the discriminator are CNNs. They<span> </span>have<span> </span>some constraints that help stabilize the training process. <span>You can think of these as general guidelines for GAN training and not just for DCGANs</span>:</p>
+<ul>
+<li>The discriminator uses strided convolutions instead of pooling layers.</li>
+<li>The generator uses transpose convolutions to upsample the <span>latent vector, </span><img class="fm-editor-equation" src="assets/a6f3fc7b-2965-4074-8e82-6daa68f0a312.png" style="width:0.75em;height:0.92em;"/>, to the size of the generated image.</li>
+<li>Both networks use batch normalization.</li>
+<li>No fully-connected layers, with the exception of the last layer of the discriminator.</li>
+<li><span>LeakyReLU </span>activations for all the layers of the generator and discriminator, except their outputs. The generator output layer uses Tanh activation (which has a range of (-1, 1)) to mimic the properties of real-world data. The discriminator has a single sigmoid output (recall that it's in the range of (0, 1)) because it measures the probability of the sample being real or fake.</li>
+</ul>
+<p>In the following diagram, we can see a sample<span> </span>generator<span> </span>network in the DCGAN framework:</p>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1291 image-border" src="assets/018fc328-a765-4b96-a164-b39d2ae28c76.png" style="width:43.67em;height:14.83em;"/></div>
+<div class="CDPAlignCenter CDPAlign packt_figref">Generator network with transpose convolutions</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementing DCGAN</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll implement DCGAN, which generates new MNIST images. This example will serve as a blueprint for all GAN implementations in upcoming sections. Let's get started:</p>
+<ol>
+<li>Let's start by importing the necessary modules and <span>classes</span>:</li>
+</ol>
+<pre style="padding-left: 60px"><span>import </span>matplotlib.pyplot <span>as </span>plt<br/><span>import </span>numpy <span>as </span>np<br/><span>from </span>tensorflow.keras.datasets <span>import </span>mnist<br/><span>from </span>tensorflow.keras.layers <span>import </span>\<br/>    Conv2D<span>, </span>Conv2DTranspose<span>, </span>BatchNormalization<span>, </span>Dropout<span>, </span>Input<span>,<br/>    </span>Dense<span>, </span>Reshape<span>, </span>Flatten<br/><span>from </span>tensorflow.keras.layers <span>import </span>LeakyReLU<br/><span>from </span>tensorflow.keras.models <span>import </span>Sequential<span>, </span>Model<br/><span>from </span>tensorflow.keras.optimizers <span>import </span>Adam</pre>
+<ol start="2">
+<li>Implement the<span> </span><kbd>build_generator</kbd><span> </span>function. We'll follow the guidelines that were outlined at the beginning of this<span> </span>section—upsampling with transpose convolutions, batch normalization, and LeakyReLU activations. The model starts with a fully-connected layer to upsample the 1D latent vector. Then, the vector is upsampled with a series of <kbd>Conv2DTranspose</kbd>. The final <kbd>Conv2DTranspose</kbd> has a <kbd>tanh</kbd> activation and the generated image has only 1 channel:</li>
+</ol>
+<pre style="padding-left: 60px">def build_generator(latent_input: Input):<br/>    model = Sequential([<br/>        Dense(7 * 7 * 256, use_bias=False,<br/>        input_shape=latent_input.shape[1:]),<br/>        BatchNormalization(), LeakyReLU(),<br/>        <br/>        Reshape((7, 7, 256)),<br/><br/>        # expand the input with transposed convolutions<br/>        Conv2DTranspose(filters=128, kernel_size=(5, 5), <br/>                        strides=(1, 1), <br/>                        padding='same', use_bias=False),<br/>        BatchNormalization(), LeakyReLU(),<br/><br/>        # gradually reduce the volume depth<br/>        Conv2DTranspose(filters=64, kernel_size=(5, 5),<br/>                        strides=(2, 2),<br/>                        padding='same', use_bias=False),<br/>        BatchNormalization(), LeakyReLU(),<br/><br/>        Conv2DTranspose(filters=1, kernel_size=(5, 5), <br/>                        strides=(2, 2), padding='same', <br/>                        use_bias=False, activation='tanh'),<br/>    ])<br/><br/>    # this is forward phase<br/>    generated = model(latent_input)<br/><br/>    return Model(z, generated)</pre>
+<ol start="3">
+<li>Build the discriminator. Again, it's a simple CNN with stride convolutions:</li>
+</ol>
+<pre style="padding-left: 60px">def build_discriminator():<br/>    model = Sequential([<br/>        Conv2D(filters=64, kernel_size=(5, 5), strides=(2, 2),<br/>               padding='same', input_shape=(28, 28, 1)),<br/>        LeakyReLU(), Dropout(0.3),<br/>        Conv2D(filters=128, kernel_size=(5, 5), strides=(2, 2),<br/>               padding='same'),<br/>        LeakyReLU(), Dropout(0.3),<br/>        Flatten(),<br/>        Dense(1, activation='sigmoid'),<br/>    ])<br/><br/>    image = Input(shape=(28, 28, 1))<br/>    output = model(image)<br/><br/>    return Model(image, output)</pre>
+<ol start="4">
+<li>Implement the<span> </span><kbd>train</kbd><span> </span>function with the actual GAN training. This function implements the procedure that was outlined in the <em>Putting it all together</em> subs<span>ection</span> in the <em>Training GANs</em> section. We'll start with the function declaration and the initialization of the variables:</li>
+</ol>
+<pre style="padding-left: 60px"><span>def </span><span>train</span>(generator<span>, </span>discriminator<span>, </span>combined<span>, </span>steps<span>, </span>batch_size):<br/><span>    </span><span># Load the dataset<br/></span><span>    </span>(x_train<span>, </span>_)<span>, </span>_ = mnist.load_data()<br/><br/>    <span># Rescale in [-1, 1] interval<br/></span><span>    </span>x_train = (x_train.astype(np.float32) - <span>127.5</span>) / <span>127.5<br/></span><span>    </span>x_train = np.expand_dims(x_train<span>, </span><span>axis</span>=-<span>1</span>)<br/><br/>    <span># Discriminator ground truths<br/></span><span>    </span>real = np.ones((batch_size<span>, </span><span>1</span>))<br/>    fake = np.zeros((batch_size<span>, </span><span>1</span>))<br/><br/>    latent_dim = generator.input_shape[<span>1</span>]</pre>
+<p style="padding-left: 60px">We'll continue with the training loop, where we alternate one discriminator training episode with one generator training episode. First, we train the <kbd>discriminator</kbd> on 1 batch of <kbd>real_images</kbd> and one batch of <kbd>generated_images</kbd>. Then, we train the generator (which includes the <kbd>discriminator</kbd> as well) on the same batch of <kbd>generated_images</kbd>. Note that we label these images as real because we want to maximize the <kbd>discriminator</kbd> loss. The following is the implementation (please note the indentation; this is still part of the <kbd>train</kbd> function):</p>
+<pre style="padding-left: 60px"><span>for </span>step <span>in </span><span>range</span>(steps):<br/>    <span># Train the discriminator<br/></span><span><br/></span><span>    # Select a random batch of images<br/></span><span>    </span>real_images = x_train[np.random.randint(<span>0</span><span>, </span>x_train.shape[<span>0</span>]<span>,<br/>    </span>batch_size)]<br/><br/>    <span># Random batch of noise<br/></span><span>    </span>noise = np.random.normal(<span>0</span><span>, </span><span>1</span><span>, </span>(batch_size<span>, </span>latent_dim))<br/><br/>    <span># Generate a batch of new images<br/></span><span>    </span>generated_images = generator.predict(noise)<br/><br/>    <span># Train the discriminator<br/></span><span>    </span>discriminator_real_loss = discriminator.train_on_batch<br/>    (real_images<span>, </span>real)<br/>    discriminator_fake_loss = discriminator.train_on_batch<br/>    (generated_images<span>, </span>fake)<br/>    discriminator_loss = <span>0.5 </span>* np.add(discriminator_real_loss<span>,<br/>    </span>discriminator_fake_loss)<br/><br/>    <span># Train the generator<br/></span><span>    # random latent vector z<br/></span><span>    </span>noise = np.random.normal(<span>0</span><span>, </span><span>1</span><span>, </span>(batch_size<span>, </span>latent_dim))<br/><br/>    <span># Train the generator<br/></span><span>    # Note that we use the "valid" labels for the generated images<br/></span><span>    # That's because we try to maximize the discriminator loss<br/></span><span>    </span>generator_loss = combined.train_on_batch(noise<span>, </span>real)<br/><br/>    <span># Display progress<br/></span><span>    </span><span>print</span>(<span>"%d [Discriminator loss: %.4f%%, acc.: %.2f%%] [Generator<br/>    loss: %.4f%%]" </span>% (step<span>, </span>discriminator_loss[<span>0</span>]<span>, </span><span>100 </span>*<br/>    discriminator_loss[<span>1</span>]<span>, </span>generator_loss))</pre>
+<ol start="5">
+<li>Implement a boilerplate function, <kbd>plot_generated_images</kbd>, to display some generated images after the training is finished:
+<ol>
+<li>Create an<span> </span><kbd>nxn</kbd><span> </span>grid (the<span> </span><kbd>figure</kbd><span> </span>variable).</li>
+<li>Create<span> </span><kbd>nxn</kbd><span> </span>random latent vectors (the<span> </span><kbd>noise</kbd><span> </span>variable)—one for each generated image.</li>
+<li>Generate the images and place them in the grid cells.</li>
+<li>Display the result.</li>
+</ol>
+</li>
+</ol>
+<p style="padding-left: 60px">  The following is the implementation:</p>
+<pre style="padding-left: 60px"><span>def </span><span>plot_generated_images</span>(generator):<br/><span>    </span>n = <span>10<br/></span><span>    </span>digit_size = <span>28<br/></span><span><br/></span><span>    </span><span># big array containing all images<br/></span><span>    </span>figure = np.zeros((digit_size * n<span>, </span>digit_size * n))<br/><br/>    latent_dim = generator.input_shape[<span>1</span>]<br/><br/>    <span># n*n random latent distributions<br/></span><span>    </span>noise = np.random.normal(<span>0</span><span>, </span><span>1</span><span>, </span>(n * n<span>, </span>latent_dim))<br/><br/>    <span># generate the images<br/></span><span>    </span>generated_images = generator.predict(noise)<br/><br/>    <span># fill the big array with images<br/></span><span>    </span><span>for </span>i <span>in </span><span>range</span>(n):<br/>        <span>for </span>j <span>in </span><span>range</span>(n):<br/>            slice_i = <span>slice</span>(i * digit_size<span>, </span>(i + <span>1</span>) * digit_size)<br/>            slice_j = <span>slice</span>(j * digit_size<span>, </span>(j + <span>1</span>) * digit_size)<br/>            figure[slice_i<span>, </span>slice_j] = np.reshape<br/>                          (generated_images[i * n + j]<span>, </span>(<span>28</span><span>, </span><span>28</span>))<br/><br/>    <span># plot the results<br/></span><span>    </span>plt.figure(<span>figsize</span>=(<span>6</span><span>, </span><span>5</span>))<br/>    plt.axis(<span>'off'</span>)<br/>    plt.imshow(figure<span>, </span><span>cmap</span>=<span>'Greys_r'</span>)<br/>    plt.show()</pre>
+<ol start="6">
+<li>Build the full GAN model by including the <kbd>generator</kbd>, <kbd>discriminator</kbd>, and the<span> <kbd>combined</kbd></span><span> </span>network. We'll use the latent vector that's 64 in size (the <kbd>latent_dim</kbd> variable) and we'll run the training for 50,000 batches using the Adam optimizer (this may take a while). Then, we'll plot the results:</li>
+</ol>
+<pre style="padding-left: 60px">latent_dim = <span>64<br/></span><span><br/></span><span># Build the generator<br/></span><span># Generator input z<br/></span>z = Input(<span>shape</span>=(latent_dim<span>,</span>))<br/><br/>generator = build_generator(z)<br/><br/>generated_image = generator(z)<br/><br/><span># we'll use Adam optimizer<br/></span>optimizer = Adam(<span>0.0002</span><span>, </span><span>0.5</span>)<br/><br/><span># Build and compile the discriminator<br/></span>discriminator = build_discriminator()<br/>discriminator.compile(<span>loss</span>=<span>'binary_crossentropy'</span><span>,<br/></span><span>                      </span><span>optimizer</span>=optimizer<span>,<br/></span><span>                      </span><span>metrics</span>=[<span>'accuracy'</span>])<br/><br/><span># Only train the generator for the combined model<br/></span>discriminator.trainable = <span>False<br/></span><span><br/></span><span># The discriminator takes generated image as input and determines validity<br/></span>real_or_fake = discriminator(generated_image)<br/><br/><span># Stack the generator and discriminator in a combined model<br/></span><span># Trains the generator to deceive the discriminator<br/></span>combined = Model(z<span>, </span>real_or_fake)<br/>combined.compile(<span>loss</span>=<span>'binary_crossentropy'</span><span>, </span><span>optimizer</span>=optimizer)<br/><br/>train(generator<span>, </span>discriminator<span>, </span>combined<span>, </span><span>steps</span>=<span>50000</span><span>, </span><span>batch_size</span>=<span>100</span>)<br/><br/>plot_generated_images(generator)</pre>
+<p>If everything goes as planned, we should see something<span> </span>similar<span> </span>to the following:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1292 image-border" src="assets/a2f2de4f-2637-4c56-b787-ac831df73d0e.png" style="width:17.33em;height:17.25em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign">Newly generated MNIST images</div>
+<p>This concludes our discussion of DCGANs. In the next section, we'll discuss another type of GAN model called the Conditional GAN.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Conditional GAN</h1>
+                </header>
+            
+            <article>
+                
+<p>The conditional GAN (CGAN, <em>Conditional Generative Adversarial Nets</em>, <a href="https://arxiv.org/abs/1411.1784">https://arxiv.org/abs/1411.1784</a>) is an extension of the GAN model where both the generator and discriminator receive some additional conditioning input information. This could be the class of the current image or some other property:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1293 image-border" src="assets/8109b440-49ad-491c-b72a-3f0768a6256b.png" style="width:32.00em;height:9.33em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Conditional GAN. <em>Y</em> represents the conditional input for the generator and discriminator</div>
+<p><span>For example, if we train a GAN to generate new MNIST images, we could add an additional input layer with values of one-hot encoded image labels. </span>CGANs have the disadvantage that they are not strictly unsupervised and we need some kind of label for them to work. However, they have some other advantages:</p>
+<ul>
+<li><span>By using more well-structured information for training, the model can learn better data representations and generate better samples.</span></li>
+<li>In regular GANs, all the image information is stored in the latent vector, <strong>z</strong>. This poses a problem: since <img class="fm-editor-equation" src="assets/92040d51-daef-42af-9e62-7843f787a669.png" style="width:0.75em;height:0.92em;"/> can be complex, we don't have much control over the properties of the generated image. For example, suppose that we want our MNIST GAN to generate a certain digit; say, 7. We would have to experiment with different latent vectors until we reach the desired output. But with CGAN, we could simply combine the one-hot vector of 7 with some random <strong>z</strong> and the network will generate the correct digit. We could still try different values for <strong>z</strong> and the model would generate different versions of the digit, that is, 7. In short, CGAN provides a way for us to control (condition) the generator output.</li>
+</ul>
+<p>Because of the conditional input, we'll modify the minimax objective to include the condition, <em>y</em>, as well:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/e603f48e-8b7d-4bbe-b73c-3d86c0025ed3.png" style="width:37.58em;height:2.58em;"/></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementing CGAN</h1>
+                </header>
+            
+            <article>
+                
+<p>The blueprint for the CGAN implementation is very similar to the DCGAN example in the <em>Implementing DCGAN</em> section. That is, we'll implement CGAN in order to generate new images of the MNIST dataset. For the sake of simplicity (and diversity), we'll use fully connected generators and discriminators. To avoid repetition, we'll only show modified sections of the code compared to DCGAN. You can find the full example in this book's GitHub repository.</p>
+<p>The first significant difference is the definition of the generator:</p>
+<pre>def build_generator(z_input: Input, label_input: Input):<br/>    model = Sequential([<br/>        Dense(128, input_dim=latent_dim),<br/>        LeakyReLU(alpha=0.2), BatchNormalization(momentum=0.8),<br/>        Dense(256),<br/>        LeakyReLU(alpha=0.2), BatchNormalization(momentum=0.8),<br/>        Dense(512),<br/>        LeakyReLU(alpha=0.2), BatchNormalization(momentum=0.8),<br/>        Dense(np.prod((28, 28, 1)), activation='tanh'),<br/>        # reshape to MNIST image size<br/>        Reshape((28, 28, 1))<br/>    ])<br/>    model.summary()<br/><br/>    # the latent input vector z<br/>    label_embedding = Embedding(input_dim=10, <br/>    output_dim=latent_dim)(label_input)<br/>    flat_embedding = Flatten()(label_embedding)<br/><br/>    # combine the noise and label by element-wise multiplication<br/>    model_input = multiply([z_input, flat_embedding])<br/>    image = model(model_input)<br/><br/>    return Model([z_input, label_input], image)</pre>
+<p>Although it's a fully-connected network, we still follow the GAN network design guidelines that were defined in the <em>Deep Convolutional GANs</em> section. Let's discuss the way we combine the latent vector, <kbd>z_input</kbd>, with the conditional label, <kbd>label_input</kbd> (an integer with values from 0 to 9). We can see that <kbd>label_input</kbd> is transformed with an <kbd>Embedding</kbd> layer. This layer does two things:</p>
+<ul>
+<li>Converts the integer value, <kbd>label_input</kbd>, into a one-hot representation with a length of <kbd>input_dim</kbd></li>
+<li>Uses the one-hot representation as an input for a fully-connected layer with the size of <kbd>output_dim</kbd></li>
+</ul>
+<p>The embedding layer allows us to obtain unique vector representations for each possible input value. In this case, the output of <kbd>label_embedding</kbd> has the same dimensions as the size of the latent vector and <kbd>z_input</kbd>. <span><kbd>label_embedding</kbd> is combined with the latent ve</span>ctor, <kbd>z_input</kbd>, wi<span>th the help of element-wise multiplication in the <kbd>model_input</kbd> variable,</span> which serves as an input for the rest of the network. </p>
+<p>Next, we'll focus on the discriminator, which is also a fully-connected network and uses the same embedding mechanism as the generator. This time, the embedding output size is <kbd>np.prod((28, 28, 1))</kbd>, which is equal to 784 (the size of the MNIST images):</p>
+<pre><span>def </span><span>build_discriminator</span>():<br/><span>    </span>model = Sequential([<br/>        Flatten(<span>input_shape</span>=(<span>28</span><span>, </span><span>28</span><span>, </span><span>1</span>))<span>,<br/></span><span>        </span>Dense(<span>256</span>)<span>,<br/></span><span>        </span>LeakyReLU(<span>alpha</span>=<span>0.2</span>)<span>,<br/></span><span>        </span>Dense(<span>128</span>)<span>,<br/></span><span>        </span>LeakyReLU(<span>alpha</span>=<span>0.2</span>)<span>,<br/></span><span>        </span>Dense(<span>1</span><span>, </span><span>activation</span>=<span>'sigmoid'</span>)<span>,<br/></span><span>    </span>]<span>, </span><span>name</span>=<span>'discriminator'</span>)<br/>    model.summary()<br/><br/>    image = Input(<span>shape</span>=(<span>28</span><span>, </span><span>28</span><span>, </span><span>1</span>))<br/>    flat_img = Flatten()(image)<br/><br/>    label_input = Input(<span>shape</span>=(<span>1</span><span>,</span>)<span>, </span><span>dtype</span>=<span>'int32'</span>)<br/>    label_embedding = Embedding(<span>input_dim</span>=<span>10</span><span>, </span><span>output_dim</span>=np.prod(<br/>    (<span>28</span><span>, </span><span>28</span><span>, </span><span>1</span>)))(label_input)<br/>    flat_embedding = Flatten()(label_embedding)<br/><br/>    <span># combine the noise and label by element-wise multiplication<br/></span><span>    </span>model_input = multiply([flat_img<span>, </span>flat_embedding])<br/><br/>    validity = model(model_input)<br/><br/>    <span>return </span>Model([image<span>, </span>label_input]<span>, </span>validity)</pre>
+<p>The rest of the example code is very similar to the DCGAN example. The only other differences are trivial—they account for the multiple inputs (latent vector and embedding) for the networks. The <kbd>plot_generated_images</kbd> function has an additional parameter, which allows it to generate images for random latent vectors and a specific conditional label (in this case, a digit). In the following, we can see the newly generated images for conditional labels 3, 8, and 9:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1294 image-border" src="assets/7e9fa126-d99e-4f28-8a98-5e9ffad73815.png" style="width:45.00em;height:14.75em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">CGAN for conditional labels 3, 8, and 9</div>
+<p><span>This concludes our discussion of CGANs. In the next section, we'll discuss another type of GAN model called the Wasserstein</span><span> GAN.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Wasserstein GAN</h1>
+                </header>
+            
+            <article>
+                
+<p>To understand the Wasserstein GAN (WGAN, <a href="https://arxiv.org/abs/1701.07875">https://arxiv.org/abs/1701.07875</a>), let's recall that, in the <em>Training GANs</em> section, we denoted the probability distribution of the generator with <img class="fm-editor-equation" src="assets/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png" style="width:1.50em;height:1.33em;"/>and the probability distribution of the real data with <img style="font-size: 1em;width:3.08em;height:1.17em;" class="fm-editor-equation" src="assets/e043e680-d6bc-4abe-949a-441df0f3a05d.png"/>. <span>In the process of training the GAN model, we update the generator weights and so we</span> <span>change <img class="fm-editor-equation" src="assets/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png" style="width:1.50em;height:1.33em;"/>.</span> The goal of the GAN framework is to converge <img class="fm-editor-equation" src="assets/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png" style="width:1.50em;height:1.33em;"/> to <img style="font-size: 1em;width:3.08em;height:1.17em;" class="fm-editor-equation" src="assets/e043e680-d6bc-4abe-949a-441df0f3a05d.png"/>(this is also valid for other types of generative model, such as VAE), that is, the probability distribution of the generated images should be the same as the real ones, which would result in realistic images. <span>WGAN</span><span> uses a new way to measure the distance between the two distributions called the Wasserstein distance (or the <strong>Earth mover's distance</strong> (<strong>EMD</strong>)). To understand it, let's start with the following diagram:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1295 image-border" src="assets/c4118fda-f908-4d33-983d-4756d840b288.png" style="width:60.50em;height:13.42em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">An example of EMD. Left: Initial and target distributions; Right: Two different ways to transform <img class="fm-editor-equation" src="assets/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png" style="width:1.50em;height:1.33em;"/><span> into </span><img style="font-size: 1em;width:3.08em;height:1.17em;" class="fm-editor-equation" src="assets/e043e680-d6bc-4abe-949a-441df0f3a05d.png"/></div>
+<p>For the sake of simplicity, we'll assume that the <img class="fm-editor-equation" src="assets/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png" style="width:1.33em;height:1.17em;"/> and <img style="font-size: 1em;width:2.75em;height:1.00em;" class="fm-editor-equation" src="assets/e043e680-d6bc-4abe-949a-441df0f3a05d.png"/> are <span>distributions </span>discrete (the same rule applies for continuous distributions). We can transform <img class="fm-editor-equation" src="assets/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png" style="width:1.17em;height:1.00em;"/> into <img style="font-size: 1em;width:2.92em;height:1.08em;" class="fm-editor-equation" src="assets/e043e680-d6bc-4abe-949a-441df0f3a05d.png"/> by moving the columns (a, b, c, d, e) left or right along the <em>x</em> axis. Each transfer of 1 position has a cost of 1. For example, the cost to move column <em>a</em> from its initial position, 2, to position 6 is 4.<span> </span>The right-hand side of the preceding diagram shows two ways of doing this. In the first case, we have <em>total cost = cost(a:2-&gt;6) + cost(e:6-&gt;3) + cost(b:3-&gt;2) = 4 +3 + 1 = 8</em>. In the second case, we have <span><em>total cost = cost(a:2-&gt;3) + cost(b:2-&gt;1) = 1 + 1 = 2</em>. EMD is the minimal total cost it takes to transform one distribution into the other. Therefore, in this example, we have EMD = 2.</span></p>
+<p>We now have a basic idea of what EMD is, but we still don't know why it's necessary to use this metric in the GAN model. The WGAN paper provides an elaborate but somewhat complex answer to this question. In this section, we'll try to explain it. To start, let's note that the generator starts with a low-dimensional latent vector, <img class="fm-editor-equation" src="assets/7a361be8-949f-4b71-a9ba-641c76c67d3b.png" style="width:0.75em;height:0.92em;"/>, and then transforms it into a high-dimensional generated image (for example, 784, in the case of MNIST). The output size of the image also implies a high-dimensional distribution of the generated data, <img class="fm-editor-equation" src="assets/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png" style="width:1.17em;height:1.00em;"/>. However, its intrinsic dimensions (the latent vector, <img class="fm-editor-equation" src="assets/7a361be8-949f-4b71-a9ba-641c76c67d3b.png" style="width:0.75em;height:0.92em;"/>) are much lower. Because of this <img class="fm-editor-equation" src="assets/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png" style="width:1.33em;height:1.17em;"/> will be excluded from big sections of the high-dimensional feature space. On the other hand, <img style="font-size: 1em;width:2.58em;height:1.00em;" class="fm-editor-equation" src="assets/e043e680-d6bc-4abe-949a-441df0f3a05d.png"/> is truly high dimensional because it doesn't start from a latent vector; instead, it represents the real data with its full richness. Therefore, it's very likely that <img class="fm-editor-equation" src="assets/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png" style="width:1.25em;height:1.08em;"/> and <img src="assets/e043e680-d6bc-4abe-949a-441df0f3a05d.png" style="width:2.58em;height:1.00em;"/> don't intersect anywhere in the feature space.</p>
+<p>To understand why this matters, let's note that we can transform the generator and discriminator cost functions (see the <em>Training GANs</em> section) into functions of the KL and the <strong>Jensen–Shannon</strong> (<strong>JS</strong>,<strong> </strong><a href="https://en.wikipedia.org/wiki/Jensen%E2%80%93Shannon_divergence">https://en.wikipedia.org/wiki/Jensen%E2%80%93Shannon_divergence</a>) divergence. The problem with these metrics is that they provide a zero gradient when the two distributions don't intersect. That is, no matter what the distance between the two distributions is (small or large), if they don't intersect, the metrics won't provide any information about the actual difference between them. However, as we just explained, it's very likely that the distributions won't intersect. Contrary to this, the Wasserstein distance works regardless of whether the distributions intersect or not, which makes it a better candidate for the GAN model. We can illustrate this issue visually with the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1296 image-border" src="assets/178670ad-2cb5-4f1c-9d7e-12c8738f532d.png" style="width:27.42em;height:21.08em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">The advantage of the Wasserstein distance over the regular GAN discriminator. Source: https://arxiv.org/abs/1701.07875</div>
+<p>Here, we can see two non-intersecting Gaussian distributions, <img class="fm-editor-equation" src="assets/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png" style="width:1.17em;height:1.00em;"/> and <img style="font-size: 1em;width:2.92em;height:1.08em;" class="fm-editor-equation" src="assets/e043e680-d6bc-4abe-949a-441df0f3a05d.png"/> (to the left and to the right, respectively). The regular GAN discriminator output is the sigmoid function (with a range of (0, 1)), which tells us the probability of the input being fake or not. In this case, the sigmoid output is meaningful in a very narrow range (centered around 0) and converges toward 0 or 1 in all other areas. This is a manifestation of the same problem we outlined in the <em>Problems with training GANs</em> section. It leads to vanishing gradients, which prevents error backpropagation to the generator. In contrast, the WGAN doesn't give us binary feedback on whether an image is real or fake and instead provides an actual distance measurement between the two distributions (<span>also displayed in the prece</span>ding diagram). This distance is more useful than binary classification because it will provide a better indication of how to update the generator. <span>To reflect this, the authors of the paper have renamed the discriminator and called it </span><strong>critic</strong><span>.</span></p>
+<p><span>The following screenshot shows the WGAN algorithm as it's described in the paper:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1297 image-border" src="assets/8099c5fd-4ded-489a-af4b-1c7e85622148.png" style="width:41.25em;height:24.17em;"/></p>
+<p>Here, <em>f<sub>w</sub></em> denotes the critic, <em>g<sub>w</sub></em> is the critic weight update, and <em>g<sub>θ</sub></em> is the generator weight update. Although the theory behind WGAN is sophisticated, in practice we can implement it by making relatively few changes to the regular GAN model:</p>
+<ul>
+<li>Remove the output sigmoid activation of the discriminator.</li>
+<li>Replace the log generator/discriminator loss functions with an EMD-derived loss. </li>
+<li><span>Clip the critic weights after each mini-batch so that their absolute values are smaller than a constant,</span><span> </span><em>c</em><span>. This requirement enforces the so-called </span><span>Lipschitz constraint on the critic, which makes it possible to use the Wasserstein distance (more on this in the paper itself). Without getting into the details, we'll just mention that weight clipping can lead to undesired behavior. One successful solution to these issues has been the gradient penalty (WGAN-GP, <em>Improved Training of Wasserstein GANs</em>, <a href="https://arxiv.org/abs/1704.00028">https://arxiv.org/abs/1704.00028</a>), which does not suffer from the same problems.</span></li>
+<li>The authors of the paper reported that optimization methods without momentum (SGD, RMSProp) work better than those with momentum.</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementing WGAN</h1>
+                </header>
+            
+            <article>
+                
+<p>Now that we have a basic idea of how the Wasserstein GAN works, let's implement it. Once again, we'll use the DCGAN blueprint and omit the repetitive code snippets so that we can focus on the differences. The <kbd>build_generator</kbd> and <kbd>build_critic</kbd> functions instantiate the generator and the critic, respectively. For the sake of simplicity, the two networks contain only fully connected layers. All the hidden layers have LeakyReLU activations. Following the paper's guidelines, the generator has Tanh output activation and the critic has a single scalar output (no sigmoid activation, though). Next, let's implement the <kbd>train</kbd> method since it contains some WGAN specifics. We'll start with the method's declaration and the initialization of the training process:</p>
+<pre><span>def </span><span>train</span>(generator<span>, </span>critic<span>, </span>combined<span>, </span>steps<span>, </span>batch_size<span>, </span>n_critic<span>, </span>clip_value):<br/><span>    </span><span># Load the dataset<br/></span><span>    </span>(x_train<span>, </span>_)<span>, </span>_ = mnist.load_data()<br/><br/>    <span># Rescale in [-1, 1] interval<br/></span><span>    </span>x_train = (x_train.astype(np.float32) - <span>127.5</span>) / <span>127.5<br/></span><span><br/></span><span>    </span><span># We use FC networks, so we flatten the array<br/></span><span>    </span>x_train = x_train.reshape(x_train.shape[<span>0</span>]<span>, </span><span>28 </span>* <span>28</span>)<br/><br/>    <span># Discriminator ground truths<br/></span><span>    </span>real = np.ones((batch_size<span>, </span><span>1</span>))<br/>    fake = -np.ones((batch_size<span>, </span><span>1</span>))<br/><br/>    latent_dim = generator.input_shape[<span>1</span>]</pre>
+<p>Then, we'll continue with the training loop, which follows the steps of the WGAN algorithm we described earlier in this section. The inner loop trains the <kbd>critic</kbd> <kbd>n_critic</kbd> steps for each training step of the <kbd>generator</kbd>. In fact, this is the main difference between training the <kbd>critic</kbd> and training the <kbd>discriminator</kbd> in the train<span> func</span>tion of the <em>Implementing DCGAN</em> section, where the discriminator and the generator alternate at each step<em>.</em> Additionally, the <kbd>weights</kbd> critic is clipped after each mini-batch. The following is the implementation (please note the indentation; this code is part of the <kbd>train</kbd> function):</p>
+<pre><span>    </span><span>for </span>step <span>in </span><span>range</span>(steps):<br/>        <span># Train the critic first for n_critic steps<br/></span><span>        </span><span>for </span>_ <span>in </span><span>range</span>(n_critic):<br/>            <span># Select a random batch of images<br/></span><span>            </span>real_images = x_train[np.random.randint(<span>0</span><span>, </span>x_train.shape[<span>0</span>]<span>, <br/>            </span>batch_size)]<br/><br/>            <span># Sample noise as generator input<br/></span><span>            </span>noise = np.random.normal(<span>0</span><span>, </span><span>1</span><span>, </span>(batch_size<span>, </span>latent_dim))<br/><br/>            <span># Generate a batch of new images<br/></span><span>            </span>generated_images = generator.predict(noise)<br/><br/>            <span># Train the critic<br/></span><span>            </span>critic_real_loss = critic.train_on_batch(real_images<span>, </span>real)<br/>            critic_fake_loss = critic.train_on_batch(generated_images<span>,<br/>            </span>fake)<br/>            critic_loss = <span>0.5 </span>* np.add(critic_real_loss<span>, </span>critic_fake_loss)<br/><br/>            <span># Clip critic weights<br/></span><span>            </span><span>for </span>l <span>in </span>critic.layers:<br/>                weights = l.get_weights()<br/>                weights = [np.clip(w<span>, </span>-clip_value<span>, </span>clip_value) <span>for </span>w <span>in<br/>                </span>weights]<br/>                l.set_weights(weights)<br/><br/>        <span># Train the generator<br/></span><span>        # Note that we use the "valid" labels for the generated images<br/></span><span>        # That's because we try to maximize the discriminator loss<br/></span><span>        </span>generator_loss = combined.train_on_batch(noise<span>, </span>real)<br/><br/>        <span># Display progress<br/></span><span>        </span><span>print</span>(<span>"%d [Critic loss: %.4f%%] [Generator loss: %.4f%%]" </span>%<br/>              (step<span>, </span>critic_loss[<span>0</span>]<span>, </span>generator_loss))</pre>
+<p>Next, we'll implement the derivative of the Wasserstein loss itself. It is a TF operation that represents the mean value of the product of the network output and the labels (real or fake): </p>
+<pre><span>def </span><span>wasserstein_loss</span>(y_true<span>, </span>y_pred):<br/>    <span>"""The Wasserstein loss implementation"""<br/></span><span>    </span><span>return </span>tensorflow.keras.backend.mean(y_true * y_pred)</pre>
+<p>Now, we can build the full GAN model. <span>This step is similar to the other </span>GAN models<span>:</span></p>
+<pre>latent_dim = <span>100<br/></span><span><br/></span><span># Build the generator<br/></span><span># Generator input z<br/></span>z = Input(<span>shape</span>=(latent_dim<span>,</span>))<br/><br/>generator = build_generator(z)<br/><br/>generated_image = generator(z)<br/><br/><span># we'll use RMSprop optimizer<br/></span>optimizer = RMSprop(<span>lr</span>=<span>0.00005</span>)<br/><br/><span># Build and compile the discriminator<br/></span>critic = build_critic()<br/>critic.compile(optimizer<span>, </span>wasserstein_loss<span>,<br/></span><span>               </span><span>metrics</span>=[<span>'accuracy'</span>])<br/><br/><span># The discriminator takes generated image as input and determines validity<br/></span>real_or_fake = critic(generated_image)<br/><br/><span># Only train the generator for the combined model<br/></span>critic.trainable = <span>False<br/></span><span><br/></span><span># Stack the generator and discriminator in a combined model<br/></span><span># Trains the generator to deceive the discriminator<br/></span>combined = Model(z<span>, </span>real_or_fake)<br/>combined.compile(<span>loss</span>=wasserstein_loss<span>, </span><span>optimizer</span>=optimizer)</pre>
+<p><span> Finally, let's initiate training and evaluation:</span></p>
+<pre><span># train the GAN system<br/></span>train(generator<span>, </span>critic<span>, </span>combined<span>,<br/></span><span>      </span><span>steps</span>=<span>40000</span><span>, </span><span>batch_size</span>=<span>100</span><span>, </span><span>n_critic</span>=<span>5</span><span>, </span><span>clip_value</span>=<span>0.01</span>)<br/><br/><span># display some random generated images<br/></span>plot_generated_images(generator)</pre>
+<p><span>Once we run this example, WGAN will produce the following images after training 40,000 mini-batches (this may take a while):</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1298 image-border" src="assets/118f62d9-b265-4744-a119-eb5a3fe348f6.png" style="width:19.75em;height:19.75em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">WGAN MNIST generator results</div>
+<p><span>This concludes our discussion of WGANs. In the next section, we'll discuss how to implement image-to-image translation with CycleGAN</span><span>.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Image-to-image translation with CycleGAN</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll discuss <strong>Cycle-Consistent Adversarial Networks</strong> (<strong>CycleGAN</strong>, <em>Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks</em>, <a href="https://arxiv.org/abs/1703.10593">https://arxiv.org/abs/1703.10593</a>) and their application for image-to-image translation. To quote the paper itself, image-to-image translation is a class of vision and graphics problems where the goal is to learn the mapping between an input image and an output image using a training set of aligned image pairs. For example, if we have grayscale and RGB versions of the same image, we can train an ML algorithm to colorize grayscale images or vice versa.</p>
+<p>Another example is image segmentation (<a href="9ac88546-8662-4b23-aa96-7eb00f48fedb.xhtml">Chapter 3</a>,<em> Object Detection and Image Segmentation</em>), where the input image is translated into a segmentation map of the same image. In the latter case, we train the model (U-Net, Mask R-CNN) with image/segmentation map pairs. However, paired training data may not be available for many tasks. CycleGAN presents a way for us to transform an image from the source domain, <em>X</em>, into the target domain, <em>Y</em>, in the absence of paired samples. The following image shows some examples of paired and unpaired images:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1299 image-border" src="assets/7f45296e-5e6d-40af-b836-d2cce1a0c2d8.png" style="width:28.50em;height:17.33em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Left: Paired training samples with the corresponding source and target images; Right: Unpaired training samples, where the source and target images don't correspond. Source: https://arxiv.org/abs/1703.10593</div>
+<div class="packt_infobox">The <em>Image-to-Image Translation with Conditional Adversarial Networks</em> (known as Pix2Pix, <a href="https://arxiv.org/abs/1611.07004">https://arxiv.org/abs/1611.07004</a>) paper from the same team also does <span>image-to-image translation for paired training data.</span></div>
+<p>But how does CycleGAN do this? First, the algorithm assumes that, although there are no direct pairs in the two sets, there is still some relationship between the two domains. For example, these could be photographs of the same scene but from different angles. CycleGAN aims to learn this set-level relationship, rather than the relationships between distinct pairs. In theory, the GAN model lends itself to this task well. We can train a generator that maps <img class="fm-editor-equation" src="assets/cc8fc839-1087-4065-b914-46ecf623989b.png" style="width:5.08em;height:0.92em;"/>, which produces an image, <img class="fm-editor-equation" src="assets/f006826f-ea20-4518-b662-fd68d2e1c38d.png" style="width:6.42em;height:1.00em;"/>, that a discriminator cannot distinguish from the target images, <img class="fm-editor-equation" src="assets/5a05feb6-7899-4a80-8011-091b7aebd4d3.png" style="width:2.50em;height:1.00em;"/>. More specifically, the optimal <em>G</em> should translate the domain, X, into a domain, <img class="fm-editor-equation" src="assets/fc044c73-e153-4d7c-a777-1b23fa8b114f.png" style="width:0.83em;height:1.17em;"/>, with an identical distribution to domain <em>Y</em>. In practice, the authors of the paper discovered <span>that such a translation does not guarantee that an individual input, </span><em>x</em><span>, and output, <em>y</em>, are paired up in a meaningful way—there are infinitely many mappings, <em>G</em>, that will create the same distribution over <img class="fm-editor-equation" src="assets/0b892c90-4404-4327-8bbe-32148ff90681.png" style="width:0.58em;height:1.00em;"/>. They also found that this GAN model suffers from the familiar mode collapse problem. </span></p>
+<p>CycleGAN tries to solve these issues with the so-called <strong>cycle consistency</strong>. To understand what this is, let's say that we translate a sentence from English into German. The translation will be cycle-consistent if we translate the sentence back from German into English and we arrive at the original sentence we started with. In a mathematical context, if we have a translator, <img class="fm-editor-equation" src="assets/0c4fefb7-620d-4f2d-9106-739d207e735b.png" style="width:5.08em;height:1.00em;"/>, and another translator, <img class="fm-editor-equation" src="assets/06c75834-066b-49ee-be8f-d15acea94fc5.png" style="width:5.08em;height:1.00em;"/>, the two should be inverses of each other.</p>
+<p>To explain how CycleGAN implements cycle consistency, let's start with the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1300 image-border" src="assets/83c40c4d-e712-4b0f-8b07-8486589d8b64.png" style="width:83.67em;height:19.25em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Left: Overall CycleGAN schema; Middle: Forward cycle-consistency loss; Right: Backward<span> cycle-consistency loss</span>. Source: https://arxiv.org/abs/1703.10593</div>
+<p>The model has two generators, <sub><img class="fm-editor-equation" src="assets/0c4fefb7-620d-4f2d-9106-739d207e735b.png" style="width:4.58em;height:0.83em;"/></sub> and <sub><img class="fm-editor-equation" src="assets/06c75834-066b-49ee-be8f-d15acea94fc5.png" style="width:4.58em;height:0.83em;"/></sub>, and two associated discriminators, <em>D<sub>x</sub></em> and <em>D<sub>y</sub></em>, respectively (left in the preceding diagram).<span> Let's take a look at <em>G</em> first<em>.</em> It takes an input image, <img class="fm-editor-equation" src="assets/204079ed-a5c5-4cf1-b474-ba34f7a7de2f.png" style="width:2.67em;height:0.92em;"/>, and generates <img class="fm-editor-equation" src="assets/fe49c7be-9444-4ede-b029-b9586188e0f3.png" style="width:3.58em;height:1.00em;"/>, which look similar to the images from domain <em>Y</em>. <em>D<sub>y</sub></em> aims to discriminate between real images, <img class="fm-editor-equation" src="assets/a242aec9-02be-4228-ab67-c1fb68d37a08.png" style="width:2.50em;height:1.00em;"/>, and the generated <img class="fm-editor-equation" src="assets/98d91a20-d6b6-4ba5-ba80-acf9b5851539.png" style="width:2.00em;height:1.00em;"/>. This part of the model functions like a regular GAN and uses the regular minimax GAN adversarial loss:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/a11267c7-2a3e-496c-a180-c46a94d2f204.png" style="width:38.08em;height:1.58em;"/></p>
+<p>The first term represents the original images, <em>y</em>, and the second represents the images that were generated by <em>G</em>. The same formula is valid for the generator, <em>F</em>. As we mentioned previously, this loss only ensures that <img class="fm-editor-equation" src="assets/ca6d7e8d-990f-49b2-96a7-bb18d26f4af0.png" style="width:0.58em;height:1.08em;"/> will have the same distribution as the images from <em>Y</em>, but doesn't create a meaningful pair of <strong>x</strong> and <strong>y</strong>. To quote the paper: with a large enough capacity, a network can map the same set of input images to any random permutation of images in the target domain, where any of the learned mappings can induce an output distribution that matches the target distribution. Thus, adversarial losses alone cannot guarantee that the learned function can map an individual input, <strong>x</strong><sub><em>i</em>, </sub>to the desired output, <strong>y</strong><em><sub>i</sub></em>.</p>
+<p>The authors of the paper argue that the learned mapping functions should be cycle-consistent (preceding diagram, middle). For each image, <img class="fm-editor-equation" src="assets/ff116f2a-7091-4b4d-b4a3-86dfcee3af5f.png" style="width:3.00em;height:1.00em;"/>, the image translation cycle should be able to bring <strong>x</strong> back to the original image (this is called forward cycle consistency). <em>G</em> generates a new image, <img class="fm-editor-equation" src="assets/36649dd2-269f-4f3f-a035-ea23bfc54e00.png" style="width:0.58em;height:1.08em;"/>, which serves as an input to <em>F</em>, which in turn generates a new image, <img class="fm-editor-equation" src="assets/9d6869b8-ecf9-410f-a32a-29a9e9037cc3.png" style="width:0.67em;height:1.00em;"/>, where <img class="fm-editor-equation" src="assets/af5abbe3-616b-4a4b-8e26-2b9842551933.png" style="width:3.00em;height:1.00em;"/>: <img class="fm-editor-equation" src="assets/72a089ab-26c4-47f9-9d78-6a638e887967.png" style="width:11.00em;height:1.08em;"/>. <em>G</em> and <em>F</em> should also satisfy backward cycle consistency (preceding diagram, right): <img class="fm-editor-equation" src="assets/6e24c434-598b-4a8c-87a4-77c7ffb6b636.png" style="width:11.00em;height:1.08em;"/>.</p>
+<p><span>This new path creates an additional cycle-consistency loss term:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/06594f64-84da-453e-9adf-20357b3d00ca.png" style="width:41.67em;height:1.83em;"/></p>
+<p>This measures the absolute difference between the original images, that is, <em>x</em> and <em>y</em>, and their generated counterparts, <img class="fm-editor-equation" src="assets/ce8ce93b-93ba-426b-8d18-1f6e6f116879.png" style="width:0.75em;height:1.08em;"/> and <img class="fm-editor-equation" src="assets/f39352cb-a3a2-48e2-a1dd-35da7c23a89f.png" style="width:0.58em;height:1.00em;"/>. <span>Note that these paths can be viewed as jointly training two autoencoders, </span><img class="fm-editor-equation" src="assets/cfdf4e9a-1ea4-4749-a426-21b3fa1f6d55.png" style="width:7.00em;height:1.00em;"/><span> and </span><img class="fm-editor-equation" src="assets/987e6078-8c09-4169-968a-f0eb1dcf7bfe.png" style="width:6.83em;height:1.00em;"/><span>. </span>Each autoencoder has a special internal structure: it maps an image to itself with the help of an intermediate representation <span>–</span> the translation of the image into another domain.</p>
+<p>The full CycleGAN objective is a combination of the cycle consistency loss and the adversarial losses of <em>F</em> and <em>G</em>:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/99d5230b-cef3-4d67-9ae4-624bd1176b8f.png" style="width:20.25em;height:4.67em;"/></p>
+<p>Here, the coefficient, λ, controls the relative importance between the two losses. CycleGAN aims to solve the following minimax objective:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/2d6daef8-178c-4fda-884e-faf0f245ecd0.png" style="width:19.58em;height:2.00em;"/></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementing CycleGAN</h1>
+                </header>
+            
+            <article>
+                
+<p>This example contains several source files located at <a href="https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter05/cyclegan">https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter05/cyclegan</a>. Besides TF, the code also depends on <kbd>tensorflow_addons</kbd> and <kbd>imageio</kbd> packages. You can install them with the <kbd>pip</kbd> package installer. We'll implement CycleGAN for multiple training datasets, all of which were provided by the authors of the paper. Before you run the example, you have to download the relevant dataset with the help of the <kbd>download_dataset.sh</kbd> executable script, which uses the dataset name as an argument. The list of available datasets is included in the file. Once you've downloaded this, you can access the images with the help of the <kbd>DataLoader</kbd> class, which is located in the <kbd>data_loader.py</kbd> module (we won't include its source code here). Suffice to say that the class can load mini-batches and whole datasets of<span> </span><span>normalized</span> images as <kbd>numpy</kbd> arrays. <span>We'll also omit the usual imports.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Building the generator and discriminator</h1>
+                </header>
+            
+            <article>
+                
+<p>First, we'll implement the <kbd>build_generator</kbd> function. The GAN models we've looked at so far started with some sort of latent vector. But here, the generator input is an image from one of the domains and the output is an image from the opposite domain. Following the paper's guidelines, the generator is a U-Net style network. It has a downsampling encoder, an upsampling decoder, and shortcut connections between the corresponding encoder/decoder blocks. We'll start with the <kbd>build_generator</kbd> definition:</p>
+<pre><span>def </span><span>build_generator</span>(img: Input) -&gt; Model:</pre>
+<p>The U-Net downsampling encoder consists of a number of convolutional layers with <kbd>LeakyReLU</kbd> activations, followed by <kbd>InstanceNormalization</kbd>. <span>The difference between batch and instance normalization is that batch normalization computes its parameters across the whole mini-batch, while instance normalization computes them separately for each image of the mini-batch. </span>For clarity, we'll implement a separate subroutine called <kbd>downsampling2d</kbd>, which defines one such layer. We'll use this function to build the necessary number of layers when we build the network encoder<span> (please note the indentation here; <kbd>downsampling2d</kbd> is a subroutine defined within </span><kbd>build_generator</kbd><span>)</span>:</p>
+<pre><span>    </span><span>def </span><span>downsampling2d</span>(layer_input<span>, </span>filters: int):<br/>        <span>"""Layers used in the encoder"""<br/></span><span>        </span>d = Conv2D(<span>filters</span>=filters<span>,<br/></span><span>                   </span><span>kernel_size</span>=<span>4</span><span>,<br/></span><span>                   </span><span>strides</span>=<span>2</span><span>,<br/></span><span>                   </span><span>padding</span>=<span>'same'</span>)(layer_input)<br/>        d = LeakyReLU(<span>alpha</span>=<span>0.2</span>)(d)<br/>        d = InstanceNormalization()(d)<br/>        <span>return </span>d</pre>
+<p>Next, let's focus on the decoder, which isn't implemented with transpose convolutions. Instead, the input data is upsampled with the <kbd>UpSampling2D</kbd> operation, which simply duplicates each input pixel as a 2<span>×</span>2 patch. This is followed by a regular convolution to smooth out the patches. This smoothed output is concatenated with the shortcut (or <kbd>skip_input</kbd>) connection from the corresponding encoder block. The decoder consists of a number of such upsampling blocks. For clarity, we'll implement a separate subroutine called <kbd>upsampling2d</kbd>, which defines one such <span>block.</span> We'll use it to build the necessary number of blocks for the network decoder (please note the indentation here; <span><span><kbd>upsampling2d</kbd></span></span> is a subroutine defined within <kbd>build_generator</kbd>):</p>
+<pre>    <span>def </span><span>upsampling2d</span>(layer_input<span>, </span>skip_input<span>, </span>filters: int):<br/>        <span>"""<br/></span><span>        Layers used in the decoder<br/></span><span>        </span><span>:param</span><span> layer_input: input layer<br/></span><span>        </span><span>:param</span><span> skip_input: another input from the corresponding encoder block<br/></span><span>        </span><span>:param</span><span> filters: number of filters<br/></span><span>        """<br/></span><span>        </span>u = UpSampling2D(<span>size</span>=<span>2</span>)(layer_input)<br/>        u = Conv2D(<span>filters</span>=filters<span>,<br/></span><span>                   </span><span>kernel_size</span>=<span>4</span><span>,<br/></span><span>                   </span><span>strides</span>=<span>1</span><span>,<br/></span><span>                   </span><span>padding</span>=<span>'same'</span><span>,<br/></span><span>                   </span><span>activation</span>=<span>'relu'</span>)(u)<br/>        u = InstanceNormalization()(u)<br/>        u = Concatenate()([u<span>, </span>skip_input])<br/>        <span>return </span>u</pre>
+<p>Next, we'll implement the full definition of the U-Net using the subroutines we just defined <span>(please note the indentation here; the code</span><span> is part of </span><kbd>build_generator</kbd>):</p>
+<pre>    <span># Encoder<br/></span><span>    </span>gf = <span>32<br/></span><span>    </span>d1 = downsampling2d(img<span>, </span>gf)<br/>    d2 = downsampling2d(d1<span>, </span>gf * <span>2</span>)<br/>    d3 = downsampling2d(d2<span>, </span>gf * <span>4</span>)<br/>    d4 = downsampling2d(d3<span>, </span>gf * <span>8</span>)<br/><br/>    <span># Decoder<br/></span><span>    # Note that we concatenate each upsampling2d block with<br/></span><span>    # its corresponding downsampling2d block, as per U-Net<br/></span><span>    </span>u1 = upsampling2d(d4<span>, </span>d3<span>, </span>gf * <span>4</span>)<br/>    u2 = upsampling2d(u1<span>, </span>d2<span>, </span>gf * <span>2</span>)<br/>    u3 = upsampling2d(u2<span>, </span>d1<span>, </span>gf)<br/><br/>    u4 = UpSampling2D(<span>size</span>=<span>2</span>)(u3)<br/>    output_img = Conv2D(<span>3</span><span>, </span><span>kernel_size</span>=<span>4</span><span>, </span><span>strides</span>=<span>1</span><span>, </span><span>padding</span>=<span>'same'</span><span>,<br/>    </span><span>activation</span>=<span>'tanh'</span>)(u4)<br/><br/>    model = Model(img<span>, </span>output_img)<br/><br/>    model.summary()<br/><br/>    <span>return </span>model</pre>
+<p>Then, we should implement the <kbd>build_discriminator</kbd> function. W<span>e'll omit the implementation here </span>because it is a fairly straightforward CNN, similar to those shown in the previous examples (you can find this in the book's GitHub repository). The only difference is that, instead of using batch normalization, it uses instance normalization. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Putting it all together</h1>
+                </header>
+            
+            <article>
+                
+<p>At this point, we usually implement the <kbd>train</kbd> method, but because CycleGAN has more components, we'll show you how to build the entire model. First, we instantiate the <kbd>data_loader</kbd> object, where you can specify the name of the training set (feel free to experiment with the different datasets). All the images will be resized to <kbd>img_res=(IMG_SIZE, IMG_SIZE)</kbd> for the network input, where <kbd>IMG_SIZE = 256</kbd> (you can also try <kbd>128</kbd> to speed up the training process):</p>
+<pre># Input shape<br/>img_shape = (IMG_SIZE, IMG_SIZE, 3)<br/><br/># Configure data loader<br/>data_loader = DataLoader(dataset_name='facades',<br/>                         img_res=(IMG_SIZE, IMG_SIZE))</pre>
+<p>Then, we'll define the optimizer and the loss weights:</p>
+<pre>lambda_cycle = <span>10.0  </span><span># Cycle-consistency loss<br/></span>lambda_id = <span>0.1 </span>* lambda_cycle  <span># Identity loss<br/></span><span><br/></span>optimizer = Adam(<span>0.0002</span><span>, </span><span>0.5</span>)</pre>
+<p>Next, we'll create the two generators, <kbd>g_XY</kbd> and <kbd>g_YX</kbd>, and their corresponding discriminators, <kbd>d_Y</kbd> and <kbd>d_X</kbd>. We'll also create the <kbd>combined</kbd> model to train both generators simultaneously. Then, we'll create the composite loss function, which contains an additional identity mapping term. You can read more about it in the respective paper, but in short, it helps preserve color composition between the input and the output when translating images from the painting domain to the photo domain:</p>
+<pre><span># Build and compile the discriminators<br/></span>d_X = build_discriminator(Input(<span>shape</span>=img_shape))<br/>d_Y = build_discriminator(Input(<span>shape</span>=img_shape))<br/>d_X.compile(<span>loss</span>=<span>'mse'</span><span>, </span><span>optimizer</span>=optimizer<span>, </span><span>metrics</span>=[<span>'accuracy'</span>])<br/>d_Y.compile(<span>loss</span>=<span>'mse'</span><span>, </span><span>optimizer</span>=optimizer<span>, </span><span>metrics</span>=[<span>'accuracy'</span>])<br/><br/><span># Build the generators<br/></span>img_X = Input(<span>shape</span>=img_shape)<br/>g_XY = build_generator(img_X)<br/><br/>img_Y = Input(<span>shape</span>=img_shape)<br/>g_YX = build_generator(img_Y)<br/><br/><span># Translate images to the other domain<br/></span>fake_Y = g_XY(img_X)<br/>fake_X = g_YX(img_Y)<br/><br/><span># Translate images back to original domain<br/></span>reconstr_X = g_YX(fake_Y)<br/>reconstr_Y = g_XY(fake_X)<br/><br/><span># Identity mapping of images<br/></span>img_X_id = g_YX(img_X)<br/>img_Y_id = g_XY(img_Y)<br/><br/><span># For the combined model we will only train the generators<br/></span>d_X.trainable = <span>False<br/></span>d_Y.trainable = <span>False<br/></span><span><br/></span><span># Discriminators determines validity of translated images<br/></span>valid_X = d_X(fake_X)<br/>valid_Y = d_Y(fake_Y)<br/><br/><span># Combined model trains both generators to fool the two discriminators<br/></span>combined = Model(<span>inputs</span>=[img_X<span>, </span>img_Y]<span>,<br/></span><span>                 </span><span>outputs</span>=[valid_X<span>, </span>valid_Y<span>,<br/></span><span>                          </span>reconstr_X<span>, </span>reconstr_Y<span>,<br/></span><span>                          </span>img_X_id<span>, </span>img_Y_id])</pre>
+<p>Next, let's configure the <kbd>combined</kbd> model for training:</p>
+<pre>combined.compile(<span>loss</span>=[<span>'mse'</span><span>, </span><span>'mse'</span><span>,<br/></span><span>                       </span><span>'mae'</span><span>, </span><span>'mae'</span><span>,<br/></span><span>                       </span><span>'mae'</span><span>, </span><span>'mae'</span>]<span>,<br/></span><span>                 </span><span>loss_weights</span>=[<span>1</span><span>, </span><span>1</span><span>,<br/></span><span>                               </span>lambda_cycle<span>, </span>lambda_cycle<span>,<br/></span><span>                               </span>lambda_id<span>, </span>lambda_id]<span>,<br/></span><span>                 </span><span>optimizer</span>=optimizer)</pre>
+<p>Once the model is ready, we initiate the training process with the <kbd>train</kbd> function. In line with the paper's guidelines, we will use a mini-batch of size 1:</p>
+<pre>train(<span>epochs</span>=<span>200</span><span>, </span><span>batch_size</span>=<span>1</span><span>, </span><span>data_loader</span>=data_loader<span>,<br/></span><span>      </span><span>g_XY</span>=g_XY<span>,<br/></span><span>      </span><span>g_YX</span>=g_YX<span>,<br/></span><span>      </span><span>d_X</span>=d_X<span>,<br/></span><span>      </span><span>d_Y</span>=d_Y<span>,<br/></span><span>      </span><span>combined</span>=combined<span>,<br/></span><span>      </span><span>sample_interval</span>=<span>200</span>)</pre>
+<p>Finally, we'll implement the <kbd>train</kbd> function. It is somewhat similar to the previous GAN models, but it also takes the two pairs of generators and discriminators into account:</p>
+<pre>def train(epochs: int, data_loader: DataLoader,<br/>          g_XY: Model, g_YX: Model, d_X: Model, d_Y: Model, <br/>          combined:Model, batch_size=1, sample_interval=50):<br/>    start_time = datetime.datetime.now()<br/><br/>    # Calculate output shape of D (PatchGAN)<br/>    patch = int(IMG_SIZE / 2 ** 4)<br/>    disc_patch = (patch, patch, 1)<br/><br/>    # GAN loss ground truths<br/>    valid = np.ones((batch_size,) + disc_patch)<br/>    fake = np.zeros((batch_size,) + disc_patch)<br/><br/>    for epoch in range(epochs):<br/>        for batch_i, (imgs_X, imgs_Y) in<br/>        enumerate(data_loader.load_batch(batch_size)):<br/>            # Train the discriminators<br/><br/>            # Translate images to opposite domain<br/>            fake_Y = g_XY.predict(imgs_X)<br/>            fake_X = g_YX.predict(imgs_Y)<br/><br/>            # Train the discriminators (original images = real /<br/>            translated = Fake)<br/>            dX_loss_real = d_X.train_on_batch(imgs_X, valid)<br/>            dX_loss_fake = d_X.train_on_batch(fake_X, fake)<br/>            dX_loss = 0.5 * np.add(dX_loss_real, dX_loss_fake)<br/><br/>            dY_loss_real = d_Y.train_on_batch(imgs_Y, valid)<br/>            dY_loss_fake = d_Y.train_on_batch(fake_Y, fake)<br/>            dY_loss = 0.5 * np.add(dY_loss_real, dY_loss_fake)<br/><br/>            # Total discriminator loss<br/>            d_loss = 0.5 * np.add(dX_loss, dY_loss)<br/><br/>            # Train the generators<br/>            g_loss = combined.train_on_batch([imgs_X, imgs_Y],<br/>                                             [valid, valid,<br/>                                              imgs_X, imgs_Y,<br/>                                              imgs_X, imgs_Y])<br/><br/>            elapsed_time = datetime.datetime.now() - start_time<br/><br/>            # Plot the progress<br/>            print("[Epoch %d/%d] [Batch %d/%d] [D loss: %f, acc: %3d%%]<br/>            [G loss: %05f, adv: %05f, recon: %05f, id: %05f] time: %s " \ <br/>            % (epoch, epochs, batch_i, data_loader.n_batches, d_loss[0], <br/>            100 * d_loss[1], g_loss[0], np.mean(g_loss[1:3]),<br/>            np.mean(g_loss[3:5]), np.mean(g_loss[5:6]), elapsed_time))<br/><br/>            # If at save interval =&gt; save generated image samples<br/>            if batch_i % sample_interval == 0:<br/>                sample_images(epoch, batch_i, g_XY, g_YX, data_loader)</pre>
+<p>The training may take a while to finish, but the process will generate images after each <kbd>sample_interval</kbd> batch. The following shows some examples of the images that were generated by the Center for Machine Perception facade database (<a href="http://cmp.felk.cvut.cz/~tylecr1/facade/">http://cmp.felk.cvut.cz/~tylecr1/facade/</a>). It contains building facades, where each pixel is labeled as one of multiple facade-related categories, such as windows, doors, balconies, and so on:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1301 image-border" src="assets/2a6ef916-a9a3-4107-bc54-86806b502521.png" style="width:33.33em;height:25.00em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">An example of CycleGAN image-to-image translation</div>
+<p>This concludes our discussion of GANs. Next, we'll focus on a different type of generative model called artistic style transfer. </p>
+<p class="mce-root"/>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Introducing artistic style transfer</h1>
+                </header>
+            
+            <article>
+                
+<p><span>In this final section, we'll discuss artistic style transfer. Similar to one of the applications of CycleGAN, it allows us to use the style (or texture) of one image to reproduce the semantic content of another. Although it can be implemented with different algorithms, the most popular way was introduced in 2015 in the <em>A Neural Algorithm of Artistic</em></span> <em>Style</em> paper (<span><a href="https://arxiv.org/abs/1508.06576">https://arxiv.org/abs/1508.06576</a>). It's also known as neural style transfer and it uses (you guessed it!) CNNs. The basic algorithm has been improved and tweaked over the past few years, but in this section we'll explore its original form as this will give us a good foundation for understanding the latest versions.</span></p>
+<p>The algorithm takes two images as input:</p>
+<ul>
+<li>The content image<span> </span><span>(</span><em>C</em><span>)</span><span> </span>we would like to redraw</li>
+<li>The style image<span> </span><span>(</span>I<span>)</span><span> </span>whose style (texture) we'll use to redraw<span> </span><em>C</em></li>
+</ul>
+<p>The result of the algorithm is a new image:<span> </span><span><em>G = C + S</em>.</span><span> </span>The following is an example of neural style transfer:</p>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1303 image-border" src="assets/5881e581-891e-4120-bdd1-38e5aec76e40.png" style="width:68.33em;height:18.17em;"/></div>
+<div class="packt_figref CDPAlignCenter CDPAlign">An example of neural style transfer</div>
+<p>To understand how neural style transfer works, let's recall that CNNs learn<span> </span><span>a hierarchical representation of their features</span>. We know that initial convolutional layers learn basic features, such as edges and lines. Conversely, deeper layers learn more complex features, such as faces, cars, and trees. Knowing this, let's look at the algorithm itself:</p>
+<ol>
+<li>Like many other tasks (for example, <a href="9ac88546-8662-4b23-aa96-7eb00f48fedb.xhtml">Chapter 3</a><em>, Object Detection and Image Segmentation</em>), this algorithm starts with a pretrained VGG network.</li>
+</ol>
+<ol start="2">
+<li>Feed the network with the content image,<span> </span><em>C</em>. Extract and store the output activations (or feature maps or slices) of one or more of the hidden convolutional layers in the middle of the network. Let's denote these activations with<span> </span><em>A<sub>c</sub><sup>l</sup></em>, where<span> </span><em>l</em><span> </span>is the index of the layer. We're interested in the middle layers because the level of feature abstraction encoded in them is best suited for this task.</li>
+<li>Do the same with the style image,<span> </span><em>S</em>. This time, denote the style activations of the<span> </span><em>l</em><span> </span>layer with<span> </span><em>A<sub>s</sub><sup>l</sup></em>. The layers we choose for the content and style are not necessarily the same.</li>
+<li>Generate a single random image (white noise),<span> </span><em>G</em>. This random image will gradually turn into the end result of the algorithm. We'll repeat this for a number of iterations:
+<ol>
+<li>Propagate<span> </span><em>G</em><span> </span>through the network. This is the only image we'll use throughout the whole process. Like we did previously, we'll store the activations for all the<span> </span><em>l</em><span> </span>layers (here,<span> </span><em>l</em><span> </span>is a combination of all layers we used for the content and style images). Let's denote these activations with<span> </span><em>A<sub>g</sub><sup>l</sup></em>.</li>
+<li>Compute the difference between the random noise activations,<span> </span><em><span>A<sub>g</sub></span><sup>l</sup></em>, on one hand and<span> </span><em><span>A<sub>c</sub></span><sup>l</sup></em><span> </span>and<span> </span><em><span>A<sub>s</sub></span><sup>l</sup></em><span> </span>on the other. These will be the two<span> </span>components<span> </span>of our loss function:
+<ul>
+<li><img class="fm-editor-equation" src="assets/40dba1df-c29d-4daf-b191-cf57362f210e.png" style="width:16.08em;height:2.00em;"/>, known as<span> the </span><strong>content loss</strong>: This is just the MSE over the element-wise difference between the two activations of all<span> </span><em>l</em><span> </span>layers.</li>
+<li><img style="font-size: 1em;color: #333333;width:4.08em;height:1.25em;" class="fm-editor-equation" src="assets/5e6ed128-6148-46ff-82e9-10b6a9f5363c.png"/><span>, known as</span><span> the </span><strong>style loss</strong><span>: This is similar to the content loss, but</span><span> </span>instead<span> </span><span>of raw activations we'll compare their</span><span> </span><strong>gram matrices</strong><span> </span><span>(we won't go</span><span> </span>into<span> </span><span> this in any detail).</span></li>
+</ul>
+</li>
+</ol>
+</li>
+</ol>
+<ol>
+<li style="list-style-type: none">
+<ol start="3">
+<li>Use the content and style losses to compute the total loss,<span> </span><img class="fm-editor-equation" src="assets/31512847-eade-4abd-9f49-e81cbcd56250.png" style="width:14.00em;height:1.17em;"/>, which is just a weighted sum of the two. The α and β coefficients determine which of the components will carry more weight.</li>
+<li>Backpropagate the gradients to the start of the network and update the generated image,<span> </span><img class="fm-editor-equation" src="assets/b0971a06-2691-47a8-b6d4-ca441b8b02e9.png" style="width:7.17em;height:1.92em;"/>. In this way, we make<span> </span><em>G</em><span> </span>more similar to both the content and style images since the loss function is a combination of both.</li>
+</ol>
+</li>
+</ol>
+<p>This algorithm makes it possible for us to harness the powerful representational power of CNNs for artistic style transfer. It does this with a novel loss function and the smart use of backpropagation.</p>
+<p>If you are interested in implementing neural style transfer, check out the official PyTorch tutorial at<span> </span><a href="https://pytorch.org/tutorials/advanced/neural_style_tutorial.html">https://pytorch.org/tutorials/advanced/neural_style_tutorial.html</a>. Alternatively, go to <a href="https://www.tensorflow.org/beta/tutorials/generative/style_transfer">https://www.tensorflow.org/beta/tutorials/generative/style_transfer</a> for the TF 2.0 implementation.</p>
+<p>One shortcoming of this algorithm is that it's relatively slow. Typically, we have to repeat this pseudo-training procedure for a couple of hundred iterations to produce a visually appealing result. Fortunately, the paper<span> </span><em>Perceptual Losses for Real-Time Style Transfer and Super-Resolution</em><span> </span>(<a href="https://arxiv.org/abs/1603.08155">https://arxiv.org/abs/1603.08155</a>) builds on top of the original algorithm to provide a solution, which is three orders of magnitude faster.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>In this chapter, we discussed how to create new images with generative models, which is one of the most exciting deep learning areas at the moment. We learned about the theoretical foundations of VAEs and then we implemented a simple VAE<span> to generate new </span>MNIST digits. Then, we described the GAN framework and we discussed and implemented multiple types of GAN, including DCGAN, CGAN, WGAN, and CycleGAN. Finally, we mentioned the neural style transfer algorithm. This chapter concludes a series of four chapters dedicated to computer vision and I really hope you've enjoyed them.</p>
+<p>In the next few chapters, we'll talk about Natural Language Processing and recurrent networks.</p>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

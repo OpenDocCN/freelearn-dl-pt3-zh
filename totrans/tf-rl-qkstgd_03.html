@@ -1,0 +1,581 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Deep Q-Network</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root"><strong>Deep Q-Networks</strong> (<strong>DQNs</strong>) revolutionized the field of <strong>reinforcement learning</strong> (<strong>RL</strong>). I am sure you have heard of Google DeepMind, which used to be a British company called DeepMind Technologies until Google acquired it in 2014. DeepMind published a paper in 2013 titled <em>Playing Atari with Deep RL</em>, where they used <strong>Deep Neural Networks</strong> (<strong>DNNs</strong>) in the context of RL, or DQNs as they are referred to – which is an idea that is seminal to the field. This paper revolutionized the field of deep RL, and the rest is history! Later, in 2015, they published a second paper, titled <em>Human Level Control Through Deep RL</em>, in <em>Nature</em>, where they had more interesting ideas that further improved the former paper. Together, the two papers led to a Cambrian explosion in the field of deep RL, with several new algorithms that have improved the training of agents using neural networks, and have also pushed the limits of applying deep RL to interesting real-world problems.</p>
+<p class="mce-root">In this chapter, we will investigate a DQN and also code it using Python and TensorFlow. This will be our first use of deep neural networks in RL. It will also be our first effort in this book to use deep RL to solve real-world control problems.</p>
+<p>In this chapter, the following topics will be covered:</p>
+<ul>
+<li>Learning the theory behind a DQN</li>
+<li>Understanding target networks</li>
+<li>Learning about replay buffer</li>
+<li>Getting introduced to the Atari environment</li>
+<li>Coding a DQN in TensorFlow</li>
+<li>Evaluating the performance of a DQN on Atari Breakout</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Technical requirements</h1>
+                </header>
+            
+            <article>
+                
+<p>Knowledge of the following will help you to better understand the concepts presented in this chapter:</p>
+<ul>
+<li>Python (2 and above)</li>
+<li>NumPy</li>
+<li>TensorFlow (version 1.4 or higher)</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Learning the theory behind a DQN</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we will look at the theory behind a DQN, including the math behind it, and learn the use of neural networks to evaluate the <kbd>value</kbd> function.</p>
+<p><span>Previously, we looked at Q-learning, where <em>Q(s,a)</em> was stored and evaluated as a multi-dimensional array, with one entry for each state-action pair. This worked well for grid-world and cliff-walking problems, both of which are low-dimensional in both state and action spaces. So, can we apply this to higher dimensional problems? Well, no, due to the <em>curse of dimensionality</em>, which makes it unfeasible to store very large number states and actions. Moreover, in continuous control problems, the actions vary as a real number in a bounded range, although an infinite number of real numbers are possible, which cannot be represented as a tabular <em>Q</em> array. This gave rise to function approximations in RL, particularly with the use of DNNs – that is, DQNs. Here, <em>Q(s,a)</em> is represented as a DNN that will output the value of <em>Q</em>. </span></p>
+<p>The following are the steps that are involved in a DQN:</p>
+<ol>
+<li>Update the state-action value function using a Bellman equation, <span>where (</span><em>s, a</em><span>) are the states and actions at a time, </span><em>t</em><span>, </span><span><em>s'</em> and <em>a'</em> are respectively the states and actions at the subsequent time <em>t+1, </em></span><span>and </span><span><em>γ</em> is the discount factor</span>:</li>
+</ol>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/5766505f-bb33-4f83-9824-7a86ff366bd4.png" style="width:18.33em;height:2.17em;"/></p>
+<p class="mce-root"/>
+<ol start="2">
+<li class="mce-root">We then define a loss function at iteration step <em>i</em> to train the Q-network as follows:</li>
+</ol>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/ed6fd3dd-bb31-457d-919a-312b4088734c.png" style="width:13.58em;height:1.42em;"/></p>
+<p style="padding-left: 60px">The preceding parameters are are the neural network parameters, which are represented as <span><em>θ</em>, hence the Q-value is written as <em>Q(s, a; θ).</em></span></p>
+<ol start="3">
+<li><em>y<sub>i</sub></em><span> </span>is the target for iteration <em>i,</em> and is given by the following equation:</li>
+</ol>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/e97f346e-e71f-4954-bba0-58dd07edb1a2.png" style="width:19.67em;height:2.25em;"/></p>
+<ol start="4">
+<li>We then train the neural network on the <span>DQN by minimizing this loss function <em>L(θ)</em> using optimization algorithms, such as gradient descent, RMSprop, and Adam.</span></li>
+</ol>
+<p>We used the least squared loss previously for the DQN loss function, also referred to as the L2 loss. You can also consider other losses, such as the Huber loss, which combines the L1 and L2 losses, with the L2 loss in the vicinity of zero and L1 in regions far away. The Huber loss is less sensitive to outliers than the L2 loss. </p>
+<p>We will now look at the use of target networks. This is a very important concept, required to stabilize training.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding target networks</h1>
+                </header>
+            
+            <article>
+                
+<p class="graf graf--p graf-after--h4">An interesting feature of a DQN is the utilization of a second network during the training procedure, which is referred to as the target network. This second network is used for generating the target-Q values that are used to compute the loss function during training. Why not use just use one network for both estimations, that is, for choosing the action <em>a</em> to take, as well as updating the Q-network? The issue is that, at every step of training, the Q-network's values change, and if we use a constantly changing set of values to update our network, then the estimations can easily become unstable – the network can fall into feedback loops between the target and estimated Q-values. In order to mitigate this instability, the target network's weights are fixed – that is, slowly updated to the primary Q-network's values. This leads to training that is far more stable and practical.</p>
+<p>We have a second neural network, which we will refer to as the target network. It is identical in architecture to the primary Q-network, although the neural network parameter values are different. Once every <em>N</em> steps, the parameters are copied from the Q-network to the target network. This results in stable training. For example, <em>N</em> = 10,000 steps can be used. Another option is to slowly update the weights of the target network (here, <em>θ</em> is the Q-network's weights, and <em>θ<sup>t</sup></em><span> </span>is the target network's weights):</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/17b0450e-4576-4258-b434-66eced448b6d.png" style="width:9.50em;height:1.42em;"/></p>
+<p>Here, <em>τ</em> is a small number, say, 0.001. This latter approach of using an exponential moving average is the preferred choice in this book.</p>
+<p>Let's now learn about the use of replay buffer in off-policy algorithms.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Learning about replay buffer</h1>
+                </header>
+            
+            <article>
+                
+<p>We need the tuple (<kbd>s</kbd>, <kbd>a</kbd>, <kbd>r</kbd>, <kbd>s'</kbd>, <kbd>done</kbd>) for updating the DQN, where <kbd>s</kbd> and <kbd>a</kbd> are respectively the state and actions at time <kbd>t</kbd>; <kbd>s'</kbd> is the new state at time <em>t+1</em>; and <kbd>done</kbd> is a Boolean value that is <kbd>True</kbd> or <kbd>False</kbd> depending on whether the episode is not completed or has ended, also referred to as the terminal value in the literature. This Boolean <kbd>done</kbd> or <kbd>terminal</kbd> variable is used so that, in the Bellman update, the last terminal state of an episode is properly handled (since we cannot do an <em>r + γ max Q(s',a')</em> for the terminal state). One problem in DQNs is that we use contiguous samples of the (<kbd>s</kbd>, <kbd>a</kbd>, <kbd>r</kbd>, <kbd>s'</kbd>, <kbd>done</kbd>) tuple, they are correlated, and so the training can overfit.</p>
+<p>To mitigate this issue, a replay buffer is used, where the tuple (<kbd>s</kbd>, <kbd>a</kbd>, <kbd>r</kbd>, <kbd>s'</kbd>, <kbd>done</kbd>) is stored from experience, and a mini-batch of such experiences are randomly sampled from the replay buffer and used for training. This ensures that the samples drawn for each mini-batch are <strong>independent and identically distributed</strong> (<strong>IID</strong>). Usually, a large-size replay buffer is used, say, 500,000 to 1 million samples. At the beginning of the training, the replay buffer is filled to a sufficient number of samples and populated with new experiences. Once the replay buffer is filled to a maximum number of samples, the older samples are discarded one by one. This is because the older samples were generated from an inferior policy, and are not desired for training at a later stage as the agent has advanced in its learning.</p>
+<p>In a more recent paper, DeepMind came up with a prioritized replay buffer, where the absolute value of the temporal difference error is used to give importance to a sample in the buffer. Thus, samples with higher errors have a higher priority and so have a bigger chance of being sampled. This prioritized replay buffer results in faster learning than the vanilla replay buffer. However, it is slightly harder to code, as it uses a SumTree data structure, which is a binary tree where the value of every parent node is the sum of the values of its two child nodes. This prioritized experience replay will not be discussed further for now!</p>
+<div class="packt_tip">The prioritized experience replay buffer is based on this DeepMind paper: <a href="https://arxiv.org/abs/1511.05952">https://arxiv.org/abs/1511.05952</a></div>
+<p>We will now look into the Atari environment. If you like playing video games, you will love this section!</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Getting introduced to the Atari environment</h1>
+                </header>
+            
+            <article>
+                
+<p><span>The Atari 2600 game suite was originally released in the 1970s, and was a big hit at that time. It involves several games that are played by users using the keyboard to enter actions. These games were a big hit back in the day, and inspired many computer game players of the 1970s and 1980s, but are considered too primitive by today's video game players' standards. However, they are popular today in the RL community as a portal to games that can be trained by RL agents. <br/></span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary of Atari games</h1>
+                </header>
+            
+            <article>
+                
+<p><span>Here is a summary of a select few games from Atari (we won't present screenshots of the games for copyright reasons, but will provide links to them).<br/></span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Pong</h1>
+                </header>
+            
+            <article>
+                
+<p><span>Our first example is a ping pong game called Pong, which allows the user to move up or down to hit a ping pong ball to an opponent, which is the computer. The first one to score 21 points is the winner of the game. A screenshot of the Pong game from Atari can be found at </span><span><a href="https://gym.openai.com/envs/Pong-v0/">https://gym.openai.com/envs/Pong-v0/</a></span>.<a href="https://gym.openai.com/envs/Pong-v0/"><br/></a></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Breakout</h1>
+                </header>
+            
+            <article>
+                
+<p><span>In another game, called Breakout, the user must move a paddle to the left or right to hit a ball that then bounces off a set of blocks at the top of the screen. The higher the number of blocks hit, the more points or rewards the player can accrue. There are a total of five lives per game, and if the player misses the ball, it results in the loss of a life. A screenshot of the </span><span>Breakout game from Atari can be found at </span><span><a href="https://gym.openai.com/envs/Breakout-v0/">https://gym.openai.com/envs/Breakout-v0/</a>.<a href="https://gym.openai.com/envs/Breakout-v0/"><br/></a></span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Space Invaders</h1>
+                </header>
+            
+            <article>
+                
+<p><span>If you like shooting space aliens, then Space Invaders is the game for you. In this game, wave after wave of space aliens descend from the top, and the goal is to shoot them using a laser beam, accruing points. The link to this can be found at </span><a href="https://gym.openai.com/envs/SpaceInvaders-v0/">https://gym.openai.com/envs/SpaceInvaders-v0/</a>.<a href="https://gym.openai.com/envs/SpaceInvaders-v0/"/></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">LunarLander</h1>
+                </header>
+            
+            <article>
+                
+<p><span>Or, if you are fascinated by space travel, then LunarLander is about landing a spacecraft (which resembles the Apollo 11 Eagle) on the surface of the moon. For each level, the surface of the landing zone changes and the goal is to guide the spacecraft to land on the lunar surface between two flags. A screenshot of LunarLander from Atari can be found at</span> <a href="https://gym.openai.com/envs/LunarLander-v2/">https://gym.openai.com/envs/LunarLander-v2/</a>.<a href="https://gym.openai.com/envs/LunarLander-v2/"/></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The Arcade Learning Environment </h1>
+                </header>
+            
+            <article>
+                
+<p><span>Over 50 such games exist in Atari. They are now part of the <strong>Arcade Learning Environment</strong> (<strong>ALE</strong>), which is an object-oriented framework built on top of Atari. OpenAI's gym is used to invoke Atari games these days so that RL agents can be trained to play these games. For instance, you can import <kbd>gym</kbd> in Python and play them as follows.</span></p>
+<p><span>The <kbd>reset()</kbd> function resets the game environment, and <kbd>render()</kbd> renders the screenshot of the game:</span></p>
+<pre><span class="pl-k">import</span> gym
+env <span class="pl-k">=</span> gym.make(<span class="pl-s"><span class="pl-pds">'</span>SpaceInvaders-v0<span class="pl-pds">'</span></span>)
+env.reset()
+env.render()</pre>
+<p>We will now code a DQN in TensorFlow and Python to train an agent on how to play Atari Breakout.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Coding a DQN in TensorFlow</h1>
+                </header>
+            
+            <article>
+                
+<p>Here, we will code a DQN using TensorFlow and play Atari Breakout. There are three Python files that we will use:</p>
+<ul>
+<li><kbd>dqn.py</kbd>: <span>This file will have the main loop, where we explore the environment and call the update functions</span></li>
+<li><kbd>model.py</kbd>: <span>This file will have the class for the DQN agent, where we will have the neural network and the functions we require to train it</span></li>
+<li><kbd>funcs.py</kbd>: <span>This file will involve some utility functions—for example, to process the image frames, or to populate the replay buffer</span></li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using the model.py file</h1>
+                </header>
+            
+            <article>
+                
+<p>Let's first code the <kbd>model.py</kbd> file<span>. The steps involved in this are as follows:</span> </p>
+<ol>
+<li><strong>Import the required packages</strong>:</li>
+</ol>
+<pre style="padding-left: 60px">import numpy as np<br/>import sys<br/>import os<br/>import random<br/>import tensorflow as tf</pre>
+<ol start="2">
+<li><strong>Choose the</strong> <strong>bigger</strong> <strong>or</strong> <strong>smaller</strong> <strong>network</strong>: <span>We will use two neural network architectures, one called <kbd>bigger</kbd> and the other <kbd>smaller</kbd>. Let's use the <kbd>bigger</kbd> network for now; the interested user can later change the network to the <kbd>smaller</kbd> option and compare performance:</span></li>
+</ol>
+<pre style="padding-left: 60px">NET = 'bigger' # 'smaller'</pre>
+<ol start="3">
+<li><strong>Choose the</strong> <strong>loss</strong> <strong>function (L2 loss or the Huber loss)</strong>: For the Q-learning <kbd>loss</kbd> function, we can use either the L2 loss or the Huber loss. Both options will be used in the code. We will choose <kbd>huber</kbd> for now:</li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px">LOSS = 'huber' # 'L2'</pre>
+<ol start="4">
+<li><strong>Define neural network weights initialization</strong>: We will then specify a weights initializer for the neural network weights. <kbd>tf.variance_scaling_initializer(scale=2)</kbd> is used for He initialization. Xavier initialization can also be used, and is provided as a comment. The interested user can compare the performance of both the He and Xavier initializers later:</li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px">init = tf.variance_scaling_initializer(scale=2) # tf.contrib.layers.xavier_initializer()</pre>
+<ol start="5">
+<li class="mce-root"><strong>Define the</strong> <strong>QNetwork()</strong> <strong>class</strong><span>: W</span><span>e will then define the <kbd>QNetwork()</kbd> class as follows. It will have an <kbd>__init__()</kbd> constructor and the <kbd>_build_model()</kbd>, <kbd>predict()</kbd>, and <kbd>update()</kbd> functions. The <kbd>__init__</kbd> constructor is shown as follows:</span></li>
+</ol>
+<pre class="mce-root" style="color: black;padding-left: 60px">class QNetwork():<br/> def __init__(self, scope="QNet", VALID_ACTIONS=[0, 1, 2, 3]):<br/> self.scope = scope<br/> self.VALID_ACTIONS = VALID_ACTIONS<br/> with tf.variable_scope(scope):<br/> self._build_model()</pre>
+<ol start="6">
+<li><strong>Complete the</strong> <strong>_build_model()</strong> <strong>function</strong>: <span><kbd>In _build_model()</kbd>, we first define the TensorFlow <kbd>tf_X, tf_Y</kbd>, and <kbd>tf_actions</kbd> placeholders. Note that the image frames are stored in <kbd>uint8</kbd> format in the replay buffer to save memory, and so they are normalized by converting them to <kbd>float</kbd> and then dividing them by <kbd>255.0</kbd> to put the <kbd>X</kbd> input in the 0-1 range:</span></li>
+</ol>
+<pre class="mce-root" style="color: black;padding-left: 60px">def _build_model(self):<br/>  # input placeholders; input is 4 frames of shape 84x84 <br/>  self.tf_X = tf.placeholder(shape=[None, 84, 84, 4], dtype=tf.uint8, name="X")<br/>  # TD<br/>  self.tf_y = tf.placeholder(shape=[None], dtype=tf.float32, name="y")<br/>  # action<br/>  self.tf_actions = tf.placeholder(shape=[None], dtype=tf.int32, name="actions")<br/>  # normalize input<br/>  X = tf.to_float(self.tf_X) / 255.0<br/>  batch_size = tf.shape(self.tf_X)[0]</pre>
+<ol start="7">
+<li><span><strong>Defining convolutional layers</strong>: As mentioned earlier, we have a <kbd>bigger</kbd> and a <kbd>smaller</kbd> neural network option. The <kbd>bigger</kbd> network has three convolutional layers, followed by a fully connected layer. The <kbd>smaller</kbd> network only has two convolutional layers, followed by a fully connected layer. We can define convolutional layers in TensorFlow using <kbd>tf.contrib.layers.conv2d()</kbd>, and fully connected layers using <kbd>tf.contrib.layers.fully_connected()</kbd>. Note that, after the last convolutional layer, we need to flatten the output before passing it to the fully connected layer, for which we will use <kbd>tf.contrib.layers.flatten()</kbd>. We use the <kbd>winit</kbd> object as our weights initializer, which we defined earlier:</span></li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px">if (NET == 'bigger'):<br/>  # bigger net<br/>  # 3 conv layers<br/>  conv1 = tf.contrib.layers.conv2d(X, 32, 8, 4, padding='VALID', activation_fn=tf.nn.relu, weights_initializer=winit)<br/>  conv2 = tf.contrib.layers.conv2d(conv1, 64, 4, 2, padding='VALID', activation_fn=tf.nn.relu, weights_initializer=winit)<br/>  conv3 = tf.contrib.layers.conv2d(conv2, 64, 3, 1, padding='VALID', activation_fn=tf.nn.relu, weights_initializer=winit)<br/>  # fully connected layers<br/>  flattened = tf.contrib.layers.flatten(conv3)<br/>  fc1 = tf.contrib.layers.fully_connected(flattened, 512, activation_fn=tf.nn.relu, weights_initializer=winit)<br/><br/>  elif (NET == 'smaller'): <br/> <br/>  # smaller net<br/>  # 2 conv layers<br/>  conv1 = tf.contrib.layers.conv2d(X, 16, 8, 4, padding='VALID', activation_fn=tf.nn.relu, weights_initializer=winit)<br/>  conv2 = tf.contrib.layers.conv2d(conv1, 32, 4, 2, padding='VALID',activation_fn=tf.nn.relu, weights_initializer=winit)<br/>  # fully connected layers<br/>  flattened = tf.contrib.layers.flatten(conv2)<br/>  fc1 = tf.contrib.layers.fully_connected(flattened, 256, activation_fn=tf.nn.relu, weights_initializer=winit) </pre>
+<ol start="8">
+<li><strong>Defining the fully connected layer</strong>: Finally, we have a fully connected layer sized according to the number of actions, which is specified using <kbd>len(self.VALID_ACTIONS)</kbd>. The output of this last fully connected layer is stored in <kbd>self.predictions</kbd>, and represents <em>Q(s,a)</em>, which we saw in the equations presented earlier, in the <em>Learning the theory behind a DQN</em> section. The actions we pass to this function (<kbd>self.tf_actions</kbd>) have to be converted to one-hot format, for which we use <kbd>tf.one_hot()</kbd>. Note that <kbd>one_hot</kbd> is a way to represent the action number as a binary array with zero for all actions, except for one action, for which we store <em>a</em> as <kbd>1.0</kbd>. Then, we multiply the predictions with the one-hot actions using <kbd>self.predictions * action_one_hot</kbd>, which is summed over using <kbd>tf.reduce_sum()</kbd>; this is stored in the <kbd>self.action_predictions</kbd> variable:</li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px"># Q(s,a)<br/>  self.predictions = tf.contrib.layers.fully_connected(fc1, len(self.VALID_ACTIONS), activation_fn=None, weights_initializer=winit)<br/>  action_one_hot = tf.one_hot(self.tf_actions, tf.shape(self.predictions)[1], 1.0, 0.0, name='action_one_hot')<br/>  self.action_predictions = tf.reduce_sum(self.predictions * action_one_hot, reduction_indices=1, name='act_pred')</pre>
+<ol start="9">
+<li><strong>Computing loss for training the Q-network</strong>: W<span>e compute the loss for training the Q-network, stored in <kbd>self.loss</kbd>, using either the L2 loss or the Huber loss, which is determined using the <kbd>LOSS</kbd> variable. For L2 loss, we use the <kbd>tf.squared_difference()</kbd> function; for the Huber loss, we use <kbd>huber_loss()</kbd>, which we will soon define. The loss is averaged over many samples, and for this we use the <kbd>tf.reduce_mean()</kbd> function. Note that we will compute the loss between the <kbd>tf_y</kbd> placeholder that we defined earlier and the <kbd>action_predictions</kbd> variable that we obtained in the previous step:</span></li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px">if (LOSS == 'L2'):<br/>   # L2 loss<br/>   self.loss = tf.reduce_mean(tf.squared_difference(self.tf_y, self.action_predictions), name='loss')<br/>elif (LOSS == 'huber'):<br/>   # Huber loss<br/>   self.loss = tf.reduce_mean(huber_loss(self.tf_y-self.action_predictions), name='loss')</pre>
+<ol start="10">
+<li><strong>Using the optimizer</strong>: W<span>e use either the RMSprop or Adam optimizer, and store it in <kbd>self.optimizer</kbd>. Our learning objective is to minimize <kbd>self.loss</kbd>, and so we use <kbd>self.optimizer.minimize()</kbd>. This is stored in <kbd>self.train_op</kbd>:</span></li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px"># optimizer <br/>  #self.optimizer = tf.train.RMSPropOptimizer(learning_rate=0.00025, momentum=0.95, epsilon=0.01)<br/>  self.optimizer = tf.train.AdamOptimizer(learning_rate=2e-5)<br/>  self.train_op=<br/>        self.optimizer.minimize(self.loss,global_step=tf.contrib.framework.get_global_step())</pre>
+<ol start="11">
+<li><strong>Define the</strong> <strong>predict()</strong> <strong>function for the class</strong>: <span>In the <kbd>predict()</kbd> function, we run the <kbd>self.predictions</kbd> function defined earlier using TensorFlow's <kbd>sess.run()</kbd>, where <kbd>sess</kbd> is the <kbd>tf.Session()</kbd> object that is passed to this function. The states are passed as an argument to this function in the <kbd>s</kbd> variable, which is passed on to the TensorFlow placeholder, <kbd>tf_X</kbd>:</span></li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px">def predict(self, sess, s):<br/>   return sess.run(self.predictions, { self.tf_X: s})</pre>
+<ol start="12">
+<li><strong>Define the</strong> <strong>update()</strong> <strong>function for the class</strong>: Finally, in the <kbd>update()</kbd> function, we call the <kbd>train_op</kbd> and <kbd>loss</kbd> objects, and feed the <kbd>a</kbd> dictionary to the placeholders involved in performing these operations, which we call <kbd>feed_dict</kbd>. The states are stored in <kbd>s</kbd>, the actions in <kbd>a</kbd>, and the targets in <kbd>y</kbd>:</li>
+</ol>
+<pre style="padding-left: 60px">def update(self, sess, s, a, y):<br/>   feed_dict = { self.tf_X: s, self.tf_y: y, self.tf_actions: a }<br/>   _, loss = sess.run([self.train_op, self.loss], feed_dict)<br/>   return loss</pre>
+<ol start="13">
+<li><strong>Define the</strong> <strong>huber_loss()</strong> <strong>function outside the class</strong>: The last thing to complete <kbd>model.py</kbd> is the definition of the Huber loss function, which is a blend of L1 and L2 losses. Whenever the input is <kbd>&lt; 1.0</kbd>, the L2 loss is used, and the L1 loss otherwise:</li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px"># huber loss<br/>def huber_loss(x):<br/> condition = tf.abs(x) &lt; 1.0<br/> output1 = 0.5 * tf.square(x)<br/> output2 = tf.abs(x) - 0.5<br/> return tf.where(condition, output1, output2)</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using the funcs.py file</h1>
+                </header>
+            
+            <article>
+                
+<p><span>We will next code <kbd>funcs.py</kbd> by completing the following steps:</span></p>
+<ol>
+<li><strong>Import packages</strong>: <span>First, we import the required packages:</span></li>
+</ol>
+<pre style="color: black;padding-left: 60px">import numpy as np<br/>import sys<br/>import tensorflow as tf</pre>
+<ol start="2">
+<li><strong>Complete the</strong> <strong>ImageProcess()</strong> <strong>class</strong>: <span>Then, convert the 210 x 160 x 3 RGB image from the Atari emulator to an 84 x 84 grayscale image. For this, we create an <kbd>ImageProcess()</kbd> class and use TensorFlow utility functions, such as <kbd>rgb_to_grayscale()</kbd> to convert RGB to grayscale, <kbd>crop_to_bounding_box()</kbd> to crop the image to the region of interest, <kbd>resize_images()</kbd> to resize the image to the desired 84 x 84 size, and <kbd>squeeze()</kbd> to remove a dimension from the input. The <kbd>process()</kbd> function of the class will carry out the operations by invoking the <kbd>sess.run()</kbd> function on <kbd>self.output</kbd>; note that we pass the <kbd>state</kbd> variable as a dictionary:</span></li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px"># convert raw Atari RGB image of size 210x160x3 into 84x84 grayscale image<br/>class ImageProcess():<br/>  def __init__(self):<br/>    with tf.variable_scope("state_processor"):<br/>     self.input_state = tf.placeholder(shape=[210, 160, 3], dtype=tf.uint8)<br/>     self.output = tf.image.rgb_to_grayscale(self.input_state)<br/>     self.output = tf.image.crop_to_bounding_box(self.output, 34, 0, 160, 160)<br/>     self.output = tf.image.resize_images(self.output, [84, 84], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)<br/>     self.output = tf.squeeze(self.output)<br/><br/>  def process(self, sess, state):<br/>    return sess.run(self.output, { self.input_state: state })</pre>
+<ol start="3">
+<li class="mce-root"><strong>Copy model parameters from one network to another</strong><span>: The next step is to write a function called</span> <kbd>copy_model_parameters()</kbd>, <span>which will take as arguments the</span> <kbd>tf.Session()</kbd> <span>object</span> <kbd>sess</kbd><span>, and two networks (in this case, the Q-network and the target network). Let's call them</span> <kbd>qnet1</kbd> <span>and</span> <kbd>qnet2</kbd><span>. The function will copy the parameter values from</span> <kbd>qnet1</kbd> <span>to</span> <kbd>qnet2</kbd><span>:</span></li>
+</ol>
+<pre style="color: black;padding-left: 60px"># copy params from qnet1 to qnet2<br/>def copy_model_parameters(sess, qnet1, qnet2):<br/>    q1_params = [t for t in tf.trainable_variables() if t.name.startswith(qnet1.scope)]<br/>    q1_params = sorted(q1_params, key=lambda v: v.name)<br/>    q2_params = [t for t in tf.trainable_variables() if t.name.startswith(qnet2.scope)]<br/>    q2_params = sorted(q2_params, key=lambda v: v.name)<br/>    update_ops = []<br/>    for q1_v, q2_v in zip(q1_params, q2_params):<br/>        op = q2_v.assign(q1_v)<br/>        update_ops.append(op)<br/>    sess.run(update_ops)</pre>
+<ol start="4">
+<li><strong>Write a function to use ε-greedy strategy to explore or exploit</strong>: <span>We will then write a function called <kbd>epsilon_greedy_policy()</kbd>, which will either explore or exploit depending on whether a random real number computed using NumPy's <kbd>np.random.rand()</kbd> is less than <kbd>epsilon</kbd>, the parameter described earlier for the ε-greedy strategy. For exploration, all actions have equal probabilities and equal one/<kbd>(num_actions)</kbd>, where <kbd>num_actions</kbd> is the number of actions (which is four for Breakout). On the other hand, for exploiting, we use Q-network's <kbd>predict()</kbd> function to obtain Q values and identify which action has the highest Q value with the use of NumPy's <kbd>np.argmax()</kbd> function. The output of this function is the probability of each of the actions, which, for exploitation, will have all <kbd>0</kbd> actions except the one action corresponding to the largest Q value, for which the probability is assigned <kbd>1.0</kbd>:</span></li>
+</ol>
+<pre style="padding-left: 60px"># epsilon-greedy<br/>def epsilon_greedy_policy(qnet, num_actions):<br/>    def policy_fn(sess, observation, epsilon):<br/>        if (np.random.rand() &lt; epsilon): <br/>          # explore: equal probabiities for all actions<br/>          A = np.ones(num_actions, dtype=float) / float(num_actions)<br/>        else:<br/>          # exploit <br/>          q_values = qnet.predict(sess, np.expand_dims(observation, 0))[0]<br/>          max_Q_action = np.argmax(q_values)<br/>          A = np.zeros(num_actions, dtype=float)<br/>          A[max_Q_action] = 1.0 <br/>        return A<br/>    return policy_fn</pre>
+<ol start="5">
+<li><strong>Write a function to populate the replay memory</strong>: <span>Finally, we will write the <kbd>populate_replay_mem</kbd> function to populate the replay buffer with <kbd>replay_memory_init_size</kbd> number of samples. First, we reset the environment using <kbd>env.reset()</kbd>. Then, we process the state obtained from the reset. We ne</span>ed four fr<span>ames for each state, as the agent otherwise has no way of determining which way the ball or the paddle are moving, their speed and/or acceleration (in the Breakout game; for other games, such as Space Invaders, similar reasoning applies to determine when and where to fire). For the first frame,</span> we stack up four copies. We als<span>o compute <kbd>delta_epsilon</kbd>, which is the amount epsilon is decreased per time step. The replay memory is initialized as an empty list:</span></li>
+</ol>
+<pre style="padding-left: 60px"># populate replay memory<br/>def populate_replay_mem(sess, env, state_processor, replay_memory_init_size, policy, epsilon_start, epsilon_end, epsilon_decay_steps, VALID_ACTIONS, Transition):<br/>    state = env.reset()<br/>    state = state_processor.process(sess, state)<br/>    state = np.stack([state] * 4, axis=2)<br/><br/>    delta_epsilon = (epsilon_start - epsilon_end)/float(epsilon_decay_steps)<br/><br/>    replay_memory = []</pre>
+<ol start="6">
+<li class="mce-root"><strong>Computing action probabilities</strong>: Then, we loop over <kbd>replay_memory_init_size</kbd> four times, decrease epsilon by <kbd>delta_epsilon</kbd>, and compute the action probabilities, stored in the <kbd>action_probs</kbd> variable, using <kbd>policy()</kbd>, which was passed as an argument. The exact action is determined from the <kbd>action_probs</kbd> variable by sampling using NumPy's <kbd>np.random.choice</kbd>. Then, <kbd>env.render()</kbd> renders the environment, and then we pass the action to <kbd>env.step()</kbd>, which outputs the next state (stored in <kbd>next_state</kbd>), the reward for the transition, and whether the episode terminated, which is stored in the Boolean <kbd>done</kbd> variable.</li>
+<li><strong>Append to replay buffer</strong>: We then process the next state and append it to the replay memory, the tuple (<kbd>state</kbd>, <kbd>action</kbd>, <kbd>reward</kbd>, <kbd>next_state</kbd>, <kbd>done</kbd>). If the episode is done, we reset the environment to a new round of the game, process the image and stack up four times, as done earlier. If the episode is not yet complete, the new state becomes the current state for the next time step, and we proceed this way on and on until the loop finishes:</li>
+</ol>
+<pre style="padding-left: 60px">for i in range(replay_memory_init_size):<br/>        epsilon = max(epsilon_start - float(i) * delta_epsilon, epsilon_end)<br/>        action_probs = policy(sess, state, epsilon)<br/>        action = np.random.choice(np.arange(len(action_probs)), p=action_probs)<br/><br/>        env.render() <br/>        next_state, reward, done, _ = env.step(VALID_ACTIONS[action])<br/><br/>        next_state = state_processor.process(sess, next_state)<br/>        next_state = np.append(state[:,:,1:], np.expand_dims(next_state, 2), axis=2)<br/>        replay_memory.append(Transition(state, action, reward, next_state, done))<br/><br/>        if done:<br/>            state = env.reset()<br/>            state = state_processor.process(sess, state)<br/>            state = np.stack([state] * 4, axis=2)<br/>        else:<br/>            state = next_state<br/>    return replay_memory</pre>
+<p class="mce-root">This completes <kbd>funcs.py</kbd>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using the dqn.py file</h1>
+                </header>
+            
+            <article>
+                
+<p>We will first code the <kbd>dqn.py</kbd> file. This requires the following steps:</p>
+<ol>
+<li class="mce-root"><strong>Import the necessary packages</strong><span>: We will import the required packages as follows:</span></li>
+</ol>
+<pre style="color: black;padding-left: 60px">import gym<br/>import itertools<br/>import numpy as np<br/>import os<br/>import random<br/>import sys<br/>import matplotlib.pyplot as plt<br/>import tensorflow as tf<br/>from collections import deque, namedtuple<br/>from model import *<br/>from funcs import *</pre>
+<ol start="2">
+<li><strong>Set the game and choose the valid actions</strong>: We will then set the game. Let's choose the <kbd>BreakoutDeterministic-v4</kbd> game for now, which is a later version of Breakout v0. This game has four actions, numbered zero to three, and they represent <kbd>0</kbd>: no-operation (<kbd>noop</kbd>), <kbd>1</kbd>: <kbd>fire</kbd>, <kbd>2</kbd>: move left, and <kbd>3</kbd>: move right:</li>
+</ol>
+<pre style="padding-left: 60px">GAME = "BreakoutDeterministic-v4" # "BreakoutDeterministic-v0"<br/># Atari Breakout actions: 0 (noop), 1 (fire), 2 (left) and 3 (right) <br/>VALID_ACTIONS = [0, 1, 2, 3]</pre>
+<ol start="3">
+<li><strong>Set the mode (train/test) and the start iterations</strong>: We will then set the mode in the <kbd>train_or_test</kbd> variable. Let's start with <kbd>train</kbd> to begin with (you can later set it to <kbd>test</kbd> to evaluate the model after the training is complete). We will also train from scratch from the <kbd>0</kbd> iteration:</li>
+</ol>
+<pre style="padding-left: 60px"># set parameters for running<br/>train_or_test = 'train' #'test' #'train'<br/>train_from_scratch = True<br/>start_iter = 0<br/>start_episode = 0<br/>epsilon_start = 1.0</pre>
+<ol start="4">
+<li><strong>Create environment</strong>: We will create the environment <kbd>env</kbd> object, which will create the <kbd>GAME</kbd> game. <kbd>env.action_space.n</kbd> will print the number of actions in this game. <kbd>env.reset()</kbd> will reset the game and output the initial state/observation (note that state and observation in RL parlance are the same and are interchangeable). <kbd>observation.shape</kbd> will print the shape of the state space:</li>
+</ol>
+<pre style="padding-left: 60px">env = gym.envs.make(GAME)<br/>print("Action space size: {}".format(env.action_space.n))<br/>observation = env.reset()<br/>print("Observation space shape: {}".format(observation.shape)</pre>
+<ol start="5">
+<li><strong>Create paths and directories for storing checkpoint files</strong>: We will then create the paths for storing the checkpoint model files and create the directory:</li>
+</ol>
+<pre style="padding-left: 60px"># experiment dir<br/>experiment_dir = os.path.abspath("./experiments/{}".format(env.spec.id))<br/><br/># create ckpt directory <br/>checkpoint_dir = os.path.join(experiment_dir, "ckpt")<br/>checkpoint_path = os.path.join(checkpoint_dir, "model")<br/> </pre>
+<pre style="padding-left: 60px">if not os.path.exists(checkpoint_dir):<br/> os.makedirs(checkpoint_dir)</pre>
+<ol start="6">
+<li><strong>Define the</strong> <strong>deep_q_learning()</strong> <strong>function</strong>: We will next create the <kbd>deep_q_learning()</kbd> function, which will take a long list of arguments that involve the TensorFlow session object, the environment, the <em>Q</em> and target network objects, and so on. The policy to be followed is <kbd>epsilon_greedy_policy()</kbd>:</li>
+</ol>
+<pre style="padding-left: 60px">def deep_q_learning(sess, env, q_net, target_net, state_processor, num_episodes, train_or_test='train', train_from_scratch=True,start_iter=0, start_episode=0, replay_memory_size=250000, replay_memory_init_size=50000, update_target_net_every=10000, gamma=0.99, epsilon_start=1.0, epsilon_end=[0.1,0.01], epsilon_decay_steps=[1e6,1e6], batch_size=32):<br/>                   <br/>    Transition = namedtuple("Transition", ["state", "action", "reward", "next_state", "done"])<br/><br/>    # policy <br/>    policy = epsilon_greedy_policy(q_net, len(VALID_ACTIONS))</pre>
+<ol start="7">
+<li><strong>Populate the replay memory with experiences encountered with initial random actions</strong>: Then, we populate the replay memory with the initial samples:</li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px"># populate replay memory<br/> if (train_or_test == 'train'):<br/>   print("populating replay memory")<br/>   replay_memory = populate_replay_mem(sess, env, state_processor, replay_memory_init_size, policy, epsilon_start, epsilon_end[0], epsilon_decay_steps[0], VALID_ACTIONS, Transition)</pre>
+<ol start="8">
+<li><strong>Set the epsilon values</strong>: Next, we will set the <kbd>epsilon</kbd> values. Note that we have a double linear function, which will decrease the value of <kbd>epsilon</kbd>, first from 1 to 0.1, and then from 0.1 to 0.01, in as many steps, specified in <kbd>epsilon_decay_steps</kbd>:</li>
+</ol>
+<pre style="padding-left: 60px"># epsilon start<br/>if (train_or_test == 'train'):<br/>  delta_epsilon1 = (epsilon_start - epsilon_end[0])/float(epsilon_decay_steps[0]) <br/>  delta_epsilon2 = (epsilon_end[0] - epsilon_end[1])/float(epsilon_decay_steps[1]) <br/>  if (train_from_scratch == True):<br/>    epsilon = epsilon_start<br/>  else:<br/>    if (start_iter &lt;= epsilon_decay_steps[0]):<br/>      epsilon = max(epsilon_start - float(start_iter) * delta_epsilon1, epsilon_end[0])<br/>    elif (start_iter &gt; epsilon_decay_steps[0] and start_iter &lt; epsilon_decay_steps[0]+epsilon_decay_steps[1]):<br/>      epsilon = max(epsilon_end[0] - float(start_iter) * delta_epsilon2, epsilon_end[1])<br/>    else:<br/>      epsilon = epsilon_end[1] <br/>elif (train_or_test == 'test'):<br/>  epsilon = epsilon_end[1]</pre>
+<ol start="9">
+<li>
+<p>We will then set the total number of time steps:</p>
+</li>
+</ol>
+<pre style="padding-left: 60px"># total number of time steps <br/>total_t = start_iter</pre>
+<ol start="10">
+<li><span>Then, the main loop starts over the episodes from the start to the total number of episodes. We reset the episode, process the first frame, and stack it up <kbd>4</kbd> times. Then, we will initialize <kbd>loss</kbd>, <kbd>time_steps</kbd>, and <kbd>episode_rewards</kbd> to <kbd>0</kbd>. The total number of lives per episode for Breakout is <kbd>5</kbd>, and so we keep count of it in the <kbd>ale_lives</kbd> variable. The total number of time steps in this life of the agent is initialized to a large number:</span></li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px">for ep in range(start_episode, num_episodes):<br/><br/>        # save ckpt<br/>        saver.save(tf.get_default_session(), checkpoint_path)<br/><br/>        # env reset<br/>        state = env.reset()<br/>        state = state_processor.process(sess, state)<br/>        state = np.stack([state] * 4, axis=2)<br/><br/>        loss = 0.0<br/>        time_steps = 0<br/>        episode_rewards = 0.0<br/>    <br/>        ale_lives = 5<br/>        info_ale_lives = ale_lives<br/>        steps_in_this_life = 1000000<br/>        num_no_ops_this_life = 0</pre>
+<ol start="11">
+<li><strong>Keeping track of time steps:</strong> We will use an inner <kbd>while</kbd> loop to keep track of the time steps in a given episode (note: the outer <kbd>for</kbd> loop is over episodes, and this inner <kbd>while</kbd> loop is over time steps in the current episode). We will decrease <kbd>epsilon</kbd> accordingly, depending on whether it is in the 0.1 to 1 range or in the 0.01 to 0.1 range, both of which have different <kbd>delta_epsilon</kbd> values:</li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px">while True:<br/>            <br/>    if (train_or_test == 'train'):<br/>        #epsilon = max(epsilon - delta_epsilon, epsilon_end) <br/>        if (total_t &lt;= epsilon_decay_steps[0]):<br/>            epsilon = max(epsilon - delta_epsilon1, epsilon_end[0]) <br/>        elif (total_t &gt;= epsilon_decay_steps[0] and total_t &lt;= epsilon_decay_steps[0]+epsilon_decay_steps[1]):<br/>            epsilon = epsilon_end[0] - (epsilon_end[0]-epsilon_end[1]) / float(epsilon_decay_steps[1]) * float(total_t-epsilon_decay_steps[0]) <br/>            epsilon = max(epsilon, epsilon_end[1]) <br/>        else:<br/>            epsilon = epsilon_end[1]</pre>
+<ol start="12">
+<li><strong>Updating the target network:</strong> We update the target network if the total number of time steps so far is a multiple of <kbd>update_target_net_every</kbd>, which is a user-defined parameter. This is accomplished by calling the <kbd>copy_model_parameters()</kbd> function:</li>
+</ol>
+<pre style="padding-left: 60px"> # update target net<br/> if total_t % update_target_net_every == 0:<br/>    copy_model_parameters(sess, q_net, target_net)<br/>    print("\n copied params from Q net to target net ")</pre>
+<ol start="13">
+<li>At the start of every new life of the agent, we undertake a no-op (corresponding to action probabilities [1, 0, 0, 0]) a random number of times between zero and seven to make the episode different from past episodes, so that the agent gets to see more variations when it explores and learns the environment. This was also done in the original DeepMind paper, and ensures that the agent learns better, since this randomness will ensure that more diversity is experienced. Once we are outside this initial randomness cycle, the actions are taken as per the <kbd>policy()</kbd> function.</li>
+</ol>
+<ol start="14">
+<li>Note that we still need to take one fire operation (action probabilities [0, 1, 0, 0]) for one time step at the start of every new life to kick-start the agent. This is a requirement for the ALE framework, without which the frames will freeze. Thus, the life cycle evolves as a <kbd>1</kbd> fire operation, followed by a random number (between zero and seven) of no-ops, and then the agent uses the <kbd>policy</kbd> function:</li>
+</ol>
+<pre style="padding-left: 60px">time_to_fire = False<br/>if (time_steps == 0 or ale_lives != info_ale_lives):<br/>   # new game or new life <br/>   steps_in_this_life = 0<br/>   num_no_ops_this_life = np.random.randint(low=0,high=7)<br/>   action_probs = [0.0, 1.0, 0.0, 0.0] # fire<br/>   time_to_fire = True<br/>   if (ale_lives != info_ale_lives):<br/>       ale_lives = info_ale_lives<br/>else:<br/>   action_probs = policy(sess, state, epsilon)<br/><br/>steps_in_this_life += 1 <br/>if (steps_in_this_life &lt; num_no_ops_this_life and not time_to_fire):<br/>   # no-op<br/>   action_probs = [1.0, 0.0, 0.0, 0.0] # no-op</pre>
+<ol start="15">
+<li class="mce-root">We will then take the action using NumPy's <kbd>random.choice</kbd>, which will use the <kbd>action_probs</kbd> probabilities. Then, we render the environment and take one <kbd>step</kbd>. <kbd>info['ale.lives']</kbd> will let us know the number of lives remaining for the agent, from which we can ascertain whether the agent lost a life in the current time step. In the DeepMind paper, the rewards were set to <kbd>+1</kbd> or <kbd>-1</kbd> depending on the sign of the reward, so as to be able to compare the different games. This is accomplished using <kbd>np.sign(reward)</kbd>, which we will not use for now. We will then process <kbd>next_state_img</kbd> to convert to grayscale of the desired size, which is then appended to the <kbd>next_state</kbd> vector, which maintains a sequence of four contiguous frames. The rewards obtained are used to increment <kbd>episode_rewards</kbd>, and we also increment <kbd>time_steps</kbd>:</li>
+</ol>
+<pre style="padding-left: 60px">action = np.random.choice(np.arange(len(action_probs)), p=action_probs)<br/>             <br/>env.render()<br/>next_state_img, reward, done, info = env.step(VALID_ACTIONS[action]) <br/>            <br/>info_ale_lives = int(info['ale.lives'])<br/><br/># rewards = -1,0,+1 as done in the paper<br/>#reward = np.sign(reward)<br/><br/>next_state_img = state_processor.process(sess, next_state_img)<br/><br/># state is of size [84,84,4]; next_state_img is of size[84,84]<br/>#next_state = np.append(state[:,:,1:], np.expand_dims(next_state, 2), axis=2)<br/>next_state = np.zeros((84,84,4),dtype=np.uint8)<br/>next_state[:,:,0] = state[:,:,1] <br/>next_state[:,:,1] = state[:,:,2]<br/>next_state[:,:,2] = state[:,:,3]<br/>next_state[:,:,3] = next_state_img <br/><br/>episode_rewards += reward <br/>time_steps += 1</pre>
+<ol start="16">
+<li class="mce-root"><strong>Updating the networks:</strong> Next, if we are in training mode, we update the networks. First, we pop the oldest element in the replay memory if the size is exceeded. Then, we append the recent tuple (<kbd>state</kbd>, <kbd>action</kbd>, <kbd>reward</kbd>, <kbd>next_state</kbd>, <kbd>done</kbd>) to the replay memory. Note that, if we have lost a life, we treat <kbd>done = True</kbd> in the last time step so that the agent learns to avoid losses of lives; without this, <kbd>done = True</kbd> is experienced only when the episode ends, that is, when all lives are lost. However, we also want the agent to be self-conscious of the loss of lives.</li>
+<li><strong>Sampling a mini-batch from the replay buffer:</strong> We sample a mini-batch from the replay buffer of <kbd>batch_size</kbd>. We calculate the <em>Q</em> values of the next state (<kbd>q_values_next</kbd>) using the target network, and use it to compute the greedy <em>Q</em> value, which is used to compute the target (<em>y</em> in the equation presented earlier). Once every four time steps, we update the Q-network using <kbd>q_net.update()</kbd>; this update frequency is once every four, as it is known to be more stable:</li>
+</ol>
+<pre style="padding-left: 60px">  if (train_or_test == 'train'):<br/><br/>     # if replay memory is full, pop the first element<br/>     if len(replay_memory) == replay_memory_size:<br/>         replay_memory.pop(0)<br/><br/>     # save transition to replay memory<br/>     # done = True in replay memory for every loss of life <br/>     if (ale_lives == info_ale_lives):<br/>         replay_memory.append(Transition(state, action, reward, next_state, done)) <br/>     else:<br/>         #print('loss of life ')<br/>         replay_memory.append(Transition(state, action, reward, next_state, True)) <br/><br/>     # sample a minibatch from replay memory<br/>     samples = random.sample(replay_memory, batch_size)<br/>     states_batch, action_batch, reward_batch, next_states_batch, done_batch = map(np.array, zip(*samples))<br/><br/><br/>     # calculate q values and targets <br/>     q_values_next = target_net.predict(sess, next_states_batch)<br/>     greedy_q = np.amax(q_values_next, axis=1) <br/>     targets_batch = reward_batch + np.invert(done_batch).astype(np.float32) * gamma * greedy_q<br/>               <br/><br/>     # update net <br/>     if (total_t % 4 == 0):<br/>         states_batch = np.array(states_batch)<br/>         loss = q_net.update(sess, states_batch, action_batch, targets_batch)</pre>
+<ol start="18">
+<li class="mce-root">We exit the inner <kbd>while</kbd> loop if <kbd>done = True</kbd>, otherwise, we proceed to the next time step, where the state will now be <kbd>new_state</kbd> from the previous time step. We can also print on the screen the episode number, time steps for the episode, the total rewards earned in the episode, the current <kbd>epsilon</kbd>, and the replay buffer size at the end of the episode. These values are also useful for analysis later, and so we store them in a text file called <kbd>performance.txt</kbd>:</li>
+</ol>
+<pre style="padding-left: 60px">if done:<br/>    #print("done: ", done)<br/>    break<br/><br/>state = next_state<br/>total_t += 1<br/>            <br/><br/>  if (train_or_test == 'train'): <br/>      print('\n Episode: ', ep, '| time steps: ', time_steps, '| total episode reward: ', episode_rewards, '| total_t: ', total_t, '| epsilon: ', epsilon, '| replay mem size: ', len(replay_memory))<br/>  elif (train_or_test == 'test'):<br/>      print('\n Episode: ', ep, '| time steps: ', time_steps, '| total episode reward: ', episode_rewards, '| total_t: ', total_t, '| epsilon: ', epsilon)<br/><br/>  if (train_or_test == 'train'):<br/>      f = open("experiments/" + str(env.spec.id) + "/performance.txt", "a+")<br/>      f.write(str(ep) + " " + str(time_steps) + " " + str(episode_rewards) + " " + str(total_t) + " " + str(epsilon) + '\n') <br/>      f.close()</pre>
+<ol start="19">
+<li class="mce-root">The next few lines of code will complete <kbd>dqn.py</kbd>. We reset the TensorFlow graph to begin with using <kbd>tf.reset_default_graph()</kbd>. Then, we create two instances of the <kbd>QNetwork</kbd> class, the <kbd>q_net</kbd> and <kbd>target_net</kbd> objects. We create a <kbd>state_processor</kbd> object of the <kbd>ImageProcess</kbd> class and also create the TensorFlow <kbd>saver</kbd> object:</li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px">tf.reset_default_graph()<br/><br/><br/># Q and target networks <br/>q_net = QNetwork(scope="q",VALID_ACTIONS=VALID_ACTIONS)<br/>target_net = QNetwork(scope="target_q", VALID_ACTIONS=VALID_ACTIONS)<br/><br/># state processor<br/>state_processor = ImageProcess()<br/><br/># tf saver<br/>saver = tf.train.Saver()</pre>
+<ol start="20">
+<li class="mce-root">We will now execute the TensorFlow graph by calling <kbd>tf.Session()</kbd>. If we are starting from scratch in training mode, we have to initialize the variables, which is accomplished by calling <kbd>sess.run()</kbd> on <kbd>tf.global_variables_initializer()</kbd>. Otherwise, if we are in test mode, or in training mode but not starting from scratch, we load the latest checkpoint file by calling <kbd>saver.restore()</kbd>.</li>
+<li>The <kbd>replay_memory_size</kbd> parameter is limited by the size of RAM you have at your disposal. The present simulations were undertaken in a 16 GB RAM computer, where <kbd>replay_memory_size = 300000</kbd> was the limit. If the reader has access to more RAM, a larger value can be used for this parameter. For your information, DeepMind used a replay memory size of 1,000,000. A larger replay memory size is good, as it helps to provide more diversity in training when a mini-batch is sampled:</li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px">with tf.Session() as sess:<br/> <br/>      # load model/ initialize model<br/>      if ((train_or_test == 'train' and train_from_scratch == False) or train_or_test == 'test'):<br/>                 latest_checkpoint = tf.train.latest_checkpoint(checkpoint_dir)<br/>                 print("loading model ckpt {}...\n".format(latest_checkpoint))<br/>                 saver.restore(sess, latest_checkpoint)<br/>      elif (train_or_test == 'train' and train_from_scratch == True):<br/>                 sess.run(tf.global_variables_initializer()) <br/><br/><br/><br/>      # run<br/>      deep_q_learning(sess, env, q_net=q_net, target_net=target_net, state_processor=state_processor, num_episodes=25000, train_or_test=train_or_test,train_from_scratch=train_from_scratch, start_iter=start_iter, start_episode=start_episode, replay_memory_size=300000, replay_memory_init_size=5000, update_target_net_every=10000, gamma=0.99, epsilon_start=epsilon_start, epsilon_end=[0.1,0.01], epsilon_decay_steps=[1e6,1e6], batch_size=32)</pre>
+<p>That's it—this completes <kbd>dqn.py</kbd>.</p>
+<p>We will now evaluate the performance of the DQN on Atari Breakout.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Evaluating the performance of the DQN on Atari Breakout</h1>
+                </header>
+            
+            <article>
+                
+<p>Here, we will plot the performance of our DQN algorithm on Breakout using the <kbd>performance.txt</kbd> file that we wrote in the code previously. We will use <kbd>matplotlib</kbd> to plot two graphs as follows:</p>
+<ol>
+<li>Number of time steps per episode versus episode number</li>
+<li>Total episode reward versus time step number</li>
+</ol>
+<p><span>The steps involved in this are as follows:</span></p>
+<ol>
+<li><strong>Plot number of time steps versus episode number for Atari Breakout using DQN</strong>: First, we plot the number of time steps the agent lasted per episode of training in the following diagram. As we can see, after about 10,000 episodes, the agent has learned to survive for a peak of 2,000 time steps per episode (blue curve). We also plot the exponentially weighted moving average with the degree of weighing, <em>α</em> = 0.02, in orange. The average number of time steps lasted is approximately 1,400 per episode at the end of the training:</li>
+</ol>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-533 image-border" src="assets/9ddf9707-46e5-42f9-ab20-162ef909927c.png" style="width:28.50em;height:21.08em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Figure 1: Number of time steps lasted per episode for Atari Breakout using the DQN</div>
+<ol start="2">
+<li><strong>Plot episode reward versus time step number</strong>: In the following graph, we plot the total episode reward versus time time step for Atari Breakout using the DQN algorithm. As we can see, the peak episode rewards are close to 400 (blue curve), and the exponentially weighted moving average is approximately 160 to 180 toward the end of the training. We used a replay memory size of 300,000, which is fairly small by modern standards, due to RAM limitations. If a bigger replay memory size was used, a higher average episode reward could be obtained. This is left for experimentation by the reader:</li>
+</ol>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-534 image-border" src="assets/5b3eabb5-0f16-45ea-8bb8-25fcf5fc278a.png" style="width:23.83em;height:17.83em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Figure 2: Total episode reward versus time step number for Atari Breakout using the DQN</div>
+<p>This concludes this chapter on DQN.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>In this chapter, we looked at our very first deep RL algorithm, DQN, which is probably the most popular RL algorithm in use today. We learned the theory behind a DQN, and also looked at the concept and use of target networks to stabilize training. We were also introduced to the Atari environment, which is the most popular environment suite for RL. In fact, many of the RL papers published today apply their algorithms to games from the Atari suite and report their episodic rewards, comparing them with corresponding values reported by other researchers who use other algorithms. So, the Atari environment is a natural suite of games to train RL agents and compare them to ascertain the robustness of algorithms. We also looked at the use of a replay buffer, and learned why it is used in off-policy algorithms.</p>
+<p>This chapter has laid the foundation for us to delve deeper into deep RL (no pun intended!). In the next chapter, we will look at other DQN extensions, such as DDQN, dueling network architectures, and rainbow networks.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Questions</h1>
+                </header>
+            
+            <article>
+                
+<ol>
+<li>Why is a replay buffer used in a DQN?</li>
+<li>Why do we use target networks?</li>
+<li>Why do we stack four frames into one state? Will one frame alone suffice to represent one state?</li>
+<li>Why is the Huber loss sometimes preferred over L2 loss?</li>
+<li>We converted the RGB input image into grayscale. Can we instead use the RGB image as input to the network? What are the pros and cons of using RGB images instead of grayscale?</li>
+</ol>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Further reading</h1>
+                </header>
+            
+            <article>
+                
+<ul>
+<li><em>Playing Atari with Deep Reinforcement Learning</em>, by<em> Volodymyr Mnih, Koray Kavukcuoglu, David Silver, Alex Graves, Ioannis Antonoglou, Daan Wierstra, and Martin Riedmiller, arXiv</em>:1312.5602: <a href="https://arxiv.org/abs/1312.5602" target="_blank">https://arxiv.org/abs/1312.5602</a></li>
+<li><em>Human-level control through deep reinforcement learning</em> by <em>Volodymyr Mnih, Koray Kavukcuoglu, David Silver, Andrei A. Rusu, Joel Veness, Marc G. Bellemare, Alex Graves, Martin Riedmiller, Andreas K. Fidjeland, Georg Ostrovski, Stig Petersen, Charles Beattie, Amir Sadik, Ioannis Antonoglou, Helen King, Dharshan Kumaran, Daan Wierstra, Shane Legg, and Demis Hassabis</em>, <em>Nature</em>, 2015: <a href="https://www.nature.com/articles/nature14236">https://www.nature.com/articles/nature14236</a><a href="https://arxiv.org/abs/1312.5602"/></li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

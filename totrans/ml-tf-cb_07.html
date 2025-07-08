@@ -1,0 +1,959 @@
+<html><head></head><body>
+  <div id="_idContainer099">
+    <h1 class="chapterNumber">7</h1>
+    <h1 id="_idParaDest-196" class="chapterTitle">Predicting with Tabular Data</h1>
+    <p class="normal">Most of the available data that can be easily found is not composed of images or text documents, but it is instead made of relational tables, each one possibly containing numbers, dates, and short text, which can be all joined together. This is because of the widespread adoption of database applications based on the relational paradigm (data tables that can be combined together by the values of certain columns that act as joining keys). These tables are the main source of tabular data nowadays and because of that, there are certain challenges. </p>
+    <p class="normal">Here are the challenges commonly faced by <strong class="keyword">Deep Neural Networks</strong> (<strong class="keyword">DNNs</strong>) when applied to tabular data:</p>
+    <ul>
+      <li class="bullet">Mixed features data types</li>
+      <li class="bullet">Data in a sparse format (there are more zeros than non-zero data), which is not the best for a DNN converging to an optimum solution</li>
+      <li class="bullet">No state-of-the-art architecture has emerged yet, there are just some various best practices</li>
+      <li class="bullet">Less data is available for a single problem than in a usual image recognition problem</li>
+      <li class="bullet">There's suspicion from non-technical people because DNNs are less interpretable than simpler machine learning algorithms for tabular data</li>
+      <li class="bullet">Often, DNNs are not the best-in-class solution for tabular data, because gradient boosting solutions (such as LightGBM, XGBoost, and CatBoost) might perform better</li>
+    </ul>
+    <p class="normal">Even if these challenges seem quite difficult, simply do not get discouraged. The challenges when applying DNNs to tabular data are certainly serious, but on the other hand, so are the opportunities. Andrew Ng, Adjunct Professor at Stanford University and deep learning expert (<a href="https://www.coursera.org/instructor/andrewng"><span class="url">https://www.coursera.org/instructor/andrewng</span></a>), recently stated: <em class="italic">"Deep learning has seen tremendous adoption in consumer Internet companies with a huge number of users and thus big data, but for it to break into other industries where datasets sizes are smaller, we now need better techniques for small data."</em> </p>
+    <p class="normal">In this chapter, we introduce you to some of the best recipes for handling small, tabular data with TensorFlow. In doing so, we will be using TensorFlow, Keras, and two specialized machine learning <a id="_idIndexMarker369"/>packages: pandas (<a href="https://pandas.pydata.org/"><span class="url">https://pandas.pydata.org/</span></a>) and <a id="_idIndexMarker370"/>scikit-learn (<a href="https://scikit-learn.org/stable/index.html"><span class="url">https://scikit-learn.org/stable/index.html</span></a>). In the previous chapters, we<a id="_idIndexMarker371"/> often used TensorFlow Datasets (<a href="https://www.tensorflow.org/datasets"><span class="url">https://www.tensorflow.org/datasets</span></a>) and specialized layers for feature columns (<a href="https://www.tensorflow.org/api_docs/python/tf/feature_column"><span class="url">https://www.tensorflow.org/api_docs/python/tf/feature_column</span></a>). We could have reused them for this chapter, but then we would have missed some interesting transformations that only scikit-learn can provide, and doing cross-validation would have proved difficult.</p>
+    <p class="normal">Consider moreover that using scikit-learn makes sense if you are comparing the performance of different algorithms on a problem, and you need to standardize a data preparation pipeline not only for the TensorFlow model but also for other more classical machine learning and statistical models.</p>
+    <div class="packt_tip">
+      <p class="Tip--PACKT-">In order to install pandas and scikit-learn (if you are using Anaconda, they should already be on your system), please follow these guidelines:</p>
+      <ul>
+        <li class="bullet">For pandas: <a href="https://pandas.pydata.org/docs/getting_started/install.html"><span class="url">https://pandas.pydata.org/docs/getting_started/install.html</span></a></li>
+        <li class="bullet">For scikit-learn: <a href="https://scikit-learn.org/stable/install.html"><span class="url">https://scikit-learn.org/stable/install.html</span></a></li>
+      </ul>
+    </div>
+    <p class="normal">In this chapter, we will deal with a series of recipes focused on learning from tabular data, which is data arranged in the form of a table, where rows represent observations and columns are the observed values for each feature.</p>
+    <p class="normal">Tabular data is the <a id="_idIndexMarker372"/>common input data for most machine learning algorithms, but not a usual one for DNNs, since DNNs excel with other kinds of data, such as images and text. </p>
+    <p class="normal">Recipes for deep learning for tabular data require solving problems, such as data heterogeneity, which are not mainstream, and they require using many common machine learning strategies, such as cross-validation, which are not currently implemented in TensorFlow.</p>
+    <p class="normal">By the end of this chapter, you should have knowledge of the following:</p>
+    <ul>
+      <li class="bullet">Processing numerical data</li>
+      <li class="bullet">Processing dates</li>
+      <li class="bullet">Processing categorical data</li>
+      <li class="bullet">Processing ordinal data</li>
+      <li class="bullet">Processing high-cardinality categorical data</li>
+      <li class="bullet">Wrapping up all the processing</li>
+      <li class="bullet">Setting up a data generator</li>
+      <li class="bullet">Creating custom activations for tabular data</li>
+      <li class="bullet">Running a test run on a difficult problem</li>
+    </ul>
+    <p class="normal">Let's start immediately with how to deal with numerical data. You will be amazed by how these recipes can be effective with many tabular data problems.</p>
+    <h1 id="_idParaDest-197" class="title">Processing numerical data</h1>
+    <p class="normal">We will start by<a id="_idIndexMarker373"/> preparing numerical data. You have numerical data when:</p>
+    <ul>
+      <li class="bullet">Your data is expressed by a floating number</li>
+      <li class="bullet">Your data is an integer and it has a certain number of unique values (otherwise if there are only few values in sequence, you are dealing with an ordinal variable, such as a ranking)</li>
+      <li class="bullet">Your integer data is not representing a class or label (otherwise you are dealing with a categorical variable)</li>
+    </ul>
+    <p class="normal">When working with numerical data, a few situations may affect the performance of a DNN when processing such data:</p>
+    <ul>
+      <li class="bullet">Missing data (NULL or NaN values, or even INF values) that will prevent your DNN from working at all</li>
+      <li class="bullet">Constant values that will make computations slower and interfere with the bias each neuron in the network is already providing</li>
+      <li class="bullet">Skewed distribution</li>
+      <li class="bullet">Non-standardized data, especially data with extreme values</li>
+    </ul>
+    <p class="normal">Before feeding numerical data to your neural network, you have to be sure that all these issues have been properly dealt with or you may encounter errors or a learning process that will not work.</p>
+    <h2 id="_idParaDest-198" class="title">Getting ready</h2>
+    <p class="normal">In order to address all the potential issues, we will mostly be using specialized functions from scikit-learn. Before <a id="_idIndexMarker374"/>starting our recipe, we will import them into our environment:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> pandas <span class="hljs-keyword">as</span> pd
+<span class="hljs-keyword">try</span>:
+    <span class="hljs-keyword">from</span> sklearn.impute <span class="hljs-keyword">import</span> IterativeImputer
+<span class="hljs-keyword">except</span>:
+    <span class="hljs-keyword">from</span> sklearn.experimental <span class="hljs-keyword">import</span> enable_iterative_imputer
+    <span class="hljs-keyword">from</span> sklearn.impute <span class="hljs-keyword">import</span> IterativeImputer
+<span class="hljs-keyword">from</span> sklearn.ensemble <span class="hljs-keyword">import</span> ExtraTreesRegressor
+<span class="hljs-keyword">from</span> sklearn.impute <span class="hljs-keyword">import</span> SimpleImputer
+<span class="hljs-keyword">from</span> sklearn.preprocessing <span class="hljs-keyword">import</span> StandardScaler, QuantileTransformer
+<span class="hljs-keyword">from</span> sklearn.feature_selection <span class="hljs-keyword">import</span> VarianceThreshold
+<span class="hljs-keyword">from</span> sklearn.pipeline <span class="hljs-keyword">import</span> Pipeline
+</code></pre>
+    <p class="normal">In order to test our recipe we will use a simple 3x4 table, with some columns containing NaN values, and some constant columns that contain no NaN values:</p>
+    <pre class="programlisting code"><code class="hljs-code">example = pd.DataFrame([[<span class="hljs-number">1</span>, <span class="hljs-number">2</span>, <span class="hljs-number">3</span>, np.nan], [<span class="hljs-number">1</span>, <span class="hljs-number">3</span>, np.nan, <span class="hljs-number">4</span>], [<span class="hljs-number">1</span>, <span class="hljs-number">2</span>, <span class="hljs-number">2</span>, <span class="hljs-number">2</span>]], columns = [<span class="hljs-string">'a'</span>, <span class="hljs-string">'b'</span>, <span class="hljs-string">'c'</span>, <span class="hljs-string">'d'</span>])
+</code></pre>
+    <h2 id="_idParaDest-199" class="title">How to do it…</h2>
+    <p class="normal">Our recipe will build a scikit-learn pipeline, based on our indications relative to:</p>
+    <ul>
+      <li class="bullet">The minimum acceptable variance for a feature to be kept, or you may just be introducing unwanted constants into your network that may hinder the learning process (the <code class="Code-In-Text--PACKT-">variance_threshold</code> parameter)</li>
+      <li class="bullet">What to use as a baseline strategy for imputing missing values (the <code class="Code-In-Text--PACKT-">imputer</code> parameter, by default set to replace missing values with the mean of the feature) so that your input matrix will be completed and matrix multiplication will be possible (the basic computation in a neural network) </li>
+      <li class="bullet">Whether we should use a more sophisticated imputation strategy based on the missing values of all the numeric data (the <code class="Code-In-Text--PACKT-">multivariate_imputer</code> parameter), because sometimes points are not missing at random and other variables may supply the information you need for a proper estimation</li>
+      <li class="bullet">Whether to add a binary feature denoting for each feature where the missing values were, which is a good strategy because you often find information also on missing patterns (the <code class="Code-In-Text--PACKT-">add_indicator</code> parameter)</li>
+      <li class="bullet">Whether to transform the distribution of variables in order to force them to resemble a symmetric distribution (<code class="Code-In-Text--PACKT-">quantile_transformer</code> parameter, set to <code class="Code-In-Text--PACKT-">normal</code> by default) because your network will learn better from symmetrical data distributions</li>
+      <li class="bullet">Whether we should rescale our<a id="_idIndexMarker375"/> output based on the statistical normalization, that is, dividing by the standard deviation after having removed the mean (the <code class="Code-In-Text--PACKT-">scaler</code> parameter, set to <code class="Code-In-Text--PACKT-">True</code> by default)</li>
+    </ul>
+    <p class="normal">Now, bearing all that in mind, let's build our pipeline as follows:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">assemble_numeric_pipeline</span><span class="hljs-function">(</span><span class="hljs-params">variance_threshold=</span><span class="hljs-number">0.0</span><span class="hljs-params">, </span>
+<span class="hljs-params">                              imputer=</span><span class="hljs-string">'mean'</span><span class="hljs-params">, </span>
+<span class="hljs-params">                              multivariate_imputer=False, </span>
+<span class="hljs-params">                              add_indicator=True,</span>
+<span class="hljs-params">                              quantile_transformer=</span><span class="hljs-string">'normal'</span><span class="hljs-params">,</span>
+<span class="hljs-params">                              scaler=True</span><span class="hljs-function">):</span>
+    numeric_pipeline = []
+    <span class="hljs-keyword">if</span> variance_threshold <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">if</span> isinstance(variance_threshold, float):
+            numeric_pipeline.append((<span class="hljs-string">'var_filter'</span>, 
+                                    VarianceThreshold(threshold=variance_threshold)))
+        <span class="hljs-keyword">else</span>:
+            numeric_pipeline.append((<span class="hljs-string">'var_filter'</span>,
+                                     VarianceThreshold()))
+    <span class="hljs-keyword">if</span> imputer <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+        <span class="hljs-keyword">if</span> multivariate_imputer <span class="hljs-keyword">is</span> <span class="hljs-literal">True</span>:
+            numeric_pipeline.append((<span class="hljs-string">'imputer'</span>, 
+                                     IterativeImputer(estimator=ExtraTreesRegressor(n_estimators=<span class="hljs-number">100</span>, n_jobs=<span class="hljs-number">-2</span>), 
+                                                      initial_strategy=imputer,
+                                                      add_indicator=add_indicator)))
+        <span class="hljs-keyword">else</span>:
+            numeric_pipeline.append((<span class="hljs-string">'imputer'</span>, 
+                                     SimpleImputer(strategy=imputer, 
+                                                   add_indicator=add_indicator)
+                                    )
+                                   )
+    <span class="hljs-keyword">if</span> quantile_transformer <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+        numeric_pipeline.append((<span class="hljs-string">'transformer'</span>,
+                                 QuantileTransformer(n_quantiles=<span class="hljs-number">100</span>, 
+                                                     output_distribution=quantile_transformer, 
+                                                     random_state=<span class="hljs-number">42</span>)
+                                )
+                               )
+    <span class="hljs-keyword">if</span> scaler <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+        numeric_pipeline.append((<span class="hljs-string">'scaler'</span>, 
+                                 StandardScaler()
+                                )
+                               )
+    <span class="hljs-keyword">return</span> Pipeline(steps=numeric_pipeline)
+</code></pre>
+    <p class="normal">We can now create our <a id="_idIndexMarker376"/>numerical pipeline by specifying our transformation preferences:</p>
+    <pre class="programlisting code"><code class="hljs-code">numeric_pipeline = assemble_numeric_pipeline(variance_threshold=<span class="hljs-number">0.0</span>, 
+                              imputer=<span class="hljs-string">'mean'</span>, 
+                              multivariate_imputer=<span class="hljs-literal">False</span>, 
+                              add_indicator=<span class="hljs-literal">True</span>,
+                              quantile_transformer=<span class="hljs-string">'normal'</span>,
+                              scaler=<span class="hljs-literal">True</span>)
+</code></pre>
+    <p class="normal">We can immediately try our new function on the example by applying first the <code class="Code-In-Text--PACKT-">fit</code> and then the <code class="Code-In-Text--PACKT-">transform</code> methods:</p>
+    <pre class="programlisting code"><code class="hljs-code">numeric_pipeline.fit(example)
+np.round(numeric_pipeline.transform(example), <span class="hljs-number">3</span>)
+</code></pre>
+    <p class="normal">Here is the resulting output NumPy array:</p>
+    <pre class="programlisting code"><code class="hljs-code">array([[-0.707,  1.225, -0.   , -0.707,  1.414],
+       [ 1.414, -0.   ,  1.225,  1.414, -0.707],
+       [-0.707, -1.225, -1.225, -0.707, -0.707]])
+</code></pre>
+    <p class="normal">As you can see all the original data has been completely transformed, with all the missing values replaced.</p>
+    <h2 id="_idParaDest-200" class="title">How it works…</h2>
+    <p class="normal">As we previously<a id="_idIndexMarker377"/> mentioned, we are using scikit-learn for comparability with other machine learning solutions and because there are a few unique scikit-learn functions<a id="_idIndexMarker378"/> involved in the building of this recipe:</p>
+    <ul>
+      <li class="bullet"><code class="Code-In-Text--PACKT-">VarianceThreshold</code> (<a href="https://scikit-learn.org/stable/modules/generated/sklearn.feature_selection.VarianceThreshold.html"><span class="url">https://scikit-learn.org/stable/modules/generated/sklearn.feature_selection.VarianceThreshold.html</span></a>)</li>
+      <li class="bullet"><code class="Code-In-Text--PACKT-">IterativeImputer</code> (<a href="https://scikit-learn.org/stable/modules/generated/sklearn.impute.IterativeImputer.html"><span class="url">https://scikit-learn.org/stable/modules/generated/sklearn.impute.IterativeImputer.html</span></a>)</li>
+      <li class="bullet"><code class="Code-In-Text--PACKT-">SimpleImputer</code> (<a href="https://scikit-learn.org/stable/modules/generated/sklearn.impute.SimpleImputer.html"><span class="url">https://scikit-learn.org/stable/modules/generated/sklearn.impute.SimpleImputer.html</span></a>)</li>
+      <li class="bullet"><code class="Code-In-Text--PACKT-">QuantileTransformer</code> (<a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.QuantileTransformer.html"><span class="url">https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.QuantileTransformer.html</span></a>)</li>
+      <li class="bullet"><code class="Code-In-Text--PACKT-">StandardScaler</code> (<a href="https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html"><span class="url">https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html</span></a>)</li>
+      <li class="bullet"><code class="Code-In-Text--PACKT-">Pipeline</code> (<a href="https://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html"><span class="url">https://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html</span></a>)</li>
+    </ul>
+    <p class="normal">For each function, you will find a link pointing to the scikit-learn documentation with detailed information on how the function works. It is paramount to explain why the scikit-learn approach is so important for this recipe (and for the others you will find in this chapter).</p>
+    <p class="normal">When processing images or text, you usually don't need to define specific processes for respectively training and testing data. That's because you apply deterministic transformations to both. For instance, in images, you just divide the pixels' values by 255 in order to normalize them. </p>
+    <p class="normal">However, with tabular data you need transformations that are more complex and not deterministic at all because they involve learning and memorizing specific parameters. For instance, when imputing a missing value for a feature by using the mean, you have first to compute the mean from your training data. Then you have to reuse that exact value for any other new data you will apply the same imputation on (it won't work to compute again the mean on any new data because it could be from a slightly different distribution and may not match what your DNN has learned). </p>
+    <p class="normal">All of this involves <a id="_idIndexMarker379"/>keeping track of many parameters learned from your training data. scikit-learn may help you in that because when you use the <code class="Code-In-Text--PACKT-">fit</code> method, it learns and stores away all the parameters it derives from training data. Using the <code class="Code-In-Text--PACKT-">transform</code> method, you will apply the transformations with the learned-by-fit parameters on any new data (or on the very same training data).</p>
+    <h2 id="_idParaDest-201" class="title">There's more…</h2>
+    <p class="normal">scikit-learn functions usually return a NumPy array. It is not a problem to label the resulting array using the<a id="_idIndexMarker380"/> input columns, if no further feature creation has occurred. Unfortunately, this is not the case because of the transformation pipeline we created:</p>
+    <ul>
+      <li class="bullet">The variance threshold will remove features that are not useful</li>
+      <li class="bullet">Missing value imputation will create missing binary indicators</li>
+    </ul>
+    <p class="normal">We can actually explore this by inspecting the fitted pipeline and finding out which columns have been removed and what has been added from the original data. A function can be created to do just that for us automatically:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">derive_numeric_columns</span><span class="hljs-function">(</span><span class="hljs-params">df, pipeline</span><span class="hljs-function">):</span>
+    columns = df.columns
+    <span class="hljs-keyword">if</span> <span class="hljs-string">'var_filter'</span> <span class="hljs-keyword">in</span> pipeline.named_steps:
+        threshold = pipeline.named_steps.var_filter.threshold
+        columns = columns[pipeline.named_steps.var_filter.variances_&gt;threshold]
+    <span class="hljs-keyword">if</span> <span class="hljs-string">'imputer'</span> <span class="hljs-keyword">in</span> pipeline.named_steps:
+        missing_cols = pipeline.named_steps.imputer.indicator_.features_
+        <span class="hljs-keyword">if</span> len(missing_cols) &gt; <span class="hljs-number">0</span>:
+            columns = columns.append(columns[missing_cols] + <span class="hljs-string">'_missing'</span>)
+    <span class="hljs-keyword">return</span> columns
+</code></pre>
+    <p class="normal">When we try it on our example:</p>
+    <pre class="programlisting code"><code class="hljs-code">derive_numeric_columns(example, numeric_pipeline)
+</code></pre>
+    <p class="normal">We obtain a pandas index containing the remaining columns and the binary indicators (denoted by the name of the original feature and the <code class="Code-In-Text--PACKT-">_missing</code> suffix):</p>
+    <pre class="programlisting code"><code class="hljs-code">Index([<span class="hljs-string">'b'</span>, <span class="hljs-string">'c'</span>, <span class="hljs-string">'d'</span>, <span class="hljs-string">'c_missing'</span>, <span class="hljs-string">'d_missing'</span>], dtype=<span class="hljs-string">'object'</span>)
+</code></pre>
+    <div class="packt_tip">
+      <p class="Tip--PACKT-">Keeping track of your columns as you transform them can help you when you need to debug your transformed data and if you need to explain how your DNN works using tools such as shap (<a href="https://github.com/slundberg/shap"><span class="url">https://github.com/slundberg/shap</span></a>) or lime (<a href="https://github.com/marcotcr/lime"><span class="url">https://github.com/marcotcr/lime</span></a>).</p>
+    </div>
+    <p class="normal">This recipe should<a id="_idIndexMarker381"/> suffice for all your needs with regard to numerical data. Now let's proceed to examine dates and times.</p>
+    <h1 id="_idParaDest-202" class="title">Processing dates</h1>
+    <p class="normal">Dates are common in <a id="_idIndexMarker382"/>databases and, especially when processing the forecasting of future estimates (such as in sales forecasting), they can prove indispensable. Neural networks cannot process dates as they are, since they are often expressed as strings. Hence, you have to transform them by separating their numerical elements, and once you have split a date into its components, you have just numbers that can easily be dealt with by any neural network. Certain time elements, however, are cyclical (days, months, hours, days of the week) and lower and higher numbers are actually contiguous. Consequently, you need to use sine and cosine functions, which will render such cyclical numbers in a format that can be both understood and correctly interpreted by a DNN. </p>
+    <h2 id="_idParaDest-203" class="title">Getting ready</h2>
+    <p class="normal">Since we need to code a class operating using the fit/transform operations that are typical of scikit-learn, we import the <code class="Code-In-Text--PACKT-">BaseEstimator</code> and <code class="Code-In-Text--PACKT-">TransformerMixin</code> classes from scikit-learn to inherit from. This inheritance will help us to make our recipe perfectly compatible with all other functions from scikit-learn:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">from</span> sklearn.base <span class="hljs-keyword">import</span> BaseEstimator, TransformerMixin
+</code></pre>
+    <p class="normal">For testing purposes, we also prepare an example dataset of dates in string form, using the day/month/year format:</p>
+    <pre class="programlisting code"><code class="hljs-code">example = pd.DataFrame({<span class="hljs-string">'date_1'</span>: [<span class="hljs-string">'04/12/2018'</span>, <span class="hljs-string">'05/12/2019'</span>,  
+                                   <span class="hljs-string">'07/12/2020'</span>],
+                        <span class="hljs-string">'date_2'</span>: [<span class="hljs-string">'12/5/2018'</span>, <span class="hljs-string">'15/5/2015'</span>, 
+                                   <span class="hljs-string">'18/5/2016'</span>],
+                        <span class="hljs-string">'date_3'</span>: [<span class="hljs-string">'25/8/2019'</span>, <span class="hljs-string">'28/8/2018'</span>, 
+                                   <span class="hljs-string">'29/8/2017'</span>]})
+</code></pre>
+    <p class="normal">The provided example is quite short and simplistic, but it should illustrate all the relevant points as we work through it.</p>
+    <h2 id="_idParaDest-204" class="title">How to do it…</h2>
+    <p class="normal">This time we will design a class of our own, <code class="Code-In-Text--PACKT-">DateProcessor</code>. After being initialized, instances of this class can pick a pandas DataFrame and filter and process each date into a new DataFrame that can <a id="_idIndexMarker383"/>be processed by a DNN.</p>
+    <p class="normal">The process focuses on one date at a time, extracting days, days of the week, months, and years (additionally also hours and minutes), and transforming all cyclical time measures using sine and cosine transformations:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">class</span><span class="hljs-class"> </span><span class="hljs-title">DateProcessor</span><span class="hljs-class">(</span><span class="hljs-params">BaseEstimator, TransformerMixin</span><span class="hljs-class">):</span>
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">__init__</span><span class="hljs-function">(</span><span class="hljs-params">self, date_format=</span><span class="hljs-string">'%d/%m/%Y'</span><span class="hljs-params">, hours_secs=False</span><span class="hljs-function">):</span>
+        self.format = date_format
+        self.columns = <span class="hljs-literal">None</span>
+        self.time_transformations = [
+            (<span class="hljs-string">'day_sin'</span>, <span class="hljs-keyword">lambda</span> x: np.sin(<span class="hljs-number">2</span>*np.pi*x.dt.day/<span class="hljs-number">31</span>)),
+            (<span class="hljs-string">'day_cos'</span>, <span class="hljs-keyword">lambda</span> x: np.cos(<span class="hljs-number">2</span>*np.pi*x.dt.day/<span class="hljs-number">31</span>)),
+            (<span class="hljs-string">'dayofweek_sin'</span>, 
+                      <span class="hljs-keyword">lambda</span> x: np.sin(<span class="hljs-number">2</span>*np.pi*x.dt.dayofweek/<span class="hljs-number">6</span>)),
+            (<span class="hljs-string">'dayofweek_cos'</span>, 
+                      <span class="hljs-keyword">lambda</span> x: np.cos(<span class="hljs-number">2</span>*np.pi*x.dt.dayofweek/<span class="hljs-number">6</span>)),
+            (<span class="hljs-string">'month_sin'</span>, 
+                      <span class="hljs-keyword">lambda</span> x: np.sin(<span class="hljs-number">2</span>*np.pi*x.dt.month/<span class="hljs-number">12</span>)),
+            (<span class="hljs-string">'month_cos'</span>, 
+                      <span class="hljs-keyword">lambda</span> x: np.cos(<span class="hljs-number">2</span>*np.pi*x.dt.month/<span class="hljs-number">12</span>)),
+            (<span class="hljs-string">'year'</span>, 
+                      <span class="hljs-keyword">lambda</span> x: (x.dt.year - x.dt.year.min()                          ) / (x.dt.year.max() - x.dt.year.min()))
+        ]
+        <span class="hljs-keyword">if</span> hours_secs:
+            self.time_transformations = [
+                (<span class="hljs-string">'hour_sin'</span>, 
+                      <span class="hljs-keyword">lambda</span> x: np.sin(<span class="hljs-number">2</span>*np.pi*x.dt.hour/<span class="hljs-number">23</span>)),
+                (<span class="hljs-string">'hour_cos'</span>, 
+                      <span class="hljs-keyword">lambda</span> x: np.cos(<span class="hljs-number">2</span>*np.pi*x.dt.hour/<span class="hljs-number">23</span>)),
+                (<span class="hljs-string">'minute_sin'</span>, 
+                      <span class="hljs-keyword">lambda</span> x: np.sin(<span class="hljs-number">2</span>*np.pi*x.dt.minute/<span class="hljs-number">59</span>)),
+                (<span class="hljs-string">'minute_cos'</span>, 
+                      <span class="hljs-keyword">lambda</span> x: np.cos(<span class="hljs-number">2</span>*np.pi*x.dt.minute/<span class="hljs-number">59</span>))
+            ] + self.time_transformations
+    
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">fit</span><span class="hljs-function">(</span><span class="hljs-params">self, X, y=None, **fit_params</span><span class="hljs-function">):</span>
+        self.columns = self.transform(X.iloc[<span class="hljs-number">0</span>:<span class="hljs-number">1</span>,:]).columns
+        <span class="hljs-keyword">return</span> self
+    
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">transform</span><span class="hljs-function">(</span><span class="hljs-params">self, X, y=None, **fit_params</span><span class="hljs-function">):</span>
+        transformed = list()
+        <span class="hljs-keyword">for</span> col <span class="hljs-keyword">in</span> X.columns:
+            time_column = pd.to_datetime(X[col],
+                                   format=self.format)
+            <span class="hljs-keyword">for</span> label, func <span class="hljs-keyword">in</span> self.time_transformations:
+                transformed.append(func(time_column))
+                transformed[<span class="hljs-number">-1</span>].name += <span class="hljs-string">'_'</span> + label
+        transformed = pd.concat(transformed, axis=<span class="hljs-number">1</span>)
+        <span class="hljs-keyword">return</span> transformed
+            
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">fit_transform</span><span class="hljs-function">(</span><span class="hljs-params">self, X, y=None, **fit_params</span><span class="hljs-function">):</span>
+        self.fit(X, y, **fit_params)
+        <span class="hljs-keyword">return</span> self.transform(X)
+</code></pre>
+    <p class="normal">Now that we have scripted down the recipe in the form of a <code class="Code-In-Text--PACKT-">DateProcessor</code> class, let's explore more of its inner workings.</p>
+    <h2 id="_idParaDest-205" class="title">How it works…</h2>
+    <p class="normal">The key to the entire class is the transformation operated by the pandas <code class="Code-In-Text--PACKT-">to_datetime</code> function, which turns any string representing a date into the <code class="Code-In-Text--PACKT-">datetime64[ns]</code> type.</p>
+    <div class="packt_tip">
+      <p class="Tip--PACKT-"><code class="Code-In-Text--PACKT-">to_datetime</code> works because you provide it a template (the <code class="Code-In-Text--PACKT-">format</code> parameter) for turning <a id="_idIndexMarker384"/>strings into dates. For a complete guide on how to define such a template, please visit <a href="https://docs.python.org/3/library/datetime.html#strftime-and-strptime-behavior"><span class="url">https://docs.python.org/3/library/datetime.html#strftime-and-strptime-behavior</span></a>.</p>
+    </div>
+    <p class="normal">When you need to fit and transform your data, the class will automatically process all the dates into the right format and furthermore, perform transformations using sine and cosine functions:</p>
+    <pre class="programlisting code"><code class="hljs-code">DateProcessor().fit_transform(example)
+</code></pre>
+    <p class="normal">Some resulting transformations will be obvious, but some others related to cyclical time may appear puzzling. Let's spend<a id="_idIndexMarker385"/> a bit of time exploring how they work and why.</p>
+    <h2 id="_idParaDest-206" class="title">There's more…</h2>
+    <p class="normal">The class doesn't return the raw extraction of time elements such as the hour, the minute, or the day, but it transforms them using first a sine, then a cosine transformation. Let's plot how it transforms the 24 hours in order to get an better understanding of this recipe: </p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> matplotlib.pyplot <span class="hljs-keyword">as</span> plt
+sin_time = np.array([[t, np.sin(<span class="hljs-number">2</span>*np.pi*t/<span class="hljs-number">23</span>)] <span class="hljs-keyword">for</span> t <span class="hljs-keyword">in</span> range(<span class="hljs-number">0</span>, <span class="hljs-number">24</span>)])
+cos_time = np.array([[t, np.cos(<span class="hljs-number">2</span>*np.pi*t/<span class="hljs-number">23</span>)] <span class="hljs-keyword">for</span> t <span class="hljs-keyword">in</span> range(<span class="hljs-number">0</span>, <span class="hljs-number">24</span>)])
+plt.plot(sin_time[:,<span class="hljs-number">0</span>], sin_time[:,<span class="hljs-number">1</span>], label=<span class="hljs-string">'sin hour'</span>)
+plt.plot(cos_time[:,<span class="hljs-number">0</span>], cos_time[:,<span class="hljs-number">1</span>], label=<span class="hljs-string">'cos hour'</span>)
+plt.axhline(y=<span class="hljs-number">0.0</span>, linestyle=<span class="hljs-string">'--'</span>, color=<span class="hljs-string">'lightgray'</span>)
+plt.legend()
+plt.show()
+</code></pre>
+    <p class="normal">Here is the plot that you will obtain:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_07_01.png" alt=""/></figure>
+    <p class="packt_figref">Figure 7.1: Plotting of hourly time after sine and cosine transformations</p>
+    <p class="normal">From the plot, we can figure out how the start and end of the day coincide, thus closing the time cycle. Each transformation also returns the same value for a couple of different hours. That's the reason <a id="_idIndexMarker386"/>why we should pick both sine and cosine together; if you use both, each point in time has a different tuple of sine and cosine values, and so you can detect exactly where you are in continuous time. This can also be explained visually by plotting the sine and cosine values in a scatter plot:</p>
+    <pre class="programlisting code"><code class="hljs-code">ax = plt.subplot()
+ax.set_aspect(<span class="hljs-string">'equal'</span>)
+ax.set_xlabel(<span class="hljs-string">'sin hour'</span>)
+ax.set_ylabel(<span class="hljs-string">'cos hour'</span>)
+plt.scatter(sin_time[:,<span class="hljs-number">1</span>], cos_time[:,<span class="hljs-number">1</span>])
+plt.show()
+</code></pre>
+    <p class="normal">Here is the result:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_07_02.png" alt=""/></figure>
+    <p class="packt_figref">Figure 7.2: Combining the sine and cosine transformations of hourly time into a scatter plot</p>
+    <p class="normal">As in a clock, the hours are plotted <a id="_idIndexMarker387"/>in a circle, each one separate and distinct, yet in full cyclical continuity.</p>
+    <h1 id="_idParaDest-207" class="title">Processing categorical data</h1>
+    <p class="normal">Strings usually represent<a id="_idIndexMarker388"/> categorical data in tabular data. Each unique value in a categorical feature represents a quality that refers to the example we are examining (hence, we consider this<a id="_idIndexMarker389"/> information to be <strong class="keyword">qualitative</strong> whereas numerical information is <strong class="keyword">quantitative</strong>). In statistical terms, each unique value is called a <strong class="keyword">level</strong> and the categorical feature is called a <strong class="keyword">factor</strong>. Sometimes you can find <a id="_idIndexMarker390"/>numeric codes used as categorical (identifiers), when the qualitative information has been previously encoded into numbers, but the way to deal with them doesn't change: the information is in numeric values but it should be treated as categorical.</p>
+    <p class="normal">Since you don't know how each unique value in a categorical feature is related to every other value present in the feature (if you jump ahead and group values together or order them you are basically expressing a hypothesis you have about the data), you can treat each of them as a value in itself. Hence, you can derive the idea of creating a binary feature from each unique categorical value. This process is called one-hot encoding<a id="_idIndexMarker391"/> and it is the most common data processing approach that can make categorical data usable by DNNs and other machine learning algorithms.</p>
+    <p class="normal">For instance, if you have a categorical variable containing the unique values of red, blue, and green, you can turn it into three distinct binary variables, each one representing uniquely a single value, as represented in the following schema:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_07_03.png" alt=""/></figure>
+    <p class="normal">This approach <a id="_idIndexMarker392"/>presents a problem for DNNs, though. When your categorical variable has too many levels (conventionally more than 255), the resulting binary derived features are not only too numerous, making your dataset huge, but also carry little information since most of the numerical values will be just zeros (we call this <a id="_idIndexMarker393"/>situation <strong class="keyword">sparse data</strong>). Sparse data is somewhat problematic for a DNN because backpropagation doesn't work optimally when there are too many zeros in the data since the lack of information can stop the signal from making a meaningful difference as it's sent back through the network.</p>
+    <p class="normal">We therefore distinguish between low-cardinality and high-cardinality categorical variables, on the basis of their number of unique values and process (by one-hot encoding) only those categorical variables that we consider to have low cardinality (conventionally if there are less than 255 unique values, but you can choose a lower threshold, such as 64, 32, or even 24).</p>
+    <h2 id="_idParaDest-208" class="title">Getting ready</h2>
+    <p class="normal">We import the scikit-learn function for one-hot encoding and we prepare a simple example dataset containing categorical data both in string and numerical form:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">from</span> sklearn.preprocessing <span class="hljs-keyword">import</span> OneHotEncoder
+example = pd.DataFrame([[<span class="hljs-string">'car'</span>, <span class="hljs-number">1234</span>], [<span class="hljs-string">'house'</span>, <span class="hljs-number">6543</span>], 
+                  [<span class="hljs-string">'tree'</span>, <span class="hljs-number">3456</span>]], columns=[<span class="hljs-string">'object'</span>, <span class="hljs-string">'code'</span>])
+</code></pre>
+    <p class="normal">Now we can proceed to the recipe.</p>
+    <h2 id="_idParaDest-209" class="title">How to do it…</h2>
+    <p class="normal">We prepare a class that can turn numbers to strings, so, after using it, every numerical categorical feature will be processed in the same way as the strings. We then prepare our<a id="_idIndexMarker394"/> recipe, which is a scikit-learn pipeline that combines our string converter and one-hot encoding together (we won't forget to automatically deal with any missing values by converting them into unique values).</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">class</span><span class="hljs-class"> </span><span class="hljs-title">ToString</span><span class="hljs-class">(</span><span class="hljs-params">BaseEstimator, TransformerMixin</span><span class="hljs-class">):</span>
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">fit</span><span class="hljs-function">(</span><span class="hljs-params">self, X, y=None, **fit_params</span><span class="hljs-function">):</span>
+        <span class="hljs-keyword">return</span> self
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">transform</span><span class="hljs-function">(</span><span class="hljs-params">self, X, y=None, **fit_params</span><span class="hljs-function">):</span>
+        <span class="hljs-keyword">return</span> X.astype(str)
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">fit_transform</span><span class="hljs-function">(</span><span class="hljs-params">self, X, y=None, **fit_params</span><span class="hljs-function">):</span>
+        self.fit(X, y, **fit_params)
+        <span class="hljs-keyword">return</span> self.transform(X)
+    
+categorical_pipeline = Pipeline(steps=[
+         (<span class="hljs-string">'string_converter'</span>, ToString()),
+         (<span class="hljs-string">'imputer'</span>, SimpleImputer(strategy=<span class="hljs-string">'constant'</span>, 
+                                   fill_value=<span class="hljs-string">'missing'</span>)),
+         (<span class="hljs-string">'onehot'</span>, OneHotEncoder(handle_unknown=<span class="hljs-string">'ignore'</span>))])
+</code></pre>
+    <p class="normal">Though the code snippet is short, it indeed achieves quite a lot. Let's understand how it works.</p>
+    <h2 id="_idParaDest-210" class="title">How it works…</h2>
+    <p class="normal">Like the other methods we've seen, we just fit and transform our example:</p>
+    <pre class="programlisting code"><code class="hljs-code">categorical_pipeline.fit_transform(example).todense()
+</code></pre>
+    <p class="normal">Since the returned array will be sparse (a special format for datasets where zero values prevail), we can convert it back to our usual NumPy array format using the <code class="Code-In-Text--PACKT-">.todense</code> method.</p>
+    <h2 id="_idParaDest-211" class="title">There's more…</h2>
+    <p class="normal">One-hot encoding, by converting every categorical unique value into a variable of its own, produces many new features. In order to label them we have to inspect the scikit-learn one-hot encoding instance we used and extract the labels from it:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">derive_ohe_columns</span><span class="hljs-function">(</span><span class="hljs-params">df, pipeline</span><span class="hljs-function">):</span>
+    <span class="hljs-keyword">return</span> [str(col) + <span class="hljs-string">'_'</span> + str(lvl) 
+         <span class="hljs-keyword">for</span> col, lvls <span class="hljs-keyword">in</span> zip(df.columns,      
+         pipeline.named_steps.onehot.categories_) <span class="hljs-keyword">for</span> lvl <span class="hljs-keyword">in</span> lvls]
+</code></pre>
+    <p class="normal">For instance, in our example, now we can figure out what each new feature represents by calling the following function:</p>
+    <pre class="programlisting code"><code class="hljs-code">derive_ohe_columns(example, categorical_pipeline)
+</code></pre>
+    <p class="normal">The results provide <a id="_idIndexMarker395"/>us indication about both the original feature and the unique value represented by the binary variable:</p>
+    <pre class="programlisting code"><code class="hljs-code">['object_car',
+ 'object_house',
+ 'object_tree',
+ 'code_1234',
+ 'code_3456',
+ 'code_6543']
+</code></pre>
+    <p class="normal">As you can see, the results provide an indication of both the original feature and the unique value represented by the binary variable.</p>
+    <h1 id="_idParaDest-212" class="title">Processing ordinal data</h1>
+    <p class="normal">Ordinal data (for instance, rankings or star values in a review) is certainly more similar to numerical data than<a id="_idIndexMarker396"/> it is to categorical data, yet we have to first consider certain differences before dealing with it plainly as a number. The problem with categorical data is that you can process it as numerical data, but probably the distance between one point and the following one in the scale is different than the distance between the following one and the next (technically the steps could be different). This is because ordinal data doesn't represent quantities, but just ordering. On the other hand, we also treat it as categorical data, because categories are independent and we will lose the information implied in the ordering. The solution for ordinal data is simply to treat it as both a numerical and a categorical variable.</p>
+    <h2 id="_idParaDest-213" class="title">Getting ready</h2>
+    <p class="normal">First, we need to import the <code class="Code-In-Text--PACKT-">OrdinalEncoder</code> function from scikit-learn, which will help us in numerically recoding ordinal values, even when they are textual (such as the ordinal scale bad, neutral, and good):</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">from</span> sklearn.preprocessing <span class="hljs-keyword">import</span> OrdinalEncoder
+</code></pre>
+    <p class="normal">We can then prepare our example using two features containing ordinal information recorded as strings:</p>
+    <pre class="programlisting code"><code class="hljs-code">example = pd.DataFrame([[<span class="hljs-string">'first'</span>, <span class="hljs-string">'very much'</span>], 
+                        [<span class="hljs-string">'second'</span>, <span class="hljs-string">'very little'</span>], 
+                        [<span class="hljs-string">'third'</span>, <span class="hljs-string">'average'</span>]],
+                       columns = [<span class="hljs-string">'rank'</span>, <span class="hljs-string">'importance'</span>])
+</code></pre>
+    <p class="normal">Again, the example is just a toy dataset, but it should allow us to test the functionalities demonstrated by this recipe.</p>
+    <h2 id="_idParaDest-214" class="title">How to do it…</h2>
+    <p class="normal">At this point, we can <a id="_idIndexMarker397"/>prepare two pipelines. The first pipeline will be working on the ordinal data by turning it into ordered numeric (this transformation will preserve the ordering of the original feature). The second transformation one-hot encodes the ordinal data (a transformation that will preserve the step information between ordinal grades, but not their ordering). As with the date transformation in the recipe <em class="italic">Processing dates</em>, earlier in this chapter, just two pieces of information derived from your original data will be enough for you to process ordinal data in a DNN:</p>
+    <pre class="programlisting code"><code class="hljs-code">oe = OrdinalEncoder(categories=[[<span class="hljs-string">'first'</span>, <span class="hljs-string">'second'</span>, <span class="hljs-string">'third'</span>],  
+                     [<span class="hljs-string">'very much'</span>, <span class="hljs-string">'average'</span>, <span class="hljs-string">'very little'</span>]])
+categorical_pipeline = Pipeline(steps=[
+            (<span class="hljs-string">'string_converter'</span>, ToString()),
+            (<span class="hljs-string">'imputer'</span>, SimpleImputer(strategy=<span class="hljs-string">'constant'</span>, 
+                                      fill_value=<span class="hljs-string">'missing'</span>)),
+            (<span class="hljs-string">'onehot'</span>, OneHotEncoder(handle_unknown=<span class="hljs-string">'ignore'</span>))])
+</code></pre>
+    <p class="normal">As this recipe is mainly composed of a scikit-learn pipeline, it should be quite familiar to you. Let's delve into it to understand more of its workings.</p>
+    <h2 id="_idParaDest-215" class="title">How it works…</h2>
+    <p class="normal">All you have to do is to operate the transformations separately and then stack the resulting vectors together: </p>
+    <pre class="programlisting code"><code class="hljs-code">np.hstack((oe.fit_transform(example), categorical_pipeline.fit_transform(example).todense()))
+</code></pre>
+    <p class="normal">Here is the result from our example:</p>
+    <pre class="programlisting code"><code class="hljs-code">matrix([[0., 0., 1., 0., 0., 0., 0., 1.],
+        [1., 2., 0., 1., 0., 0., 1., 0.],
+        [2., 1., 0., 0., 1., 1., 0., 0.]])
+</code></pre>
+    <p class="normal">Columns can be easily derived using the <code class="Code-In-Text--PACKT-">derive_ohe_columns</code> function that we have seen before:</p>
+    <pre class="programlisting code"><code class="hljs-code">example.columns.tolist() + derive_ohe_columns(example, categorical_pipeline)
+</code></pre>
+    <p class="normal">Here is the list containing<a id="_idIndexMarker398"/> the transformed column names:</p>
+    <pre class="programlisting code"><code class="hljs-code">['rank',
+ 'importance',
+ 'rank_first',
+ 'rank_second',
+ 'rank_third',
+ 'importance_average',
+ 'importance_very little',
+ 'importance_very much']
+</code></pre>
+    <p class="normal">By combining the variables covering the numerical part and the unique values of an ordinal variable, we should now be able to utilize all the real information from our data. </p>
+    <h1 id="_idParaDest-216" class="title">Processing high-cardinality categorical data</h1>
+    <p class="normal">When processing high-cardinality categorical features, we can use the previously mentioned one-hot encoding<a id="_idIndexMarker399"/> strategy. However, we may encounter problems because the resulting matrix is too sparse (many zero values), thus preventing our DNN from converging to a good solution, or making the dataset unfeasible to handle (because sparse matrices made dense can occupy a large amount of memory).</p>
+    <p class="normal">The best solution instead is to pass them to our DNN as numerically labeled features and let a Keras embedding layer take care of them (<a href="https://www.tensorflow.org/api_docs/python/tf/keras/layers/Embedding"><span class="url">https://www.tensorflow.org/api_docs/python/tf/keras/layers/Embedding</span></a>). An embedding layers is just a <a id="_idIndexMarker400"/>matrix of weights that can convert the high-cardinality categorical input into a lower-dimensionality numerical output. It is basically a weighted linear combination whose weights are optimized to convert categories into numbers that can best help the prediction process.</p>
+    <p class="normal">Under the hood, the embedding layer converts your categorical data into one-hot-encoded vectors that become the input of a small neural network. The purpose of this small neural network is just to mix and combine the inputs together into a smaller output layer. The one-hot encoding performed by the layer works only on numerically labeled categories (no strings), so it is paramount to transform our high-cardinality categorical data in the correct way.</p>
+    <p class="normal">The scikit-learn package provides the <code class="Code-In-Text--PACKT-">LabelEncoder</code> function as a possible solution, but this method presents some problems, because it cannot handle previously unseen categories, nor can it properly<a id="_idIndexMarker401"/> work in a fit/transform regime. Our recipe has to wrap it up and make it suitable for producing the correct input and information for a Keras embedding layer.</p>
+    <h2 id="_idParaDest-217" class="title">Getting ready</h2>
+    <p class="normal">In this recipe, we will need to redefine the <code class="Code-In-Text--PACKT-">LabelEncoder</code> function from scikit-learn and make it suitable for a fit/transform process:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">from</span> sklearn.preprocessing <span class="hljs-keyword">import</span> LabelEncoder
+</code></pre>
+    <p class="normal">Since we need to simulate a high-cardinality categorical variable, we will use random unique values (made of letters and digits) created by a simple script. That will allow us to test a larger number of examples, too:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> string
+<span class="hljs-keyword">import</span> random
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">random_id</span><span class="hljs-function">(</span><span class="hljs-params">length=</span><span class="hljs-number">8</span><span class="hljs-function">):</span>
+    voc = string.ascii_lowercase + string.digits
+    <span class="hljs-keyword">return</span> <span class="hljs-string">''</span>.join(random.choice(voc) <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(length))
+example = pd.DataFrame({<span class="hljs-string">'high_cat_1'</span>: [random_id(length=<span class="hljs-number">2</span>) 
+                                       <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(<span class="hljs-number">500</span>)], 
+                        <span class="hljs-string">'high_cat_2'</span>: [random_id(length=<span class="hljs-number">3</span>) 
+                                       <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(<span class="hljs-number">500</span>)], 
+                        <span class="hljs-string">'high_cat_3'</span>: [random_id(length=<span class="hljs-number">4</span>) 
+                                       <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(<span class="hljs-number">500</span>)]})
+</code></pre>
+    <p class="normal">This is the output of our random example generator:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_07_04.png" alt=""/></figure>
+    <p class="normal">The first column contains a two-letter code, the second uses three letters, and the last one four letters.</p>
+    <h2 id="_idParaDest-218" class="title">How to do it…</h2>
+    <p class="normal">In this recipe, we will prepare another scikit-learn class. It extends the existing <code class="Code-In-Text--PACKT-">LabelEncoder</code> function because it automatically handles missing values. It keeps records of the mapping between<a id="_idIndexMarker402"/> the original categorical values and their resulting numeric equivalents and at transformation time, it can handle previously unseen categories, labeling them as unknown:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">class</span><span class="hljs-class"> </span><span class="hljs-title">LEncoder</span><span class="hljs-class">(</span><span class="hljs-params">BaseEstimator, TransformerMixin</span><span class="hljs-class">):</span>
+    
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">__init__</span><span class="hljs-function">(</span><span class="hljs-params">self</span><span class="hljs-function">):</span>
+        self.encoders = dict()
+        self.dictionary_size = list()
+        self.unk = <span class="hljs-number">-1</span>
+    
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">fit</span><span class="hljs-function">(</span><span class="hljs-params">self, X, y=None, **fit_params</span><span class="hljs-function">):</span>
+        <span class="hljs-keyword">for</span> col <span class="hljs-keyword">in</span> range(X.shape[<span class="hljs-number">1</span>]):
+            le = LabelEncoder()
+            le.fit(X.iloc[:, col].fillna(<span class="hljs-string">'_nan'</span>))
+            le_dict = dict(zip(le.classes_, 
+                               le.transform(le.classes_)))
+            
+            <span class="hljs-keyword">if</span> <span class="hljs-string">'_nan'</span> <span class="hljs-keyword">not</span> <span class="hljs-keyword">in</span> le_dict:
+                max_value = max(le_dict.values())
+                le_dict[<span class="hljs-string">'_nan'</span>] = max_value
+            
+            max_value = max(le_dict.values())
+            le_dict[<span class="hljs-string">'_unk'</span>] = max_value
+            
+            self.unk = max_value
+            self.dictionary_size.append(len(le_dict))
+            col_name = X.columns[col]
+            self.encoders[col_name] = le_dict
+            
+        <span class="hljs-keyword">return</span> self
+    
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">transform</span><span class="hljs-function">(</span><span class="hljs-params">self, X, y=None, **fit_params</span><span class="hljs-function">):</span>
+        output = list()
+        <span class="hljs-keyword">for</span> col <span class="hljs-keyword">in</span> range(X.shape[<span class="hljs-number">1</span>]):
+            col_name = X.columns[col]
+            le_dict = self.encoders[col_name]
+            emb = X.iloc[:, col].fillna(<span class="hljs-string">'_nan'</span>).apply(<span class="hljs-keyword">lambda</span> x: 
+                           le_dict.get(x, le_dict[<span class="hljs-string">'_unk'</span>])).values
+            output.append(pd.Series(emb, 
+                                name=col_name).astype(np.int32))
+        <span class="hljs-keyword">return</span> output
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">fit_transform</span><span class="hljs-function">(</span><span class="hljs-params">self, X, y=None, **fit_params</span><span class="hljs-function">):</span>
+        self.fit(X, y, **fit_params)
+        <span class="hljs-keyword">return</span> self.transform(X)
+</code></pre>
+    <p class="normal">Like the other classes we've seen so far, <code class="Code-In-Text--PACKT-">LEncoder</code> has a fitting method that stores information for future uses and a transform method that applies transformations based on the information previously stored after fitting it to the training data.</p>
+    <h2 id="_idParaDest-219" class="title">How it works…</h2>
+    <p class="normal">After instancing our label <a id="_idIndexMarker403"/>encoder, we simply fit and transform our example, turning each categorical feature into a sequence of numeric labels:</p>
+    <pre class="programlisting code"><code class="hljs-code">le = LEncoder()
+le.fit_transform(example)
+</code></pre>
+    <p class="normal">After all the coding to complete the recipe, the execution of this class is indeed simple and straightforward.</p>
+    <h2 id="_idParaDest-220" class="title">There's more…</h2>
+    <p class="normal">In order for the Keras embeddings<a id="_idIndexMarker404"/> layers to work properly, we need to specify the input size of our high-cardinality categorical variable. By accessing the <code class="Code-In-Text--PACKT-">le.dictionary_size</code> in our examples, we had <code class="Code-In-Text--PACKT-">412</code>, <code class="Code-In-Text--PACKT-">497</code>, and <code class="Code-In-Text--PACKT-">502</code> distinct values in our example variables:</p>
+    <pre class="programlisting code"><code class="hljs-code">le.dictionary_size
+</code></pre>
+    <p class="normal">In our examples, we had <code class="Code-In-Text--PACKT-">412</code>, <code class="Code-In-Text--PACKT-">497</code>, and <code class="Code-In-Text--PACKT-">502</code> distinct values, respectively, in our example variables:</p>
+    <pre class="programlisting code"><code class="hljs-code">[<span class="hljs-number">412</span>, <span class="hljs-number">497</span>, <span class="hljs-number">502</span>]
+</code></pre>
+    <p class="normal">This number<a id="_idIndexMarker405"/> includes the <strong class="keyword">missing</strong> and <strong class="keyword">unknown</strong> labels, even if there were no missing or<a id="_idIndexMarker406"/> unknown elements in the examples we fitted.</p>
+    <h1 id="_idParaDest-221" class="title">Wrapping up all the processing</h1>
+    <p class="normal">Now that we have completed the recipes<a id="_idIndexMarker407"/> relating to processing different kinds of tabular data, in this recipe we will be wrapping everything together in a class that can easily handle all the fit/transform operations with a pandas DataFrame as input and explicit specifications of what columns to process and how.</p>
+    <h2 id="_idParaDest-222" class="title">Getting ready</h2>
+    <p class="normal">Since we will combine multiple transformations, we will take advantage of the <code class="Code-In-Text--PACKT-">FeatureUnion</code> function from scikit-learn, a function that can concatenate them together easily:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">from</span> sklearn.pipeline <span class="hljs-keyword">import</span> FeatureUnion
+</code></pre>
+    <p class="normal">As a testing dataset, we will then simply combine all our previously used test data:</p>
+    <pre class="programlisting code"><code class="hljs-code">example = pd.concat([
+pd.DataFrame([[<span class="hljs-number">1</span>, <span class="hljs-number">2</span>, <span class="hljs-number">3</span>, np.nan], [<span class="hljs-number">1</span>, <span class="hljs-number">3</span>, np.nan, <span class="hljs-number">4</span>],[<span class="hljs-number">1</span>, <span class="hljs-number">2</span>, <span class="hljs-number">2</span>, <span class="hljs-number">2</span>]], 
+             columns = [<span class="hljs-string">'a'</span>, <span class="hljs-string">'b'</span>, <span class="hljs-string">'c'</span>, <span class="hljs-string">'d'</span>]),
+pd.DataFrame({<span class="hljs-string">'date_1'</span>: [<span class="hljs-string">'04/12/2018'</span>, <span class="hljs-string">'05/12/2019'</span>,<span class="hljs-string">'07/12/2020'</span>],
+              <span class="hljs-string">'date_2'</span>: [<span class="hljs-string">'12/5/2018'</span>, <span class="hljs-string">'15/5/2015'</span>, <span class="hljs-string">'18/5/2016'</span>],
+              <span class="hljs-string">'date_3'</span>: [<span class="hljs-string">'25/8/2019'</span>, <span class="hljs-string">'28/8/2018'</span>, <span class="hljs-string">'29/8/2017'</span>]}),
+pd.DataFrame([[<span class="hljs-string">'first'</span>, <span class="hljs-string">'very much'</span>], [<span class="hljs-string">'second'</span>, <span class="hljs-string">'very little'</span>],   
+              [<span class="hljs-string">'third'</span>, <span class="hljs-string">'average'</span>]], 
+             columns = [<span class="hljs-string">'rank'</span>, <span class="hljs-string">'importance'</span>]),
+pd.DataFrame([[<span class="hljs-string">'car'</span>, <span class="hljs-number">1234</span>], [<span class="hljs-string">'house'</span>, <span class="hljs-number">6543</span>], [<span class="hljs-string">'tree'</span>, <span class="hljs-number">3456</span>]], 
+             columns=[<span class="hljs-string">'object'</span>, <span class="hljs-string">'code'</span>]),
+pd.DataFrame({<span class="hljs-string">'high_cat_1'</span>: [random_id(length=<span class="hljs-number">2</span>) 
+                             <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(<span class="hljs-number">3</span>)], 
+              <span class="hljs-string">'high_cat_2'</span>: [random_id(length=<span class="hljs-number">3</span>) 
+                             <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(<span class="hljs-number">3</span>)], 
+              <span class="hljs-string">'high_cat_3'</span>: [random_id(length=<span class="hljs-number">4</span>) 
+                             <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(<span class="hljs-number">3</span>)]})
+], axis=<span class="hljs-number">1</span>)
+</code></pre>
+    <p class="normal">As for as our toy dataset, we just combine all the datasets we have used up to now.</p>
+    <h2 id="_idParaDest-223" class="title">How to do it…</h2>
+    <p class="normal">The wrapper class of this<a id="_idIndexMarker408"/> recipe has been split into parts, in order to help you to inspect and study the code better. The first part comprises the initialization, which effectively incorporates all the recipes we have seen so far in this chapter:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">class</span><span class="hljs-class"> </span><span class="hljs-title">TabularTransformer</span><span class="hljs-class">(</span><span class="hljs-params">BaseEstimator, TransformerMixin</span><span class="hljs-class">):</span>
+    
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">instantiate</span><span class="hljs-function">(</span><span class="hljs-params">self, param</span><span class="hljs-function">):</span>
+        <span class="hljs-keyword">if</span> isinstance(param, str):
+            <span class="hljs-keyword">return</span> [param]
+        <span class="hljs-keyword">elif</span> isinstance(param, list):
+            <span class="hljs-keyword">return</span> param
+        <span class="hljs-keyword">else</span>:
+            <span class="hljs-keyword">return</span> <span class="hljs-literal">None</span>
+    
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">__init__</span><span class="hljs-function">(</span><span class="hljs-params">self, numeric=None, dates=None, </span>
+<span class="hljs-params">                 ordinal=None, cat=None, highcat=None,</span>
+<span class="hljs-params">                 variance_threshold=</span><span class="hljs-number">0.0</span><span class="hljs-params">, missing_imputer=</span><span class="hljs-string">'mean'</span><span class="hljs-params">,  </span>
+<span class="hljs-params">                 use_multivariate_imputer=False,</span>
+<span class="hljs-params">                 add_missing_indicator=True, </span>
+<span class="hljs-params">                 quantile_transformer=</span><span class="hljs-string">'normal'</span><span class="hljs-params">, scaler=True,</span>
+<span class="hljs-params">                 ordinal_categories=</span><span class="hljs-string">'auto'</span><span class="hljs-params">, </span>
+<span class="hljs-params">                 date_format=</span><span class="hljs-string">'%d/%m/%Y'</span><span class="hljs-params">, hours_secs=False</span><span class="hljs-function">):</span>
+        
+        self.numeric = self.instantiate(numeric)
+        self.dates = self.instantiate(dates)
+        self.ordinal = self.instantiate(ordinal)
+        self.cat  = self.instantiate(cat)
+        self.highcat = self.instantiate(highcat)
+        self.columns = <span class="hljs-literal">None</span>
+        self.vocabulary = <span class="hljs-literal">None</span>
+</code></pre>
+    <p class="normal">After having recorded all the <a id="_idIndexMarker409"/>key parameters of the wrappers, we proceed to examine all the individual parts of it. Please don't forget that all these code snippets are part of the same <code class="Code-In-Text--PACKT-">__init__</code> method and that we are simply re-using the recipes we have seen previously, therefore for any details of these code snippets, just refer to the previous recipes.</p>
+    <p class="normal">Here we record the numeric pipeline:</p>
+    <pre class="programlisting code"><code class="hljs-code">        self.numeric_process = assemble_numeric_pipeline(
+                    variance_threshold=variance_threshold, 
+                    imputer=missing_imputer, 
+                    multivariate_imputer=use_multivariate_imputer, 
+                    add_indicator=add_missing_indicator,
+                    quantile_transformer=quantile_transformer,
+                    scaler=scaler)
+</code></pre>
+    <p class="normal">After that, we record the pipeline processing time-related features:</p>
+    <pre class="programlisting code"><code class="hljs-code">        self.dates_process = DateProcessor(
+                   date_format=date_format, hours_secs=hours_secs)
+</code></pre>
+    <p class="normal">Now it is the turn of ordinal variables:</p>
+    <pre class="programlisting code"><code class="hljs-code">        self.ordinal_process = FeatureUnion(
+                [(<span class="hljs-string">'ordinal'</span>, 
+                 OrdinalEncoder(categories=ordinal_categories)),
+                 (<span class="hljs-string">'categorial'</span>,   
+                 Pipeline(steps=[(<span class="hljs-string">'string_converter'</span>, ToString()),
+                 (<span class="hljs-string">'imputer'</span>, 
+                 SimpleImputer(strategy=<span class="hljs-string">'constant'</span>, 
+                               fill_value=<span class="hljs-string">'missing'</span>)),
+                 (<span class="hljs-string">'onehot'</span>, 
+                 OneHotEncoder(handle_unknown=<span class="hljs-string">'ignore'</span>))]))])
+</code></pre>
+    <p class="normal">We close with the categorical pipelines, both the low-and high-categorical ones:</p>
+    <pre class="programlisting code"><code class="hljs-code">        self.cat_process = Pipeline(steps=[
+              (<span class="hljs-string">'string_converter'</span>, ToString()),
+              (<span class="hljs-string">'imputer'</span>, SimpleImputer(strategy=<span class="hljs-string">'constant'</span>, 
+                                        fill_value=<span class="hljs-string">'missing'</span>)),
+              (<span class="hljs-string">'onehot'</span>, OneHotEncoder(handle_unknown=<span class="hljs-string">'ignore'</span>))])
+        self.highcat_process = LEncoder()
+</code></pre>
+    <p class="normal">The next part regards the fitting. Depending on the different variable types available, the appropriate<a id="_idIndexMarker410"/> fit process will be applied and the newly processed or generated columns will be recorded in the <code class="Code-In-Text--PACKT-">.columns</code> index list:</p>
+    <pre class="programlisting code"><code class="hljs-code">    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">fit</span><span class="hljs-function">(</span><span class="hljs-params">self, X, y=None, **fit_params</span><span class="hljs-function">):</span>
+        self.columns = list()
+        <span class="hljs-keyword">if</span> self.numeric:
+            self.numeric_process.fit(X[self.numeric])
+            self.columns += derive_numeric_columns(
+                               X[self.numeric], 
+                               self.numeric_process).to_list()
+        <span class="hljs-keyword">if</span> self.dates:
+            self.dates_process.fit(X[self.dates])
+            self.columns += self.dates_process.columns.to_list()
+        <span class="hljs-keyword">if</span> self.ordinal:
+            self.ordinal_process.fit(X[self.ordinal])
+            self.columns += self.ordinal + derive_ohe_columns(
+                      X[self.ordinal], 
+                      self.ordinal_process.transformer_list[<span class="hljs-number">1</span>][<span class="hljs-number">1</span>])
+        <span class="hljs-keyword">if</span> self.cat:
+            self.cat_process.fit(X[self.cat])
+            self.columns += derive_ohe_columns(X[self.cat], 
+                                               self.cat_process)
+        <span class="hljs-keyword">if</span> self.highcat:
+            self.highcat_process.fit(X[self.highcat])
+            self.vocabulary = dict(zip(self.highcat,  
+                            self.highcat_process.dictionary_size))
+            self.columns = [self.columns, self.highcat]
+        <span class="hljs-keyword">return</span> self
+</code></pre>
+    <p class="normal">The <code class="Code-In-Text--PACKT-">transform</code> method provides all the transformations and matrix joining in order to return a list of arrays containing, as their first element, the numerical parts of the processed data, followed by the<a id="_idIndexMarker411"/> numerical label vectors representing the high-cardinality categorical variables: </p>
+    <pre class="programlisting code"><code class="hljs-code">    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">transform</span><span class="hljs-function">(</span><span class="hljs-params">self, X, y=None, **fit_params</span><span class="hljs-function">):</span>
+        flat_matrix = list()
+        <span class="hljs-keyword">if</span> self.numeric:
+            flat_matrix.append(
+                   self.numeric_process.transform(X[self.numeric])
+                              .astype(np.float32))
+        <span class="hljs-keyword">if</span> self.dates:
+            flat_matrix.append(
+                   self.dates_process.transform(X[self.dates])
+                              .values
+                              .astype(np.float32))
+        <span class="hljs-keyword">if</span> self.ordinal:
+            flat_matrix.append(
+                   self.ordinal_process.transform(X[self.ordinal])
+                              .todense()
+                              .astype(np.float32))
+        <span class="hljs-keyword">if</span> self.cat:
+            flat_matrix.append(
+                   self.cat_process.transform(X[self.cat])
+                              .todense()
+                              .astype(np.float32))
+        <span class="hljs-keyword">if</span> self.highcat:
+            cat_vectors = self.highcat_process.transform(
+                                                  X[self.highcat])
+            <span class="hljs-keyword">if</span> len(flat_matrix) &gt; <span class="hljs-number">0</span>:
+                <span class="hljs-keyword">return</span> [np.hstack(flat_matrix)] + cat_vectors
+            <span class="hljs-keyword">else</span>:
+                <span class="hljs-keyword">return</span> cat_vectors
+        <span class="hljs-keyword">else</span>:
+            <span class="hljs-keyword">return</span> np.hstack(flat_matrix)
+</code></pre>
+    <p class="normal">Finally, we set the <code class="Code-In-Text--PACKT-">fit_transform</code> method, which sequentially executes the fit and transform operations:</p>
+    <pre class="programlisting code"><code class="hljs-code">    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">fit_transform</span><span class="hljs-function">(</span><span class="hljs-params">self, X, y=None, **fit_params</span><span class="hljs-function">):</span>
+        self.fit(X, y, **fit_params)
+        <span class="hljs-keyword">return</span> self.transform(X)
+</code></pre>
+    <p class="normal">Now that we have finished wrapping everything together, we can take a look at how it works.</p>
+    <h2 id="_idParaDest-224" class="title">How it works…</h2>
+    <p class="normal">In our test, we assign the list of column names to variables depending on their type:</p>
+    <pre class="programlisting code"><code class="hljs-code">numeric_vars = [<span class="hljs-string">'a'</span>, <span class="hljs-string">'b'</span>, <span class="hljs-string">'c'</span>, <span class="hljs-string">'d'</span>]
+date_vars = [<span class="hljs-string">'date_1'</span>, <span class="hljs-string">'date_2'</span>, <span class="hljs-string">'date_3'</span>]
+ordinal_vars = [<span class="hljs-string">'rank'</span>, <span class="hljs-string">'importance'</span>]
+cat_vars = [<span class="hljs-string">'object'</span>, <span class="hljs-string">'code'</span>]
+highcat_vars = [<span class="hljs-string">'high_cat_1'</span>, <span class="hljs-string">'high_cat_2'</span>, <span class="hljs-string">'high_cat_3'</span>]
+tt = TabularTransformer(numeric=numeric_vars, dates=date_vars, 
+                        ordinal=ordinal_vars, cat=cat_vars, 
+                        highcat=highcat_vars)
+</code></pre>
+    <p class="normal">After having<a id="_idIndexMarker412"/> instantiated the <code class="Code-In-Text--PACKT-">TabularTransformer</code>, and mapped the variables we need to be processed to their type, we proceed to fit and transform our example dataset:</p>
+    <pre class="programlisting code"><code class="hljs-code">input_list = tt.fit_transform(example)
+</code></pre>
+    <p class="normal">The result is a list of NumPy arrays. We can iterate through them and print their shape in order to check how the output is composed:</p>
+    <pre class="programlisting code"><code class="hljs-code">print([(item.shape, item.dtype) <span class="hljs-keyword">for</span> item <span class="hljs-keyword">in</span> input_list])
+</code></pre>
+    <p class="normal">The printed result reports a larger array as its first element (the combined result of all processes except the high-cardinality categorical one):</p>
+    <pre class="programlisting code"><code class="hljs-code">[((3, 40), dtype('float32')), ((3,), dtype('int32')), ((3,), dtype('int32')), ((3,), dtype('int32'))]
+</code></pre>
+    <p class="normal">Our DNN can now expect a list as input, where the first element is a numerical matrix and the following elements are vectors to be sent to categorical embeddings layers.</p>
+    <h2 id="_idParaDest-225" class="title">There's more…</h2>
+    <p class="normal">In order to be able to<a id="_idIndexMarker413"/> retrace each column and vector name, the <code class="Code-In-Text--PACKT-">TabularTransformer</code> has a <code class="Code-In-Text--PACKT-">columns</code> method, <code class="Code-In-Text--PACKT-">tt.columns</code>, that can be invoked. The <code class="Code-In-Text--PACKT-">TabularTransformer</code> can also call <code class="Code-In-Text--PACKT-">tt.vocabulary</code> for information about the dimensionality of the categorical variables, which is necessary in order to correctly set the input shape of the embeddings layers in the network. The returned result is a dictionary in which the column name is the key and the dictionary size is the value:</p>
+    <pre class="programlisting code"><code class="hljs-code">{<span class="hljs-string">'high_cat_1'</span>: <span class="hljs-number">5</span>, <span class="hljs-string">'high_cat_2'</span>: <span class="hljs-number">5</span>, <span class="hljs-string">'high_cat_3'</span>: <span class="hljs-number">5</span>}
+</code></pre>
+    <p class="normal">Now that we have these two methods for tracking down variable names (<code class="Code-In-Text--PACKT-">tt.columns</code>) and defining the vocabulary of high-cardinality variables (<code class="Code-In-Text--PACKT-">tt.vocabulary</code>), we are just a step away from a complete deep leaning framework for deep learning processing of tabular data.</p>
+    <h1 id="_idParaDest-226" class="title">Setting up a data generator</h1>
+    <p class="normal">We are just missing one<a id="_idIndexMarker414"/> key ingredient before we try our framework out on a difficult test task. The previous recipe presented a <code class="Code-In-Text--PACKT-">TabularTransformer</code> that can effectively turn a pandas DataFrame into numerical arrays that a DNN can process. Yet, the recipe can only deal with all the data at once. The next step is to provide a way to create batches of the data of different sizes. This could be accomplished using <code class="Code-In-Text--PACKT-">tf.data</code> or a Keras generator and, since previously in the book we have already explored quite a few examples with <code class="Code-In-Text--PACKT-">tf.data</code>, this time we will prepare the code for a Keras generator that's capable of generating random batches on the fly when our DNN is learning. </p>
+    <h2 id="_idParaDest-227" class="title">Getting ready</h2>
+    <p class="normal">Our generator will inherit from the <code class="Code-In-Text--PACKT-">Sequence</code> class:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">from</span> tensorflow.keras.utils <span class="hljs-keyword">import</span> Sequence
+</code></pre>
+    <p class="normal">The <code class="Code-In-Text--PACKT-">Sequence</code> class is the base object for fitting a sequence of data and it requires you to implement custom <code class="Code-In-Text--PACKT-">__getitem__</code> (which will return a complete batch) and <code class="Code-In-Text--PACKT-">__len__</code> (which will report how many batches are necessary to complete an epoch) methods.</p>
+    <h2 id="_idParaDest-228" class="title">How to do it…</h2>
+    <p class="normal">We now script a<a id="_idIndexMarker415"/> new class called <code class="Code-In-Text--PACKT-">DataGenerator</code> that inherits from the Keras <code class="Code-In-Text--PACKT-">Sequence</code> class:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">class</span><span class="hljs-class"> </span><span class="hljs-title">DataGenerator</span><span class="hljs-class">(</span><span class="hljs-params">Sequence</span><span class="hljs-class">):</span>
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">__init__</span><span class="hljs-function">(</span><span class="hljs-params">self, X, y,</span>
+<span class="hljs-params">                 tabular_transformer=None,</span>
+<span class="hljs-params">                 batch_size=</span><span class="hljs-number">32</span><span class="hljs-params">, </span>
+<span class="hljs-params">                 shuffle=False,</span>
+<span class="hljs-params">                 dict_output=False</span>
+<span class="hljs-params">                 </span><span class="hljs-function">):</span>
+        
+        self.X = X
+        self.y = y
+        self.tbt = tabular_transformer
+        self.tabular_transformer = tabular_transformer
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        self.dict_output = dict_output
+        self.indexes = self._build_index()
+        self.on_epoch_end()
+        self.item = <span class="hljs-number">0</span>
+    
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">_build_index</span><span class="hljs-function">(</span><span class="hljs-params">self</span><span class="hljs-function">):</span>
+        <span class="hljs-keyword">return</span> np.arange(len(self.y))
+    
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">on_epoch_end</span><span class="hljs-function">(</span><span class="hljs-params">self</span><span class="hljs-function">):</span>
+        <span class="hljs-keyword">if</span> self.shuffle:
+            np.random.shuffle(self.indexes)
+            
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">__len__</span><span class="hljs-function">(</span><span class="hljs-params">self</span><span class="hljs-function">):</span>
+        <span class="hljs-keyword">return</span> int(len(self.indexes) / self.batch_size) + <span class="hljs-number">1</span>
+  
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">__iter__</span><span class="hljs-function">(</span><span class="hljs-params">self</span><span class="hljs-function">):</span>
+        <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(self.__len__()):
+            self.item = i
+            <span class="hljs-keyword">yield</span> self.__getitem__(index=i)
+            
+        self.item = <span class="hljs-number">0</span>
+        
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">__next__</span><span class="hljs-function">(</span><span class="hljs-params">self</span><span class="hljs-function">):</span>
+        <span class="hljs-keyword">return</span> self.__getitem__(index=self.item)
+    
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">__call__</span><span class="hljs-function">(</span><span class="hljs-params">self</span><span class="hljs-function">):</span>
+        <span class="hljs-keyword">return</span> self.__iter__()
+            
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">__data_generation</span><span class="hljs-function">(</span><span class="hljs-params">self, selection</span><span class="hljs-function">):</span>
+        <span class="hljs-keyword">if</span> self.tbt <span class="hljs-keyword">is</span> <span class="hljs-keyword">not</span> <span class="hljs-literal">None</span>:
+            <span class="hljs-keyword">if</span> self.dict_output:
+                dct = {<span class="hljs-string">'input_'</span>+str(j) : arr <span class="hljs-keyword">for</span> j, 
+                        arr <span class="hljs-keyword">in</span> enumerate(
+                  self.tbt.transform(self.X.iloc[selection, :]))}
+                <span class="hljs-keyword">return</span> dct, self.y[selection]
+            <span class="hljs-keyword">else</span>:
+                <span class="hljs-keyword">return</span> self.tbt.transform(
+                     self.X.iloc[selection, :]), self.y[selection]
+        <span class="hljs-keyword">else</span>:
+            <span class="hljs-keyword">return</span> self.X.iloc[selection, :], self.y[selection]
+        
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">__getitem__</span><span class="hljs-function">(</span><span class="hljs-params">self, index</span><span class="hljs-function">):</span>
+        indexes = self.indexes[
+                  index*self.batch_size:(index+<span class="hljs-number">1</span>)*self.batch_size]
+        samples, labels = self.__data_generation(indexes)
+        <span class="hljs-keyword">return</span> samples, labels, [<span class="hljs-literal">None</span>]
+</code></pre>
+    <p class="normal">The generator is now set up. Let's proceed to the next section and explore how it works in more detail.</p>
+    <h2 id="_idParaDest-229" class="title">How it works…</h2>
+    <p class="normal">Apart from the <code class="Code-In-Text--PACKT-">__init__</code> method, which instantiates the internal variables of the class, the <code class="Code-In-Text--PACKT-">DataGenerator</code> class consists of these methods:</p>
+    <ul>
+      <li class="bullet"><code class="Code-In-Text--PACKT-">_build_index</code>: This creates an index of the provided data</li>
+      <li class="bullet"><code class="Code-In-Text--PACKT-">on_epoch_end</code>: At the end of each epoch, this method will randomly shuffle the data</li>
+      <li class="bullet"><code class="Code-In-Text--PACKT-">__len__</code>: This reports how many batches are required to complete an epoch</li>
+      <li class="bullet"><code class="Code-In-Text--PACKT-">__iter__</code>: This renders the class an iterable</li>
+      <li class="bullet"><code class="Code-In-Text--PACKT-">__next__</code>: This calls the next batch</li>
+      <li class="bullet"><code class="Code-In-Text--PACKT-">__call__</code>: This returns the <code class="Code-In-Text--PACKT-">__iter__</code> method call</li>
+      <li class="bullet"><code class="Code-In-Text--PACKT-">__data_generation</code>: Where the <code class="Code-In-Text--PACKT-">TabularTransformer</code> operates on data batches, returning the transformed output (returning it as a list of arrays or as a dictionary of arrays)</li>
+      <li class="bullet"><code class="Code-In-Text--PACKT-">__getitem__</code>: This splits the data into batches and calls the <code class="Code-In-Text--PACKT-">__data_generation</code> method for the transformations</li>
+    </ul>
+    <p class="normal">This completes the final piece of the puzzle.<a id="_idIndexMarker416"/> Using the last two recipes you can fully transform and deliver to a TensorFlow model any mixed variable tabular dataset to a TensorFlow model, just by filling in a few parameters. In the next two recipes we will provide you with some specific tricks to make our DNN work better with tabular data, and we'll look at a fully fledged example from a famous Kaggle competition.</p>
+    <h1 id="_idParaDest-230" class="title">Creating custom activations for tabular data</h1>
+    <p class="normal">With images<a id="_idIndexMarker417"/> and text, it is more difficult to backpropagate errors in DNNs working on tabular data because the data is sparse. While the ReLU activation function is used widely, new activation functions have been found to work better in such cases and can<a id="_idIndexMarker418"/> improve the network performances. These activations functions are SeLU, GeLU, and Mish. Since SeLU is already present in Keras and TensorFlow (see <a href="https://www.tensorflow.org/api_docs/python/tf/keras/activations/selu"><span class="url">https://www.tensorflow.org/api_docs/python/tf/keras/activations/selu</span></a> and <a href="https://www.tensorflow.org/api_docs/python/tf/nn/selu"><span class="url">https://www.tensorflow.org/api_docs/python/tf/nn/selu</span></a>), in this recipe we'll use the GeLU and Mish activation functions.</p>
+    <h2 id="_idParaDest-231" class="title">Getting ready</h2>
+    <p class="normal">You need the usual imports:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">from</span> tensorflow <span class="hljs-keyword">import</span> keras <span class="hljs-keyword">as</span> keras
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> matplotlib.pyplot <span class="hljs-keyword">as</span> plt
+</code></pre>
+    <p class="normal">We've added <code class="Code-In-Text--PACKT-">matplotlib</code>, so we can plot how these new activation functions work and get an idea of the reason for their efficacy.</p>
+    <h2 id="_idParaDest-232" class="title">How to do it…</h2>
+    <p class="normal">GeLU and Mish are defined by<a id="_idIndexMarker419"/> their mathematics, which you <a id="_idIndexMarker420"/>can find in their original papers:</p>
+    <ul>
+      <li class="bullet"><em class="italic">Gaussian Error Linear Units (GELUs)</em>: <a href="https://arxiv.org/abs/1606.08415"><span class="url">https://arxiv.org/abs/1606.08415</span></a></li>
+      <li class="bullet"><em class="italic">Mish, A Self Regularized </em><em class="italic"><a id="_idIndexMarker421"/></em><em class="italic">Non-Monotonic Neural Activation Function</em>: <a href="https://arxiv.org/abs/1908.08681"><span class="url">https://arxiv.org/abs/1908.08681</span></a></li>
+    </ul>
+    <p class="normal">Here are the<a id="_idIndexMarker422"/> formulas translated into code:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">gelu</span><span class="hljs-function">(</span><span class="hljs-params">x</span><span class="hljs-function">):</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-number">0.5</span> * x * (<span class="hljs-number">1</span> + tf.tanh(tf.sqrt(<span class="hljs-number">2</span> / np.pi) * 
+                        (x + <span class="hljs-number">0.044715</span> * tf.pow(x, <span class="hljs-number">3</span>))))
+keras.utils.get_custom_objects().update(
+                         {<span class="hljs-string">'gelu'</span>: keras.layers.Activation(gelu)})
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">mish</span><span class="hljs-function">(</span><span class="hljs-params">inputs</span><span class="hljs-function">):</span>
+    <span class="hljs-keyword">return</span> inputs * tf.math.tanh(tf.math.softplus(inputs))
+keras.utils.get_custom_objects().update(
+                         {<span class="hljs-string">'mish'</span>: keras.layers.Activation(mish)})
+</code></pre>
+    <p class="normal">The interesting part of the recipe is that <code class="Code-In-Text--PACKT-">get_custom_objects</code> is a function that allows you to record your new functions in custom TensorFlow objects and then easily recall them as strings in layer parameters. You can find more information about how custom objects work in Keras by having a look at the TensorFlow documentation: <a href="https://www.tensorflow.org/api_docs/python/tf/keras/utils/get_custom_objects"><span class="url">https://www.tensorflow.org/api_docs/python/tf/keras/utils/get_custom_objects</span></a>.</p>
+    <h2 id="_idParaDest-233" class="title">How it works…</h2>
+    <p class="normal">We can get an idea of how these two activation functions work by plotting positive and negative inputs against their outputs. A few commands from matplotlib will help us with the visualization:</p>
+    <pre class="programlisting code"><code class="hljs-code">gelu_vals = list()
+mish_vals = list()
+abscissa = np.arange(<span class="hljs-number">-4</span>, <span class="hljs-number">1</span>, <span class="hljs-number">0.1</span>)
+<span class="hljs-keyword">for</span> val <span class="hljs-keyword">in</span> abscissa:
+    gelu_vals.append(gelu(tf.cast(val, tf.float32)).numpy())
+    mish_vals.append(mish(tf.cast(val, tf.float32)).numpy())
+    
+plt.plot(abscissa, gelu_vals, label=<span class="hljs-string">'gelu'</span>)
+plt.plot(abscissa, mish_vals, label=<span class="hljs-string">'mish'</span>)
+plt.axvline(x=<span class="hljs-number">0.0</span>, linestyle=<span class="hljs-string">'--'</span>, color=<span class="hljs-string">'darkgray'</span>)
+plt.axhline(y=<span class="hljs-number">0.0</span>, linestyle=<span class="hljs-string">'--'</span>, color=<span class="hljs-string">'darkgray'</span>)
+plt.legend()
+plt.show()
+</code></pre>
+    <p class="normal">After running the code, you should get the following plot:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_07_05.png" alt=""/></figure>
+    <p class="packt_figref">Figure 7.3: GeLU and Mish activation functions mapped from inputs to outputs</p>
+    <p class="normal">As with the ReLU activation function, inputs from zero onward are just identically mapped as output (preserving linearity in the positive activations). The interesting thing happens when the input is below zero, actually, because it is not suppressed as happens with ReLU. In both the GeLU and Mish activation functions, the output is a dampened transformation of the negative input that recedes to zero when the input is very negative. This prevents both the case of dying neurons, because<a id="_idIndexMarker423"/> negative inputs can still pass information, and the case of saturated neurons, because overly negative values are turned off.</p>
+    <p class="normal">With different strategies, negative<a id="_idIndexMarker424"/> input is therefore processed and propagated both by the GeLU and Mish activations functions. This allows a defined gradient from negative inputs, which doesn't cause harm to the network.</p>
+    <h1 id="_idParaDest-234" class="title">Running a test on a difficult problem</h1>
+    <p class="normal">Throughout the chapter, we have provided recipes to handle tabular data in a successful way. Each recipe is not actually a solution in itself, but a piece of a puzzle. When the pieces are combined <a id="_idIndexMarker425"/>you can get excellent results and in this last recipe, we will demonstrate how to assemble all the recipes together to successfully complete a difficult Kaggle challenge.</p>
+    <p class="normal">The Kaggle competition, <em class="italic">Amazon.com – Employee Access Challenge</em> (<a href="https://www.kaggle.com/c/amazon-employee-access-challenge"><span class="url">https://www.kaggle.com/c/amazon-employee-access-challenge</span></a>), is a competition that's notable for the high-cardinality variables involved and is a solid benchmark that's used to compare gradient boosting algorithms. The aim of the competition is to develop a model that can predict whether an Amazon employee should be given access to a specific resource based on their role and activities. The answer should be given as likelihood. As predictors, you have different ID codes corresponding to the type of resource you are evaluating access to, the role of the employee in the organization, and the referring manager.</p>
+    <h2 id="_idParaDest-235" class="title">Getting ready</h2>
+    <p class="normal">As usual, we start by importing TensorFlow and Keras:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+<span class="hljs-keyword">import</span> tensorflow.keras <span class="hljs-keyword">as</span> keras
+</code></pre>
+    <p class="normal">Using sequential-based data generators may trigger some errors in TensorFlow 2.2. This is due to eager execution and, as a precaution, we have to disable it for this recipe:</p>
+    <pre class="programlisting code"><code class="hljs-code">tf.compat.v1.disable_eager_execution() 
+</code></pre>
+    <p class="normal">In order to get hold of the Amazon dataset, the best and fastest way is to install <strong class="keyword">CatBoost</strong>, a gradient boosting <a id="_idIndexMarker426"/>algorithm that uses the dataset as a benchmark. If it is not already present in your installed environment, you easily install it using the <code class="Code-In-Text--PACKT-">pip install catboost</code> command:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">from</span> catboost.datasets <span class="hljs-keyword">import</span> amazon
+X, Xt = amazon()
+y = X[<span class="hljs-string">"ACTION"</span>].apply(<span class="hljs-keyword">lambda</span> x: <span class="hljs-number">1</span> <span class="hljs-keyword">if</span> x == <span class="hljs-number">1</span> <span class="hljs-keyword">else</span> <span class="hljs-number">0</span>).values
+X.drop([<span class="hljs-string">"ACTION"</span>], axis=<span class="hljs-number">1</span>, inplace=<span class="hljs-literal">True</span>)
+</code></pre>
+    <p class="normal">Since the test data (uploaded into the <code class="Code-In-Text--PACKT-">Xt</code> variable) has an unlabeled target variable, we will be using just the training data in the <code class="Code-In-Text--PACKT-">X</code> variable.</p>
+    <h2 id="_idParaDest-236" class="title">How to do it…</h2>
+    <p class="normal">As a first step, we will define the DNN architecture for this problem. Since the problem involves only categorical variables with high cardinality, we start setting an input and an embedding layer for each feature. </p>
+    <p class="normal">We first define an input for each feature, where the data flows into the network, and then each input is directed into its respective embedding layer. The size of the input is based on the number of unique values of the feature, and the size of the output is based on the logarithm of the input size. The output of each embedding is then passed to a spatial dropout (since the<a id="_idIndexMarker427"/> embedding layer will return a matrix, the spatial dropout will blank out entire columns of the matrix) and then flattened. Finally, all the flattened results are concatenated into a single layer. From there on, the data has to pass through two dense layers with dropout before reaching the output response node, a sigmoid activated node that will return a probability as an answer: </p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">dnn</span><span class="hljs-function">(</span><span class="hljs-params">categorical_variables, categorical_counts,</span>
+<span class="hljs-params">        feature_selection_dropout=</span><span class="hljs-number">0.2</span><span class="hljs-params">, categorical_dropout=</span><span class="hljs-number">0.1</span><span class="hljs-params">,</span>
+<span class="hljs-params">        first_dense = </span><span class="hljs-number">256</span><span class="hljs-params">, second_dense = </span><span class="hljs-number">256</span><span class="hljs-params">, </span>
+<span class="hljs-params">        dense_dropout = </span><span class="hljs-number">0.2</span><span class="hljs-params">, </span>
+<span class="hljs-params">        activation_type=gelu</span><span class="hljs-function">):</span>
+    
+    categorical_inputs = []
+    categorical_embeddings = []
+    
+    <span class="hljs-keyword">for</span> category <span class="hljs-keyword">in</span> categorical_variables:
+        categorical_inputs.append(keras.layers.Input(
+                 shape=[<span class="hljs-number">1</span>], name=category))
+        category_counts = categorical_counts[category]
+        categorical_embeddings.append(
+            keras.layers.Embedding(category_counts+<span class="hljs-number">1</span>, 
+                      int(np.log1p(category_counts)+<span class="hljs-number">1</span>), 
+                      name = category +  
+                              <span class="hljs-string">"_embed"</span>)(categorical_inputs[<span class="hljs-number">-1</span>]))
+    
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">flatten_dropout</span><span class="hljs-function">(</span><span class="hljs-params">x, categorical_dropout</span><span class="hljs-function">):</span>
+        <span class="hljs-keyword">return</span> keras.layers.Flatten()(
+            keras.layers.SpatialDropout1D(categorical_dropout)(x))
+    
+    categorical_logits = [flatten_dropout(cat_emb, 
+                                          categorical_dropout) 
+                          <span class="hljs-keyword">for</span> cat_emb <span class="hljs-keyword">in</span> categorical_embeddings]
+    categorical_concat = keras.layers.Concatenate(
+                  name = <span class="hljs-string">"categorical_concat"</span>)(categorical_logits)
+    x = keras.layers.Dense(first_dense,  
+                   activation=activation_type)(categorical_concat)
+    x = keras.layers.Dropout(dense_dropout)(x)  
+    x = keras.layers.Dense(second_dense, 
+                   activation=activation_type)(x)
+    x = keras.layers.Dropout(dense_dropout)(x)
+    output = keras.layers.Dense(<span class="hljs-number">1</span>, activation=<span class="hljs-string">"sigmoid"</span>)(x)
+    model = keras.Model(categorical_inputs, output)
+    
+    <span class="hljs-keyword">return</span> model
+</code></pre>
+    <p class="normal">The architecture works only with categorical data. It takes each categorical input (expecting a single integer code) and fits it into an embedding layer, whose output is a reduced dimensionality vector (whose dimensions are computed using the heuristic <code class="Code-In-Text--PACKT-">int(np.log1p(category_counts)+1)</code>). It applies a <code class="Code-In-Text--PACKT-">SpatialDropout1D</code> and finally it flattens the output. <code class="Code-In-Text--PACKT-">SpatialDropout1D</code> removes all the connections in a row of the output matrix from all channels, thus effectively dropping some information from the embedding. All the<a id="_idIndexMarker428"/> outputs of all the categorical variables are then concatenated and passed on to a series of dense layers with GeLU activations and dropout. It all ends with a single sigmoid node (so you can get the emission of a probability in the range [0,1]). </p>
+    <p class="normal">After defining the architecture, we define the score functions, taking them from scikit-learn and converting them for use in Keras using the <code class="Code-In-Text--PACKT-">tf.py_function</code> from TensorFlow (<a href="https://www.tensorflow.org/api_docs/python/tf/py_function"><span class="url">https://www.tensorflow.org/api_docs/python/tf/py_function</span></a>), a wrapper that can turn any function into a once-differentiable TensorFlow operation that can be executed eagerly.</p>
+    <p class="normal">As score functions, we use the average precision and the ROC AUC. Both of these can help us figure out how we are performing on a binary classification by telling us how closely the predicted probabilities resemble the true values. More on ROC AUC and average precision can be found in the scikit-learn documentation at <a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score.html"><span class="url">https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score.html</span></a> and <a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score"><span class="url">https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_auc_score.html#sklearn.metrics.roc_auc_score</span></a>.</p>
+    <p class="normal">We also instantiate a simple plotting function that can plot selected error and score measures as recorded during the training both on the training and validation sets:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">from</span> sklearn.metrics <span class="hljs-keyword">import</span> average_precision_score, roc_auc_score
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">mAP</span><span class="hljs-function">(</span><span class="hljs-params">y_true, y_pred</span><span class="hljs-function">):</span>
+    <span class="hljs-keyword">return</span> tf.py_function(average_precision_score, 
+                          (y_true, y_pred), tf.double)
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">auc</span><span class="hljs-function">(</span><span class="hljs-params">y_true, y_pred</span><span class="hljs-function">):</span>
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">return</span> tf.py_function(roc_auc_score, 
+                              (y_true, y_pred), tf.double)
+    <span class="hljs-keyword">except</span>: 
+        <span class="hljs-keyword">return</span> <span class="hljs-number">0.5</span>
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">compile_model</span><span class="hljs-function">(</span><span class="hljs-params">model, loss, metrics, optimizer</span><span class="hljs-function">):</span>
+    model.compile(loss=loss, metrics=metrics, optimizer=optimizer)
+    <span class="hljs-keyword">return</span> model
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">plot_keras_history</span><span class="hljs-function">(</span><span class="hljs-params">history, measures</span><span class="hljs-function">):</span>
+    <span class="hljs-string">"""</span>
+<span class="hljs-string">    history: Keras training history</span>
+<span class="hljs-string">    measures = list of names of measures</span>
+<span class="hljs-string">    """</span>
+    rows = len(measures) // <span class="hljs-number">2</span> + len(measures) % <span class="hljs-number">2</span>
+    fig, panels = plt.subplots(rows, <span class="hljs-number">2</span>, figsize=(<span class="hljs-number">15</span>, <span class="hljs-number">5</span>))
+    plt.subplots_adjust(top = <span class="hljs-number">0.99</span>, bottom=<span class="hljs-number">0.01</span>, 
+                        hspace=<span class="hljs-number">0.4</span>, wspace=<span class="hljs-number">0.2</span>)
+    <span class="hljs-keyword">try</span>:
+        panels = [item <span class="hljs-keyword">for</span> sublist <span class="hljs-keyword">in</span> panels <span class="hljs-keyword">for</span> item <span class="hljs-keyword">in</span> sublist]
+    <span class="hljs-keyword">except</span>:
+        <span class="hljs-keyword">pass</span>
+    <span class="hljs-keyword">for</span> k, measure <span class="hljs-keyword">in</span> enumerate(measures):
+        panel = panels[k]
+        panel.set_title(measure + <span class="hljs-string">' history'</span>)
+        panel.plot(history.epoch, history.history[measure], 
+                   label=<span class="hljs-string">"Train "</span>+measure)
+        panel.plot(history.epoch, history.history[<span class="hljs-string">"val_"</span>+measure], 
+                   label=<span class="hljs-string">"Validation "</span>+measure)
+        panel.set(xlabel=<span class="hljs-string">'epochs'</span>, ylabel=measure)
+        panel.legend()
+        
+    plt.show(fig)
+</code></pre>
+    <p class="normal">At this point, you need to set up the training phase. Given the limited number of examples and your need to test your solution, using cross-validation is the best choice. The <code class="Code-In-Text--PACKT-">StratifiedKFold</code> function from scikit-learn will provide you with the right tool for the job.</p>
+    <p class="normal">In <code class="Code-In-Text--PACKT-">StratifiedKFold</code>, your data is randomly (you can provide a seed value for reproducibility) split into <em class="italic">k</em> parts, each one with the same proportion of the target variable as is found in the original data. </p>
+    <p class="normal">These <em class="italic">k</em><em class="italic"><a id="_idIndexMarker429"/></em> splits are used to generate <em class="italic">k</em> training tests that can help you infer the performance of the DNN architecture you have set up. In fact, <em class="italic">k</em> times over, <em class="italic">all but one</em> of the splits are used to train your model and the one kept apart is left out for testing each time. This ensures that you have <em class="italic">k</em> tests made on splits that have not been used for training.</p>
+    <p class="normal">This approach, especially when dealing with only a few training examples, is preferable to picking up a single test set to verify your models on, because by sampling a test set you could find a sample that is differently distributed from your train set. Moreover, by using a single test set, you also risk overfitting your test set. If you repeatedly test different solutions, eventually you may find a solution that fits the test set very well but is not a generalizable solution in itself.</p>
+    <p class="normal">Let's put it into practice here:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">from</span> sklearn.model_selection <span class="hljs-keyword">import</span> StratifiedKFold
+SEED = <span class="hljs-number">0</span>
+FOLDS = <span class="hljs-number">3</span>
+BATCH_SIZE = <span class="hljs-number">512</span>
+skf = StratifiedKFold(n_splits=FOLDS, 
+                      shuffle=<span class="hljs-literal">True</span>, 
+                      random_state=SEED)
+roc_auc = list()
+average_precision = list()
+categorical_variables = X.columns.to_list()
+<span class="hljs-keyword">for</span> fold, (train_idx, test_idx) <span class="hljs-keyword">in</span> enumerate(skf.split(X, y)):
+    
+    tt = TabularTransformer(highcat = categorical_variables)
+    tt.fit(X.iloc[train_idx])   
+    categorical_levels = tt.vocabulary
+    
+    model = dnn(categorical_variables,
+                categorical_levels, 
+                feature_selection_dropout=<span class="hljs-number">0.1</span>,
+                categorical_dropout=<span class="hljs-number">0.1</span>,
+                first_dense=<span class="hljs-number">64</span>,
+                second_dense=<span class="hljs-number">64</span>,
+                dense_dropout=<span class="hljs-number">0.1</span>,
+                activation_type=mish)
+    
+    model = compile_model(model, 
+                          keras.losses.binary_crossentropy, 
+                          [auc, mAP], 
+                          tf.keras.optimizers.Adam(learning_rate=<span class="hljs-number">0.0001</span>))
+    
+    train_batch = DataGenerator(X.iloc[train_idx], 
+                                y[train_idx],
+                                tabular_transformer=tt,
+                                batch_size=BATCH_SIZE,
+                                shuffle=<span class="hljs-literal">True</span>)
+    
+    val_X, val_y = tt.transform(X.iloc[test_idx]), y[test_idx]
+    
+    history = model.fit(train_batch,
+                        validation_data=(val_X, val_y),
+                        epochs=<span class="hljs-number">30</span>,
+                        class_weight=[<span class="hljs-number">1.0</span>, 
+                                   (np.sum(y==<span class="hljs-number">0</span>) / np.sum(y==<span class="hljs-number">1</span>))],
+                        verbose=<span class="hljs-number">2</span>)
+    
+    print(<span class="hljs-string">"\nFOLD %i"</span> % fold)
+    plot_keras_history(history, measures=[<span class="hljs-string">'auc'</span>, <span class="hljs-string">'loss'</span>])
+    
+    preds = model.predict(val_X, verbose=<span class="hljs-number">0</span>, 
+                          batch_size=<span class="hljs-number">1024</span>).flatten()
+    roc_auc.append(roc_auc_score(y_true=val_y, y_score=preds))
+    average_precision.append(average_precision_score(
+                                 y_true=val_y, y_score=preds))
+    
+print(<span class="hljs-string">f"mean cv roc auc </span><span class="hljs-subst">{np.mean(roc_auc):</span><span class="hljs-number">0.3</span><span class="hljs-subst">f}</span><span class="hljs-string">"</span>)
+print(<span class="hljs-string">f"mean cv ap </span><span class="hljs-subst">{np.mean(average_precision):</span><span class="hljs-number">0.3</span><span class="hljs-subst">f}</span><span class="hljs-string">"</span>)
+</code></pre>
+    <p class="normal">The script runs a training and <a id="_idIndexMarker430"/>validation test for each fold and stores the results that will help you correctly evaluate the performances of your DNN for tabular data.</p>
+    <h2 id="_idParaDest-237" class="title">How it works…</h2>
+    <p class="normal">Each fold will print a plot detailing how the DNN performed, both on log-loss and ROC AUC, for the training and the validation sample: </p>
+    <figure class="mediaobject"><img src="../Images/B16254_07_06.png" alt=""/></figure>
+    <p class="packt_figref">Figure 7.4: DNN performance on the training set and the validation set</p>
+    <p class="normal">All the folds have a similar trajectory, with a significant decoupling of the train and validation curves after 5 epochs and a widening gap after 15 epochs, implying a certain overfitting during the training phase. By modifying your DNN architecture, and changing parameters such as the learning rate or the optimization algorithm, you can safely experiment to try to achieve better results because the cross-validation procedure ensures that you are making the right decisions.</p>
+  </div>
+</body></html>

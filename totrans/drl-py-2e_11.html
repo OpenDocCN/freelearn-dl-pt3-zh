@@ -1,0 +1,519 @@
+<html><head></head><body>
+  <div id="_idContainer1414">
+    <h1 class="chapterNumber">11</h1>
+    <h1 id="_idParaDest-287" class="chapterTitle">Actor-Critic Methods – A2C and A3C</h1>
+    <p class="normal">So far, we have covered two types of methods for learning the optimal policy. One is the value-based method, and the other is the policy-based method. In the value-based method, we use the Q function to extract the optimal policy. In the policy-based method, we compute the optimal policy without using the Q function. </p>
+    <p class="normal">In this chapter, we will learn about another interesting method called the actor-critic method for finding the optimal policy. The actor-critic method makes use of both the value-based and policy-based methods. We will begin the chapter by understanding what the actor-critic method is and how it makes use of value-based and policy-based methods. We will acquire a basic understanding of actor-critic methods, and then we will learn about them in detail.</p>
+    <p class="normal">Moving on, we will also learn how actor-critic differs from the policy gradient with baseline method, and we will learn the algorithm of the actor-critic method in detail. Next, we will understand what <strong class="keyword">Advantage Actor-Critic</strong> (<strong class="keyword">A2C</strong>) is, and how it makes use of the advantage function.</p>
+    <p class="normal">At the end of the chapter, we will learn about one of the most popularly used actor-critic algorithms, called <strong class="keyword">Asynchronous Advantage Actor-Critic</strong> (<strong class="keyword">A3C</strong>). We will understand what A3C is and the details of how it works along with its architecture.</p>
+    <p class="normal">In this chapter, we will cover the following topics:</p>
+    <ul>
+      <li class="bullet">Overview of the actor-critic method</li>
+      <li class="bullet">Understanding the actor-critic method</li>
+      <li class="bullet">The actor-critic method algorithm</li>
+      <li class="bullet">Advantage actor-critic (A2C)</li>
+      <li class="bullet">Asynchronous advantage actor-critic (A3C)</li>
+      <li class="bullet">The architecture of asynchronous advantage actor-critic (A3C)</li>
+      <li class="bullet">Mountain car climbing using A3C</li>
+    </ul>
+    <p class="normal">Let's begin the chapter by getting a basic understanding of the actor-critic method.</p>
+    <h1 id="_idParaDest-288" class="title">Overview of the actor-critic method</h1>
+    <p class="normal">The actor-critic method is one of the most popular algorithms in deep reinforcement learning. Several <a id="_idIndexMarker1001"/>modern deep reinforcement learning algorithms are designed based on actor-critic methods. The actor-critic method lies at the intersection of value-based and policy-based methods. That is, it takes advantage of both value-based and policy-based methods.</p>
+    <p class="normal">In this section, without going into further detail, first, let's acquire a basic understanding of how the actor-critic method works and then, in the next section, we will get into more detail and understand the math behind the actor-critic method. </p>
+    <p class="normal">Actor-critic, as the name suggests, consists of two types of network—the actor network and the critic network. The role of the actor network is to find an optimal policy, while the role of the critic network is to evaluate the policy produced by the actor network. So, we can think of the critic network as a feedback network that evaluates and guides the actor network in finding the optimal policy, as <em class="italic">Figure 11.1</em> shows:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_01.png" alt=""/></figure>
+    <p class="packt_figref">Figure 11.1: The actor-critic network</p>
+    <p class="normal">Okay, so what actually are the actor and critic networks? How do they work together and improve the policy? The actor network is basically the policy network, and it finds the optimal policy using a policy gradient method. The critic network is basically the value network, and it estimates the state value. </p>
+    <p class="normal">Thus, using its state value, the critic network evaluates the action produced by the actor network and sends its feedback to the actor. Based on the critic's feedback, the actor network then updates its parameter.</p>
+    <p class="normal">Thus, in the actor-critic method, we use two networks—the actor network (policy network), which computes the policy, and the critic network (value network), which evaluates the policy produced by the actor network by computing the value function (state values). Isn't this similar to something we just learned in the previous chapter?</p>
+    <p class="normal">Yes! If you recall, it is similar to the policy gradient method with the baseline (REINFORCE with baseline) we learned in the previous chapter. Similar to REINFORCE with baseline, here also, we have an actor (policy network) and a critic (value network) network. However, actor-critic is NOT the same as REINFORCE with baseline. In the REINFORCE with baseline method, we learned that we use a value network as the baseline and <a id="_idIndexMarker1002"/>it helps to reduce the variance in the gradient updates. In the actor-critic method as well, we use the critic to reduce variance in the gradient updates of the actor, but it also helps to improve the policy iteratively in an online fashion. The distinction between these two will be made clear in the next section.</p>
+    <p class="normal">Now that we have a basic understanding of the actor-critic method, in the next section, we will learn how the actor-critic method works in detail. </p>
+    <h2 id="_idParaDest-289" class="title">Understanding the actor-critic method</h2>
+    <p class="normal">In the REINFORCE with baseline method, we learned that we have two networks—policy and value networks. The policy network finds the optimal policy, while the value network acts <a id="_idIndexMarker1003"/>as a baseline and corrects the variance in the gradient updates. Similar to REINFORCE with baseline, the actor-critic method also consists of a policy network, known as the actor network, and the value network, known as the critic network. </p>
+    <p class="normal">The fundamental difference between the REINFORCE with baseline method and the actor-critic method is that in the REINFORCE with baseline method, we update the parameter of the network at the end of an episode. But in the actor-critic method, we update the parameter of the network at every step of the episode. But why do we have to do this? What is the use of updating the network parameter at every step of the episode? Let's explore this in further detail. </p>
+    <p class="normal">We can think <a id="_idIndexMarker1004"/>of the REINFORCE with baseline method being similar to the <strong class="keyword">Monte Carlo</strong> (<strong class="keyword">MC</strong>) method, which we covered in <em class="chapterRef">Chapter 4</em>,<em class="italic"> Monte Carlo Methods</em>, and the actor-critic method being similar to the TD learning method, which we covered in <em class="chapterRef">Chapter 5</em>,<em class="italic"> Understanding Temporal Difference Learning</em>. So, first, let's recap these two methods. </p>
+    <p class="normal">In the MC method, to compute the value of a state, we generate some <em class="italic">N</em> trajectories and compute the value of a state as an average return of a state across the <em class="italic">N</em> trajectories. We learned that when the trajectory is too long, then the MC method will take us a lot of time to compute the value of the state and is also unsuitable for non-episodic tasks. So, we resorted to the TD learning method.</p>
+    <p class="normal">In the TD learning method, we learned that instead of waiting until the end of the episode to compute the value of the state, we can make use of bootstrapping and estimate the value of the state as the sum of the immediate reward and the discounted value of the next state. </p>
+    <p class="normal">Now, let's see how the MC and TD methods relate to the REINFORCE with baseline and actor-critic methods, respectively.</p>
+    <p class="normal">First, let's recall <a id="_idIndexMarker1005"/>what we learned in the REINFORCE with baseline method. In the REINFORCE with baseline method, we generate <em class="italic">N</em> number of trajectories using the policy <img src="../Images/B15558_10_111.png" alt="" style="height: 0.84em;"/> and compute the gradient as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_163.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">As we can observe, in order to compute the gradients, we need a complete trajectory. That is, as the following equation shows, in order to compute the gradient, we need to compute the return of the trajectory. We know that the return is the sum of rewards of the trajectory, so in order to compute the return (reward-to-go), first, we need a complete trajectory generated using the policy <img src="../Images/B15558_10_120.png" alt="" style="height: 0.84em;"/>. So, we generate several trajectories using the policy <img src="../Images/B15558_10_111.png" alt="" style="height: 0.84em;"/> and then we compute the gradient:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_10.png" alt="" style="height:6em;"/></figure>
+    <p class="normal">After computing the gradients, we update the parameter as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_005.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">Instead of generating the complete trajectory and then computing the return, can we make use of bootstrapping, as we learned in TD learning? Yes! In the actor-critic method, we approximate the return by just taking the immediate reward and the discounted value of the next state as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_006.png" alt="" style="height: 1.2em;"/></figure>
+    <p class="normal">Where <em class="italic">r</em> is the immediate reward and <img src="../Images/B15558_05_006.png" alt="" style="height: 1.2em;"/> is the discounted value of the next state.</p>
+    <p class="normal">So, we can <a id="_idIndexMarker1006"/>rewrite the policy gradient by replacing the return <em class="italic">R</em> by the bootstrap estimate, <img src="../Images/B15558_05_008.png" alt="" style="height: 1.2em;"/>, as shown here:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_009.png" alt="" style="height: 1.4em;"/></figure>
+    <p class="normal">Now, we don't have to wait till the end of the episode to compute the return. Instead, we bootstrap, compute the gradient, and update the network parameter at every step of the episode. </p>
+    <p class="normal">The difference between how we compute the gradient and update the parameter of the policy network in REINFORCE with baseline and the actor-critic method is shown in <em class="italic">Figure 11.2</em>. As we can observe in REINFORCE with baseline, first we generate complete episodes (trajectories), and then we update the parameter of the network. Whereas, in the actor-critic method, we update the parameter of the network at every step of the episode:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_02.png" alt=""/></figure>
+    <p class="packt_figref">Figure 11.2: The difference between the REINFORCE with baseline and actor-critic methods</p>
+    <p class="normal">Okay, what about the critic network (value network)? How can we update the parameter of the critic network? Similar to the actor network, we update the parameter of the critic network at every step of the episode. The loss of the critic network is the TD error, which is the difference between the target value of the state and the value of the state predicted by the network. The target value of the state can be computed as the sum of reward and the discounted value of the next state value. Thus, the loss of the critic network is expressed as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_010.png" alt="" style="height: 1.29em;"/></figure>
+    <p class="normal">Where <img src="../Images/B15558_11_011.png" alt="" style="height: 1.29em;"/> is the target value of the state and <img src="../Images/B15558_11_012.png" alt="" style="height: 1.2em;"/> is the predicted value of the state.</p>
+    <p class="normal">After computing the loss of the critic network, we compute gradients <img src="../Images/B15558_11_014.png" alt="" style="height: 1.29em;"/> and update the parameter <img src="../Images/B15558_11_043.png" alt="" style="height: 1.11em;"/> of the critic network at every step of the episode using gradient descent:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_013.png" alt="" style="height: 1.29em;"/></figure>
+    <p class="normal">Now that we have learned how the actor (policy network) and critic (value network) work in the actor-critic method; let's look at the algorithm of the actor-critic method in the next section for more clarity.</p>
+    <h2 id="_idParaDest-290" class="title">The actor-critic algorithm</h2>
+    <p class="normal">The steps <a id="_idIndexMarker1007"/>for the actor-critic algorithm are:</p>
+    <ol>
+      <li class="numbered">Initialize the actor network parameter <img src="../Images/B15558_09_008.png" alt="" style="height: 1.11em;"/> and the critic network parameter <img src="../Images/B15558_11_016.png" alt="" style="height: 1.11em;"/></li>
+      <li class="numbered">For <em class="italic">N</em> number of episodes, repeat <em class="italic">step 3</em></li>
+      <li class="numbered">For each step in the episode, that is, for <em class="italic">t</em> = 0,. . . ., <em class="italic">T</em>-1:<ol>
+          <li class="numbered-l2">Select an action using the policy, <img src="../Images/B15558_11_017.png" alt="" style="height: 1.11em;"/></li>
+          <li class="numbered-l2">Take the action <em class="italic">a</em><sub class="" style="font-style: italic;">t</sub> in the state <em class="italic">s</em><sub class="" style="font-style: italic;">t</sub>, observe the reward <em class="italic">r</em>, and move to the next state <img src="../Images/B15558_11_018.png" alt="" style="height: 1.2em;"/></li>
+          <li class="numbered-l2">Compute the policy gradients:<figure class="mediaobject"><img src="../Images/B15558_11_009.png" alt="" style="height: 1.4em;"/></figure>
+          </li>
+          <li class="numbered-l2">Update the actor network parameter <img src="../Images/B15558_09_054.png" alt="" style="height: 1.11em;"/> using gradient ascent: <figure class="mediaobject"><img src="../Images/B15558_11_005.png" alt="" style="height: 1.11em;"/></figure>
+          </li>
+          <li class="numbered-l2">Compute the loss of the critic network:<figure class="mediaobject"><img src="../Images/B15558_11_010.png" alt="" style="height: 1.29em;"/></figure>
+          </li>
+          <li class="numbered-l2">Compute gradients <img src="../Images/B15558_11_014.png" alt="" style="height: 1.29em;"/> and update <a id="_idIndexMarker1008"/><a id="_idIndexMarker1009"/>the critic network parameter <img src="../Images/B15558_11_023.png" alt="" style="height: 1.11em;"/> using gradient descent: </li>
+        </ol>
+        <figure class="mediaobject"><img src="../Images/B15558_11_013.png" alt="" style="height: 1.29em;"/></figure>
+      </li>
+    </ol>
+    <p class="normal">As we can observe from the preceding algorithm, the actor network (policy network) parameter is being updated at every step of the episode. So, in each step of the episode, we select an action based on the updated policy while the critic network (value network) parameter is also getting updated at every step, and thus the critic also improves at evaluating the actor network at every step of the episode. While with the REINFORCE with baseline method, we only update the parameter of the network after generating the complete episodes.</p>
+    <p class="normal">One more important difference we should note down between the REINFORCE with baseline and the actor-critic method is that, in the REINFORCE with baseline we use the full return of the trajectory whereas in the actor-critic method we use the bootstrapped return.</p>
+    <p class="normal">The actor-<a id="_idIndexMarker1010"/>critic algorithm we just learned is often referred to as the <strong class="keyword">Advantage Actor-Critic</strong> (<strong class="keyword">A2C</strong>). In the next section, we will look into the advantage function and learn why our algorithm is called the advantage actor-critic in more detail.</p>
+    <h1 id="_idParaDest-291" class="title">Advantage actor-critic (A2C)</h1>
+    <p class="normal">Before <a id="_idIndexMarker1011"/>moving on, first, let's recall the advantage function. The advantage function is defined as the difference between the Q function and the value function. We can express the advantage function as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_025.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">The advantage function tells us, in state <em class="italic">s</em>, how good action <em class="italic">a</em> is compared to the average actions.</p>
+    <p class="normal">In A2C, we compute the policy gradient with the advantage function. So, first, let's see how to compute the advantage function. We know that the advantage function is the difference between the Q function and the value function, that is, <em class="italic">Q</em>(<em class="italic">s</em>, <em class="italic">a</em>) – <em class="italic">V</em>(<em class="italic">s</em>), so we can use two function approximators (neural networks), one for estimating the Q function and the other for estimating the value function. Then, we can subtract the values of these two networks to get the advantage value. But this will definitely not be an optimal method and, computationally, it will be expensive.</p>
+    <p class="normal">So, we can approximate the Q value as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_026.png" alt="" style="height: 1.2em;"/></figure>
+    <p class="normal">But how can we approximate the Q value like this? Do you recall in <em class="chapterRef">Chapter 3</em>,<em class="italic"> The Bellman Equation and Dynamic Programming</em>, in <em class="italic">The relationship between the value and Q functions</em> section, we learned we could derive the Q function from the value function? Using that identify, we can approximate the Q function as the sum of the immediate reward and the discounted value of the next state.</p>
+    <p class="normal">Substituting the preceding Q value in the advantage function, equation (1), we can write the following:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_027.png" alt="" style="height: 1.2em;"/></figure>
+    <p class="normal">Thus, now we have the advantage function. We learned that in A2C, we compute the policy gradient with the advantage function. So, we can write this:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_028.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">Expanding <a id="_idIndexMarker1012"/>the advantage function, we can write the following:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_029.png" alt="" style="height: 1.76em;"/></figure>
+    <p class="normal">As we can observe, our policy gradient is now computed using the advantage function:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_11.png" alt="" style="height:7em;"/></figure>
+    <p class="normal">Now, check the preceding equation with how we computed the gradient in the previous section. We can observe that both are essentially the same. Thus, the A2C method is the same as what we learned in the previous section.</p>
+    <h1 id="_idParaDest-292" class="title">Asynchronous advantage actor-critic (A3C)</h1>
+    <p class="normal">Asynchronous <a id="_idIndexMarker1013"/>advantage actor-critic, hereinafter referred to as A3C, is one of the popular actor-critic algorithms. The main idea behind the asynchronous advantage actor-critic method is that it uses several agents for learning in parallel and aggregates their overall experience.</p>
+    <p class="normal">In A3C, we will have two types of networks, one is a global network (global agent), and the other is the worker network (worker agent). We will have many worker agents, each worker agent uses a different exploration policy, and they learn in their own copy of the environment <a id="_idIndexMarker1014"/>and collect experience. Then, the experience obtained from these worker agents is aggregated and sent to the global agent. The global agent aggregates the learning.</p>
+    <p class="normal">Now that we have a very basic idea of how A3C works, let's go into more detail.</p>
+    <h2 id="_idParaDest-293" class="title">The three As</h2>
+    <p class="normal">Before <a id="_idIndexMarker1015"/>diving in, let's first learn what the three A's in A3C signify.</p>
+    <p class="normal"><strong class="keyword">Asynchronous</strong>: Asynchronous <a id="_idIndexMarker1016"/>implies the way A3C works. That is, instead of having a single agent that tries to learn the optimal policy, here, we have multiple agents that interact with the environment. Since we have multiple agents interacting with the environment at the same time, we provide copies of the environment to every agent so that each agent can then interact with their own copy of the environment. So, all these multiple agents are called worker agents and we have a separate agent called the global agent. All the worker agents report to the global agent asynchronously and the global agent aggregates the learning.</p>
+    <p class="normal"><strong class="keyword">Advantage</strong>:<strong class="keyword"> </strong>We have <a id="_idIndexMarker1017"/>already learned what an advantage function is in the previous section. An advantage function can be defined as the difference between the Q function and the value function.</p>
+    <p class="normal"><strong class="keyword">Actor-critic</strong>: Each of <a id="_idIndexMarker1018"/>the worker networks (worker agents) and the global network (global agent) basically follow an actor-critic architecture. That is, each of the agents consists of an actor network for estimating the policy and the critic network for evaluating the policy produced by the actor network.</p>
+    <p class="normal">Now, let us move on to the architecture of A3C and understand how A3C works in detail.</p>
+    <h2 id="_idParaDest-294" class="title">The architecture of A3C</h2>
+    <p class="normal">Now, let's <a id="_idIndexMarker1019"/>understand the architecture of A3C. The architecture of A3C is shown in the following figure:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_03.png" alt=""/></figure>
+    <p class="packt_figref">Figure 11.3: The architecture of A3C</p>
+    <p class="normal">As we <a id="_idIndexMarker1020"/>can observe from the preceding figure, we have multiple worker agents and each worker agent interacts with their own copies of the environment and collects experience. We can also observe that each worker agent follows an actor-critic architecture. So, the worker agents compute the actor network loss (policy loss) and critic network loss (value loss).</p>
+    <p class="normal">In the previous section, we learned that our actor network is updated by computing the policy gradient:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_030.png" alt="" style="height: 1.96em;"/></figure>
+    <p class="normal">Thus, the actor loss is basically the following:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_045.png" alt="" style="height: 1.76em;"/></figure>
+    <p class="normal">As we can observe, actor loss is the product of log probability of the action and the TD error. Now, we add a new term to our actor loss called the entropy (measure of randomness) of the policy and redefine the actor loss as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_031.png" alt="" style="height: 1.76em;"/></figure>
+    <p class="normal">Where <img src="../Images/B15558_11_032.png" alt="" style="height: 1.11em;"/> denotes the entropy of the policy. Adding the entropy of the policy promotes sufficient exploration, and the parameter <img src="../Images/B15558_06_030.png" alt="" style="height: 1.11em;"/> is used to control the significance of the entropy.</p>
+    <p class="normal">The critic loss is just the mean squared TD error.</p>
+    <p class="normal">After computing the losses of the actor and critic networks, worker agents compute the gradients of the loss and then they send those gradients to the global agent. That is, the worker agents compute the gradients and their gradients are asynchronously accumulated to the global agent. The global agent updates their parameters using the asynchronously received gradients from the worker agents. Then, the global agent sends the updated parameter periodically to the worker agents, so now the worker agents will get updated. </p>
+    <p class="normal">In this way, each worker agent computes loss, calculates gradients, and sends those gradients to the global agent asynchronously. Thus, the global agent parameter is updated by gradients received from the worker agents. Then, the global agent sends the updated parameter to the worker agents periodically.</p>
+    <p class="normal">Since we have many worker agents interacting with their own copies of the environment and aggregating the information to the global network, there will be low to no <a id="_idIndexMarker1021"/>correlation between the experiences. </p>
+    <p class="normal">The steps involved in A3C are:</p>
+    <ol>
+      <li class="numbered" value="1">The worker agent interacts with their own copies of the environment.</li>
+      <li class="numbered">Each worker follows a different policy and collects the experience.</li>
+      <li class="numbered">Next, the worker agents compute the losses of the actor and critic networks.</li>
+      <li class="numbered">After computing the loss, they calculate gradients of the loss, and send those gradients to the global agent asynchronously.</li>
+      <li class="numbered">The global agent updates their parameters with the gradients received from the worker agents.</li>
+      <li class="numbered">Now, the updated parameter from the global agent will be sent to the worker agents periodically. </li>
+    </ol>
+    <p class="normal">We repeat the preceding steps for several iterations to find the optimal policy. To get a clear understanding of how A3C works, in the next section, we will learn how to implement it.</p>
+    <h2 id="_idParaDest-295" class="title">Mountain car climbing using A3C</h2>
+    <p class="normal">Let's implement the A3C algorithm for the mountain car climbing task. In the mountain car <a id="_idIndexMarker1022"/>climbing environment, a car is placed between two mountains and the goal of the agent is to drive up the mountain on the right. But the problem is, the agent can't drive up the mountain in one pass. So, the agent has to drive back and forth to build momentum to drive up the mountain on the right. A high reward will be assigned if our agent spends less energy while driving up. <em class="italic">Figure 11.4</em> shows the mountain car environment:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_04.png" alt=""/></figure>
+    <p class="packt_figref">Figure 11.4: The mountain car environment</p>
+    <p class="normal">The <a id="_idIndexMarker1023"/>code used in this section is adapted from the open source implementation of A3C (<a href="https://github.com/stefanbo92/A3C-Continuous"><span class="url">https://github.com/stefanbo92/A3C-Continuous</span></a>) provided by Stefan Boschenriedter. </p>
+    <p class="normal">First, let's import the necessary libraries:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> warnings
+warnings.filterwarnings(<span class="hljs-string">'ignore'</span>)
+<span class="hljs-keyword">import</span> gym
+<span class="hljs-keyword">import</span> multiprocessing
+<span class="hljs-keyword">import</span> threading
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> os
+<span class="hljs-keyword">import</span> shutil
+<span class="hljs-keyword">import</span> matplotlib.pyplot <span class="hljs-keyword">as</span> plt
+<span class="hljs-keyword">import</span> tensorflow.compat.v1 <span class="hljs-keyword">as</span> tf
+tf.disable_v2_behavior()
+</code></pre>
+    <h3 id="_idParaDest-296" class="title">Creating the mountain car environment</h3>
+    <p class="normal">Let's create <a id="_idIndexMarker1024"/>a mountain car environment using Gym. Note that our mountain car environment is a continuous environment, meaning that our action space is continuous:</p>
+    <pre class="programlisting code"><code class="hljs-code">env = gym.make(<span class="hljs-string">'MountainCarContinuous-v0'</span>)
+</code></pre>
+    <p class="normal">Get the state shape of the environment:</p>
+    <pre class="programlisting code"><code class="hljs-code">state_shape = env.observation_space.shape[<span class="hljs-number">0</span>]
+</code></pre>
+    <p class="normal">Get the action shape of the environment:</p>
+    <pre class="programlisting code"><code class="hljs-code">action_shape = env.action_space.shape[<span class="hljs-number">0</span>]
+</code></pre>
+    <p class="normal">Note that <a id="_idIndexMarker1025"/>we created the continuous mountain car environment, and thus our action space consists of continuous values. So, we get the bounds of our action space:</p>
+    <pre class="programlisting code"><code class="hljs-code">action_bound = [env.action_space.low, env.action_space.high]
+</code></pre>
+    <h3 id="_idParaDest-297" class="title">Defining the variables</h3>
+    <p class="normal">Now, let's <a id="_idIndexMarker1026"/>define some of the important variables.</p>
+    <p class="normal">Define the number of workers as the number of CPUs:</p>
+    <pre class="programlisting code"><code class="hljs-code">num_workers = multiprocessing.cpu_count()
+</code></pre>
+    <p class="normal">Define the number of episodes:</p>
+    <pre class="programlisting code"><code class="hljs-code">num_episodes = <span class="hljs-number">2000</span>
+</code></pre>
+    <p class="normal">Define the number of time steps:</p>
+    <pre class="programlisting code"><code class="hljs-code">num_timesteps = <span class="hljs-number">200</span>
+</code></pre>
+    <p class="normal">Define the global network (global agent) scope:</p>
+    <pre class="programlisting code"><code class="hljs-code">global_net_scope = <span class="hljs-string">'Global_Net'</span>
+</code></pre>
+    <p class="normal">Define the time step at which we want to update the global network:</p>
+    <pre class="programlisting code"><code class="hljs-code">update_global = <span class="hljs-number">10</span>
+</code></pre>
+    <p class="normal">Define the discount factor, <img src="../Images/B15558_03_190.png" alt="" style="height: 0.93em;"/>:</p>
+    <pre class="programlisting gen"><code class="hljs">gamma = 0.90 
+</code></pre>
+    <p class="normal">Define the beta value:</p>
+    <pre class="programlisting gen"><code class="hljs">beta = 0.01 
+</code></pre>
+    <p class="normal">Define the <a id="_idIndexMarker1027"/>directory where we want to store the logs:</p>
+    <pre class="programlisting code"><code class="hljs-code">log_dir = <span class="hljs-string">'logs'</span>
+</code></pre>
+    <h3 id="_idParaDest-298" class="title">Defining the actor-critic class</h3>
+    <p class="normal">We learned <a id="_idIndexMarker1028"/>that in A3C, both the global and worker agents follow the actor-critic architecture. So, let's define the class called <code class="Code-In-Text--PACKT-">ActorCritic</code>, where we will implement the actor-critic algorithm. For a clear understanding, let's look into the code line by line. You can also access the complete code from the book's GitHub repository.</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">class</span><span class="hljs-class"> </span><span class="hljs-title">ActorCritic</span><span class="hljs-class">(</span><span class="hljs-params">object</span><span class="hljs-class">):</span>
+</code></pre>
+    <h4 class="title">Defining the init method:</h4>
+    <p class="normal">First, let's <a id="_idIndexMarker1029"/>define the init method:</p>
+    <pre class="programlisting code"><code class="hljs-code">     <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">__init__</span><span class="hljs-function">(</span><span class="hljs-params">self, scope, sess, globalAC=None</span><span class="hljs-function">):</span>
+</code></pre>
+    <p class="normal">Initialize the TensorFlow session:</p>
+    <pre class="programlisting code"><code class="hljs-code">        self.sess=sess
+</code></pre>
+    <p class="normal">Define the actor network optimizer as RMS prop:</p>
+    <pre class="programlisting code"><code class="hljs-code">        self.actor_optimizer = tf.train.RMSPropOptimizer(<span class="hljs-number">0.0001</span>, name=<span class="hljs-string">'RMSPropA'</span>)
+</code></pre>
+    <p class="normal">Define the critic network optimizer as RMS prop:</p>
+    <pre class="programlisting code"><code class="hljs-code">        self.critic_optimizer = tf.train.RMSPropOptimizer(<span class="hljs-number">0.001</span>, name=<span class="hljs-string">'RMSPropC'</span>)
+</code></pre>
+    <p class="normal">If the scope is the global network (global agent):</p>
+    <pre class="programlisting code"><code class="hljs-code">        <span class="hljs-keyword">if</span> scope == global_net_scope:
+            <span class="hljs-keyword">with</span> tf.variable_scope(scope):
+</code></pre>
+    <p class="normal">Define the placeholder for the state:</p>
+    <pre class="programlisting code"><code class="hljs-code">                self.state = tf.placeholder(tf.float32, [<span class="hljs-literal">None</span>, state_shape], <span class="hljs-string">'state'</span>)
+</code></pre>
+    <p class="normal">Build the global network (global agent) and get the actor and critic parameters:</p>
+    <pre class="programlisting code"><code class="hljs-code">                self.actor_params, self.critic_params = self.build_network(scope)[<span class="hljs-number">-2</span>:]
+</code></pre>
+    <p class="normal">If the network is not the global network, then:</p>
+    <pre class="programlisting code"><code class="hljs-code">        <span class="hljs-keyword">else</span>:
+            <span class="hljs-keyword">with</span> tf.variable_scope(scope):
+</code></pre>
+    <p class="normal">Define the placeholder for the state:</p>
+    <pre class="programlisting code"><code class="hljs-code">                self.state = tf.placeholder(tf.float32, [<span class="hljs-literal">None</span>, state_shape], <span class="hljs-string">'state'</span>)
+</code></pre>
+    <p class="normal">We learned that our environment is the continuous environment, so our actor network (policy network) returns the mean and variance of the action and then we build the action <a id="_idIndexMarker1030"/>distribution out of this mean and variance and select the action based on this action distribution. </p>
+    <p class="normal">Define the placeholder to obtain the action distribution:</p>
+    <pre class="programlisting code"><code class="hljs-code">                self.action_dist = tf.placeholder(tf.float32, [<span class="hljs-literal">None</span>, action_shape], <span class="hljs-string">'action'</span>)
+</code></pre>
+    <p class="normal">Define the placeholder for the target value:</p>
+    <pre class="programlisting code"><code class="hljs-code">                self.target_value = tf.placeholder(tf.float32, [<span class="hljs-literal">None</span>, <span class="hljs-number">1</span>], <span class="hljs-string">'Vtarget'</span>)
+</code></pre>
+    <p class="normal">Build the worker network (worker agent) and get the mean and variance of the action, the value of the state, and the actor and critic network parameters:</p>
+    <pre class="programlisting code"><code class="hljs-code">                mean, variance, self.value, self.actor_params, self.critic_params = self.build_network(scope)
+</code></pre>
+    <p class="normal">Compute the TD error, which is the difference between the target value of the state and its predicted value:</p>
+    <pre class="programlisting code"><code class="hljs-code">                td_error = tf.subtract(self.target_value, self.value, name=<span class="hljs-string">'TD_error'</span>)
+</code></pre>
+    <p class="normal">Now, let's define the critic network loss:</p>
+    <pre class="programlisting code"><code class="hljs-code">                <span class="hljs-keyword">with</span> tf.name_scope(<span class="hljs-string">'critic_loss'</span>):
+                    self.critic_loss = tf.reduce_mean(tf.square(td_error))
+</code></pre>
+    <p class="normal">Create a normal distribution based on the mean and variance of the action:</p>
+    <pre class="programlisting code"><code class="hljs-code">                normal_dist = tf.distributions.Normal(mean, variance)
+</code></pre>
+    <p class="normal">Now, let's define the actor network loss. We learned that the loss of the actor network is defined as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_041.png" alt="" style="height: 1.11em;"/></figure>
+    <pre class="programlisting code"><code class="hljs-code">                <span class="hljs-keyword">with</span> tf.name_scope(<span class="hljs-string">'actor_loss'</span>):
+</code></pre>
+    <p class="normal">Compute the log probability of the action:</p>
+    <pre class="programlisting code"><code class="hljs-code">                    log_prob = normal_dist.log_prob(self.action_dist)
+</code></pre>
+    <p class="normal">Define the entropy of the policy:</p>
+    <pre class="programlisting code"><code class="hljs-code">                    entropy_pi = normal_dist.entropy()
+</code></pre>
+    <p class="normal">Compute <a id="_idIndexMarker1031"/>the actor network loss:</p>
+    <pre class="programlisting code"><code class="hljs-code">                    self.loss = log_prob * td_error + (beta * entropy_pi)
+                    self.actor_loss = tf.reduce_mean(-self.loss)
+</code></pre>
+    <p class="normal">Select the action based on the normal distribution:</p>
+    <pre class="programlisting code"><code class="hljs-code">                <span class="hljs-keyword">with</span> tf.name_scope(<span class="hljs-string">'select_action'</span>):
+                    self.action = tf.clip_by_value(tf.squeeze(normal_dist.sample(<span class="hljs-number">1</span>), axis=<span class="hljs-number">0</span>), action_bound[<span class="hljs-number">0</span>], action_bound[<span class="hljs-number">1</span>])
+</code></pre>
+    <p class="normal">Compute the gradients of the actor and critic network losses of the worker agent (local agent):</p>
+    <pre class="programlisting code"><code class="hljs-code">                <span class="hljs-keyword">with</span> tf.name_scope(<span class="hljs-string">'local_grad'</span>):
+                    self.actor_grads = tf.gradients(self.actor_loss, self.actor_params)
+                    self.critic_grads = tf.gradients(self.critic_loss, self.critic_params)
+</code></pre>
+    <p class="normal">Now, let's perform the sync operation:</p>
+    <pre class="programlisting code"><code class="hljs-code">            <span class="hljs-keyword">with</span> tf.name_scope(<span class="hljs-string">'sync'</span>):
+</code></pre>
+    <p class="normal">After computing the gradients of the losses of the actor and critic networks, the worker agents send (push) those gradients to the global agent: </p>
+    <pre class="programlisting code"><code class="hljs-code">                <span class="hljs-keyword">with</span> tf.name_scope(<span class="hljs-string">'push'</span>):
+                    self.update_actor_params = self.actor_optimizer.apply_gradients(zip(self.actor_grads, globalAC.actor_params))
+                    self.update_critic_params = self.critic_optimizer.apply_gradients(zip(self.critic_grads, globalAC.critic_params))
+</code></pre>
+    <p class="normal">The global <a id="_idIndexMarker1032"/>agent updates their parameters with the gradients received from the worker agents (local agents). Then, the worker agents pull the updated parameters from the global agent:</p>
+    <pre class="programlisting code"><code class="hljs-code">                <span class="hljs-keyword">with</span> tf.name_scope(<span class="hljs-string">'pull'</span>):
+                    self.pull_actor_params = [l_p.assign(g_p) <span class="hljs-keyword">for</span> l_p, g_p <span class="hljs-keyword">in</span> zip(self.actor_params, globalAC.actor_params)]
+                    self.pull_critic_params = [l_p.assign(g_p) <span class="hljs-keyword">for</span> l_p, g_p <span class="hljs-keyword">in</span> zip(self.critic_params, globalAC.critic_params)]
+</code></pre>
+    <h4 class="title">Building the network</h4>
+    <p class="normal">Now, let's <a id="_idIndexMarker1033"/>define the function for building the actor-critic network:</p>
+    <pre class="programlisting code"><code class="hljs-code">     <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">build_network</span><span class="hljs-function">(</span><span class="hljs-params">self, scope</span><span class="hljs-function">):</span>
+</code></pre>
+    <p class="normal">Initialize the weight:</p>
+    <pre class="programlisting code"><code class="hljs-code">        w_init = tf.random_normal_initializer(<span class="hljs-number">0.</span>, <span class="hljs-number">.1</span>)
+</code></pre>
+    <p class="normal">Define the actor network, which returns the mean and variance of the action:</p>
+    <pre class="programlisting code"><code class="hljs-code">        <span class="hljs-keyword">with</span> tf.variable_scope(<span class="hljs-string">'actor'</span>):
+            l_a = tf.layers.dense(self.state, <span class="hljs-number">200</span>, tf.nn.relu, kernel_initializer=w_init, name=<span class="hljs-string">'la'</span>)
+            mean = tf.layers.dense(l_a, action_shape, tf.nn.tanh,kernel_initializer=w_init, name=<span class="hljs-string">'mean'</span>)
+            variance = tf.layers.dense(l_a, action_shape, tf.nn.softplus, kernel_initializer=w_init, name=<span class="hljs-string">'variance'</span>)
+</code></pre>
+    <p class="normal">Define the critic network, which returns the value of the state:</p>
+    <pre class="programlisting code"><code class="hljs-code">        <span class="hljs-keyword">with</span> tf.variable_scope(<span class="hljs-string">'critic'</span>):
+            l_c = tf.layers.dense(self.state, <span class="hljs-number">100</span>, tf.nn.relu, kernel_initializer=w_init, name=<span class="hljs-string">'lc'</span>)
+            value = tf.layers.dense(l_c, <span class="hljs-number">1</span>, kernel_initializer=w_init, name=<span class="hljs-string">'value'</span>)
+</code></pre>
+    <p class="normal">Get the parameters of the actor and critic networks:</p>
+    <pre class="programlisting code"><code class="hljs-code">        actor_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + <span class="hljs-string">'/actor'</span>)
+        critic_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope + <span class="hljs-string">'/critic'</span>)
+</code></pre>
+    <p class="normal">Return the <a id="_idIndexMarker1034"/>mean and variance of the action produced by the actor network, the value of the state computed by the critic network, and the parameters of the actor and critic networks:</p>
+    <pre class="programlisting code"><code class="hljs-code">        <span class="hljs-keyword">return</span> mean, variance, value, actor_params, critic_params
+</code></pre>
+    <h4 class="title">Updating the global network</h4>
+    <p class="normal">Let's define <a id="_idIndexMarker1035"/>a function called <code class="Code-In-Text--PACKT-">update_global</code> to <a id="_idIndexMarker1036"/>update the parameters of the global network with the gradients of loss computed by the worker networks, that is, the push operation:</p>
+    <pre class="programlisting code"><code class="hljs-code">     <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">update_global</span><span class="hljs-function">(</span><span class="hljs-params">self, feed_dict</span><span class="hljs-function">):</span>
+        self.sess.run([self.update_actor_params, self.update_critic_params], feed_dict)
+</code></pre>
+    <h4 class="title">Updating the worker network</h4>
+    <p class="normal">We also <a id="_idIndexMarker1037"/>define a function called <code class="Code-In-Text--PACKT-">pull_from_global</code> to update <a id="_idIndexMarker1038"/>the parameters of the worker networks by pulling from the global network, that is, the pull operation:</p>
+    <pre class="programlisting code"><code class="hljs-code">     <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">pull_from_global</span><span class="hljs-function">(</span><span class="hljs-params">self</span><span class="hljs-function">):</span>
+        self.sess.run([self.pull_actor_params, self.pull_critic_params])
+</code></pre>
+    <h4 class="title">Selecting the action</h4>
+    <p class="normal">Define <a id="_idIndexMarker1039"/>a function called <code class="Code-In-Text--PACKT-">select_action</code> to select <a id="_idIndexMarker1040"/>the action:</p>
+    <pre class="programlisting code"><code class="hljs-code">     <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">select_action</span><span class="hljs-function">(</span><span class="hljs-params">self, state</span><span class="hljs-function">):</span>
+        
+        state = state[np.newaxis, :]
+        
+        <span class="hljs-keyword">return</span> self.sess.run(self.action, {self.state: state})[<span class="hljs-number">0</span>]
+</code></pre>
+    <h3 id="_idParaDest-299" class="title">Defining the worker class</h3>
+    <p class="normal">Let's <a id="_idIndexMarker1041"/>define the class called <code class="Code-In-Text--PACKT-">Worker</code>, where we will implement the worker agent:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">class</span><span class="hljs-class"> </span><span class="hljs-title">Worker</span><span class="hljs-class">(</span><span class="hljs-params">object</span><span class="hljs-class">):</span>
+</code></pre>
+    <h4 class="title">Defining the init method</h4>
+    <p class="normal">First, let's <a id="_idIndexMarker1042"/>define the <code class="Code-In-Text--PACKT-">init</code> method:</p>
+    <pre class="programlisting code"><code class="hljs-code">    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">__init__</span><span class="hljs-function">(</span><span class="hljs-params">self, name, globalAC, sess</span><span class="hljs-function">):</span>
+</code></pre>
+    <p class="normal">We learned that each worker agent works with their own copies of the environment. So, let's create a mountain car environment:</p>
+    <pre class="programlisting code"><code class="hljs-code">        self.env = gym.make(<span class="hljs-string">'MountainCarContinuous-v0'</span>).unwrapped
+</code></pre>
+    <p class="normal">Define the name of the worker:</p>
+    <pre class="programlisting code"><code class="hljs-code">        self.name = name
+</code></pre>
+    <p class="normal">Create an object for our <code class="Code-In-Text--PACKT-">ActorCritic</code> class:</p>
+    <pre class="programlisting code"><code class="hljs-code">        self.AC = ActorCritic(name, sess, globalAC)
+</code></pre>
+    <p class="normal">Initialize a TensorFlow session:</p>
+    <pre class="programlisting code"><code class="hljs-code">        self.sess=sess
+</code></pre>
+    <p class="normal">Define a function called <code class="Code-In-Text--PACKT-">work</code> for the worker to learn:</p>
+    <pre class="programlisting code"><code class="hljs-code">    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">work</span><span class="hljs-function">(</span><span class="hljs-params">self</span><span class="hljs-function">):</span>
+        <span class="hljs-keyword">global</span> global_rewards, global_episodes
+</code></pre>
+    <p class="normal">Initialize the time step:</p>
+    <pre class="programlisting code"><code class="hljs-code">        total_step = <span class="hljs-number">1</span>
+</code></pre>
+    <p class="normal">Initialize a list to store the states, actions, and rewards:</p>
+    <pre class="programlisting code"><code class="hljs-code">        batch_states, batch_actions, batch_rewards = [], [], []
+</code></pre>
+    <p class="normal">When the <a id="_idIndexMarker1043"/>global episodes are less than the number of episodes and the coordinator is active:</p>
+    <pre class="programlisting code"><code class="hljs-code">        <span class="hljs-keyword">while</span> <span class="hljs-keyword">not</span> coord.should_stop() <span class="hljs-keyword">and</span> global_episodes &lt; num_episodes:
+</code></pre>
+    <p class="normal">Initialize the state by resetting the environment:</p>
+    <pre class="programlisting code"><code class="hljs-code">            state = self.env.reset()
+</code></pre>
+    <p class="normal">Initialize the return:</p>
+    <pre class="programlisting code"><code class="hljs-code">            Return = <span class="hljs-number">0</span>
+</code></pre>
+    <p class="normal">For each step in the environment:</p>
+    <pre class="programlisting code"><code class="hljs-code">            <span class="hljs-keyword">for</span> t <span class="hljs-keyword">in</span> range(num_timesteps):
+</code></pre>
+    <p class="normal">Render the environment of only the worker 0:</p>
+    <pre class="programlisting code"><code class="hljs-code">                <span class="hljs-keyword">if</span> self.name == <span class="hljs-string">'W_0'</span>:
+                    self.env.render()
+</code></pre>
+    <p class="normal">Select the action:</p>
+    <pre class="programlisting code"><code class="hljs-code">                action = self.AC.select_action(state)
+</code></pre>
+    <p class="normal">Perform the selected action:</p>
+    <pre class="programlisting code"><code class="hljs-code">                next_state, reward, done, _ = self.env.step(action)
+</code></pre>
+    <p class="normal">Set <code class="Code-In-Text--PACKT-">done</code> to <code class="Code-In-Text--PACKT-">True</code> if we have reached the final step of the episode <code class="Code-In-Text--PACKT-">else</code> set to <code class="Code-In-Text--PACKT-">False</code>:</p>
+    <pre class="programlisting code"><code class="hljs-code">                done = <span class="hljs-literal">True</span> <span class="hljs-keyword">if</span> t == num_timesteps - <span class="hljs-number">1</span> <span class="hljs-keyword">else</span> <span class="hljs-literal">False</span>
+</code></pre>
+    <p class="normal">Update the return:</p>
+    <pre class="programlisting code"><code class="hljs-code">          Return += reward
+</code></pre>
+    <p class="normal">Store the state, action, and reward in the lists:</p>
+    <pre class="programlisting code"><code class="hljs-code">                batch_states.append(state)
+                batch_actions.append(action)
+                batch_rewards.append((reward+<span class="hljs-number">8</span>)/<span class="hljs-number">8</span>)
+</code></pre>
+    <p class="normal">Now, let's update the global network. If <code class="Code-In-Text--PACKT-">done</code> is <code class="Code-In-Text--PACKT-">True</code>, then set the value of the next state to <code class="Code-In-Text--PACKT-">0</code> <code class="Code-In-Text--PACKT-">else</code> compute the value of the next state:</p>
+    <pre class="programlisting code"><code class="hljs-code">                <span class="hljs-keyword">if</span> total_step % update_global == <span class="hljs-number">0</span> <span class="hljs-keyword">or</span> done:
+                    <span class="hljs-keyword">if</span> done:
+                        v_s_ = <span class="hljs-number">0</span>
+                    <span class="hljs-keyword">else</span>:
+                        v_s_ = self.sess.run(self.AC.value, {self.AC.state: next_state[np.newaxis, :]})[<span class="hljs-number">0</span>, <span class="hljs-number">0</span>]
+</code></pre>
+    <p class="normal">Compute <a id="_idIndexMarker1044"/>the target value, which is <img src="../Images/B15558_11_042.png" alt="" style="height: 1.2em;"/>:</p>
+    <pre class="programlisting code"><code class="hljs-code">                    batch_target_value = []
+                    <span class="hljs-keyword">for</span> reward <span class="hljs-keyword">in</span> batch_rewards[::<span class="hljs-number">-1</span>]:
+                        v_s_ = reward + gamma * v_s_
+                        batch_target_value.append(v_s_)
+</code></pre>
+    <p class="normal">Reverse the target value:</p>
+    <pre class="programlisting code"><code class="hljs-code">                    batch_target_value.reverse()
+</code></pre>
+    <p class="normal">Stack the state, action, and target value:</p>
+    <pre class="programlisting code"><code class="hljs-code">                    batch_states, batch_actions, batch_target_value = np.vstack(batch_states), np.vstack(batch_actions), np.vstack(batch_target_value)
+</code></pre>
+    <p class="normal">Define the feed dictionary:</p>
+    <pre class="programlisting code"><code class="hljs-code">                    feed_dict = {
+                                 self.AC.state: batch_states,
+                                 self.AC. action_dist: batch_actions,
+                                 self.AC.target_value: batch_target_value,
+                                 }
+</code></pre>
+    <p class="normal">Update the global network:</p>
+    <pre class="programlisting code"><code class="hljs-code">                    self.AC.update_global(feed_dict)
+</code></pre>
+    <p class="normal">Empty the lists:</p>
+    <pre class="programlisting code"><code class="hljs-code">                    batch_states, batch_actions, batch_rewards = [], [], []
+</code></pre>
+    <p class="normal">Update the <a id="_idIndexMarker1045"/>worker network by pulling the parameters from the global network:</p>
+    <pre class="programlisting code"><code class="hljs-code">                    self.AC.pull_from_global()
+</code></pre>
+    <p class="normal">Update the state to the next state and increment the total step:</p>
+    <pre class="programlisting code"><code class="hljs-code">                state = next_state
+                total_step += <span class="hljs-number">1</span>
+</code></pre>
+    <p class="normal">Update the global rewards:</p>
+    <pre class="programlisting code"><code class="hljs-code">                <span class="hljs-keyword">if</span> done:
+                    <span class="hljs-keyword">if</span> len(global_rewards) &lt; <span class="hljs-number">5</span>:
+                        global_rewards.append(Return)
+                    <span class="hljs-keyword">else</span>:
+                        global_rewards.append(Return)
+                        global_rewards[<span class="hljs-number">-1</span>] =(np.mean(global_rewards[<span class="hljs-number">-5</span>:]))
+                    
+                    global_episodes += <span class="hljs-number">1</span>
+                    <span class="hljs-keyword">break</span>
+</code></pre>
+    <h3 id="_idParaDest-300" class="title">Training the network</h3>
+    <p class="normal">Now, let's start <a id="_idIndexMarker1046"/>training the network. Initialize the global rewards list and also initialize the global episodes counter:</p>
+    <pre class="programlisting code"><code class="hljs-code">global_rewards = []
+global_episodes = <span class="hljs-number">0</span>
+</code></pre>
+    <p class="normal">Start the TensorFlow session:</p>
+    <pre class="programlisting code"><code class="hljs-code">sess = tf.Session()
+</code></pre>
+    <p class="normal">Create a global agent:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">with</span> tf.device(<span class="hljs-string">"/cpu:0"</span>):
+    
+    global_agent = ActorCritic(global_net_scope,sess)
+</code></pre>
+    <p class="normal">Create <em class="italic">n</em> number of worker agents:</p>
+    <pre class="programlisting code"><code class="hljs-code">    worker_agents = []
+    <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(num_workers):
+        i_name = <span class="hljs-string">'W_%i'</span> % i
+        worker_agents.append(Worker(i_name, global_agent,sess))
+</code></pre>
+    <p class="normal">Create <a id="_idIndexMarker1047"/>the TensorFlow coordinator:</p>
+    <pre class="programlisting code"><code class="hljs-code">coord = tf.train.Coordinator()
+</code></pre>
+    <p class="normal">Initialize all the TensorFlow variables:</p>
+    <pre class="programlisting code"><code class="hljs-code">sess.run(tf.global_variables_initializer())
+</code></pre>
+    <p class="normal">Store the TensorFlow computational graph in the log directory:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">if</span> os.path.exists(log_dir):
+    shutil.rmtree(log_dir)
+tf.summary.FileWriter(log_dir, sess.graph)
+</code></pre>
+    <p class="normal">Now, run the worker threads:</p>
+    <pre class="programlisting code"><code class="hljs-code">worker_threads = []
+<span class="hljs-keyword">for</span> worker <span class="hljs-keyword">in</span> worker_agents:
+    job = <span class="hljs-keyword">lambda</span>: worker.work()
+    t = threading.Thread(target=job)
+    t.start()
+    worker_threads.append(t)
+coord.join(worker_threads)
+</code></pre>
+    <p class="normal">For a better <a id="_idIndexMarker1048"/>understanding of the A3C architecture, let's take a look at the computational graph of A3C in the next section.</p>
+    <h3 id="_idParaDest-301" class="title">Visualizing the computational graph</h3>
+    <p class="normal">As we <a id="_idIndexMarker1049"/>can observe, we have four worker agents (worker networks) and one global agent (global network):</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_05.png" alt=""/></figure>
+    <p class="packt_figref">Figure 11.5: A computation graph of A3C</p>
+    <p class="normal">Let's take a look at the architecture of the worker agent. As we can observe, our worker agents follow the actor-critic architecture:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_06.png" alt=""/></figure>
+    <p class="packt_figref">Figure 11.6: A computation graph of A3C with the W_0 node expanded</p>
+    <p class="normal">Now, let's examine the sync node. As <em class="italic">Figure 11.7</em> shows, we have two operations in the sync node, called <em class="italic">push</em> and <em class="italic">pull</em>:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_07.png" alt=""/></figure>
+    <p class="packt_figref">Figure 11.7: A computation graph of A3C showing the push and pull operations of the sync node</p>
+    <p class="normal">After computing <a id="_idIndexMarker1050"/>the gradients of the losses of the actor and critic networks, the worker agent pushes those gradients to the global agent:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_08.png" alt=""/></figure>
+    <p class="packt_figref">Figure 11.8: A computation graph of A3C—worker agents push their gradients to the global agent</p>
+    <p class="normal">The global agent updates their parameters with the gradients received from the worker agents. Then, the worker agents pull the updated parameters from the global agent:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_11_09.png" alt=""/></figure>
+    <p class="packt_figref">Figure 11.9: A computation graph of A3C – worker agents pull updated parameters from the global agent</p>
+    <p class="normal">Now that <a id="_idIndexMarker1051"/>we have learned how A3C works, in the next section, let's revisit the A2C method.</p>
+    <h1 id="_idParaDest-302" class="title">A2C revisited</h1>
+    <p class="normal">We can design our A2C algorithm with many worker agents, just like the A3C algorithm. However, unlike A3C, A2C is a synchronous algorithm, meaning that in A2C, we can have multiple <a id="_idIndexMarker1052"/>worker agents, each interacting with their own copies of the environment, and all the worker agents perform synchronous updates, unlike A3C, where the worker agents perform asynchronous updates.</p>
+    <p class="normal">That is, in A2C, each worker agent interacts with the environment, computes losses, and calculates gradients. However, it won't send those gradients to the global network independently. Instead, it waits for all other worker agents to finish their work and then updates the weights to the global network in a synchronous fashion. Performing synchronous weight updates reduces the inconsistency introduced by A3C.</p>
+    <h1 id="_idParaDest-303" class="title">Summary</h1>
+    <p class="normal">We started the chapter by understanding what the actor-critic method is. We learned that in the actor-critic method, the actor computes the optimal policy, and the critic evaluates the policy computed by the actor network by estimating the value function. Next, we learned how the actor-critic method differs from the policy gradient method with the baseline. </p>
+    <p class="normal">We learned that in the policy gradient method with the baseline, first, we generate complete episodes (trajectories), and then we update the parameter of the network. Whereas, in the actor-critic method, we update the parameter of the network at every step of the episode. Moving forward, we learned what the advantage actor-critic algorithm is and how it uses the advantage function in the gradient update. </p>
+    <p class="normal">At the end of the chapter, we learned about another interesting actor-critic algorithm, called asynchronous advantage actor-critic method. We learned that A3C consists of several worker agents and one global agent. All the worker agents send their gradients to the global agent asynchronously and then the global agent updates their parameters with gradients received from the worker agents. After updating the parameters, the global agent sends the updated parameters to the worker agents periodically.</p>
+    <p class="normal">Hence, in this chapter, we learned about two interesting actor-critic algorithms – A2C and A3C. In the next chapter, we will understand several state-of-the-art actor-critic algorithms, including DDPG, TD3, and SAC.</p>
+    <h1 id="_idParaDest-304" class="title">Questions</h1>
+    <p class="normal">Let's assess our understanding of the actor-critic method by answering the following questions:</p>
+    <ol>
+      <li class="numbered" value="1">What is the actor-critic method?</li>
+      <li class="numbered">What is the role of the actor and critic networks?</li>
+      <li class="numbered">How does the actor-critic method differ from the policy gradient with the baseline method?</li>
+      <li class="numbered">What is the gradient update equation of the actor network?</li>
+      <li class="numbered">How does A2C work?</li>
+      <li class="numbered">What does <em class="italic">asynchronous</em> mean in A3C?</li>
+      <li class="numbered">How does A2C differ from A3C?</li>
+    </ol>
+    <h1 id="_idParaDest-305" class="title">Further reading</h1>
+    <p class="normal">To learn more, refer to the following paper:</p>
+    <ul>
+      <li class="bullet"><em class="italic">Asynchronous Methods for Deep Reinforcement Learning</em>, by Volodymyr Mnih et al.: <a href="https://arxiv.org/pdf/1602.01783.pdf"><span class="url">https://arxiv.org/pdf/1602.01783.pdf</span></a></li>
+    </ul>
+  </div>
+</body></html>

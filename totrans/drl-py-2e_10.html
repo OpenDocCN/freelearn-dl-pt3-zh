@@ -1,0 +1,451 @@
+<html><head></head><body>
+  <div id="_idContainer1363">
+    <h1 class="chapterNumber">10</h1>
+    <h1 id="_idParaDest-269" class="chapterTitle">Policy Gradient Method</h1>
+    <p class="normal">In the previous chapters, we learned how to use value-based reinforcement learning algorithms to compute the optimal policy. That is, we learned that with value-based methods, we compute the optimal Q function iteratively and from the optimal Q function, we extract the optimal policy. In this chapter, we will learn about policy-based methods, where we can compute the optimal policy without having to compute the optimal Q function.</p>
+    <p class="normal">We will start the chapter by looking at the disadvantages of computing a policy from the Q function, and then we will learn how policy-based methods learn the optimal policy directly without computing the Q function. Next, we will examine one of the most popular policy-based methods, called the policy gradient. We will first take a broad overview of the policy gradient algorithm, and then we will learn more about it in detail.</p>
+    <p class="normal">Going forward, we will also learn how to derive the policy gradient step by step and examine the algorithm of the policy gradient method in more detail. At the end of the chapter, we will learn about the variance reduction techniques in the policy gradient method. </p>
+    <p class="normal">In this chapter, we will learn the following topics:</p>
+    <ul>
+      <li class="bullet">Why policy-based methods?</li>
+      <li class="bullet">Policy gradient intuition</li>
+      <li class="bullet">Deriving the policy gradient</li>
+      <li class="bullet">Algorithm of policy gradient</li>
+      <li class="bullet">Policy gradient with reward-to-go</li>
+      <li class="bullet">Policy gradient with baseline</li>
+      <li class="bullet">Algorithm of policy gradient with baseline </li>
+    </ul>
+    <h1 id="_idParaDest-270" class="title">Why policy-based methods?</h1>
+    <p class="normal">The objective of reinforcement learning is to find the optimal policy, which is the policy that provides <a id="_idIndexMarker944"/>the maximum return. So far, we have learned several different algorithms for computing the optimal policy, and all these algorithms have been value-based methods. Wait, what are value-based methods? Let's recap what value-based methods are, and the problems associated with them, and then we will learn about policy-based methods. Recapping is always good, isn't it?</p>
+    <p class="normal">With value-based methods, we extract the optimal policy from the optimal Q function (Q values), meaning we compute the Q values of all state-action pairs to find the policy. We extract the policy by selecting an action in each state that has the maximum Q value. For instance, let's say we have two states <em class="italic">s</em><sub class="Subscript--PACKT-">0</sub> and <em class="italic">s</em><sub class="Subscript--PACKT-">1</sub> and our action space has two actions; let the actions be 0 and 1. First, we compute the Q value of all the state-action pairs, as shown in the following table. Now, we extract policy from the Q function (Q values) by selecting action 0 in state <em class="italic">s</em><sub class="Subscript--PACKT-">0</sub> and action 1 in state <em class="italic">s</em><sub class="Subscript--PACKT-">1</sub> as they have the maximum Q value:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_01.png" alt=""/></figure>
+    <p class="packt_figref">Table 10.1: Q table</p>
+    <p class="normal">Later, we learned that it is difficult to compute the Q function when our environment has a large number of states and actions as it would be expensive to compute the Q values of all possible state-action pairs. So, we resorted to the <strong class="keyword">Deep Q Network</strong> (<strong class="keyword">DQN</strong>). In DQN, we used a neural network to approximate the Q function (Q value). Given a state, the network will return the Q values of all possible actions in that state. For instance, consider the grid world environment. Given a state, our DQN will return the Q values of all possible actions in that state. Then we select the action that has the highest Q value. As we can see in <em class="italic">Figure 10.1</em>, given state <strong class="keyword">E</strong>, DQN returns the Q value of all possible actions (<em class="italic">up, down, left, right</em>). Then we select the <em class="italic">right</em> action in state <strong class="keyword">E</strong> since it has the maximum Q value:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_02.png" alt=""/></figure>
+    <p class="packt_figref">Figure 10.1: DQN</p>
+    <p class="normal">Thus, in value-based methods, we improve the Q function iteratively, and once we have the optimal Q function, then we extract optimal policy by selecting the action in each state that has the maximum Q value. </p>
+    <p class="normal">One of the <a id="_idIndexMarker945"/>disadvantages of the value-based method is that it is suitable only for discrete environments (environments with a discrete action space), and we cannot apply value-based methods in continuous environments (environments with a continuous action space).</p>
+    <p class="normal">We have learned that a discrete action space has a discrete set of actions; for example, the grid world environment has discrete actions (up, down, left, and right) and the continuous action space consists of actions that are continuous values, for example, controlling the speed of a car.</p>
+    <p class="normal">So far, we have only dealt with a discrete environment where we had a discrete action space, so we easily computed the Q value of all possible state-action pairs. But how can we compute the Q value of all possible state-action pairs when our action space is continuous? Say we are training an agent to drive a car and say we have one continuous action in our action space. Let the action be the speed of the car and the value of the speed of the car ranges from 0 to 150 kmph. In this case, how can we compute the Q value of all possible state-action pairs with the action being a continuous value?</p>
+    <p class="normal">In this case, we can discretize the continuous actions into speed (0 to 10) as action 1, speed (10 to 20) as action 2, and so on. After discretization, we can compute the Q value of all possible state-action pairs. However, discretization is not always desirable. We might lose several important features and we might end up in an action space with a huge set of actions.</p>
+    <p class="normal">Most real-world problems have continuous action space, say, a self-driving car, or a robot learning to walk and more. Apart from having a continuous action space they also have a high dimension. Thus, the DQN and other value-based methods cannot deal with the continuous action space effectively. </p>
+    <p class="normal">So, we use the policy-based methods. With policy-based methods, we don't need to compute the Q function (Q values) to find the optimal policy; instead, we can compute them directly. That is, we don't need the Q function to extract the policy. Policy-based methods have several advantages over value-based methods, and they can handle both discrete and continuous action spaces.</p>
+    <p class="normal">We learned that DQN takes care of the exploration-exploitation dilemma by using the epsilon-greedy policy. With the epsilon-greedy policy, we either select the best action with the probability 1-epsilon or a random action with the probability epsilon. Most policy-based <a id="_idIndexMarker946"/>methods use a stochastic policy. We know that with a stochastic policy, we select actions based on the probability distribution over the action space, which allows the agent to explore different actions instead of performing the same action every time. Thus, policy-based methods take care of the exploration-exploitation trade-off implicitly by using a stochastic policy. However, there are several policy-based methods that use a deterministic policy as well. We will learn more about them in the upcoming chapters.</p>
+    <p class="normal">Okay, how do policy-based methods work, exactly? How do they find an optimal policy without computing the Q function? We will learn about this in the next section. Now that we have a basic understanding of what a policy gradient method is, and also the disadvantages of value-based methods, in the next section we will learn about a fundamental and interesting policy-based method called policy gradient.</p>
+    <h1 id="_idParaDest-271" class="title">Policy gradient intuition</h1>
+    <p class="normal">Policy gradient <a id="_idIndexMarker947"/>is one of the most popular algorithms in deep reinforcement learning. As we have learned, policy gradient is a policy-based method by which we can find the optimal policy without computing the Q function. It finds the optimal policy by directly parameterizing the policy using some parameter <img src="../Images/B15558_09_044.png" alt="" style="height: 1.11em;"/>.</p>
+    <p class="normal">The policy gradient method uses a stochastic policy. We have learned that with a stochastic policy, we select an action based on the probability distribution over the action space. Say we have a stochastic policy <img src="../Images/B15558_04_099.png" alt="" style="height: 0.84em;"/>, then it gives the probability of taking an action <em class="italic">a</em> given the state <em class="italic">s</em>. It can be denoted by <img src="../Images/B15558_10_003.png" alt="" style="height: 1.11em;"/>. In the policy gradient method, we use a parameterized policy, so we can denote our policy as <img src="../Images/B15558_10_004.png" alt="" style="height: 1.11em;"/>, where <img src="../Images/B15558_09_002.png" alt="" style="height: 1.11em;"/> indicates that our policy is parameterized.</p>
+    <p class="normal">Wait! What do we mean when we say a parameterized policy? What is it exactly? Remember with DQN, we learned that we parameterize our Q function to compute the Q value? We can do the same here, except instead of parameterizing the Q function, we will directly parameterize the policy to compute the optimal policy. That is, we can use any function <a id="_idIndexMarker948"/>approximator to learn the optimal policy, and <img src="../Images/B15558_09_054.png" alt="" style="height: 1.11em;"/> is the parameter of our function approximator. We generally use a neural network as our function approximator. Thus, we have a policy <img src="../Images/B15558_03_084.png" alt="" style="height: 0.84em;"/> parameterized by <img src="../Images/B15558_10_008.png" alt="" style="height: 1.11em;"/> where <img src="../Images/B15558_10_009.png" alt="" style="height: 1.11em;"/> is the parameter of the neural network.</p>
+    <p class="normal">Say we have a neural network with a parameter <img src="../Images/B15558_09_029.png" alt="" style="height: 1.11em;"/>. First, we feed the state of the environment as an input to the network and it will output the probability of all the actions that can be performed in the state. That is, it outputs a probability distribution over an action space. We have learned that with policy gradient, we use a stochastic policy. So, the stochastic policy selects an action based on the probability distribution given by the neural network. In this way, we can directly compute the policy without using the Q function.</p>
+    <p class="normal">Let's understand how the policy gradient method works with an example. Let's take our favorite grid world environment for better understanding. We know that in the grid world environment our action space has four possible actions: <em class="italic">up</em>, <em class="italic">down</em>, <em class="italic">left</em>, and <em class="italic">right</em>.</p>
+    <p class="normal">Given any state as an input, the neural network will output the probability distribution over the action space. That is, as shown in <em class="italic">Figure 10.2</em>, when we feed the state <strong class="keyword">E</strong> as an input to the network, it will return the probability distribution over all actions in our action space. Now, our stochastic policy will select an action based on the probability distribution given by the neural network. So, it will select action <em class="italic">up</em> 10% of the time, <em class="italic">down</em> 10% of the time, <em class="italic">left</em> 10% of the time, and <em class="italic">right</em> 70% of the time:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_03.png" alt=""/></figure>
+    <p class="packt_figref">Figure 10.2: A policy network</p>
+    <p class="normal">We should not get confused with the DQN and the policy gradient method. With DQN, we feed the <a id="_idIndexMarker949"/>state as an input to the network, and it returns the Q values of all possible actions in that state, then we select an action that has a maximum Q value. But in the policy gradient method, we feed the state as input to the network, and it returns the probability distribution over an action space, and our stochastic policy uses the probability distribution returned by the neural network to select an action.</p>
+    <p class="normal">Okay, in the policy gradient method, the network returns the probability distribution (action probabilities) over the action space, but how accurate are the probabilities? How does the network learn?</p>
+    <p class="normal">Unlike supervised learning, here we will not have any labeled data to train our network. So, our network does not know the correct action to perform in the given state; that is, the network does not know which action gives the maximum reward. So, the action probabilities given by our neural network will not be accurate in the initial iterations, and thus we might get a bad reward. </p>
+    <p class="normal">But that is fine. We simply select the action based on the probability distribution given by the network, store the reward, and move to the next state until the end of the episode. That is, we play an episode and store the states, actions, and rewards. Now, this becomes our training data. If we win the episode, that is, if we get a positive return or high return (the sum of the rewards of the episode), then we increase the probability of all the actions that we took in each state until the end of the episode. If we get a negative return or low return, then we decrease the probability of all the actions that we took in each state until the end of the episode.</p>
+    <p class="normal">Let's understand this with an example. Say we have states <em class="italic">s</em><sub class="Subscript--PACKT-">1</sub> to <em class="italic">s</em><sub class="Subscript--PACKT-">8</sub> and our goal is to reach state <em class="italic">s</em><sub class="Subscript--PACKT-">8</sub>. Say our action space consists of only two actions: <em class="italic">left and right. </em>So, when we feed any state to the network, then it will return the probability distribution over the two actions. </p>
+    <p class="normal">Consider the <a id="_idIndexMarker950"/>following trajectory (episode) <img src="../Images/B15558_10_011.png" alt="" style="height: 0.84em;"/>, where we select an action in each state based on the probability distribution returned by the network using a stochastic policy:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_04.png" alt=""/></figure>
+    <p class="packt_figref">Figure 10.3: Trajectory <img src="../Images/B15558_10_012.png" alt="" style="height: 0.84em;"/></p>
+    <p class="normal">The return of this trajectory is <img src="../Images/B15558_10_013.png" alt="" style="height: 1.11em;"/>. Since we got a positive return, we increase the probabilities of all the actions that we took in each state until the end of the episode. That is, we increase the probabilities of action <em class="italic">left</em> in <em class="italic">s</em><sub class="Subscript--PACKT-">1</sub>, action <em class="italic">right</em> in <em class="italic">s</em><sub class="Subscript--PACKT-">2</sub>, and so on until the end of the episode.</p>
+    <p class="normal">Let's suppose we generate another trajectory <img src="../Images/B15558_10_014.png" alt="" style="height: 0.84em;"/>, where we select an action in each state based on the probability distribution returned by the network using a stochastic policy, as shown in <em class="italic">Figure 10.4</em>:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_05.png" alt=""/></figure>
+    <p class="packt_figref">Figure 10.4: Trajectory <img src="../Images/B15558_10_015.png" alt="" style="height: 0.84em;"/></p>
+    <p class="normal">The return of this trajectory is <img src="../Images/B15558_10_016.png" alt="" style="height: 1.11em;"/>. Since we got a negative return, we decrease the probabilities of all the actions that we took in each state until the end of the episode. That is, we will decrease the probabilities of action <em class="italic">right</em> in <em class="italic">s</em><sub class="Subscript--PACKT-">1</sub>, action <em class="italic">right</em> in <em class="italic">s</em><sub class="Subscript--PACKT-">3</sub>, and so on until the end of the episode.</p>
+    <p class="normal">Okay, but how exactly do we increase and decrease these probabilities? We learned that if the return of the trajectory is positive, then we increase the probabilities of all actions in the episode, else we decrease it. How can we do this exactly? This is where backpropagation helps us. We know that we train the neural network by backpropagation.</p>
+    <p class="normal">So, during backpropagation, the network calculates gradients and updates the parameters of the network <img src="../Images/B15558_09_098.png" alt="" style="height: 1.11em;"/>. Gradients updates are in such a way that actions yielding high return will get high probabilities and actions yielding low return will get low probabilities.</p>
+    <p class="normal">In a nutshell, in the policy gradient method, we use a neural network to find the optimal policy. We initialize the network parameter <img src="../Images/B15558_09_054.png" alt="" style="height: 1.11em;"/> with random values. We feed the state as an input to the network and it will return the action probabilities. In the initial iteration, since the network is not trained with any data, it will give random action probabilities. But we select actions based on the action probability distribution given by the network and store the state, action, and reward until the end of the episode. Now, this becomes our training data. If we win the episode, that is, if we get a high return, then we assign high probabilities to all the actions of the episode, else we assign low probabilities to all the actions of the episode.</p>
+    <p class="normal">Since we are using a neural network to find the optimal policy, we can call this neural network a policy network. Now that we have a basic understanding of the policy gradient method, in the next section, we will learn how exactly the neural network finds the optimal policy; that is, we will learn how exactly the gradient computation happens and how we train the network.</p>
+    <h2 id="_idParaDest-272" class="title">Understanding the policy gradient</h2>
+    <p class="normal">In the last <a id="_idIndexMarker951"/>section, we learned that, in the policy gradient method, we update the gradients in such a way that actions yielding a high return will get a high probability, and actions yielding a low return will get a low probability. In this section, we will learn how exactly we do that.</p>
+    <p class="normal">The goal of the policy gradient method is to find the optimal parameter <img src="../Images/B15558_09_118.png" alt="" style="height: 1.11em;"/> of the neural network so that the network returns the correct probability distribution over the action space. Thus, the objective of our network is to assign high probabilities to actions that maximize the expected return of the trajectory. So, we can write our objective function <em class="italic">J</em> as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_020.png" alt="" style="height: 1.29em;"/></figure>
+    <p class="normal">In the preceding equation, the following applies: </p>
+    <ul>
+      <li class="bullet"><img src="../Images/B15558_03_037.png" alt="" style="height: 0.84em;"/> is the trajectory.</li>
+      <li class="bullet"><img src="../Images/B15558_10_022.png" alt="" style="height: 1.11em;"/> denotes that we are sampling the trajectory based on the policy <img src="../Images/B15558_04_032.png" alt="" style="height: 0.84em;"/> given by network parameterized by <img src="../Images/B15558_09_056.png" alt="" style="height: 1.11em;"/>.</li>
+      <li class="bullet"><img src="../Images/B15558_10_025.png" alt="" style="height: 1.11em;"/> is the return of the trajectory <img src="../Images/B15558_10_026.png" alt="" style="height: 0.84em;"/>.</li>
+    </ul>
+    <p class="normal">Thus, maximizing our objective function maximizes the return of the trajectory. How can we maximize the preceding objective function? We generally deal with minimization problems, where we minimize the loss function (objective function) by calculating the gradients of our loss function and updating the parameter using gradient descent. But here, our goal is to maximize the objective function, so we calculate the gradients of our objective function and perform gradient ascent. That is:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_027.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">Where <img src="../Images/B15558_10_028.png" alt="" style="height: 1.11em;"/> implies the gradients of our objective function. Thus, we can find the optimal parameter <img src="../Images/B15558_09_118.png" alt="" style="height: 1.11em;"/> of our network using gradient ascent.</p>
+    <p class="normal">The gradient <img src="../Images/B15558_10_030.png" alt="" style="height: 1.11em;"/> is derived as <img src="../Images/B15558_10_031.png" alt="" style="height: 1.29em;"/>. We will learn how <a id="_idIndexMarker952"/>exactly we derived this gradient in the next section. In this section, let's focus only on getting a good fundamental understanding of the policy gradient.</p>
+    <p class="normal">We learned that we update our network parameter with:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_027.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">Substituting the value of gradient, our parameter update equation becomes:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_033.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">In the preceding equation, the following applies: </p>
+    <ul>
+      <li class="bullet"><img src="../Images/B15558_10_034.png" alt="" style="height: 1.11em;"/> represents the log probability of taking an action <em class="italic">a</em> given the state <em class="italic">s</em> at a time <em class="italic">t</em>.</li>
+      <li class="bullet"><img src="../Images/B15558_10_035.png" alt="" style="height: 1.11em;"/> represents the return of the trajectory.</li>
+    </ul>
+    <p class="normal">We learned that we update the gradients in such a way that actions yielding a high return will get a high probability, and actions yielding a low return will get a low probability. Let's now see how exactly we are doing that.</p>
+    <p class="normal"><strong class="keyword">Case 1</strong>:</p>
+    <p class="normal">Suppose we generate an episode (trajectory) using the policy <img src="../Images/B15558_10_036.png" alt="" style="height: 0.84em;"/>, where <img src="../Images/B15558_10_037.png" alt="" style="height: 1.11em;"/> is the parameter of the network. After generating the episode, we compute the return of the episode. If the return of the episode is negative, say -1, that is, <img src="../Images/B15558_10_038.png" alt="" style="height: 1.11em;"/>, then we decrease the probability of all the actions that we took in each state until the end of the episode.</p>
+    <p class="normal">We learned that our parameter update equation is given as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_033.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">In the preceding equation, multiplying <img src="../Images/B15558_10_040.png" alt="" style="height: 1.11em;"/> by the negative return <img src="../Images/B15558_10_038.png" alt="" style="height: 1.11em;"/> implies that <a id="_idIndexMarker953"/>we are decreasing the log probability of action <em class="italic">a</em><sub class="" style="font-style: italic;">t</sub> in state <em class="italic">s</em><sub class="" style="font-style: italic;">t</sub>. Thus, we perform a negative update. That is:</p>
+    <p class="normal">For each step in the episode, <em class="italic">t</em> = 0, . . ., <em class="italic">T</em>-1, we update the parameter <img src="../Images/B15558_09_087.png" alt="" style="height: 1.11em;"/> as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_043.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">It implies that we are decreasing the probability of all the actions that we took in each state until the end of the episode.</p>
+    <p class="normal"><strong class="keyword">Case 2</strong>:</p>
+    <p class="normal">Suppose we generate an episode (trajectory) using the policy <img src="../Images/B15558_10_044.png" alt="" style="height: 0.84em;"/>, where <img src="../Images/B15558_09_054.png" alt="" style="height: 1.11em;"/> is the parameter of the network. After generating the episode, we compute the return of the episode. If the return of the episode is positive, say +1, that is, <img src="../Images/B15558_10_046.png" alt="" style="height: 1.11em;"/>, then we increase the probability of all the actions that we took in each state until the end of the episode.</p>
+    <p class="normal">We learned that our parameter update equation is given as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_033.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">In the preceding equation, multiplying <img src="../Images/B15558_10_048.png" alt="" style="height: 1.11em;"/> by the positive return, <img src="../Images/B15558_10_046.png" alt="" style="height: 1.11em;"/>, means that <a id="_idIndexMarker954"/>we are increasing the log probability of action <em class="italic">a</em><sub class="" style="font-style: italic;">t</sub> in the state <em class="italic">s</em><sub class="" style="font-style: italic;">t</sub>. Thus, we perform a positive update. That is:</p>
+    <p class="normal">For each step in the episode, <em class="italic">t</em> = 0, . . ., <em class="italic">T</em>-1, we update the parameter <img src="../Images/B15558_09_098.png" alt="" style="height: 1.11em;"/> as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_051.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">Thus, if we get a positive return then we increase the probability of all the actions performed in that episode, else we will decrease the probability.</p>
+    <p class="normal">We learned that, for each step in the episode, <em class="italic">t</em> = 0, . . ., <em class="italic">T</em>-1, we update the parameter <img src="../Images/B15558_10_037.png" alt="" style="height: 1.11em;"/> as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_033.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">We can simply denote the preceding equation as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_054.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">Thus, if the episode (trajectory) gives a high return, we will increase the probabilities of all the actions of the episode, else we decrease the probabilities. We learned that <img src="../Images/B15558_10_031.png" alt="" style="height: 1.29em;"/>. What about that expectation? We have not included that in our update equation yet. When we looked at the Monte Carlo method, we learned that we can approximate the expectation using the average. Thus, using the Monte Carlo <a id="_idIndexMarker955"/>approximation method, we change the expectation term to the sum over <em class="italic">N</em> trajectories. So, our update equation becomes:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_056.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">It shows that instead of updating the parameter based on a single trajectory, we collect a set of <em class="italic">N</em> trajectories following the policy <img src="../Images/B15558_10_057.png" alt="" style="height: 0.84em;"/> and update the parameter based on the average value, that is:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_08.png" alt="" style="height: 8em;"/></figure>
+    <p class="normal">Thus, first, we collect <em class="italic">N</em> number of trajectories <img src="../Images/B15558_10_058.png" alt="" style="height: 1.67em;"/> following the policy <img src="../Images/B15558_10_057.png" alt="" style="height: 0.84em;"/> and compute the gradient as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_060.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">And then we update our parameter as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_027.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">But we can't find the optimal parameter <img src="../Images/B15558_09_098.png" alt="" style="height: 1.11em;"/> by updating the parameter for just one iteration. So, we repeat the previous step for many iterations to find the optimal parameter.</p>
+    <p class="normal">Now that we <a id="_idIndexMarker956"/>have a fundamental understanding of how policy gradient method work, in the next section, we will learn how to derive the policy gradient <img src="../Images/B15558_10_063.png" alt="" style="height: 1.11em;"/>. After that, we will learn about the policy gradient algorithm in detail step by step.</p>
+    <h2 id="_idParaDest-273" class="title">Deriving the policy gradient</h2>
+    <p class="normal">In this section, we <a id="_idIndexMarker957"/>will get into more details and learn how to compute the gradient <img src="../Images/B15558_10_064.png" alt="" style="height: 1.11em;"/> and how it is equal to <img src="../Images/B15558_10_065.png" alt="" style="height: 1.29em;"/>.</p>
+    <p class="normal">Let's deep dive into the interesting math and see how to calculate the derivative of our objective function <em class="italic">J</em> with respect to the model parameter <img src="../Images/B15558_10_066.png" alt="" style="height: 1.11em;"/> in simple steps. Don't get intimidated by the upcoming equations, it's actually a pretty simple derivation. Before going ahead, let's revise some math prerequisites in order to understand our derivation better.</p>
+    <p class="normal">Definition of the expectation:</p>
+    <p class="normal">Let <em class="italic">X</em> be a <a id="_idIndexMarker958"/>discrete random variable whose <strong class="keyword">probability mass function</strong> (<strong class="keyword">pmf</strong>) is given as <em class="italic">p</em>(<em class="italic">x</em>). Let <em class="italic">f</em> be a function of a discrete random variable <em class="italic">X</em>. Then the expectation of a function <em class="italic">f</em>(<em class="italic">X</em>) can be defined as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_067.png" alt="" style="height: 2.69em;"/></figure>
+    <p class="normal">Let <em class="italic">X</em> be a <a id="_idIndexMarker959"/>continuous random variable whose <strong class="keyword">probability density function</strong> (<strong class="keyword">pdf</strong>) is given as <em class="italic">p</em>(<em class="italic">x</em>). Let <em class="italic">f</em> be a function of a continuous random variable <em class="italic">X</em>. Then the expectation of a function <em class="italic">f</em>(<em class="italic">X</em>) can be defined as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_068.png" alt="" style="height: 2.4em;"/></figure>
+    <p class="normal">A log derivative trick is given as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_069.png" alt="" style="height: 2.22em;"/></figure>
+    <p class="normal">We learned that the objective of our network is to maximize the expected return of the trajectory. Thus, we can write our objective function <em class="italic">J</em> as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_070.png" alt="" style="height: 1.29em;"/></figure>
+    <p class="normal">In the preceding equation, the following applies:</p>
+    <ul>
+      <li class="bullet"><img src="../Images/B15558_10_071.png" alt="" style="height: 0.84em;"/> is the trajectory.</li>
+      <li class="bullet"><img src="../Images/B15558_10_072.png" alt="" style="height: 1.11em;"/> shows that we are sampling the trajectory based on the policy <img src="../Images/B15558_03_139.png" alt="" style="height: 0.84em;"/> given by network parameterized by <img src="../Images/B15558_09_002.png" alt="" style="height: 1.11em;"/>.</li>
+      <li class="bullet"><img src="../Images/B15558_10_075.png" alt="" style="height: 1.11em;"/> is the return of the trajectory.</li>
+    </ul>
+    <p class="normal">As we can see, our objective function, equation (4), is in the expectation form. From the definition of the expectation given in equation (2), we can expand the expectation and rewrite equation (4) as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_076.png" alt="" style="height: 2.31em;"/></figure>
+    <p class="normal">Now, we <a id="_idIndexMarker960"/>calculate the derivative of our objective function <em class="italic">J</em> with respect to <img src="../Images/B15558_10_037.png" alt="" style="height: 1.11em;"/>:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_078.png" alt="" style="height: 2.31em;"/></figure>
+    <p class="normal">Multiplying and dividing by <img src="../Images/B15558_10_079.png" alt="" style="height: 1.11em;"/>, we can write:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_080.png" alt="" style="height: 2.51em;"/></figure>
+    <p class="normal">Rearranging the preceding equation, we can write:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_081.png" alt="" style="height: 2.51em;"/></figure>
+    <p class="normal">From equation (3), substituting <img src="../Images/B15558_10_082.png" alt="" style="height: 2.51em;"/> in the preceding equation, we can write:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_083.png" alt="" style="height: 2.31em;"/></figure>
+    <p class="normal">From the definition of expectation given in equation (2), we can rewrite the preceding equation in expectation form as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_084.png" alt="" style="height: 1.29em;"/></figure>
+    <p class="normal">The preceding <a id="_idIndexMarker961"/>equation gives us the gradient of the objective function. But we still haven't solved the equation yet. As we can see, in the preceding equation we have the term <img src="../Images/B15558_10_085.png" alt="" style="height: 1.11em;"/>. Now we will see how we can compute that.</p>
+    <p class="normal">The probability distribution of trajectory can be given as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_086.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">Where <em class="italic">p</em>(<em class="italic">s</em><sub class="Subscript--PACKT-">0</sub>) is the initial state distribution. Taking the log on both sides, we can write:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_087.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">We know that the log of a product is equal to the sum of the logs, that is, <img src="../Images/B15558_10_088.png" alt="" style="height: 1.11em;"/>. Applying this log rule to the preceding equation, we can write:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_089.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">Again, we apply the same rule, log of product = sum of logs, and change the log <img src="../Images/B15558_10_090.png" alt="" style="height: 1.11em;"/> to <img src="../Images/B15558_10_091.png" alt="" style="height: 1.11em;"/> logs, as shown here:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_094.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">Now, we compute the derivate with respect to <img src="../Images/B15558_10_095.png" alt="" style="height: 1.11em;"/>:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_096.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">Note that we are calculating derivative with respect to <img src="../Images/B15558_09_087.png" alt="" style="height: 1.11em;"/> and, as we can see in the preceding equation, the <a id="_idIndexMarker962"/>first and last term on the <strong class="keyword">right-hand side</strong> (<strong class="keyword">RHS</strong>) does not depend on the <img src="../Images/B15558_09_106.png" alt="" style="height: 1.11em;"/>, and so they will become zero while calculating derivative. Thus our equation becomes:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_099.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">Now that we have found the value for <img src="../Images/B15558_10_100.png" alt="" style="height: 1.11em;"/>, substituting this in equation (5) we can write:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_101.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">That's it. But can <a id="_idIndexMarker963"/>we also get rid of that expectation? Yes! We can use a Monte Carlo approximation method and change the expectation to the sum over <em class="italic">N</em> trajectories. So, our final gradient becomes:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_102.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">Equation (6) shows that instead of updating a parameter based on a single trajectory, we collect <em class="italic">N</em> number of trajectories and update the parameter based on its average value over <em class="italic">N</em> trajectories.</p>
+    <p class="normal">Thus, after computing the gradient, we can update our parameter as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_027.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">Thus, in this section, we have learned how to derive a policy gradient. In the next section, we will get into more details and learn about the policy gradient algorithm step by step.</p>
+    <h2 id="_idParaDest-274" class="title">Algorithm – policy gradient</h2>
+    <p class="normal">The policy <a id="_idIndexMarker964"/>gradient algorithm we discussed so far is often called REINFORCE or <strong class="keyword">Monte Carlo policy gradient</strong>. The algorithm of the REINFORCE <a id="_idIndexMarker965"/>method is given in the following steps:</p>
+    <ol>
+      <li class="numbered">Initialize the network parameter <img src="../Images/B15558_10_095.png" alt="" style="height: 1.11em;"/> with random values</li>
+      <li class="numbered">Generate <em class="italic">N</em> trajectories <img src="../Images/B15558_10_105.png" alt="" style="height: 1.67em;"/> following the policy <img src="../Images/B15558_10_057.png" alt="" style="height: 0.84em;"/></li>
+      <li class="numbered">Compute the return of the trajectory <img src="../Images/B15558_10_107.png" alt="" style="height: 1.11em;"/></li>
+      <li class="numbered">Compute the gradients<figure class="mediaobject"><img src="../Images/B15558_10_108.png" alt="" style="height: 3.33em;"/></figure>
+      </li>
+      <li class="numbered">Update the network parameter as <img src="../Images/B15558_10_109.png" alt="" style="height: 1.11em;"/></li>
+      <li class="numbered">Repeat <em class="italic">steps 2</em> to <em class="italic">5</em> for several iterations</li>
+    </ol>
+    <p class="normal">As we can see from this algorithm, the parameter <img src="../Images/B15558_09_054.png" alt="" style="height: 1.11em;"/> is getting updated in every iteration. Since we are using the parameterized policy <img src="../Images/B15558_10_111.png" alt="" style="height: 0.84em;"/>, our policy is getting updated in every iteration.</p>
+    <p class="normal">The policy gradient algorithm we just learned is an on-policy method, as we are using only a single policy. That is, we are using a policy to generate trajectories and we are also improving the same policy by updating the network parameter <img src="../Images/B15558_09_054.png" alt="" style="height: 1.11em;"/> in every iteration.</p>
+    <p class="normal">We learned that with the policy gradient method (the REINFORCE method), we use a policy network that returns the probability distribution over the action space and then we select an action based on the probability distribution returned by our network using a stochastic policy. But this applies only to a discrete action space, and we use categorical policy as our stochastic policy.</p>
+    <p class="normal">What if our action space is continuous? That is, when the action space is continuous, how can we select actions? Here, our policy network cannot return the probability distribution over the action space as the action space is continuous. So, in this case, our policy network <a id="_idIndexMarker966"/>will return the mean and variance of the action as output, and then we generate a Gaussian distribution using this mean and variance and select an action by sampling from this Gaussian distribution using the Gaussian policy. We will learn more about this in the upcoming chapters. Thus, we can apply the policy gradient method to both discrete and continuous action spaces. Next, we will look at two methods to reduce the variance of policy gradient updates.</p>
+    <h1 id="_idParaDest-275" class="title">Variance reduction methods</h1>
+    <p class="normal">In the previous section, we learned one of the simplest policy gradient methods, called the <a id="_idIndexMarker967"/>REINFORCE method. One major issue we face with the policy gradient method we learned in the previous section is that the gradient, <img src="../Images/B15558_10_113.png" alt="" style="height: 1.11em;"/>, will have <a id="_idIndexMarker968"/>high variance in each update. The high variance is basically due to the major difference in the episodic returns. That is, we learned that policy gradient is the on-policy method, which means that we improve the same policy with which we are generating episodes in every iteration. Since the policy is getting improved on every iteration, our return varies greatly in each episode and it introduces a high variance in the gradient updates. When the gradients have high variance, then it will take a lot of time to attain convergence.</p>
+    <p class="normal">Thus, now we will learn the following two important methods to reduce the variance:</p>
+    <ul>
+      <li class="bullet">Policy gradients with reward-to-go (causality)</li>
+      <li class="bullet">Policy gradients with baseline</li>
+    </ul>
+    <h2 id="_idParaDest-276" class="title">Policy gradient with reward-to-go</h2>
+    <p class="normal">We <a id="_idIndexMarker969"/>learned that the <a id="_idIndexMarker970"/>policy gradient is computed as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_108.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">Now, we make a small change in the preceding equation. We know that the return of the trajectory is the sum of the rewards of that trajectory, that is:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_115.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">Instead of using the return of trajectory <img src="../Images/B15558_10_116.png" alt="" style="height: 1.11em;"/>, we use something called reward-to-go <em class="italic">R</em><sub class="" style="font-style: italic;">t</sub>. Reward-to-go is basically the return of the trajectory starting from state <em class="italic">s</em><sub class="" style="font-style: italic;">t</sub>. That is, instead of multiplying the log probabilities by the return of the full trajectory <img src="../Images/B15558_10_117.png" alt="" style="height: 1.11em;"/> in every step <a id="_idIndexMarker971"/>of the episode, we multiply them by the reward-to-go <em class="italic">R</em><sub class="" style="font-style: italic;">t</sub>. The reward-to-go implies the return of the <a id="_idIndexMarker972"/>trajectory starting from state <em class="italic">s</em><sub class="" style="font-style: italic;">t</sub>. But why do we have to do this? Let's understand this in more detail with an example.</p>
+    <p class="normal">We learned that we generate <em class="italic">N</em> number of trajectories and compute the gradient as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_108.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">For better understanding, let's take only one trajectory by setting <em class="italic">N</em>=1, so we can write:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_119.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">Say, we generated the following trajectory with the policy <img src="../Images/B15558_10_120.png" alt="" style="height: 0.84em;"/>:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_06.png" alt=""/></figure>
+    <p class="packt_figref">Figure 10.5: Trajectory </p>
+    <p class="normal">The return of the preceding trajectory is <img src="../Images/B15558_10_121.png" alt="" style="height: 1.11em;"/>.</p>
+    <p class="normal">Now, we can compute gradient as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_122.png" alt="" style="height: 2.4em;"/></figure>
+    <p class="normal">As we <a id="_idIndexMarker973"/>can observe from the preceding equation, in every step of the episode, we are multiplying the log <a id="_idIndexMarker974"/>probability of the action by the return of the full trajectory <img src="../Images/B15558_10_107.png" alt="" style="height: 1.11em;"/>, which is 2 in the preceding example.</p>
+    <p class="normal">Let's suppose we want to know how good the action <em class="italic">right</em> is in the state <em class="italic">s</em><sub class="Subscript--PACKT-">2</sub>. If we understand that the action <em class="italic">right</em> is a good action in the state <em class="italic">s</em><sub class="Subscript--PACKT-">2</sub>, then we can increase the probability of moving <em class="italic">right</em> in the state <em class="italic">s</em><sub class="Subscript--PACKT-">2</sub>, else we decrease it. Okay, how can we tell whether the action <em class="italic">right</em> is good in the state <em class="italic">s</em><sub class="Subscript--PACKT-">2</sub>? As we learned in the previous section (when discussing the REINFORCE method), if the return of the trajectory <img src="../Images/B15558_10_075.png" alt="" style="height: 1.11em;"/> is high, then we increase the probability of the action <em class="italic">right</em> in the state<em class="italic"> s</em><sub class="Subscript--PACKT-">2</sub>, else we decrease it.</p>
+    <p class="normal">But we don't have to do that now. Instead, we can compute the return (the sum of the rewards of the trajectory) only starting from the state <em class="italic">s</em><sub class="Subscript--PACKT-">2</sub> because there is no use in including all the rewards that we obtain from the trajectory before taking the action <em class="italic">right </em>in the state <em class="italic">s</em><sub class="Subscript--PACKT-">2</sub>. As <em class="italic">Figure 10.6</em> shows, including all the rewards that we obtain before taking the action <em class="italic">right</em> in the state <em class="italic">s</em><sub class="Subscript--PACKT-">2</sub> will not help us understand how good the action <em class="italic">right</em> is in the state <em class="italic">s</em><sub class="Subscript--PACKT-">2</sub>:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_07.png" alt=""/></figure>
+    <p class="packt_figref">Figure 10.6: Trajectory</p>
+    <p class="normal">Thus, instead of taking the complete return of the trajectory in all the steps of the episode, we use reward-to-go <em class="italic">R</em><sub class="" style="font-style: italic;">t</sub>, which is the return of the trajectory starting from the state <em class="italic">s</em><sub class="" style="font-style: italic;">t</sub>.</p>
+    <p class="normal">Thus, now we can write:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_125.png" alt="" style="height: 2.4em;"/></figure>
+    <p class="normal">Where <em class="italic">R</em><sub class="Subscript--PACKT-">0</sub> indicates the return of the trajectory starting from the state <em class="italic">s</em><sub class="Subscript--PACKT-">0</sub>, <em class="italic">R</em><sub class="Subscript--PACKT-">1</sub> indicates the return <a id="_idIndexMarker975"/>of the trajectory starting from the state <em class="italic">s</em><sub class="Subscript--PACKT-">1</sub>, and so on. If <em class="italic">R</em><sub class="Subscript--PACKT-">0</sub> is high value, then we increase the probability <a id="_idIndexMarker976"/>of the action <em class="italic">up</em> in the state <em class="italic">s</em><sub class="Subscript--PACKT-">0</sub>, else we decrease it. If <em class="italic">R</em><sub class="Subscript--PACKT-">1</sub> is high value, then we increase the probability of the action <em class="italic">down</em> in the state <em class="italic">s</em><sub class="Subscript--PACKT-">1</sub>, else we decrease it. </p>
+    <p class="normal">Thus, now, we can define the reward-to-go as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_126.png" alt="" style="height: 3.42em;"/></figure>
+    <p class="normal">The preceding equation states that the reward-to-go <em class="italic">R</em><sub class="" style="font-style: italic;">t</sub> is the sum of rewards of the trajectory starting from the state <em class="italic">s</em><sub class="" style="font-style: italic;">t</sub>. Thus, now we can rewrite our gradient with reward-to-go instead of the return of the trajectory as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_127.png" alt="" style="height: 3.42em;"/></figure>
+    <p class="normal">We can simply express the preceding equation as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_128.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">Where <a id="_idIndexMarker977"/>the reward-to-go is <img src="../Images/B15558_10_126.png" alt="" style="height: 3.42em;"/>.</p>
+    <p class="normal">After <a id="_idIndexMarker978"/>computing the gradient, we update the parameter as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_027.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">Now that we have understood what policy gradient with reward-to-go is, in the next section, we will look into the algorithm for more clarity.</p>
+    <h3 id="_idParaDest-277" class="title">Algorithm – Reward-to-go policy gradient</h3>
+    <p class="normal">The algorithm <a id="_idIndexMarker979"/>of policy gradient with reward-to-go is similar to the REINFORCE method, except now we compute the reward-to-go (return of the trajectory starting from a state <em class="italic">s</em><sub class="" style="font-style: italic;">t</sub>) instead of using the full return of the trajectory, as shown here:</p>
+    <ol>
+      <li class="numbered" value="1">Initialize the network parameter <img src="../Images/B15558_09_056.png" alt="" style="height: 1.11em;"/> with random values</li>
+      <li class="numbered">Generate <em class="italic">N</em> number of trajectories <img src="../Images/B15558_10_058.png" alt="" style="height: 1.67em;"/> following the policy <img src="../Images/B15558_10_057.png" alt="" style="height: 0.84em;"/></li>
+      <li class="numbered">Compute the return (reward-to-go) <em class="italic">R</em><sub class="" style="font-style: italic;">t</sub></li>
+      <li class="numbered">Compute the gradients:<figure class="mediaobject"><img src="../Images/B15558_10_128.png" alt="" style="height: 3.33em;"/></figure>
+      </li>
+      <li class="numbered">Update the network parameter as <img src="../Images/B15558_10_135.png" alt="" style="height: 1.11em;"/></li>
+      <li class="numbered">Repeat <em class="italic">steps 2</em> to <em class="italic">5</em> for several iterations</li>
+    </ol>
+    <p class="normal">From the preceding algorithm, we can observe that we are using reward-to-go instead of the return of the trajectory. To get a clear understanding of how the reward-to-go policy gradient works, let's implement it in the next section.</p>
+    <h2 id="_idParaDest-278" class="title">Cart pole balancing with policy gradient</h2>
+    <p class="normal">Now, let's learn how to implement the policy gradient algorithm with reward-to-go for the <a id="_idIndexMarker980"/>cart pole balancing task. </p>
+    <p class="normal">For a clear understanding of how the policy gradient method works, we use TensorFlow in the non-eager mode by disabling TensorFlow 2 behavior.</p>
+    <p class="normal">First, let's <a id="_idIndexMarker981"/>import the necessary libraries:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow.compat.v1 <span class="hljs-keyword">as</span> tf
+tf.disable_v2_behavior()
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> gym
+</code></pre>
+    <p class="normal">Create the cart pole environment using gym:</p>
+    <pre class="programlisting code"><code class="hljs-code">env = gym.make(<span class="hljs-string">'CartPole-v0'</span>)
+</code></pre>
+    <p class="normal">Get the state shape:</p>
+    <pre class="programlisting code"><code class="hljs-code">state_shape = env.observation_space.shape[<span class="hljs-number">0</span>]
+</code></pre>
+    <p class="normal">Get the number of actions:</p>
+    <pre class="programlisting code"><code class="hljs-code">num_actions = env.action_space.n
+</code></pre>
+    <h3 id="_idParaDest-279" class="title">Computing discounted and normalized reward</h3>
+    <p class="normal">Instead <a id="_idIndexMarker982"/>of using the rewards directly, we can use the discounted and normalized rewards. </p>
+    <p class="normal">Set the discount factor, <img src="../Images/B15558_03_190.png" alt="" style="height: 0.93em;"/>:</p>
+    <pre class="programlisting code"><code class="hljs-code">gamma = <span class="hljs-number">0.95</span>
+</code></pre>
+    <p class="normal">Let's define a function called <code class="Code-In-Text--PACKT-">discount_and_normalize_rewards</code> for computing the discounted and normalized rewards:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">discount_and_normalize_rewards</span><span class="hljs-function">(</span><span class="hljs-params">episode_rewards</span><span class="hljs-function">):</span>
+</code></pre>
+    <p class="normal">Initialize an array for storing the discounted rewards:</p>
+    <pre class="programlisting code"><code class="hljs-code">    discounted_rewards = np.zeros_like(episode_rewards)
+</code></pre>
+    <p class="normal">Compute the discounted reward:</p>
+    <pre class="programlisting code"><code class="hljs-code">    reward_to_go = <span class="hljs-number">0.0</span>
+    <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> reversed(range(len(episode_rewards))):
+        reward_to_go = reward_to_go * gamma + episode_rewards[i]
+        discounted_rewards[i] = reward_to_go
+</code></pre>
+    <p class="normal">Normalize <a id="_idIndexMarker983"/>and return the reward:</p>
+    <pre class="programlisting code"><code class="hljs-code">    discounted_rewards -= np.mean(discounted_rewards)
+    discounted_rewards /= np.std(discounted_rewards)
+    
+    <span class="hljs-keyword">return</span> discounted_rewards
+</code></pre>
+    <h3 id="_idParaDest-280" class="title">Building the policy network</h3>
+    <p class="normal">First, let's <a id="_idIndexMarker984"/>define the placeholder for the state:</p>
+    <pre class="programlisting code"><code class="hljs-code">state_ph = tf.placeholder(tf.float32, [<span class="hljs-literal">None</span>, state_shape], name=<span class="hljs-string">"state_ph"</span>)
+</code></pre>
+    <p class="normal">Define the placeholder for the action:</p>
+    <pre class="programlisting code"><code class="hljs-code">action_ph = tf.placeholder(tf.int32, [<span class="hljs-literal">None</span>, num_actions], name=<span class="hljs-string">"action_ph"</span>)
+</code></pre>
+    <p class="normal">Define the placeholder for the discounted reward:</p>
+    <pre class="programlisting code"><code class="hljs-code">discounted_rewards_ph = tf.placeholder(tf.float32, [<span class="hljs-literal">None</span>,], name=<span class="hljs-string">"discounted_rewards"</span>)
+</code></pre>
+    <p class="normal">Define layer 1:</p>
+    <pre class="programlisting code"><code class="hljs-code">layer1 = tf.layers.dense(state_ph, units=<span class="hljs-number">32</span>, activation=tf.nn.relu)
+</code></pre>
+    <p class="normal">Define layer 2. Note that the number of units in layer 2 is set to the number of actions:</p>
+    <pre class="programlisting code"><code class="hljs-code">layer2 = tf.layers.dense(layer1, units=num_actions)
+</code></pre>
+    <p class="normal">Obtain the probability distribution over the action space as an output of the network by applying the softmax function to the result of layer 2:</p>
+    <pre class="programlisting code"><code class="hljs-code">prob_dist = tf.nn.softmax(layer2)
+</code></pre>
+    <p class="normal">We learned that we compute gradient as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_128.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">After computing the gradient, we update the parameter of the network using gradient ascent:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_027.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">However, it is a standard convention to perform minimization rather than maximization. So, we can <a id="_idIndexMarker985"/>convert the preceding maximization objective into the minimization objective by just adding a negative sign. We can implement this using <code class="Code-In-Text--PACKT-">tf.nn.softmax_cross_entropy_with_logits_v2</code>. Thus, we can define the negative log policy as:</p>
+    <pre class="programlisting code"><code class="hljs-code">neg_log_policy = tf.nn.softmax_cross_entropy_with_logits_v2(logits = layer2, labels = action_ph)
+</code></pre>
+    <p class="normal">Now, let's define the loss:</p>
+    <pre class="programlisting code"><code class="hljs-code">loss = tf.reduce_mean(neg_log_policy * discounted_rewards_ph)
+</code></pre>
+    <p class="normal">Define the train operation for minimizing the loss using the Adam optimizer:</p>
+    <pre class="programlisting code"><code class="hljs-code">train = tf.train.AdamOptimizer(<span class="hljs-number">0.01</span>).minimize(loss)
+</code></pre>
+    <h3 id="_idParaDest-281" class="title">Training the network</h3>
+    <p class="normal">Now, let's <a id="_idIndexMarker986"/>train the network for several iterations. For simplicity, let's just generate one episode in every iteration. </p>
+    <p class="normal">Set the number of iterations:</p>
+    <pre class="programlisting code"><code class="hljs-code">num_iterations = <span class="hljs-number">1000</span>
+</code></pre>
+    <p class="normal">Start the TensorFlow session:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">with</span> tf.Session() <span class="hljs-keyword">as</span> sess:
+</code></pre>
+    <p class="normal">Initialize all the TensorFlow variables:</p>
+    <pre class="programlisting code"><code class="hljs-code">    sess.run(tf.global_variables_initializer())
+</code></pre>
+    <p class="normal">For every iteration:</p>
+    <pre class="programlisting code"><code class="hljs-code">    <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(num_iterations):
+</code></pre>
+    <p class="normal">Initialize <a id="_idIndexMarker987"/>an empty list for storing the states, actions, and rewards obtained in the episode:</p>
+    <pre class="programlisting code"><code class="hljs-code">        episode_states, episode_actions, episode_rewards = [],[],[]
+</code></pre>
+    <p class="normal">Set <code class="Code-In-Text--PACKT-">done</code> to <code class="Code-In-Text--PACKT-">False</code>:</p>
+    <pre class="programlisting code"><code class="hljs-code">        done = <span class="hljs-literal">False</span>
+</code></pre>
+    <p class="normal">Initialize the <code class="Code-In-Text--PACKT-">Return</code>:</p>
+    <pre class="programlisting code"><code class="hljs-code">        Return = <span class="hljs-number">0</span>
+</code></pre>
+    <p class="normal">Initialize the state by resetting the environment:</p>
+    <pre class="programlisting code"><code class="hljs-code">        state = env.reset()
+</code></pre>
+    <p class="normal">While the episode is not over:</p>
+    <pre class="programlisting code"><code class="hljs-code">        <span class="hljs-keyword">while</span> <span class="hljs-keyword">not</span> done:
+</code></pre>
+    <p class="normal">Reshape the state:</p>
+    <pre class="programlisting code"><code class="hljs-code">            state = state.reshape([<span class="hljs-number">1</span>,<span class="hljs-number">4</span>])
+</code></pre>
+    <p class="normal">Feed the state to the policy network and the network returns the probability distribution over the action space as output, which becomes our stochastic policy <img src="../Images/B15558_10_139.png" alt="" style="height: 0.84em;"/>:</p>
+    <pre class="programlisting code"><code class="hljs-code">            pi = sess.run(prob_dist, feed_dict={state_ph: state})
+</code></pre>
+    <p class="normal">Now, we select an action using this stochastic policy:</p>
+    <pre class="programlisting code"><code class="hljs-code">            a = np.random.choice(range(pi.shape[<span class="hljs-number">1</span>]), p=pi.ravel()) 
+</code></pre>
+    <p class="normal">Perform the selected action:</p>
+    <pre class="programlisting code"><code class="hljs-code">            next_state, reward, done, info = env.step(a)
+</code></pre>
+    <p class="normal">Render the environment:</p>
+    <pre class="programlisting code"><code class="hljs-code">            env.render()
+</code></pre>
+    <p class="normal">Update the return:</p>
+    <pre class="programlisting code"><code class="hljs-code">            Return += reward
+</code></pre>
+    <p class="normal">One-hot <a id="_idIndexMarker988"/>encode the action:</p>
+    <pre class="programlisting code"><code class="hljs-code">            action = np.zeros(num_actions)
+            action[a] = <span class="hljs-number">1</span>
+</code></pre>
+    <p class="normal">Store the state, action, and reward in their respective lists:</p>
+    <pre class="programlisting code"><code class="hljs-code">            episode_states.append(state)
+            episode_actions.append(action)
+            episode_rewards.append(reward)
+</code></pre>
+    <p class="normal">Update the state to the next state:</p>
+    <pre class="programlisting code"><code class="hljs-code">            state=next_state
+</code></pre>
+    <p class="normal">Compute the discounted and normalized reward:</p>
+    <pre class="programlisting code"><code class="hljs-code">        discounted_rewards= discount_and_normalize_rewards(episode_rewards)
+</code></pre>
+    <p class="normal">Define the feed dictionary:</p>
+    <pre class="programlisting code"><code class="hljs-code">        feed_dict = {state_ph: np.vstack(np.array(episode_states)),
+                     action_ph: np.vstack(np.array(episode_actions)),
+                     discounted_rewards_ph: discounted_rewards 
+                    }
+</code></pre>
+    <p class="normal">Train the network:</p>
+    <pre class="programlisting code"><code class="hljs-code">        loss_, _ = sess.run([loss, train], feed_dict=feed_dict)
+</code></pre>
+    <p class="normal">Print the return for every 10 iterations:</p>
+    <pre class="programlisting code"><code class="hljs-code">        <span class="hljs-keyword">if</span> i%<span class="hljs-number">10</span>==<span class="hljs-number">0</span>:
+            print(<span class="hljs-string">"Iteration:{}, Return: {}"</span>.format(i,Return))
+</code></pre>
+    <p class="normal">Now that <a id="_idIndexMarker989"/>we have learned how to implement the policy gradient algorithm with reward-to-go, in the next section, we will learn another interesting variance reduction technique called policy gradient with baseline. </p>
+    <h2 id="_idParaDest-282" class="title">Policy gradient with baseline</h2>
+    <p class="normal">We have <a id="_idIndexMarker990"/>learned that we find <a id="_idIndexMarker991"/>the optimal policy by using a neural network and we update the parameter of our network using gradient ascent:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_027.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal">Where the value of the gradient is:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_141.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">Now, to reduce variance, we introduce a new function called a baseline function. Subtracting the baseline <em class="italic">b</em> from the return (reward-to-go) <em class="italic">R</em><sub class="" style="font-style: italic;">t</sub> reduces the variance, so we can rewrite the gradient as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_142.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">Wait. What is the baseline function? And how does subtracting it from <em class="italic">R</em><sub class="" style="font-style: italic;">t</sub> reduce the variance? The purpose of the baseline is to reduce the variance in the return. Thus, if the baseline <em class="italic">b</em> is a value that can give us the expected return from the state the agent is in, then subtracting <em class="italic">b</em> in every step will reduce the variance in the return.</p>
+    <p class="normal">There are several choices for the baseline functions. We can choose any function as a baseline function but the baseline function should not depend on our network parameter. A simple baseline could be the average return of the sampled trajectories:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_143.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">Thus, subtracting current return <em class="italic">R</em><sub class="" style="font-style: italic;">t</sub> and the average return helps us to reduce variance. As we <a id="_idIndexMarker992"/>can see, our baseline <a id="_idIndexMarker993"/>function doesn't depend on the network parameter <img src="../Images/B15558_09_106.png" alt="" style="height: 1.11em;"/>. So, we can use any function as a baseline function and it should not affect our network parameter <img src="../Images/B15558_09_106.png" alt="" style="height: 1.11em;"/>.</p>
+    <p class="normal">One of the most popular functions of the baseline is the value function. We learned that the value function or the value of a state is the expected return an agent would obtain starting from that state following the policy <img src="../Images/B15558_10_146.png" alt="" style="height: 0.84em;"/>. Thus, subtracting the value of a state (the expected return) and the current return <em class="italic">R</em><sub class="" style="font-style: italic;">t</sub> can reduce the variance. So, we can rewrite our gradient as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_147.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">Other than the value function, we can also use different baseline functions such as the Q function, the advantage function, and more. We will learn more about them in the next chapter. </p>
+    <p class="normal">But now the question is how can we learn the baseline function? Say we are using the value function as the baseline function. How can we learn the optimal value function? Just like we are approximating the policy, we can also approximate the value function using another neural network parameterized by <img src="../Images/B15558_10_148.png" alt="" style="height: 1.11em;"/>. </p>
+    <p class="normal">That is, we use another network for approximating the value function (the value of a state) and we can call this network a value network. Okay, how can we train this value network?</p>
+    <p class="normal">Since the value of the state is a continuous value, we can train the network by minimizing the <strong class="keyword">mean squared error</strong> (<strong class="keyword">MSE</strong>). The MSE can be defined as the mean squared difference <a id="_idIndexMarker994"/>between the actual return <em class="italic">R</em><sub class="" style="font-style: italic;">t</sub> and the predicted return <img src="../Images/B15558_10_170.png" alt="" style="height: 1.29em;"/>. Thus, the objective function of the value network can be defined as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_149.png" alt="" style="height: 3.33em;"/></figure>
+    <p class="normal">We can <a id="_idIndexMarker995"/>minimize the error <a id="_idIndexMarker996"/>using the gradient descent and update the network parameter as:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_150.png" alt="" style="height: 1.2em;"/></figure>
+    <p class="normal">Thus, in the policy gradient with the baseline method, we minimize the variance in the gradient updates by using the baseline function. A baseline function can be any function and it should not depend on the network parameter <img src="../Images/B15558_09_118.png" alt="" style="height: 1.11em;"/>. We use the value function as a baseline function, then to approximate the value function we use a different neural network parameterized by <img src="../Images/B15558_10_152.png" alt="" style="height: 1.11em;"/>, and we find the optimal value function by minimizing the MSE.</p>
+    <p class="normal">In a nutshell, in the policy gradient with the baseline function, we use two neural networks:</p>
+    <p class="normal"><strong class="keyword">Policy network parameterized by <img src="../Images/B15558_10_153.png" alt="" style="height: 1.11em;"/></strong>: This finds the optimal policy by performing gradient ascent:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_154.png" alt="" style="height: 3.33em;"/></figure>
+    <figure class="mediaobject"><img src="../Images/B15558_10_027.png" alt="" style="height: 1.11em;"/></figure>
+    <p class="normal"><strong class="keyword">Value network parameterized by <img src="../Images/B15558_10_156.png" alt="" style="height: 1.11em;"/></strong>: This is used to correct the variance in the gradient update by acting as a baseline, and it finds the optimal value of a state by performing gradient descent:</p>
+    <figure class="mediaobject"><img src="../Images/B15558_10_149.png" alt="" style="height: 3.33em;"/></figure>
+    <figure class="mediaobject"><img src="../Images/B15558_10_150.png" alt="" style="height: 1.2em;"/></figure>
+    <p class="normal">Note that <a id="_idIndexMarker997"/>the policy gradient <a id="_idIndexMarker998"/>with the baseline function is often referred to as the <strong class="keyword">REINFORCE</strong> <strong class="keyword">with baseline</strong> method.</p>
+    <p class="normal">Now that we have seen how the policy gradient method with baseline works by using a policy and a value network, in the next section we will look into the algorithm to get more clarity.</p>
+    <h3 id="_idParaDest-283" class="title">Algorithm – REINFORCE with baseline</h3>
+    <p class="normal">The algorithm <a id="_idIndexMarker999"/>of the policy gradient method with the baseline function (REINFORCE with baseline) is shown here: </p>
+    <ol>
+      <li class="numbered" value="1">Initialize the policy network parameter <img src="../Images/B15558_10_159.png" alt="" style="height: 1.11em;"/> and value network parameter <img src="../Images/B15558_10_148.png" alt="" style="height: 1.11em;"/></li>
+      <li class="numbered">Generate <em class="italic">N</em> number of trajectories <img src="../Images/B15558_10_058.png" alt="" style="height: 1.67em;"/> following the policy <img src="../Images/B15558_10_044.png" alt="" style="height: 0.84em;"/></li>
+      <li class="numbered">Compute the return (reward-to-go) <em class="italic">R</em><sub class="" style="font-style: italic;">t</sub></li>
+      <li class="numbered">Compute the policy gradient:<figure class="mediaobject"><img src="../Images/B15558_10_163.png" alt="" style="height: 3.33em;"/></figure>
+      </li>
+      <li class="numbered">Update the policy network parameter <img src="../Images/B15558_09_123.png" alt="" style="height: 1.11em;"/> using gradient ascent as <img src="../Images/B15558_10_027.png" alt="" style="height: 1.11em;"/></li>
+      <li class="numbered">Compute the MSE of the value network:<figure class="mediaobject"><img src="../Images/B15558_10_166.png" alt="" style="height: 3.33em;"/></figure>
+      </li>
+      <li class="numbered">Compute gradients <img src="../Images/B15558_10_093.png" alt="" style="height: 1.2em;"/> and update <a id="_idIndexMarker1000"/>the value network parameter <img src="../Images/B15558_10_148.png" alt="" style="height: 1.11em;"/> using gradient descent as <img src="../Images/B15558_10_150.png" alt="" style="height: 1.2em;"/></li>
+      <li class="numbered">Repeat <em class="italic">steps 2</em> to <em class="italic">7</em> for several iterations</li>
+    </ol>
+    <h1 id="_idParaDest-284" class="title">Summary</h1>
+    <p class="normal">We started off the chapter by learning that with value-based methods, we extract the optimal policy from the optimal Q function (Q values). Then we learned that it is difficult to compute the Q function when our action space is continuous. We can discretize the action space; however, discretization is not always desirable, and it leads to the loss of several important features and an action space with a huge set of actions.</p>
+    <p class="normal">So, we resorted to the policy-based method. In the policy-based method, we compute the optimal policy without the Q function. We learned about one of the most popular policy-based methods called the policy gradient, in which we find the optimal policy directly by parameterizing the policy using some parameter <img src="../Images/B15558_09_008.png" alt="" style="height: 1.11em;"/>.</p>
+    <p class="normal">We also learned that in the policy gradient method, we select actions based on the action probability distribution given by the network, and if we win the episode, that is, if we get a high return, then we assign high probabilities to all the actions in the episode, else we assign low probabilities to all the actions in the episode. Later, we learned how to derive the policy gradient step by step, and then we looked into the algorithm of policy gradient method in more detail.</p>
+    <p class="normal">Moving forward, we learned about the variance reduction methods such as reward-to-go and the policy gradient method with the baseline function. In the policy gradient method with the baseline function, we use two networks called the policy and value network. The role of the policy network is to find the optimal policy, and the role of the value network is to correct the gradient updates in the policy network by estimating the value function.</p>
+    <p class="normal">In the next chapter, we will learn about another interesting set of algorithms called the actor-critic methods.</p>
+    <h1 id="_idParaDest-285" class="title">Questions</h1>
+    <p class="normal">Let's evaluate our understanding of the policy gradient method by answering the following questions:</p>
+    <ol>
+      <li class="numbered" value="1">What is a value-based method?</li>
+      <li class="numbered">Why do we need a policy-based method?</li>
+      <li class="numbered">How does the policy gradient method work?</li>
+      <li class="numbered">How do we compute the gradient in the policy gradient method?</li>
+      <li class="numbered">What is a reward-to-go?</li>
+      <li class="numbered">What is the policy gradient with the baseline function?</li>
+      <li class="numbered">Define the baseline function.</li>
+    </ol>
+    <h1 id="_idParaDest-286" class="title">Further reading</h1>
+    <p class="normal">For more information about the policy gradient, we can refer to the following paper:</p>
+    <ul>
+      <li class="bullet"><strong class="keyword">Policy Gradient Methods for Reinforcement Learning with Function Approximation</strong> by <em class="italic">Richard S. Sutton et al</em>., <a href="https://papers.nips.cc/paper/1713-policy-gradient-methods-for-reinforcement-learning-with-function-a"><span class="url">https://papers.nips.cc/paper/1713-policy-gradient-methods-for-reinforcement-learning-with-function-approximation.pdf</span></a></li>
+    </ul>
+  </div>
+</body></html>

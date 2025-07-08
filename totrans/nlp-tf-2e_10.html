@@ -1,0 +1,628 @@
+<html><head></head><body>
+  <div id="_idContainer547" class="Basic-Text-Frame">
+    <h1 class="chapterNumber">10</h1>
+    <h1 id="_idParaDest-254" class="chapterTitle">Transformers</h1>
+    <p class="normal">Transformer models changed the playing field for most machine learning problems that involve sequential data. They have advanced the state of the art by a significant margin compared to the previous leaders, RNN-based models. One of the primary reasons that the Transformer model is so performant is that it has access to the whole sequence of items (e.g. sequence of tokens), as opposed to RNN-based models, which look at one item at a time. The term Transformer has come up several times in our conversations as a method that has outperformed other sequential models such as LSTMs and GRUs. Now, we will learn more about Transformer models.</p>
+    <p class="normal">In this chapter, we will first learn about the Transformer model in detail. Then we will discuss the details of a specific model from the Transformer family known as <strong class="keyWord">Bidirectional Encoder Representations from Transformers</strong> (<strong class="keyWord">BERT</strong>). We will see how we can use this model to complete a question-answering task.</p>
+    <p class="normal">Specifically, we will cover the following main topics:</p>
+    <ul>
+      <li class="bulletList">Transformer architecture</li>
+      <li class="bulletList">Understanding BERT</li>
+      <li class="bulletList">Use case: Using BERT to answer questions</li>
+    </ul>
+    <h1 id="_idParaDest-255" class="heading-1">Transformer architecture</h1>
+    <p class="normal">A Transformer is a type of Seq2Seq model (discussed in the previous chapter). Transformer models <a id="_idIndexMarker962"/>can work with both image and text data. The Transformer model takes in a sequence of inputs and maps that to a sequence of outputs. </p>
+    <p class="normal">The Transformer model was initially proposed in the paper <em class="italic">Attention is all you need</em> by Vaswani et al. (<a href="https://arxiv.org/pdf/1706.03762.pdf"><span class="url">https://arxiv.org/pdf/1706.03762.pdf</span></a>). Just like a Seq2Seq model, the Transformer consists of an encoder and a decoder (<em class="italic">Figure 10.1</em>):</p>
+    <figure class="mediaobject"><img src="../Images/B14070_10_01.png" alt="Intuition behind NMT"/></figure>
+    <p class="packt_figref">Figure 10.1: The encoder-decoder architecture</p>
+    <p class="normal">Let’s understand how the Transformer model works using the previously studied Machine Translation task. The encoder takes in a sequence of source language tokens and produces a <a id="_idIndexMarker963"/>sequence of interim outputs. Then the decoder takes in a sequence of target language tokens and predicts the next token for each time step (the teacher forcing technique). Both the encoder and the decoder use attention mechanisms to improve performance. For example, the decoder uses attention to inspect all the past encoder states and previous decoder inputs. The attention mechanism is conceptually similar to Bahdanau attention, which we discussed in the last chapter. </p>
+    <h2 id="_idParaDest-256" class="heading-2">The encoder and the decoder</h2>
+    <p class="normal">Now let’s discuss in detail what the encoder and the decoder consist of. They have more or less the same <a id="_idIndexMarker964"/>architecture with a few differences. Both the <a id="_idIndexMarker965"/>encoder and the decoder are designed to consume a sequence of input items at a time. But their goals during the task differ; the encoder produces a latent representation with the inputs, whereas the decoder produces a target output with the inputs and the encoder’s outputs. To perform these computations, these inputs are propagated through several stacked layers. Each layer within these models takes in a sequence of elements and outputs another sequence of elements. Each layer is also made from several sub-layers that encapsulate different computations performed on a sequence of input tokens to produce a sequence of outputs. </p>
+    <p class="normal">A layer found in the Transformer mainly comprises the following two sub-layers:</p>
+    <ul>
+      <li class="bulletList">A self-attention layer</li>
+      <li class="bulletList">A fully connected layer </li>
+    </ul>
+    <p class="normal">The self-attention layer produces its output using matrix multiplications and activation functions (this is similar to a fully connected layer, which we will discuss in a minute). The self-attention layer takes in a sequence of inputs and produces a sequence of <a id="_idIndexMarker966"/>outputs. However, a special characteristic of the self-attention layer is that, when producing an output at each time step, it has access to all the other inputs in that sequence <a href="Chapter_10.xhtml">(<em class="italic"/></a><em class="italic">Figure 10.2</em>). This makes learning and remembering long sequences of inputs trivial for this layer. For comparison, RNNs struggle to remember long sequences of inputs as they need to go through each input sequentially. Additionally, by design, the self-attention layer can select and combine different inputs at each time step based on the task it’s solving. This makes Transformers very powerful in sequential learning tasks. </p>
+    <p class="normal">Let’s discuss why it’s important to selectively combine different input elements this way. In an NLP context, the self-attention layer enables the model to peek at other words while processing a certain word. This means that while the encoder is processing the word <em class="italic">it</em> in the sentence <em class="italic">I kicked the ball and it disappeared</em>, the model can attend to the word <em class="italic">ball</em>. By doing this, the Transformer can learn dependencies and disambiguate words, which leads to better language understanding.</p>
+    <p class="normal">We can even understand how self-attention helps us to solve a task conveniently through a real-world example. Assume you are playing a game with two other people: person A and person B. Person A holds a question written on a board, and you need to answer that question. Say person A reveals one word of the question at a time, and after the last word of the question is revealed, you answer it. For long and complex questions, this would be challenging as you cannot physically see the complete question and would have to heavily rely on memory. This is what it feels like to perform computations without self-attention for a Transformer. On the other hand, say person B reveals the full question on the board in one go instead of word by word. Now it is much easier to answer the question as you can see the complete question at once. If the question is a complex question requiring a complex answer, you can look at different parts of the question as you are providing various sections of the full answer. This is what the self-attention layer enables. </p>
+    <p class="normal">The self-attention layer is followed by a fully connected layer. A fully connected layer has all the input nodes connected to all the output nodes, optionally followed by a non-linear activation function. It takes the output elements produced by the self-attention sub-layer and produces a <a id="_idIndexMarker967"/>hidden representation for each output element. Unlike the self-attention layer, the fully connected layer treats individual sequence items independently, performing computations on them in an element-wise fashion. </p>
+    <p class="normal">They introduce non-linear transformations while making the model deeper, thus allowing the model to perform better:</p>
+    <figure class="mediaobject"> <img src="../Images/B14070_10_02.png" alt=""/></figure>
+    <p class="packt_figref">Figure 10.2: The difference between the self-attention sub-layer and the fully connected sub-layer. The self-attention sub-layer looks at all the inputs in the sequence, whereas the fully-connected sub-layer only looks at the input that is processed.</p>
+    <p class="normal">Now that we understand the basic building blocks of a Transformer layer, let’s look at the encoder and the decoder <a id="_idIndexMarker968"/>separately. Before diving in, let’s establish some basics. The encoder takes in an input sequence and the decoder takes in an input sequence as well (a different sequence to the encoder input). Then the decoder produces an output sequence. Let’s call a single item in these sequences a <em class="italic">token</em>.</p>
+    <p class="normal">The encoder consists of a stack of layers, where each layer consists of two sub-layers:</p>
+    <ul>
+      <li class="bulletList">A self-attention layer – Generates a latent representation for each encoder input token in <a id="_idIndexMarker969"/>the sequence. For each input token, this layer looks at the whole sequence and selects other tokens in the sequence that enrich the semantics of the generated hidden output for that token (that is, ‘attended’ representation). </li>
+      <li class="bulletList">A fully-connected layer – Generates <a id="_idIndexMarker970"/>an element-wise deeper hidden representation of the attended representation</li>
+    </ul>
+    <p class="normal">The decoder layer consists of three sub-layers:</p>
+    <ul>
+      <li class="bulletList">A masked self-attention layer – For each decoder input, a token looks at all the tokens to <a id="_idIndexMarker971"/>the left of it. The decoder needs to mask words to the right to prevent the model from seeing words in the future. Having access to successive words during prediction can make the prediction task trivial for the decoder. </li>
+      <li class="bulletList">An attention layer – For each input token in the decoder, it looks at both the encoder’s <a id="_idIndexMarker972"/>outputs and the decoder’s masked attended output to generate a semantically rich hidden output. Since this layer is not only focused on decoder inputs, we’ll call this an attention layer.</li>
+      <li class="bulletList">A fully-connected layer – Generates an element-wise hidden representation of the <a id="_idIndexMarker973"/>attended representation of the decoder.</li>
+    </ul>
+    <p class="normal">This is shown in <em class="italic">Figure 10.3</em>:</p>
+    <figure class="mediaobject"><img src="../Images/B14070_10_03.png" alt=""/></figure>
+    <p class="packt_figref">Figure 10.3: How a Transformer model is used to translate an English sentence to French. The diagram shows various layers in the encoder and the decoder, and various connections formed within the encoder, within the decoder, and between the encoder and the decoder. The squares represent the inputs and outputs of the models. The rectangular shaded boxes represent interim outputs of the sub-layers. The &lt;sos&gt; token represents the beginning of the decoder’s input.</p>
+    <p class="normal">Next, let’s learn about the computational mechanics of the self-attention layer.</p>
+    <h2 id="_idParaDest-257" class="heading-2">Computing the output of the self-attention layer</h2>
+    <p class="normal">There is no doubt that the self-attention layer is at the center of the Transformer. The computations <a id="_idIndexMarker974"/>that govern the self-attention <a id="_idIndexMarker975"/>mechanism can be difficult to understand. Therefore, this section is dedicated to understanding the self-attention technique in detail. There are three key concepts to understand: query, key, and value. The query and the key are used to generate an affinity matrix. For the decoder’s attention layer, the affinity matrix’s position <em class="italic">i,j</em> represents how similar the encoder state (key) <em class="italic">i</em> is to the decoder input <em class="italic">j</em> (query). Then, we create a weighted average of encoder states (value) for each position, where the weights are given by the affinity matrix.</p>
+    <p class="normal">To reinforce our understanding, let’s imagine a scenario where the decoder is generating a self-attention output. Say we have an English to French machine translation task. Take the example sentence <em class="italic">Dogs are great</em>, which becomes <em class="italic">Les chiens sont super</em> in French. Say we are at time step 2, trying to produce the word <em class="italic">chiens</em>. Let’s represent each word with a single floating point number (such as a simplified embedding representation of words):</p>
+    <p class="normal"><em class="italic">Dogs -&gt; 0.8</em></p>
+    <p class="normal"><em class="italic">are -&gt; 0.3</em></p>
+    <p class="normal"><em class="italic">great -&gt; -0.2</em></p>
+    <p class="normal"><em class="italic">chiens -&gt; 0.5</em></p>
+    <p class="normal">Now let’s compute the affinity matrix (to be specific, the affinity vector since we are only considering a single decoder input). The query would be 0.5 and the key (i.e. the encoder state sequence) would be <code class="inlineCode">[0.8, 0.3, -0.2]</code>. If we take the dot product, we have:</p>
+    <p class="normal"><code class="inlineCode">[0.4, 0.15, -0.1]</code></p>
+    <p class="normal">Let’s understand what this affinity matrix is saying. With respect to the word <em class="italic">chiens</em>, the word <em class="italic">Dogs</em> has the highest similarity, and the word <em class="italic">are</em> also has a positive similarity (since <em class="italic">chiens</em> is plural, carrying a reference to the word <em class="italic">are</em> in English). However, the word <em class="italic">great</em> has a negative similarity to the word <em class="italic">chiens</em>. Then, we can compute the final attended output for that time step as:</p>
+    <p class="normal"><code class="inlineCode">[0.4 * 0.8, 0.15 * 0.3, -0.1 * -0.2] = [0.32 + 0.45 + 0.02] = 0.385</code></p>
+    <p class="normal">We have ended up with a final output somewhere in the middle of matching words from the English language, where <a id="_idIndexMarker976"/>the word <em class="italic">great</em> has the highest <a id="_idIndexMarker977"/>distance. This example was presented to show how the query, key, and value come into play to compute the final attended output.</p>
+    <p class="normal">Now let’s look at the actual computation that transpires in the layer. To compute the query, key, and value, we use a linear projection of the actual inputs provided using weight matrices. The three weight matrices are:</p>
+    <ul>
+      <li class="bulletList">Query weights matrix (<img src="../Images/B14070_10_001.png" alt="" style="height: 1.35em !important; vertical-align: -0.42em !important;"/>)</li>
+      <li class="bulletList">Key weights matrix (<img src="../Images/B14070_10_002.png" alt="" style="height: 1.15em !important; vertical-align: -0.29em !important;"/>)</li>
+      <li class="bulletList">Value weights matrix (<img src="../Images/B14070_10_003.png" alt="" style="height: 1.15em !important; vertical-align: -0.25em !important;"/>)</li>
+    </ul>
+    <p class="normal">Each of these weight matrices produces three outputs for a given token (at position <img src="../Images/B14070_10_004.png" alt="" style="height: 1.05em !important; vertical-align: -0.14em !important;"/>) in a given input sequence by multiplying with the weight matrix as follows:</p>
+    <p class="center"><img src="../Images/B14070_10_005.png" alt="" style="height: 1.35em !important; vertical-align: -0.09em !important;"/>, <img src="../Images/B14070_10_006.png" alt="" style="height: 1.15em !important;"/>, and <img src="../Images/B14070_10_007.png" alt="" style="height: 1.15em !important;"/></p>
+    <p class="normal"><em class="italic">Q</em>, <em class="italic">K</em>, and <em class="italic">V</em> are <em class="italic">[B, T, d]</em> sized tensors, where <em class="italic">B</em> is the batch size, <em class="italic">T</em> is the number of time steps, and <em class="italic">d</em> is a hyperparameter that defines the dimensionality of the latent representation. These are then used to compute the affinity matrix, as follows:</p>
+    <figure class="mediaobject"><img src="../Images/B14070_10_04.png" alt=""/></figure>
+    <p class="packt_figref">Figure 10.4: The computations in the self-attention layer. The self-attention layer starts with an input sequence and computes sequences of query, key, and value vectors. Then the queries and keys are converted to a probability matrix, which is used to compute a weighted sum of values</p>
+    <p class="normal">The affinity matrix <em class="italic">P</em> is computed as follows:</p>
+    <p class="center"><img src="../Images/B14070_10_008.png" alt="" style="height: 2.92em !important;"/></p>
+    <p class="normal">Then the final <a id="_idIndexMarker978"/>attended output of the self-attention <a id="_idIndexMarker979"/>layer is computed as follows:</p>
+    <p class="center"><img src="../Images/B14070_10_009.png" alt="" style="height: 2.92em !important;"/></p>
+    <p class="normal">Here, <em class="italic">Q</em> represents the queries tensor, <em class="italic">K</em> represents the keys tensor, and <em class="italic">V</em> represents the values tensor. This is what makes Transformer models so powerful; unlike LSTM models, Transformer <a id="_idIndexMarker980"/>models aggregate all tokens <a id="_idIndexMarker981"/>in a sequence to a single matrix multiplication, making these models highly parallelizable. <em class="italic">Figure 10.4</em> also depicts the computations that take place within the self-attention layer.</p>
+    <h2 id="_idParaDest-258" class="heading-2">Embedding layers in the Transformer</h2>
+    <p class="normal">Word embeddings provide a semantic-preserving representation of words based on the context in which <a id="_idIndexMarker982"/>words are used. In other words, if two words are used in the same context, they will have similar word vectors. For example, the words <em class="italic">cat</em> and <em class="italic">dog</em> will have similar representations, whereas <em class="italic">cat</em> and <em class="italic">volcano</em> will have vastly different representations.</p>
+    <p class="normal">Word vectors were initially introduced in the paper titled <em class="italic">Efficient Estimation of Word Representations in Vector Space</em> by Mikolov et al. (<a href="https://arxiv.org/pdf/1301.3781.pdf"><span class="url">https://arxiv.org/pdf/1301.3781.pdf</span></a>). It came in two variants: skip-gram and continuous bag-of-words. Embeddings work by first defining a large matrix of size <em class="italic">V </em>x<em class="italic"> E</em>, where <em class="italic">V</em> is the size of the vocabulary and <em class="italic">E</em> is the size of the embeddings. <em class="italic">E</em> is a user-defined hyperparameter; a larger <em class="italic">E</em> typically leads to more powerful word embeddings. In practice, you do not need to increase the size of embeddings beyond 300.</p>
+    <p class="normal">Motivated by the original word vector algorithms, modern deep learning models use embedding layers to represent words/tokens. The following general approach (along with pre-training later to fine-tune these embeddings) is taken to incorporate word embeddings into a machine learning model:</p>
+    <ul>
+      <li class="bulletList">Define a randomly initialized word embedding matrix (or pre-trained embeddings, available to download for free)</li>
+      <li class="bulletList">Define the model (randomly initialized) that uses word embeddings as the inputs and produces an output (for example, sentiment, or a language translation)</li>
+      <li class="bulletList">Train the whole model (embeddings and the model) end-to-end on the task</li>
+    </ul>
+    <p class="normal">The same technique is used in Transformer models. However, in Transformer models, there are two different embeddings:</p>
+    <ul>
+      <li class="bulletList">Token embeddings (provide a unique representation for each token seen by the model in an input sequence)</li>
+      <li class="bulletList">Positional embeddings (provide a unique representation for each position in the input sequence)</li>
+    </ul>
+    <p class="normal">The token embeddings have a unique embedding vector for each token (such as character, word, and sub-word), depending on the model’s tokenizing mechanism.</p>
+    <p class="normal">The positional embeddings are used to signal the model where a token is appearing. The primary purpose of the positional embeddings server is to inform the Transformer model where a word is <a id="_idIndexMarker983"/>appearing. This is because, unlike LSTMs/GRUs, Transformer models don’t have a notion of sequence, as it processes the whole text in one go. Furthermore, a change to the position of a word can alter the meaning of a sentence/or a word. For example:</p>
+    <p class="normal"><em class="italic">Ralph loves his tennis ball. </em><strong class="keyWord">It</strong><em class="italic"> likes to chase the ball</em></p>
+    <p class="normal"><em class="italic">Ralph loves his tennis ball. Ralph likes to chase </em><strong class="keyWord">it</strong></p>
+    <p class="normal">In the sentences above, the word <em class="italic">it</em> refers to different things and the position of the word <em class="italic">it</em> can be used as a cue to identify this difference. The original Transformer paper uses the following equations to generate positional embeddings:</p>
+    <p class="center"><img src="../Images/B14070_10_010.png" alt="" style="height: 1.25em !important;"/></p>
+    <p class="center"><img src="../Images/B14070_10_011.png" alt="" style="height: 1.25em !important;"/></p>
+    <p class="normal">where <em class="italic">pos</em> denotes the position in the sequence and <img src="../Images/B14070_10_012.png" alt="" style="height: 1.05em !important; vertical-align: -0.09em !important;"/> denotes the <img src="../Images/B14070_10_013.png" alt="" style="height: 1.05em !important; vertical-align: -0.07em !important;"/> feature dimension (<img src="../Images/B14070_10_014.png" alt="" style="height: 1.05em !important; vertical-align: -0.18em !important;"/>). Even-numbered features use a sine function and odd numbered features use a cosine function. <em class="italic">Figure 10.5</em> presents how positional embeddings change as the time step and the feature position change. It can be seen that feature positions with higher indices have lower-frequency sinusoidal waves. It is not entirely clear how the authors came up with the exact equation. </p>
+    <p class="normal">However, they do mention that they did not see a significant performance difference between the above equation and letting the model learn positional embeddings jointly during the training.</p>
+    <figure class="mediaobject"><img src="../Images/B14070_10_05.png" alt=""/></figure>
+    <p class="packt_figref">Figure 10.5: How positional embeddings change with the time step and the feature position. Even-numbered feature positions use the sine function and odd-numbered positions use the cosine function. Additionally, the frequency of the signals decreases as the feature position increases</p>
+    <p class="normal">It is important to <a id="_idIndexMarker984"/>note that both token and positional embeddings will have the same dimensionality <img src="../Images/B14070_10_015.png" alt="" style="height: 1.05em !important; vertical-align: -0.12em !important;"/>, making it possible to perform element-wise addition. Finally, as the input to the model, the token embeddings and the positional embeddings are summed to form a single hybrid embedding vector (<em class="italic">Figure 10.6</em>):</p>
+    <figure class="mediaobject"> <img src="../Images/B14070_10_06.png" alt=""/></figure>
+    <p class="packt_figref">Figure 10.6: The embeddings generated in a Transformer model and how the final embeddings are computed</p>
+    <p class="normal">Let’s now discuss <a id="_idIndexMarker985"/>two optimization techniques used in each layer of the Transformer: residual connections and layer normalizations.</p>
+    <h2 id="_idParaDest-259" class="heading-2">Residuals and normalization</h2>
+    <p class="normal">Another important <a id="_idIndexMarker986"/>characteristic of the Transformer <a id="_idIndexMarker987"/>models is the existence of the residual connections and the normalization layers in between the individual layers of the Transformer model.</p>
+    <p class="normal">Residual connections are formed by adding a given layer’s output to the output of one or more layers ahead. This in turn forms shortcut connections through the model and provides a stronger <a id="_idIndexMarker988"/>gradient flow by reducing the changes of the phenomenon known as vanishing gradients (<em class="italic">Figure 10.7</em>). The vanishing gradients problem causes the gradients in the layers closest to the inputs to be very small so that the training in those layers is hindered. The residual connections for deep learning models were popularized by the paper “<em class="italic">Deep Residual Learning for Image Recognition</em>” by Kaiming He et.al. (<a href="https://arxiv.org/pdf/1512.03385.pdf"><span class="url">https://arxiv.org/pdf/1512.03385.pdf</span></a>)</p>
+    <figure class="mediaobject"><img src="../Images/B14070_10_07.png" alt=""/></figure>
+    <p class="packt_figref">Figure 10.7: How residual connections work</p>
+    <p class="normal">In Transformer models, in <a id="_idIndexMarker989"/>each layer, residual connections are created the following way:</p>
+    <ul>
+      <li class="bulletList">Input to the self-attention sub-layer is added to the output of the self-attention sub-layer.</li>
+      <li class="bulletList">Input to the fully-connected sub-layer is added to the output of the fully-connected sub-layer.</li>
+    </ul>
+    <p class="normal">Next, the output reinforced by residual connections goes through a layer normalization layer. Layer normalization, similar to batch normalization, is a way to reduce the covariate shift in <a id="_idIndexMarker990"/>neural networks, allowing them to be trained faster and achieve better performance. Covariate shift refers to changes in the distribution of neural network activations (caused by changes in the data distribution), which transpires as the model goes through model training. These changes in the distribution damage consistency during model training and negatively impact the model. It was introduced in the paper <em class="italic">Layer Normalization</em> by Ba et al. (<a href="https://arxiv.org/pdf/1607.06450.pdf"><span class="url">https://arxiv.org/pdf/1607.06450.pdf</span></a>).</p>
+    <p class="normal">Batch normalization computes the mean and variance of activations as an average over the samples <a id="_idIndexMarker991"/>in the batch, causing its performance to rely on mini-batches used to train the model.</p>
+    <p class="normal">However, layer normalization computes the mean and variance (that is, the normalization terms) of the activations in such a way that the normalization terms are the same for every hidden unit. In other words, layer normalization has a single mean and a variance value for all the hidden units in a layer. This is in contrast to batch normalization, which maintains individual mean and variance values for each hidden unit in a layer. Moreover, unlike batch normalization, layer normalization does not average over the samples <a id="_idIndexMarker992"/>in the batch; instead, it leaves the averaging out and has different normalization terms for different inputs. By having a mean and variance per-sample, layer normalization gets rid of the dependency on the mini-batch size. For more details about this method, please refer to the original paper by Ba et al.</p>
+    <div class="note">
+      <p class="normal">TensorFlow <a id="_idIndexMarker993"/>provides a convenient implementation of the layer normalization algorithm at <a href="https://www.tensorflow.org/api_docs/python/tf/keras/layers/LayerNormalization"><span class="url">https://www.tensorflow.org/api_docs/python/tf/keras/layers/LayerNormalization</span></a>. You can simply use this layer with any model you define using TensorFlow Keras APIs.</p>
+    </div>
+    <p class="normal"><em class="italic">Figure 10.8</em> depicts how residual connections and layer normalization are used in Transformer models:</p>
+    <figure class="mediaobject"><img src="../Images/B14070_10_08.png" alt=""/></figure>
+    <p class="packt_figref">Figure 10.8: How residual connections and layer normalization layers are used in the transformer model</p>
+    <p class="normal">With that, we end our discussion on the components of the Transformer model. We have discussed <a id="_idIndexMarker994"/>all the bells and whistles of the Transformer model. The Transformer model is an encoder-decoder based model. Both the <a id="_idIndexMarker995"/>encoder and the decoder have the same structure, apart from a few small differences. The Transformer uses self-attention, a powerful parallelizable attention mechanism to attend to other inputs at every time step. The Transformer also uses several embedding layers, such as token embeddings and positional embeddings, to inject information about tokens and their positioning. The Transformer also uses residual connections and layer normalization to improve the performance of the model. </p>
+    <p class="normal">Next, we will discuss a specific Transformer model known as BERT, which we’ll be using to solve a question-answering problem.</p>
+    <h1 id="_idParaDest-260" class="heading-1">Understanding BERT</h1>
+    <p class="normal"><strong class="keyWord">BERT</strong> (<strong class="keyWord">Bidirectional Encoder Representation from Transformers</strong>) is a Transformer model among <a id="_idIndexMarker996"/>a plethora of Transformer models that have come to light over the past few years. </p>
+    <p class="normal">BERT was introduced in the paper <em class="italic">BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding</em> by Delvin et al. (<a href="https://arxiv.org/pdf/1810.04805.pdf"><span class="url">https://arxiv.org/pdf/1810.04805.pdf</span></a>). The Transformer models are divided into two main factions:</p>
+    <ul>
+      <li class="bulletList">Encoder-based models</li>
+      <li class="bulletList">Decoder-based (autoregressive) models</li>
+    </ul>
+    <p class="normal">In other words, either the encoder or the decoder part of the Transformer provides the foundation for these models, compared to using both the encoder and the decoder. The main difference between the two is how attention is used. Encoder-based models use bidirectional attention, whereas decoder-based models use autoregressive (that is, left to right) attention.</p>
+    <p class="normal">BERT is an encoder-based Transformer model. It takes an input sequence (a collection of tokens) and produces an encoded output sequence. <a href="Chapter_10.xhtml"/><em class="italic">Figure 10.9</em> depicts the high-level architecture of BERT :</p>
+    <figure class="mediaobject"><img src="../Images/B14070_10_09.png" alt=""/></figure>
+    <p class="packt_figref">Figure 10.9: The high-level architecture of BERT. It takes a set of input tokens and produces a sequence of hidden representations generated using several hidden layers</p>
+    <p class="normal">Now let’s discuss a <a id="_idIndexMarker997"/>few details pertinent to BERT, such as inputs consumed by BERT and the tasks it is designed to solve.</p>
+    <h2 id="_idParaDest-261" class="heading-2">Input processing for BERT</h2>
+    <p class="normal">When BERT takes an input, it inserts some special tokens into the input. First, at the beginning, it inserts <a id="_idIndexMarker998"/>a <code class="inlineCode">[CLS]</code> (an abbreviated form of the term classification) token that is used to generate the final hidden representation for certain types of tasks (such as sequence classification). It represents the output after attending to all the tokens in the sequence. Next, it also inserts a <code class="inlineCode">[SEP] </code>(meaning ‘separation’) token depending on the type of input. The <code class="inlineCode">[SEP]</code> token marks the end and beginning of different sequences in the input. For example, in question-answering, the model takes a question and a context (such as a paragraph) that may have the answer as an input, and <code class="inlineCode">[SEP]</code> is used in between the question and the context. Additionally, we have the <code class="inlineCode">[PAD]</code> token, which can be used to pad short sequences to a required length.</p>
+    <p class="normal">The <code class="inlineCode">[CLS]</code> token is appended to any input sequence fed to BERT. This denotes the beginning of the input. It also forms the basis for the input fed into the classification head used on top of BERT to solve your NLP task. As you know, BERT produces a hidden representation for each input token in the sequence. As a convention, the hidden representation corresponding to the <code class="inlineCode">[CLS]</code> token is used as the input to the classification model that sits on top of BERT.</p>
+    <p class="normal">Next, the final embedding of the tokens is generated using three different embedding spaces. The token embedding has a unique vector for each token in the vocabulary. The positional embeddings encode the position of each token, as discussed earlier. Finally, the segment <a id="_idIndexMarker999"/>embedding provides a distinct representation for each sub-component in the input, when the input consists of multiple components. For example, in question-answering, the question will have a unique vector as its segment embedding vector and the context will have a different embedding vector. This is done by having <img src="../Images/B14070_10_016.png" alt="" style="height: 1.05em !important; vertical-align: -0.11em !important;"/> embedding vectors for the <img src="../Images/B14070_10_017.png" alt="" style="height: 1.05em !important; vertical-align: -0.11em !important;"/> different components in the input sequence. Depending on the component index specified for each token in the input, the corresponding segment embedding vector is retrieved. <img src="../Images/B14070_10_018.png" alt="" style="height: 1.05em !important; vertical-align: -0.13em !important;"/> needs to be specified in advance.</p>
+    <h2 id="_idParaDest-262" class="heading-2">Tasks solved by BERT</h2>
+    <p class="normal">The task-specific <a id="_idIndexMarker1000"/>NLP tasks solved by BERT can be classified into four different categories. These <a id="_idIndexMarker1001"/>are motivated by the tasks found in the <strong class="keyWord">General Language Understanding Evaluation</strong> (<strong class="keyWord">GLUE</strong>) benchmark task suite (<a href="https://gluebenchmark.com"><span class="url">https://gluebenchmark.com</span></a>):</p>
+    <ul>
+      <li class="bulletList">Sequence classification – Here, a single input sequence is given and the model is <a id="_idIndexMarker1002"/>asked to predict a label for the whole sequence (for example, sentiment analysis or spam identification).</li>
+      <li class="bulletList">Token classification – Here, a single input sequence is given and the model is asked to <a id="_idIndexMarker1003"/>predict a label for each token in the sequence (for example, named entity recognition or part-of-speech tagging).</li>
+      <li class="bulletList">Question-answering – Here, the input consists of two sequences: a question and a context. The question and the context are separated by a <code class="inlineCode">[SEP]</code> token. The model is trained to predict the starting and ending indices of the span of tokens belonging to the answer.</li>
+      <li class="bulletList">Multiple choice – Here, the input consists of multiple sequences; a question followed by multiple candidates that may or may not be the answer to the question. These multiple sequences are separated by the token <code class="inlineCode">[SEP]</code> and provided as a <a id="_idIndexMarker1004"/>single input sequence to the model. The model is trained to predict the correct answer (that is, the class label) for that question.<a href="Chapter_10.xhtml"/></li>
+    </ul>
+    <p class="normal"><em class="italic">Figure 10.10</em> depicts how BERT is used to solve these different tasks: </p>
+    <figure class="mediaobject"> <img src="../Images/B14070_10_10.png" alt=""/></figure>
+    <p class="packt_figref">Figure 10.10: How BERT is used for different NLP tasks</p>
+    <p class="normal">BERT is designed in such a way that it can be used to complete these tasks without any modifications <a id="_idIndexMarker1005"/>to the base model. </p>
+    <p class="normal">In tasks that involve multiple sequences (such as multiple-choice questions), you need the model to tell different inputs belonging to different segments apart (that is, which tokens are the question and which tokens are the context in a question-answering task). In order to make that distinction, the <code class="inlineCode">[SEP]</code> token is used. A <code class="inlineCode">[SEP]</code> token is inserted between the different sequences. For example, if you are solving a question-answering problem, you might have the following input:</p>
+    <p class="normal"><em class="italic">Question: What color is the ball?</em></p>
+    <p class="normal"><em class="italic">Paragraph: Tippy is a dog. She loves to play with her red ball.</em></p>
+    <p class="normal">Then the input to BERT might look like this:</p>
+    <p class="normal"><code class="inlineCode">[CLS]</code><em class="italic"> What color is the ball </em><code class="inlineCode">[SEP]</code><em class="italic"> Tippy is a dog She loves to play with her red ball </em><code class="inlineCode">[SEP]</code></p>
+    <p class="normal">Now that we <a id="_idIndexMarker1006"/>have discussed all the elements of BERT so we can use it successfully to solve a downstream NLP task, let’s reiterate the key points about BERT:</p>
+    <ul>
+      <li class="bulletList">BERT is an encoder-based Transformer</li>
+      <li class="bulletList">BERT outputs a hidden representation for every token in the input sequence</li>
+      <li class="bulletList">BERT has three embedding spaces: token embedding, positional embedding, and segment embedding</li>
+      <li class="bulletList">BERT uses a special token <code class="inlineCode">[CLS]</code> to denote the beginning of an input and is used as the input to a downstream classification model</li>
+      <li class="bulletList">BERT is designed to solve four types of NLP tasks: sequence classification, token classification, free-text question-answering, and multiple-choice question-answering</li>
+      <li class="bulletList">BERT uses the special token <code class="inlineCode">[SEP]</code> to separate between sequence A and sequence B</li>
+    </ul>
+    <p class="normal">The power within BERT doesn’t just lie within its structure. BERT is pre-trained on a large corpus of text using a few different pre-training techniques. In other words, BERT already comes with a solid understanding of the language, making downstream NLP tasks easier to solve. Next, let’s discuss how BERT is pre-trained.</p>
+    <h2 id="_idParaDest-263" class="heading-2">How BERT is pre-trained</h2>
+    <p class="normal">The real value of BERT comes from the fact that it has been pre-trained on a large corpus of data in a self-supervised fashion. In the pre-training stage, BERT is trained on two different tasks:</p>
+    <ul>
+      <li class="bulletList"><strong class="keyWord">Masked language modeling</strong> (sometimes abbreviated as <strong class="keyWord">MLM</strong>)</li>
+      <li class="bulletList"><strong class="keyWord">Next sentence prediction</strong> (sometimes abbreviated as <strong class="keyWord">NSP</strong>)</li>
+    </ul>
+    <p class="normal">Let’s now discuss the details of the above two tasks and how they provide language understanding for BERT.</p>
+    <h3 id="_idParaDest-264" class="heading-3">Masked Language Modeling (MLM)</h3>
+    <p class="normal">The MLM task is inspired by the Cloze task, or the Cloze test, where a student is given a sentence <a id="_idIndexMarker1007"/>with one or more blanks and is asked to fill the blanks. Similarly, given a text corpus, words are masked from sentences and then the model is asked to predict the masked tokens. For example, the sentence:</p>
+    <p class="normal"><em class="italic">I went to the bakery to buy bread</em></p>
+    <p class="normal">might become:</p>
+    <p class="normal"><em class="italic">I went to the </em><code class="inlineCode">[MASK]</code><em class="italic"> to buy bread</em></p>
+    <p class="normal">BERT uses a special token, <code class="inlineCode">[MASK]</code>, to represent masked words. Then the target for the model will be the word <em class="italic">bakery</em>. But this introduces a practical issue to the model. The special <code class="inlineCode">[MASK]</code> token does not appear in the actual text. This means that the text the model will see during the finetuning phase (that is, when training on a classification problem) will be different to what it will see during pre-training. This is sometimes referred to as the <strong class="keyWord">pre-training-finetuning discrepancy</strong>. Therefore, the authors of BERT suggest the following approach to cope with the issue. When masking a word, do one of the following:</p>
+    <ul>
+      <li class="bulletList">Use the <code class="inlineCode">[MASK]</code> token as it is (with 80% probability)</li>
+      <li class="bulletList">Use a random word (with 10% probability)</li>
+      <li class="bulletList">Use the true word (with 10% probability)</li>
+    </ul>
+    <p class="normal">In other words, instead of always seeing <code class="inlineCode">[MASK]</code>, the model will see actual words on certain occasions, alleviating the discrepancy.</p>
+    <h3 id="_idParaDest-265" class="heading-3">Next Sentence Prediction (NSP)</h3>
+    <p class="normal">In the NSP task, the model is given a pair of sentences, A and B (in that order), and is asked to predict whether the B is the next sentence after A. This can be done by fitting a binary classifier <a id="_idIndexMarker1008"/>onto BERT and training the whole model from end to end on selected pairs of sentences. </p>
+    <p class="normal">Generating pairs of sentences as inputs for the model is not hard and can be done in an unsupervised manner:</p>
+    <ul>
+      <li class="bulletList">A sample with the label TRUE is generated by picking two sentences that are adjacent to each other</li>
+      <li class="bulletList">A sample with the label FALSE is generated by picking two sentences randomly that are not adjacent to each other</li>
+    </ul>
+    <p class="normal">Following this approach, a labeled dataset is generated for the next sentence prediction task. Then BERT, along <a id="_idIndexMarker1009"/>with the binary classifier, is trained from end to end using the labeled dataset to solve a downstream task. To see this in action, we’ll be using Hugging Face’s <code class="inlineCode">transformers</code> library.</p>
+    <h1 id="_idParaDest-266" class="heading-1">Use case: Using BERT to answer questions</h1>
+    <p class="normal">Now let’s learn <a id="_idIndexMarker1010"/>how to implement BERT, train it on a question-answer dataset, and ask the model to answer a given question.</p>
+    <h2 id="_idParaDest-267" class="heading-2">Introduction to the Hugging Face transformers library</h2>
+    <p class="normal">We will use the <code class="inlineCode">transformers</code> library built by Hugging Face. The <code class="inlineCode">transformers</code> library is a high-level API that is <a id="_idIndexMarker1011"/>built on top of TensorFlow, PyTorch, and JAX. It provides easy access to pre-trained Transformer models that can be downloaded and fine-tuned with ease. You <a id="_idIndexMarker1012"/>can find models in the Hugging Face’s model registry at <a href="https://huggingface.co/models"><span class="url">https://huggingface.co/models</span></a>. You can filter models by task, examine the underlying deep learning frameworks, and more.</p>
+    <p class="normal">The <code class="inlineCode">transformers</code> library was designed with the aim of providing a very low barrier for entry to using complex Transformer models. For this reason, there’s only a handful of concepts that you need to learn in order to hit the ground running with the library. Three important classes are required to load and use a model successfully:</p>
+    <ul>
+      <li class="bulletList">Model class (such as <code class="inlineCode">TFBertModel</code>) – Contains the trained weights of the model in the form of <code class="inlineCode">tf.keras.models.Model</code> or the PyTorch equivalent.</li>
+      <li class="bulletList">Configuration (such as <code class="inlineCode">BertConfig</code>) – Stores various parameters and hyperparameters needed to load the model. If you’re using the pre-trained model as is, you don’t need to explicitly define its configuration.</li>
+      <li class="bulletList">Tokenizer (such as <code class="inlineCode">BertTokenizerFast</code>) – Contains the vocabulary and token-to-ID mapping needed to tokenize the words for the model.</li>
+    </ul>
+    <p class="normal">All of these classes can be used with two straightforward functions:</p>
+    <ul>
+      <li class="bulletList"><code class="inlineCode">from_pretrained()</code> – Provides a way to instantiate a model/configuration/tokenizer available from the model repository or locally</li>
+      <li class="bulletList"><code class="inlineCode">save_pretrained()</code> – Provides a way to save the model/configuration/tokenizer so that it can be reloaded later</li>
+    </ul>
+    <div class="note">
+      <p class="normal">TensorFlow hosts a variety of Transformer models (released by both TensorFlow <a id="_idIndexMarker1013"/>and third parties) in TensorFlow Hub (at <a href="https://tfhub.dev/"><span class="url">https://tfhub.dev/</span></a>). If you would like to know how to use TensorFlow Hub and the raw TensorFlow API to implement a model such as BERT, please visit <a href="https://www.tensorflow.org/text/tutorials/classify_text_with_bert"><span class="url">https://www.tensorflow.org/text/tutorials/classify_text_with_bert</span></a>.</p>
+    </div>
+    <p class="normal">We will soon see how these classes and functions are used in an actual use case. It is also important to note the side-effects of having such an easy-to-grasp interface for using models. Due to serving the very specific purpose of providing a way to use Transformer <a id="_idIndexMarker1014"/>models built with TensorFlow, PyTorch, or Jax, you don’t have the modularity or flexibility found in TensorFlow, for example. In other words, you cannot use the <code class="inlineCode">transformers</code> library in the same way you would use TensorFlow to build a <code class="inlineCode">tf.keras.models.Model</code> using <code class="inlineCode">tf.keras.layers.Layer</code> objects. </p>
+    <h2 id="_idParaDest-268" class="heading-2">Exploring the data</h2>
+    <p class="normal">The dataset <a id="_idIndexMarker1015"/>we are going to use for this task is a popular question-answering dataset called SQUAD. Each datapoint consists of four items:</p>
+    <ul>
+      <li class="bulletList">A question</li>
+      <li class="bulletList">A context that may contain the answer to the question</li>
+      <li class="bulletList">The start index of the answer</li>
+      <li class="bulletList">The answer</li>
+    </ul>
+    <p class="normal">We can download the dataset using Hugging Face’s <code class="inlineCode">datasets</code> library and call the <code class="inlineCode">load_dataset()</code> function with the <code class="inlineCode">"squad"</code> argument:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">from</span> datasets <span class="hljs-keyword">import</span> load_dataset
+dataset = load_dataset(<span class="hljs-string">"squad"</span>)
+</code></pre>
+    <p class="normal">Now let’s print some examples using:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">for</span> q, a <span class="hljs-keyword">in</span> <span class="hljs-built_in">zip</span>(dataset[<span class="hljs-string">"</span><span class="hljs-string">train"</span>][<span class="hljs-string">"question"</span>][:<span class="hljs-number">5</span>], dataset[<span class="hljs-string">"train"</span>][<span class="hljs-string">"answers"</span>][:<span class="hljs-number">5</span>]):
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">f"</span><span class="hljs-subst">{q}</span><span class="hljs-string"> -&gt; </span><span class="hljs-subst">{a}</span><span class="hljs-string">"</span>)
+</code></pre>
+    <p class="normal">which will output:</p>
+    <pre class="programlisting con"><code class="hljs-con">To whom did the Virgin Mary allegedly appear in 1858 in Lourdes France? -&gt; {'text': ['Saint Bernadette Soubirous'], 'answer_start': [515]}
+What is in front of the Notre Dame Main Building? -&gt; {'text': ['a copper statue of Christ'], 'answer_start': [188]}
+The Basilica of the Sacred heart at Notre Dame is beside to which structure? -&gt; {'text': ['the Main Building'], 'answer_start': [279]}
+What is the Grotto at Notre Dame? -&gt; {'text': ['a Marian place of prayer and reflection'], 'answer_start': [381]}
+What sits on top of the Main Building at Notre Dame? -&gt; {'text': ['a golden statue of the Virgin Mary'], 'answer_start': [92]}
+</code></pre>
+    <p class="normal">Here, <code class="inlineCode">answer_start</code> indicates the character index at which this answer starts in the context provided. With a good understanding of what’s available in the dataset, we’ll perform a simple processing step. When training the model, we will be asking the model to predict the start <a id="_idIndexMarker1016"/>and end indices of the answer. In its original form, only the <code class="inlineCode">answer_start</code> is present. We will need to manually add <code class="inlineCode">answer_end</code> to our dataset. The following function does this. Furthermore, it does a few sanitary checks on the dataset:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span> <span class="hljs-title">compute_end_index</span>(<span class="hljs-params">answers, contexts</span>):
+    <span class="hljs-string">""" Add end index to answers """</span>
+    
+    fixed_answers = []
+    <span class="hljs-keyword">for</span> answer, context <span class="hljs-keyword">in</span> <span class="hljs-built_in">zip</span>(answers, contexts):
+        gold_text = answer[<span class="hljs-string">'text'</span>][<span class="hljs-number">0</span>]
+        answer[<span class="hljs-string">'text'</span>] = gold_text
+        start_idx = answer[<span class="hljs-string">'answer_start'</span>][<span class="hljs-number">0</span>]
+        answer[<span class="hljs-string">'answer_start'</span>] = start_idx
+        
+        <span class="hljs-comment"># Make sure the starting index is valid and there is an answer</span>
+        <span class="hljs-keyword">assert</span> start_idx &gt;=<span class="hljs-number">0</span> <span class="hljs-keyword">and</span> <span class="hljs-built_in">len</span>(gold_text.strip()) &gt; <span class="hljs-number">0</span>:
+        
+        end_idx = start_idx + <span class="hljs-built_in">len</span>(gold_text)        
+        answer[<span class="hljs-string">'answer_end'</span>] = end_idx
+        
+        <span class="hljs-comment"># Make sure the corresponding context matches the actual answer</span>
+        <span class="hljs-keyword">assert</span> context[start_idx:end_idx] == gold_text
+        
+        fixed_answers.append(answer)
+    
+    <span class="hljs-keyword">return</span> fixed_answers, contexts
+train_questions = dataset[<span class="hljs-string">"train"</span>][<span class="hljs-string">"question"</span>]
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"Training data corrections"</span>)
+train_answers, train_contexts = compute_end_index(
+    dataset[<span class="hljs-string">"train"</span>][<span class="hljs-string">"answers"</span>], dataset[<span class="hljs-string">"train"</span>][<span class="hljs-string">"context"</span>]
+)
+test_questions = dataset[<span class="hljs-string">"validation"</span>][<span class="hljs-string">"question"</span>]
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"\nValidation data correction"</span>)
+test_answers, test_contexts = compute_end_index(
+    dataset[<span class="hljs-string">"validation"</span>][<span class="hljs-string">"answers"</span>], dataset[<span class="hljs-string">"validation"</span>][<span class="hljs-string">"context"</span>]
+)
+</code></pre>
+    <p class="normal">Next, we will download <a id="_idIndexMarker1017"/>a pre-trained BERT model from the Hugging Face repository and learn about the model in depth.</p>
+    <h2 id="_idParaDest-269" class="heading-2">Implementing BERT</h2>
+    <p class="normal">To use a pre-trained <a id="_idIndexMarker1018"/>Transformer model from the Hugging Face repository, we need three components:</p>
+    <ul>
+      <li class="bulletList"><code class="inlineCode">Tokenizer</code> – Responsible for splitting a long bit of text (such as a sentence) into smaller tokens</li>
+      <li class="bulletList"><code class="inlineCode">config</code> – Contains the configuration of the model </li>
+      <li class="bulletList"><code class="inlineCode">Model</code> – Takes in the tokens, looks up the embeddings, and produces the final output(s) using the provided inputs</li>
+    </ul>
+    <p class="normal">We can ignore the <code class="inlineCode">config</code> as we are using the pre-trained model as is. However, to paint a full picture, we will use the configuration nevertheless.</p>
+    <h3 id="_idParaDest-270" class="heading-3">Implementing and using the Tokenizer</h3>
+    <p class="normal">First, we <a id="_idIndexMarker1019"/>will look at how to download the Tokenizer. You can download <a id="_idIndexMarker1020"/>the Tokenizer using the <code class="inlineCode">transformers</code> library. Simply call the <code class="inlineCode">from_pretrained()</code> function provided by the <code class="inlineCode">PreTrainedTokenizerFast</code> base class:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">from</span> transformers <span class="hljs-keyword">import</span> BertTokenizerFast
+tokenizer = BertTokenizerFast.from_pretrained(<span class="hljs-string">'bert-base-uncased'</span>)
+</code></pre>
+    <p class="normal">We will be using a Tokenizer called <code class="inlineCode">bert-base-uncased</code>. It is the Tokenizer developed for the BERT base model and is uncased (that is, there’s no distinction between uppercase and lowercase characters). Next, let’s see the Tokenizer in action:</p>
+    <pre class="programlisting code"><code class="hljs-code">context = <span class="hljs-string">"This is the context"</span>
+question = <span class="hljs-string">"This is the question"</span>
+token_ids = tokenizer(
+    text=context, text_pair=question,
+padding=<span class="hljs-literal">False</span>, return_tensors=<span class="hljs-string">'tf'</span>
+)
+<span class="hljs-built_in">print</span>(token_ids)
+</code></pre>
+    <p class="normal">Let’s understand the arguments we’ve provided to the tokenizer’s call:</p>
+    <ul>
+      <li class="bulletList"><code class="inlineCode">text</code> – A single or batch of text sequences to be encoded by the tokenizer. Each text sequence is a string.</li>
+      <li class="bulletList"><code class="inlineCode">text_pair</code> – An optional single or batch of text sequences to be encoded by the tokenizer. It’s useful in situations where the model takes a multi-part input (such as a question and a context in question-answering).</li>
+      <li class="bulletList"><code class="inlineCode">padding</code> – Indicates the padding strategy. If set to <code class="inlineCode">True</code>, it will be padded to the maximum sequence length in the dataset. If set to <code class="inlineCode">max_length</code>, it will be padded to the length specified by the <code class="inlineCode">max_length</code> argument. If set to <code class="inlineCode">False</code>, no padding will be done.</li>
+      <li class="bulletList"><code class="inlineCode">return_tensors</code> – An argument that defines the type of tensors returned. It could be either <code class="inlineCode">pt</code> (PyTorch) or <code class="inlineCode">tf</code> (TensorFlow). Since we want TensorFlow tensors, we define it as <code class="inlineCode">'tf'</code>.</li>
+    </ul>
+    <p class="normal">This prints:</p>
+    <pre class="programlisting con"><code class="hljs-con">{
+    'input_ids': &lt;tf.Tensor: shape=(1, 11), dtype=int32, numpy=array([[ 101, 2023, 2003, 1996, 6123,  102, 2023, 2003, 1996, 3160,  102]])&gt;, 
+    'token_type_ids': &lt;tf.Tensor: shape=(1, 11), dtype=int32, numpy=array([[0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1]])&gt;, 
+    'attention_mask': &lt;tf.Tensor: shape=(1, 11), dtype=int32, numpy=array([[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]])&gt;
+}
+</code></pre>
+    <p class="normal">This outputs a <code class="inlineCode">transformers.tokenization_utils_base.BatchEncoding</code> object, which is essentially a dictionary. It has three keys and tensors as values:</p>
+    <ul>
+      <li class="bulletList"><code class="inlineCode">input_ids</code> – Provides the IDs of the tokens for the tokens found in the text sequences. Additionally, it introduces the <code class="inlineCode">[CLS]</code> token ID at the beginning of the sequence and two instances of the <code class="inlineCode">[SEP]</code> token ID, one between the question and context, and the other one at the end.</li>
+      <li class="bulletList"><code class="inlineCode">token_type_ids</code> – This is the segment ID we use for the segment embedding.</li>
+      <li class="bulletList"><code class="inlineCode">attention_mask</code> – The attention mask represents the words that are allowed to be attended to during the forward pass. Since BERT is an encoder model, any token can pay attention to any other token. The only exception is the padded tokens that will be ignored during the attention mechanism.</li>
+    </ul>
+    <p class="normal">We could <a id="_idIndexMarker1021"/>also convert these token IDs to actual tokens to know what <a id="_idIndexMarker1022"/>they represent. To do that, we use the <code class="inlineCode">convert_ids_to_tokens()</code> function:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-built_in">print</span>(tokenizer.convert_ids_to_tokens(token_ids[<span class="hljs-string">'input_ids'</span>].numpy()[<span class="hljs-number">0</span>]))
+</code></pre>
+    <p class="normal">This will print:</p>
+    <pre class="programlisting con"><code class="hljs-con">['[CLS]', 'this', 'is', 'the', 'context', '[SEP]', 'this', 'is', 'the', 'question', '[SEP]']
+</code></pre>
+    <p class="normal">You can see how the tokenizer inserts special tokens like <code class="inlineCode">[CLS]</code> and <code class="inlineCode">[SEP]</code> into the text sequence. With the functionality of the tokenizer understood, let’s use it to encode the train and test datasets:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Encode train data</span>
+train_encodings = tokenizer(train_contexts, train_questions, truncation=<span class="hljs-literal">True</span>, padding=<span class="hljs-literal">True</span>, return_tensors=<span class="hljs-string">'tf'</span>)
+<span class="hljs-comment"># Encode test data</span>
+test_encodings = tokenizer(test_contexts, test_questions, truncation=<span class="hljs-literal">True</span>, padding=<span class="hljs-literal">True</span>, return_tensors=<span class="hljs-string">'tf'</span>)
+</code></pre>
+    <p class="normal">You can check the size of the train encodings by running:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-built_in">print</span>(<span class="hljs-string">"train_encodings.shape: {}"</span>.<span class="hljs-built_in">format</span>(train_encodings[<span class="hljs-string">"input_ids"</span>].shape))
+</code></pre>
+    <p class="normal">which will give:</p>
+    <pre class="programlisting con"><code class="hljs-con">train_encodings.shape: (87599, 512)
+</code></pre>
+    <p class="normal">The maximum sequence length in our dataset is 512. Therefore, we see that the maximum length of the sequences is 512. Once we tokenize our data, we need to perform <a id="_idIndexMarker1023"/>one more data processing step. Our <code class="inlineCode">answer_start</code> and <code class="inlineCode">answer_end</code> indices are character-based. However, since we are working with tokens, we <a id="_idIndexMarker1024"/>need to convert our character-based indices to token-based indices. We will define a function for that:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span> <span class="hljs-title">replace_char_with_token_indices</span>(<span class="hljs-params">encodings, answers</span>):
+    start_positions = []
+    end_positions = []
+    n_updates = <span class="hljs-number">0</span>
+    <span class="hljs-comment"># Go through all the answers</span>
+    <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-built_in">len</span>(answers)):
+        <span class="hljs-comment"># Get the token position for both start end char positions</span>
+        start_positions.append(encodings.char_to_token(i, 
+        answers[i][<span class="hljs-string">'answer_start'</span>]))
+        end_positions.append(encodings.char_to_token(i, 
+        answers[i][<span class="hljs-string">'answer_end'</span>] - <span class="hljs-number">1</span>))
+        
+        <span class="hljs-keyword">if</span> start_positions[-<span class="hljs-number">1</span>] <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">or</span> end_positions[-<span class="hljs-number">1</span>] <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+            n_updates += <span class="hljs-number">1</span>
+        <span class="hljs-comment"># if start position is None, the answer passage has been truncated</span>
+        <span class="hljs-comment"># In the guide, https://huggingface.co/transformers/custom_</span>
+<span class="hljs-comment">        # datasets.html#qa-squad</span> <span class="hljs-comment">they set it to model_max_length, but</span>
+<span class="hljs-comment">        # this will result in NaN losses as the last</span> <span class="hljs-comment">available label is</span>
+<span class="hljs-comment">        # model_max_length-1 (zero-indexed)</span>
+        <span class="hljs-keyword">if</span> start_positions[-<span class="hljs-number">1</span>] <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+            start_positions[-<span class="hljs-number">1</span>] = tokenizer.model_max_length -<span class="hljs-number">1</span>
+            
+        <span class="hljs-keyword">if</span> end_positions[-<span class="hljs-number">1</span>] <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+            end_positions[-<span class="hljs-number">1</span>] = tokenizer.model_max_length -<span class="hljs-number">1</span>
+            
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"{}/{} had answers truncated"</span>.<span class="hljs-built_in">format</span>(n_updates, 
+<span class="hljs-built_in">    len</span>(answers)))
+    encodings.update({<span class="hljs-string">'start_positions'</span>: start_positions, 
+    <span class="hljs-string">'end_positions'</span>: end_positions})
+</code></pre>
+    <p class="normal">This function takes in a set of <code class="inlineCode">BatchEncodings</code> called <code class="inlineCode">encodings</code> generated by the tokenizer <a id="_idIndexMarker1025"/>and a set of answers (a list of dictionaries). Then it updates <a id="_idIndexMarker1026"/>the provided encodings with two new keys: <code class="inlineCode">start_positions </code>and <code class="inlineCode">end_positions</code>. These keys respectively hold the token-based indices denoting the start and end of the answer. If the answer is not found, we set the start and end indices to the last token. To convert our existing character-based indices to token-based indices, we use a function called <code class="inlineCode">char_to_token()</code> provided by the <code class="inlineCode">BatchEncodings</code> class. It takes a character index as the input and provides the corresponding token index as the output. With the function defined, let’s call it on our training and testing data:</p>
+    <pre class="programlisting code"><code class="hljs-code">replace_char_with_token_indices(train_encodings, train_answers)
+replace_char_with_token_indices(test_encodings, test_answers)
+</code></pre>
+    <p class="normal">With the clean data, we will now define a TensorFlow dataset. Note that this function modifies the encodings in place.</p>
+    <h3 id="_idParaDest-271" class="heading-3">Defining a TensorFlow dataset</h3>
+    <p class="normal">Next, let’s implement a TensorFlow dataset to generate the data for the model. Our data will <a id="_idIndexMarker1027"/>consist of two tuples: one containing inputs and the other containing the targets. The input tuple contains:</p>
+    <ul>
+      <li class="bulletList">Input token IDs – A batch of padded token IDs of size <code class="inlineCode">[batch size, sequence length]</code></li>
+      <li class="bulletList">Attention mask – A batch of attention masks of size <code class="inlineCode">[batch size, sequence length]</code></li>
+    </ul>
+    <p class="normal">The output tuple contains:</p>
+    <ul>
+      <li class="bulletList">Start index of the answer – A batch of start indices of the answer</li>
+      <li class="bulletList">End index of the answer – A batch of end indices of the answer</li>
+    </ul>
+    <p class="normal">We will first define a generator that generates the data in this format:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span> <span class="hljs-title">data_gen</span>(<span class="hljs-params">input_ids, attention_mask, start_positions, end_positions</span>):
+    <span class="hljs-string">""" Generator for data """</span>
+    <span class="hljs-keyword">for</span> inps, attn, start_pos, end_pos <span class="hljs-keyword">in</span> <span class="hljs-built_in">zip</span>(input_ids, 
+<span class="hljs-keyword">    </span>attention_mask, start_positions, end_positions):
+        <span class="hljs-keyword">yield</span> (inps, attn), (start_pos, end_pos)
+</code></pre>
+    <p class="normal">Since we have <a id="_idIndexMarker1028"/>already processed the data, it’s a matter of reorganizing the already existing data to return using the code above. </p>
+    <p class="normal">Next, we will define a partial function that we can simply call without passing any arguments:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Define the generator as a callable</span>
+train_data_gen = partial(data_gen,
+    input_ids=train_encodings[<span class="hljs-string">'input_ids'</span>], attention_mask=train_
+    encodings[<span class="hljs-string">'attention_mask'</span>],
+    start_positions=train_encodings[<span class="hljs-string">'start_positions'</span>],
+    end_positions=train_encodings[<span class="hljs-string">'end_positions'</span>]
+)
+</code></pre>
+    <p class="normal">This function is then passed to the <code class="inlineCode">tf.data.Dataset.from_generator()</code> function:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Define the dataset</span>
+train_dataset = tf.data.Dataset.from_generator(
+    train_data_gen, output_types=((<span class="hljs-string">'int32'</span>, <span class="hljs-string">'int32'</span>), (<span class="hljs-string">'int32'</span>, <span class="hljs-string">'int32'</span>))
+)
+</code></pre>
+    <p class="normal">We then shuffle the data in our training dataset. When shuffling a TensorFlow dataset we need to provide a buffer size. The buffer size defines how many samples are chosen to shuffle. Here we set that to 1,000 samples:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Shuffling the data</span>
+train_dataset = train_dataset.shuffle(<span class="hljs-number">1000</span>)
+<span class="hljs-built_in">print</span>(<span class="hljs-string">'\tDone'</span>)
+</code></pre>
+    <p class="normal">Next, we split our dataset into two: a training set and a validation dataset. We will use the first 10,000 samples as the validation set. The rest of the data is used as the training set. Both datasets will be batched using a batch size of 4:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Valid set is taken as the first 10000 samples in the shuffled set</span>
+valid_dataset = train_dataset.take(<span class="hljs-number">10000</span>)
+valid_dataset = valid_dataset.batch(<span class="hljs-number">4</span>)
+<span class="hljs-comment"># Rest is kept as the training data</span>
+train_dataset = train_dataset.skip(<span class="hljs-number">10000</span>)
+train_dataset = train_dataset.batch(<span class="hljs-number">4</span>)
+</code></pre>
+    <p class="normal">Finally, we <a id="_idIndexMarker1029"/>follow the same procedure to create the test dataset:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Creating test data</span>
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"Creating test data"</span>)
+<span class="hljs-comment"># Define the generator as a callable</span>
+test_data_gen = partial(data_gen,
+    input_ids=test_encodings[<span class="hljs-string">'input_ids'</span>], 
+    attention_mask=test_encodings[<span class="hljs-string">'attention_mask'</span>],
+    start_positions=test_encodings[<span class="hljs-string">'start_positions'</span>], 
+    end_positions=test_encodings[<span class="hljs-string">'end_positions'</span>]
+)
+test_dataset = tf.data.Dataset.from_generator(
+    test_data_gen, output_types=((<span class="hljs-string">'int32'</span>, <span class="hljs-string">'int32'</span>), (<span class="hljs-string">'int32'</span>, 
+    <span class="hljs-string">'int32'</span>))
+)
+test_dataset = test_dataset.batch(<span class="hljs-number">8</span>)
+</code></pre>
+    <p class="normal">Now let’s see how BERT’s architecture can be used to answer questions.</p>
+    <h3 id="_idParaDest-272" class="heading-3">BERT for answering questions</h3>
+    <p class="normal">There are a few modifications introduced on top of the pre-trained BERT model to leverage <a id="_idIndexMarker1030"/>it for question-answering. First, the model takes in a question, followed by a context. As we discussed before, the context may or may not contain the answer to the question. The input has the format <code class="inlineCode">[CLS] &lt;question tokens&gt; [SEP] &lt;context tokens&gt; [SEP]</code>. Then, for each token position of the context, we have two classification heads predicting a probability. One head predicts the probability of each context token being the start of the answer, whereas the other one predicts the probability of each context token being the end of the answer. </p>
+    <p class="normal">Once we figure out the start and end <a id="_idIndexMarker1031"/>indices of the answer, we can simply extract the answer from the context using those indices.</p>
+    <figure class="mediaobject"> <img src="../Images/B14070_10_11.png" alt=""/></figure>
+    <p class="packt_figref">Figure 10.11: Using BERT for question-answering. The model takes in a question followed by a context. The model has two heads: one to predict the probability of each token in the context being the start of the answer and another to predict the end of the answer for each context token.</p>
+    <h3 id="_idParaDest-273" class="heading-3">Defining the config and the model</h3>
+    <p class="normal">In Hugging <a id="_idIndexMarker1032"/>Face, you have several variants of each Transformer model. These variants are <a id="_idIndexMarker1033"/>based on different tasks solved by these models. For example, for BERT we have:</p>
+    <ul>
+      <li class="bulletList"><code class="inlineCode">TFBertForPretraining</code> – The pre-trained model without a task-specific head</li>
+      <li class="bulletList"><code class="inlineCode">TFBertForSequenceClassification</code> – Used for classifying a sequence of text </li>
+      <li class="bulletList"><code class="inlineCode">TFBertForTokenClassification</code> – Used for classifying each token in the sequence of text</li>
+      <li class="bulletList"><code class="inlineCode">TFBertForMultipleChoice</code> – Used for answering multiple-choice questions</li>
+      <li class="bulletList"><code class="inlineCode">TFBertForQuestionAnswering</code> – Used for extracting answers to a question from a given context</li>
+      <li class="bulletList"><code class="inlineCode">TFBertForMaskedLM</code> – Used for pre-training BERT on the masked language modeling task</li>
+      <li class="bulletList"><code class="inlineCode">TFBertForNextSentencePrediction</code> – Used for pre-training BERT to predict the next sentence</li>
+    </ul>
+    <p class="normal">Here, we are interested in <code class="inlineCode">TFBertForQuestionAnswering</code>. Let’s import this class along with the <code class="inlineCode">BertConfig</code> class, which we will extract important hyperparameters from:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">from</span> transformers <span class="hljs-keyword">import</span> BertConfig, TFBertForQuestionAnswering
+</code></pre>
+    <p class="normal">To get <a id="_idIndexMarker1034"/>the pre-trained <code class="inlineCode">config</code>, we call the <code class="inlineCode">from_pretrained()</code> function of <code class="inlineCode">BertConfig</code> with the <a id="_idIndexMarker1035"/>model we’re interested in. Here, we’ll use the <code class="inlineCode">bert-base-uncased</code> model:</p>
+    <pre class="programlisting code"><code class="hljs-code">config = BertConfig.from_pretrained(<span class="hljs-string">"bert-base-uncased"</span>, return_dict=<span class="hljs-literal">False</span>)
+</code></pre>
+    <p class="normal">You can print the <code class="inlineCode">config</code> and see what’s in there:</p>
+    <pre class="programlisting con"><code class="hljs-con">BertConfig {
+  "architectures": [
+    "BertForMaskedLM"
+  ],
+  "attention_probs_dropout_prob": 0.1,
+  "classifier_dropout": null,
+  "gradient_checkpointing": false,
+  "hidden_act": "gelu",
+  "hidden_dropout_prob": 0.1,
+  "hidden_size": 768,
+  "initializer_range": 0.02,
+  "intermediate_size": 3072,
+  "layer_norm_eps": 1e-12,
+  "max_position_embeddings": 512,
+  "model_type": "bert",
+  "num_attention_heads": 12,
+  "num_hidden_layers": 12,
+  "pad_token_id": 0,
+  "position_embedding_type": "absolute",
+  "return_dict": false,
+  "transformers_version": "4.15.0",
+  "type_vocab_size": 2,
+  "use_cache": true,
+  "vocab_size": 30522
+}
+</code></pre>
+    <p class="normal">Finally, we get the model by calling the same function <code class="inlineCode">from_pretrained()</code> from the <code class="inlineCode">TFBertForQuestionAnswering</code> class and pass the <code class="inlineCode">config</code> we just obtained:</p>
+    <pre class="programlisting code"><code class="hljs-code">model = TFBertForQuestionAnswering.from_pretrained(<span class="hljs-string">"bert-base-uncased"</span>, config=config)
+</code></pre>
+    <p class="normal">When you run this, you will get a warning saying:</p>
+    <pre class="programlisting con"><code class="hljs-con">All model checkpoint layers were used when initializing TFBertForQuestionAnswering.
+Some layers of TFBertForQuestionAnswering were not initialized from the model checkpoint at bert-base-uncased and are newly initialized: ['qa_outputs']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+</code></pre>
+    <p class="normal">This is <a id="_idIndexMarker1036"/>expected and totally fine. It’s saying that there are some layers that have not been <a id="_idIndexMarker1037"/>initialized from the pre-trained model; the output heads of the model need to be introduced as new layers, thus they are not pre-initialized. </p>
+    <p class="normal">After that, we will define a function that will wrap the returned model as a <code class="inlineCode">tf.keras.models.Model</code> object. We need to perform this step because if we try to use the model as it is, TensorFlow returns the following error: </p>
+    <pre class="programlisting con"><code class="hljs-con">    TypeError: The two structures don't have the same sequence type. 
+    Input structure has type &lt;class 'tuple'&gt;, while shallow structure has type 
+    &lt;class 'transformers.modeling_tf_outputs.TFQuestionAnsweringModelOutput'&gt;.
+</code></pre>
+    <p class="normal">Therefore, we will define two input layers: one takes in the input token IDs and the other takes the attention mask and passes it to the model. Finally, we get the output of the model. We then define a <code class="inlineCode">tf.keras.models.Model</code> using these inputs and output:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span> <span class="hljs-title">tf_wrap_model</span>(<span class="hljs-params">model</span>):
+    <span class="hljs-string">""" Wraps the huggingface's model with in the Keras Functional API """</span>
+    <span class="hljs-comment"># Define inputs</span>
+    input_ids = tf.keras.layers.Input([<span class="hljs-literal">None</span>,], dtype=tf.int32, 
+    name=<span class="hljs-string">"input_ids"</span>)
+    attention_mask = tf.keras.layers.Input([<span class="hljs-literal">None</span>,], dtype=tf.int32, 
+    name=<span class="hljs-string">"attention_mask"</span>)
+    
+    <span class="hljs-comment"># Define the output (TFQuestionAnsweringModelOutput)</span>
+    out = model([input_ids, attention_mask])
+    
+    <span class="hljs-comment"># Get the correct attributes in the produced object to generate an</span>
+<span class="hljs-comment">    # output tuple</span>
+    wrap_model = tf.keras.models.Model([input_ids, attention_mask], 
+    outputs=(out.start_logits, out.end_logits))
+    
+    <span class="hljs-keyword">return</span> wrap_model
+</code></pre>
+    <p class="normal">As we learned when studying the structure of the model, the question-answering BERT has two heads: one to predict the starting index of the answer and the other to predict the end. Therefore, we have to optimize two losses coming from the two heads. This means <a id="_idIndexMarker1038"/>we need to add the two losses to get the final loss. When we have a multi-output <a id="_idIndexMarker1039"/>model such as this, we can pass multiple loss functions aimed at each output head. Here, we define a single loss function. This means the same loss will be used across both heads and will be summed to generate the final loss:</p>
+    <pre class="programlisting code"><code class="hljs-code">loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=<span class="hljs-literal">True</span>)
+acc = tf.keras.metrics.SparseCategoricalAccuracy()
+optimizer = tf.keras.optimizers.Adam(learning_rate=<span class="hljs-number">1e-5</span>)
+model_v2 = tf_wrap_model(model)
+model_v2.<span class="hljs-built_in">compile</span>(optimizer=optimizer, loss=loss, metrics=[acc])
+</code></pre>
+    <p class="normal">We will now see how we can train and evaluate our model on the question-answering task.</p>
+    <h2 id="_idParaDest-274" class="heading-2">Training and evaluating the model</h2>
+    <p class="normal">We <a id="_idIndexMarker1040"/>already have the data prepared and the model defined. Training the model is quite <a id="_idIndexMarker1041"/>easy, and is just a one-liner:</p>
+    <pre class="programlisting code"><code class="hljs-code">model_v2.fit(
+    train_dataset, 
+    validation_data=valid_dataset,
+    epochs=<span class="hljs-number">3</span>
+)
+</code></pre>
+    <p class="normal">You should see an output as follows:</p>
+    <pre class="programlisting con"><code class="hljs-con">Epoch 1/2
+19400/19400 [==============================] - 7175s 369ms/step 
+- loss: 2.7193 - tf_bert_for_question_answering_loss: 1.4153 - tf_bert_for_question_answering_1_loss: 1.3040 - tf_bert_for_question_answering_sparse_categorical_accuracy: 0.5975 - tf_bert_for_question_answering_1_sparse_categorical_accuracy: 0.6376 - val_loss: 2.1615 - val_tf_bert_for_question_answering_loss: 1.0898 - val_tf_bert_for_question_answering_1_loss: 1.0717 - val_tf_bert_for_question_answering_sparse_categorical_accuracy: 0.7120 - val_tf_bert_for_question_answering_1_sparse_categorical_accuracy: 0.7350
+Epoch 2/2
+19400/19400 [==============================] - 7192s 370ms/step - loss: 1.6691 - tf_bert_for_question_answering_loss: 0.8865 - tf_bert_for_question_answering_1_loss: 0.7826 - tf_bert_for_question_answering_sparse_categorical_accuracy: 0.7245 - tf_bert_for_question_answering_1_sparse_categorical_accuracy: 0.7646 - val_loss: 2.1836 - val_tf_bert_for_question_answering_loss: 1.0988 - val_tf_bert_for_question_answering_1_loss: 1.0847 - val_tf_bert_for_question_answering_sparse_categorical_accuracy: 0.7289 - val_tf_bert_for_question_answering_1_sparse_categorical_accuracy: 0.7504
+It took 14366.591783046722 seconds to complete the training
+</code></pre>
+    <p class="normal">You should see the accuracy on the validation set reaching an accuracy between ~73 and 75%. This is quite high, given we only trained the model for two epochs. This performance can be attributed to the high level of language understanding the pre-trained model already had when we downloaded it. Let’s evaluate the model on our test data:</p>
+    <pre class="programlisting code"><code class="hljs-code">model_v2.evaluate(test_dataset)
+</code></pre>
+    <p class="normal">It should output the following:</p>
+    <pre class="programlisting con"><code class="hljs-con">1322/1322 [======================] - 345s 261ms/step - loss: 2.2205 - tf_bert_for_question_answering_loss: 1.1325 - tf_bert_for_question_answering_1_loss: 1.0881 - tf_bert_for_question_answering_sparse_categorical_accuracy: 0.6968 - tf_bert_for_question_answering_1_sparse_categorical_accuracy: 0.7250
+</code></pre>
+    <p class="normal">We see <a id="_idIndexMarker1042"/>that it performs comparably well on the test dataset as well. Finally, we can save the <a id="_idIndexMarker1043"/>model. We will save the <code class="inlineCode">TFBertForQuestionAnswering</code> component of the model. We’ll also save the tokenizer:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> os
+<span class="hljs-comment"># Create folders</span>
+<span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> os.path.exists(<span class="hljs-string">'models'</span>):
+    os.makedirs(<span class="hljs-string">'</span><span class="hljs-string">models'</span>)
+<span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> os.path.exists(<span class="hljs-string">'tokenizers'</span>):
+    os.makedirs(<span class="hljs-string">'tokenizers'</span>)
+    
+<span class="hljs-comment"># Save the model</span>
+model_v2.get_layer(<span class="hljs-string">"tf_bert_for_question_answering"</span>).save_pretrained(os.path.join(<span class="hljs-string">'models'</span>, <span class="hljs-string">'bert_qa'</span>))
+<span class="hljs-comment"># Save the tokenizer</span>
+tokenizer.save_pretrained(os.path.join(<span class="hljs-string">'</span><span class="hljs-string">tokenizers'</span>, <span class="hljs-string">'bert_qa'</span>))
+</code></pre>
+    <p class="normal">We have trained our model and evaluated it to ensure the model performs well. Once we confirmed that the model is performing well, we finally saved it for future use. Next, let’s discuss how we can use this model to generate answers for a given question.</p>
+    <h2 id="_idParaDest-275" class="heading-2">Answering questions with Bert</h2>
+    <p class="normal">Let’s now <a id="_idIndexMarker1044"/>write a simple script to generate answers to questions from the trained model. First, let’s define a sample question to generate an answer for. We’ll also store the inputs and the ground truth answer to compare:</p>
+    <pre class="programlisting code"><code class="hljs-code">i = <span class="hljs-number">5</span>
+<span class="hljs-comment"># Define sample question</span>
+sample_q = test_questions[i]
+<span class="hljs-comment"># Define sample context</span>
+sample_c = test_contexts[i]
+<span class="hljs-comment"># Define sample answer </span>
+sample_a = test_answers[i]
+</code></pre>
+    <p class="normal">Next, we’ll define the inputs to the model. The input to the model needs to have a batch dimension. Therefore we use the <code class="inlineCode">[i:i+1]</code> syntax to make sure the batch dimension is not flattened:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Get the input in the format BERT accepts</span>
+sample_input = (test_encodings[<span class="hljs-string">"input_ids"</span>][i:i+<span class="hljs-number">1</span>],
+test_encodings[<span class="hljs-string">"attention_mask"</span>][i:i+<span class="hljs-number">1</span>])
+</code></pre>
+    <p class="normal">Let’s now define a simple function called <code class="inlineCode">ask_bert</code> to find an answer from the context for a given question. This function takes in an input, a tokenizer, and a model. </p>
+    <p class="normal">Then it generates the token IDs from the tokenizer, passes them to the model, outputs the start and end indices for the answer, and finally extracts the corresponding answer from the text of the context:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span> <span class="hljs-title">ask_bert</span>(<span class="hljs-params">sample_input, tokenizer, model</span>):
+    <span class="hljs-string">""" This function takes an input, a tokenizer, a model and returns the</span>
+<span class="hljs-string">    prediciton """</span>
+    out = model.predict(sample_input)
+    pred_ans_start = tf.argmax(out[<span class="hljs-number">0</span>][<span class="hljs-number">0</span>])
+    pred_ans_end = tf.argmax(out[<span class="hljs-number">1</span>][<span class="hljs-number">0</span>])
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"{}-{} token ids contain the answer"</span>.<span class="hljs-built_in">format</span>(pred_ans_start, 
+<span class="hljs-built_in">    </span>pred_ans_end))
+    ans_tokens = sample_input[<span class="hljs-number">0</span>][<span class="hljs-number">0</span>][pred_ans_start:pred_ans_end+<span class="hljs-number">1</span>]
+    
+    <span class="hljs-keyword">return</span> <span class="hljs-string">" "</span>.join(tokenizer.convert_ids_to_tokens(ans_tokens))
+</code></pre>
+    <p class="normal">Let’s execute the following lines to print the answer given by our model:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-built_in">print</span>(<span class="hljs-string">"Question"</span>)
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"\t"</span>, sample_q, <span class="hljs-string">"\n"</span>)
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"Context"</span>)
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"\t"</span>, sample_c, <span class="hljs-string">"\n"</span>)
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"Answer (char indexed)"</span>)
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"\t"</span>, sample_a, <span class="hljs-string">"\n"</span>)
+<span class="hljs-built_in">print</span>(<span class="hljs-string">'='</span>*<span class="hljs-number">50</span>,<span class="hljs-string">'\n'</span>)
+sample_pred_ans = ask_bert(sample_input, tokenizer, model_v2)
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"Answer (predicted)"</span>)
+<span class="hljs-built_in">print</span>(sample_pred_ans)
+<span class="hljs-built_in">print</span>(<span class="hljs-string">'='</span>*<span class="hljs-number">50</span>,<span class="hljs-string">'\n'</span>)
+</code></pre>
+    <p class="normal">which <a id="_idIndexMarker1045"/>will print:</p>
+    <pre class="programlisting con"><code class="hljs-con">Question
+    What was the theme of Super Bowl 50? 
+Context
+    Super Bowl 50 was an American football game to determine the champion of the National Football League (NFL) for the 2015 season. The American 
+Football Conference (AFC) champion Denver Broncos defeated the National Football Conference (NFC) champion Carolina Panthers 24–10 to earn their third Super Bowl title. The game was played on February 7, 2016, at Levi's Stadium in the San Francisco Bay Area at Santa Clara, California. As this was the 50th Super Bowl, the league emphasized the "golden anniversary" with various gold-themed initiatives, as well as temporarily suspending the tradition of naming each Super Bowl game with Roman numerals (under which the game would have been known as "Super Bowl L"), so that the logo could prominently feature the Arabic numerals 50. 
+Answer (char indexed)
+    {'answer_start': 487, 'text': '"golden anniversary"', 'answer_end': 507} 
+================================================== 
+98-99 token ids contain the answer
+Answer (predicted)
+golden anniversary
+================================================== 
+</code></pre>
+    <p class="normal">We can see that BERT has answered the question correctly. We have learned a lot about Transformers <a id="_idIndexMarker1046"/>in general as well as BERT-specific architecture. We then used this knowledge to adapt BERT to solve a question-answering problem. Here we end our discussion about Transformers and BERT.</p>
+    <h1 id="_idParaDest-276" class="heading-1">Summary</h1>
+    <p class="normal">In this chapter, we talked about Transformer models. First, we looked at the Transformer at a microscopic level to understand the inner workings of the model. We saw that Transformers use self-attention, a powerful technique to attend to other inputs in the text sequences while processing one input. We also saw that Transformers use positional embeddings to inform the model about the relative position of tokens in addition to token embeddings. We also discussed that Transformers leverage residual connections (that is, shortcut connections) and layer normalization in order to improve model training.</p>
+    <p class="normal">We then discussed BERT, an encoder-based Transformer model. We looked at the format of the data accepted by BERT and the special tokens it uses in the input. Next, we discussed four different types of task BERT can solve: sequence classification, token classification, multiple-choice, and question-answering. </p>
+    <p class="normal">Finally, we looked at how BERT is pre-trained on a large corpus of text.</p>
+    <p class="normal">After that, we started on a use case: answering questions with BERT. To implement the solution, we used the <code class="inlineCode">transformers</code> library by Hugging Face. It’s an extremely useful high-level library built on top of deep learning frameworks such as TensorFlow, PyTorch, and Jax. The <code class="inlineCode">transformers </code>library is specifically designed for quickly loading and using pre-trained Transformer models. In this use case, we first processed the data and created a <code class="inlineCode">tf.data.Dataset</code> to stream the data in batches. Then we trained the model on that data and evaluated it on a test set. Finally, we used the model to infer answers to a sample question given to the model.</p>
+    <p class="normal">In the next chapter, we will learn a bit more about Transformers and how they can be used in a more complicated task that involves both images and text: image caption generation.</p>
+    <p class="center">To access the code files for this book, visit our GitHub page at: <a href="https://packt.link/nlpgithub"><span class="url">https://packt.link/nlpgithub</span></a></p>
+    <p class="center">Join our Discord community to meet like-minded people and learn alongside more than 1000 members at: <a href="https://packt.link/nlp"><span class="url">https://packt.link/nlp</span></a></p>
+    <p class="center"><span class="url"><img src="../Images/QR_Code5143653472357468031.png" alt=""/></span></p>
+    <figure class="mediaobject"> </figure>
+  </div>
+</body></html>

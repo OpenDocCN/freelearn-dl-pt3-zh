@@ -1,0 +1,460 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Image Classification Using TensorFlow Hub</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">We have discussed the image classification task in all of the previous chapters of this book. We have seen how it is possible to define a convolutional neural network by stacking several convolutional layers and how to train it using Keras. We also looked at eager execution and saw that using AutoGraph is straightforward.</p>
+<p>So far, the convolutional architecture used has been a LeNet-like architecture, with an expected input size of 28 x 28, trained end to end every time to make the network learn how to extract the correct features to solve the fashion-MNIST classification task.</p>
+<p>Building a classifier from scratch, defining the architecture layer by layer, is an excellent didactical exercise that allows you to experiment with how different layer configurations can change the network performance. However, in real-life scenarios, the amount of data <span>available </span>to train a classifier is often limited. Gathering clean and correctly labeled data is a time-consuming process, and collecting a dataset with thousands of samples is tough. Moreover, even when the dataset size is adequate (thus, we are in a big data regime), training a classifier on it is a slow process; the training process might require several hours of GPU time since architectures more complicated than our LeNet-like architecture are necessary to achieve satisfactory results. Different architectures have been developed over the years, all of them introducing some novelties that have allowed the correct classification of color images with a resolution higher than 28 x 28.</p>
+<p>Academia and industry release new classification architectures to improve the state of the art year on year. Their performance for an image classification task is measured by looking at the <span>top-1 accuracy</span> reached by the architecture when trained and tested on massive datasets such as ImageNet.</p>
+<div class="section-content">
+<div class="section-inner sectionLayout--insetColumn">
+<p class="graf graf--p graf--leading graf--trailing">ImageNet is a dataset of over 15 million high-resolution images with more than 22,000 categories, all of them manually labeled. The <strong>ImageNet Large Scale Visual Recognition Challenge</strong> (<strong><span>ILSVRC </span></strong>) is a yearly object detection and classification challenge that uses a subset of ImageNet of 1,000 images for 1,000 categories. The dataset used for the computation is made up of roughly 1.2 million training images, 50,000 validation images, and 100,000 testing images.</p>
+</div>
+</div>
+<p>To achieve impressive results on an image classification task, researchers found that deep architectures were needed. This approach has a drawback—the deeper the network, the higher the number of parameters to train. But a higher number of parameters implies that a lot of computing power is needed (and computing power costs!). Since academia and industry have already developed and trained their models, why don't we take advantage of their work to speed up our development without reinventing the wheel every time?</p>
+<p>In this chapter, we'll discuss transfer learning and fine-tuning, showing how they can speed up development. TensorFlow Hub is used as a tool to quickly get the models we need and speed up development.</p>
+<p>By the end of this chapter, you will know how to transfer the knowledge embedded in a model to a new task, using TensorFlow Hub easily, thanks to its Keras integration.</p>
+<p>In this chapter, we will cover the following topics:</p>
+<ul>
+<li>Getting the data</li>
+<li>Transfer learning</li>
+<li>Fine-tuning</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Getting the data</h1>
+                </header>
+            
+            <article>
+                
+<p>The task we are going to solve in this chapter is a classification problem on a dataset of flowers, which is available in <strong>tensorflow-datasets</strong> (<strong>tfds</strong>). The dataset's name is <kbd>tf_flowers</kbd> and it consists of images of five different flower species <span>at different resolutions</span>. Using <kbd>tfds</kbd>, gathering the data is straightforward, and we can get the dataset's information by looking at the <kbd>info</kbd> variable returned by the <kbd>tfds.load</kbd> invocation, as shown here:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>import tensorflow_datasets as tfds<br/><br/>dataset, info = tfds.load("tf_flowers", with_info=True)<br/>print(info)</pre>
+<p>The preceding code produces the following dataset description:</p>
+<pre>tfds.core.DatasetInfo(<br/>    name='tf_flowers',<br/>    version=1.0.0,<br/>    description='A large set of images of flowers',<br/>    urls=['http://download.tensorflow.org/example_images/flower_photos.tgz'],<br/>    features=FeaturesDict({<br/>        'image': Image(shape=(None, None, 3), dtype=tf.uint8),<br/>        'label': ClassLabel(shape=(), dtype=tf.int64, num_classes=5)<br/>    },<br/>    total_num_examples=3670,<br/>    splits={<br/>        'train': &lt;tfds.core.SplitInfo num_examples=3670&gt;<br/>    },<br/>    supervised_keys=('image', 'label'),<br/>    citation='"""<br/>        @ONLINE {tfflowers,<br/>        author = "The TensorFlow Team",<br/>        title = "Flowers",<br/>        month = "jan",<br/>        year = "2019",<br/>        url = "http://download.tensorflow.org/example_images/flower_photos.tgz" }<br/>        <br/>    """',<br/>    redistribution_info=,<br/>)</pre>
+<p>There is a single split train with 3,670 labeled images. The image resolution is not fixed, as we can see from the <kbd>None</kbd> value in the height and width position of the <kbd>Image</kbd> shape feature. There are five classes, as expected. Looking at the <kbd>download</kbd> folder of the dataset (default to <kbd>~/tensorflow_datasets/downloads/extracted</kbd>), we can find the dataset structure and look at the labels, which are as follows:</p>
+<ul>
+<li>Daisy</li>
+<li>Dandelion</li>
+<li>Roses</li>
+<li>Sunflowers</li>
+<li>Tulips</li>
+</ul>
+<p class="mce-root">Every image of the dataset is licensed under a Creative Commons by attribution license. As we can see from the <kbd>LICENSE.txt</kbd> file, the dataset has been gathered by scraping Flickr. The following is an image sampled from the dataset:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-825 image-border" src="assets/ab6fc0e7-df71-4117-a2db-4449845c69a7.png" style="width:15.17em;height:19.67em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign">Image labeled as sunflower. File<span>sunflowers/2694860538_b95d60122c_m.jpg -</span> CC-BY by Ally Aubry (<a href="https://www.flickr.com/photos/allyaubryphotography/2694860538/">https://www.flickr.com/photos/allyaubryphotography/2694860538/</a>).</div>
+<p><span>Very often, datasets are not made of pictures where only the labeled subject appears, and these kinds of datasets are perfect for developing algorithms that are robust at handling noise in the data.</span></p>
+<p>The dataset is ready, although it is not correctly split following the guidelines. In fact, there is only a single split when, instead, three splits (train, validation, and test) are recommended. Let's create the three non-overlapping splits, by creating three separate <kbd>tf.data.Dataset</kbd> objects. We'll use the <kbd>take</kbd> and <kbd>skip</kbd> methods of the dataset object:</p>
+<pre>dataset = dataset["train"]<br/>tot = 3670<br/><br/>train_set_size = tot // 2<br/>validation_set_size = tot - train_set_size - train_set_size // 2<br/>test_set_size = tot - train_set_size - validation_set_size<br/><br/><br/>print("train set size: ", train_set_size)<br/>print("validation set size: ", validation_set_size)<br/>print("test set size: ", test_set_size)<br/><br/>train, test, validation = (<br/>    dataset.take(train_set_size),<br/>    dataset.skip(train_set_size).take(validation_set_size),<br/>    dataset.skip(train_set_size + validation_set_size).take(test_set_size),<br/>)</pre>
+<p>Alright. Now we have the required three splits, and we can start using them to train, evaluate, and test our classification model, which will be built by reusing a model that someone else trained on a different dataset.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Transfer learning</h1>
+                </header>
+            
+            <article>
+                
+<p>Only academia and some industries have the required budget and computing power to train an entire CNN from scratch, starting from random weights, on a massive dataset such as ImageNet.</p>
+<p>Since this expensive and time-consuming work has already been done, it is a smart idea to reuse parts of the trained model to solve our classification problem.</p>
+<p>In fact, it is possible to transfer what the network has learned from one dataset to a new one, thereby transferring the knowledge.</p>
+<p>Transfer learning is the process of learning a new task by relying on a previously learned task: the learning process can be faster, more accurate, and require less training data.</p>
+<p>The transfer learning idea is bright, and it can be successfully applied when using convolutional neural networks.</p>
+<p>In fact, all convolutional architectures for classification have a fixed structure, and we can reuse parts of them as building blocks for our applications. The general structure is composed of three elements: </p>
+<ul>
+<li><strong>Input layer</strong>: The architecture is designed to accept an image with a precise resolution. The input resolution influences all of the architecture; if the input layer resolution is high, the network will be deeper.</li>
+<li><strong>Feature extractor</strong>: This is the set of convolution, pooling, normalizations, and every other layer that is in between the input layer and the first dense layer. The architecture learns to summarize all the information contained in the input image in a low-dimensional representation (in the diagram that follows, an image with a size of 227 x 227 x 3 is projected into a 9216-dimensional vector).</li>
+<li><strong>Classification layers</strong>: These are a stack of fully connected layers—a fully-connected classifier built on top of the low-dimensional representation of the input extracted by the classifier:</li>
+</ul>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-826 image-border" src="assets/3a3d0051-3db8-4c0e-a21a-fb2b60674bea.png" style="width:96.83em;height:34.33em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign">The AlexNet <span>architecture;</span> <span>the first deep neural network used to win the ImageNet challenge. Like every other convolutional neural network for classification, its structure is fixed. The input layer consists of an expected input image with a resolution of 227 x 227 x 227. The feature extractor is a series of convolutional layers followed by max-pooling to reduce the resolution while going deeper; the last feature map 6 x 6 x 256, is reshaped in a 6 * 6 * 256 = 9216 feature vector. The classification layers are a traditional fully-connected architecture, which ends with 1,000 output neurons since the network was trained on 1,000 classes.</span></div>
+<p>Transferring the knowledge of a trained model to a new one requires us to remove the task-specific part of the network (which is the classification layers) and keep the CNN fixed as the feature extractor.</p>
+<p>This approach allows us to use the feature extractor of a pre-trained model as a building block for our new classification architecture. When doing transfer learning, the pre-trained model is kept constant, while only the new classification layers attached on top of the feature vector are trainable.</p>
+<p>In this way, we can train a classifier by reusing the knowledge learned on a massive dataset and embedding it into the model. This leads to two significant advantages:</p>
+<ul>
+<li>It speeds up the training process since the number of trainable parameters is low</li>
+<li>It potentially mitigates the overfitting problem since the extracted features come from a different domain and the training process can't make them change</li>
+</ul>
+<p>So far, so good. The transfer learning idea is bright, and it can help to deal with several real-life problems when datasets are small and resources are constrained. The only missing part, which also happens to be the most important one, is: where can we find pre-trained models?</p>
+<p>For this reason, the TensorFlow team created TensorFlow Hub.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">TensorFlow Hub</h1>
+                </header>
+            
+            <article>
+                
+<p>The description of TensorFlow Hub that can be found on the official documentation describes what TensorFlow Hub is and what it's about pretty well:</p>
+<div class="packt_quote"><span>TensorFlow Hub is a library for the publication, discovery, and consumption of reusable parts of machine learning models. A </span><em>module</em><span> is a self-contained piece of a TensorFlow graph, along with its weights and assets, that can be reused across different tasks in a process known as transfer learning. Transfer learning can:<br/>
+<br/>
+- Train a model with a smaller dataset<br/>
+- Improve generalization, and<br/>
+- Speed up training</span></div>
+<p>Thus, TensorFlow Hub is a library we can browse while a looking for a pre-trained model that best fits our needs. TensorFlow Hub comes both as a website we can browse (<a href="https://tfhub.dev">https://tfhub.dev</a>) and as a Python package.</p>
+<p>Installing the Python package allows us to have perfect integration with the modules loaded on TensorFlow Hub and TensorFlow 2.0:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>pip install tensorflow-hub&gt;0.3</pre>
+<p>That is all we need to do to get access to a complete library of pre-trained models compatible and integrated with TensorFlow.</p>
+<p>The TensorFlow 2.0 integration is terrific—we only need the URL of the module on TensorFlow Hub to create a Keras layer that contains the parts of the model we need!</p>
+<p>Browsing the catalog on <a href="https://tfhub.dev">https://tfhub.dev</a> is intuitive. The screenshot that follows shows how to use the search engine to find any module that contains the string <kbd>tf2</kbd> (this is a fast way to find an uploaded module that is TensorFlow 2.0 compatible and ready to use):</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-827 image-border" src="assets/06f478e5-a08c-448d-9c33-b75878e7632b.png" style="width:78.08em;height:73.67em;"/></p>
+<div class="packt_figref">The TensorFlow Hub website (<a href="https://tfhub.dev">https://tfhub.dev</a>): it is possible to search for modules by query string (in this case, tf2) and refine the results by using the filter column on the left.</div>
+<p class="mce-root"/>
+<p>There are models in both versions: feature vector-only and classification, which means a feature vector plus the trained classification head. The TensorFlow Hub catalog already contains everything we need for transfer learning. In the next section, we will see how easy it is to integrate the Inception v3 module from TensorFlow Hub into TensorFlow 2.0 source code, thanks to the Keras API.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Using Inception v3 as a feature extractor</h1>
+                </header>
+            
+            <article>
+                
+<p>The complete analysis of the Inception v3 architecture is beyond the scope of this book; however, it is worth noting some peculiarities of this architecture so as to use it correctly for transfer learning on a different dataset.</p>
+<p>Inception v3 is a deep architecture with 42 layers, which won the <strong>ImageNet Large Scale Visual Recognition Competition</strong> (<span><strong>ILSVRC</strong>) </span>in 2015. Its architecture is shown in the following screenshot:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-828 image-border" src="assets/0ef8f6ae-c05d-4b57-9342-033cc828716f.png" style="width:79.17em;height:31.42em;"/></p>
+<div class="packt_figref">Inception v3 architecture. The model architecture is complicated and very deep. The network accepts a 299 x 299 x 3 image as input and produces an 8 x 8 x 2,048 feature map, which is the input of the final part; that is, a classifier trained on 1,000 +1 classes of ImageNet. Image source: <a href="https://cloud.google.com/tpu/docs/inception-v3-advanced">https://cloud.google.com/tpu/docs/inception-v3-advanced</a>.</div>
+<p>The network expects an input image with a resolution of 299 x 299 x 3 and produces an 8 x 8 x 2,048 feature map. It has been trained on 1,000 classes of the ImageNet dataset, and the input images have been scaled in the [0,1] range.</p>
+<p>All this information is available on the module page, reachable by clicking on the search result on the TensorFlow Hub website. Unlike the official architecture shown previously, on this page, we can find information about the extracted feature vector. The documentation says that it is a 2,048-feature vector, which means that the feature vector used is not the flattened feature map (that would have been an 8 * 8 * 2048 dimensional vector) but one of the fully-connected layers placed at the end of the network.</p>
+<p>It is essential to know the expected input shape and the feature vector size to feed the network with correctly resized images and to attach the final layers, knowing how many connections there would be between the feature vector and the first fully-connected layer.</p>
+<p>More importantly, it is necessary to know on which dataset the network was trained since transfer learning works well if the original dataset shares some features with the target (new) dataset. The following screenshot shows some samples gathered from the dataset used for the ILSVRC in 2015:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-829 image-border" src="assets/29f5f1af-d36c-4d83-83fa-08fd9e447366.png" style="width:110.58em;height:42.75em;"/></p>
+<div class="packt_figref">Samples gathered from the dataset used in the <span>ILSVRC 2015 competition. High-resolution images, with complex scenes and rich details.</span></div>
+<p>As you can see, the images are high-resolution images of various scenes and subjects, rich in detail. The variance of details and subjects is high. Therefore, we expect the feature extractor learned to extract a feature vector that is a good summary of images with these features. This means that if we feed the pre-trained network with an image that contains similar features to the one the network saw during the training, it will extract a meaningful representation as a feature vector. On the contrary, if we fed the network with an image that does not contain similar features (an image that, for instance, is not rich in detail like ImageNet, such as a simple image of a geometric shape), the feature extractor would be unlikely to extract a good representation.</p>
+<p>The feature extractor of Inception v3 is certainly good enough to be used as a building block for our flowers classifier. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Adapting data to the model</h1>
+                </header>
+            
+            <article>
+                
+<p>The information found on the module page also tells us that it is necessary to add a pre-processing step to the dataset split built earlier: the <kbd>tf_flower</kbd> images are <kbd>tf.uint8</kbd>, which means they are in the [0,255] range, while Inception v3 has been trained on images in the [0,1] range, which are thus <kbd>tf.float32</kbd>:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>def to_float_image(example):<br/>    example["image"] = tf.image.convert_image_dtype(example["image"], tf.float32)<br/>    return example</pre>
+<p>Moreover, the Inception architecture requires a fixed input shape of 299 x 299 x 3. Therefore, we have to ensure that all our images are correctly resized to the expected input size:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>def resize(example):<br/>    example["image"] = tf.image.resize(example["image"], (299, 299))<br/>    return example</pre>
+<p>All the required pre-processing operations have been defined, so we are ready to apply them to the <kbd>train</kbd>, <kbd>validation</kbd>, and <kbd>test</kbd> splits:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>train = train.map(to_float_image).map(resize)<br/>validation = validation.map(to_float_image).map(resize)<br/>test = test.map(to_float_image).map(resize)</pre>
+<p>To summarize: the target dataset is ready; we know which model we want to use as a feature extractor;  the module information page told us that some preprocessing steps were required to make the data compatible with the model.</p>
+<p>Everything is set up to design the classification model that uses Inception v3 as the feature extractor. In the next section, the extreme ease of use of the <kbd>tensorflow-hub</kbd> module is shown, thanks to its Keras integration.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Building the model – hub.KerasLayer</h1>
+                </header>
+            
+            <article>
+                
+<p>The TensorFlow Hub Python package has already been installed, and this is all we need to do:</p>
+<ol>
+<li>Download the model parameters and graph description</li>
+<li>Restore the parameters in its graph</li>
+<li>Create a Keras layer that wraps the graph and allows us to use it like any other Keras layer we are used to using</li>
+</ol>
+<p>These three points are executed under the hook of the <kbd>KerasLayer tensorflow-hub</kbd> function:</p>
+<pre>import tensorflow_hub as hub<br/><br/>hub.KerasLayer(<br/><span class="pl-s"><span class="pl-pds">    "</span>https://tfhub.dev/google/tf2-preview/inception_v3/feature_vector/2<span class="pl-pds">"</span></span>,<br/><span class="pl-v">    output_shape</span><span class="pl-k">=</span>[<span class="pl-c1">2048</span>],<br/>    <span class="pl-v">trainable</span><span class="pl-k">=</span><span class="pl-c1">False</span>)</pre>
+<p>The <kbd>hub.KerasLayer</kbd> function creates <kbd>hub.keras_layer.KerasLayer</kbd>, which is a <kbd>tf.keras.layers.Layer</kbd> object. Therefore, it can be used in the same way as any other Keras layer—this is powerful!</p>
+<p>This strict integration allows us to define a model that uses the Inception v3 as a feature extractor and it has two fully connected layers as classification layers in very few lines:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>num_classes = 5<br/><br/>model = tf.keras.Sequential(<br/>    [<br/>        hub.KerasLayer(<br/>            "https://tfhub.dev/google/tf2-preview/inception_v3/feature_vector/2",<br/>            output_shape=[2048],<br/>            trainable=False,<br/>        ),<br/>        tf.keras.layers.Dense(512),<br/>        tf.keras.layers.ReLU(),<br/>        tf.keras.layers.Dense(num_classes), # linear<br/>    ]<br/>)</pre>
+<p>The model definition is straightforward, thanks to the Keras integration. Everything is set up to define the training loop, measure the performance, and see whether the transfer learning approach gives us the expected classification results.</p>
+<p>Unfortunately, the process of downloading a pre-trained model from TensorFlow Hub is fast only on high-speed internet connections. A progress bar that shows the download progress is not enabled by default and, therefore, a lot of time could be required (depending on the internet speed) to build the model for the first time.</p>
+<p>To enable a progress bar, <span>using the </span><kbd><span>TFHUB_DOWNLOAD_PROGRESS</span></kbd><span> environment variable</span> is required by <kbd>hub.KerasLayer</kbd>. Therefore, on top of the script, the following snippet can be added, which defines this environment variable and puts the value of 1 inside it; in this way, a handy progress bar will be shown on the first download:</p>
+<pre>import os<br/>os.environ["<span>TFHUB_DOWNLOAD_PROGRESS"] = "1"</span></pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Training and evaluating</h1>
+                </header>
+            
+            <article>
+                
+<p>Using a pre-trained feature extractor allows us to speed up the training while keeping the training loop, the losses, and optimizers unchanged, using the same structure of every standard classifier train.</p>
+<p>Since the dataset labels are <kbd>tf.int64</kbd> scalars, the loss that is going to be used is the standard sparse categorical cross-entropy, setting the <kbd>from_logits</kbd> parameter to <kbd>True</kbd>. As seen in the previous chapter, <a href="d4dd1390-8b84-4ec9-9610-769e3c8fdc55.xhtml">Chapter 5</a>, <em>Efficient Data Input Pipelines and Estimator API, </em>setting this parameter to <kbd>True</kbd> is a good practice since, in this way, it's the loss function itself that applies the softmax activation function, being sure to compute it in a numerically stable way, and thereby preventing the loss becoming <kbd>NaN</kbd>:</p>
+<pre># Training utilities<br/>loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)<br/>step = tf.Variable(1, name="global_step", trainable=False)<br/>optimizer = tf.optimizers.Adam(1e-3)<br/><br/>train_summary_writer = tf.summary.create_file_writer("./log/transfer/train")<br/>validation_summary_writer = tf.summary.create_file_writer("./log/transfer/validation")<br/><br/># Metrics<br/>accuracy = tf.metrics.Accuracy()<br/>mean_loss = tf.metrics.Mean(name="loss")<br/><br/>@tf.function<br/>def train_step(inputs, labels):<br/>    with tf.GradientTape() as tape:<br/>        logits = model(inputs)<br/>        loss_value = loss(labels, logits)<br/><br/>    gradients = tape.gradient(loss_value, model.trainable_variables)<br/>    optimizer.apply_gradients(zip(gradients, model.trainable_variables))<br/>    step.assign_add(1)<br/><br/>    accuracy.update_state(labels, tf.argmax(logits, -1))<br/>    return loss_value<br/><br/><br/># Configure the training set to use batches and prefetch<br/>train = train.batch(32).prefetch(1)<br/>validation = validation.batch(32).prefetch(1)<br/>test = test.batch(32).prefetch(1)<br/><br/>num_epochs = 10<br/>for epoch in range(num_epochs):<br/><br/>    for example in train:<br/>        image, label = example["image"], example["label"]<br/>        loss_value = train_step(image, label)<br/>        mean_loss.update_state(loss_value)<br/><br/>        if tf.equal(tf.math.mod(step, 10), 0):<br/>            tf.print(<br/>                step, " loss: ", mean_loss.result(), " acccuracy: ", accuracy.result()<br/>            )<br/>            mean_loss.reset_states()<br/>            accuracy.reset_states()<br/><br/>    # Epoch ended, measure performance on validation set<br/>    tf.print("## VALIDATION - ", epoch)<br/>    accuracy.reset_states()<br/>    for example in validation:<br/>        image, label = example["image"], example["label"]<br/>        logits = model(image)<br/>        accuracy.update_state(label, tf.argmax(logits, -1))<br/>    tf.print("accuracy: ", accuracy.result())<br/>    accuracy.reset_states()</pre>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p>The training loop produces the following output (cut to highlight only the essential parts):</p>
+<pre>10 loss: 1.15977693 acccuracy: 0.527777791<br/>20 loss: 0.626715124 acccuracy: 0.75<br/>30 loss: 0.538604617 acccuracy: 0.8125<br/>40 loss: 0.450686693 acccuracy: 0.834375<br/>50 loss: 0.56412369 acccuracy: 0.828125<br/>## VALIDATION - 0<br/>accuracy: 0.872410059<br/><br/>[...]<br/><br/><span>530 loss: 0.0310602095 acccuracy: 0.986607134<br/>540 loss: 0.0334353112 acccuracy: 0.990625<br/>550 loss: 0.029923955 acccuracy: 0.9875<br/>560 loss: 0.0309863128 acccuracy: 1<br/>570 loss: 0.0372043774 acccuracy: 0.984375<br/>580 loss: 0.0412098244 acccuracy: 0.99375<br/>## VALIDATION - 9<br/>accuracy: 0.866957486</span></pre>
+<p>After a single training epoch, we got a validation accuracy of 0.87, while the training accuracy was even lower (0.83). But by the end of the tenth epoch, the validation accuracy had even decreased (0.86), while the model was overfitting the training data.</p>
+<p>In the <em>Exercises</em> section, you will find several exercises that use the previous code as a starting point; the overfitting problem should be tackled from several points of view, finding the best way to deal with it.</p>
+<p>Before starting the next main section, it's worth adding a simple performance measurement that measures how much time is needed to compute a single training epoch.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Training speed</h1>
+                </header>
+            
+            <article>
+                
+<p>Faster prototyping and training is one of the strengths of the transfer learning approach. One of the reasons behind the fact that transfer learning is often used in industry is the financial savings that it produces, reducing both the development and training time.</p>
+<p>To measure the training time, the Python <kbd>time</kbd> package can be used. <kbd>time.time()</kbd> returns the current timestamp, allowing you to measure (in milliseconds) how much time is needed to perform a training epoch.</p>
+<p>The training loop of the previous section can thus be extended by adding the time module import and the duration measurement:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>from time import time<br/><br/># [...]<br/>for epoch in range(num_epochs):<br/>    start = time()<br/>    for example in train:<br/>        image, label = example["image"], example["label"]<br/>        loss_value = train_step(image, label)<br/>        mean_loss.update_state(loss_value)<br/><br/>        if tf.equal(tf.math.mod(step, 10), 0):<br/>            tf.print(<br/>                step, " loss: ", mean_loss.result(), " acccuracy: ", accuracy.result()<br/>            )<br/>            mean_loss.reset_states()<br/>            accuracy.reset_states()<br/>    end = time()<br/>    print("Time per epoch: ", end-start)<br/># remeaning code</pre>
+<p>On average, running the training loop on a Colab notebook (<a href="https://colab.research.google.com">https://colab.research.google.com</a>) equipped with an Nvidia k40 GPU, we obtain an execution speed as follows:</p>
+<pre><span>Time per epoch: 16.206</span></pre>
+<p>As shown in the next section, transfer learning using a pre-trained model as a feature extractor gives a considerable speed boost.</p>
+<p>Sometimes, using a pre-trained model as a feature extractor only is not the best way to transfer knowledge from one domain to another, often because the domains are too different and the features learned are useless for solving the new task.</p>
+<p>In these cases, it is possible—and recommended—to not have a fixed-feature extractor part but let the optimization algorithm change it, training the whole model end to end.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Fine-tuning</h1>
+                </header>
+            
+            <article>
+                
+<p>Fine-tuning is a different approach to transfer learning. Both share the same goal of transferring the knowledge learned on a dataset on a specific task to a different dataset and a different task. Transfer learning, as shown in the previous section, reuses the pre-trained model without making any changes to its feature extraction part; in fact, it is considered a non-trainable part of the network.</p>
+<p>Fine-tuning, instead, consists of fine-tuning the pre-trained network weights by continuing backpropagation.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">When to fine-tune</h1>
+                </header>
+            
+            <article>
+                
+<p>Fine-tuning a network requires having the correct hardware; backpropagating the gradients through a deeper network requires you to load <span>more information in </span>memory. Very deep networks have been trained from scratch in data centers with thousands of GPUs. Therefore, prepare to lower your batch size to as low as 1, depending on how much <span>available </span>memory you have.</p>
+<p>Hardware requirements aside, there are other different points to keep in mind when thinking about fine-tuning:</p>
+<ul>
+<li><strong>Dataset size</strong>: Fine-tuning a network means using a network with a lot of trainable parameters, and, as we know from the previous chapters, a network with a lot of parameters is prone to overfitting.<br/>
+If the target dataset size is small, it is not a good idea to fine-tune the network. Using the network as a fixed-feature extractor will probably bring in better results.</li>
+<li><strong>Dataset similarity</strong>: If the dataset size is large (where large means with a size comparable to the one the pre-trained model has been trained on) and it is similar to the original one, fine-tuning the model is probably a good idea. Slightly adjusting the network parameters will help the network to specialize in the extraction of features that are specific to this dataset, while correctly reusing the knowledge from the previous, similar dataset.<br/>
+If the dataset size is large and it is very different from the original, fine-tuning the network could help. In fact, the initial solution of the optimization problem is likely to be close to a good minimum when starting with a pre-trained model, even if the dataset has different features to learn (this is because the lower layers of the CNN usually learn low-level features that are common to every classification task).</li>
+</ul>
+<p>If the new dataset satisfies the similarity and size constraints, fine-tuning the model is a good idea. One important parameter to look at closely is the learning rate. When fine-tuning a pre-trained model, we suppose the model parameters are good (and they are since they are the parameters of the model that achieved state-of-the-art results on a difficult challenge), and, for this reason, a small learning rate is suggested.</p>
+<p>Using a high learning rate would change the network parameters too much, and we don't want to change them in this way. Instead, using a small learning rate, we slightly adjust the parameters to make them adapt to the new dataset, without distorting them too much, thus reusing the knowledge without destroying it.</p>
+<p>Of course, if the fine-tuning approach is chosen, the hardware requirements have to be kept in mind: lowering the batch size is perhaps the only way to fine-tune very deep models when using a standard GPU to do the work.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">TensorFlow Hub integration</h1>
+                </header>
+            
+            <article>
+                
+<p>Fine-tuning a model downloaded from TensorFlow Hub might sound difficult; we have to do the following:</p>
+<ul>
+<li>Download the model parameters and graph</li>
+<li>Restore the model parameters in the graph</li>
+<li>Restore all the operations that are executed only during the training (activating dropout layers and enabling the moving mean and variance computed by the batch normalization layers)</li>
+<li>Attach the new layers on top of the feature vector</li>
+<li>Train the model end to end</li>
+</ul>
+<p>In practice, the integration of TensorFlow Hub and Keras models is so tight that we can achieve all this by setting the <kbd>trainable</kbd> <span>Boolean flag </span>to <kbd>True</kbd> when importing the model using <kbd>hub.KerasLayer</kbd>:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>hub.KerasLayer(<br/><span class="pl-s"><span class="pl-pds">    "</span>https://tfhub.dev/google/tf2-preview/inception_v3/feature_vector/2<span class="pl-pds">"</span></span>,<br/><span class="pl-v">    output_shape</span><span class="pl-k">=</span>[<span class="pl-c1">2048</span>],<br/>    <span class="pl-v">trainable</span><span class="pl-k">=</span><span class="pl-c1">True</span>) # &lt;- That's all!</pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Train and evaluate</h1>
+                </header>
+            
+            <article>
+                
+<p>What happens if we build the same model as in the previous chapter, <a href="d4dd1390-8b84-4ec9-9610-769e3c8fdc55.xhtml">Chapter 5</a>, <em>Efficient Data Input Pipelines and Estimator API</em>, and we train it on the <kbd>tf_flower</kbd> dataset, fine-tuning the weights?</p>
+<p>The model is thus the one that follows; please note how the learning rate of the optimizer has been reduced from <kbd>1e-3</kbd> to <kbd>1e-5</kbd>:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>optimizer = tf.optimizers.Adam(1e-5)<br/># [ ... ]<br/>model = tf.keras.Sequential(<br/>    [<br/>        hub.KerasLayer(<br/>            "https://tfhub.dev/google/tf2-preview/inception_v3/feature_vector/2",<br/>            output_shape=[2048],<br/>            trainable=True, # &lt;- enables fine tuning<br/>        ),<br/>        tf.keras.layers.Dense(512),<br/>        tf.keras.layers.ReLU(),<br/>        tf.keras.layers.Dense(num_classes), # linear<br/>    ]<br/>)<br/><br/># [ ... ]<br/># Same training loop</pre>
+<p>In the following box, the first and last training epochs' output is shown:</p>
+<pre><span>10 loss: 1.59038031 acccuracy: 0.288194448<br/>20 loss: 1.25725865 acccuracy: 0.55625<br/>30 loss: 0.932323813 acccuracy: 0.721875<br/>40 loss: 0.63251847 acccuracy: 0.81875<br/>50 loss: 0.498087496 acccuracy: 0.84375<br/>## VALIDATION - 0<br/>accuracy: 0.872410059<br/><br/>[...]<br/><br/>530 loss: 0.000400377758 acccuracy: 1<br/>540 loss: 0.000466914673 acccuracy: 1<br/>550 loss: 0.000909397728 acccuracy: 1<br/>560 loss: 0.000376881275 acccuracy: 1<br/>570 loss: 0.000533850689 acccuracy: 1<br/>580 loss: 0.000438459858 acccuracy: 1<br/>## VALIDATION - 9<br/>accuracy: 0.925845146<br/></span></pre>
+<p><span>As expected, the test accuracy reached the constant value of 1; hence we overfitted the training set. This was something expected since the <kbd>tf_flower</kbd> dataset is smaller and simpler than ImageNet. However, to see the overfitting problem clearly, we had to wait longer since having more parameters to train makes the whole learning process extremely slow, especially compared to the previous train when the pre-trained model was not trainable.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Training speed</h1>
+                </header>
+            
+            <article>
+                
+<p>By adding the time measurements as we did in the previous section, it is possible to see how the fine-tuning process is extremely slow compared to transfer learning, using the model as a non-trainable feature extractor.</p>
+<p>In fact, if, in the previous scenario, we reached an average training speed per epoch of about 16.2 seconds, now we have to wait, on average, <span>60.04 seconds, which is a 370% slowdown!</span></p>
+<p>Moreover, it is interesting to see that at the end of the first epoch, we reached the same validation accuracy as was achieved in the previous training and that, despite overfitting the training data, the validation accuracy obtained at the end of the tenth epoch is greater than the previous one.</p>
+<p>This simple experiment showed how using a pre-trained model as a feature extractor could lead to worse performance than fine-tuning it. This means that the features the network learned to extract on the ImageNet dataset are too different from the features that would be needed to classify the flowers, dataset correctly.</p>
+<p>Choosing whether to use a pre-trained model as a fixed-feature extractor or to fine-tune it is a tough decision, involving a lot of trade-offs. Understanding whether the pre-trained model extracts features that are correct for the new task is complicated; merely looking at dataset size and similarity is a guideline, but in practice, this decision requires several tests.</p>
+<p>Of course, it is better to use the pre-trained model as a feature extractor first, and, if the new model's performance is already satisfactory, there is no need to waste time trying to fine-tune it. If the results are not satisfying, it is worth trying a different pre-trained model and, as a last resort, <span>trying</span> <span>the fine-tuning approach</span> <span>(because this requires more computational power, and it is expansive).</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>In this chapter, the concepts of transfer learning and fine-tuning were introduced. Training a very deep convolutional neural network from scratch, starting from random weights, requires the correct equipment, which is only found in academia and some big companies. Moreover, it can be a costly process since finding the architecture that achieves state-of-the-art results on a classification task requires multiple models to be designed and trained and for each of them to repeat the training process to search for the hyperparameter configuration that achieves the best results.</p>
+<p>For this reason, transfer learning is the recommended practice to follow. It is especially useful when prototyping new solutions since it<span> </span>speeds up<span> </span>the training time and reduces the training costs.</p>
+<p>TensorFlow Hub is the online library offered by the TensorFlow ecosystem. It contains an online catalog that anyone can browse to search for a pre-trained model ready to be used. The models come with all the required information to use them, from the input size to the feature vector size, through to the dataset that has been used to train the model and its data type. All this information can be used to design the correct data input pipeline that correctly feeds the network with the right data (shape and data type).</p>
+<p>The Python package that comes with TensorFlow Hub is perfectly integrated with TensorFlow 2.0 and the Keras ecosystem, allowing you to download and use a pre-trained model just by knowing its URL, which can be found on the Hub website.</p>
+<p>The <kbd>hub.KerasLayer</kbd><span> </span>function not only allows you to download and load a pre-trained model but also offers the capability of doing both transfer learning and fine-tuning by toggling the <kbd>trainable</kbd><span> </span>flag.</p>
+<p>In the<span> </span><em>Transfer Learning</em><span> </span>and<span> </span><em>Fine-Tuning</em><span> </span>sections, we developed our classification models and trained them using a custom training loop. TensorFlow Datasets has been used to easily download, process, and get the <kbd>tf.data.Dataset</kbd><span> </span>objects that<span> </span>have been used to utilize the processing hardware in its entirety, by defining high-efficiency data input pipelines.</p>
+<p>The final part of this chapter was dedicated to exercises: most of the code in the chapter has been left incomplete deliberately, so as to allow you to get your hands dirty and learn more effectively.</p>
+<p>Classification models built using convolutional architectures are used everywhere, from industry to smartphone applications. Classifying an image by looking at its whole content is useful, but sometimes its usage is limited (images more often than not contain more than one object). For this reason, other architectures that use convolutional neural networks as building blocks have been developed. These architectures can localize and classify more than one object per image, and these are the architectures that are used in self-driving cars and many other exciting applications!</p>
+<p>In the next chapter,<span> </span><a href="6bcb3061-365e-4bce-bb8d-14525d8ada3d.xhtml">Chapter 7</a>, <em>Introduction to Object Detection</em>, object localization and classification problems are analyzed and a model able to localize objects in images is built from scratch using TensorFlow 2.0.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Exercises</h1>
+                </header>
+            
+            <article>
+                
+<ol>
+<li>Describe the concept of transfer learning.</li>
+<li>When can the transfer learning process bring good results?</li>
+<li>What are the differences between transfer learning and fine-tuning?</li>
+<li>If a model has been trained on a small dataset with low variance (similar examples), is it an excellent candidate to be used as a fixed-feature extractor for transfer learning?</li>
+<li>The flower classifier built in the <em>transfer learning</em> section has no performance evaluation on the test dataset: add it.</li>
+<li>Extend the flower classifier source code, making it log the metrics on TensorBoard. Use the summary writers that are already defined.</li>
+<li>Extend the flower classifier to save the training status using a checkpoint (and its checkpoint manager).</li>
+<li>Create a second checkpoint for the model that reached the highest validation accuracy.</li>
+<li>Since the model suffers from overfitting, a good test is to reduce the number of neurons of the classification layer; try and see whether this reduces the overfitting problem.</li>
+<li>Add a dropout layer after the first fully connected layer and measure the performance on several runs using different dropout keep probability. Select the model that reached the highest validation accuracy.</li>
+</ol>
+<ol start="11">
+<li>Using the same model defined for the flower classifier, create a new training script that uses the Keras training loop: do not write the custom training loop, but use Keras instead.</li>
+<li>Convert the Keras model created in the previous point (11) to an estimator. Train and evaluate the model.</li>
+<li>Use the TensorFlow Hub website to find a lightweight pre-trained model for image classification, trained on a high-variance dataset. Use the feature extractor version to build a fashion-MNIST classifier.</li>
+<li>Was the idea of using a model trained on a complex dataset as the feature extractor for a fashion-MNIST classifier a good one? Are the extracted features meaningful?</li>
+<li>Apply fine-tuning to the previously built fashion-MNIST classifier.</li>
+<li>Did the process of fine-tuning a complex dataset to a simple one help us to achieve better results with respect to the ones obtained using transfer learning? If yes, why? If not, why?</li>
+<li>What happens if a higher learning rate is used to fine-tune a model? Try it.</li>
+</ol>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

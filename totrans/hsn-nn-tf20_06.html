@@ -1,0 +1,762 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">TensorFlow 2.0 Architecture</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">In <a href="f62be9d4-c8e0-4590-8299-2fdad139830f.xhtml">Chapter 3</a>, <em>TensorFlow Graph Architecture</em>, we introduced the TensorFlow graph definition and execution paradigm that, although powerful and has high expressive power, has some disadvantages, such as the following:</p>
+<ul>
+<li>A steep learning curve</li>
+<li>Hard to debug</li>
+<li>Counter-intuitive semantics when it comes to certain operations</li>
+<li>Python is only used to build the graph</li>
+</ul>
+<p>Learning how to work with computational graphs can be tough—defining the computation instead of executing the operations as the Python interpreter encounters them is a different way of thinking compared to what most programs do, especially the ones that only work with imperative languages.</p>
+<p>However, it is still recommended that you have a deep understanding of DataFlow graphs and how TensorFlow 1.x forced its users to think since it will help you understand many parts of the TensorFlow 2.0 architecture.</p>
+<p>Debugging a DataFlow graph is not easy—TensorBoard helps in visualizing the graph, but it is not a debugging tool. Visualizing the graph only ascertains whether the graph has been built as defined in Python, but the peculiarities such as the parallel execution of the non-dependant operations (remember the exercise at the end of the previous chapter regarding <kbd>tf.control_dependencies</kbd>?) are hard to find and are not explicitly shown in the graph visualization.</p>
+<p class="mce-root"/>
+<p>Python, the de facto data science and machine learning language, is <span>only </span>used to define the graph; the other Python libraries that could help solve the problem can't be used during the graph's definition since it is not possible to mix graph definition and session execution. Mixing graph definition, execution, and the usage of other libraries on graph generated data is difficult and makes the design of the Python application really ugly since it is nearly impossible to not rely on global variables, collections, and objects that are common to many different files. Organizing the code using classes and functions is not natural when using this graph definition and execution paradigm.</p>
+<p>The release of TensorFlow 2.0 introduced several changes to the framework: from defaulting to eager execution to a complete cleanup of the APIs. The whole TensorFlow package, in fact, was full of duplicated and deprecated APIs that, in TensorFlow 2.0, have been finally removed. Moreover, by deciding to follow the Keras API specification, the TensorFlow developers decided to remove several modules that do not follow it: the most important removal was <kbd>tf.layers</kbd> (which we used in <a href="f62be9d4-c8e0-4590-8299-2fdad139830f.xhtml">Chapter 3</a>, <em>TensorFlow Graph Architecture</em>) in favor of <kbd>tf.keras.layers</kbd>.<br/>
+<br/>
+Another widely used module, <kbd>tf.contrib</kbd>, has been completely removed. The <kbd>tf.contrib</kbd> module contained the community-added layers/software that used TensorFlow. From a software engineering point of view, having a module that contains several completely unrelated and huge projects in one package is a terrible idea. For this reason, they removed it from the main package and decided to move maintained and huge modules into separate repositories, while removing unused and unmaintained modules.</p>
+<p>By defaulting on eager execution and removing (hiding) the graph definition and execution paradigm, TensorFlow 2.0 allows for better software design, thereby lowering the steepness of the learning curve and simplifying the debug phase. Of course, coming from a static graph definition and execution paradigm, you need to have a different way of thinking—this struggle is worth it since the advantages the version 2.0 brings in the long term will highly repay this initial struggle.</p>
+<p>In this chapter, we will cover the following topics:</p>
+<ul>
+<li>Relearning the TensorFlow framework</li>
+<li>The Keras framework and its models</li>
+<li>Eager execution and new features</li>
+<li>Codebase migration</li>
+</ul>
+<p class="mce-root"/>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Relearning the framework</h1>
+                </header>
+            
+            <article>
+                
+<p>As we introduced in <a href="https://cdp.packtpub.com/hands_on_applied_neural_networks_with_tensorflow_2_x/wp-admin/post.php?post=27&amp;action=edit#post_26">Chapter 3</a><span>, </span><em>TensorFlow Graph Architecture</em>, TensorFlow works by building a computational graph first and then executing it. In TensorFlow 2.0, this graph definition is hidden and simplified; the execution and the definition can be mixed, and the flow of execution is always the one that's found in the source code—<span>there's </span>no need to worry about the order of execution in 2.0.</p>
+<p>Prior to the 2.0 release, developers had to design the graph and the source by following this pattern:</p>
+<ul>
+<li>How can I define the graph? Is my graph composed of multiple layers that are logically separated? If so, I have to define every logical block inside a different <kbd>tf.variable_scope</kbd>.</li>
+<li>During the training or inference phase, do I have to use a part of the graph more than once in the same execution step? If so, I have to define this part by wrapping it inside a <kbd>tf.variable_scope</kbd> and ensuring that the <kbd>reuse</kbd> parameter is correctly used. We do this the first time to define the block; any other time, we reuse it.</li>
+<li>Is the graph definition completed? If so, I have to initialize all the global and local variables, thereby defining the <kbd>tf.global_variables_initializer()</kbd> operation and executing it as soon as possible.</li>
+<li>Finally, you have to create the session, load the graph, and run the <kbd>sess.run</kbd> calls on the node you want to execute.</li>
+</ul>
+<p>After TensorFlow 2.0 was released, this reasoning completely changed, becoming more intuitive and natural for developers who are not used to working with DataFlow graphs. In fact, in TensorFlow 2.0, the following changes occurred:</p>
+<ul>
+<li>There are no more global variables. In 1.x, the graph is global; it doesn't matter if a variable has been defined inside a Python function—it is visible and separate from every other part of the graph.</li>
+<li>No more <kbd>tf.variable_scope</kbd>. A context manager can't change the behavior of a function by setting a <kbd>boolean</kbd> flag (<kbd>reuse</kbd>). In TensorFlow 2.0, variable sharing is made by <strong>the model itself</strong>. Every model is a Python object, every object has its own set of variables, and to share the variables, you just have to use the <strong>same model</strong> with different input.</li>
+<li>No more <kbd>tf.get_variable</kbd>. As we saw in <a href="https://cdp.packtpub.com/hands_on_applied_neural_networks_with_tensorflow_2_x/wp-admin/post.php?post=27&amp;action=edit#post_26">Chapter 3</a><span>, </span><em>TensorFlow Graph Architecture</em>, <kbd>tf.get_variable</kbd> allows you to declare variables that can be shared by using <kbd>tf.variable_scope</kbd>. Since every variable now matches 1:1 with a Python variable, the possibility of declaring global variables has been removed.</li>
+<li>No more <kbd>tf.layers</kbd>. Every layer that's declared inside the <kbd>tf.layers</kbd> module uses <kbd>tf.get_variable</kbd> to define its own variables. Use <kbd>tf.keras.layers</kbd> instead.</li>
+<li>No more global collections. Every variable was added to a collection of global variables that were accessible via <kbd>tf.trainable_variables()</kbd>—this was contradictory to every good software design principle. Now, the only way to access the variables of an object is by accessing its <kbd>trainable_variables</kbd> attribute, which returns the list of the trainable variables of that specific object.</li>
+<li>There's no need to manually call an operation that initializes all the variables.</li>
+<li>API cleanup and the removal of <kbd>tf.contrib</kbd> is now used in favor of the creation of several small and well-organized projects.</li>
+</ul>
+<p>All of these changes have been made to simplify how TensorFlow is used, to organize the codebase better, to increase the expressive power of the framework, and to standardize its structure.</p>
+<p>Eager execution, together with the adherence of TensorFlow to the Keras API, are the most important changes that came with TensorFlow's 2.0 release.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The Keras framework and its models</h1>
+                </header>
+            
+            <article>
+                
+<p>In contrast to what people who already familiar with Keras usually think, Keras is not a high-level wrapper around a machine learning framework (TensorFlow, CNTK, or Theano); instead, it is an API specification that's used for defining and training machine learning models.</p>
+<p>TensorFlow implements the specification in its <kbd>tf.keras</kbd> module. In particular, TensorFlow 2.0 itself is an implementation of the specification and as such, many first-level submodules are nothing but aliases of the <kbd>tf.keras</kbd> submodules; for example, <kbd>tf.metrics = tf.keras.metrics</kbd> and <kbd>tf.optimizers = tf.keras.optimizers</kbd>.</p>
+<p>TensorFlow 2.0 has, by far, the most complete implementation of the specification, making it the framework of choice for the vast majority of machine learning researchers. <span>Any Keras API implementation allows you to build and train deep learning models. It is used for prototyping quick solutions that follow the natural human way of thinking due to its layer organization, as well as for advanced research due to its modularity and extendibility and for its ease of being deployed to production. The main advantages of the Keras implementation that are available in TensorFlow are as follows:</span></p>
+<ul>
+<li><strong>Ease of use</strong>: The Keras interface is standardized. Every model definition must follow a common interface; every model is composed of layers, and each of them must implement a well-defined interface.<br/>
+Being standardized in every part—from the model definition to the training loop—<span>makes </span>learning to use a framework that implements the specification easy and extremely useful: any other framework that implements the Keras specification looks similar. This is a great advantage since it allows researchers to read code written in other frameworks without the struggle of learning about the details of the framework that was used.</li>
+<li><strong>Modular and extendible</strong>: The Keras specification describes a set of building blocks that can be used to compose any kind of machine learning model. The TensorFlow implementation allows you to write custom building blocks, such as new layers, loss functions, and optimizers, and compose them to develop new ideas.</li>
+<li><strong>Built-in</strong>: Since TensorFlow 2.0's release, there has been no need to download a separate Python package in order to use Keras. The <kbd>tf.keras</kbd> module is already built into the <kbd>tensorflow</kbd> package, and it has some TensorFlow-specific enhancements.<br/>
+Eager execution is a first-class citizen, just like the high-performance input pipeline module known as <kbd>tf.data</kbd>. Exporting a model that's been created using Keras is even easier than exporting a model defined in plain TensorFlow. Being exported in a language-agnostic format means that its compatibility with any production environment has already been configured, and so it is guaranteed to work with TensorFlow.</li>
+</ul>
+<p>Keras, together with eager execution, are the perfect tools to prototype new ideas faster and design maintainable and well-organized software. In fact, you no longer need to think about graphs, global collections, and how to define the models in order to share their parameters across different runs; what's really important in TensorFlow 2.0 is to think in terms of Python objects, all of which carry their own variables.</p>
+<p>TensorFlow 2.0 lets you design the whole machine learning pipeline while just thinking about objects and classes, and not about graphs and session execution.</p>
+<p class="mce-root"/>
+<p>Keras was already present in TensorFlow 1.x, but without eager execution enabled by default, which allowed you to define, train, and evaluate models through <em>assembling layers.<strong> </strong></em>In the next few sections, we will demonstrate three ways to build a model and train it using a standard training loop</p>
+<p>In the <em>Eager execution and new features</em> section, you will be shown how to create a custom training loop. The rule of thumb is to use Keras to build the models and use a standard training loop if the task to solve is quite standard, and then write a custom training loop when Keras does not provide a simple and ready-to-use training loop.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The Sequential API</h1>
+                </header>
+            
+            <article>
+                
+<p>The most common type of model is a stack of layers. The <kbd>tf.keras.Sequential</kbd> model allows you to define a Keras model by stacking <kbd>tf.keras.layers</kbd>.</p>
+<p>The CNN that we defined in <a href="https://cdp.packtpub.com/hands_on_applied_neural_networks_with_tensorflow_2_x/wp-admin/post.php?post=27&amp;action=edit#post_26">Chapter 3</a><span>, </span><em>TensorFlow Graph Architecture</em>, can be recreated using a Keras sequential model in fewer lines and in an elegant way. Since we are training a classifier, we can use the Keras model's <kbd>compile</kbd> and <kbd>fit</kbd> methods to build the training loop and execute it, respectively. At the end of the training loop, we can also evaluate the performance of the model on the test set using the <kbd>evaluate</kbd> method—<span>K</span>eras will take care of all the boilerplate code:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>import tensorflow as tf<br/>from tensorflow.keras.datasets import fashion_mnist<br/><br/>n_classes = 10<br/>model = tf.keras.Sequential([<br/> tf.keras.layers.Conv2D(<br/> 32, (5, 5), activation=tf.nn.relu, input_shape=(28, 28, 1)),<br/> tf.keras.layers.MaxPool2D((2, 2), (2, 2)),<br/> tf.keras.layers.Conv2D(64, (3, 3), activation=tf.nn.relu),<br/> tf.keras.layers.MaxPool2D((2, 2), (2, 2)),<br/> tf.keras.layers.Flatten(),<br/> tf.keras.layers.Dense(1024, activation=tf.nn.relu),<br/> tf.keras.layers.Dropout(0.5),<br/> tf.keras.layers.Dense(n_classes)<br/>])<br/><br/>model.summary()<br/><br/>(train_x, train_y), (test_x, test_y) = fashion_mnist.load_data()<br/># Scale input in [-1, 1] range<br/>train_x = train_x / 255. * 2 - 1<br/>test_x = test_x / 255. * 2 - 1<br/>train_x = tf.expand_dims(train_x, -1).numpy()<br/>test_x = tf.expand_dims(test_x, -1).numpy()<br/><br/>model.compile(<br/> optimizer=tf.keras.optimizers.Adam(1e-5),<br/> loss='sparse_categorical_crossentropy',<br/> metrics=['accuracy'])<br/><br/>model.fit(train_x, train_y, epochs=10)<br/>model.evaluate(test_x, test_y)</pre>
+<p>Some things to take note of regarding the preceding code are as follows:</p>
+<ul>
+<li><kbd>tf.keras.Sequential</kbd> builds a <kbd>tf.keras.Model</kbd> object by stacking Keras layers. Every layer expects input and produces an output, except for the first one. The first layer uses the additional <kbd>input_shape</kbd> parameter, which is required to correctly build the model and print the summary before feeding in a real input. Keras allows you to specify the input shape of the first layer or leave it undefined. In the case of the former, every following layer knows its input shape and forward propagates its output shape to the next layer, making the input and output shape of every layer in the model known once the <kbd>tf.keras.Model</kbd> object has been created. In the case of the latter, the shapes are undefined and will be computed once the input has been fed to the model, making it impossible to generate the <em>summary</em>.</li>
+<li><kbd>model.summary()</kbd> prints a complete description of the model, which is really useful if you want to check whether the model has been correctly defined and thereby check whether there are possible typos in the model definition, which layer weighs the most (in terms of the number of parameters), and how many parameters the whole model has. The CNN summary is presented in the following code. As we can see, the vast majority of parameters are in the fully connected layer:</li>
+</ul>
+<pre style="padding-left: 60px">Model: "sequential"<br/>__________________________________________________<br/>Layer   (type)     Output Shape         Param #<br/>==================================================<br/>conv2d (Conv2D) (None, 24, 24, 32) 832 <br/>__________________________________________________<br/>max_pooling2d (MaxPooling2D) (None, 12, 12, 32) 0 <br/>__________________________________________________<br/>conv2d_1 (Conv2D) (None, 10, 10, 64) 18496 <br/>__________________________________________________<br/>max_pooling2d_1 (MaxPooling2D) (None, 5, 5, 64) 0 <br/>__________________________________________________<br/>flatten (Flatten) (None, 1600) 0 <br/>__________________________________________________<br/>dense (Dense) (None, 1024) 1639424 <br/>__________________________________________________<br/>dropout (Dropout) (None, 1024) 0 <br/>__________________________________________________<br/>dense_1 (Dense) (None, 10) 10250 <br/>==================================================<br/>Total params: 1,669,002<br/>Trainable params: 1,669,002<br/>Non-trainable params: 0</pre>
+<ul>
+<li>The dataset preprocessing step was made without the use of <span>NumPy</span> but, instead, using <strong>eager execution</strong>.<br/>
+<kbd>tf.expand_dims(data, -1).numpy()</kbd> show how TensorFlow can be used as a replacement for <span>NumPy</span> (having a 1:1 API compatibility). By using <kbd>tf.expand_dims</kbd> instead of <kbd>np.expand_dims</kbd>, we obtained the same result (adding one dimension at the end of the input tensor), but created a <kbd>tf.Tensor</kbd> object instead of a <kbd>np.array</kbd> object. The <kbd>compile</kbd> method, however, requires<span>NumPy</span> arrays as input, and so we need to use the <kbd>numpy()</kbd> method. Every <kbd>tf.Tensor</kbd> object has to get the corresponding <span>NumPy</span> value contained in the Tensor object.</li>
+<li>In the case of a standard classification task, Keras allows you to build the training loop in a single line using the <kbd>compile</kbd> method. To configure a training loop, the method only requires three arguments: the optimizer, the loss, and the metrics to monitor. In the preceding example, we can see that it is possible to use both strings and Keras objects as parameters to correctly build the training loop.</li>
+<li><kbd>model.fit</kbd> is the method that you call after the training loop has been built in order to effectively start the training phase on the data that's passed for the desired number of epochs while measuring the metrics specified in the compile phase. The batch size can be configured by passing the <kbd>batch_size</kbd> parameter. In this case, we are using the default value of 32.</li>
+<li>At the end of the training loop, the model's performance can be measured on some unseen data. In this case, it's testing the test set of the fashion-MNIST dataset.</li>
+</ul>
+<p class="mce-root">Keras takes care of giving the user feedback while the model is being training, logging a progress bar for each epoch and the live value of loss and metrics in the standard output:</p>
+<pre>Epoch 1/10<br/>60000/60000 [================] - 126s 2ms/sample - loss: 1.9142 - accuracy: 0.4545<br/>Epoch 2/10<br/>60000/60000 [================] - 125s 2ms/sample - loss: 1.3089 - accuracy: 0.6333<br/>Epoch 3/10<br/>60000/60000 [================] - 129s 2ms/sample - loss: 1.1676 - accuracy: 0.6824<br/>[ ... ]<br/>Epoch 10/10<br/>60000/60000 [================] - 130s 2ms/sample - loss: 0.8645 - accuracy: 0.7618<br/><br/>10000/10000 [================] - 6s 644us/sample - loss: 0.7498 - accuracy: 0.7896</pre>
+<p>The last line in the preceding code is the result of the <kbd>evaluate</kbd> call.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The Functional API</h1>
+                </header>
+            
+            <article>
+                
+<p>The Sequential API is the simplest and most common way of defining models. However, it cannot be used to define arbitrary models. The Functional API allows you to define complex topologies without the constraints of the sequential layers.</p>
+<p>The Functional API allows you to define multi-input, multi-output models, easily sharing layers, defines residual connections, and in general define models with arbitrary complex topologies.</p>
+<p>Once built, a Keras layer is a callable object that accepts an input tensor and produces an output tensor. It knows that it is possible to compose the layers by treating them as functions and building a <kbd>tf.keras.Model</kbd> object just by passing the input and output layers.</p>
+<p>The following code shows how we can define a Keras model using the functional interface: the model is a fully connected neural network that accepts a 100-dimensional input and produces a single number as output (as we will see in <a href="66948c53-131c-43ef-a7fc-3d242d1e0664.xhtml">Chapter 9</a>, <em>Generative Adversarial Networks</em>, this will be our Generator architecture):</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>import tensorflow as tf<br/><br/>input_shape = (100,)<br/>inputs = tf.keras.layers.Input(input_shape)<br/>net = tf.keras.layers.Dense(units=64, activation=tf.nn.elu, name="fc1")(inputs)<br/>net = tf.keras.layers.Dense(units=64, activation=tf.nn.elu, name="fc2")(net)<br/>net = tf.keras.layers.Dense(units=1, name="G")(net)<br/>model = tf.keras.Model(inputs=inputs, outputs=net)</pre>
+<p>Being a Keras model, <kbd>model</kbd> can be compiled and trained exactly like any other Keras model that's defined using the Sequential API.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The subclassing method</h1>
+                </header>
+            
+            <article>
+                
+<p>The Sequential and Functional APIs cover almost any possible scenario. However, Keras offers another way of defining models that is object-oriented, more flexible, but error-prone and harder to debug. In practice, it is possible to subclass any <kbd>tf.keras.Model</kbd> by defining the layers in <kbd>__init__</kbd> and the forward passing in the <kbd>call</kbd> method:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>import tensorflow as tf<br/><br/>class Generator(tf.keras.Model):<br/><br/>    def __init__(self):<br/>        super(Generator, self).__init__()<br/>        self.dense_1 = tf.keras.layers.Dense(<br/>            units=64, activation=tf.nn.elu, name="fc1")<br/>        self.dense_2 = f.keras.layers.Dense(<br/>            units=64, activation=tf.nn.elu, name="fc2")<br/>        self.output = f.keras.layers.Dense(units=1, name="G")<br/><br/>    def call(self, inputs):<br/>        # Build the model in functional style here<br/>        # and return the output tensor<br/>        net = self.dense_1(inputs)<br/>        net = self.dense_2(net)<br/>        net = self.output(net)<br/>        return net</pre>
+<p>The subclassing method is not recommended since it separates the layer definition from its usage, making it easy to make mistakes while refactoring the code. However, defining the forward pass using this kind of model definition is sometimes the only way to proceed, especially when working with recurrent neural networks.</p>
+<p>Subclassing from a <kbd>tf.keras.Model</kbd> the <kbd>Generator</kbd> object is a <kbd>tf.keras.Model</kbd> itself, and as such, it can be trained using the <kbd>compile</kbd> and <kbd>fit</kbd> commands, as shown earlier.</p>
+<p class="mce-root"/>
+<p>Keras can be used to train and evaluate models, but TensorFlow 2.0, with its eager execution, allows us to write our own custom training loop so that we have complete control of the training process and can debug easily.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Eager execution and new features</h1>
+                </header>
+            
+            <article>
+                
+<p>The following is stated in the eager execution official documentation (<a href="https://www.tensorflow.org/guide/eager">https://www.tensorflow.org/guide/eager</a>):</p>
+<div class="packt_quote">
+<p><em>TensorFlow's eager execution is an imperative programming environment that evaluates operations immediately, without building graphs: operations return concrete values instead of constructing a computational graph to run later. This makes it easy to get started with TensorFlow and debug models, and it reduces boilerplate as well. To follow along with this guide, run the following code samples in an interactive Python interpreter.</em></p>
+<p><em>Eager execution is a flexible machine learning platform for research and experimentation, providing the following:</em></p>
+<ul>
+<li><em>An intuitive interface: Structure your code naturally and use Python data structures. Quickly iterate on small models and small data.</em></li>
+<li><em>Easier debugging: Call ops directly to inspect running models and test changes. Use standard Python debugging tools for immediate error reporting.</em></li>
+<li><em>Natural control flow: Use Python control flow instead of graph control flow, simplifying the specification of dynamic models.</em></li>
+</ul>
+</div>
+<p>As shown in <em>The Sequential API</em> section, eager execution allows you to (among other features) use TensorFlow as a standard Python library that is executed immediately by the Python interpreter.</p>
+<p>As we explained in <a href="https://cdp.packtpub.com/hands_on_applied_neural_networks_with_tensorflow_2_x/wp-admin/post.php?post=27&amp;action=edit#post_26">Chapter 3</a><span>, </span><em>TensorFlow Graph Architecture</em>, the graph definition and session execution paradigm is no longer the default. Don't worry! Everything you learned in the previous chapter is of extreme importance if you wish to master TensorFlow 2.0, and it will help you understand why certain parts of the framework work in this way, especially when you're using AutoGraph and the Estimator API, which we will talk about next.</p>
+<p>Let's see how the baseline example from the previous chapter works when eager execution is enabled.</p>
+<p class="mce-root"/>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Baseline example</h1>
+                </header>
+            
+            <article>
+                
+<p>Let's recall the baseline example from the previous chapter:</p>
+<p><kbd>(tf1)</kbd></p>
+<pre>import tensorflow as tf<br/><br/>A = tf.constant([[1, 2], [3, 4]], dtype=tf.float32)<br/>x = tf.constant([[0, 10], [0, 0.5]])<br/>b = tf.constant([[1, -1]], dtype=tf.float32)<br/>y = tf.add(tf.matmul(A, x), b, name="result") #y = Ax + b<br/><br/>with tf.Session() as sess:<br/>    print(sess.run(y))</pre>
+<p class="mce-root">The session's execution produces the NumPy array:</p>
+<pre>[[ 1. 10.]<br/> [ 1. 31.]]</pre>
+<p>Converting the baseline example into TensorFlow 2.0 is straightforward:</p>
+<ul>
+<li>Don't worry about the graph</li>
+<li>Don't worry about the session execution</li>
+<li>Just write what you want to be executed whenever you want it to be executed:</li>
+</ul>
+<p style="padding-left: 60px"><kbd>(tf2)</kbd></p>
+<pre>import tensorflow as tf<br/><br/>A = tf.constant([[1, 2], [3, 4]], dtype=tf.float32)<br/>x = tf.constant([[0, 10], [0, 0.5]])<br/>b = tf.constant([[1, -1]], dtype=tf.float32)<br/>y = tf.add(tf.matmul(A, x), b, name="result")<br/>print(y)</pre>
+<p>The preceding code produces a different output with respect to the 1.x version:</p>
+<pre>tf.Tensor(<br/>[[ 1. 10.]<br/> [ 1. 31.]], shape=(2, 2), dtype=float32)</pre>
+<p>The numerical value is, of course, the same, but the object that's returned is no longer a <span>NumPy</span> array—<span>instead, it's</span> a <kbd>tf.Tensor</kbd> object.</p>
+<p>In TensorFlow 1.x, a <kbd>tf.Tensor</kbd> object was only a symbolic representation of the output of a <kbd>tf.Operation</kbd>; in 2.0, this is no longer the case.</p>
+<p>Since the operations are executed as soon as the Python interpreter evaluates them, every <kbd>tf.Tensor</kbd> object is not only a symbolic representation of the output of a <kbd>tf.Operation</kbd>, but also a concrete Python object that contains the result of the operation.</p>
+<div class="packt_infobox">Please note that a <kbd>tf.Tensor</kbd> object is still a symbolic representation of the output of a <kbd>tf.Operation</kbd>. This allows it to support and use 1.x features in order to manipulate <kbd>tf.Tensor</kbd> objects, thereby building graphs of <kbd>tf.Operation</kbd> that produce <kbd>tf.Tensor</kbd>.<br/>
+<br/>
+The graph is still present and the <kbd>tf.Tensor</kbd> objects are returned as a result of every TensorFlow method.</div>
+<p>The <kbd>y</kbd> Python variable, being a <kbd>tf.Tensor</kbd> object, can be used as input for any other TensorFlow operation. If, instead, we are interested in extracting the value <kbd>tf.Tensor</kbd> holds so that we have the identical result of the <kbd>sess.run</kbd> call of the 1.x version, we can just invoke the <kbd>tf.Tensor.numpy</kbd> method:</p>
+<pre>print(y.numpy())</pre>
+<p>TensorFlow 2.0, with its focus on eager execution, allows the user to design better-engineered software. In its 1.x version, TensorFlow had the omnipresent concepts of global variables, collections, and sessions.</p>
+<p>Variables and collections could be accessed from everywhere in the source code since a default graph was always present.</p>
+<p>The session is required in order to organize the complete project structure since it knows that only a single session can be present. Every time a node had to be evaluated, the session object had to be instantiated and being accessibe in the current scope.</p>
+<p>TensorFlow 2.0 changed all of these aspects, increasing the overall quality of code that can be written using it. In practice, before 2.0, using TensorFlow to design a complex software system was tough, and many users just gave up and defined huge single file projects that had everything inside them. Now, it is possible to design software in a way better and cleaner way by following all the software engineering good practices.</p>
+<p class="mce-root"/>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Functions, not sessions</h1>
+                </header>
+            
+            <article>
+                
+<p>The <kbd>tf.Session</kbd> object has been removed from the TensorFlow API. By focusing on eager execution, you no longer need the concept of a session because the execution of the operation is immediate—<span>w</span>e don't build a computational graph before running the computation.</p>
+<p>This opens up a new scenario, in which the source code can be organized better. In TensorFlow 1.x, it was tough to design software by following object-oriented programming principles or even create modular code that used Python functions. However, in TensorFlow 2.0, this is natural and is highly recommended.</p>
+<p class="mce-root">As shown in the previous example, the baseline example can be easily converted into its eager execution counterpart. This source code can be improved by following some Python best practices:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>import tensorflow as tf<br/><br/>def multiply(x, y):<br/>    """Matrix multiplication.<br/>    Note: it requires the input shape of both input to match.<br/>    Args:<br/>        x: tf.Tensor a matrix<br/>        y: tf.Tensor a matrix<br/>    Returns:<br/>        The matrix multiplcation x @ y<br/>    """<br/><br/>    assert x.shape == y.shape<br/>    return tf.matmul(x, y)<br/><br/>def add(x, y):<br/>    """Add two tensors.<br/>    Args:<br/>        x: the left hand operand.<br/>        y: the right hand operand. It should be compatible with x.<br/>    Returns:<br/>        x + y<br/>    """<br/>    return x + y<br/><br/>def main():<br/>    """Main program."""<br/>    A = tf.constant([[1, 2], [3, 4]], dtype=tf.float32)<br/>    x = tf.constant([[0, 10], [0, 0.5]])<br/>    b = tf.constant([[1, -1]], dtype=tf.float32)<br/><br/>    z = multiply(A, x)<br/>    y = add(z, b)<br/>    print(y)<br/><br/>if __name__ == "__main__":<br/>    main()</pre>
+<p>The two operations that could be executed singularly by calling <kbd>sess.run</kbd> (the matrix multiplication and the sum) have been moved to independent functions. Of course, the baseline example is simple, but just think about the training step of a machine learning model—<span>it </span>is easy to define a function that accepts the model and the input, and then executes a training step.</p>
+<p>Let's go through some of the advantages of this:</p>
+<ul>
+<li>Better software organization.</li>
+<li>Almost complete control over the execution flow of the program.</li>
+<li>No need to carry a <kbd>tf.Session</kbd> object around the source code.</li>
+<li>No need to use <kbd>tf.placeholder</kbd>. To feed the graph, you only need to pass the data to the function.</li>
+<li>We can document the code! In 1.x, in order to understand what was happening in a certain part of the program, we had to read the complete source code, understand its organization, understand which operations were executed when a node was evaluated in a <kbd>tf.Session</kbd>, and only then did we have an idea of what was going on.<br/>
+Using functions we can write self-contained and well-documented code that does exactly what the documentation states.</li>
+</ul>
+<p>The second and most important advantage that eager execution brings is that global graphs are no longer needed and, by extension, neither are its global collections and variables.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">No more globals</h1>
+                </header>
+            
+            <article>
+                
+<p>Global variables are a bad software engineering practice—everyone agrees on that.</p>
+<p>In TensorFlow 1.x, there is a strong separation between the concept of Python variables and graph variables. A Python variable is a variable with a certain name and type that follows the Python language rules: it can be deleted using <kbd>del</kbd> and it is visible only in its scope and scopes that are at a lower level in the hierarchy.</p>
+<p class="mce-root"/>
+<p>The graph variable, on the other hand, is a graph that's declared in the computational graph and lives outside the Python language rules. We can declare a Graph variable by assigning it to a Python variable, but this bond is not tight: the Python variable gets destroyed as soon as it goes out of scope, while the graph variable is still present: it is a global and persistent object.</p>
+<p>In order to understand the great advantages this change brings, we will take a look at what happens to the baseline operation definitions when the Python variables are garbage-collected:</p>
+<p><kbd>(tf1)</kbd></p>
+<pre>import tensorflow as tf<br/><br/>def count_op():<br/>    """Print the operations define in the default graph<br/>    and returns their number.<br/>    Returns:<br/>        number of operations in the graph<br/>    """<br/>    ops = tf.get_default_graph().get_operations()<br/>    print([op.name for op in ops])<br/>    return len(ops)<br/><br/><br/>A = tf.constant([[1, 2], [3, 4]], dtype=tf.float32, name="A")<br/>x = tf.constant([[0, 10], [0, 0.5]], name="x")<br/>b = tf.constant([[1, -1]], dtype=tf.float32, name="b")<br/><br/>assert count_op() == 3<br/>del A<br/>del x<br/>del b<br/>assert count_op() == 0 # FAIL!</pre>
+<p>The program fails on the second assertion and the output of <kbd>count_op</kbd> is the same in the invocation of <kbd>[A, x, b]</kbd>.</p>
+<p>Deleting Python variables is completely useless since all the operations defined in the graph are still there and we can access their output tensor, thus restoring the Python variables if needed or creating new Python variables that point to the graph nodes. We can do this by using the following code:</p>
+<pre>A = tf.get_default_graph().get_tensor_by_name("A:0")<br/>x = tf.get_default_graph().get_tensor_by_name("x:0")<br/>b = tf.get_default_graph().get_tensor_by_name("b:0")</pre>
+<p class="mce-root"/>
+<p>Why is this behavior bad? Consider the following:</p>
+<ul>
+<li>The operations, once defined in the graph, are always there.</li>
+<li>If any operation that's defined in the graph has a side effect (see the following example regarding variable initialization), deleting the corresponding Python variable is useless and the side effects will remain.</li>
+<li>In general, even if we declared the <kbd>A,x,b</kbd> variables inside a separate function that has its own Python scope, we can access them from every function by getting the tensor by name, which breaks every sort of encapsulation process out there.</li>
+</ul>
+<p>The following example shows some of the side effects of not having global graph variables connected to Python variables:</p>
+<p><kbd>(tf1)</kbd></p>
+<pre>import tensorflow as tf<br/><br/>def get_y():<br/>    A = tf.constant([[1, 2], [3, 4]], dtype=tf.float32, name="A")<br/>    x = tf.constant([[0, 10], [0, 0.5]], name="x")<br/>    b = tf.constant([[1, -1]], dtype=tf.float32, name="b")<br/>    # I don't know what z is: if is a constant or a variable<br/>    z = tf.get_default_graph().get_tensor_by_name("z:0")<br/>    y = A @ x + b - z<br/>    return y<br/><br/>test = tf.Variable(10., name="z")<br/>del test<br/>test = tf.constant(10, name="z")<br/>del test<br/><br/>y = get_y()<br/><br/>with tf.Session() as sess:<br/>    print(sess.run(y))</pre>
+<p class="mce-root"/>
+<p>This code fails to run and highlights several downsides of the global variables approach, alongside the downsides of the naming system used by Tensorfow 1.x:</p>
+<ul>
+<li><kbd>sess.run(y)</kbd> triggers the execution of an operation that depends on the <kbd>z:0</kbd> tensor.</li>
+<li>When fetching a tensor using its name, we don't know whether the operation that generates it is an operation without side effects or not. In our case, the operation is a <kbd>tf.Variable</kbd> definition, which requires the variable's initialization to be executed before the <kbd>z:0</kbd> tensor can be evaluated; that's why the code fails to run.</li>
+<li>The Python variable name means nothing to TensorFlow 1.x: <kbd>test</kbd> contains a graph variable named <kbd>z</kbd> first, and then <kbd>test</kbd> is destroyed and replaced with the graph constant we require, that is, <kbd>z</kbd>.</li>
+<li>Unfortunately, the call to <kbd>get_y</kbd> found a tensor named <kbd>z:0</kbd>, which refers to the <kbd>tf.Variable</kbd> operation (that has side effects) and not the constant node, <kbd>z</kbd>. Why? Even though we deleted the <kbd>test</kbd> variable in the graph variable, <kbd>z</kbd> is still defined. Therefore, when calling <kbd>tf.constant</kbd>, we have a name that conflicts with the graph that TensorFlow solves for us. It does this by adding the <kbd>_1</kbd> suffix to the output tensor.</li>
+</ul>
+<p>All of these problems are gone in TensorFlow 2.0—we just have to write Python code that we are used to. There's no need to worry about graphs, global scopes, naming conflicts, placeholders, graph dependencies, and side effects. Even the control flow is Python-like, as we will see in the next section.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Control flow</h1>
+                </header>
+            
+            <article>
+                
+<p>Executing sequential operations in TensorFlow 1.x was not an easy task if the operations had no explicit order of execution constraints. Let's say we want to use TensorFlow to do the following:</p>
+<ol>
+<li>Declare and initialize two variables: <kbd>y</kbd> and <kbd>y</kbd>.</li>
+<li>Increment the value of <kbd>y</kbd> by 1.</li>
+<li>Compute <kbd>x*y</kbd>.</li>
+<li>Repeat this five times.</li>
+</ol>
+<p class="mce-root"/>
+<p>The first, non-working attempt, in TensorFlow 1.x is to just declare the code <span>b</span><span>y following the preceding steps:</span></p>
+<p><kbd>(tf1)</kbd></p>
+<pre>import tensorflow as tf<br/><br/>x = tf.Variable(1, dtype=tf.int32)<br/>y = tf.Variable(2, dtype=tf.int32)<br/><br/>assign_op = tf.assign_add(y, 1)<br/>out = x * y<br/>init = tf.global_variables_initializer()<br/><br/>with tf.Session() as sess:<br/>    sess.run(init)<br/>    for _ in range(5):<br/>        print(sess.run(out))</pre>
+<p>Those of you who completed the exercises that were provided in the previous chapter will have already noticed the problem in this code.</p>
+<p>The output node, <kbd>out</kbd>, has no explicit dependency on the <kbd>assign_op</kbd> node, and so it never evaluates when <kbd>out</kbd> is executed, making the output just a sequence of 2. In TensorFlow 1.x, we have to explicitly force the order of execution using <kbd>tf.control_dependencies</kbd>, conditioning the assignment operation so that it's executed before the evaluation of <kbd>out</kbd>:</p>
+<pre>with tf.control_dependencies([assign_op]):<br/>    out = x * y</pre>
+<p>Now, the output is the sequence of 3, 4, 5, 6, 7, which is what we wanted.</p>
+<p>More complex examples, such as declaring and executing loops directly inside the graph where conditional execution (using <kbd>tf.cond</kbd>) could occur, are possible, but the point is the same—in TensorFlow 1.x, we have to worry about the side effects of our operations, we have to think about the graph's structure when writing Python code, and we can't even use the Python interpreter that we're used to. The conditions have to be expressed using <kbd>tf.cond</kbd> instead of a Python <kbd>if</kbd> statement and the loops have to be defined using <kbd>tf.while_loop</kbd> instead of using the Python <kbd>for</kbd> and <kbd>while</kbd> statements.</p>
+<p>TensorFlow 2.x, with its eager execution, makes it possible to use the Python interpreter to control the flow of execution:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>import tensorflow as tf<br/><br/>x = tf.Variable(1, dtype=tf.int32)<br/>y = tf.Variable(2, dtype=tf.int32)<br/><br/>for _ in range(5):<br/>    y.assign_add(1)<br/>    out = x * y<br/>    print(out)</pre>
+<p>The previous example, which was developed using eager execution, is simpler to develop, debug, and understand—<span>it'</span>s just standard Python, after all!</p>
+<p>By simplifying the control flow, eager execution was possible, and is one of the main features that was introduced in TensorFlow 2.0—<span>now, </span>even users without any previous experience of DataFlow graphs or descriptive programming languages can start writing TensorFlow code. Eager execution reduces the overall framework's complexity and lowers the entry barrier.</p>
+<p>Users coming from TensorFlow 1.x may start wondering how can we train machine learning models since, in order to compute gradients using automatic differentiation, we need to have a graph of the executed operations.</p>
+<p>TensorFlow 2.0 introduced the concept of GradienTape to efficiently combat this problem.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">GradientTape</h1>
+                </header>
+            
+            <article>
+                
+<p>The <kbd>tf.GradientTape()</kbd> invocation creates a context that records the operations for automatic differentiation. Every operation that's executed within the context manager is recorded on tape if at least one of their inputs is watchable and is being watched.</p>
+<p>An input is watchable when the following occurs:</p>
+<ul>
+<li>It's a trainable variable that's been created by using <kbd>tf.Variable</kbd></li>
+<li>It's being explicitly watched by the tape, which is done by calling the <kbd>watch</kbd> method on the <kbd>tf.Tensor</kbd> object</li>
+</ul>
+<p>The tape records every operation that's executed within the context in order to build a graph of the forward pass that was executed; then, the tape can be unrolled in order to compute the gradients using reverse-mode automatic differentiation. It does this by calling the <kbd>gradient</kbd> method:</p>
+<pre>x = tf.constant(4.0)<br/>with tf.GradientTape() as tape:<br/>    tape.watch(x)<br/>    y = tf.pow(x, 2)<br/># Will compute 8 = 2*x, x = 8<br/>dy_dx = tape.gradient(y, x)</pre>
+<p>In the preceding example, we explicitly asked <kbd>tape</kbd> to watch a constant value that, by its nature, is not watchable (since it is not a <kbd>tf.Variable</kbd> object).</p>
+<p>A <kbd>tf.GradientTape</kbd> object such as <kbd>tape</kbd> releases the resources that it's holding as soon as the <kbd>tf.GradientTape.gradient()</kbd> method is called. This is desirable for the most common scenarios, but there are cases in which we need to invoke <kbd>tf.GradientTape.gradient()</kbd> more than once. To do that, we need to create a persistent gradient tape that allows multiple calls to the gradient method without it releasing the resources. In this case, it is up to the developer to take care of releasing the resources when no more are needed. They do this by dropping the reference to the tape using Python's <kbd>del</kbd> instruction:</p>
+<pre>x = tf.Variable(4.0)<br/>y = tf.Variable(2.0)<br/>with tf.GradientTape(persistent=True) as tape:<br/>    z = x + y<br/>    w = tf.pow(x, 2)<br/>dz_dy = tape.gradient(z, y)<br/>dz_dx = tape.gradient(z, x)<br/>dw_dx = tape.gradient(w, x)<br/>print(dz_dy, dz_dx, dw_dx) # 1, 1, 8<br/># Release the resources<br/>del tape</pre>
+<p>It is also possible to nest more than one <kbd>tf.GradientTape</kbd> object in higher-order derivatives (this should be easy for you to do now, so I'm leaving this as an exercise).</p>
+<p>TensorFlow 2.0 offers a new and easy way to build models using Keras and a highly customizable and efficient way to compute gradients using the concept of tape.</p>
+<p>The Keras models that we mentioned in the previous sections already come with methods to train and evaluate them; however, Keras can't cover every possible training and evaluation scenario. Therefore, TensorFlow 1.x can be used to build custom training loops so that you can train and evaluate the models and have complete control over what's going on. This gives you the freedom to experiment with controlling every part of the training. For instance, as shown in <a href="66948c53-131c-43ef-a7fc-3d242d1e0664.xhtml">Chapter 9</a>, <em>Generative Adversarial Networks</em>, the best way to define the adversarial training process is by defining a custom training loop.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Custom training loop</h1>
+                </header>
+            
+            <article>
+                
+<p>The <kbd>tf.keras.Model</kbd> object, through its <kbd>compile</kbd> and <kbd>fit</kbd> methods, allows you to train a great number of machine learning models, from classifiers to generative models. The Keras way of training can speed up the definition of the training phase of the most common models, but the customization of the training loop remains limited.</p>
+<p>There are models, training strategies, and problems that require a different kind of model training. For instance, let's say we need to face the gradient explosion problem. It could happen that, during the training of a model using gradient descent, the loss function starts diverging until it becomes <kbd>NaN</kbd> because of the size of the gradient update, which becomes higher and higher until it overflows.</p>
+<p>A common strategy that you can use to face this problem is clipping the gradient or capping the threshold: the gradient update can't have a magnitude greater than the threshold value. This prevents the network from diverging and usually helps us find a better local minima during the minimization process. There are several gradient clipping strategies, but the most common is L2 norm gradient clipping.</p>
+<p>In this strategy, the gradient vector is normalized in order to make the L2 norm less than or equal to a threshold value. In practice, we want to update the gradient update rule in this way:</p>
+<pre class="graf graf--pre graf-after--p"><span class="markup--quote markup--pre-quote is-other">gradients = gradients * threshold / l2</span>(gradients)</pre>
+<p>TensorFlow has an API for this task: <kbd>tf.clip_by_norm</kbd>. We only need to access the gradients that have been computed, apply the update rule, and feed it to the chosen optimizer.</p>
+<p>In order to create a custom training loop using <kbd>tf.GradientTape</kbd> to compute the gradients and post-process them, the image classifier training script that we developed at the end of the previous chapter needs to be migrated to its TensorFlow 2.0 version.</p>
+<p>Please take the time to read the source code carefully: have a look at the new modular organization and compare the previous 1.x code with this new code.</p>
+<p>There are several differences between these APIs:</p>
+<ul>
+<li>The optimizers are now Keras optimizers.</li>
+<li>The losses are now Keras losses.</li>
+<li>The accuracy is easily computed using the Keras metrics package.</li>
+<li>There is always a TensorFlow 2.0 version of any TensorFlow 1.x symbol.</li>
+<li>There are no more global collections. The tape needs a list of the variables it needs to use to compute the gradient and the <kbd>tf.keras.Model</kbd> object has to carry its own set of <kbd>trainable_variables</kbd>.</li>
+</ul>
+<p>While in version 1.x there was method invocation, in 2.0, there is a Keras method that returns a callable object. The constructor of almost every Keras object is used to configure it, and they use the <kbd>call</kbd> method to use it.</p>
+<p><span>First, we import the </span><kbd>tensorflow</kbd><span> library and then define the </span><kbd>make_model</kbd><span> </span><span><span>function</span></span><span>:</span></p>
+<pre>import tensorflow as tf<br/>from tensorflow.keras.datasets import fashion_mnist<br/><br/>def make_model(n_classes):<br/> return tf.keras.Sequential([<br/>   tf.keras.layers.Conv2D(<br/>     32, (5, 5), activation=tf.nn.relu, input_shape=(28, 28, 1)),<br/>   tf.keras.layers.MaxPool2D((2, 2), (2, 2)),<br/>   tf.keras.layers.Conv2D(64, (3, 3), activation=tf.nn.relu),<br/>   tf.keras.layers.MaxPool2D((2, 2), (2, 2)),<br/>   tf.keras.layers.Flatten(),<br/>   tf.keras.layers.Dense(1024, activation=tf.nn.relu),<br/>   tf.keras.layers.Dropout(0.5),<br/>   tf.keras.layers.Dense(n_classes)<br/> ])</pre>
+<p>Then, we define the <kbd>load_data</kbd> function:</p>
+<pre>def load_data():<br/>    (train_x, train_y), (test_x, test_y) = fashion_mnist.load_data()<br/>    # Scale input in [-1, 1] range<br/>    train_x = tf.expand_dims(train_x, -1)<br/>    train_x = (tf.image.convert_image_dtype(train_x, tf.float32) - 0.5) * 2<br/>    train_y = tf.expand_dims(train_y, -1)<br/><br/>    test_x = test_x / 255. * 2 - 1<br/>    test_x = (tf.image.convert_image_dtype(test_x, tf.float32) - 0.5) * 2<br/>    test_y = tf.expand_dims(test_y, -1)<br/><br/>    return (train_x, train_y), (test_x, test_y)</pre>
+<p>Afterward, we define the <kbd>train()</kbd> functions that instantiate the model, the input data, and the training parameters:</p>
+<pre>def train():<br/>    # Define the model<br/>    n_classes = 10<br/>    model = make_model(n_classes)<br/><br/>    # Input data<br/>    (train_x, train_y), (test_x, test_y) = load_data()<br/><br/>    # Training parameters<br/>    loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)<br/>    step = tf.Variable(1, name="global_step")<br/>    optimizer = tf.optimizers.Adam(1e-3)<br/>    accuracy = tf.metrics.Accuracy()</pre>
+<p>To conclude, we need to define the <kbd>train_step</kbd> function inside the <kbd>train</kbd> function and use it inside the training loop:</p>
+<pre>    # Train step function<br/>    def train_step(inputs, labels):<br/>        with tf.GradientTape() as tape:<br/>            logits = model(inputs)<br/>            loss_value = loss(labels, logits)<br/><br/>        gradients = tape.gradient(loss_value, model.trainable_variables)<br/>        # TODO: apply gradient clipping here<br/>        optimizer.apply_gradients(zip(gradients, model.trainable_variables))<br/>        step.assign_add(1)<br/><br/>        accuracy_value = accuracy(labels, tf.argmax(logits, -1))<br/>        return loss_value, accuracy_value<br/><br/>    epochs = 10<br/>    batch_size = 32<br/>    nr_batches_train = int(train_x.shape[0] / batch_size)<br/>    print(f"Batch size: {batch_size}")<br/>    print(f"Number of batches per epoch: {nr_batches_train}")<br/><br/>    for epoch in range(epochs):<br/>        for t in range(nr_batches_train):<br/>            start_from = t * batch_size<br/>            to = (t + 1) * batch_size<br/>            features, labels = train_x[start_from:to], train_y[start_from:to]<br/>            loss_value, accuracy_value = train_step(features, labels)<br/>            if t % 10 == 0:<br/>                print(<br/>                    f"{step.numpy()}: {loss_value} - accuracy: {accuracy_value}"<br/>                )<br/>        print(f"Epoch {epoch} terminated")<br/><br/>if __name__ == "__main__":<br/>    train()</pre>
+<p>The previous example does not include model saving, model selection, and TensorBoard logging. Moreover, the gradient clipping part has been left as an exercise for you (see the <kbd>TODO</kbd><span> </span>section of the preceding code).</p>
+<div class="packt_infobox">At the end of this chapter, all of the missing functionalities will be included; in the meantime, take your time to read through the new version carefully and compare it with the 1.x version.</div>
+<p>The next section will focus on how to save the model parameters, restart the training process, and make model selection.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Saving and restoring the model's status</h1>
+                </header>
+            
+            <article>
+                
+<p>TensorFlow 2.0 introduced the concept of a checkpointable object: every object that inherits from <kbd>tf.train.Checkpointable</kbd> is automatically serializable, which means that it is possible to save it in a checkpoint. Compared to the 1.x version, where only the variables were checkpointable, in 2.0, whole Keras layers/models inherit from <kbd>tf.train.Checkpointable</kbd>. Due to this, it is possible to save whole layers/models instead of worrying about their variables; as usual, Keras introduced an additional abstraction layer that simplifies the usage of the framework. There are two ways of saving a model:</p>
+<ul>
+<li>Using a checkpoint</li>
+<li>Using a SavedModel</li>
+</ul>
+<p>As we explained in <a href="https://cdp.packtpub.com/hands_on_applied_neural_networks_with_tensorflow_2_x/wp-admin/post.php?post=27&amp;action=edit#post_26">Chapter 3</a><span>, </span><em>TensorFlow Graph Architecture</em>, checkpoints do not contain any description of the model itself: they are just an easy way to store the model parameters and let the developer restore them correctly by defining the model that maps the checkpoint saved variables with Python <kbd>tf.Variable</kbd> objects or, at a higher level, with <kbd>tf.train.Checkpointable</kbd> objects.</p>
+<p class="mce-root"/>
+<p>The SavedModel format, on the other hand, is the serialized description of the computation, in addition to the parameter's value. We can summarize these two objects as follows:</p>
+<ul>
+<li><strong>Checkpoint</strong>: An easy way to store variables on disk</li>
+<li><strong>SavedModel</strong>: Model structure and checkpoint</li>
+</ul>
+<p>SavedModels are language-agnostic representations (Protobuf serialized graphs) that are suitable for deployment in other languages. The last chapter of this book, <a href="889170ef-f89d-4485-a111-6cd4e72f0daa.xhtml">Chapter 10</a>, <em>Bringing a Model to Production,</em> is dedicated to the SavedModel since it is the correct way to bring a model to production.</p>
+<p>While training a model, we have the model definition available in Python. Due to this, we are interested in saving the model status, which we can do as follows:</p>
+<ul>
+<li>Restart the training process in the case of failures, without wasting all the previous computation.</li>
+<li>Save the model parameters at the end of the training loop so that we can test the trained model on the test set.</li>
+<li>Save the model parameters in different locations so that we can save the status of the models that reached the best validation performance (model selection).</li>
+</ul>
+<p class="mce-root">To save and restore the model parameters in TensorFlow 2.0, we can use two objects:</p>
+<ul>
+<li><kbd>tf.train.Checkpoint</kbd> is the object-based serializer/deserializer.</li>
+<li><kbd>tf.train.CheckpointManager</kbd> is an object that can use a <kbd>tf.train.Checkpoint</kbd> instance to save and manage checkpoints.</li>
+</ul>
+<p>Compared to TensorFlow 1.x's <kbd>tf.train.Saver</kbd> method, the <kbd>Checkpoint.save</kbd> and <kbd>Checkpoint.restore</kbd> methods write and read object-based checkpoints; the former was only able to write and read <kbd>variable.name</kbd>-based checkpoints.</p>
+<p>Saving objects instead of variables is more robust when it comes to making changes in the Python program and it works correctly with the eager execution paradigm. In TensorFlow 1.x, saving only the <kbd>variable.name</kbd> was enough since the graph wouldn't change once defined and executed. In 2.0, where the graph is hidden and the control flow can make the objects and their variables appear/disappear, saving objects is the only way to preserve their status.</p>
+<p>Using <kbd><span>tf.train.</span>Checkpoint</kbd> is amazingly easy—do you want to store a checkpointable object? Just pass it to its constructor or create a new attribute for the object during its lifetime.</p>
+<p class="mce-root"/>
+<p>Once you've defined the checkpoint object, use it to build a <kbd>tf.train.CheckpointManager</kbd> object, where you can specify where to save the model parameters and how many checkpoints to keep.</p>
+<p>Because of this, the save and restore capabilities of the previous model's training are as easy as adding the following lines, right after the model and optimizer definition:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>ckpt = tf.train.Checkpoint(step=step, optimizer=optimizer, model=model)<br/>manager = tf.train.CheckpointManager(ckpt, './checkpoints', max_to_keep=3)<br/>ckpt.restore(manager.latest_checkpoint)<br/>if manager.latest_checkpoint:<br/>    print(f"Restored from {manager.latest_checkpoint}")<br/>else:<br/>    print("Initializing from scratch.")</pre>
+<p>Trainable and not-trainable variables are automatically added for the checkpoint variables to monitor, allowing you to restore the model and restart the training loop without introducing unwanted fluctuations in the loss functions. In fact, the optimizer object, which usually carries its own set of non-trainable variables (moving means and variances), is a checkpointable object that is added to the checkpoint, allowing you to restart the training loop in the same exact status as when it was interrupted.</p>
+<p>When a condition is met (<kbd>i % 10 == 0</kbd>, or when the validation metric is improved), is it possible to use the <kbd>manager.save</kbd> method invocation to checkpoint the model's status:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>save_path = manager.save()<br/>print(f"Checkpoint saved: {save_path}")</pre>
+<p>The manager can save the model parameters in the directory that's specified during its construction; therefore, to perform model selection, you need to create a second manager object that is invoked when the model selection condition is met. This is left as an exercise for you.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summaries and metrics</h1>
+                </header>
+            
+            <article>
+                
+<p>TensorBoard is still the default and recommended data logging and visualization tool for TensorFlow. The <kbd>tf.summary</kbd> package contains all the required methods to save scalar values, images, plot histograms, distributions, and more.</p>
+<p class="mce-root"/>
+<p>Together with the <kbd>tf.metrics</kbd> package, it is possible to log aggregated data. Metrics are usually measured on mini-batches and not on the whole training/validation/test set: aggregating data while looping on the complete dataset split allows us to measure the metrics correctly.</p>
+<p>The objects in the <kbd>tf.metrics</kbd> package are stateful, which means they are able to accumulate/aggregate values and return a cumulative result when calling <kbd>.result()</kbd>.</p>
+<p>In the same way as TensorFlow 1.x, to save a summary to disk, you need a File/Summary writer object. You can create one by doing the following:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>summary_writer <span class="pl-k">=</span> tf.summary.create_file_writer(path)</pre>
+<p>This new object doesn't work like it does in 1.x—its usage is now simplified and more powerful. Instead of using a session and executing the <kbd>sess.run(summary)</kbd> line to get the line to write inside the summary, the new <kbd>tf.summary.*</kbd> objects are able to detect the context they are used within and log the correct summary inside the writer once the summary line has been computed.</p>
+<p>In fact, the summary writer object defines a context manager by calling <kbd>.as_default()</kbd>; every <kbd>tf.summary.*</kbd> method that's invoked within this context will add its result to the default summary writer.</p>
+<p>Combining <kbd>tf.summary</kbd> with <kbd>tf.metrics</kbd> allows us to measure and log the training/validation/test metrics correctly and in an easier way with respect to TensorFlow 1.x. In fact, if we decide to log every 10 training steps for the computed metric, we have to visualize the mean value that's computed over those 10 training steps and not just the last one.</p>
+<p>Thus, at the end of every training step, we have to invoke the metric object's <kbd>.update_state</kbd> method to aggregate and save the computed value inside the object status and then invoke the <kbd>.result()</kbd> method.</p>
+<p>The <kbd>.result()</kbd> method takes care of correctly computing the metric over the aggregated values. Once computed, we can reset the internal states of the metric by calling <kbd>reset_states()</kbd>. Of course, the same reasoning holds for every value that's computed during the training phase because the loss is quite common:</p>
+<pre>mean_loss = tf.metrics.Mean(name='loss')</pre>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<p>This defines the metric's <kbd>Mean</kbd>, which is the mean of the input that's passed during the training phase. In this case, this is the loss value, but the same metric can be used to compute the mean of every scalar value.</p>
+<p>The <kbd>tf.summary</kbd> package also contains methods that you can use to log images (<kbd>tf.summary.image</kbd>), therefore extending the previous example to log both scalar metrics and batches of images on TensorBoard in an extremely easy. The following code shows how the previous example can be extended to log the training loss, accuracy, and three training images—please take the time to analyze the structure, see how metrics and logging are performed, and try to understand how the code structure can be improved by defining more functions in order to make it more modular and easy to maintain:</p>
+<pre class="mce-root">def train():<br/>    # Define the model<br/>    n_classes = 10<br/>    model = make_model(n_classes)<br/><br/>    # Input data<br/>    (train_x, train_y), (test_x, test_y) = load_data()<br/><br/>    # Training parameters<br/>    loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)<br/>    step = tf.Variable(1, name="global_step")<br/>    optimizer = tf.optimizers.Adam(1e-3)<br/><br/>    ckpt = tf.train.Checkpoint(step=step, optimizer=optimizer, model=model)<br/>    manager = tf.train.CheckpointManager(ckpt, './tf_ckpts', max_to_keep=3)<br/>    ckpt.restore(manager.latest_checkpoint)<br/>    if manager.latest_checkpoint:<br/>        print(f"Restored from {manager.latest_checkpoint}")<br/>    else:<br/>        print("Initializing from scratch.")<br/><br/>    accuracy = tf.metrics.Accuracy()<br/>    mean_loss = tf.metrics.Mean(name='loss')</pre>
+<p>Here, we define the <kbd>train_step</kbd> function:</p>
+<pre class="mce-root">     # Train step function<br/>     def train_step(inputs, labels):<br/>         with tf.GradientTape() as tape:<br/>             logits = model(inputs)<br/>             loss_value = loss(labels, logits)<br/><br/>         gradients = tape.gradient(loss_value, model.trainable_variables)<br/>         # TODO: apply gradient clipping here<br/>         optimizer.apply_gradients(zip(gradients, model.trainable_variables))<br/>         step.assign_add(1)<br/><br/>         accuracy.update_state(labels, tf.argmax(logits, -1))<br/>         return loss_value, accuracy.result()<br/><br/>    epochs = 10<br/>    batch_size = 32<br/>    nr_batches_train = int(train_x.shape[0] / batch_size)<br/>    print(f"Batch size: {batch_size}")<br/>    print(f"Number of batches per epoch: {nr_batches_train}")<br/>    train_summary_writer = tf.summary.create_file_writer('./log/train')<br/>    with train_summary_writer.as_default():<br/>        for epoch in range(epochs):<br/>            for t in range(nr_batches_train):<br/>                start_from = t * batch_size<br/>                to = (t + 1) * batch_size<br/><br/>                features, labels = train_x[start_from:to], train_y[start_from:to]<br/><br/>                loss_value, accuracy_value = train_step(features, labels)<br/>                mean_loss.update_state(loss_value)<br/><br/>                if t % 10 == 0:<br/>                    print(f"{step.numpy()}: {loss_value} - accuracy: {accuracy_value}")<br/>                    save_path = manager.save()<br/>                    print(f"Checkpoint saved: {save_path}")<br/>                    tf.summary.image(<br/>                        'train_set', features, max_outputs=3, step=step.numpy())<br/>                    tf.summary.scalar(<br/>                        'accuracy', accuracy_value, step=step.numpy())<br/>                    tf.summary.scalar(<br/>                        'loss', mean_loss.result(), step=step.numpy())<br/>                    accuracy.reset_states()<br/>                    mean_loss.reset_states()<br/>            print(f"Epoch {epoch} terminated")<br/>            # Measuring accuracy on the whole training set at the end of the epoch<br/>            for t in range(nr_batches_train):<br/>                start_from = t * batch_size<br/>                to = (t + 1) * batch_size<br/>                features, labels = train_x[start_from:to], train_y[start_from:to]<br/>                logits = model(features)<br/>                accuracy.update_state(labels, tf.argmax(logits, -1))<br/>            print(f"Training accuracy: {accuracy.result()}")<br/>            accuracy.reset_states()</pre>
+<p>On TensorBoard, at the end of the first epoch, is it possible to see the loss value measured every 10 steps:</p>
+<div class="CDPAlignCenter CDPAlign packt_figref"><img class="aligncenter size-full wp-image-952 image-border" src="assets/47307d71-c49a-4ca7-828a-fab262d72662.png" style="width:83.17em;height:34.08em;"/></div>
+<div class="packt_figref CDPAlignCenter CDPAlign"><span>The loss value, measured every 10 steps, as visualized in TensorBoard</span></div>
+<p>We can also see the training accuracy, measured at the same time as the loss:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-953 image-border" src="assets/320f3747-b934-4d9e-9973-555f29e29176.png" style="width:83.58em;height:33.17em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign">The training accuracy, as visualized in TensorBoard</div>
+<p class="mce-root"/>
+<p>Moreover, we can also see the images sampled for the training set:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-954 image-border" src="assets/12bba95e-bd24-4be9-a049-c93f8fa2a787.png" style="width:84.33em;height:38.50em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign"><span>Three image samples from the training set—a dress, a sandal, and a pullover from the fashion-MNIST dataset</span></div>
+<p>Eager execution allows you to create and execute models on the fly, without explicitly creating a graph. However, working in eager mode does not mean that a graph can't be built from TensorFlow code. In fact, as we saw in the previous section, by using <kbd>tf.GradientTape</kbd>, is it possible to register what happens during a training step, build a computational graph by tracing the operations that are executed, and use this graph to automatically compute the gradient using automatic differentiation.</p>
+<p>Tracing what happens during a function's execution allows us to analyze what operations are executed at runtime. Knowing the operations, their input relations, and their output relation makes it possible to build graphs.</p>
+<p>This is of extreme importance since it can be exploited to execute a function once, trace its behavior, convert its body into its graph representation, and fall back to the more efficient graph definition and session execution, which has a huge performance boost. It does all of this automatically: this is the concept of AutoGraph.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">AutoGraph</h1>
+                </header>
+            
+            <article>
+                
+<p>Automatically converting Python code into its graphical representation is done with the use of <strong>AutoGraph</strong>. In TensorFlow 2.0, AutoGraph is automatically applied to a function when it is decorated with <kbd>@tf.function</kbd>. This decorator creates callable graphs from Python functions.</p>
+<p>A function, once decorated correctly, is processed by <kbd>tf.function</kbd> and the <kbd>tf.autograph</kbd> module in order to convert it into its graphical representation. The following diagram shows a schematic representation of what happens when a decorated function is called:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-955 image-border" src="assets/ba5dc45f-0079-4085-b76d-2f6fb034fae8.png" style="width:62.58em;height:26.17em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign">Schematic representation of what happens when a function, f, decorated with @tf.function, which is called on the first call and on any other subsequent call</div>
+<p>On the first call of the annotated function, the following occurs:</p>
+<ol>
+<li>The function is executed and traced. Eager execution is disabled in this context, and so every <kbd>tf.*</kbd> method defines a <kbd>tf.Operation</kbd> node that produces a <kbd>tf.Tensor</kbd> output, exactly like it does in TensorFlow 1.x.</li>
+<li>The <kbd>tf.autograph</kbd> module is used to detect Python constructs that can be converted into their graph equivalent. The graph representation is built from the function trace and AutoGraph information. This is done in order to preserve the execution order that's defined in Python.</li>
+<li>The<span> <kbd>tf.Graph</kbd></span><span> </span>object has now been built.</li>
+<li>Based on the function name and the input parameters, a unique ID is created and associated with the graph. The graph is then cached into a map so that it can be reused when a second invocation occurs and the ID matches.</li>
+</ol>
+<p>Converting a function into its graph representation usually requires us to think; in TensorFlow 1.x, not every function that works in eager mode can be converted painlessly into its graph version.</p>
+<p>For instance, a variable in eager mode is a Python object that follows the Python rules regarding its scope. In graph mode, as we found out in the previous chapter, a variable is a persistent object that will continue to exist, even if its associated Python variable goes out of scope and is garbage-collected.</p>
+<p>Therefore, special attention has to be placed on software design: if a function has to be graph-accelerated and it creates a status (using <kbd>tf.Variable</kbd> and similar objects), it is up to the developer to take care of avoiding having to recreate the variable every time the function is called.</p>
+<p>For this reason, <kbd>tf.function</kbd> parses the function body multiple times while looking for the <kbd>tf.Variable</kbd> definition. If, at the second invocation, it finds out that a variable object is being recreated, it raises an exception:</p>
+<pre>ValueError: tf.function-decorated function tried to create variables on non-first call.</pre>
+<p>In practice, if we have defined a function that performs a simple operation that uses a <kbd>tf.Variable</kbd> inside it, we have to ensure that the object is only created once.</p>
+<p>The following function works correctly in eager mode, but it fails to execute if it is decorated with <kbd>@tf.function</kbd> and is raising the preceding exception:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>def f():<br/>    a = tf.constant([[10,10],[11.,1.]])<br/>    x = tf.constant([[1.,0.],[0.,1.]])<br/>    b = tf.Variable(12.)<br/>    y = tf.matmul(a, x) + b<br/>    return y</pre>
+<p>Handling functions that create a state means that we have to rethink our usage of graph-mode. A state is a persistent object, such as a variable, and the variable can't be redeclared more than once. Due to this, the function definition can be changed in two ways:</p>
+<ul>
+<li>By passing the variable as an input parameter</li>
+<li>By breaking the function scope and inheriting a variable from the external scope</li>
+</ul>
+<p>The first option requires changing the function definition that's making it:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>@tf.function<br/>def f(b):<br/>    a = tf.constant([[10,10],[11.,1.]])<br/>    x = tf.constant([[1.,0.],[0.,1.]])<br/>    y = tf.matmul(a, x) + b<br/>    return y<br/><br/>var = tf.Variable(12.)<br/>f(var)<br/>f(15)<br/>f(tf.constant(1))</pre>
+<p><kbd>f</kbd> now accepts a Python input variable, <kbd>b</kbd>. This variable can be a <kbd>tf.Variable</kbd>, a <kbd>tf.Tensor</kbd>, and also a <span>NumPy</span> object or a Python type. Every time the input type changes, a new graph is created in order to make an accelerated version of the function that works for any required input type (this is required because of how a TensorFlow graph is statically typed).</p>
+<p>The second option, on the other hand, requires breaking down the function scope, making the variable available outside the scope of the function itself. In this case, there are two paths we can follow:</p>
+<ul>
+<li><strong>Not recommended</strong>: Use global variables</li>
+<li><strong>Recommended</strong>: Use Keras-like objects</li>
+</ul>
+<p>The first path, which is <strong>not recommended</strong>, consists of declaring the variable outside the function body and using it inside, ensuring that it will only be declared once:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>b = None<br/><br/>@tf.function<br/>def f():<br/>    a = tf.constant([[10, 10], [11., 1.]])<br/>    x = tf.constant([[1., 0.], [0., 1.]])<br/>    global b<br/>    if b is None:<br/>        b = tf.Variable(12.)<br/>    y = tf.matmul(a, x) + b<br/>    return y<br/><br/>f()</pre>
+<p class="mce-root"/>
+<p>The second path, which is <strong>recommended</strong>, is to use an object-oriented approach and declare the variable as a private attribute of a class. Then, you need to make the objects that were instantiated callable by putting the function body inside the <kbd>__call__</kbd> method:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>class F():<br/>    def __init__(self):<br/>        self._b = None<br/><br/>    @tf.function<br/>    def __call__(self):<br/>        a = tf.constant([[10, 10], [11., 1.]])<br/>        x = tf.constant([[1., 0.], [0., 1.]])<br/>        if self._b is None:<br/>            self._b = tf.Variable(12.)<br/>        y = tf.matmul(a, x) + self._b<br/>        return y<br/><br/>f = F()<br/>f()</pre>
+<p>AutoGraph and the graph acceleration process work best when it comes to optimizing the training process.</p>
+<p>In fact, the most computationally-intensive part of the training is the forward pass, followed by gradient computation and parameter updates. In the previous example, following the new structure that the absence of <kbd>tf.Session</kbd> allows us to follow, we separate the training step from the training loop. The training step is a function without a state that uses variables inherited from the outer scope. Therefore, it can be converted into its graph representation and accelerated just by decorating it with the <kbd>@tf.function</kbd> decorator:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>@tf.function<br/>def train_step(inputs, labels):<br/># function body</pre>
+<p>You are invited to measure the speedup that was introduced by the graph conversion of the <kbd>train_step</kbd> function.</p>
+<div class="packt_infobox">The speedup is not guaranteed since eager execution is already fast and there are simple scenarios in which eager execution is as fast as its graphical counterpart. However, the performance boost is visible when the models become more complex and deeper.</div>
+<p>AutoGraph automatically converts Python constructs into their <kbd>tf.*</kbd> equivalent, but since converting source code that preserves semantics is not an easy task, there are scenarios in which it is better to help AutoGraph perform source code transformation.</p>
+<p>In fact, there are constructs that work in eager execution that are already drop-in replacements for Python constructs. In particular, <kbd>tf.range</kbd> replaces <kbd>range</kbd>, <kbd>tf.print</kbd> replaces <kbd>print</kbd>, and <kbd>tf.assert</kbd> replaces <kbd>assert</kbd>.</p>
+<p>For instance, AutoGraph is not able to automatically convert <kbd>print</kbd> into <kbd>tf.print</kbd> in order to preserve its semantic. Therefore, if we want a graph-accelerated function to print something when executed in graph mode, we have to write the function using <kbd>tf.print</kbd> instead of <kbd>print</kbd>.</p>
+<p>You are invited to define simple functions that use <kbd>tf.range</kbd> instead of  <kbd>range</kbd> and <kbd>print</kbd> instead of <kbd>tf.print</kbd>, and then visualize how the source code is converted using the <kbd>tf.autograph</kbd> module.</p>
+<p>For instance, take a look at the following code:</p>
+<p><kbd>(tf2)</kbd></p>
+<pre>import tensorflow as tf<br/><br/>@tf.function<br/>def f():<br/>    x = 0<br/>    for i in range(10):<br/>        print(i)<br/>        x += i<br/>    return x<br/><br/><br/>f()<br/>print(tf.autograph.to_code(f.python_function))</pre>
+<p>This produces <kbd>0,1,2, ..., 10</kbd> when <kbd>f</kbd> is called—does this happens every time <kbd>f</kbd> is invoked, or only the first time?</p>
+<p>You are invited to carefully read through the following AutoGraph-generated function (this is machine-generated, and so it is hard to read) in order to understand why <kbd>f</kbd> behaves in this way:</p>
+<pre>def tf__f():<br/>  try:<br/>    with ag__.function_scope('f'):<br/>      do_return = False<br/>      retval_ = None<br/>      x = 0<br/><br/>      def loop_body(loop_vars, x_1):<br/>        with ag__.function_scope('loop_body'):<br/>          i = loop_vars<br/>          with ag__.utils.control_dependency_on_returns(ag__.print_(i)):<br/>            x, i_1 = ag__.utils.alias_tensors(x_1, i)<br/>            x += i_1<br/>            return x,<br/>      x, = ag__.for_stmt(ag__.range_(10), None, loop_body, (x,))<br/>      do_return = True<br/>      retval_ = x<br/>      return retval_<br/>  except:<br/>    ag__.rewrite_graph_construction_error(ag_source_map__)</pre>
+<p>Migrating an old codebase from Tensorfow 1.x to 2.0 can be a time-consuming process. This is why the TensorFlow authors created a conversion tool that allows us to automatically migrate the source code (it even works on Python notebooks!).</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Codebase migration</h1>
+                </header>
+            
+            <article>
+                
+<p>As we have already seen, TensorFlow 2.0 brings a lot of breaking changes, which means that we have to relearn how to use the framework. TensorFlow 1.x is the most widely used machine learning framework and so there is a lot of existing code that needs to be upgraded.</p>
+<p>The TensorFlow engineers developed a conversion tool that can help in the conversion process: unfortunately, it relies on the <kbd>tf.compat.v1</kbd> module, and it does not remove the graph nor the session execution. Instead, it just rewrites the code, prefixing it using <kbd>tf.compat.v1</kbd>, and applies some source code transformations to fix some easy API changes.</p>
+<p>However, it is a good starting point to migrate a whole codebase. In fact, the suggested migration process is as follows:</p>
+<ol>
+<li>Run the migration script.</li>
+<li>Manually remove every <kbd>tf.contrib</kbd> symbol, looking for the new location of the project that was used in the <kbd>contrib</kbd> namespace.</li>
+</ol>
+<p class="mce-root"/>
+<ol start="3">
+<li>Manually switch the models to their Keras equivalent. Remove the sessions.</li>
+<li>Define the training loop in eager execution mode.</li>
+<li>Accelerate the computationally-intensive parts using <kbd>tf.function</kbd>.</li>
+</ol>
+<p>The migration tool, <kbd>tf_upgrade_v2</kbd>, is installed automatically when TensorFlow 2.0 is installed via <kbd>pip</kbd>. The upgrade script works on single Python files, notebooks, or complete project directories.</p>
+<p>To migrate a single Python file (or notebook), use the following code:</p>
+<pre>tf_upgrade_v2 --infile file.py --outfile file-migrated.py</pre>
+<p>To run it on a directory tree, use the following code:</p>
+<pre>tf_upgrade_v2 --intree project --outtree project-migrated</pre>
+<p>In both cases, the script will print errors if it cannot find a fix for the input code.</p>
+<p>Moreover, it always reports a list of detailed changes in the <kbd>report.txt</kbd> file, which can help us understand why certain changes have been applied by the tool; for example:</p>
+<pre>Added keyword 'input' to reordered function 'tf.argmax'<br/>Renamed keyword argument from 'dimension' to 'axis'<br/><br/>    Old: tf.argmax([[1, 2, 2]], dimension=0))<br/>                                        ~~~~~~~~~~<br/>    New: tf.argmax(input=[[1, 2, 2]], axis=0))</pre>
+<p>Migrating the codebase, even using the conversion tool, is a time-consuming process since most of the work is manual. Converting a codebase into TensorFlow 2.0 is worth it since it brings many advantages, such as the following:</p>
+<ul>
+<li>Easy debugging.</li>
+<li>Increased code quality using an object-oriented approach.</li>
+<li>Fewer lines of code to maintain.</li>
+<li>Easy to document.</li>
+<li>Future-proof—TensorFlow 2.0 follows the Keras standard and the standard will last the test of time.</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>In this chapter, all the major changes that were introduced in TensorFlow 2.0 have been presented, including the standardization of the framework on the Keras API specification, the way models are defined using Keras, and how to train them using a custom training loop. We even looked at graph acceleration, which was introduced by AutoGraph, and <kbd>tf.function</kbd>.</p>
+<p>AutoGraph, in particular, still requires us to know how the TensorFlow graph architecture works since the Python function that's defined and used in eager mode needs to be re-engineered if there is the need to graph-accelerate them.</p>
+<p>The new API is more modular, object-oriented, and standardized; these groundbreaking changes have been made to make the usage of the framework easier and more natural, although the subtleties from the graph architecture are still present and always will be.</p>
+<p>Those of you who have years of experience working with TensorFlow 1.0 may find it really difficult to change your way of thinking to the new object-based and no more graph- and session-based approach; however, it is a struggle that's worth it since the overall quality of the written software increases.</p>
+<p>In the next chapter, we will learn about efficient data input pipelines and the Estimator API.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Exercises</h1>
+                </header>
+            
+            <article>
+                
+<p><span>Please go through the following exercises and answer all questions carefully. This is the only way (by making exercises, via trial and error, and with a lot of struggle) you will be able to master the framework and become an expert:</span></p>
+<ol>
+<li>Define a classifier using the Sequential, Functional, and Subclassing APIs so that you can classify the fashion-MNIST dataset.</li>
+<li>Train the model using the Keras model's built-in methods and measure the prediction accuracy.</li>
+<li>Write a class that accepts a Keras model in its constructor and that it trains and evaluates.<br/>
+The API should work as follows:</li>
+</ol>
+<pre style="padding-left: 60px"># Define your model<br/>trainer = Trainer(model)<br/># Get features and labels as numpy arrays (explore the dataset available in the keras module)<br/>trainer.train(features, labels)<br/># measure the accuracy<br/>trainer.evaluate(test_features, test_labels)</pre>
+<ol start="4">
+<li>Accelerate the training method using the <kbd>@tf.function</kbd> annotation. Create a private method called <kbd>_train_step</kbd> to accelerate only the most computationally-intensive part of the training loop.<br/>
+Run the training and measure the performance boost in milliseconds.</li>
+<li>Define a Keras model with multiple (2) inputs and multiple (2) outputs.<br/>
+The model must accept a grayscale 28 x 28 x 1 image as input, as well as a second grayscale image that's 28 x 28 x 1 in size. The first layer should be a concatenation on the depth of these two images (28 x 28 x 1).<br/>
+The architecture should be an autoencoder-like structure of convolutions that will reduce the input to a vector of 1 x 1 x 128 first, and then in its decoding part will upsample (using the <kbd>tf.keras.layer.UpSampling2D</kbd> layer) the layers until it gets back to 28 x 28 x D, where D is the depth of your choice.<br/>
+Then, two unary convolutional layers should be added on top of this last layer, each of them producing a 28 x 28 x 1 image.</li>
+<li>
+<p>Define a training loop using the fashion-MNIST dataset that generates <kbd>(image, condition)</kbd> pairs, where <kbd>condition</kbd> is a 28 x 28 x 1 image completely white if the label associated with <span><kbd>image</kbd></span> is 6; otherwise, it needs to be a black image.<br/>
+Before feeding the network, scale the input images in the <kbd>[-1, 1]</kbd> range.<br/>
+Train the network using the sum of two losses. The first loss is the L2 between the first input and the first output of the network. The second loss is the L1 between the <kbd>condition</kbd> and the second output.<br/>
+Measure the L1 reconstruction error on the first pair during the training. Stop the training when the value is less than 0.5.</p>
+</li>
+<li>Use the TensorFlow conversion tool to convert all the scripts in order to solve the exercises that were presented in <a href="f62be9d4-c8e0-4590-8299-2fdad139830f.xhtml">Chapter 3</a>, <em>TensorFlow Graph Architecture</em>.</li>
+<li>Analyze the result of the conversion: does it uses Keras? If not, manually migrate the models by getting rid of every <kbd>tf.compat.v1</kbd> reference. Is this always possible?</li>
+<li>Pick a training loop you wrote for one of the preceding exercises: the gradients can be manipulated before applying the updates. Constraints should be the norm of the gradients and in the range of [-1, 1] before the updates are applied. Use the TensorFlow primitives to do that: it should be compatible with <kbd>@tf.function</kbd>.</li>
+</ol>
+<ol start="10">
+<li>Does the following function produce any output if it's decorated with <kbd>@tf.function</kbd>? Describe what happens under the hood:</li>
+</ol>
+<pre style="padding-left: 60px">def output():<br/>    for i in range(10):<br/>        tf.print(i)</pre>
+<ol start="11">
+<li><span>Does the following function produce any output if it's decorated with </span><kbd>@tf.function</kbd><span>? Describe what happens under the hood:</span></li>
+</ol>
+<pre style="padding-left: 60px">def output():<br/>    for i in tf.range(10):<br/>        print(i)</pre>
+<ol start="12">
+<li><span>Does the following function produce any output if it's decorated with </span><kbd>@tf.function</kbd><span>? Describe what happens under the hood:</span></li>
+</ol>
+<p> </p>
+<pre style="padding-left: 60px">def output():<br/>    for i in tf.range(10):<br/>        tf.print(f"{i}", i)<br/>        print(f"{i}", i)</pre>
+<ol start="13">
+<li>Given <img class="fm-editor-equation" src="assets/439eb476-406c-4946-93df-996c26702aad.png" style="width:12.58em;height:2.83em;"/>, compute the first and second-order partial derivatives using <kbd>tf.GradientTape</kbd> in <img class="fm-editor-equation" src="assets/1b1e52b5-6cb9-4b6d-9049-3ae39657a945.png" style="width:2.50em;height:0.83em;"/> and <img class="fm-editor-equation" src="assets/f976628f-3388-4ab6-b144-e94851e5648c.png" style="width:2.17em;height:0.92em;"/>.</li>
+<li>Remove the side effects from the example that fails to execute in the <em>No more globals</em> section and use the constant instead of the variable.</li>
+<li>Extend the custom training loop defined in the <em>Custom training loop</em> section in order to measure the accuracy of the whole training set, of the whole validation set, and at the end of each training epoch. Then, perform model selection using two <kbd>tf.train.CheckpointManager</kbd> objects.<br/>
+If the validation accuracy stops increasing (with a variation of +/-0.2 at most) for 5 epochs, stop the training.</li>
+</ol>
+<ol start="16">
+<li>In the following training functions, has the <kbd>step</kbd> variable been converted into a <kbd>tf.Variable</kbd> object? If not, what are the cons of this?</li>
+</ol>
+<p> </p>
+<pre style="padding-left: 60px">@tf.function<br/>def train(model, optimizer):<br/>  train_ds = mnist_dataset()<br/>  step = 0<br/>  loss = 0.0<br/>  accuracy = 0.0<br/>  for x, y in train_ds:<br/>    step += 1<br/>    loss = train_one_step(model, optimizer, x, y)<br/>    if tf.equal(step % 10, 0):<br/>      tf.print('Step', step, ': loss', loss, '; accuracy', compute_accuracy.result())<br/>  return step, loss, accuracy</pre>
+<p class="mce-root">Keep working on all of these exercises throughout this book.</p>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

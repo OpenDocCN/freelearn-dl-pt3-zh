@@ -1,0 +1,506 @@
+<html><head></head><body>
+<div id="sbo-rt-content"><div id="_idContainer203">
+<h1 class="chapter-number" id="_idParaDest-226"><a id="_idTextAnchor318"/>13</h1>
+<h1 id="_idParaDest-227"><a id="_idTextAnchor319"/>Time Series, Sequences, and Prediction with TensorFlow</h1>
+<p>Welcome to the final chapter in our journey with TensorFlow. In the last chapter, we closed on a high by applying neural networks such as DNNs to forecast time series data effectively. In this chapter, we will be exploring an array of advanced ideas, such as integrating learning rate schedulers into our workflow to dynamically adapt our learning rate and accelerate the process of model training. In previous chapters, we emphasized the need for and importance of finding the optimal learning rate. When building models with learning rate schedulers, we can achieve this in a dynamic way either using inbuilt learning rate schedulers in TensorFlow or by crafting our own custom-made learning <span class="No-Break">rate scheduler.</span></p>
+<p>Next, we will discuss Lambda layers and how these arbitrary layers can be applied in our model architecture to enhance quick experimentation, enabling us to embed custom functions seamlessly into our model’s architecture, especially when working with LSTMs and RNNs. We will switch over from building time series models with DNNs to more complex architectures such as CNNs, RNNs, LSTMs, and CNN-LSTM networks. We will apply these networks to our sales dataset case study. To conclude this chapter, we will extract Apple stock closing price data from Yahoo Finance and apply these models to build a forecasting model to predict future <span class="No-Break">stock prices.</span></p>
+<p>In this chapter, we will be covering the <span class="No-Break">following topics:</span></p>
+<ul>
+<li>Understanding and applying learning <span class="No-Break">rate schedulers</span></li>
+<li>Utilizing Lambda layers <span class="No-Break">in TensorFlow</span></li>
+<li>Employing RNNs, LSTMs, and CNNs for time <span class="No-Break">series forecasting</span></li>
+<li>Apple stock price prediction using <span class="No-Break">neural networks</span></li>
+</ul>
+<p>By the end of this chapter, you will have a deeper understanding of time series forecasting with TensorFlow, along with hands-on experience in applying different techniques in building time series forecasting models for real-world projects. Let’s <span class="No-Break">get started.</span></p>
+<h1 id="_idParaDest-228"><a id="_idTextAnchor320"/>Understanding and applying learning rate schedulers</h1>
+<p>In <a href="B18118_12.xhtml#_idTextAnchor291"><span class="No-Break"><em class="italic">Chapter 12</em></span></a>, <em class="italic">Introduction to Time Series, Sequences,</em> and Predictions. we built a DNN that <a id="_idIndexMarker780"/>achieved <a id="_idIndexMarker781"/>a <strong class="bold">mean absolute error</strong> (<strong class="bold">MAE</strong>) of 4.5. While this result was much better than our basic statistical methods, our next line of thought was how we could improve the performance of our DNN. One way of doing this is by finding the optimal learning rate. In <a href="B18118_07.xhtml#_idTextAnchor146"><span class="No-Break"><em class="italic">Chapter 7</em></span></a>, <em class="italic">Image Classification with Convolutional Neural Networks,</em> we discussed the important role of the learning rate in our modeling process as it controls the optimization process. Manually updating the learning rate can be a laborious process as the challenge lies in pinpointing what value works best. To have better control over the learning process, we apply a learning rate scheduler that adapts the learning rates based on defined criteria such as the number of epochs. With the aid of a <strong class="source-inline">LearningRateScheduler</strong> callback from TensorFlow, we can dynamically adjust the learning rate during training using some built-in techniques. Let us examine some built-in learning <span class="No-Break">rate schedulers<a id="_idTextAnchor321"/>:</span></p>
+<ul>
+<li><strong class="source-inline">ExponentialDecay</strong>: This starts with a specified learning rate and decreases exponentially after a certain number <span class="No-Break">of steps.</span></li>
+<li><strong class="source-inline">PiecewiseConstantDecay</strong>: This provides a piecewise constant learning rate, where you specify boundaries and learning rates to divide the training process into several stages with different <span class="No-Break">learning rates.</span></li>
+<li><strong class="source-inline">PolynomialDecay</strong>: This learning rate is a function of the iteration number in this schedule. It starts with the initial learning rate and decreases it to the end learning rate as per the polynomial <span class="No-Break">function specified.</span></li>
+</ul>
+<p>Let’s add a learning rate scheduler to the feedforward network we used in <a href="B18118_12.xhtml#_idTextAnchor291"><span class="No-Break"><em class="italic">Chapter 12</em></span></a><em class="italic">, Introduction to Time Series, Sequences, and Predictions</em>. We are using the same sales data, but this time we will be applying different learning rate schedulers to improve our model’s performance. <span class="No-Break">Let’s begin:</span></p>
+<ol>
+<li>We begin by importing the libraries for <span class="No-Break">this project:</span><pre class="source-code">
+import numpy as np</pre><pre class="source-code">
+import matplotlib.pyplot as plt</pre><pre class="source-code">
+import tensorflow as tf</pre><pre class="source-code">
+from tensorflow import keras</pre></li>
+<li>Next, let us load <span class="No-Break">our dataset:</span><pre class="source-code">
+#CSV sales data</pre><pre class="source-code">
+url = 'https://raw.githubusercontent.com/oluwole-packt/datasets/main/sales_data.csv'</pre><pre class="source-code">
+# Load the CSV data into a pandas DataFrame</pre><pre class="source-code">
+df = pd.read_csv(url)</pre><p class="list-inset">We load the sales data from the GitHub repo for this book and put the CSV data into <span class="No-Break">a DataFrame.</span></p></li>
+<li>Now, we convert<a id="_idIndexMarker782"/> the <strong class="source-inline">Date</strong> column into datetime and make it <span class="No-Break">the index:</span><pre class="source-code">
+df['Date'] = pd.to_datetime(df['Date'])</pre><pre class="source-code">
+df.set_index('Date', inplace=True)</pre><p class="list-inset">The first line of code converts the date column into a datetime format. We do this to easily perform time series operations. Next, we change the date column by setting it as the index of our DataFrame. This makes it easier to slice and dice our data <span class="No-Break">using dates.</span></p></li>
+<li> Let’s extract the sales values from <span class="No-Break">the DataFrame:</span><pre class="source-code">
+data = df['Sales'].values</pre><p class="list-inset">Here, we are extracting the sales values from our sales DataFrame and converting them into a NumPy array. We will use this NumPy array to create our sliding <span class="No-Break">window data.</span></p></li>
+<li>Next, we’ll create a <span class="No-Break">sliding window:</span><pre class="source-code">
+window_size = 20</pre><pre class="source-code">
+X, y = [], []</pre><pre class="source-code">
+for i in range(window_size, len(data)):</pre><pre class="source-code">
+    X.append(data[i-window_size:i])</pre><pre class="source-code">
+    y.append(data[i])</pre><p class="list-inset">Just as we did in <a href="B18118_12.xhtml#_idTextAnchor291"><span class="No-Break"><em class="italic">Chapter 12</em></span></a>, <em class="italic">Introduction to Time Series, Sequences, and Predictions,</em> we are using the sliding window technique to convert our time series into a supervised learning problem made up of features and labels. Here, the window size of 20 serves as our <strong class="source-inline">X</strong> feature, which contains 20 consecutive sales values, and our <strong class="source-inline">y</strong> is the next immediate value after those first 20 sales values. Here, we use the first 20 values to predict the <span class="No-Break">next value.</span></p></li>
+<li>Now, let’s split <a id="_idIndexMarker783"/>our data into training and <span class="No-Break">validation sets:</span><pre class="source-code">
+X = np.array(X)</pre><pre class="source-code">
+y = np.array(y)</pre><pre class="source-code">
+train_size = int(len(X) * 0.8)</pre><pre class="source-code">
+X_train, X_val = X[:train_size], X[train_size:]</pre><pre class="source-code">
+y_train, y_val = y[:train_size], y[train_size:]</pre><p class="list-inset">We convert our data into NumPy array and split our data into training and validation sets. We use 80 percent of our data for training and 20 percent of our data for the validation set that we will use to evaluate <span class="No-Break">our model.</span></p></li>
+<li>Our next goal is to build out a TensorFlow dataset, which is a more efficient format for training models <span class="No-Break">in TensorFlow:</span><pre class="source-code">
+batch_size = 128</pre><pre class="source-code">
+buffer_size = 10000</pre><pre class="source-code">
+train_data = tf.data.Dataset.from_tensor_slices(</pre><pre class="source-code">
+    (X_train, y_train))</pre><pre class="source-code">
+train_data = train_data.cache().shuffle(</pre><pre class="source-code">
+    buffer_size).batch(batch_size).prefetch(</pre><pre class="source-code">
+    tf.data.experimental.AUTOTUNE)</pre><p class="list-inset">We apply the <strong class="source-inline">from_tensor_slices()</strong> method to make a dataset from the NumPy arrays. After this, we use the <strong class="source-inline">cache()</strong> method to speed up training by caching our dataset in memory. We apply the <strong class="source-inline">shuffle(buffer_size)</strong> method to randomly shuffle our training data to prevent issues such as sequential bias. Then we use the <strong class="source-inline">batch(batch_size)</strong> method to split our data into batches of a specified size; in this case, batches of 128 are fed into our model during training. Next, we use the <strong class="source-inline">prefetch</strong> method to ensure our GPU/CPU will always have data ready for processing, reducing the waiting time between the processing of one batch and the next. We pass in the <strong class="source-inline">tf.data.experimental.AUTOTUNE</strong> argument to tell TensorFlow to automatically determine the optimal number of batches to prefetch. This makes our training process smoother <span class="No-Break">and faster.</span></p></li>
+</ol>
+<p>Our data is now ready for modeling. Let us explore using this data with in-built learning rate schedulers from <a id="_idIndexMarker784"/>TensorFlow, after which we will look at how to find the optimal learning rate with a custom learning <span class="No-Break">rate scheduler.</span></p>
+<h2 id="_idParaDest-229"><a id="_idTextAnchor322"/>In-built learning rate schedulers</h2>
+<p>We will be using the<a id="_idIndexMarker785"/> same model as we did in <a href="B18118_12.xhtml#_idTextAnchor291"><span class="No-Break"><em class="italic">Chapter 12</em></span></a><em class="italic">, Introduction to Time Series, Sequences, and Predictions</em>. Let’s define our model and explore the inbuilt learning <span class="No-Break">rate schedulers:</span></p>
+<ol>
+<li>We’ll start with the <span class="No-Break">model definition:</span><pre class="source-code">
+# Model</pre><pre class="source-code">
+model = Sequential()</pre><pre class="source-code">
+model.add(Dense(10, activation='relu',</pre><pre class="source-code">
+    input_shape=(window_size,)))</pre><pre class="source-code">
+model.add(Dense(10, activation='relu'))</pre><pre class="source-code">
+model.add(Dense(1))</pre><p class="list-inset">Here, we are using three <span class="No-Break">dense layers.</span></p></li>
+<li>Next, we’ll use the exponential decay learning <span class="No-Break">rate scheduler:</span><pre class="source-code">
+# ExponentialDecay</pre><pre class="source-code">
+lr_exp = tf.keras.optimizers.schedules.ExponentialDecay(</pre><pre class="source-code">
+    initial_learning_rate=0.1,</pre><pre class="source-code">
+    decay_steps=100, decay_rate=0.96)</pre><pre class="source-code">
+optimizer = tf.keras.optimizers.Adam(</pre><pre class="source-code">
+    learning_rate=lr_exp)</pre><pre class="source-code">
+model.compile(optimizer=optimizer, loss='mse')</pre><pre class="source-code">
+history_exp = model.fit(X_train, y_train, epochs=100)</pre><p class="list-inset">The exponential decay learning rate scheduler sets up a learning rate that decays exponentially over time. In this experiment, the initial learning rate is set to <strong class="source-inline">0.1</strong>. This learning rate will undergo an exponential decay at a rate of 0.96 for every 100 steps, as defined by the <strong class="source-inline">decay_steps</strong> parameter. Next, we assign our exponential learning <a id="_idIndexMarker786"/>rate to our optimizer and compile the model. After this, we fit the model for <span class="No-Break">100 epochs.</span></p></li>
+<li>Next, we’ll evaluate the performance of the model using the MAE and <strong class="bold">mean squared error</strong> (<strong class="bold">MSE</strong>) and plot the validation forecast against the <span class="No-Break">true values:</span><pre class="source-code">
+# Evaluation</pre><pre class="source-code">
+forecast_exp = model.predict(X_val)</pre><pre class="source-code">
+mae_exp = mean_absolute_error(y_val, forecast_exp)</pre><pre class="source-code">
+mse_exp = mean_squared_error(y_val, forecast_exp)</pre><pre class="source-code">
+# Plot</pre><pre class="source-code">
+plt.plot(forecast_exp,</pre><pre class="source-code">
+    label='Exponential Decay Predicted')</pre><pre class="source-code">
+plt.plot(y_val, label='Actual')</pre><pre class="source-code">
+plt.title('Exponential Decay LR')</pre><pre class="source-code">
+plt.legend()</pre><pre class="source-code">
+plt.show()</pre><p class="list-inset">This will generate the <span class="No-Break">following output:</span></p></li>
+</ol>
+<div>
+<div class="IMG---Figure" id="_idContainer195">
+<img alt="Figure 13.1 – True forecast versus the validation forecast using exponential decay (zoomed in)" height="425" src="image/B18118_13_001.jpg" width="541"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 13.1 – True forecast versus the validation forecast using exponential decay (zoomed in)</p>
+<p class="list-inset">When we run the<a id="_idIndexMarker787"/> code block, we get an MAE of around 5.31 and an MSE of 43.18, and from the zoomed-in plot in <span class="No-Break"><em class="italic">Figure 13</em></span><em class="italic">.1</em>, we see our model is following the actual sales validation data closely. However, the result is no better than what we achieved in <a href="B18118_12.xhtml#_idTextAnchor291"><span class="No-Break"><em class="italic">Chapter 12</em></span></a><em class="italic">, Introduction to Time Series, Sequences, and Predictions</em>. Next, let us experiment <span class="No-Break">with </span><span class="No-Break"><strong class="source-inline">PiecewiseConstantDecay</strong></span><span class="No-Break">.</span></p>
+<ol>
+<li value="4">Let’s use the <strong class="source-inline">PiecewiseConstantDecay</strong> learning <span class="No-Break">rate scheduler:</span><pre class="source-code">
+# PiecewiseConstantDecay</pre><pre class="source-code">
+lr_piecewise = tf.keras.optimizers.schedules.PiecewiseConstantDecay(</pre><pre class="source-code">
+    [30, 60], [0.1, 0.01, 0.001])</pre><pre class="source-code">
+optimizer = tf.keras.optimizers.Adam(</pre><pre class="source-code">
+    learning_rate=lr_piecewise)</pre><pre class="source-code">
+model.compile(optimizer=optimizer, loss='mse')</pre><pre class="source-code">
+history_piecewise = model.fit(X_train, y_train,</pre><pre class="source-code">
+    epochs=100)</pre><p class="list-inset">The <strong class="source-inline">PiecewiseConstantDecay</strong> learning rate scheduler allows us the flexibility to define specific learning rates for different periods during training. In our case, we specified 30 and 60 steps as our boundaries; this means that for the first 30 steps, we<a id="_idIndexMarker788"/> apply a learning rate of <strong class="source-inline">0.1</strong>, from 30 to 60, we apply a learning rate of <strong class="source-inline">0.01</strong>, and from 61 to the end of training, we apply a learning rate of <strong class="source-inline">0.001</strong>. To <strong class="source-inline">PiecewiseConstantDecay</strong>, the number of learning rates should be one more than the number of boundaries applied. For example, in our case, we have two boundaries (<strong class="source-inline">[30, 60]</strong>) and three learning rates (<strong class="source-inline">[0.1, 0.01, 0.001]</strong>). Once we set up the scheduler, we use the same optimizer and compile and fit the model as we did with the exponential decay learning rate scheduler. Then, we evaluate the performance of the model and generate the following <span class="No-Break">validation plot:</span></p></li>
+</ol>
+<div>
+<div class="IMG---Figure" id="_idContainer196">
+<img alt="Figure 13.2 – True forecast versus the validation forecast using exponential decay" height="429" src="image/B18118_13_002.jpg" width="544"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 13.2 – True forecast versus the validation forecast using exponential decay</p>
+<p class="list-inset">In this experiment, we<a id="_idIndexMarker789"/> achieved an MAE of 4.87 and an MSE of 36.97. This is an improved performance. Again, the forecast in <span class="No-Break"><em class="italic">Figure 13</em></span><em class="italic">.2</em> nicely follows the true values. Let us zoom in for <span class="No-Break">clarity’s sake.</span></p>
+<div>
+<div class="IMG---Figure" id="_idContainer197">
+<img alt="Figure 13.3 – Zoomed-in plots for our first two experiments" height="389" src="image/B18118_13_003.jpg" width="1310"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 13.3 – Zoomed-in plots for our first two experiments</p>
+<p class="list-inset">You can see from <span class="No-Break"><em class="italic">Figure 13</em></span><em class="italic">.3</em>, in which we zoomed into the first 200 days, when we applied <a id="_idIndexMarker790"/>polynomial decay, the forecasted plot maps better to the true values in comparison to when we used exponential decay for our learning <span class="No-Break">rate scheduler.</span></p>
+<ol>
+<li value="5">Let’s now <span class="No-Break">apply </span><span class="No-Break"><strong class="source-inline">PolynomialDecay</strong></span><span class="No-Break">:</span><pre class="source-code">
+# PolynomialDecay</pre><pre class="source-code">
+lr_poly = tf.keras.optimizers.schedules.PolynomialDecay(</pre><pre class="source-code">
+initial_learning_rate=0.1,</pre><pre class="source-code">
+    decay_steps=100,</pre><pre class="source-code">
+    end_learning_rate=0.01,</pre><pre class="source-code">
+    power=1.0)</pre><p class="list-inset">In this experiment, we set <strong class="source-inline">initial_learning_rate</strong> to <strong class="source-inline">0.1</strong>; this serves as our starting learning rate. We set the <strong class="source-inline">decay_steps</strong> parameter to <strong class="source-inline">100</strong>, indicating that the learning rate will decay over these 100 steps. Next, we set our <strong class="source-inline">end_learning_rate</strong> to <strong class="source-inline">0.01</strong>; this means that by the conclusion of our <strong class="source-inline">decay_steps</strong>, the learning rate will have reduced to this value. The <strong class="source-inline">power</strong> parameter controls the exponent to which the step decay is raised. In this experiment, we set the <strong class="source-inline">power</strong> value to <strong class="source-inline">1.0</strong>, resulting in <span class="No-Break">linear decay.</span></p><p class="list-inset">When we evaluate the model’s performance, we see that we achieved our best result so far with an MAE of 4.72 and an MSE of 34.49. From <span class="No-Break"><em class="italic">Figure 13</em></span><em class="italic">.4</em>, we can see that it also <a id="_idIndexMarker791"/>closely follows the data, even more accurately than when we <span class="No-Break">used </span><span class="No-Break"><strong class="source-inline">PiecewiseConstantDecay</strong></span><span class="No-Break">.</span></p></li>
+</ol>
+<div>
+<div class="IMG---Figure" id="_idContainer198">
+<img alt="Figure 13.4 – True forecast versus the validation forecast using PolynomialDecay (zoomed in)" height="559" src="image/B18118_13_004.jpg" width="971"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 13.4 – True forecast versus the validation forecast using PolynomialDecay (zoomed in)</p>
+<p>Now that you have a good idea of how to apply these learning rate schedulers, it is a good idea to tweak the values and see whether you can achieve a much lower MAE and MSE. When you are done, let’s look at a custom learning <span class="No-Break">rate scheduler.</span></p>
+<p>By simply tweaking the learning rate, we can see our <strong class="source-inline">PiecewiseConstantDecay</strong> learning rate scheduler won this battle, not only with the other learning rates but also, it outperforms the simple DNN model with the same architecture that we used in <a href="B18118_12.xhtml#_idTextAnchor291"><span class="No-Break"><em class="italic">Chapter 12</em></span></a><em class="italic">, Introduction to Time Series, Sequences, and Predictions</em>. You can read more about the learning rate scheduler from the document <a href="https://www.tensorflow.org/api_docs/python/tf/keras/callbacks/LearningRateScheduler">https://www.tensorflow.org/api_docs/python/tf/keras/callbacks/LearningRateScheduler</a> or using this excellent Medium article <a href="https://rmoklesur.medium.com/learning-rate-scheduler-in-keras-cc83d2f022a6">https://rmoklesur.medium.com/learning-rate-scheduler-in-keras-cc83d2f022a6</a> by<a id="_idIndexMarker792"/> <span class="No-Break">Moklesur Rahman.</span></p>
+<h2 id="_idParaDest-230"><a id="_idTextAnchor323"/>Custom learning rate scheduler</h2>
+<p>Beyond using<a id="_idIndexMarker793"/> built-in learning rate schedulers, TensorFlow provides us with an easy way to build a custom learning rate scheduler to help us find the optimal learning rate. Let’s do <span class="No-Break">this next:</span></p>
+<ol>
+<li>Let’s start by defining the custom learning <span class="No-Break">rate scheduler:</span><pre class="source-code">
+# Define learning rate schedule</pre><pre class="source-code">
+lr_schedule = tf.keras.callbacks.LearningRateScheduler(</pre><pre class="source-code">
+    lambda epoch: 1e-7 * 10**(epoch / 10))</pre><p class="list-inset">Here, we start with a small learning rate (1×10<span class="superscript">−7</span>) and we increase this learning rate exponentially with each passing epoch. We use <strong class="source-inline">10**(epoch / 10)</strong> to determine the rate at which the learning <span class="No-Break">rate increases.</span></p></li>
+<li>We define the optimizer with the initial <span class="No-Break">learning rate:</span><pre class="source-code">
+# Define optimizer with initial learning rate</pre><pre class="source-code">
+optimizer = tf.keras.optimizers.SGD(</pre><pre class="source-code">
+    learning_rate=1e-7, momentum=0.9)</pre><p class="list-inset">Here, we used an SGD with a starting learning rate of 1×10<span class="superscript">−7</span> and a momentum of <strong class="source-inline">0.9</strong>. Momentum helps accelerate the optimizer in the right direction and also <span class="No-Break">dampens oscillations.</span></p></li>
+<li>Next, we compile the model with the defined optimizer and set our loss <span class="No-Break">as MSE:</span><pre class="source-code">
+model.compile(optimizer=optimizer, loss='mse')</pre></li>
+<li>Now, we train <span class="No-Break">the model:</span><pre class="source-code">
+history = model.fit(train_data, epochs=200,</pre><pre class="source-code">
+    callbacks=[lr_schedule], verbose=0)</pre><p class="list-inset">We train the model for 200 epochs and then pass the learning rate scheduler as a callback. This way, the learning rate is adjusted based on the customization when defining our custom learning rate scheduler. We also set <strong class="source-inline">verbose=0</strong> so we don’t print the <span class="No-Break">training process.</span></p></li>
+<li>Calculate the learning rates for <span class="No-Break">each epoch:</span><pre class="source-code">
+lrs = 1e-7 * (10 ** (np.arange(200) / 10))</pre><p class="list-inset">We use this code to calculate the learning rate per epoch and it gives us an array of <span class="No-Break">learning rates.</span></p></li>
+<li>We plot the <a id="_idIndexMarker794"/>model loss against the <span class="No-Break">learning rate:</span><pre class="source-code">
+plt.semilogx(lrs, history.history["loss"])</pre><pre class="source-code">
+plt.axis([1e-7, 1e-3, 0, 300])</pre><pre class="source-code">
+plt.xlabel('Learning Rate')</pre><pre class="source-code">
+plt.ylabel('Loss')</pre><pre class="source-code">
+plt.title('Learning Rate vs Loss')</pre><pre class="source-code">
+plt.show()</pre><p class="list-inset">This plot is an effective way of selecting the optimal <span class="No-Break">learning rate.</span></p></li>
+</ol>
+<div>
+<div class="IMG---Figure" id="_idContainer199">
+<img alt="Figure 13.5 – The learning rate loss curve" height="447" src="image/B18118_13_005.jpg" width="574"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 13.5 – The learning rate loss curve</p>
+<p>To find the optimal learning rate, we are on the lookout for where the loss is decreasing most rapidly before it begins to increase again. From the plot, we can see the learning rate falls and settles at around 3x10<span class="superscript">-5,</span> after which it begins to rise again. So, we will pick this value as our ideal learning rate for this experiment. Now we will retrain our model using this new learning rate as our fixed learning rate. When we run the code, we get an MAE of 5.96 and <a id="_idIndexMarker795"/>an MSE <span class="No-Break">of 55.08.</span></p>
+<p>We have now seen how to use both in-built learning rate schedulers and custom schedulers. Let us now switch our attention to using CNNs for time <span class="No-Break">series forecasting.</span></p>
+<h1 id="_idParaDest-231"><a id="_idTextAnchor324"/>CNNs for time series forecasting</h1>
+<p>CNNs have recorded <a id="_idIndexMarker796"/>remarkable success in image<a id="_idIndexMarker797"/> classification tasks due to their ability to detect localized patterns within grid-like data structures. This idea can also be applied to time series forecasting. By viewing a time series as a sequence of temporal intervals, CNNs can extract and recognize patterns that are predictive of future trends. Another important strength of CNNs is their translation-invariant nature. This means once they learn a pattern in one segment, the network is well equipped to recognize it everywhere else it occurs within the series. This comes in handy in detecting reoccurring patterns across <span class="No-Break">time steps.</span></p>
+<p>The setup of a CNN also helps to automatically reduce the dimensionality of our input data with the aid of the pooling layers. Hence, the convolution and pooling operations in a CNN transform the input series into a streamlined form that captures the core features while ensuring computational efficiency. Unlike with images, here we use a 1D convolutional filter because of the nature of time series data (singular dimension). This filter slides across the time dimension, observing localized windows of values as input. It detects informative patterns within these intervals through repeated element-wise multiplications and summations between its weights and the <span class="No-Break">input windows.</span></p>
+<p>Multiple filters are learned to extract diverse predictive signals – trends, seasonal fluctuations, cycles, and more. Similar to patterns within images, CNNs can recognize translated versions of these temporal motifs throughout the series. When we apply successive convolutional and pooling layers, the network composes these low-level features into higher-level representations, progressively condensing the series into its most salient components. Fully connected layers ultimately use these learned features to <span class="No-Break">make forecasts.</span></p>
+<p>Let us return to our<a id="_idIndexMarker798"/> notebooks and apply a 1D CNN in modeling <a id="_idIndexMarker799"/>our sales data. We already have our training and test data. Now, to model our data with a CNN, we need to carry out an extra step, which involves reshaping our data to meet the expected input shape a CNN expects. In <a href="B18118_07.xhtml#_idTextAnchor146"><span class="No-Break"><em class="italic">Chapter 7</em></span></a><em class="italic">, </em><em class="italic">Image Classification with Convolutional Neural Networks</em>, we saw how CNNs required 3D data in comparison to the 2D data we use when modeling with a DNN; the same <span class="No-Break">applies here.</span></p>
+<p>A CNN requires a batch size, a window size, and the number of features. The batch size is the first dimension of our input shape; it refers to the number of sequences we feed into the CNN. We set the window size value to <strong class="source-inline">20</strong>, and the number of features here refers to the number of distinct features at each time step. For a univariate time series, this value will be <strong class="source-inline">1</strong>; for a multivariate time series, the value will be <strong class="source-inline">2</strong> <span class="No-Break">or more.</span></p>
+<p>Since we are dealing with a univariate time series in our case study, our input shape needs to look like (<strong class="source-inline">128, </strong><span class="No-Break"><strong class="source-inline">20, 1</strong></span><span class="No-Break">):</span></p>
+<ol>
+<li>Let’s prepare our data for modeling with a CNN with the <span class="No-Break">right shape:</span><pre class="source-code">
+# Create sequences</pre><pre class="source-code">
+window_size = 20</pre><pre class="source-code">
+X = []</pre><pre class="source-code">
+y = []</pre><pre class="source-code">
+for i in range(window_size, len(data)):</pre><pre class="source-code">
+    X.append(data[i-window_size:i])</pre><pre class="source-code">
+    y.append(data[i])</pre><pre class="source-code">
+X = np.array(X)</pre><pre class="source-code">
+y = np.array(y)</pre><pre class="source-code">
+# Train/val split</pre><pre class="source-code">
+split = int(0.8 * len(X))</pre><pre class="source-code">
+X_train, X_val = X[:split], X[split:]</pre><pre class="source-code">
+y_train, y_val = y[:split], y[split:]</pre><pre class="source-code">
+# Reshape data</pre><pre class="source-code">
+X_train = X_train.reshape(-1, window_size, 1)</pre><pre class="source-code">
+X_val = X_val.reshape(-1, window_size, 1)</pre><pre class="source-code">
+# Set batch size and shuffle buffer</pre><pre class="source-code">
+batch_size = 128</pre><pre class="source-code">
+shuffle_buffer = 1000</pre><pre class="source-code">
+train_data = tf.data.Dataset.from_tensor_slices(</pre><pre class="source-code">
+    (X_train, y_train))</pre><pre class="source-code">
+train_data = train_data.shuffle(</pre><pre class="source-code">
+    shuffle_buffer).batch(batch_size)</pre><p class="list-inset">Most of the code in this code block is the same. The key step here is the <strong class="source-inline">reshape</strong> step, which we use to achieve the input shape required for <span class="No-Break">CNN modeling.</span></p></li>
+<li>Let’s <a id="_idIndexMarker800"/>build <a id="_idIndexMarker801"/><span class="No-Break">our model:</span><pre class="source-code">
+# Build model</pre><pre class="source-code">
+model = Sequential()</pre><pre class="source-code">
+model.add(Conv1D(filters=64, kernel_size=3,</pre><pre class="source-code">
+    strides=1,</pre><pre class="source-code">
+    padding='causal',</pre><pre class="source-code">
+    activation='relu',</pre><pre class="source-code">
+    input_shape=(window_size, 1)))</pre><pre class="source-code">
+model.add(MaxPooling1D(pool_size=2))</pre><pre class="source-code">
+model.add(Conv1D(filters=32, kernel_size=3,</pre><pre class="source-code">
+    strides=1,</pre><pre class="source-code">
+    padding='causal',</pre><pre class="source-code">
+    activation='relu'))</pre><pre class="source-code">
+model.add(MaxPooling1D(pool_size=2))</pre><pre class="source-code">
+model.add(Flatten())</pre><pre class="source-code">
+model.add(Dense(16, activation='relu'))</pre><pre class="source-code">
+model.add(Dense(1))</pre><p class="list-inset">In our model, we apply 1D convolutional layers due to the single-dimensional nature of time series data, unlike the 2D CNNs we employed for image classification, due to the 2D structure of images. Here, our model is made up of two 1D convolutional layers, each followed by a max pooling layer. In our first convolutional layer, we have 64 filters to learn various data patterns with a filter size of <strong class="source-inline">3</strong>, which allows it to recognize patterns spanning three time steps. We use a stride of <strong class="source-inline">1</strong>; this means that our filter traverses the data one step at a time, and to ensure nonlinearity, we use ReLU as our activation function. Notice that we are using a new type of padding, called causal padding. This choice is strategic as causal padding ensures that the model’s output for a particular time step is influenced only by that time step and its predecessors, never by future data. By adding padding to the start of the sequence, causal padding respects the natural temporal sequence of our data. This is essential to prevent our model from inadvertently “looking ahead,” ensuring forecasts rely solely on past and <span class="No-Break">current information.</span></p><p class="list-inset">We earlier <a id="_idIndexMarker802"/>outlined <a id="_idIndexMarker803"/>that we need 3D input-shaped data to be fed into our CNN model made up of the batch size, window size, and number of features. Here, we used <strong class="source-inline">input_shape=(window_size, 1)</strong>. We did not state the batch size in the input shape definition. This means the model can take batches of different sizes since we did not hardcode any batch size. Also, we only have one feature since we are dealing with a univariate time series, and that’s why we have specified <strong class="source-inline">1</strong> in the input shape along with the window size. The max pooling layer reduces the dimensionality of our data. Next, we reach the second convolutional layer; this time we use 32 filters, again with a kernel size of <strong class="source-inline">3</strong>, causal padding, and ReLU as the activation function. Next, the max pooling layer samples the data again. After this, the data is flattened and fed into the fully connected layers to make predictions based on the patterns learned from our <span class="No-Break">sales data.</span></p></li>
+<li>Let’s compile and fit the model for <span class="No-Break">100 epochs:</span><pre class="source-code">
+model.compile(loss='mse', optimizer='adam')</pre><pre class="source-code">
+# Train model</pre><pre class="source-code">
+model.fit(train_data, epochs=100)</pre></li>
+<li>Finally, let’s evaluate the performance of <span class="No-Break">our model:</span><pre class="source-code">
+# Make predictions</pre><pre class="source-code">
+preds = model.predict(X_val)</pre><pre class="source-code">
+# Calculate metrics</pre><pre class="source-code">
+mae = mean_absolute_error(y_val, preds)</pre><pre class="source-code">
+mse = mean_squared_error(y_val, preds)</pre><pre class="source-code">
+# Print metrics</pre><pre class="source-code">
+print('MAE: ', mae)</pre><pre class="source-code">
+print('MSE: ', mse)</pre><p class="list-inset">We evaluate the model on the validation set by generating the MAE and MSE. When we run<a id="_idIndexMarker804"/> the code, we achieve an MAE of 5.37 and <a id="_idIndexMarker805"/>an MSE of 44.28. Here, you have the opportunity to see whether you can achieve a much lower MAE by tweaking the number of filters, sizes of filters, and <span class="No-Break">so on.</span></p></li>
+</ol>
+<p>Next, let us see how we can use the RNN family in forecasting time <span class="No-Break">series data.</span></p>
+<h1 id="_idParaDest-232"><a id="_idTextAnchor325"/>RNNs in time series forecasting</h1>
+<p>Time series<a id="_idIndexMarker806"/> forecasting poses a unique challenge in the <a id="_idIndexMarker807"/>world of machine learning, involving the prediction of future values based on previously observed sequential data. An intuitive way of thinking about this is to consider a sequence of past data points. The question then becomes, given this sequence, how can we predict the next data point or sequence of data points? This is where RNNs demonstrate their efficacy. RNNs are a specific type of neural network developed to process sequential data. They maintain an internal state or “memory” that holds information about the elements of the sequence observed thus far. This internal state is updated at each step of the sequence, amalgamating information from the new input and the previous state. As an example, while predicting sales, an RNN may retain data regarding the sales trends from the previous months, the overall trend across the past year, and the seasonality effects, <span class="No-Break">among others.</span></p>
+<p>However, standard RNNs exhibit a significant limitation: the problem of “vanishing gradients.” This problem results in difficulty in maintaining and utilizing information from earlier steps in the sequence, especially as the sequence length increases. To overcome this hurdle, the deep learning community introduced advanced architectures. LSTMs and GRUs are specialized types of RNNs designed explicitly to counteract the vanishing gradient issue. These types of RNNs are capable of learning long-term dependencies due to their in-built gating mechanisms, which control the flow of information in and out of the <span class="No-Break">memory state.</span></p>
+<p>Thus, RNNs, LSTMs, and GRUs can be potent tools for time series forecasting because they inherently incorporate the temporal dynamics of the problem. For instance, while predicting sales, these models can factor in seasonal patterns, holidays, weekends, and more by maintaining information about previous sales periods, which could lead to more <span class="No-Break">accurate forecasts.</span></p>
+<p>Let’s put a<a id="_idIndexMarker808"/> simple RNN into action here and see how it will <a id="_idIndexMarker809"/>perform on <span class="No-Break">our dataset:</span></p>
+<ol>
+<li>Let’s start by preparing <span class="No-Break">our data:</span><pre class="source-code">
+# Create sequences</pre><pre class="source-code">
+seq_len = 20</pre><pre class="source-code">
+X = []</pre><pre class="source-code">
+y = []</pre><pre class="source-code">
+for i in range(seq_len, len(data)):</pre><pre class="source-code">
+    X.append(data[i-seq_len:i])</pre><pre class="source-code">
+    y.append(data[i])</pre><pre class="source-code">
+X = np.array(X)</pre><pre class="source-code">
+y = np.array(y)</pre><pre class="source-code">
+# Train/val split</pre><pre class="source-code">
+split = int(0.8*len(X))</pre><pre class="source-code">
+X_train, X_val = X[:split], X[split:]</pre><pre class="source-code">
+y_train, y_val = y[:split], y[split:]</pre><pre class="source-code">
+# Create dataset</pre><pre class="source-code">
+batch_size = 128</pre><pre class="source-code">
+dataset = tf.data.Dataset.from_tensor_slices(</pre><pre class="source-code">
+    (X_train, y_train))</pre><pre class="source-code">
+dataset = dataset.shuffle(buffer_size=1024).batch(batch_size)</pre><p class="list-inset">Here, you will observe we are preparing our data in the same way as we did when using the <a id="_idIndexMarker810"/>DNN and we do not reshape it as we<a id="_idIndexMarker811"/> just did with our CNN model. There is a simple trick ahead that will help you do this in our <span class="No-Break">model architecture.</span></p></li>
+<li>Let’s define our <span class="No-Break">model architecture:</span><pre class="source-code">
+model = tf.keras.models.Sequential([</pre><pre class="source-code">
+    tf.keras.layers.Lambda(lambda x: tf.expand_dims(</pre><pre class="source-code">
+        x, axis=-1),</pre><pre class="source-code">
+        input_shape=[None]),</pre><pre class="source-code">
+    tf.keras.layers.SimpleRNN(40,</pre><pre class="source-code">
+        return_sequences=True),</pre><pre class="source-code">
+    tf.keras.layers.SimpleRNN(40),</pre><pre class="source-code">
+    tf.keras.layers.Dense(1),</pre><pre class="source-code">
+    tf.keras.layers.Lambd<a id="_idTextAnchor326"/>a(lambda x: x * 100.0)</pre><pre class="source-code">
+])</pre><p class="list-inset">When modeling with RNNs, just like we saw with CNNs, we need to reshape our data as our model expects 3D-shaped input data as well. However, in scenarios where you would like to keep your original input shape intact for various experiments with different models, we can resort to a simple yet effective solution – the Lambda layer. This layer is a powerful tool in our toolbox that lets us perform simple, arbitrary functions on the input data, making it an excellent instrument for <span class="No-Break">quick experimentation.</span></p><p class="list-inset">With Lambda layers, we can execute element-wise mathematical operations, such as normalization, linear scaling, and simple arithmetic operations. For instance, in our case, we utilize a Lambda layer to expand the dimension of our 2D input data to fit the 3D input requirement (<strong class="source-inline">batch_size</strong>, <strong class="source-inline">time_steps</strong>, and <strong class="source-inline">features</strong>) of RNNs. In TensorFlow, you can leverage the Keras API’s <strong class="source-inline">tf.keras.layers.Lambda</strong> to create a Lambda layer. A Lambda layer serves as an adapter, allowing us to make minor tweaks to the data, ensuring it’s in the right<a id="_idIndexMarker812"/> format for our model, while keeping the<a id="_idIndexMarker813"/> original data intact for other uses. Next, we come across two simple RNN layers of 40 units each. It is important to note that in the first RNN, we included <strong class="source-inline">return_sequence =True</strong>. We use this in RNNs and LSTMs when the output of one RNN or LSTM layer is fed into another RNN or LSTM layer. We set this parameter to ensure the first RNN layer will return an output for each input in the sequence. The output is then fed into the second RNN layer; this layer will only return the output of the final step, which is then fed into the dense layers, which outputs the predicted value for each sequence. Then, we come across another Lambda layer that multiplies the output by 100. We use this to expand the <span class="No-Break">output values.</span></p></li>
+<li>Let’s compile and fit <span class="No-Break">our model:</span><pre class="source-code">
+model.compile(optimizer=tf.keras.optimizers.Adam(</pre><pre class="source-code">
+    learning_rate=8e-4), loss='mse')</pre><pre class="source-code">
+# Train model</pre><pre class="source-code">
+model.fit(dataset, epochs=100)momentum=0.9))</pre></li>
+</ol>
+<p>Here, we achieve an MAE of 4.84 and an MSE of 35.65 on the validation set. This result is slightly worse than the result we achieved when we used the <strong class="source-inline">PolynomialDecay</strong> learning rate<a id="_idIndexMarker814"/> scheduler. Perhaps here, you have an opportunity to try our<a id="_idIndexMarker815"/> different learning rate schedulers to achieve a <span class="No-Break">lower MAE.</span></p>
+<p>Next, let us <span class="No-Break">explore LSTMs.</span></p>
+<h1 id="_idParaDest-233"><a id="_idTextAnchor327"/>LSTMs in time series forecasting</h1>
+<p>In the NLP<a id="_idIndexMarker816"/> sections, we<a id="_idIndexMarker817"/> discussed the capabilities of LSTMs and their improvements over RNNs by mitigating issues such as the vanishing gradient problem, enabling the model to learn longer sequences. In the context of time series forecasting, LSTM networks can be quite powerful. Let’s see how we can apply LSTMs to our <span class="No-Break">sales dataset:</span></p>
+<ol>
+<li>Let’s begin by preparing <span class="No-Break">our data:</span><pre class="source-code">
+# Create sequences</pre><pre class="source-code">
+seq_len = 20</pre><pre class="source-code">
+X = []</pre><pre class="source-code">
+y = []</pre><pre class="source-code">
+for i in range(seq_len, len(data)):</pre><pre class="source-code">
+    X.append(data[i-seq_len:i])</pre><pre class="source-code">
+    y.append(data[i])</pre><pre class="source-code">
+X = np.array(X)</pre><pre class="source-code">
+X = X.reshape(X.shape[0], X.shape[1], 1)</pre><pre class="source-code">
+y = np.array(y)</pre><pre class="source-code">
+# Train/val split</pre><pre class="source-code">
+split = int(0.8*len(X))</pre><pre class="source-code">
+X_train, X_val = X[:split], X[split:]</pre><pre class="source-code">
+y_train, y_val = y[:split], y[split:]</pre><pre class="source-code">
+# Set batch size and buffer size</pre><pre class="source-code">
+batch_size = 64</pre><pre class="source-code">
+buffer_size = 1000</pre><pre class="source-code">
+# Create dataset</pre><pre class="source-code">
+dataset = tf.data.Dataset.from_tensor_slices(</pre><pre class="source-code">
+    (X_train, y_train))</pre><pre class="source-code">
+dataset = dataset.shuffle(</pre><pre class="source-code">
+    buffer_size).batch(batch_size)</pre><p class="list-inset">Notice that <a id="_idIndexMarker818"/>we use the <strong class="source-inline">reshape</strong> step as we do not <a id="_idIndexMarker819"/>use the Lambda layers, to avoid repeating this code block. Note that we will be using it for this experiment and the next experiment using the <span class="No-Break">CNN-LSTM architecture.</span></p></li>
+<li>Next, let’s define <span class="No-Break">our model:</span><pre class="source-code">
+model_lstm = tf.keras.models.Sequential([</pre><pre class="source-code">
+    tf.keras.layers.LSTM(50, return_sequences=True,</pre><pre class="source-code">
+        input_shape=[None, 1]),</pre><pre class="source-code">
+    tf.keras.layers.LSTM(50),</pre><pre class="source-code">
+    tf.keras.layers.Dense(1)</pre><pre class="source-code">
+])</pre><p class="list-inset">The architecture we use here is an RNN structure using LSTM cells – the first layer is an LSTM layer of 50 neurons, and it has the <strong class="source-inline">return_sequence</strong> parameter set to <strong class="source-inline">True</strong> to ensure the output returned is the complete sequence, which is fed into the final LSTM layer. Here, we also use an input shape of <strong class="source-inline">[None, 1]</strong>. The next layer also has 50 neurons, and it outputs a single value since we did not set the <strong class="source-inline">return_sequence</strong> parameter to <strong class="source-inline">True</strong> here and this is fed into the dense layer <span class="No-Break">for predictions.</span></p></li>
+<li>The next step is to compile the model. We compile and fit our model as before, then we evaluate it. Here we achieved an MAE of 4.56 and an MSE of 32.42, our lowest <span class="No-Break">so far.</span></li>
+</ol>
+<div>
+<div class="IMG---Figure" id="_idContainer200">
+<img alt="Figure 13.6 – True forecast versus the validation forecast using an LSTM (zoomed in)" height="728" src="image/B18118_13_006.jpg" width="1299"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 13.6 – True forecast versus the validation forecast using an LSTM (zoomed in)</p>
+<p>From the <a id="_idIndexMarker820"/>plot, we<a id="_idIndexMarker821"/> see that the predicted values and the true values are much more in sync than any other experiment we have carried out so far. Let’s see whether we can improve this result using a CNN-LSTM architecture for our <span class="No-Break">next experiment.</span></p>
+<h1 id="_idParaDest-234"><a id="_idTextAnchor328"/>CNN-LSTM architecture for time series forecasting</h1>
+<p>Deep learning<a id="_idIndexMarker822"/> has offered compelling solutions <a id="_idIndexMarker823"/>for time series forecasting, and one of the notable architectures in this space is the CNN-LSTM model. This model leverages the strengths of CNNs and LSTM networks, providing an effective framework for handling the unique characteristics of time series data. CNNs are renowned for their performance in image processing tasks due to their ability to learn spatial patterns in images, while in sequential data, they can learn local patterns. The convolutional layers within the network apply a series of filters to the data, learning and extracting significant local and global temporal patterns and trends. These features act as a compressed representation of the original data, retaining essential information while reducing dimensionality. The reduction in dimensionality leads to a more efficient representation that captures <span class="No-Break">relevant patterns.</span></p>
+<p>Once significant features have been extracted through the convolutional layers, these features become inputs to the LSTM layer(s) of the network. CNN-LSTM models have an advantage in the<a id="_idTextAnchor329"/>ir capacity for end-to-end learning. In this architecture, CNN and LSTM have complementary roles. The CNN layer captures local patterns and the LSTM layers learn temporal relationships from these patterns. This joint optimization is central to the performance gains of the CNN-LSTM model in comparison to independent architectures. Let us see how to apply this architecture to our sales data. Here we are going straight to the model<a id="_idIndexMarker824"/> architecture as we have already <a id="_idIndexMarker825"/>looked at the data preparation steps several <span class="No-Break">times before:</span></p>
+<ol>
+<li>Let’s build our model using <span class="No-Break">convolution layers:</span><pre class="source-code">
+   # Build the Model</pre><pre class="source-code">
+model = tf.keras.models.Sequential([</pre><pre class="source-code">
+    tf.keras.layers.Conv1D(filters=64, kernel_size=3,</pre><pre class="source-code">
+    strides=1,</pre><pre class="source-code">
+    activation="relu"<a id="_idTextAnchor330"/>,</pre><pre class="source-code">
+    padding='causa<a id="_idTextAnchor331"/>l',</pre><pre class="source-code">
+    input_shape=[window_size, 1]),</pre><p class="list-inset">We use our 1D convolutional layer to detect patterns from the sequence of values as we did in our CNN forecasting experiment. Remember to set <strong class="source-inline">padding</strong> to <strong class="source-inline">causal</strong> to ensure the output size remains the same as the input. We set the input shape to <strong class="source-inline">[window_size, 1]</strong>. Here, <strong class="source-inline">window_size</strong> represents the number of time steps in each input sample. <strong class="source-inline">1</strong> means we are working with a univariate time series. For example, if we set <strong class="source-inline">window_size</strong> to <strong class="source-inline">7</strong>, this will mean we are using a week’s worth of data <span class="No-Break">for forecasting.</span></p></li>
+<li>Next, our data reaches the LSTM layers, which are made up of 2 LSTM layers, each made up of <span class="No-Break">64 neurons:</span><pre class="source-code">
+    tf.keras.layers.LSTM(64, return_sequences=True),</pre><pre class="source-code">
+    tf.keras.layers.LSTM(64),</pre></li>
+<li>Then, we have the <span class="No-Break">dense layers:</span><pre class="source-code">
+    tf.keras.layers.Dense(30, activation="relu"),</pre><pre class="source-code">
+    tf.keras.layers.Dense(10, activation="relu"),</pre><pre class="source-code">
+    tf.keras.layers.Dense(1),</pre><p class="list-inset">The LSTM layer adds temporal context to the features extracted by the CNN layers, and the dense layers generate the final predictions. Here, we use three fully connected layers and output the final forecasted values. With this architecture, we achieve an MAE of 4.98 and an MSE of 40.71. Not bad, but worse than the LSTM <span class="No-Break">standalone model.</span></p></li>
+</ol>
+<p>Tuning the hyperparameters to optimize our model’s performance is a good idea here. By adjusting parameters such as the learning rate, batch size, or optimizers, we may be able to improve the<a id="_idIndexMarker826"/> model’s capabilities. We will not be going into this here as you are already well<a id="_idIndexMarker827"/> equipped to do this. Let us move on to the Apple stock price data and use all we have learned to create a series of experiments to forecast the future prices of Apple stocks and see which architecture will come out <span class="No-Break">on top.</span></p>
+<h1 id="_idParaDest-235"><a id="_idTextAnchor332"/>Forecasting Apple stock price data</h1>
+<p>We have now<a id="_idIndexMarker828"/> covered everything we need to know about time series for the TensorFlow Developer Certificate exam. Let us round off this chapter and the book with a real-world use case on time series. For this exercise, we will be working with a real-world dataset (Apple closing day stock price). Let’s see how we can do this next. The Jupyter notebook for this exercise can be found here: <a href="https://github.com/PacktPublishing/TensorFlow-Developer-Certificate-Guide">https://github.com/PacktPublishing/TensorFlow-Developer-Certificate-Guide</a>. <span class="No-Break">Let’s begin:</span></p>
+<ol>
+<li>We start by importing the <span class="No-Break">required libraries:</span><pre class="source-code">
+import numpy as np</pre><pre class="source-code">
+import matplotlib.pyplot as plt</pre><pre class="source-code">
+import tensorflow as tf</pre><pre class="source-code">
+from tensorflow import keras</pre><pre class="source-code">
+import yfinance as yf</pre><p class="list-inset">Here, we are using a new library called <strong class="source-inline">yfinance</strong>. This lets us access the Apple stock data for our <span class="No-Break">case study.</span></p></li>
+</ol>
+<p class="callout-heading">Note</p>
+<p class="callout">You may want to run <strong class="source-inline">pip install yfinance</strong> to get it working if the <span class="No-Break">import fails.</span></p>
+<ol>
+<li value="2">Create<a id="_idIndexMarker829"/> <span class="No-Break">a DataFrame:</span><pre class="source-code">
+df_apple = yf.Ticker(tickerSymbol)</pre><pre class="source-code">
+df_apple = df_apple.history(period='1d',</pre><pre class="source-code">
+    start='2013-01-01', end='2023-01-01')</pre><p class="list-inset">We start by creating a DataFrame using the <strong class="source-inline">AAPL</strong> ticker symbol, which represents Apple (the company) in the stock market. To do this, we use the <strong class="source-inline">yf.Ticker</strong> function from the <strong class="source-inline">yfinance</strong> library to access Apple’s historical data from Yahoo Finance. We apply the <strong class="source-inline">history</strong> method to our <strong class="source-inline">Ticker</strong> object to access the historical market data for Apple. Here, we set the period to <strong class="source-inline">1d</strong>, which means daily data should be accessed. We also set the <strong class="source-inline">start</strong> and <strong class="source-inline">end</strong> parameters to define the date range we want to access; in this case, we are collecting 10 years of data from the first day of January 2013 to the last day of <span class="No-Break">January 2023.</span></p></li>
+<li>Next, we use <strong class="source-inline">df.head()</strong> to get a snapshot of our DataFrame. We can see the dataset is made up of seven columns (<strong class="source-inline">Open</strong>, <strong class="source-inline">High</strong>, <strong class="source-inline">Low</strong>, <strong class="source-inline">Close</strong>, <strong class="source-inline">Volume</strong>, <strong class="source-inline">Dividends</strong>, and <strong class="source-inline">Stock Splits</strong>), as shown in the <span class="No-Break">following screenshot.</span></li>
+</ol>
+<p class="IMG---Figure"> </p>
+<div>
+<div class="IMG---Figure" id="_idContainer201">
+<img alt="Figure 13.7 – A snapshot of the Apple stock data" height="269" src="image/B18118_13_007.jpg" width="972"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 13.7 – A snapshot of the Apple stock data</p>
+<p class="list-inset">Let’s understand<a id="_idIndexMarker830"/> what these <span class="No-Break">columns mean:</span></p>
+<ul>
+<li><strong class="source-inline">Open</strong> stands for the opening price for the <span class="No-Break">trading day.</span></li>
+<li><strong class="source-inline">High</strong> is the highest price at which stocks were traded during <span class="No-Break">the day.</span></li>
+<li><strong class="source-inline">Low</strong> is the lowest price at which stocks were traded during <span class="No-Break">the day.</span></li>
+<li><strong class="source-inline">Close</strong> stands for the closing price for the <span class="No-Break">trading day.</span></li>
+<li><strong class="source-inline">Volume</strong> signifies the number of shares that changed hands during the course of the trading day. This can serve as an indicator of the <span class="No-Break">market strength.</span></li>
+<li><strong class="source-inline">Dividends</strong> represents how the company’s earnings are shared <span class="No-Break">among shareholders.</span></li>
+<li><strong class="source-inline">Stock Splits</strong> can be viewed as an act of the corporation that increased the number of the company’s outstanding shares by splitting <span class="No-Break">each share.</span></li>
+</ul>
+<ol>
+<li value="4">Let’s plot the daily <span class="No-Break">closing price:</span><pre class="source-code">
+plt.figure(figsize=(14,7))</pre><pre class="source-code">
+plt.plot(df_apple.index, df_apple['Close'],</pre><pre class="source-code">
+    label='Close price')</pre><pre class="source-code">
+plt.title('Historical prices for AAPL')</pre><pre class="source-code">
+plt.xlabel('Date')</pre><pre class="source-code">
+plt.ylabel('Price')</pre><pre class="source-code">
+plt.grid(True)</pre><pre class="source-code">
+plt.legend()</pre><pre class="source-code">
+plt.show()</pre><p class="list-inset">When we run<a id="_idIndexMarker831"/> the code, we get the <span class="No-Break">following plot:</span></p></li>
+</ol>
+<div>
+<div class="IMG---Figure" id="_idContainer202">
+<img alt="Figure 13.8 – A plot showing the Apple stock closing price between January 2013 and January 2023" height="615" src="image/B18118_13_008.jpg" width="1150"/>
+</div>
+</div>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 13.8 – A plot showing the Apple stock closing price between January 2013 and January 2023</p>
+<p class="list-inset">From the plot in <span class="No-Break"><em class="italic">Figure 13</em></span><em class="italic">.8</em>, we can see that the stock has a positive upward trend with <span class="No-Break">occasional dips.</span></p>
+<ol>
+<li value="5">Convert the data into a <span class="No-Break">NumPy array:</span><pre class="source-code">
+Series = df_apple['Close'].values</pre><p class="list-inset">For this exercise, we will be forecasting the daily stock closing price. Hence, we take the closing price column and convert it into a NumPy array. This way, we create a univariate time series for <span class="No-Break">our experimentation.</span></p></li>
+<li>Prepare the<a id="_idIndexMarker832"/> <span class="No-Break">windowed dataset:</span><pre class="source-code">
+# Sliding window</pre><pre class="source-code">
+window_size = 20</pre><pre class="source-code">
+X, y = [], []</pre><pre class="source-code">
+for i in range(window_size, len(data)):</pre><pre class="source-code">
+    X.append(data[i-window_size:i])</pre><pre class="source-code">
+    y.append(data[i])</pre><pre class="source-code">
+X = np.array(X)</pre><pre class="source-code">
+y = np.array(y)</pre><pre class="source-code">
+# Train/val split</pre><pre class="source-code">
+train_size = int(len(X) * 0.8)</pre><pre class="source-code">
+X_train, X_val = X[:train_size], X[train_size:]</pre><pre class="source-code">
+y_train, y_val = y[:train_size], y[train_size:]</pre><pre class="source-code">
+# Dataset using tf.data</pre><pre class="source-code">
+batch_size = 128</pre><pre class="source-code">
+buffer_size = 10000</pre><pre class="source-code">
+train_data = tf.data.Dataset.from_tensor_slices(</pre><pre class="source-code">
+    (X_train, y_train))</pre><pre class="source-code">
+train_data = train_data.cache().shuffle(</pre><pre class="source-code">
+    buffer_size).batch(batch_size).prefetch(</pre><pre class="source-code">
+    tf.data.experimental.AUTOTUNE)</pre><p class="list-inset">We are now familiar with this code block, which we use to prepare our data for modeling. Next, we will use the same set of architectures to carry out our experiment with our Apple stock dataset. The results are <span class="No-Break">as follows:</span></p></li>
+</ol>
+<table class="No-Table-Style _idGenTablePara-1" id="table001-3">
+<colgroup>
+<col/>
+<col/>
+</colgroup>
+<tbody>
+<tr class="No-Table-Style">
+<td class="No-Table-Style">
+<p><span class="No-Break"><strong class="bold">Model</strong></span></p>
+</td>
+<td class="No-Table-Style">
+<p><span class="No-Break"><strong class="bold">MAE</strong></span></p>
+</td>
+</tr>
+<tr class="No-Table-Style">
+<td class="No-Table-Style">
+<p><span class="No-Break">DNN</span></p>
+</td>
+<td class="No-Table-Style">
+<p><span class="No-Break">4.56</span></p>
+</td>
+</tr>
+<tr class="No-Table-Style">
+<td class="No-Table-Style">
+<p><span class="No-Break">RNN</span></p>
+</td>
+<td class="No-Table-Style">
+<p><span class="No-Break">2.24</span></p>
+</td>
+</tr>
+<tr class="No-Table-Style">
+<td class="No-Table-Style">
+<p><span class="No-Break">LSTM</span></p>
+</td>
+<td class="No-Table-Style">
+<p><span class="No-Break">3.02</span></p>
+</td>
+</tr>
+<tr class="No-Table-Style">
+<td class="No-Table-Style">
+<p><span class="No-Break">CNN-LSTM</span></p>
+</td>
+<td class="No-Table-Style">
+<p><span class="No-Break">18.75</span></p>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="IMG---Caption" lang="en-US" xml:lang="en-US">Figure 13.9 – A table showing the MAE across various models</p>
+<p>From our results. we<a id="_idIndexMarker833"/> see that we achieved the best-performing model with our RNN architecture, having an MAE of 2.24. You can now save your best model, which can be used to predict future stock values or applied to other forecasting problems. You can also tweak the hyperparameters further to see whether you can achieve a <span class="No-Break">lower MAE.</span></p>
+<p class="callout-heading">Note</p>
+<p class="callout">This model is an illustration of what is possible with forecasting with neural networks. However, we must be aware of its limitations. Please refrain from making financial decisions using this model as real-world stock market predictions capture complex relationships such as economic indicators, market sentiment, and other interdependencies, which our basic model does not take <span class="No-Break">into consideration.</span></p>
+<p>With this, we<a id="_idIndexMarker834"/> have come to the end of this chapter and <span class="No-Break">the book.</span></p>
+<p><span class="No-Break">Summary</span></p>
+<p>In this final chapter, we explored some advanced concepts for working with time series forecasting with TensorFlow. We saw both how to use in-built learning rate schedulers as well as designing custom-made schedulers tailored to our needs. Then, we used more specialized models, such as RNNs, LSTM networks, and the combination of CNNs and LSTM. We also saw how we could apply Lambda layers to implement custom operations and add flexibility to our <span class="No-Break">network architecture.</span></p>
+<p>To conclude the chapter, we worked on forecasting the Apple stock closing price. By the end of this chapter, you should have a good understanding of applying concepts such as learning rate schedulers and Lambda layers and effectively building time series forecasting models using various architectures in readiness for your exam. <span class="No-Break">Good luck!</span></p>
+<h1 id="_idParaDest-236"><a id="_idTextAnchor333"/>Note from the author</h1>
+<p>It gives me great pleasure to see you move from the very fundamentals of machine learning to building various projects using TensorFlow. You have now explored building models with different neural network architectures. You now have a solid foundation upon which you can, and should, build an incredible career as a certified TensorFlow developer. You can only become a top developer by <span class="No-Break">building solutions.</span></p>
+<p>Everything we have covered in this book will serve you well as you finalize your preparation for the TensorFlow Developer Certificate exam and beyond. I want to congratulate you for not giving up and working through all the concepts and projects in this book and the exercises. I would like to encourage you to continue learning, experimenting, and keeping tabs on the latest developments in the field of machine learning. I wish you success in your exam and your <span class="No-Break">career ahead.</span></p>
+<h1 id="_idParaDest-237"><a id="_idTextAnchor334"/>Questions</h1>
+<ol>
+<li>Load the Google stock data from Yahoo Finance for 01-01-2015 <span class="No-Break">to 01-01-2020.</span></li>
+<li>Create training, forecasting, and <span class="No-Break">plotting functions.</span></li>
+<li>Prepare the data <span class="No-Break">for training.</span></li>
+<li>Build DNN, CNN, LSTM, and CNN-LSTM models to model <span class="No-Break">the data.</span></li>
+<li>Evaluate the models using MAE <span class="No-Break">and MSE.</span></li>
+</ol>
+<h1 id="_idParaDest-238"><a id="_idTextAnchor335"/>References</h1>
+<ul>
+<li>Shi, X., Chen, Z., Wang, H., Yeung, D. Y., Wong, W. K., &amp; Woo, W. C. (2015). <em class="italic">Convolutional LSTM Network: A Machine Learning Approach for Precipitation Nowcasting</em>. In Advances in Neural Information Processing Systems (pp. <span class="No-Break">802–810) </span><a href="https://papers.nips.cc/paper/2015/hash/07563a3fe3bbe7e3ba84431ad9d055af-Abstract.xhtml%0D"><span class="No-Break">https://papers.nips.cc/paper/2015/hash/07563a3fe3bbe7e3ba84431ad9d055af-Abstract.xhtml</span></a></li>
+<li>Karim, F., Majumdar, S., Darabi, H., &amp; Harford, S. (2019). <em class="italic">LSTM fully convolutional networks for time series classification</em>. IEEE Access, <span class="No-Break">7, 1662-1669</span></li>
+<li>Siami-Namini, S., Tavakoli, N., &amp; Siami Namin, A. (2019). <em class="italic">The Performance of LSTM and BiLSTM in Forecasting Time Series</em>. In 2019 IEEE International Conference on <span class="No-Break">Big Data</span></li>
+<li>TensorFlow learning rate <span class="No-Break">scheduler: </span><a href="https://www.tensorflow.org/api_docs/python/tf/keras/callbacks/LearningRateScheduler%0D"><span class="No-Break">https://www.tensorflow.org/api_docs/python/tf/keras/callbacks/LearningRateScheduler</span></a></li>
+<li><em class="italic">Lambda </em><span class="No-Break"><em class="italic">layers</em></span><span class="No-Break">: </span><a href="https://keras.io/api/layers/core_layers/lambda/"><span class="No-Break">https://keras.io/api/layers/core_layers/lambda/</span></a></li>
+<li><em class="italic">Time series </em><span class="No-Break"><em class="italic">forecasting</em></span><span class="No-Break">: </span><a href="https://www.tensorflow.org/tutorials/structured_data/time_series%0D"><span class="No-Break">https://www.tensorflow.org/tutorials/structured_data/time_series</span></a></li>
+<li><em class="italic">tf.data: Build TensorFlow input </em><span class="No-Break"><em class="italic">pipelines</em></span><span class="No-Break">. </span><a href="https://www.tensorflow.org/guide/data%0D"><span class="No-Break">https://www.tensorflow.org/guide/data</span></a></li>
+<li><em class="italic">Windowed datasets for time </em><span class="No-Break"><em class="italic">series</em></span><span class="No-Break">: </span><a href="https://www.tensorflow.org/tutorials/structured_data/time_series#data_windowing%0D"><span class="No-Break">https://www.tensorflow.org/tutorials/structured_data/time_series#data_windowing</span></a></li>
+</ul>
+</div>
+</div></body></html>

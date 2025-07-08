@@ -1,0 +1,533 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Object Detection and Image Segmentation</h1>
+                </header>
+            
+            <article>
+                
+<p>In <a href="433225cc-e19a-4ecb-9874-8de71338142d.xhtml">Chapter 3</a>, <em>Advanced Convolutional Networks</em>, we discussed<span> some of the most popular and best performing <strong>convolutional neural network </strong>(<strong>CNN</strong>) models. To focus on the architecture specifics of each network, we viewed the models in the straightforward context of the classification problem. In the universe of computer vision tasks, classification is fairly straightforward, as it assigns a single label to an image. In this chapter, we'll shift our focus to two more interesting computer vision tasks—object detection and semantic segmentation, while the network architecture will take a backseat. We can say that these tasks are more complex compared to classification, because the model has to obtain a more comprehensive understanding of the image. It has to be able to detect different objects as well as their positions on the image. At the same time, the task complexity allows for more creative solutions. In this chapter, we'll discuss some of them. </span></p>
+<p><span>This chapter will cover the following topics:</span></p>
+<ul>
+<li>Introduction to object detection: </li>
+<li style="padding-left: 60px">Approaches to object detection</li>
+<li style="padding-left: 60px">YOLO</li>
+<li style="padding-left: 60px">Faster R-CNN</li>
+<li>Image segmentation:</li>
+<li style="padding-left: 60px">U-Net</li>
+<li style="padding-left: 60px">Mask R-CNN</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Introduction to object detection</h1>
+                </header>
+            
+            <article>
+                
+<p>Object detection is the process of finding<span> </span><span>object instances of a certain class, such as faces, cars, and trees, in images or videos. Unlike classification, object detection can detect multiple objects as well as their location in the image.</span></p>
+<p><span>An object detector would return a list of detected objects with the following information for each object:</span></p>
+<ul>
+<li>The class of the object (person, car, tree, and so on).</li>
+<li>Probability (or confidence score) in the [0, 1] range, which conveys how confident the detector is that the object exists in that location. This is similar to the output of a regular classifier.</li>
+<li>The coordinates of the rectangular region of the image where the object is located. This<span> </span>rectangle<span> </span>is called a<span> </span><strong>bounding box</strong>.</li>
+</ul>
+<p>We can see the typical output of an object-detection algorithm i<span>n the following photograph</span>. The object type and confidence score are above each bounding box:</p>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1423 image-border" src="assets/e3e8ed91-d2f9-4711-9aef-361fce94c5c8.png" style="width:35.67em;height:23.75em;"/></div>
+<div class="packt_figref CDPAlignCenter CDPAlign">The output of an object detector</div>
+<p>Next, let's outline the different approaches to solving an object detection task.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Approaches to object detection</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll outline<span> </span>three<span> </span>approaches:</p>
+<ul>
+<li><strong>Classic sliding window</strong>:<span> </span>Here, we'll<span> </span>use<span> </span>a regular classification network (classifier). This approach can work with any type of classification algorithm, but it's relatively slow and error-prone:
+<ol>
+<li>Build an image pyramid: This is a combination of different scales of the same image (see the following photograph). For example, each scaled image can be two times smaller than the previous one. In this way, we'll be able to detect objects regardless of their size in the original image.</li>
+<li>Slide the<span> </span><span>classifier</span><span> </span>across the whole image: That is, we'll use each location of the image as an input to the<span> </span><span>classifier,</span><span> </span>and the result will determine the type of object that is in the location. The bounding box of the location is just the image region that we used as input.</li>
+<li>We'll have multiple overlapping bounding boxes for each object: We'll use some heuristics to combine them in a single prediction.</li>
+</ol>
+</li>
+</ul>
+<p style="padding-left: 60px">Here is a diagram of the sliding window approach:</p>
+<p style="padding-left: 60px" class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1261 image-border" src="assets/4781245d-f125-4945-a2fd-51a3d4da219e.png" style="width:27.00em;height:22.67em;"/></p>
+<div style="padding-left: 60px" class="packt_figref CDPAlignCenter CDPAlign">Sliding window plus image pyramid object detection</div>
+<ul>
+<li><strong>Two-stage detection methods</strong>:<span> </span>These methods are<span> </span>very<span> </span>accurate, but relatively slow. As the name suggests, they involve two steps:
+<ol>
+<li>A special type of CNN, called a<span> </span><span><strong>Region Proposal Network</strong> (<strong>RPN</strong>),</span><span> </span>scans the image and proposes a number of possible bounding boxes, or regions of interest (<strong>RoI</strong>), where objects might be located. However, this network doesn't detect the type of the object, but only whether an object is present in the region.</li>
+<li>The regions of interest are sent to the second stage for object classification, which determines the actual object in each bounding box.</li>
+</ol>
+</li>
+<li><strong>One-stage</strong> (<strong>or one-shot</strong>) <strong>detection methods</strong>:<span> </span>Here, a single<span> </span>CNN<span> </span>produces both the object type and the bounding box. These approaches are usually faster, but less accurate compared to the two-stage methods. </li>
+</ul>
+<p>In the next section, we'll introduce the YOLO—an accurate, yet efficient one-stage detection algorithm.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Object detection with YOLOv3</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll discuss one of the most popular detection algorithms, called YOLO. The<span> </span>name<span> </span>is an acronym for the popular motto <strong>you only live once</strong>, which reflects the one-stage nature of the algorithm. The authors have released<span> </span>three<span> </span>versions with incremental improvements of the algorithm. We'll only discuss the latest, v3 ( for more details, see <em>YOLOv3: An Incremental Improvement</em>, <a href="https://arxiv.org/abs/1804.02767">https://arxiv.org/abs/1804.02767</a>).</p>
+<p>The algorithm starts with the so-called <strong>backbone</strong> network called <span><strong>Darknet-53</strong> (after the number of convolutional layers)</span>. It is trained to classify the ImageNet dataset, just as the networks in <a href="433225cc-e19a-4ecb-9874-8de71338142d.xhtml">Chapter 3</a>, <em>Advanced Convolutional Networks</em>. It is fully convolutional (no pooling layers) and uses residual connections.</p>
+<p>The following diagram shows the backbone architecture:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1262 image-border" src="assets/bd1d4252-1a0c-4f41-8a0e-310cdfd4afc5.png" style="width:20.92em;height:28.67em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">The Darknet-53 model (source: https://arxiv.org/abs/1804.02767)</div>
+<p>Once the network is trained, it will serve as a base for the following object detection training phase. This is a case of feature extraction transfer learning, which we described in <a href="d94e220f-820e-40da-8bb5-9593e0790b21.xhtml">Chapter 2</a>, <em>Understanding Convolutional Networks</em>. The fully connected layers of the backbone are replaced with new randomly initialized convolutional and fully connected layers. The new fully connected layers will output<span> the bounding boxes, object classes, and confidence scores of all detected objects in just a single pass.</span></p>
+<p><span>For example, the bounding boxes in the image of people on the crosswalk at the beginning of this section were generated using a single network pass. YOLOv3 predicts boxes at three different scales. The system extracts features from those scales using a similar concept to feature pyramid networks (for more information, see <em>Feature Pyramid Networks for Object Detection</em>, <a href="https://arxiv.org/abs/1612.03144">https://arxiv.org/abs/1612.03144</a>). In the detection phase, the network is trained with the common objects in context (<em>Microsoft COCO: Common Objects in Context</em>, <a href="https://arxiv.org/abs/1405.0312">https://arxiv.org/abs/1405.0312</a>, <a href="http://cocodataset.org">http://cocodataset.org</a>) object detection dataset.</span></p>
+<p><span>Next, let's see how YOLO works:</span></p>
+<ol>
+<li>Split the image into a grid of<span> </span><em>S<span>×</span>S</em><span> </span>cells (in the following diagram, we can see a 3<span>×</span>3 grid):
+<ul>
+<li>The network treats the center of each grid cell as the center of the region, where an object might be located.</li>
+<li>An object might lie entirely within a cell. Then, its bounding box will be smaller than the cell. Alternatively, it can span over multiple cells and the bounding box will be larger. YOLO covers both cases.</li>
+<li>The algorithm can detect multiple objects in a grid cell with the help of<span> </span><strong>anchor boxes</strong><span> </span>(more on that later), but an object is associated with one cell only (a one-to-<em>n</em> relation). That is, if the bounding box of the object covers multiple cells, we'll associate the<span> </span>object<span> </span>with the cell, where the center of the bounding box lies. For example, the two objects in the following diagram span multiple cells, but they are both assigned to the central cell, because their centers lie in it.</li>
+<li>Some of the cells may contain an object and others might not. We are only interested in the ones that do. </li>
+</ul>
+</li>
+</ol>
+<p style="padding-left: 60px">The following diagram shows a 3<span>×</span>3 cell grid with 2 objects and their bounding boxes (dashed lines). Both objects are associated with the middle cell, because the centers of their bounding boxes lie in that cell:</p>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1263 image-border" src="assets/51d5c3d5-1325-4153-b367-4c45da92f509.png" style="width:21.75em;height:21.92em;"/></div>
+<div class="packt_figref CDPAlignCenter CDPAlign">An object detection YOLO example with a 3x3 cell grid and 2 objects</div>
+<ol start="2">
+<li>Тhe network will output multiple possible detected objects for each grid cell. For example, if the grid is 3<span>×</span>3, then the output will contain 9 possible detected objects. For the sake of clarity, let's discuss the output<span> </span><span>data</span><span> </span>(and its corresponding label) for a single grid cell/detected object. It is an array with values,<span> </span><em>[b<sub>x</sub>, b<sub>y</sub>, b<sub>h</sub>, b<sub>w</sub>,<span> </span><span>p</span><sub>c</sub><span>,</span><span> </span>c<sub>1</sub>, c<sub>2</sub>, ..., c<sub>n</sub>]</em>, where the values are as follows:
+<ul>
+<li><em><span>b</span><sub>x</sub><span>, b</span><sub>y</sub><span>, b</span><sub>h</sub><span>, b</span><sub>w</sub></em><span> </span>describes the object bounding box, if an object exists, then<span> </span><em>b<sub>x</sub></em><span> </span>and<span> </span><em>b<sub>y</sub></em><span> </span>are the coordinates of the center of the box. They are normalized in the [0, 1] range with respect to the size of the image. That is, if the image is of size 100 x 100 and<span> </span><em>b<sub>x</sub><span> </span>= 20</em><span> </span>and<span> </span><em>b<sub>y</sub><span> </span>= 50</em>, their normalized values will be 0.2 and 0.5. Basically,<span> </span><em>b<sub>h</sub></em><span> </span><span>and</span><span> </span><em>b<sub>w</sub></em><span> </span><span>represent the box height and width.</span><span> </span>They are normalized with respect to the grid cell. If the bounding box is larger than the cell, its value will be greater than 1. Predicting the box parameters is a regression task. </li>
+<li><em>p<sub>c</sub></em><span> </span>is a confidence score in the [0, 1] range. The labels for the confidence score are either 0 (not present) or 1 (present), making this part of the output a classification task. If an object is not present, we can discard the rest of the array values.</li>
+<li><em><span>c</span><sub>1</sub><span>, c</span><sub>2</sub><span>, ..., c</span><sub>n</sub></em><span> </span>is a one-hot encoding of the object class. For example, if we have car, person, tree, cat, and dog classes, and the current object is of the cat type, its encoding will be<span> </span><em>[0, 0, 0, 1, 0]</em>. If we have<span> </span><em>n</em><span> </span>possible classes, the size of the output array for one cell will be<span> </span><em>5 + n</em><span> </span>(9 in our example).</li>
+</ul>
+</li>
+</ol>
+<p style="padding-left: 60px">The network output/labels will contain<span> </span><em>S<span>×</span>S</em><span> </span>such arrays. For example, the length of the YOLO output for a 3<span>×</span>3 cell grid and four classes would be <em>3*3*9 = 81</em>.</p>
+<ol start="3">
+<li><span>Let's</span><span> </span>address the scenario with multiple objects in the same cell. Thankfully, YOLO proposes an elegant solution to this problem. We'll have multiple candidate boxes (known as <strong>anchor boxes</strong> or priors) with a slightly different shape associated with each cell. In the following diagram, we can see the grid cell (the square, uninterrupted line) and two anchor boxes<span>—</span>vertical and horizontal (the dashed lines). If we have multiple objects in the same cell, we'll associate each object with one of the anchor boxes. Conversely, if an anchor box doesn't have an associated object, it will have a confidence score of zero. This arrangement will also change the network output. We'll have multiple output arrays per grid cell (one output array per anchor box). To extend our previous example, let's assume we have a <em>3<span>×</span>3</em> cell grid with 4 classes and 2 anchor boxes per cell. Then, we'll have<span> </span><span><em>3*3*2 = 18</em> output bounding boxes and a total</span><span> </span>output<span> </span>length<span> </span>of <em>3*3*2*9 = 162</em>. Because we have a fixed number of cells (<em>S<span>×</span>S</em>) and a fixed number of anchor boxes per cell, the size of the network output doesn't change with the number of detected objects. Instead, the output will indicate whether an object is present in all possible anchor boxes.</li>
+</ol>
+<p style="padding-left: 60px">In the following diagram, we can see a grid cell with two anchor boxes:</p>
+<div class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1264 image-border" src="assets/d15b17d8-2f69-4320-ac15-753e15fcf584.png" style="width:34.75em;height:10.75em;"/></div>
+<div class="packt_figref CDPAlignCenter CDPAlign">Grid cell (the square, uninterrupted line) with two anchor boxes (the dashed lines)</div>
+<p style="padding-left: 60px"><span>The only question now is how to choose the proper anchor box for an object during training (during inference, the network will choose by itself). We'll do this with the help of <strong>Intersection over Union</strong> (<strong>IoU</strong>). This is just the ratio between the area of the intersection of the object bounding box/anchor box and the area of their union:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1265 image-border" src="assets/0468041c-b463-4ca2-8b08-cf907bd50aec.png" style="width:39.83em;height:8.25em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign">Intersection over Union</div>
+<p style="padding-left: 60px">We'll compare the bounding box of each object to all anchor boxes, and assign the object to the anchor box with the highest IoU. Since the anchor boxes have varying sizes and shapes, IoU assures that the object will be assigned to the anchor box that most closely resembles its footprint on the image. </p>
+<ol start="4">
+<li>Now that we (hopefully) know how YOLO works, we can use it for predictions. However, the output of the network might be noisy<span>—</span>that is, the output includes all possible anchor boxes for each cell, regardless of whether an<span> </span>object<span> </span>is present in them. Many of the boxes will overlap and actually predict the same object. We'll get rid of the noise using<span> </span><strong>non-maximum suppression</strong>. Here's how it works:
+<ol>
+<li>Discard all bounding boxes with a confidence score of less than or equal to 0.6.</li>
+<li>From the remaining bounding boxes, pick the one with the highest possible confidence score.</li>
+<li>Discard any box whose IoU &gt;= 0.5 with the box we selected in the previous step.</li>
+</ol>
+</li>
+</ol>
+<div class="packt_figref packt_tip">If you are worried that the network output/groundtruth data will become too complex or large, don't be. CNNs work well with the ImageNet dataset, which has 1,000 categories, and therefore 1,000 outputs.</div>
+<p>For more information about YOLO, check out the original sequence of papers:</p>
+<ul>
+<li style="font-weight: 400"><em>You Only Look Once: Unified, Real-Time Object Detection</em> (<a href="https://arxiv.org/abs/1506.02640">https://arxiv.org/abs/1506.02640</a>) by Joseph Redmon, Santosh Divvala, Ross Girshick, and Ali Farhadi</li>
+<li style="font-weight: 400"><em>YOLO9000: Better, Faster, Stronger</em> (<a href="https://arxiv.org/abs/1612.08242">https://arxiv.org/abs/1612.08242</a>) by Joseph Redmon and Ali Farhadi</li>
+<li style="font-weight: 400"><em>YOLOv3: An Incremental Improvement</em> (<a href="https://arxiv.org/abs/1804.02767">https://arxiv.org/abs/1804.02767</a>) by Joseph Redmon and Ali Farhadi</li>
+</ul>
+<p>Now that we've introduced the theory of the YOLO algorithm, in the next section, we'll discuss how to use it in practice.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">A code example of YOLOv3 with OpenCV</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll demonstrate how to<span> </span>use<span> </span>the YOLOv3 object detector with OpenCV. For this example, you'll need <kbd>opencv-python</kbd> 4.1.1 or higher, and 250 MB of disk space for the pretrained YOLO network. Let's begin with the following steps:</p>
+<ol>
+<li style="font-weight: 400">Start with the imports:</li>
+</ol>
+<pre style="padding-left: 60px"><span>import </span>os.path<br/><br/><span>import </span>cv2  <span># opencv import<br/></span><span>import </span>numpy <span>as </span>np<br/><span>import </span>requests</pre>
+<ol start="2">
+<li style="font-weight: 400">Add some boilerplate code that downloads and stores several configuration and data files. We'll start with the YOLOv3 network configuration <kbd>yolo_config</kbd> and <kbd>weights</kbd>, and we'll use them to initialize the <kbd>net</kbd> network. We'll use the YOLO author's GitHub and personal website to do this:</li>
+</ol>
+<pre style="padding-left: 60px"><span># Download YOLO net config file<br/></span># We'll it from the YOLO author's github repo<br/>yolo_config = 'yolov3.cfg'<br/>if not os.path.isfile(yolo_config):<br/>   url = 'https://raw.githubusercontent.com/pjreddie/darknet/master/cfg/yolov3.cfg'<br/>    r = requests.get(url)<br/>    with open(yolo_config, 'wb') as f:<br/>        f.write(r.content)<br/><br/># Download YOLO net weights<br/># We'll it from the YOLO author's website<br/>yolo_weights = 'yolov3.weights'<br/>if not os.path.isfile(yolo_weights):<br/>    url = 'https://pjreddie.com/media/files/yolov3.weights'<br/>    r = requests.get(url)<br/>    with open(yolo_weights, 'wb') as f:<br/>        f.write(r.content)<br/><br/># load the network<br/>net = cv2.dnn.readNet(yolo_weights, yolo_config)</pre>
+<ol start="3">
+<li style="font-weight: 400">Next, we'll download the names of the COCO dataset classes that the network can detect. We'll also load them from the file. The dataset as presented in the COCO paper contains 91 categories. However, the dataset on the website contains only 80. YOLO uses the 80-category version:</li>
+</ol>
+<pre style="padding-left: 60px"><span># Download class names file<br/></span><span># Contains the names of the classes the network can detect<br/></span>classes_file = <span>'coco.names'<br/></span><span>if not </span>os.path.isfile(classes_file):<br/>    url = <span>'https://raw.githubusercontent.com/pjreddie/darknet/master/data/coco.names'<br/></span><span>    </span>r = requests.get(url)<br/>    <span>with </span><span>open</span>(classes_file<span>, </span><span>'wb'</span>) <span>as </span>f:<br/>        f.write(r.content)<br/><br/><span># load class names<br/></span><span>with </span><span>open</span>(classes_file<span>, </span><span>'r'</span>) <span>as </span>f:<br/>    classes = [line.strip() <span>for </span>line <span>in </span>f.readlines()]</pre>
+<ol start="4">
+<li style="font-weight: 400">Then, download a test image from Wikipedia. We'll also load the image from the file in the <kbd>blob</kbd> variable:</li>
+</ol>
+<pre style="padding-left: 60px"><span># Download object detection image<br/></span>image_file = <span>'source_1.png'<br/></span><span>if not </span>os.path.isfile(image_file):<br/>    url = <span>"https://github.com/ivan-vasilev/advanced-deep-learning-with-python/blob/master/chapter04-detection-segmentation/source_1.png"<br/></span><span>    </span>r = requests.get(url)<br/>    <span>with </span><span>open</span>(image_file<span>, </span><span>'wb'</span>) <span>as </span>f:<br/>        f.write(r.content)<br/><br/><span># read and normalize image<br/></span>image = cv2.imread(image_file)<br/>blob = cv2.dnn.blobFromImage(image<span>, </span><span>1 </span>/ <span>255</span><span>, </span>(<span>416</span><span>, </span><span>416</span>)<span>, </span>(<span>0</span><span>, </span><span>0</span><span>, </span><span>0</span>)<span>, True, </span><span>crop</span>=<span>False</span>)</pre>
+<ol start="5">
+<li>Feed the image to the network and do the inference:</li>
+</ol>
+<pre style="padding-left: 60px"><span># set as input to the net<br/></span>net.setInput(blob)<br/><br/><span># get network output layers<br/></span>layer_names = net.getLayerNames()<br/>output_layers = [layer_names[i[<span>0</span>] - <span>1</span>] <span>for </span>i <span>in </span>net.getUnconnectedOutLayers()]<br/><br/><span># inference<br/></span><span># the network outputs multiple lists of anchor boxes,<br/></span><span># one for each detected class<br/></span>outs = net.forward(output_layers)</pre>
+<ol start="6">
+<li style="font-weight: 400">Iterate over the classes and anchor boxes and prepare them for the next step:</li>
+</ol>
+<pre style="padding-left: 60px"><span># extract bounding boxes<br/></span>class_ids = list()<br/>confidences = list()<br/>boxes = list()<br/><br/># iterate over all classes<br/>for out in outs:<br/>    # iterate over the anchor boxes for each class<br/>    for detection in out:<br/>        # bounding box<br/>        center_x = int(detection[0] * image.shape[1])<br/>        center_y = int(detection[1] * image.shape[0])<br/>        w, h = int(detection[2] * image.shape[1]), int(detection[3] * image.shape[0])<br/>        x, y = center_x - w // 2, center_y - h // 2<br/>        boxes.append([x, y, w, h])<br/><br/>        # confidence<br/>        confidences.append(float(detection[4]))<br/><br/>        # class<br/>        class_ids.append(np.argmax(detection[5:]))</pre>
+<ol start="7">
+<li style="font-weight: 400">Remove the noise with non-max suppression. You can experiment with different values for<span> </span><kbd>score_threshold</kbd><span> </span>and<span> </span><kbd>nms_threshold</kbd><span> </span>to see how the detected objects change:</li>
+</ol>
+<pre style="padding-left: 60px"># non-max suppression<br/>ids = cv2.dnn.NMSBoxes(boxes<span>, </span>confidences<span>, </span><span>score_threshold</span>=<span>0.75</span><span>, </span><span>nms_threshold</span>=<span>0.5</span>)</pre>
+<ol start="8">
+<li style="font-weight: 400">Draw the bounding boxes and their captions on the image:</li>
+</ol>
+<pre style="padding-left: 60px"><span>for </span>i <span>in </span>ids:<br/>    i = i[<span>0</span>]<br/>    x<span>, </span>y<span>, </span>w<span>, </span>h = boxes[i]<br/>    class_id = class_ids[i]<br/><br/>    color = colors[class_id]<br/><br/>    cv2.rectangle(<span>img</span>=image<span>,<br/></span><span>                  </span><span>pt1</span>=(<span>round</span>(x)<span>, </span><span>round</span>(y))<span>,<br/></span><span>                  </span><span>pt2</span>=(<span>round</span>(x + w)<span>, </span><span>round</span>(y + h))<span>,<br/></span><span>                  </span><span>color</span>=color<span>,<br/></span><span>                  </span><span>thickness</span>=<span>3</span>)<br/><br/>    cv2.putText(<span>img</span>=image<span>,<br/></span><span>                </span><span>text</span>=<span>f"</span><span>{</span>classes[class_id]<span>}</span><span>: </span><span>{</span>confidences[i]<span>:</span><span>.2f</span><span>}</span><span>"</span><span>,<br/></span><span>                </span><span>org</span>=(x - <span>10</span><span>, </span>y - <span>10</span>)<span>,<br/></span><span>                </span><span>fontFace</span>=cv2.FONT_HERSHEY_SIMPLEX<span>,<br/></span><span>                </span><span>fontScale</span>=<span>0.8</span><span>,<br/></span><span>                </span><span>color</span>=color<span>,<br/></span><span>                </span><span>thickness</span>=<span>2</span>)</pre>
+<ol start="9">
+<li>Finally, we can display the detected objects with the following code:</li>
+</ol>
+<pre style="padding-left: 60px">cv2.imshow(<span>"Object detection"</span><span>, </span>image)<br/>cv2.waitKey()</pre>
+<p class="mce-root">If everything goes alright, this code block will produce the same image that we saw at the<span> beginning of the <em>Introduction to object detection</em> section.</span></p>
+<p class="mce-root"><span>This concludes our discussion about YOLO. In the next section, we'll introduce a two-stage object detector called Faster R-CNN (R-CNN stands for Regions with CNN).</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Object detection with Faster R-CNN</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll discuss a two-stage object detection algorithm called Faster R-CNN (<em>Faster R-CNN: Towards Real-Time Object Detection with Region Proposal Networks</em>, <a href="https://arxiv.org/abs/1506.01497">https://arxiv.org/abs/1506.01497</a>). It is an evolution of the earlier two-stage detectors Fast R-CNN (<a href="https://arxiv.org/abs/1504.08083">https://arxiv.org/abs/1504.08083</a>) and R-CNN (<em>Rich feature hierarchies for accurate object detection and semantic segmentation</em>, <a href="https://arxiv.org/abs/1311.2524">https://arxiv.org/abs/1311.2524</a>).</p>
+<p>We'll start by outlining the general structure of Faster R-CNN, which is displayed in the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1266 image-border" src="assets/7796c454-91ea-4eb6-b3e9-824fe7451d48.png" style="width:29.00em;height:29.00em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">The structure of Faster R-CNN; source: https://arxiv.org/abs/1506.01497</div>
+<p>Let's keep that figure in mind while we explain the algorithm. <span>Like YOLO, Faster R-CNN starts with a backbone classification network trained on ImageNet, which serves as a base for the different modules of the model. The authors of the paper experimented with VGG16 and ZF net (<em>Visualizing and Understanding Convolutional Networks</em>, </span><a href="https://cs.nyu.edu/~fergus/papers/zeilerECCV2014.pdf">https://cs.nyu.edu/~fergus/papers/zeilerECCV2014.pdf</a><span>) backbones. However, recent implementations use more contemporary architectures such as ResNets. The backbone net serves as a backbone (get it?) to the two other components of the model—the <strong>region proposal network</strong> (<strong>RPN</strong>) and the detection network. In the next section, we'll discuss the RPN.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Region proposal network</h1>
+                </header>
+            
+            <article>
+                
+<p>In the first stage, the RPN takes an image (of any size) as input and will output a set of rectangular regions of interest (RoIs), where an object might be located. The RPN itself is created by taking the first <em>p</em> (13 in the case of VGG and 5 for ZF net<span>) </span>convolutional layers of the backbone model (see the preceding diagram). Once the input image is propagated to the last shared convolutional layer, the algorithm takes the feature map of that layer and slides another small <span>net</span> over each location of the feature map. The small net outputs whether an object is present at any of the <em>k</em> anchor boxes over each location (the concept of anchor box is the same as in YOLO). This concept is illustrated on the left-hand side image of the following diagram, which shows a single location<span> of the RPN sliding over a single feature map of the last convolutional layer</span>:</p>
+<p class="CDPAlignCenter CDPAlign"><img src="assets/1e60633c-846c-4c74-9a36-ff7c0633a697.png"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign">Left: RPN proposals over a single location; Right: example detections using RPN proposals (the labels are artificially enhanced). <span>Source: </span>https://arxiv.org/abs/1506.01497</div>
+<p><span>The small net is fully connected to an</span> <em>n<span>×</span>n</em><span> region at the same location over all input feature maps</span><span> (<em>n = 3</em> according to the paper)</span><span>.  For example, if the final convolutional layer has 512 feature maps, then the small net input size at one location is 512 x 3 x 3 = 4,608. Each sliding window is mapped to a lower dimensional (512 for VGG and 256 for ZF net) vector. This vector itself serves as input to the following two parallel fully connected layers:</span></p>
+<ol>
+<li>A classification layer with <em>2k</em> units organized into <em>k</em> 2-unit binary softmax outputs. The output of each softmax represents a confidence score of whether an object is located in each of the <em>k</em> anchor boxes. The paper refers to the confidence score as <strong>objectness</strong>, which measures whether the anchor box content belongs to a set of objects versus background. During training, an object is assigned to an anchor box based on the IoU formula in the same way as in YOLO.</li>
+</ol>
+<ol start="2">
+<li>A regression layer with <em>4k</em> units organized into <em>k</em> 4-unit RoI coordinates. 2 of the 4 units represent the coordinates of the RoI center in the [0:1] range relative to the whole image. The other two coordinates represent the height and width of the region, relative to the whole image (again, similar to YOLO).</li>
+</ol>
+<p>The authors of the paper experimented with three scales and three aspect ratios, resulting in nine possible anchor boxes over each location. The typical H<span>×</span>W size of the final feature map is around 2,400, which results in 2,400*9 = 21,600 anchor boxes.</p>
+<div class="packt_tip">In theory, we slide the small net over the feature map of the last convolutional layer. However, the small net weights are shared along all locations. Because of this, the sliding can be implemented as a cross-channel convolution. Therefore, the network can produce output for all anchor boxes in a single image pass. This is an improvement over Fast R-CNN, which requires a separate network pass for each anchor box.</div>
+<p>The RPN is trained with backpropagation and <span>stochastic gradient descent</span> (what a surprise!). <span>The shared convolutional layers are initialized with the weights of the backbone net and the rest are initialized randomly. </span>The samples of each mini-batch are extracted from a single image, which contains many positive (objects) and negative (background) anchor boxes. The sampling ratio between the two types is 1:1. Each anchor is assigned a binary class label (of being an object or not). There are two kinds of <span>anchors with positive labels</span>: the anchor/anchors with the highest IoU overlap with a groundtruth box or an anchor that has an IoU overlap of higher than 0.7 with any groundtruth box. If the IoU ratio of an anchor is lower than 0.3, the box is assigned a negative label. Anchors that are neither positive nor negative do not participate in the training.</p>
+<p>As the RPN has two output layers (classification and regression), the training uses the following composite cost function:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/e9b2d900-ba01-43b4-9ece-37e05fb81db0.png" style="width:34.75em;height:5.33em;"/></p>
+<p>Let's discuss it in detail:</p>
+<ul>
+<li><em>i</em> is the index of the anchor in the mini-batch.</li>
+<li><em>p<sub>i</sub></em> is the classification output, which represents the predicted probability of anchor <em>i</em> being an object. Note <span><em>p<sub>i</sub><sup>*</sup></em> is the target data for the same (0 or 1).</span></li>
+<li><em>t<sub>i</sub></em> is the regression output vector of size 4, which represents the RoI parameters. As in YOLO, the  <em>t<sub>i</sub><sup>*</sup></em><span><span> is the target vector for the same.</span></span></li>
+<li><em>L<sub>cls</sub></em> is a cross-entropy loss for the classification layer. <em>N<sub>cls</sub></em><span> </span>is a normalization term equal to the mini-batch size.</li>
+<li><em>L<sub>reg</sub></em> is the regression loss. <img class="fm-editor-equation" src="assets/2e31c521-9a23-4e85-a1a2-cdd4d558d832.png" style="width:8.92em;height:1.50em;"/>, where R is the mean absolute error (see <span>the </span><em>Cost functions </em><span>section in</span> <a href="b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml">Chapter 1</a>, <em>The Nuts and Bolts of Neural Networks</em>). <em>N<sub>reg</sub></em><span> </span><span>is a normalization term equal to the total number of anchor locations (around 2,400). </span></li>
+</ul>
+<p>Finally, the <span>classification and </span>regression components of the cost function are combined with the help of the <em>λ</em> parameter<em>.</em> Since <em>N<sub>reg</sub></em><span> ~ 2400 and <em>N<sub>cls</sub></em> = 256, <em>λ</em> is set to 10 to preserve the balance between the two losses.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Detection network</h1>
+                </header>
+            
+            <article>
+                
+<p>Now that we've discussed the RPN, let's focus on the detection network. To do this, we'll go back to the diagram <em>The structure of Faster R-CNN</em> at the beginning of the <em>Object detection with Faster R-CNN</em> section. Let's recall that in the first stage, the RPN already generated the RoI coordinates. The detection network is a regular classifier, which determines the type of object (or background) in the current RoI. Both the RPN and the detection net share their first convolutional layers, borrowed from the backbone net. But the detection net also incorporates the proposed regions from the RPN, along with the feature maps of the last shared layer.</p>
+<p>But how do we combine the inputs? We can do this with the help of <strong>Region of Interest</strong> (<strong>RoI</strong>) max pooling, which is the first layer of the second part of the detection network. An example of this operation is displayed in the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1268 image-border" src="assets/4f742144-c9af-41a6-9594-7b195e81742c.png" style="width:30.42em;height:13.17em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">An example of <em>2<span>×</span>2</em> RoI max pooling with a 10<span>×</span>7 feature map and a 5<span>×</span>5 region of interest (blue rectangle)</div>
+<p><span>For the sake of simplicity, we'll assume that we have a single </span><em>10<span>×</span>7</em><span> feature map and a single RoI. </span>As we learned in the <em>Region proposal network</em> section, the RoI is defined by its coordinates, width, and height. The operation converts these parameters to actual coordinates on the feature map. In this example, the region size is <em>h<span>×</span>w = 5<span>×</span>5</em>. The RoI max pooling is further defined by its output height, <em>H</em>, and width, <em>W</em>. In this example, <em>H<span>×</span>W = 2<span>×</span>2</em>, but in practice the values could be larger, such as 7<span>×</span>7. The operation splits the <em>h<span>×</span>w</em> RoI into a grid with (<em>h / H)<span>×</span>(w / W)</em> subregions.</p>
+<p>As we can see from the example, the subregions might have different sizes. Once this is done, each subregion is downsampled to a single output cell by taking the maximum value of that region. In other words, RoI pooling can transform inputs with arbitrary sizes into a fixed-size output window. In this way, the transformed data can propagate through the network in a consistent format.</p>
+<p>As we mentioned in the <em>Object detection with Faster R-CNN</em> section, the RPN and the detection network share their initial layers. However, they start their life as separate networks. The training alternates between the two in a four-step process:</p>
+<ol>
+<li>Train the RPN, which is initialized with the ImageNet weights of the backbone net.</li>
+<li>Train the detection network, using the proposals from the freshly trained RPN from <em>step 1</em>. The training also starts with the weights of the ImageNet backbone net. At this point, the two networks don't share weights.</li>
+<li>Use the detection net shared layers to initialize the weights of the RPN. Then, train the RPN again, but freeze the shared layers and fine-tune the RPN-specific layers only. The two networks share weights now.</li>
+<li>Train the detection net by freezing the shared layers and fine-tuning the detection-net-specific layers only.</li>
+</ol>
+<p class="mce-root">Now that we've introduced Faster R-CNN, in the next section, we'll discuss how to use it in practice with the help of a pretrained PyTorch model.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementing Faster R-CNN with PyTorch</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll use a pretrained PyTorch Faster R-CNN with a ResNet50 backbone for object detection. This example requires PyTorch 1.3.1, <kbd>torchvision</kbd> 0.4.2, and <kbd>python-opencv</kbd> 4.1.1:</p>
+<ol>
+<li>We'll start with the imports:</li>
+</ol>
+<pre style="padding-left: 60px"><span>import </span>os.path<br/><br/><span>import </span>cv2<br/><span>import </span>numpy <span>as </span>np<br/><span>import </span>requests<br/><span>import </span>torchvision<br/><span>import </span>torchvision.transforms <span>as </span>transforms</pre>
+<ol start="2">
+<li>Next, we'll continue with downloading the input image, and we'll define the class names in the COCO dataset. This step is the same as the one we implemented in the <em>A code example of YOLOv3 with OpenCV</em> section. The path to the download image is stored in the  <kbd>image_file = 'source_2.png'</kbd> variable, and the class names are stored in the <kbd>classes</kbd> list. This implementation uses the full 91 COCO categories.</li>
+<li>We'll load the pretrained Faster R-CNN model, and we'll set it to evaluation mode:</li>
+</ol>
+<pre style="padding-left: 60px"><span># load the pytorch model<br/></span>model = torchvision.models.detection.fasterrcnn_resnet50_fpn(<span>pretrained</span>=<span>True</span>)<br/><br/><span># set the model in evaluation mode<br/></span>model.eval()</pre>
+<ol start="4">
+<li>Then, we'll read the image file with OpenCV:</li>
+</ol>
+<pre style="padding-left: 60px">img = cv2.imread(image_file)</pre>
+<ol start="5">
+<li>We'll define the PyTorch <kbd>transform</kbd>  sequence, we'll transform the image to a PyTorch compatible tensor, and we'll feed it to the net. The network output is stored in the <kbd>output</kbd> variable. As we discussed in the <em>Region Proposal Network</em> section, <kbd>output</kbd> contains three components: <kbd>boxes</kbd> for the bounding box parameters, <kbd>classes</kbd> for the object class, and <kbd>scores</kbd> for confidence scores. The model applies NMS internally, and there is no need to do it in the code:</li>
+</ol>
+<pre style="padding-left: 60px">transform = transforms.Compose([transforms.ToPILImage()<span>, </span>transforms.ToTensor()])<br/>nn_input = transform(img)<br/>output = model([nn_input])</pre>
+<ol start="6">
+<li>Before we continue with displaying the detected objects, we'll define a set of random colors for each class of the COCO dataset:</li>
+</ol>
+<pre style="padding-left: 60px">colors = np.random.uniform(<span>0</span><span>, </span><span>255</span><span>, </span><span>size</span>=(<span>len</span>(classes)<span>, </span><span>3</span>))</pre>
+<ol start="7">
+<li>We iterate over each bounding box and draw it on the image:</li>
+</ol>
+<pre style="padding-left: 60px"><span># iterate over the network output for all boxes<br/></span><span>for </span>box<span>, </span>box_class<span>, </span>score <span>in </span><span>zip</span>(output[<span>0</span>][<span>'boxes'</span>].detach().numpy()<span>,<br/></span><span>                                 </span>output[<span>0</span>][<span>'labels'</span>].detach().numpy()<span>,<br/></span><span>                                 </span>output[<span>0</span>][<span>'scores'</span>].detach().numpy()):<br/><br/>    <span># filter the boxes by score<br/></span><span>    </span><span>if </span>score &gt; <span>0.5</span>:<br/>        <span># transform bounding box format<br/></span><span>        </span>box = [(box[<span>0</span>]<span>, </span>box[<span>1</span>])<span>, </span>(box[<span>2</span>]<span>, </span>box[<span>3</span>])]<br/><br/>        <span># select class color<br/></span><span>        </span>color = colors[box_class]<br/><br/>        <span># extract class name<br/></span><span>        </span>class_name = classes[box_class]<br/><br/>        <span># draw the bounding box<br/></span><span>        </span>cv2.rectangle(<span>img</span>=img<span>, </span><span>pt1</span>=box[<span>0</span>]<span>, </span><span>pt2</span>=box[<span>1</span>]<span>, </span><span>color</span>=color<span>, </span><span>thickness</span>=<span>2</span>)<br/><br/>        <span># display the box class label<br/></span><span>        </span>cv2.putText(<span>img</span>=img<span>, </span><span>text</span>=class_name<span>, </span><span>org</span>=box[<span>0</span>]<span>, <br/>                    </span><span>fontFace</span>=cv2.FONT_HERSHEY_SIMPLEX<span>, </span><span>fontScale</span>=<span>1</span><span>, </span><span>color</span>=color<span>, </span><span>thickness</span>=<span>2</span>)</pre>
+<p style="padding-left: 60px"><span>Drawing the bounding boxes involves the following steps:</span></p>
+<ul>
+<li style="padding-left: 60px">Filter the boxes with a confidence score of less than 0.5 to prevent noisy detections.</li>
+<li style="padding-left: 60px">The bounding <kbd>box</kbd> parameters (extracted from<span> </span><kbd>output['boxes']</kbd>) contain the top-left and bottom-right absolute (pixel) coordinates of the bounding box on the image. They are only transformed in tuples to fit the OpenCV format. </li>
+<li style="padding-left: 60px">Extract the class name and the color for the bounding box.</li>
+<li style="padding-left: 60px">Draw the bounding box and the class name. </li>
+</ul>
+<ol start="8">
+<li>Finally, we can display the detection result with the following code:</li>
+</ol>
+<pre style="padding-left: 60px">cv2.imshow(<span>"Object detection"</span><span>, </span>image)<br/>cv2.waitKey()</pre>
+<p>This code will produce the following result (the passengers on the bus are also detected):</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1424 image-border" src="assets/11a81f52-51d6-4535-9387-97d7612aa4a8.png" style="width:40.92em;height:26.42em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Faster R-CNN object detection</div>
+<p>This concludes the section about object detection. To summarize, we discussed two of the most popular detection models—YOLO and Faster R-CNN. In the next section, we'll talk about image segmentation—you can think of it as classification on the pixel level.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Introducing image segmentation</h1>
+                </header>
+            
+            <article>
+                
+<p>Image<span> </span>segmentation<span> </span>is the process of<span> </span>assigning<span> </span>a class label (such as person, car, or tree) to each pixel of an image. You can think of it as classification, but on a pixel level—instead of classifying the entire image under one label, we'll classify each pixel separately. There are two types of segmentation:</p>
+<ul>
+<li><strong>Semantic segmentation</strong>: This assigns a class to each pixel, but doesn't differentiate between object instances. For example, the middle image in the following screenshot shows a semantic segmentation mask, where the pixels of each vehicle have the same value. Semantic segmentation can tell us that a pixel is part of a vehicle, but cannot make a distinction between two vehicles.</li>
+<li><strong>Instance segmentation</strong>: This assigns a class to each pixel and differentiates between object instances. For example, the image on the right in the following screenshot shows an instance segmentation mask, where each vehicle is segmented as a separate object.</li>
+</ul>
+<p>The following screenshot shows an example of semantic and instance segmentation:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1425 image-border" src="assets/6dd1e561-e943-41ad-a682-4edee1fede0d.png" style="width:174.08em;height:37.08em;"/></p>
+<div class="packt_figref CDPAlignCenter CDPAlign">Left: input image; middle: semantic segmentation; right: instance segmentation; source: http://sceneparsing.csail.mit.edu/</div>
+<p class="mce-root"/>
+<p>To train a<span> </span>segmentation<span> </span>algorithm, we'll need a special type of groundtruth data, where the labels of each image are the segmented version of the image.</p>
+<p>The easiest way to segment an image is by using the familiar sliding-window technique, which we described in the<span> </span><em>Approaches to object detection</em><span> </span>section. That is, we'll use a regular classifier and we'll slide it in either direction with stride 1. After we get the prediction for a location, we'll take the pixel that lies in the middle of the input region and we'll assign it with the predicted class. Predictably, this approach is very slow because of the large number of pixels in an image (even a 1024<span>×</span>1024 image has more than 1 million pixels). Thankfully, there are faster and more accurate algorithms, which we'll discuss in the following sections.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Semantic segmentation with U-Net</h1>
+                </header>
+            
+            <article>
+                
+<p>The first approach to segmentation we'll discuss is called U-Net (<em>U-Net: Convolutional Networks for Biomedical Image Segmentation</em>, <a href="https://arxiv.org/abs/1505.04597">https://arxiv.org/abs/1505.04597</a>). The name comes from the visualization of the network architecture. U-Net is a type of <strong>fully convolutional network</strong> (<strong>FCN</strong>), called so because it contains only convolutional layers and doesn't have any fully connected layers. <span>An FCN takes the whole image as input, and outputs its segmentation map in a single pass.</span><span> We can separate an FCN into two virtual components (in reality, this is just a single network):</span></p>
+<ul>
+<li>The encoder is the first part of the network. It is similar to a regular CNN, without the fully connected layers at the end. The role of the encoder is to learn highly abstract representations of the input image (nothing new here).</li>
+<li>The decoder is the second part of the network. It starts after the encoder and uses it as input. The role of the decoder is to translate these abstract representations into the segmented groundtruth data. To do this, the decoder uses the opposite of the encoder operations. This includes transposed convolutions (the opposite of convolutions) and unpooling (the opposite of pooling).</li>
+</ul>
+<p>With that introduction, here is U-Net in all its glory:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1270 image-border" src="assets/e64e443f-6ab9-4879-8f65-4640edd938c9.png" style="width:64.33em;height:42.92em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">The U-Net architecture; source: https://arxiv.org/abs/1505.04597</div>
+<p><span>Each blue</span> <span>box corresponds to a multichannel feature map. The number of channels is denoted </span>on top of the box, and the feature map size is at the lower-left edge of the box. White boxes represent copied feature maps. The arrows denote the different operations (displayed on the legend as well). The left part of the <em>U</em> is the encoder, and the right part is the decoder. </p>
+<p>Next, let's segment (get it?) the U-Net modules:</p>
+<ul>
+<li><strong>Encoder</strong>: the network takes as input a 572<span>×</span>572 RGB image. From there, it continues like a regular CNN with alternating convolutional and max pooling layers. The encoder consists of four blocks of the following layers.
+<ul>
+<li>Two consecutive cross-channel unpadded 3<span>×</span>3 convolutions with stride 1.</li>
+<li>A 2<span>×</span>2 max pooling layer.</li>
+<li>ReLU activations.</li>
+<li>Each downsampling step doubles the number of feature maps.</li>
+<li>The final encoder convolution ends with 1,024 28<span>×</span>28 feature maps.</li>
+</ul>
+</li>
+<li><strong>Decoder</strong>: This is symmetrical to the encoder. The decoder takes the innermost 28<span>×</span>28 feature maps and simultaneously upsamples and converts them to a 388<span>×</span>388 segmentation map. It contains four upsampling blocks:
+<ul>
+<li>The upsampling works with 2<span>×</span>2 transposed convolutions with stride 2 (<a href="d94e220f-820e-40da-8bb5-9593e0790b21.xhtml">Chapter 2</a><em>, Understanding Convolutional Networks</em>), denoted by green vertical arrows.</li>
+<li>The output of each upsampling step is concatenated with the cropped high-resolution feature maps of the corresponding encoder step (grey horizontal arrows). The cropping is necessary because of the loss of border pixels in every convolution.</li>
+<li>Each transposed convolution is followed by two regular convolutions to smooth the expanded image.</li>
+<li><span>The upsampling steps halve the number of feature maps. The final output uses a 1×1 bottleneck convolution to map the 64-component feature map tensor to the desired number of classes. The authors of the paper have demonstrated the binary segmentation of medical images of cells. </span></li>
+<li>The network output is a softmax over each pixel. That is, the output contains as many independent softmax operations as the number of pixels. The softmax output for one pixel determines the pixel class. The U-Net is trained like a regular classification network. However, the cost function is a combination of the cross-entropy losses of the softmax outputs over all pixels.</li>
+</ul>
+</li>
+</ul>
+<p>We can see that because of the valid (unpadded) convolutions of the network, the output segmentation map is smaller than the input image (388 versus 572). However, the output map is not a rescaled version of the input image. Instead, it has a one-to-one scale compared to the input, but only covers the central part of the input tile.</p>
+<p>This is illustrated in the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1271 image-border" src="assets/7c8e4167-93be-4ae8-9044-c7872536d575.png" style="width:41.25em;height:19.08em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">An overlap-tile strategy for segmenting large images; <span>source: </span>https://arxiv.org/abs/1505.04597</div>
+<p>The unpadded convolutions are necessary, so the network doesn't produce noisy artifacts at the borders of the segmentation map. This makes it possible to segment images with arbitrary large sizes using the so called overlap-tile strategy. The input image is split in overlapping input tiles, like the one on the left of the preceding diagram. The segmentation map of the small light area in the image on the right requires the large light area (one tile) on the left image as input.</p>
+<p>The next input tile overlaps with the previous one in such a way that their segmentation maps cover adjacent areas of the image. To predict the pixels in the border region of the image, the missing context is extrapolated by mirroring the input image.<span> In the next section, we'll discuss Mask R-CNN—a model, which extends Faster R-CNN for instance segmentation</span>.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Instance segmentation with Mask R-CNN</h1>
+                </header>
+            
+            <article>
+                
+<p>Mask R-CNN (<a href="https://arxiv.org/abs/1703.06870">https://arxiv.org/abs/1703.06870</a>) is an extension of Faster R-CNN for instance segmentation. Faster R-CNN has two outputs for each candidate object: bounding box parameters and class labels. In addition to these, Mask R-CNN adds a third output—an FCN that produces a binary segmentation mask for each RoI. The following diagram shows the structure of Mask R-CNN:</p>
+<p class="CDPAlignCenter CDPAlign"><img src="assets/8e225a2f-e379-4d89-8080-6c256cd70229.png" style="width:39.33em;height:11.67em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Mask R-CNN</div>
+<p><span>The RPN produces anchors in five scales and three aspect ratios. The segmentation and classification paths both use the RoI predictions of the RPN, but otherwise are independent of each other. The segmentation path produces <em>I</em> <em>m×m</em> binary segmentation masks, one for each of the <em>I</em> classes. At training or inference, only the mask related to the predicted class of the classification path is considered and the rest are discarded. The class prediction and segmentation are parallel and decoupled—the classification path predicts the class of the segmented object, and the segmentation path determines the mask.</span></p>
+<p>Mask R-CNN replaces the RoI max pooling operation with a more accurate RoI align layer. The RPN outputs the <span>anchor box center, and its height and width</span> as four floating point numbers. Then, the RoI pooling layer translates them to integer feature map cell coordinates (quantization). Additionally, the division of the RoI to <em>H<span>×</span>W</em> bins also involves quantization. The RoI example from the <em>Object detection with Faster R-CNN</em> section shows that the bins have different sizes (3<span>×</span>3, 3<span>×</span>2, 2<span>×</span>3, 2<span>×</span>2). These two quantization levels can introduce misalignment between the RoI and the extracted features. The following diagram shows how RoI alignment solves this problem: </p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1415 image-border" src="assets/e676d19c-e656-4212-82e0-98b12eba6157.png" style="width:13.75em;height:13.83em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">RoI align example; source: https://arxiv.org/abs/1703.06870</div>
+<p>The dashed lines represent the feature map cells. The region with solid lines in the middle is a 2<span>×</span>2 RoI overlaid on the feature map. Note that it doesn't match the cells exactly. Instead, it is located according to the RPN prediction without quantization. In the same way, a cell of the RoI<span> (the black dots)</span> doesn't match one particular cell of the feature map. The RoI align operation computes the value of an RoI cell with a bilinear interpolation of its adjacent cells. In this way, RoI align is more accurate than RoI pooling.</p>
+<p class="mce-root">At training, an RoI is assigned a positive label if it has IoU with a groundtruth box of at least 0.5, and negative otherwise. The mask target is the intersection between an RoI and its associated groundtruth mask. Only the positive RoIs participate in the segmentation path training. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Implementing Mask R-CNN with PyTorch</h1>
+                </header>
+            
+            <article>
+                
+<p>In this section, we'll use a pretrained PyTorch Mask R-CNN with a ResNet50 backbone for instance segmentation. This example requires PyTorch 1.1.0, torchvision 0.3.0, and OpenCV 3.4.2. This example is very similar to the one we implemented in the <em>Implementing Faster R-CNN with PyTorch</em> section. Because of this, we'll omit some parts of the code to avoid repetition. Let's start:</p>
+<ol>
+<li>The imports, <kbd>classes</kbd>, and <kbd>image_file</kbd> are the same as in the Faster R-CNN example.</li>
+<li>The first difference between the two examples is that we'll load the Mask R-CNN pretrained model:</li>
+</ol>
+<pre style="padding-left: 60px">model = torchvision.models.detection.maskrcnn_resnet50_fpn(<span>pretrained</span>=<span>True</span>)<br/>model.eval()</pre>
+<ol start="3">
+<li>We feed the input image to the network and obtain the <kbd>output</kbd> variable:</li>
+</ol>
+<pre style="padding-left: 60px"><span># read the image file<br/></span>img = cv2.imread(image_file)<br/><br/><span># transform the input to tensor<br/></span>transform = transforms.Compose([transforms.ToPILImage()<span>, </span>transforms.ToTensor()])<br/>nn_input = transform(img)<br/>output = model([nn_input])</pre>
+<p style="padding-left: 60px">Besides <kbd>boxes</kbd>, <kbd>classes</kbd>, and <kbd>scores</kbd>, <kbd>output</kbd> contains an additional <kbd>masks</kbd> component for the predicted segmentation masks.</p>
+<ol start="4">
+<li>We iterate over the masks and overlay them on the image. The image and the mask are <kbd>numpy</kbd> arrays, and we can implement the overlay as a vector operation. We'll display both the bounding boxes and the segmentation masks:</li>
+</ol>
+<pre style="padding-left: 60px"><span># iterate over the network output for all boxes<br/></span><span>for </span>mask<span>, </span>box<span>, </span>score <span>in </span><span>zip</span>(output[<span>0</span>][<span>'masks'</span>].detach().numpy()<span>,<br/></span><span>                            </span>output[<span>0</span>][<span>'boxes'</span>].detach().numpy()<span>,<br/></span><span>                            </span>output[<span>0</span>][<span>'scores'</span>].detach().numpy()):<br/><br/>    <span># filter the boxes by score<br/></span><span>    </span><span>if </span>score &gt; <span>0.5</span>:<br/>        <span># transform bounding box format<br/></span><span>        </span>box = [(box[<span>0</span>]<span>, </span>box[<span>1</span>])<span>, </span>(box[<span>2</span>]<span>, </span>box[<span>3</span>])]<br/><br/>        <span># overlay the segmentation mask on the image with random color<br/></span><span>        </span>img[(mask &gt; <span>0.5</span>).squeeze()<span>, </span>:] = np.random.uniform(<span>0</span><span>, </span><span>255</span><span>, </span><span>size</span>=<span>3</span>)<br/><br/>        <span># draw the bounding box<br/></span><span>        </span>cv2.rectangle(<span>img</span>=img<span>,<br/></span><span>                      </span><span>pt1</span>=box[<span>0</span>]<span>,<br/></span><span>                      </span><span>pt2</span>=box[<span>1</span>]<span>,<br/></span><span>                      </span><span>color</span>=(<span>255</span><span>, </span><span>255</span><span>, </span><span>255</span>)<span>,<br/></span><span>                      </span><span>thickness</span>=<span>2</span>)</pre>
+<ol start="5">
+<li>Finally, we can display the segmentation result as follows:</li>
+</ol>
+<pre style="padding-left: 60px">cv2.imshow(<span>"Object detection"</span><span>, </span>img)<br/>cv2.waitKey()</pre>
+<p>This example will produce the image on the right as follows (the original on the left is for comparison):</p>
+<p class="CDPAlignCenter CDPAlign"><img class="aligncenter size-full wp-image-1426 image-border" src="assets/dc987e79-92a8-46e3-b97d-7810f262710b.png" style="width:230.58em;height:68.67em;"/></p>
+<div class="CDPAlignCenter CDPAlign packt_figref">Mask R-CNN instance segmentation</div>
+<p>We can see that each segmentation mask is defined only within its bounding box, where all values of the segmentation mask are greater than zero. To obtain the actual pixels that belong to the object, we apply the mask only over the pixels, whose segmentation confidence score is greater than 0.5 (this code snippet is part of step 4 of the Mask R-CNN code example):</p>
+<pre>img[(mask &gt; <span>0.5</span>).squeeze()<span>, </span>:] = np.random.uniform(<span>0</span><span>, </span><span>255</span><span>, </span><span>size</span>=<span>3</span>)</pre>
+<p>This concludes the section of the chapter devoted to image segmentation (in fact, it concludes the chapter itself).</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>In this chapter, we discussed object detection and image segmentation. We started with the one-shot detection algorithm, YOLO, and then we continued with the two-stage Faster R-CNN algorithm. Next, we discussed the semantic segmentation network architecture, U-Net. Finally, we talked about Mask R-CNN—an extension of Faster R-CNN for instance segmentation. </p>
+<p><span>In the next chapter, we'll explore new types of </span><span>ML algorithms</span><span> called generative models. We can use them to generate new content, such as images. Stay tuned—it will be fun!</span></p>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

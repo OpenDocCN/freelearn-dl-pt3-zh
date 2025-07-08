@@ -1,0 +1,261 @@
+<html><head></head><body>
+  <div id="_idContainer066">
+    <h1 class="chapterNumber">5</h1>
+    <h1 id="_idParaDest-161" class="chapterTitle">Boosted Trees</h1>
+    <p class="normal">In this chapter, we describe boosted trees: the <strong class="keyword">TensorFlow</strong> (<strong class="keyword">TF</strong>) approach to gradient boosting. It is a class of ML algorithms that produce a prediction model in the form of an ensemble of weak prediction models, typically decision trees. The model is constructed in a stage-wise fashion and generalized by utilizing an arbitrary (differentiable) loss function. Gradient boosted trees are an extremely popular class of algorithms, as they can be parallelized (at the tree construction stage), can natively handle missing values and outliers, and require minimal data preprocessing.</p>
+    <h1 id="_idParaDest-162" class="title">Introduction</h1>
+    <p class="normal">In this chapter, we briefly demonstrate how to approach a binary classification problem using <code class="Code-In-Text--PACKT-">BoostedTreesClassifier</code>. We will <a id="_idIndexMarker279"/>apply the technique to solve a realistic business problem using a popular educational dataset: predicting which customers are likely to cancel their bookings. The data for this problem – and several other business problems – comes in tabular format, and typically contains a mixture of different feature types: numeric, categorical, dates, and so on. In the absence of sophisticated domain knowledge, gradient boosting methods are a good first choice for creating an interpretable solution that works out of the box. In the next section, the relevant modeling steps will be demonstrated with code: data preparation, structuring into functions, fitting a model through the <code class="Code-In-Text--PACKT-">tf.estimator</code> functionality, and interpretation of results.</p>
+    <h2 id="_idParaDest-163" class="title">How to do it...</h2>
+    <p class="normal">We begin by loading the necessary packages:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> pandas <span class="hljs-keyword">as</span> pd
+<span class="hljs-keyword">from</span> IPython.display <span class="hljs-keyword">import</span> clear_output
+<span class="hljs-keyword">from</span> matplotlib <span class="hljs-keyword">import</span> pyplot <span class="hljs-keyword">as</span> plt
+<span class="hljs-keyword">import</span> matplotlib.pyplot <span class="hljs-keyword">as</span> plt
+<span class="hljs-keyword">import</span> seaborn <span class="hljs-keyword">as</span> sns
+sns_colors = sns.color_palette(<span class="hljs-string">'colorblind'</span>)
+<span class="hljs-keyword">from</span> numpy.random <span class="hljs-keyword">import</span> uniform, seed
+<span class="hljs-keyword">from</span> scipy.interpolate <span class="hljs-keyword">import</span> griddata
+<span class="hljs-keyword">from</span> matplotlib.font_manager <span class="hljs-keyword">import</span> FontProperties
+<span class="hljs-keyword">from</span> sklearn.metrics <span class="hljs-keyword">import</span> roc_curve
+</code></pre>
+    <p class="normal">In principle, categorical variables could be simply recoded into integers (using a function such as <code class="Code-In-Text--PACKT-">LabelEncoder</code> from scikit-learn) and a gradient boosting model would work just fine – these minimal requirements on data preprocessing are one of the reasons behind the popularity of ensembles of trees. However, in this recipe, we want to focus on demonstrating the <a id="_idIndexMarker280"/>interpretability of the model and therefore we want to analyze individual indicator values. For that reason, we create a function performing one-hot encoding in a TF-friendly format:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">one_hot_cat_column</span><span class="hljs-function">(</span><span class="hljs-params">feature_name, vocab</span><span class="hljs-function">):</span>
+    <span class="hljs-keyword">return</span> tf.feature_column.indicator_column(
+    tf.feature_column.categorical_column_with_vocabulary_list(feature_name,                                                               vocab))
+</code></pre>
+    <p class="normal">As mentioned in the introduction, for this recipe we will be using the hotel cancellations dataset available from the following URL:</p>
+    <p class="normal"><a href="https://www.sciencedirect.com/science/article/pii/S2352340918315191"><span class="url">https://www.sciencedirect.com/science/article/pii/S2352340918315191</span></a></p>
+    <p class="normal">We choose this dataset because it is fairly realistic for a typical business prediction problem a reader might encounter: there's a time dimension present, and a mixture of numeric and categorical features. At the same time, it is fairly clean (no missing values), which means we can focus on the actual modeling and not on data wrangling:</p>
+    <pre class="programlisting code"><code class="hljs-code">xtrain = pd.read_csv(<span class="hljs-string">'../input/hotel-booking-                              demand/hotel_bookings.csv'</span>)
+xtrain.head(<span class="hljs-number">3</span>)
+</code></pre>
+    <p class="normal">The dataset has a time dimension, so a natural training/validation split can be made on <code class="Code-In-Text--PACKT-">reservation_status_date</code>:</p>
+    <pre class="programlisting code"><code class="hljs-code">xvalid = xtrain.loc[xtrain[<span class="hljs-string">'reservation_status_date'</span>] &gt;= <span class="hljs-string">'2017-08-01'</span>]
+xtrain = xtrain.loc[xtrain[<span class="hljs-string">'reservation_status_date'</span>] &lt; <span class="hljs-string">'2017-08-01'</span>]
+</code></pre>
+    <p class="normal">Separate the features from the target:</p>
+    <pre class="programlisting code"><code class="hljs-code">ytrain, yvalid = xtrain[<span class="hljs-string">'is_canceled'</span>], xvalid[<span class="hljs-string">'is_canceled'</span>]
+xtrain.drop(<span class="hljs-string">'is_canceled'</span>, axis = <span class="hljs-number">1</span>, inplace = <span class="hljs-literal">True</span>)
+xvalid.drop(<span class="hljs-string">'is_canceled'</span>, axis = <span class="hljs-number">1</span>, inplace = <span class="hljs-literal">True</span>)
+</code></pre>
+    <p class="normal">We separate the columns into numerical and categorical ones and encode them in the TF-expected format. We skip some columns that could perhaps improve the model performance, but due to their nature they introduce a risk of leakage: introducing information that might improve the model performance in training but will fail when predicting on unseen data. In <a id="_idIndexMarker281"/>our situation, one such variable is <code class="Code-In-Text--PACKT-">arrival_date_year</code>: if the model uses this variable very strongly, it will fail if we present it with a dataset further into the future (where a specific value of the variable will obviously be absent). </p>
+    <p class="normal">We remove some additional variables from our training data – this step can either be conducted based on expert judgment prior to the modeling procedure, or it can be automated. The latter approach would involve running a small model and examining the global feature importance: if the results show one very important feature dominating over others, it is a potential source of leakage:</p>
+    <pre class="programlisting code"><code class="hljs-code">xtrain.drop([<span class="hljs-string">'arrival_date_year'</span>,<span class="hljs-string">'assigned_room_type'</span>, <span class="hljs-string">'booking_changes'</span>, <span class="hljs-string">'reservation_status'</span>, <span class="hljs-string">'country'</span>, <span class="hljs-string">'days_in_waiting_list'</span>], axis =<span class="hljs-number">1</span>, inplace = <span class="hljs-literal">True</span>)
+num_features = [<span class="hljs-string">"lead_time"</span>,<span class="hljs-string">"arrival_date_week_number"</span>,               
+                <span class="hljs-string">"arrival_date_day_of_month"</span>,
+                <span class="hljs-string">"stays_in_weekend_nights"</span>,                   
+                <span class="hljs-string">"stays_in_week_nights"</span>,<span class="hljs-string">"adults"</span>,<span class="hljs-string">"children"</span>,
+                <span class="hljs-string">"babies"</span>,<span class="hljs-string">"is_repeated_guest"</span>, <span class="hljs-string">"previous_cancellations"</span>,
+                <span class="hljs-string">"previous_bookings_not_canceled"</span>,<span class="hljs-string">"agent"</span>,<span class="hljs-string">"company"</span>,
+                <span class="hljs-string">"required_car_parking_spaces"</span>,                 
+                <span class="hljs-string">"total_of_special_requests"</span>, <span class="hljs-string">"adr"</span>]
+cat_features = [<span class="hljs-string">"hotel"</span>,<span class="hljs-string">"arrival_date_month"</span>,<span class="hljs-string">"meal"</span>,<span class="hljs-string">"market_segment"</span>,
+                <span class="hljs-string">"distribution_channel"</span>,<span class="hljs-string">"reserved_room_type"</span>,                  
+                <span class="hljs-string">"deposit_type"</span>,<span class="hljs-string">"customer_type"</span>]
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">one_hot_cat_column</span><span class="hljs-function">(</span><span class="hljs-params">feature_name, vocab</span><span class="hljs-function">):</span>
+    <span class="hljs-keyword">return</span> tf.feature_column.indicator_column(
+      tf.feature_column.categorical_column_with_vocabulary_list(                                                feature_name,
+                                                vocab))
+feature_columns = []
+<span class="hljs-keyword">for</span> feature_name <span class="hljs-keyword">in</span> cat_features:
+    <span class="hljs-comment"># Need to one-hot encode categorical features.</span>
+    vocabulary = xtrain[feature_name].unique()
+    feature_columns.append(one_hot_cat_column(feature_name, vocabulary))
+<span class="hljs-keyword">for</span> feature_name <span class="hljs-keyword">in</span> num_features:
+    feature_columns.append(tf.feature_column.numeric_column(feature_name,
+                                           dtype=tf.float32))
+</code></pre>
+    <p class="normal">The next step <a id="_idIndexMarker282"/>required is creating the input functions for the boosted trees algorithm: we specify how data will be read into our model for both training and inference. We use the <code class="Code-In-Text--PACKT-">from_tensor_slices</code> method in the <code class="Code-In-Text--PACKT-">tf.data</code> API to read in data directly from pandas:</p>
+    <pre class="programlisting code"><code class="hljs-code">NUM_EXAMPLES = len(ytrain)
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">make_input_fn</span><span class="hljs-function">(</span><span class="hljs-params">X, y, n_epochs=None, shuffle=True</span><span class="hljs-function">):</span>
+    
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">input_fn</span><span class="hljs-function">():</span>
+        
+        dataset = tf.data.Dataset.from_tensor_slices((dict(X), y))
+        <span class="hljs-keyword">if</span> shuffle:
+            
+            dataset = dataset.shuffle(NUM_EXAMPLES)
+        <span class="hljs-comment"># For training, cycle thru dataset as many times as need (n_epochs=None).</span>
+        dataset = dataset.repeat(n_epochs)
+        <span class="hljs-comment"># In memory training doesn't use batching.</span>
+        dataset = dataset.batch(NUM_EXAMPLES)
+        <span class="hljs-keyword">return</span> dataset
+    <span class="hljs-keyword">return</span> input_fn
+<span class="hljs-comment"># Training and evaluation input functions.</span>
+train_input_fn = make_input_fn(xtrain, ytrain)
+eval_input_fn = make_input_fn(xvalid, yvalid, shuffle=<span class="hljs-literal">False</span>,                                                 n_epochs=<span class="hljs-number">1</span>)
+</code></pre>
+    <p class="normal">We can now build the actual BoostedTrees model. We set up a minimal list of parameters (<code class="Code-In-Text--PACKT-">max_depth</code> being one of the most important ones) – the ones not specified in the definition are left at their default values, which can be found through the help functions in the <a id="_idIndexMarker283"/>documentation:</p>
+    <pre class="programlisting code"><code class="hljs-code">params = {
+  <span class="hljs-string">'n_trees'</span>: <span class="hljs-number">125</span>,
+  <span class="hljs-string">'max_depth'</span>: <span class="hljs-number">5</span>,
+  <span class="hljs-string">'n_batches_per_layer'</span>: <span class="hljs-number">1</span>,
+  <span class="hljs-string">'center_bias'</span>: <span class="hljs-literal">True</span>
+}
+est = tf.estimator.BoostedTreesClassifier(feature_columns, **params)
+<span class="hljs-comment"># Train model.</span>
+est.train(train_input_fn, max_steps=<span class="hljs-number">100</span>)
+</code></pre>
+    <p class="normal">Once we have trained a model, we can evaluate the performance with respect to different metrics. <code class="Code-In-Text--PACKT-">BoostedTreesClassifier</code> contains an <code class="Code-In-Text--PACKT-">evaluate</code> method and the output covers a wide range of possible metrics; which ones are used for guidance depends on the specific application, but those outputted by default already allow us to evaluate the model from various angles (for example, if we are dealing with a highly imbalanced dataset, <code class="Code-In-Text--PACKT-">auc</code> can be somewhat misleading and we should evaluate the loss as well). For a more detailed explanation, the <a id="_idIndexMarker284"/>reader is referred to documentation at <a href="https://www.tensorflow.org/api_docs/python/tf/estimator/BoostedTreesClassifier"><span class="url">https://www.tensorflow.org/api_docs/python/tf/estimator/BoostedTreesClassifier</span></a>:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Evaluation</span>
+results = est.evaluate(eval_input_fn)
+pd.Series(results).to_frame()
+</code></pre>
+    <p class="normal">The results you see should look like this:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_05_01.png" alt="Obraz zawierający stół  Opis wygenerowany automatycznie"/></figure>
+    <pre class="programlisting code"><code class="hljs-code">pred_dicts = list(est.predict(eval_input_fn))
+probs = pd.Series([pred[<span class="hljs-string">'probabilities'</span>][<span class="hljs-number">1</span>] <span class="hljs-keyword">for</span> pred <span class="hljs-keyword">in</span> pred_dicts])
+</code></pre>
+    <p class="normal">We can evaluate the <a id="_idIndexMarker285"/>results at different levels of generality – details of the difference between global and local are given as follows. Let's <a id="_idIndexMarker286"/>start with the <strong class="keyword">receiver operating characteristic</strong> (<strong class="keyword">ROC</strong>) curve: a graph showing the performance of a classification model at all possible classification thresholds. We plot the false positive rate versus the true positive rate: a random classifier would be a diagonal line from (0,0) to (1,1), and the further away we move from that scenario toward the upper-left corner, the better our classifier is:</p>
+    <pre class="programlisting code"><code class="hljs-code">fpr, tpr, _ = roc_curve(yvalid, probs)
+plt.plot(fpr, tpr)
+plt.title(<span class="hljs-string">'ROC curve'</span>)
+plt.xlabel(<span class="hljs-string">'false positive rate'</span>)
+plt.ylabel(<span class="hljs-string">'true positive rate'</span>)
+plt.xlim(<span class="hljs-number">0</span>,); plt.ylim(<span class="hljs-number">0</span>,); plt.show()
+</code></pre>
+    <figure class="mediaobject"><img src="../Images/B16254_05_02.png" alt=""/></figure>
+    <p class="packt_figref">Figure 5.1: ROC for the trained classifier</p>
+    <p class="normal">Local interpretability refers to <a id="_idIndexMarker287"/>an understanding of a model's predictions at the individual example level: we will create and visualize per-instance contributions. This is particularly useful if model predictions need to be explained to audiences exhibiting technical cognitive diversity. We refer <a id="_idIndexMarker288"/>to these values as <strong class="keyword">directional feature contributions</strong> (<strong class="keyword">DFCs</strong>):</p>
+    <pre class="programlisting code"><code class="hljs-code">pred_dicts = list(est.experimental_predict_with_explanations(eval_input_fn))
+<span class="hljs-comment"># Create DFC Pandas dataframe.</span>
+labels = yvalid.values
+probs = pd.Series([pred[<span class="hljs-string">'probabilities'</span>][<span class="hljs-number">1</span>] <span class="hljs-keyword">for</span> pred <span class="hljs-keyword">in</span> pred_dicts])
+df_dfc = pd.DataFrame([pred[<span class="hljs-string">'dfc'</span>] <span class="hljs-keyword">for</span> pred <span class="hljs-keyword">in</span> pred_dicts])
+df_dfc.describe().T
+</code></pre>
+    <figure class="mediaobject"><img src="../Images/B16254_05_03.png" alt="Obraz zawierający stół  Opis wygenerowany automatycznie"/></figure>
+    <p class="normal">The complete summary of the complete DFC DataFrame can be somewhat overwhelming at first glance, and <a id="_idIndexMarker289"/>in practice, one is most likely to focus on a subset of the columns. What we get in each row are summary statistics (<code class="Code-In-Text--PACKT-">mean</code>, <code class="Code-In-Text--PACKT-">std</code>, and so on) of the directional contributions of a feature (<code class="Code-In-Text--PACKT-">arrival_date_week_number</code> in the first row, <code class="Code-In-Text--PACKT-">arrival_date_day_of_month</code> for the second, and so on) across all observations in the validation set.</p>
+    <h2 id="_idParaDest-164" class="title">How it works...</h2>
+    <p class="normal">The following code block demonstrates the steps necessary to extract the feature contributions to a prediction for a particular record. For convenience and reusability, we define a function plotting a chosen record first (for easier interpretation, we want to plot feature importances using different colors, depending on whether their contribution is positive or negative):</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">_get_color</span><span class="hljs-function">(</span><span class="hljs-params">value</span><span class="hljs-function">):</span>
+    <span class="hljs-string">"""To make positive DFCs plot green, negative DFCs plot red."""</span>
+    green, red = sns.color_palette()[<span class="hljs-number">2</span>:<span class="hljs-number">4</span>]
+    <span class="hljs-keyword">if</span> value &gt;= <span class="hljs-number">0</span>: <span class="hljs-keyword">return</span> green
+    <span class="hljs-keyword">return</span> red
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">_add_feature_values</span><span class="hljs-function">(</span><span class="hljs-params">feature_values, ax</span><span class="hljs-function">):</span>
+    <span class="hljs-string">"""Display feature's values on left of plot."""</span>
+    x_coord = ax.get_xlim()[<span class="hljs-number">0</span>]
+    OFFSET = <span class="hljs-number">0.15</span>
+    <span class="hljs-keyword">for</span> y_coord, (feat_name, feat_val) <span class="hljs-keyword">in</span> enumerate(feature_values.                                                    items()):
+        t = plt.text(x_coord, y_coord - OFFSET, <span class="hljs-string">'{}'</span>.format(feat_val),                                                     size=<span class="hljs-number">12</span>)
+        t.set_bbox(dict(facecolor=<span class="hljs-string">'white'</span>, alpha=<span class="hljs-number">0.5</span>))
+    <span class="hljs-keyword">from</span> matplotlib.font_manager <span class="hljs-keyword">import</span> FontProperties
+    font = FontProperties()
+    font.set_weight(<span class="hljs-string">'bold'</span>)
+    t = plt.text(x_coord, y_coord + <span class="hljs-number">1</span> - OFFSET, <span class="hljs-string">'feature\nvalue'</span>,
+    fontproperties=font, size=<span class="hljs-number">12</span>)
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">plot_example</span><span class="hljs-function">(</span><span class="hljs-params">example</span><span class="hljs-function">):</span>
+  TOP_N = <span class="hljs-number">8</span> <span class="hljs-comment"># View top 8 features.</span>
+  sorted_ix = example.abs().sort_values()[-TOP_N:].index  <span class="hljs-comment"># Sort by magnitude.</span>
+  example = example[sorted_ix]
+  colors = example.map(_get_color).tolist()
+  ax = example.to_frame().plot(kind=<span class="hljs-string">'barh'</span>,
+                          color=[colors],
+                          legend=<span class="hljs-literal">None</span>,
+                          alpha=<span class="hljs-number">0.75</span>,
+                          figsize=(<span class="hljs-number">10</span>,<span class="hljs-number">6</span>))
+  ax.grid(<span class="hljs-literal">False</span>, axis=<span class="hljs-string">'y'</span>)
+  ax.set_yticklabels(ax.get_yticklabels(), size=<span class="hljs-number">14</span>)
+  <span class="hljs-comment"># Add feature values.</span>
+  _add_feature_values(xvalid.iloc[ID][sorted_ix], ax)
+  <span class="hljs-keyword">return</span> ax
+</code></pre>
+    <p class="normal">With the boilerplate code defined, we plot the detailed graph for a specific record in a straightforward manner:</p>
+    <pre class="programlisting code"><code class="hljs-code">ID = <span class="hljs-number">10</span>
+example = df_dfc.iloc[ID]  <span class="hljs-comment"># Choose ith example from evaluation set.</span>
+TOP_N = <span class="hljs-number">8</span>  <span class="hljs-comment"># View top 8 features.</span>
+sorted_ix = example.abs().sort_values()[-TOP_N:].index
+ax = plot_example(example)
+ax.set_title(<span class="hljs-string">'Feature contributions for example {}\n pred: {:1.2f}; label: {}'</span>.format(ID, probs[ID], labels[ID]))
+ax.set_xlabel(<span class="hljs-string">'Contribution to predicted probability'</span>, size=<span class="hljs-number">14</span>)
+plt.show()
+</code></pre>
+    <p class="normal">Which delivers <a id="_idIndexMarker290"/>the following output:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_05_04.png" alt=""/></figure>
+    <p class="packt_figref">Figure 5.2: How different features contribute to predicted probabilities</p>
+    <p class="normal">Besides analyzing the feature relevance on the level of individual observation, we can also take a global (aggregate) view. Global interpretability refers to an understanding of the model as a whole: we will retrieve and visualize gain-based feature importances and permutation feature importances and also show aggregated DFCs.</p>
+    <p class="normal">Gain-based feature importances <a id="_idIndexMarker291"/>measure the loss change when splitting on a particular feature, while permutation feature importances are computed by evaluating the model performance on the evaluation set by shuffling each feature one by one and attributing the change in model performance to the shuffled feature.</p>
+    <p class="normal">In general, permutation feature importance <a id="_idIndexMarker292"/>is preferred to gain-based feature importance, though both methods can be unreliable in situations where potential predictor variables vary in their scale of measurement or their number of categories and when features are correlated.</p>
+    <p class="normal">The function <a id="_idIndexMarker293"/>calculating permutation importances is as follows:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">permutation_importances</span><span class="hljs-function">(</span><span class="hljs-params">est, X_eval, y_eval, metric, features</span><span class="hljs-function">):</span>
+    <span class="hljs-string">"""Column by column, shuffle values and observe effect on eval set.</span>
+<span class="hljs-string">    source: http://explained.ai/rf-importance/index.html</span>
+<span class="hljs-string">    A similar approach can be done during training. See "Drop-column importance"</span>
+<span class="hljs-string">    in the above article."""</span>
+    baseline = metric(est, X_eval, y_eval)
+    imp = []
+    <span class="hljs-keyword">for</span> col <span class="hljs-keyword">in</span> features:
+        save = X_eval[col].copy()
+        X_eval[col] = np.random.permutation(X_eval[col])
+        m = metric(est, X_eval, y_eval)
+        X_eval[col] = save
+        imp.append(baseline - m)
+    <span class="hljs-keyword">return</span> np.array(imp)
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">accuracy_metric</span><span class="hljs-function">(</span><span class="hljs-params">est, X, y</span><span class="hljs-function">):</span>
+    <span class="hljs-string">"""TensorFlow estimator accuracy."""</span>
+    eval_input_fn = make_input_fn(X,
+                                  y=y,
+                                  shuffle=<span class="hljs-literal">False</span>,
+                                  n_epochs=<span class="hljs-number">1</span>)
+    <span class="hljs-keyword">return</span> est.evaluate(input_fn=eval_input_fn)[<span class="hljs-string">'accuracy'</span>]
+</code></pre>
+    <p class="normal">We use the following function to display the most relevant columns:</p>
+    <pre class="programlisting code"><code class="hljs-code">features = CATEGORICAL_COLUMNS + NUMERIC_COLUMNS
+importances = permutation_importances(est, dfeval, y_eval, accuracy_metric,
+                                      features)
+df_imp = pd.Series(importances, index=features)
+sorted_ix = df_imp.abs().sort_values().index
+ax = df_imp[sorted_ix][<span class="hljs-number">-5</span>:].plot(kind=<span class="hljs-string">'barh'</span>, color=sns_colors[<span class="hljs-number">2</span>], figsize=(<span class="hljs-number">10</span>, <span class="hljs-number">6</span>))
+ax.grid(<span class="hljs-literal">False</span>, axis=<span class="hljs-string">'y'</span>)
+ax.set_title(<span class="hljs-string">'Permutation feature importance'</span>)
+plt.show()
+</code></pre>
+    <p class="normal">Which gives <a id="_idIndexMarker294"/>you the following output:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_05_05.png" alt=""/></figure>
+    <p class="packt_figref">Figure 5.3: The permutation feature importance of different features</p>
+    <p class="normal">And we use the following function to display the gain feature importance columns in the same way:</p>
+    <pre class="programlisting code"><code class="hljs-code">importances = est.experimental_feature_importances(normalize=<span class="hljs-literal">True</span>)
+df_imp = pd.Series(importances)
+<span class="hljs-comment"># Visualize importances.</span>
+N = <span class="hljs-number">8</span>
+ax = (df_imp.iloc[<span class="hljs-number">0</span>:N][::<span class="hljs-number">-1</span>]
+    .plot(kind=<span class="hljs-string">'barh'</span>,
+          color=sns_colors[<span class="hljs-number">0</span>],
+          title=<span class="hljs-string">'Gain feature importances'</span>,
+          figsize=(<span class="hljs-number">10</span>, <span class="hljs-number">6</span>)))
+ax.grid(<span class="hljs-literal">False</span>, axis=<span class="hljs-string">'y'</span>)
+</code></pre>
+    <p class="normal">Which gives you the following output:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_05_06.png" alt=""/></figure>
+    <p class="packt_figref">Figure 5.4: The gain feature importance of different features</p>
+    <p class="normal">The absolute values of DFCs can be averaged to <a id="_idIndexMarker295"/>understand the impact at a global level:</p>
+    <pre class="programlisting code"><code class="hljs-code">dfc_mean = df_dfc.abs().mean()
+N = <span class="hljs-number">8</span>
+sorted_ix = dfc_mean.abs().sort_values()[-N:].index  <span class="hljs-comment"># Average and sort by absolute.</span>
+ax = dfc_mean[sorted_ix].plot(kind=<span class="hljs-string">'barh'</span>,
+                       color=sns_colors[<span class="hljs-number">1</span>],
+                       title=<span class="hljs-string">'Mean |directional feature contributions|'</span>,
+                       figsize=(<span class="hljs-number">10</span>, <span class="hljs-number">6</span>))
+ax.grid(<span class="hljs-literal">False</span>, axis=<span class="hljs-string">'y'</span>)
+</code></pre>
+    <p class="normal">Which gives you the following output:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_05_07.png" alt=""/></figure>
+    <p class="packt_figref">Figure 5.5: The mean directional feature contributions of different features</p>
+    <p class="normal">In this recipe, we have <a id="_idIndexMarker296"/>introduced the TF implementation of <code class="Code-In-Text--PACKT-">GradientBoostingClassifier</code>: a flexible model architecture applicable to a wide range of tabular data problems. We built a model to solve a real business problem: predicting the probability that a customer might cancel their hotel booking and, in the process, we introduced all the relevant components of the TF Boosted Trees pipeline:</p>
+    <ul>
+      <li class="bullet">Prepare the data for use with the model</li>
+      <li class="bullet">Configure the <code class="Code-In-Text--PACKT-">GradientBoostingClassifier</code> with <code class="Code-In-Text--PACKT-">tf.estimator</code></li>
+      <li class="bullet">Evaluate the feature importance and model interpretability, both on a global and local level</li>
+    </ul>
+    <h2 id="_idParaDest-165" class="title">See also</h2>
+    <p class="normal">There is a plethora of articles introducing the gradient boosting family of algorithms:</p>
+    <ul>
+      <li class="bullet">An excellent Medium post at <a href="https://medium.com/analytics-vidhya/introduction-to-the-gradient-boosting-algorithm-c25c653f826b"><span class="url">https://medium.com/analytics-vidhya/introduction-to-the-gradient-boosting-algorithm-c25c653f826b</span></a></li>
+      <li class="bullet">The official XGBoost documentation: <a href="https://xgboost.readthedocs.io/en/latest/tutorials/model.html"><span class="url">https://xgboost.readthedocs.io/en/latest/tutorials/model.html</span></a></li>
+      <li class="bullet">The LightGBM documentation: <a href="https://papers.nips.cc/paper/6907-lightgbm-a-highly-efficient-gradient-boosting-decision-tree.pdf"><span class="url">https://papers.nips.cc/paper/6907-lightgbm-a-highly-efficient-gradient-boosting-decision-tree.pdf</span></a></li>
+    </ul>
+  </div>
+</body></html>

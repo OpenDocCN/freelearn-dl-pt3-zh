@@ -1,0 +1,367 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Generating Book Scripts Using LSTMs</h1>
+                </header>
+            
+            <article>
+                
+<p><strong>Natural language generation</strong> (<strong>NLG</strong>), which is a sub-field of artificial intelligence, is a natural language processing task of generating human-readable text from various data inputs. It is an active area of research that has achieved great popularity in recent times.</p>
+<p class="mce-root">The ability to generate natural language through machines can have wide variety of applications, including text autocomplete feature in phones, generating the summary of a document, and even generating new scripts for comedies. Google's Smart Reply also uses a technology that runs on similar lines to give reply suggestions when you're writing an email.</p>
+<p class="mce-root">In this chapter, we will look at an NLG task of generating a book script from another Packt book that goes by the name of <span><em>Mastering PostgreSQL 10</em>.</span><span> We took almost 100 pages of this book and removed any figures, tables, and SQL code</span>. The data is fairly large and has enough words for a neural network to learn the nuances of the dataset.</p>
+<p class="mce-root">We will learn how to generate book scripts using reinforcement neural networks by going through the following topics:</p>
+<ul>
+<li class="mce-root">Introduction to recurrent neural networks and LSTMs</li>
+<li class="mce-root">Description of the book script dataset</li>
+<li class="mce-root">Modeling using LSTMs and generating a new book script</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding recurrent neural networks</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root"><strong>Recurrent neural networks</strong> (<strong>RNNs</strong>) have become extremely popular for any task that involves sequential data. The core idea behind RNNs is to exploit the sequential information present in the data. Under usual circumstances, every neural network assumes that all of the inputs are independent of each other. However, if we are trying to predict the next word in a sequence or the next point in a time series, it is imperative to use information <span>based on the words used </span>prior or on the historical points in the time series.</p>
+<p class="mce-root">One way to perceive the concept of RNNs is that they have a memory that stores information about historical data in a sequence. In theory, RNNs can remember history for arbitrarily long sequences, however, in practice, they do a bad job in tasks where the historical information needs to be retained for more than a few steps back. </p>
+<p class="mce-root">The typical structure of a RNN is as follows:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-234 image-border" src="assets/f8d2ba9e-f120-4469-96d3-28b8893e4eed.png" style="width:43.92em;height:12.92em;"/></p>
+<p class="mce-root">In the preceding diagram, <em>Xt</em> is the sequence value at different time steps. RNNs are called <strong>recurrent</strong> as they apply the exact same operation on every element of the sequence, with the output being dependent on the preceding steps. The connection between cells can be clearly observed. These connections help to transfer information from the previous step to the next.</p>
+<p class="mce-root">As mentioned previously, RNNs are not great at capturing long-term dependencies. There are different variants of RNNs. A few of them are as follows:</p>
+<ul>
+<li><strong>Long Short-Term Memory</strong> (<strong>LSTMs</strong>)</li>
+<li><strong>Gated recurrent units</strong> (<strong>GRU</strong>)</li>
+<li>Peephole LSTMs </li>
+</ul>
+<p><span>LSTMs are better at capturing long-term dependencies in comparison to vanilla RNNs. LSTMs have become very popular regarding tasks such as word/sentence prediction, image caption generation, and even forecasting time series data that requires long-term dependencies. The following are some of the advantages of using LSTMs:</span></p>
+<ul>
+<li>Great at modeling tasks involving long-term dependencies</li>
+<li>Weight sharing between different time steps greatly reduces the number of parameters in the model</li>
+<li>Suffers less from the vanishing and exploding gradient problem faced by traditional RNNs</li>
+</ul>
+<p>The following are some of the disadvantages of using LSTMs:</p>
+<ul>
+<li>LSTMs are data-hungry. They usually require a lot of training data to produce any meaningful results.</li>
+<li>Slower to train than traditional neural networks.</li>
+<li>There are computationally more efficient RNN variants such as GRU that achieve a similar performance as LSTMs.</li>
+</ul>
+<p>A discussion of other types of RNNs is outside the scope of this chapter. If you are interested, you can refer to the sequential modeling chapter in the <em>Deep Learning</em> Book (<a href="https://www.deeplearningbook.org/contents/rnn.html">https://www.deeplearningbook.org/contents/rnn.html</a>).</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Pre-processing the data</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">As mentioned previously, the dataset used in this project is from a <span>popular Packt book that goes by t</span><span>he name of </span><span><em>Mastering PostgreSQL 10</em>, and was written by Hans-Jürgen Schönig (<a href="https://www.cybertec-postgresql.com">https://www.cybertec-postgresql.com</a>)</span><span>.</span> <span>We considered text from the first 100 pages of the book, excluding any figures, tables, and SQL code. The cleaned dataset is stored, alongside the code, in a text file. The dataset contains almost 44,000 words, which is just enough to train the model. The following are a few lines from the script:</span></p>
+<p><em>"PostgreSQL Overview</em></p>
+<p><em>PostgreSQL is one of the world's most advanced open source database systems, and it has many features that are widely used by developers and system administrators alike. Starting with PostgreSQL 10, many new features have been added to PostgreSQL, which contribute greatly to the success of this exceptional open source product. In this book, many of these cool features will be covered and discussed in great detail.</em><br/>
+<em>In this chapter, you will be introduced to PostgreSQL and the cool new features available in PostgreSQL 10.0 and beyond. All relevant new functionalities will be covered in detail. Given the sheer number of changes made to the code and given the size of the PostgreSQL project, this list of features is of course by far not complete, so I tried to focus on the most important aspects that are relevant to most people.</em><br/>
+<em>The features outlined in this chapter will be split into the following categories Database administration</em><br/>
+<em>SQL and developer related Backup, recovery, and replication Performance related topics</em><br/>
+<em>What is new in PostgreSQL 10.0.</em><br/>
+<em>PostgreSQL 10.0 was released in late 2017 and is the first version that follows the new numbering scheme introduced by the PostgreSQL community. From now on, the way major releases are done will change and therefore, the next major version after PostgreSQL</em><br/>
+<em>10.0 will not be 10.1 but PostgreSQL 11. Versions 10.1 and 10.2 are merely service releases and will only contain bug fixes."</em></p>
+<p class="mce-root">For pre-processing the data so that we prepare it for a LSTM model, go through the following steps:</p>
+<ol>
+<li><strong>Tokenize punctuation</strong>: While pre-processing, we consider the splitting criteria as words using spaces. However, in this scenario, the neural network will have a hard time distinguishing words such as Hello and Hello!. Due to this limitation, it is required that you tokenize the punctuations in the dataset. For example, <kbd>!</kbd> will be mapped to <kbd>_Sym_Exclamation_</kbd>. In the code, we implement a function named <kbd>define_tokens</kbd>. This is used to create a dictionary. Here, each piece of punctuation is considered a key, and its respective token is a value. In this example, we will create tokens for the following symbols:</li>
+</ol>
+<ul>
+<li style="list-style-type: none">
+<ul>
+<li>Period ( . )</li>
+<li>Comma ( , )</li>
+<li>Quotation mark (" )</li>
+<li>Semicolon ( ; )</li>
+<li>Exclamation mark ( ! )</li>
+<li>Question mark ( ? )</li>
+<li>Left parenthesis ( ( )</li>
+<li>Right parenthesis ( ) )</li>
+<li>Dash ( -- )</li>
+<li>Return ( \n )</li>
+</ul>
+</li>
+</ul>
+<div class="packt_infobox">Avoid using a token that will probably be a word in the dataset. For example, <kbd>?</kbd> is replaced by <kbd>_Sym_Question_</kbd>, which is not a word in the dataset.</div>
+<ol start="2">
+<li><strong>Lower and split</strong>: We must convert all of the uppercase letters in the text to lowercase so that the neural network will learn that the two words "Hello" and "hello" are actually the same. As the basic unit of input to neural networks will be words, the very next step would be to split the sentences in the text into words.</li>
+<li><strong>Map creation</strong>: Neural networks do not accept text as an input, and so we need to map these words to indexes/IDs. To do this, we must create two dictionaries, as follows:</li>
+</ol>
+<ul>
+<li style="list-style-type: none">
+<ul>
+<li class="mce-root"><kbd>Vocab_to_int</kbd>: Mapping of each word in the text to its unique ID</li>
+<li class="mce-root"><kbd>Int_to_vocab</kbd>: Inverse dictionary which maps IDs to their corresponding words</li>
+</ul>
+</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Defining the model</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Before training the model using the pre-processed data, let's understand the model definition for this problem. In the code, we define a model class in the <kbd>model.py</kbd> file. The class contains four major components, and are as follows:</p>
+<ul>
+<li class="mce-root"><strong>Input</strong>: We define the TensorFlow placeholders in the model for both input (X) and target (Y).</li>
+<li><strong>Network definition</strong>: There are four components of the network for this model. They are as follows: 
+<ul>
+<li class="mce-root"> <strong>Initializing the LSTM cell</strong>: To do this, we begin by stacking two layers of LSTMs together. We then set the size of the LSTM to be a <kbd>RNN_SIZE</kbd> parameter, which is as defined in the code. RNN is then initialized with a zero state.</li>
+<li><strong>Word embeddings</strong>: We encode the words in the text using word embeddings rather than one-hot encoding. This is done, mainly, to reduce the dimension of the training set, which can help neural networks learn faster. We generate embeddings from a uniform distribution for each word in the vocabulary and use TensorFlow's <kbd>embedding_lookup</kbd> function to get embedding sequences for the input data.</li>
+<li><strong>Building LSTMs</strong>: To obtain the final state of LSTMs, we use TensorFlow's <kbd>tf.nn.dynamic_rnn</kbd> function with the initial cell and the embeddings of the input data. </li>
+<li class="mce-root"><strong>Probability generation</strong>: After obtaining the final state and output from LSTM, we pass it through a fully connected layer to generate logits for predictions. We convert those logits into probability estimates by using the <kbd>softmax</kbd> function. The code is as follows:</li>
+</ul>
+</li>
+<li><strong>Sequence loss</strong>: We must define the loss, which in this case is the Sequence loss. This is nothing but a weighted cross entropy for a sequence of logits. We equally weight the observations across batch and time. </li>
+<li><strong>Optimizer</strong>: We will use the Adam optimizer, along with its default parameters. We will also clip the gradients to keep it within the range of -1 to 1. Gradient clipping is a common phenomenon in recurrent neural networks. When gradients are backpropagated in time, they can vanish if they are constantly multiplied by numbers less than 1, or can explode due to being multiplied by numbers greater than 1. Gradient clipping will help to resolve both of these problems by restricting the gradient to be between -1 and 1.</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Training the model</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Before understanding the implementation of the training loop, let's take a closer look at how we can generate batches of data.</p>
+<p class="mce-root">It is common knowledge that batches are used in neural networks to speed up the training of the model and to consume less memory. Batches are samples of the original dataset that are used for a forward and backward pass to the network. The forward pass refers to the process of multiplying inputs with weights of different layers in the network and obtaining the final output. The backward pass, on the other hand, refers to the process of updating the weights in the neural network based on the loss obtained from the outputs of the forward pass. </p>
+<p class="mce-root">In this model, since we are predicting the next set of words given a set of previous words to generate the TV script, the targets are basically the next few (depending on sequence length) words in the original training dataset. Let's consider an example where the training dataset contains the following line:</p>
+<p class="mce-root"><em>The quick brown fox jumps over the lazy dog</em></p>
+<p class="mce-root">If the sequence length (the number of words to process together) used is 4, then the following are true:</p>
+<ul>
+<li class="mce-root">X is the sequence of every four words, for example, [<em>The quick brown fox</em>, <em>quick brown fox jumps</em> …..] .</li>
+<li class="mce-root">Y is the sequence of every four words, skipping the first word, for example, [<em>quick brown fox jumps</em>, <em>brown fox jumps over</em> …].</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Defining and training a text-generating model</h1>
+                </header>
+            
+            <article>
+                
+<ol>
+<li class="mce-root">Begin by loading the saved text data for pre-processing with the help of the <kbd>load_data</kbd> function:</li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px"> def load_data():<br/> """<br/> Loading Data<br/> """<br/> input_file = os.path.join(TEXT_SAVE_DIR)<br/> with open(input_file, "r") as f:<br/> data = f.read()<br/><br/>return data</pre>
+<ol start="2">
+<li>Implement <kbd>define_tokens</kbd>, as defined in the <em>Pre-processing the data</em> section of this chapter. This will help us create a dictionary of the key words and their corresponding tokens:</li>
+</ol>
+<pre style="padding-left: 60px"> def define_tokens():<br/> """<br/> Generate a dict to turn punctuation into a token. Note that Sym before each text denotes Symbol<br/> :return: Tokenize dictionary where the key is the punctuation and the value is the token<br/> """<br/> dict = {'.':'_Sym_Period_',<br/> ',':'_Sym_Comma_',<br/> '"':'_Sym_Quote_',<br/> ';':'_Sym_Semicolon_',<br/> '!':'_Sym_Exclamation_',<br/> '?':'_Sym_Question_',<br/> '(':'_Sym_Left_Parentheses_',<br/> ')':'_Sym_Right_Parentheses_',<br/> '--':'_Sym_Dash_',<br/> '\n':'_Sym_Return_',<br/> }<br/> return dict</pre>
+<p style="padding-left: 60px">The dictionary that we've created will be used to replace the punctuation marks in the dataset with their respective tokens and delimiters (space in this case) around them. For example, <kbd>Hello!</kbd> will be replaced with <kbd>Hello _Sym_Exclamation_</kbd>.</p>
+<p class="mce-root" style="padding-left: 60px">Note that there is a space between <kbd>Hello</kbd> and the token. This will help the LSTM model treat each punctuation marks as its own word.</p>
+<ol start="3">
+<li>Map the words to indexes/IDs with the help of the <kbd>Vocab_to_int</kbd> and <kbd>int_to_vocab</kbd> dictionaries. We are doing this since neural networks do not accept text as input:</li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px"> def create_map(input_text):<br/> """<br/> Map words in vocab to int and vice versa for easy lookup<br/> :param input_text: TV Script data split into words<br/> :return: A tuple of dicts (vocab_to_int, int_to_vocab)<br/> """<br/> vocab = set(input_text)<br/> vocab_to_int = {c: i for i, c in enumerate(vocab)}<br/> int_to_vocab = dict(enumerate(vocab))<br/> return vocab_to_int, int_to_vocab</pre>
+<ol start="4">
+<li class="mce-root">Combine all of the preceding steps to create a function that will pre-process the data that's available for us:</li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px">def preprocess_and_save_data():<br/> """<br/> Preprocessing the TV Scripts Dataset<br/> """<br/> generate_text_data_from_csv()<br/> text = load_data()<br/> text= text[14:] # Ignoring the STARTraw_text part of the dataset<br/> token_dict = define_tokens()<br/> for key, token in token_dict.items():<br/> text = text.replace(key, ' {} '.format(token))<br/><br/>text = text.lower()<br/> text = text.split()<br/><br/>vocab_to_int, int_to_vocab = create_map(text)<br/> int_text = [vocab_to_int[word] for word in text]<br/> pickle.dump((int_text, vocab_to_int, int_to_vocab, token_dict), open('processed_text.p', 'wb'))</pre>
+<p class="mce-root" style="padding-left: 60px">We will then generate integer text for the mapping dictionaries and dump the pre-processed data and relevant dictionaries in a <kbd>pickle</kbd> file.</p>
+<ol start="5">
+<li class="mce-root">To define our model, we will create a model class in the <kbd>model.py</kbd> file. We will begin by defining the input: </li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px"> with tf.variable_scope('Input'):<br/> self.X = tf.placeholder(tf.int32, [None, None], name='input')<br/> self.Y = tf.placeholder(tf.int32, [None, None], name='target')<br/> self.input_shape = tf.shape(self.X)</pre>
+<p class="mce-root" style="padding-left: 60px">We must define variable type to be integers since the words in the dataset have been transformed to integers.</p>
+<ol start="6">
+<li>Define the network of our model by defining the LSTM cell, word embeddings, building LSTMs, and probability generation. To define the LSTM cell, stack two LSTM layers and set the size of the LSTM to be a <kbd>RNN_SIZE</kbd> parameter. Assign RNN the value 0:</li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px"> lstm = tf.contrib.rnn.BasicLSTMCell(RNN_SIZE)<br/> cell = tf.contrib.rnn.MultiRNNCell([lstm] * 2) # Defining two LSTM layers for this case<br/> self.initial_state = cell.zero_state(self.input_shape[0], tf.float32)<br/> self.initial_state = tf.identity(self.initial_state, name="initial_state")</pre>
+<p style="padding-left: 60px"> To reduce the dimension of the training set and increase the speed of the neural network, generate and look up embeddings using the following code:</p>
+<pre class="mce-root" style="padding-left: 60px">embedding = tf.Variable(tf.random_uniform((self.vocab_size, RNN_SIZE), -1, 1))<br/>embed = tf.nn.embedding_lookup(embedding, self.X)</pre>
+<p style="padding-left: 60px">Run the <kbd>tf.nn.dynamic_rnn</kbd> function to find the final state of the LSTMs:</p>
+<pre class="mce-root" style="padding-left: 60px">outputs, self.final_state = tf.nn.dynamic_rnn(cell, embed, initial_state=None, dtype=tf.float32)<br/>self.final_state = tf.identity(self.final_state, name='final_state')</pre>
+<p style="padding-left: 60px">Convert the logits obtained from the final state of the LSTMs to a probability estimate by using the <kbd>softmax</kbd> function:</p>
+<pre class="mce-root" style="padding-left: 60px">self.final_state = tf.identity(self.final_state, name='final_state')<br/>self.predictions = tf.contrib.layers.fully_connected(outputs, self.vocab_size, activation_fn=None)<br/># Probabilities for generating words<br/>probs = tf.nn.softmax(self.predictions, name='probs')</pre>
+<ol start="7">
+<li>Define a weighted cross entropy or sequence loss for a sequence of logits, which further helps fine-tune our network:</li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px"> def define_loss(self):<br/> # Defining the sequence loss<br/> with tf.variable_scope('Sequence_Loss'):<br/> self.loss = seq2seq.sequence_loss(self.predictions, self.Y,<br/> tf.ones([self.input_shape[0], self.input_shape[1]]))</pre>
+<ol start="8">
+<li>Implement the Adam optimizer with the default parameters, and clip the gradients to keep it within the range of <kbd>-1</kbd> to <kbd>1</kbd> to avoid diminishing the gradient when it is backpropagated in time:</li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px"> def define_optimizer(self):<br/> with tf.variable_scope("Optimizer"):<br/> optimizer = tf.train.AdamOptimizer(LEARNING_RATE)<br/> # Gradient Clipping<br/> gradients = optimizer.compute_gradients(self.loss)<br/> capped_gradients = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in gradients]<br/> self.train_op = optimizer.apply_gradients(capped_gradients)</pre>
+<ol start="9">
+<li>Define the sequence length using the <kbd>generate_batch_data</kbd> function. This helps generate batches that are necessary for the neural network training:
+<ul>
+<li class="mce-root">The input for this function will be the text data that is encoded as integers, batch size, and sequence length.</li>
+<li class="mce-root">The output will be a numpy array with the shape [# batches, 2, batch size, sequence length]. Each batch contains two parts, defined as follows:
+<ul>
+<li class="mce-root">X with shape [batch size, sequence length]</li>
+<li class="mce-root">Y with shape [batch size, sequence length]:</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<pre style="padding-left: 60px"> def generate_batch_data(int_text):<br/> """<br/> Generate batch data of x (inputs) and y (targets)<br/> :param int_text: Text with the words replaced by their ids<br/> :return: Batches as a Numpy array<br/> """<br/> num_batches = len(int_text) // (BATCH_SIZE * SEQ_LENGTH)<br/><br/>x = np.array(int_text[:num_batches * (BATCH_SIZE * SEQ_LENGTH)])<br/>y = np.array(int_text[1:num_batches * (BATCH_SIZE * SEQ_LENGTH) + 1])<br/><br/>x_batches = np.split(x.reshape(BATCH_SIZE, -1), num_batches, 1) y_batches = np.split(y.reshape(BATCH_SIZE, -1), num_batches, 1)<br/> batches = np.array(list(zip(x_batches, y_batches)))<br/> return batches</pre>
+<ol start="10">
+<li class="mce-root">Train the model using the following parameters:</li>
+</ol>
+<ul>
+<li style="list-style-type: none">
+<ul>
+<li class="mce-root">Num Epochs = 500</li>
+<li class="mce-root">Learning Rate = 0.001</li>
+<li class="mce-root">Batch Size = 128</li>
+<li class="mce-root">RNN Size = 128</li>
+<li class="mce-root">Sequence Length= 32:</li>
+</ul>
+</li>
+</ul>
+<pre class="mce-root" style="padding-left: 60px">def train(model,int_text):<br/># Creating the checkpoint directory<br/> if not os.path.exists(CHECKPOINT_PATH_DIR):<br/> os.makedirs(CHECKPOINT_PATH_DIR)<br/><br/>batches = generate_batch_data(int_text)<br/>with tf.Session() as sess:<br/> if RESTORE_TRAINING:<br/> saver = tf.train.Saver()<br/> ckpt = tf.train.get_checkpoint_state(CHECKPOINT_PATH_DIR)<br/> saver.restore(sess, ckpt.model_checkpoint_path)<br/> print('Model Loaded')<br/> start_epoch = int(str(ckpt.model_checkpoint_path).split('-')[-1])<br/> else:<br/> start_epoch = 0<br/> tf.global_variables_initializer().run()<br/> print('All variables initialized')<br/><br/>for epoch in range(start_epoch, NUM_EPOCHS):<br/> saver = tf.train.Saver()<br/> state = sess.run(model.initial_state, {model.X: batches[0][0]})<br/><br/>for batch, (x, y) in enumerate(batches):<br/> feed = {<br/> model.X: x,<br/> model.Y: y,<br/> model.initial_state: state}<br/> train_loss, state, _ = sess.run([model.loss, model.final_state, model.train_op], feed)<br/><br/>if (epoch * len(batches) + batch) % 200 == 0:<br/> print('Epoch {:&gt;3} Batch {:&gt;4}/{} train_loss = {:.3f}'.format(<br/> epoch,<br/> batch,<br/> len(batches),<br/> train_loss))<br/> # Save Checkpoint for restoring if required<br/> saver.save(sess, CHECKPOINT_PATH_DIR + '/model.tfmodel', global_step=epoch + 1)<br/><br/># Save Model<br/> saver.save(sess, SAVE_DIR)<br/> print('Model Trained and Saved')<br/> save_params((SEQ_LENGTH, SAVE_DIR))<br/><br/><br/></pre>
+<p>Since the dataset wasn't very large, the code was executed on the CPU itself. We will save the output graph, since it will come in useful for generating book scripts.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Generating book scripts</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">Now that the model has been trained, we can have some fun with it. In this section, we will see how we can use the model to generate book scripts. Use the following parameters:</p>
+<ul>
+<li class="mce-root">Script Length = 200 words</li>
+<li class="mce-root">Starting word = <kbd>postgresql</kbd></li>
+</ul>
+<p class="mce-root">Follow these steps to generate the model:</p>
+<ol>
+<li class="mce-root">Load the graph of the trained model.</li>
+<li class="mce-root">Extract four tensors, as follows:
+<ul>
+<li class="mce-root">Input/input:0</li>
+<li class="mce-root">Network/initial_state:0</li>
+<li class="mce-root">Network/final_state:0</li>
+<li class="mce-root">Network/probs:0</li>
+</ul>
+</li>
+</ol>
+<p style="padding-left: 60px">Extract the four tensors using the following code:</p>
+<pre class="mce-root" style="padding-left: 60px"> def extract_tensors(tf_graph):<br/> """<br/> Get input, initial state, final state, and probabilities tensor from the graph<br/> :param loaded_graph: TensorFlow graph loaded from file<br/> :return: Tuple (tensor_input,tensor_initial_state,tensor_final_state, tensor_probs)<br/> """<br/> tensor_input = tf_graph.get_tensor_by_name("Input/input:0")<br/> tensor_initial_state = tf_graph.get_tensor_by_name("Network/initial_state:0")<br/> tensor_final_state = tf_graph.get_tensor_by_name("Network/final_state:0")<br/> tensor_probs = tf_graph.get_tensor_by_name("Network/probs:0")<br/> return tensor_input, tensor_initial_state, tensor_final_state, tensor_probs</pre>
+<ol start="3">
+<li>Define the starting word and obtain an initial state from the graph, which will be used later:</li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px"># Sentences generation setup<br/>sentences = [first_word]<br/>previous_state = sess.run(initial_state, {input_text: np.array([[1]])})</pre>
+<ol start="4">
+<li>Given a starting word and an initial state, proceed to iterate over a for loop to generate the next word for the script. In each iteration of the for loop, generate the probabilities from the model using the previously generated sequence as input and select the word with a maximum probability using the <kbd>select_next_word</kbd> function:</li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px"> def select_next_word(probs, int_to_vocab):<br/> """<br/> Select the next work for the generated text<br/> :param probs: list of probabilities of all the words in vocab which can be selected as next word<br/> :param int_to_vocab: Dictionary of word ids as the keys and words as the values<br/> :return: predicted next word<br/> """<br/> index = np.argmax(probs)<br/> word = int_to_vocab[index]<br/> return word</pre>
+<ol start="5">
+<li>Create a loop to generate the next word in the sequence:</li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px"> for i in range(script_length):<br/><br/> # Dynamic Input<br/> dynamic_input = [[vocab_to_int[word] for word in sentences[-seq_length:]]]<br/> dynamic_seq_length = len(dynamic_input[0])<br/><br/># Get Prediction<br/> probabilities, previous_state = sess.run([probs, final_state], {input_text: dynamic_input, initial_state: previous_state})<br/> probabilities= np.squeeze(probabilities)<br/><br/>pred_word = select_next_word(probabilities[dynamic_seq_length - 1], int_to_vocab)<br/> sentences.append(pred_word)</pre>
+<ol start="6">
+<li class="mce-root">Join all of the words in the sentences using a space delimiter and replace the punctuation tokens with the actual symbols. The obtained script is then saved in a text file for future reference: </li>
+</ol>
+<pre style="padding-left: 60px"># Scraping out tokens from the words<br/>book_script = ' '.join(sentences)<br/>for key, token in token_dict.items():<br/>    book_script = book_script.replace(' ' + token.lower(), key)<br/>book_script = book_script.replace('\n ', '\n')<br/>book_script = book_script.replace('( ', '(')</pre>
+<ol start="7">
+<li class="mce-root">Here is a sample of the text that was generated from the execution:</li>
+</ol>
+<pre class="mce-root" style="padding-left: 60px"> postgresql comparatively).<br/>one transaction is important, you can be used<br/><br/><br/>create index is seen a transaction will be provided this index.<br/>an index scan is a lot of a index<br/>the index is time.<br/>to be an index.<br/>you can see is to make expensive,<br/>the following variable is an index<br/><br/>the table will index have to a transaction isolation level<br/>the transaction isolation level will use a transaction will use the table of the following index creation.<br/>the index is marked.<br/>the following number is one of the following one lock is not a good source of a transaction will use the following strategies<br/>in this is not, it will be a table<br/>in postgresql.<br/>the postgresql cost errors is not possible to use a transaction.<br/>postgresql 10. 0. 0. you can see that the data is not free into more than a transaction ids, the same time. the first scan is an example<br/>the same number.<br/>one index is not that the same time is needed in the following strategies<br/><br/>in the same will copy block numbers.<br/>the same data is a table if you can not be a certain way, you can see, you will be able to create statistics.<br/>postgresql will</pre>
+<p>Interestingly, the model learns to use a full stop after a sentence, leaves a blank line between paragraphs, and follows basic grammar. The model has learned all of this by itself, without us having to provide any guidance/rules. Despite the fact that the script is far from perfect, it's amazing how a machine is able to generate real-sounding sentences of a book. We can further fine-tune the hyperparameters of the model to generate more meaningful text.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">In this chapter, we learned about how LSTMs can be used to generate book scripts.</p>
+<p class="mce-root">We began by looking at the basics of RNNs and its popular variant, commonly known as LSTMs. We learned that RNNs are hugely successful in predicting datasets that involve sequences such as time series, next word prediction in natural language processing tasks, and so on. We also looked at the advantages and disadvantages of using LSTMs.</p>
+<p class="mce-root">This chapter then helped us understand how to pre-process text data and prepare it so that we can feed it into LSTMs. We also looked at the model's structure for training. Next, we looked at how to train the neural networks by creating batches of data.</p>
+<p class="mce-root">Finally, we understood how to generate book script using the TensorFlow model we trained. Although the script that was generated doesn't make complete sense, it was amazing to observe the neural network generate a book's sentences. We then saved the generated book script in a text file for future reference.</p>
+<p class="mce-root">In the next chapter, we shall play Pac-Man using deep reinforcement learning. </p>
+<p class="mce-root"/>
+<p class="mce-root"/>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Questions</h1>
+                </header>
+            
+            <article>
+                
+<p class="mce-root">The following are the questions:</p>
+<ol>
+<li>Can you try to use from a different book to see how well the model is able to generate new text?</li>
+<li>What happens to the generated text if you double the batch size and decrease the learning rate?</li>
+<li>Can you train the model without gradient clipping and see if the result improves?</li>
+</ol>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

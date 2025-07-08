@@ -1,0 +1,720 @@
+<html><head></head><body>
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Classifying Clothing Images using Capsule Networks</h1>
+                </header>
+            
+            <article>
+                
+<p>In this chapter, we will <span>learn how to implement capsule networks on the Fashion MNIST dataset. This chapter will cover the inner workings of capsule networks and explain how to implement them in TensorFlow. You will also learn how to evaluate and optimize the model.</span></p>
+<p>We have chosen capsule networks because they have the <span>ability to preserve the spatial relationships of images. Capsule networks were introduced by Geoff Hinton, et al. They published a paper in 2017 that can be found at <a href="https://arxiv.org/abs/1710.09829">https://arxiv.org/abs/1710.09829</a>. Capsule networks gained immense popularity within the deep learning community as a new type of neural network.</span></p>
+<p>By the end of this chapter, we will be able to classify clothing using capsule networks after going through the following:</p>
+<ul>
+<li>Understanding the importance of capsule networks</li>
+<li>A brief understanding of capsules </li>
+<li>The routing by agreement algorithm</li>
+<li>The implementation of the CapsNet architecture for classifying Fashion-MNIST images</li>
+<li>The limitations of capsule networks</li>
+</ul>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding the importance of capsule networks</h1>
+                </header>
+            
+            <article>
+                
+<p><strong>Convolutional neural networks</strong> (<strong>CNNs</strong>) form the backbone of all the major breakthroughs in image detection today. CNNs work by detecting the basic features that are present in the lower layers of the network and then proceed to detect the higher level features present in the higher layers of the network. This setup does not contain a pose (translational and rotational) relationship between the lower-level features that make up any complex object.</p>
+<p>Imagine trying to identify a face. In this case, just having eyes, nose, and ears in an image can lead a CNN to conclude that it's a face without caring about the relative orientation of the concerned objects. To explain this further, if an image has a nose above the eyes, CNNs still can detect that it's an image. CNNs take care of this problem by using <em>max pooling</em>, which helps increase the <em>field of view</em> for the higher layers. However, this operation is not a perfect solution as we tend to lose valuable information in the image by using it.</p>
+<p><span>As a matter of fact, Hinton h</span><span>imself states the following:</span></p>
+<div class="packt_quote">"The pooling operation used in convolutional neural networks is a big mistake and the fact that it works so well is a disaster."</div>
+<p>In the paper, Hinton tries to provide an intuition on solving this problem using the inverse graphics approach. For graphics in computers, an image is constructed by using an internal representation of the objects present in the image. This is done using arrays and matrices. This internal representation helps preserve the shape, the orientation, and the object's relative position when compared to all other objects in the image. The software takes this internal representation and publishes the image on the screen using a process known as <strong>rendering</strong>.</p>
+<p>Hinton specifies that the human brain does some sort of inverse graphics. We see an image through our eyes, and then brain our dissects the image and constructs a hierarchical representation of different objects in the image before trying to match them to the existing patterns that we have seen. An interesting observation to note is that humans can identify objects in an image, irrespective of their viewing angle.</p>
+<p>He then proceeds to argue that in order to perform classification, it is necessary to preserve the relative orientation and position of different objects in the image (this helps mimic the human capability, as we discussed previously). It's quite intuitive that once we have these relationships built into the representation using the model, it is very easy for a model to detect an object when it views it from various angles. Let's imagine the case of viewing the Taj Mahal (the famous monument in India). Our eyes can identify the Taj Mahal from various angles. However, if you present the same images to a CNN, it might fail to detect the Taj Mahal from different viewpoints. This is because CNNs don't have an understanding of 3D space like our brains do. This is the reason capsule network theory is quite important. </p>
+<p>One of the major concerns here is this: <em>How do we incorporate these hierarchical relationships into the deep neural networks?</em> The relationship between different objects in an image is modeled by something called a <strong>pose</strong>, which is basically rotation and translation. This is specific to the graphics of a computer. We will look at how these relationships are modeled in capsule networks in the subsequent sections.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding capsules</h1>
+                </header>
+            
+            <article>
+                
+<p>In traditional CNNs, we define different filters that run over the entire image. The 2D matrices produced by each filter are stacked on top of one another to constitute the output of a convolutional layer. Subsequently, we perform the max pooling operation to find the invariance in activities. Invariance here implies that the output is robust to small changes in the input as the max pooling operation always picks up the max activity. As mentioned previously, max pooling results in the valuable loss of information and is unable to represent the relative orientation of different objects to others in the image.</p>
+<p>Capsules, on the other hand, encode all of the information of the objects they are detecting in a vector form as opposed to a scalar output by a neuron. These vectors have the following properties:</p>
+<ul>
+<li>The length of the vector indicates the probability of an object in the image.</li>
+<li>Different elements of the vector encode different properties of the object. These properties include various kinds of instantiation parameters such as pose (position, size, orientation), hue, thickness, and so on.</li>
+</ul>
+<p>With this representation, if the detected object moves in the image, the length of the vector remains the same. However, the orientation or values of different elements in the vector representation will change. Let's take the previous example of viewing the Taj Mahal again. Even if we were to move (or change the orientation) of the Taj Mahal in the image, the capsule representation should be able to detect the object in the image.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">How do capsules work?</h1>
+                </header>
+            
+            <article>
+                
+<p>Before looking at how capsules work, let's try to revisit how neurons function. A neuron receives scalar inputs from the previous layer's neurons, multiplies them by the corresponding weights, and sums the outputs. This summed output is passed through some non-linearity (such as ReLU) that outputs a new scalar, which is passed on to next layer's neurons. </p>
+<p>In contrast to this, capsules take a vector as an input, as well as output a vector. <span>The following diagram illustrates the process of computing the output of a capsule:</span></p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-103 image-border" src="assets/efb3f69b-0e10-4527-a848-796048ff6eba.png" style="width:44.00em;height:19.17em;"/></p>
+<p><span>Let's look at each step in detail:</span></p>
+<ol>
+<li><strong>Capsule j</strong> (at the higher levels) receives the vector inputs from the lower layers as <strong>u</strong><sub><strong>1</strong>, </sub><strong>u</strong><sub><strong>2</strong>, </sub><strong>u</strong><sub><strong>3</strong>, </sub>and so on. As discussed earlier, each input vector encodes both the probability of an object detected at the lower layer and also its orientation parameters. These input vectors are multiplied by weight matrices, <strong>W<sub>ij</sub></strong>, which try to model the relationship between lower layer objects and higher layer objects. In the case of detecting the Taj Mahal, you can think of this as a relationship between edges that are detected at the lower layers and the pillars of the Taj Mahal at the higher layers. The output of this multiplication is the predicted vector of the higher level object (in this case, the pillar) based on the detected objects in the lower layer. Therefore, <img class="fm-editor-equation" src="assets/f9addba5-b122-4fd1-ab7c-8335d149797e.png" style="width:1.42em;height:1.50em;"/> denotes the position of a pillar of the Taj Mahal based on the detected vertical edge, <img class="fm-editor-equation" src="assets/7b4dd575-4305-455f-93a0-7795e596a253.png" style="width:1.58em;height:1.50em;"/> can denote the position of the pillar based on the detected horizontal edge, and so on. Intuitively, if all of the predicted vectors point to the same object with a similar orientation, then that object must be present in the image:</li>
+</ol>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/76ec11e0-dab3-4c7f-8f7e-94b3ab7853b7.png" style="width:8.08em;height:1.83em;"/></p>
+<ol start="2">
+<li>Next, these predicted vectors are multiplied by scalar weights (<strong>c<sub>i</sub></strong>s), which help in routing the predicted vectors to the right capsules in the higher layer. We then sum the weighted vectors that are obtained through this multiplication. This step will feel familiar to traditional neural networks, which multiply the scalar inputs by weights before providing them to the input of higher-level neurons. In such cases, the weights are determined by a back propagation algorithm. However, in the case of capsule networks, they are determined by the dynamic routing algorithm, which we will discuss in detail in the next section. The formula is given as follows:</li>
+</ol>
+<p class="CDPAlignCenter CDPAlign"><strong> </strong><img class="fm-editor-equation" src="assets/3ef7fa87-24ea-4fb5-9316-0bb69f379088.png" style="width:8.92em;height:1.83em;"/></p>
+<ol start="3">
+<li>We mentioned a new word in the previous formula, known as <strong>squashing</strong>. This is the non-linearity that is used in capsule networks. You can think of this as a counterpart to the non-linearity we use in traditional neural networks. Essentially, squashing tries to reduce the vector to less than a unit norm to facilitate the interpretation of the length of the vector as probability:</li>
+</ol>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/9270c789-f218-4f63-a002-18f28ea3935b.png" style="width:14.17em;height:4.75em;"/></p>
+<p style="padding-left: 60px">Here, <strong>v<sub>j</sub><sub> </sub></strong>is the output of the <strong>j</strong> layer capsule.</p>
+<p>The implementation of the squashing function in the code is done as follows:</p>
+<pre><span>def </span><span>squash</span>(<span>vectors</span>, <span>name</span><span>=</span><span>None</span>)<span>:<br/></span><span> </span><span>"""<br/></span><span> Squashing Function as implemented in the paper<br/></span><span> :parameter vectors: vector input that needs to be squashed<br/></span><span> :parameter name: Name of the tensor on the graph<br/></span><span> :return: a tensor with same shape as vectors but squashed as mentioned in the paper<br/></span><span> """<br/></span><span> </span><span>with </span>tf.<span>name_scope</span>(<span>name</span>, <span>default_name</span><span>=</span><span>"squash_o</span><span>p"</span>)<span>:<br/></span><span> </span>s_squared_norm <span>= </span>tf.<span>reduce_sum</span>(tf.<span>square</span>(<span>vector</span><span>s</span>), <span>axis</span><span>=-</span><span>2</span>, <span>keepdims</span><span>=</span><span>True</span>)<br/> scale <span>= </span>s_squared_norm <span>/ </span>(<span>1. </span><span>+ </span>s_squared_norm) <span>/ </span>tf.<span>sqrt</span>(s_squared_norm <span>+ </span>tf.keras.backend.<span>epsilon</span>())<br/> <span>return </span>scale<span>*</span><span>vectors</span></pre>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">The dynamic routing algorithm</h1>
+                </header>
+            
+            <article>
+                
+<p>As mentioned earlier, it is necessary for the capsule in the lower layer to decide how to send its output to the higher-level capsules. This is achieved through the novel concept of the dynamic routing algorithm, which was introduced in the paper (<a href="https://arxiv.org/pdf/1710.09829.pdf">https://arxiv.org/pdf/1710.09829.pdf</a>). The key idea behind this algorithm is that the lower layer capsule will send their output to the higher-level capsules that <em>match</em> the input. </p>
+<p>This is achieved through the weights (<strong>c<sub>ij</sub></strong>) mentioned in the last section. These weights multiply the outputs from the lower layer capsule <strong>i</strong> before pushing them as the input to the higher level capsule <strong>j</strong>. Some of the properties of these weights are as follows:</p>
+<ul>
+<li><strong>c<sub>ij</sub></strong><span>s are non-negative in nature and are determined by the dynamic-routing algorithm</span></li>
+<li>The number of weights in the lower layer capsule is equal to the number of higher-level capsules</li>
+<li>The sum of the weights of each lower layer capsule <strong>i</strong> amounts to 1</li>
+</ul>
+<p>Implement the iterative routing algorithm using the following code:</p>
+<pre><span>def </span><span>routing</span>(<span>u</span>)<span>:<br/></span><span>    </span><span>"""<br/></span><span>    This function performs the routing algorithm as mentioned in the paper<br/></span><span>    :parameter u: Input tensor with [batch_size, num_caps_input_layer=1152, 1, caps_dim_input_layer=8, 1] shape.<br/></span><span>                NCAPS_CAPS1: num capsules in the PrimaryCaps layer l<br/></span><span>                CAPS_DIM_CAPS2: dimensions of output vectors of Primary caps layer l<br/></span><span><br/></span><span>    :return: "v_j" vector (tensor) in Digitcaps Layer<br/></span><span>             Shape:[batch_size, NCAPS_CAPS1=10, CAPS_DIM_CAPS2=16, 1]<br/></span><span>    """</span><span><br/></span><span>    #local variable b_ij: [batch_size, num_caps_input_layer=1152,<br/>                           num_caps_output_layer=10, 1, 1]<br/></span><span>    #num_caps_output_layer: number of capsules in Digicaps layer l+1<br/></span><span>    </span>b_ij <span>= </span>tf.<span>zeros</span>([BATCH_SIZE, NCAPS_CAPS1, NCAPS_CAPS2, <span>1</span>, <span>1</span>], <span>dtype</span><span>=</span>np.float32, <span>name</span><span>=</span><span>"b_ij"</span>)<br/><br/>    <span># Preparing the input Tensor for total number of DigitCaps capsule for multiplication with W<br/></span><span>    </span>u <span>= </span>tf.<span>tile</span>(<span>u</span>, [<span>1</span>, <span>1</span>, b_ij.shape[<span>2</span>].value, <span>1</span>, <span>1</span>])   <span># u =&gt; [batch_size, 1152, 10, 8, 1]<br/></span><span><br/></span><span>    # W: [num_caps_input_layer, num_caps_output_layer, len_u_i, len_v_j] as mentioned in the paper<br/></span><span>    </span>W <span>= </span>tf.<span>get_variable</span>(<span>'W'</span>, <span>shape</span><span>=</span>(<span>1</span>, <span>u</span>.shape[<span>1</span>].value, b_ij.shape[<span>2</span>].value,    <br/><span>        u</span>.shape[<span>3</span>].value, CAPS_DIM_CAPS2),<span>dtype</span><span>=</span>tf.float32,<br/><span>        initializer</span><span>=</span>tf.<span>random_normal_initializer</span>(<span>stddev</span><span>=</span>STDEV))<br/>    W <span>= </span>tf.<span>tile</span>(W, [BATCH_SIZE, <span>1</span>, <span>1</span>, <span>1</span>, <span>1</span>]) <span># W =&gt; [batch_size, 1152, 10, 8, 16]<br/></span><span><br/></span><span>    #Computing u_hat (as mentioned in the paper)<br/></span><span>    </span>u_hat <span>= </span>tf.<span>matmul</span>(W, <span>u</span>, <span>transpose_a</span><span>=</span><span>True</span>)  <span># [batch_size, 1152, 10, 16, 1]<br/></span><span><br/></span><span>    # In forward, u_hat_stopped = u_hat;<br/></span><span>    # In backward pass, no gradient pass from  u_hat_stopped to u_hat<br/></span><span>    </span>u_hat_stopped <span>= </span>tf.<span>stop_gradient</span>(u_hat, <span>name</span><span>=</span><span>'gradient_stop'</span>)<span><br/></span></pre>
+<p>Note that, in the previous code, <span>we are dividing the actual routing function in the code into two parts so that we can focus on the dynamic routing algorithm </span>part. The first part of the function takes vector <strong>u </strong>as input from the lower layer capsule(s). First, it generates the vector <img class="fm-editor-equation" src="assets/e99506b5-2cc6-4303-97e8-a8458ab3a538.png" style="width:1.58em;height:1.33em;"/> using the weight vector <strong>W</strong>. Also, observe that we define a temporary variable called <img class="fm-editor-equation" src="assets/b8ffc378-2e7a-43e7-8fe4-366e59603847.png" style="width:1.50em;height:1.33em;"/>, which is initialized to zero at the start of training. The values of <img class="fm-editor-equation" src="assets/789003d1-8295-41a1-873d-997492b18576.png" style="width:1.25em;height:1.17em;"/> will be updated in the algorithm and will be stored in <strong>c<sub>ij </sub></strong>at the end of the algorithm. The second part of the function implements the actual iterative routing algorithm, as follows:</p>
+<pre><span># Routing Algorithm Begins here<br/></span><span>for </span>r <span>in </span><span>range</span>(ROUTING_ITERATIONS)<span>:<br/></span><span>    </span><span>with </span>tf.<span>variable_scope</span>(<span>'iterations_' </span><span>+ </span><span>str</span>(r))<span>:<br/></span><span>        </span>c_ij <span>= </span>tf.nn.<span>softmax</span>(b_ij, <span>axis</span><span>=</span><span>2</span>) <span># [batch_size, 1152, 10, 1, 1]<br/></span><span><br/></span><span>        # At last iteration, use `u_hat` in order to back propagate gradient<br/></span><span>        </span><span>if </span>r <span>== </span>ROUTING_ITERATIONS <span>- </span><span>1</span><span>:<br/></span><span>            </span>s_j <span>= </span>tf.<span>multiply</span>(c_ij, u_hat) <span># [batch_size, 1152, 10, 16, 1]<br/></span><span>            # then sum as per paper<br/></span><span>            </span>s_j <span>= </span>tf.<span>reduce_sum</span>(s_j, <span>axis</span><span>=</span><span>1</span>, <span>keep_dims</span><span>=</span><span>True</span>) <span># [batch_size, 1, 10, 16, 1]<br/></span><span><br/></span><span>            </span>v_j <span>= </span><span>squash</span>(s_j) <span># [batch_size, 1, 10, 16, 1]<br/></span><span><br/></span><span>        </span><span>elif </span>r <span>&lt; </span>ROUTING_ITERATIONS <span>- </span><span>1</span><span>:  </span><span># No backpropagation in these iterations<br/></span><span>            </span>s_j <span>= </span>tf.<span>multiply</span>(c_ij, u_hat_stopped)<br/>            s_j <span>= </span>tf.<span>reduce_sum</span>(s_j, <span>axis</span><span>=</span><span>1</span>, <span>keepdims</span><span>=</span><span>True</span>)<br/>            v_j <span>= </span><span>squash</span>(s_j)<br/>            v_j <span>= </span>tf.<span>tile</span>(v_j, [<span>1</span>, <span>u</span>.shape[<span>1</span>].value, <span>1</span>, <span>1</span>, <span>1</span>]) <span># [batch_size, 1152, 10, 16, 1]<br/></span><span><br/></span><span>            # Multiplying in last two dimensions: [16, 1]^T x [16, 1] yields [1, 1]<br/></span><span>            </span>u_hat_dot_v <span>= </span>tf.<span>matmul</span>(u_hat_stopped, v_j, <span>transpose_a</span><span>=</span><span>True</span>) <span># [batch_size, 1152, 10, 1, 1]<br/></span><span><br/></span><span>            </span>b_ij <span>= </span>tf.<span>add</span>(b_ij,u_hat_dot_v)<br/><span>return </span>tf.<span>squeeze</span>(v_j, <span>axis</span><span>=</span><span>1</span>) <span># [batch_size, 10, 16, 1]</span></pre>
+<p>First, we define a loop over <kbd>ROUTING_ITERATIONS</kbd>. This is the parameter that is defined by the user. Hinton mentions in his paper that the typical values of <kbd>3</kbd> should suffice for this. </p>
+<p>Next, we perform a softmax on <img class="fm-editor-equation" src="assets/21f4dcdf-7490-4e0f-b9a0-0b272bdcb52d.png" style="width:1.33em;height:1.25em;"/> to compute the initial values of the <strong>c<sub>ij</sub></strong>s. Note that <strong>c<sub>ij</sub></strong>s are not to be included in the back propagation since these can only be obtained through the iterative algorithm. For this reason, all of the routing iterations before the last one are performed on <img class="fm-editor-equation" src="assets/def7cb9b-d181-4391-b933-e6f0086112a2.png" style="width:3.83em;height:1.25em;"/> (which helps to stop gradients, as defined earlier).</p>
+<p>For each routing iteration, we use the following operations for each higher-level capsule <strong>j</strong>:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/e2a65403-0c31-4567-904f-d450bce8425b.png" style="width:14.00em;height:2.00em;"/> </p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/facf7cb8-585c-40b8-a5ad-b69d902e31ba.png" style="width:19.25em;height:4.75em;"/></p>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/59a19cee-4b0a-4be8-abaa-18cfa02582aa.png" style="width:15.75em;height:1.83em;"/></p>
+<p>We have explained the first two equations already. Now let's try to understand the third equation.</p>
+<p>The third equation is the essence of the iterative routing algorithm. It updates the weights <img class="fm-editor-equation" src="assets/531663b5-de20-45e0-bc3a-98af928f53d9.png" style="width:1.58em;height:1.42em;"/><span>. The formula states that the new weight value is the sum of the old weights: the predicted vector from lower layer capsules and the output of the higher layer capsule. The dot product is essentially trying to capture the notion of similarity between the input vector and the output vector of the capsule. This way, the output from the lower capsule <strong>i </strong>is only sent to the higher-level capsule <strong>j</strong>, which agrees to its input. The dot product achieves the agreement. This algorithm is repeated a number of times equal to the <kbd>ROUTING_ITERATIONS</kbd> parameter in the code.</span></p>
+<p><span>This concludes our discussion on the innovative routing algorithm and its applications.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">CapsNet for classifying Fashion MNIST images</h1>
+                </header>
+            
+            <article>
+                
+<p>Now let's take a look at the implementation of CapsNet for classifying Fashion MNIST images. <strong>Zalando</strong>, the e-commerce company, recently released a new replacement for the MNIST dataset, known as <strong>Fashion MNIST</strong> (<a href="https://github.com/zalandoresearch/fashion-mnist">https://github.com/zalandoresearch/fashion-mnist</a>). The Fashion MNIST dataset includes 28 x 28 grayscale images under 10 categories:</p>
+<table border="1" style="border-collapse: collapse;width: 100%">
+<tbody>
+<tr>
+<td style="width: 38.6489%">
+<p><strong>Category name</strong></p>
+</td>
+<td style="width: 60.6866%">
+<p><strong>Label (in dataset)</strong></p>
+</td>
+</tr>
+<tr>
+<td style="width: 38.6489%">
+<p>T-shirt/top</p>
+</td>
+<td style="width: 60.6866%">
+<p>0</p>
+</td>
+</tr>
+<tr>
+<td style="width: 38.6489%">
+<p>Trouser</p>
+</td>
+<td style="width: 60.6866%">
+<p>1</p>
+</td>
+</tr>
+<tr>
+<td style="width: 38.6489%">
+<p>Pullover</p>
+</td>
+<td style="width: 60.6866%">
+<p>2</p>
+</td>
+</tr>
+<tr>
+<td style="width: 38.6489%">
+<p>Dress</p>
+</td>
+<td style="width: 60.6866%">
+<p>3</p>
+</td>
+</tr>
+<tr>
+<td style="width: 38.6489%">
+<p>Coat</p>
+</td>
+<td style="width: 60.6866%">
+<p>4</p>
+</td>
+</tr>
+<tr>
+<td style="width: 38.6489%">
+<p>Sandal</p>
+</td>
+<td style="width: 60.6866%">
+<p>5</p>
+</td>
+</tr>
+<tr>
+<td style="width: 38.6489%">
+<p>Shirt</p>
+</td>
+<td style="width: 60.6866%">
+<p>6</p>
+</td>
+</tr>
+<tr>
+<td style="width: 38.6489%">
+<p>Sneaker</p>
+</td>
+<td style="width: 60.6866%">
+<p>7</p>
+</td>
+</tr>
+<tr>
+<td style="width: 38.6489%">
+<p>Bag</p>
+</td>
+<td style="width: 60.6866%">
+<p>8</p>
+</td>
+</tr>
+<tr>
+<td style="width: 38.6489%">
+<p>Ankle boot</p>
+</td>
+<td style="width: 60.6866%">
+<p>9</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="mce-root CDPAlignLeft CDPAlign">The following are some sample images from the dataset:</p>
+<p class="mce-root CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-104 image-border" src="assets/9d0d1cb9-d86b-4668-8d17-8f00a05bbff0.png" style="width:36.58em;height:11.17em;"/></p>
+<p class="mce-root CDPAlignLeft CDPAlign">The training set contains 60K examples, and the test set contains 10K examples.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">CapsNet implementation</h1>
+                </header>
+            
+            <article>
+                
+<p>The CapsNet architecture consists of two parts, each consisting of three layers. The first three layers are encoders, while the next three layers are decoders:</p>
+<table border="1" style="border-collapse: collapse;width: 100%">
+<tbody>
+<tr>
+<td style="width: 13%">
+<p><strong>Layer Num</strong></p>
+</td>
+<td style="width: 25%">
+<p><strong>Layer Name </strong></p>
+</td>
+<td style="width: 30.5393%">
+<p><strong>Layer Type</strong></p>
+</td>
+</tr>
+<tr>
+<td style="width: 13%">
+<p>1</p>
+</td>
+<td style="width: 25%">
+<p>Convolutional Layer</p>
+</td>
+<td style="width: 30.5393%">
+<p>Encoder</p>
+</td>
+</tr>
+<tr>
+<td style="width: 13%">
+<p>2</p>
+</td>
+<td style="width: 25%">
+<p>PrimaryCaps Layer</p>
+</td>
+<td style="width: 30.5393%">
+<p>Encoder</p>
+</td>
+</tr>
+<tr>
+<td style="width: 13%">
+<p>3</p>
+</td>
+<td style="width: 25%">
+<p>DigitCaps Layer</p>
+</td>
+<td style="width: 30.5393%">
+<p>Encoder</p>
+</td>
+</tr>
+<tr>
+<td style="width: 13%">
+<p>4</p>
+</td>
+<td style="width: 25%">
+<p>Fully Connected Layer 1</p>
+</td>
+<td style="width: 30.5393%">
+<p>Decoder</p>
+</td>
+</tr>
+<tr>
+<td style="width: 13%">
+<p>5</p>
+</td>
+<td style="width: 25%">
+<p>Fully Connected Layer 2</p>
+</td>
+<td style="width: 30.5393%">
+<p>Decoder</p>
+</td>
+</tr>
+<tr>
+<td style="width: 13%">
+<p>6</p>
+</td>
+<td style="width: 25%">
+<p>Fully Connecter Layer 3</p>
+</td>
+<td style="width: 30.5393%">
+<p>Decoder</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p> </p>
+<p>Let's try to understand these layers in detail.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding the encoder</h1>
+                </header>
+            
+            <article>
+                
+<p>The following diagram illustrates the structure of the encoder used for modeling. Note that it shows the MNIST digit image as an input, but we are using the Fashion-MNIST data as an input to the model:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-114 image-border" src="assets/d86e413b-dce9-47e9-b9a0-f8feca24cfff.png" style="width:159.50em;height:48.50em;"/></p>
+<p>The encoder essentially takes an input of a 28x28 image and produces a 16-dimensional representation of that image. As mentioned previously, the length of the 16D vector denotes the probability that an object is present in the image. The components of the vector represent various instantiation parameters.<span> </span></p>
+<p>The three layers dedicated to the encoder are as follows:</p>
+<ul>
+<li><strong>Layer 1-convolutional layer</strong>: Layer 1 is a standard convolutional layer. The input to this layer is a 28x28 grayscale image and the output is a 20x20x256 tensor. The other parameters of this layer are as follows:</li>
+</ul>
+<table border="1" style="border-collapse: collapse;width: 100%">
+<tbody>
+<tr>
+<td>
+<p><span>Parameter name</span></p>
+</td>
+<td>
+<p><span>Value</span></p>
+</td>
+</tr>
+<tr>
+<td>
+<p><span>Filters</span></p>
+</td>
+<td>
+<p><span>256</span></p>
+</td>
+</tr>
+<tr>
+<td>
+<p><span>Kernel Size </span></p>
+</td>
+<td>
+<p><span>9</span></p>
+</td>
+</tr>
+<tr>
+<td>
+<p><span>Activation</span></p>
+</td>
+<td>
+<p><span>ReLU</span></p>
+</td>
+</tr>
+<tr>
+<td>
+<p><span>Strides</span></p>
+</td>
+<td>
+<p>1</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="mce-root"/>
+<p class="mce-root"/>
+<ul>
+<li><strong>Layer 2-primary caps layer</strong>: Layer 2 is the first layer with capsules. The main purpose of this layer is to use the output of the first convolutional layer to produce higher level features. It has 32 primary capsules. It also takes an input of a 20 x 20 x 256 tensor. Every capsule present in this layer applies the convolutional kernels to the input to produce an output of a 6 x 6 x 8 tensor. With 32 capsules, this output is now a 6 x 6 x 8 x 32 tensor.</li>
+</ul>
+<p style="padding-left: 60px">The convolutional parameters that are common for all capsules in the layer are mentioned as follows:</p>
+<table border="1" style="border-collapse: collapse;width: 100%">
+<tbody>
+<tr>
+<td style="width: 33%">
+<p><strong>Parameter Name</strong></p>
+</td>
+<td style="width: 26.9081%">
+<p><strong>Value</strong></p>
+</td>
+</tr>
+<tr>
+<td style="width: 33%">
+<p>Filters</p>
+</td>
+<td style="width: 26.9081%">
+<p>256</p>
+</td>
+</tr>
+<tr>
+<td style="width: 33%">
+<p>Kernel Size</p>
+</td>
+<td style="width: 26.9081%">
+<p>9</p>
+</td>
+</tr>
+<tr>
+<td style="width: 33%">
+<p><span>Activation</span></p>
+</td>
+<td style="width: 26.9081%">
+<p>ReLU</p>
+</td>
+</tr>
+<tr>
+<td style="width: 33%">
+<p>Strides</p>
+</td>
+<td style="width: 26.9081%">
+<p>2</p>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="packt_tip">Note that we also<span> </span><kbd>squash</kbd><strong> </strong>the output of this layer.</div>
+<ul>
+<li><strong>Layer 3-DigitCaps layer</strong>: This layer has 10 capsules <span>–</span> one for each class label. Each capsule is a 16D vector. The input to this layer are 6x6x32 8D vectors (<strong>u</strong><span>, as we defined previously). Each of these vectors have their own weight matrix, </span><img class="fm-editor-equation" src="assets/bb7634a1-9cfe-4935-975a-c356f2a634f4.png" style="font-size: 1em;color: #333333;width:1.75em;height:1.08em;"/>,<span> which produces </span><img class="fm-editor-equation" src="assets/dc96a72e-28a1-4c91-a972-aac9c5e4142c.png" style="font-size: 1em;color: #333333;width:1.67em;height:1.42em;"/><span>. These </span><img class="fm-editor-equation" src="assets/dedba9da-b209-4ec0-b93b-9eb5d7672693.png" style="font-size: 1em;color: #333333;width:1.58em;height:1.33em;"/><span> are then used in the routing by the agreement algorithm that we described previously.</span></li>
+</ul>
+<div class="packt_tip"><span>Note that the original paper names this layer as the DigitCaps layer because it uses the MNIST dataset. We are continuing to use the same name for the Fashion MNIST dataset, as it is easier to relate to the original paper.</span></div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Understanding the decoder</h1>
+                </header>
+            
+            <article>
+                
+<p class="CDPAlignLeft CDPAlign">The structure of the decoder is shown in the following diagram:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-855 image-border" src="assets/b0cc93a8-ad5a-44fb-89a0-8c77c2de32b1.png" style="width:37.92em;height:17.17em;"/></p>
+<p>The decoder essentially tries to reconstruct the image from the correct DigitCaps capsule for each image. You can view this as a regularization step, with <em>loss</em> being the Euclidean distance between the predicted output and the original label. You could argue that you don't require reconstruction in this application as you are just carrying out classification. However, Hinton specifically shows in his original paper that adding reconstruction loss does improve the accuracy of the model.</p>
+<p>The decoder's structure is pretty simple, and consists of only three fully connected layers. The input and the output shapes of all three layers are as follows:</p>
+<table border="1" style="border-collapse: collapse;width: 100%">
+<tbody>
+<tr>
+<td style="width: 33%">
+<p><strong>Layer</strong></p>
+</td>
+<td style="width: 33%">
+<p><strong>Input Shape</strong></p>
+</td>
+<td style="width: 41.9883%">
+<p><strong>Output Shape</strong></p>
+</td>
+</tr>
+<tr>
+<td style="width: 33%">
+<p>Fully Connected Layer 4 </p>
+</td>
+<td style="width: 33%">
+<p class="mce-root">16 x 10</p>
+</td>
+<td style="width: 41.9883%">
+<p>512</p>
+</td>
+</tr>
+<tr>
+<td style="width: 33%">
+<p>Fully Connected Layer 5 </p>
+</td>
+<td style="width: 33%">
+<p>512</p>
+</td>
+<td style="width: 41.9883%">
+<p>1,024</p>
+</td>
+</tr>
+<tr>
+<td style="width: 33%">
+<p>Fully Connected Layer 6</p>
+</td>
+<td style="width: 33%">
+<p>1,024</p>
+</td>
+<td style="width: 41.9883%">
+<p>784</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p> </p>
+<p>However, before passing the input to the three fully connected layers, during training, we mask all but the activity vector of the correct digit capsule. Since we don't have the correct labels during testing, we pass the activity vector with the highest norm to the fully connected layers.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Defining the loss function</h1>
+                </header>
+            
+            <article>
+                
+<p>The loss function for capsule networks is composed of two parts:</p>
+<ul>
+<li><strong>Margin loss</strong>: Margin loss is exactly the same as what's used in <strong>Support Vector Machines</strong> (<strong>SVM</strong>). Effectively, we want the digit capsule to have an instantiation vector for class <em>k</em>, but only if the label is class <em>k</em>. For all other classes, we don't require any instantiation parameters. For each digit capsule k, we define separate loss as <img class="fm-editor-equation" src="assets/b555a2b5-ab4e-461a-822d-582948acdf34.png" style="font-size: 1em;width:1.42em;height:1.17em;"/><span>: </span>
+<p class="CDPAlignCenter CDPAlign"><img class="fm-editor-equation" src="assets/525e47e1-a86f-4a4c-8688-be37e9595e7c.png" style="width:33.08em;height:1.58em;"/></p>
+</li>
+</ul>
+<p style="padding-left: 60px"><span>If an image belongs to class k, then</span><span> </span><img class="fm-editor-equation" src="assets/4bc5e47a-3971-4d9d-9e54-6ba9e79ea6a4.png" style="width:3.25em;height:1.08em;"/><span> else 0. </span><img class="fm-editor-equation" src="assets/4ffb1d5c-d0ef-4d06-8d7a-10b3a6e0d1a7.png" style="width:10.33em;height:0.83em;"/><span> are the other two parameters. </span><img class="fm-editor-equation" src="assets/cf48ef4f-6a62-46d3-9e1b-614c7f7d1cf3.png" style="width:3.17em;height:0.92em;"/><span> is used for stability when initial learning the model. </span><span>The total margin loss is the sum of losses of all digit capsules. </span></p>
+<p style="padding-left: 60px"><span>To explain this simply, for digit caps <em>k</em> (which is the true label), the loss is zero if we predict a correct label with a probability of &gt; 0.9; otherwise it is non-zero. For all other digit caps, the loss is zero if we predict the probability of all those classes to be less than 0.1; otherwise, it is non-zero.</span></p>
+<ul>
+<li>
+<p><span><strong>Reconstruction loss</strong>: Reconstruction loss is mainly used as a regularizer for the model so that we can focus on learning the representations to reproduce the image. Intuitively, this can also result in easing the learning of the instantiation parameters of the model. This is generated by taking the Euclidean distance between the pixels of the reconstructed image and the input image. </span><span>The total loss for the model is given as follows:</span></p>
+</li>
+</ul>
+<p class="CDPAlignCenter CDPAlign"><em>Total loss = Margin loss + 0.0005 Reconstruction loss</em></p>
+<div class="packt_tip">Note that reconstruction loss is weighted down heavily to ensure that it doesn't dominate the margin loss during training.</div>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Training and testing the model</h1>
+                </header>
+            
+            <article>
+                
+<p>The following are the steps for training and testing the model:</p>
+<ol>
+<li class="mce-root">The first step is to read the training and testing datasets. Here are steps we must implement for reading the data: 
+<ul>
+<li class="mce-root">First, we load the training/testing images and label data from the files we downloaded for the <strong>Fashion<span> </span>MNIST </strong>data (<a href="https://github.com/zalandoresearch/fashion-mnist">https://github.com/zalandoresearch/fashion-mnist</a>).</li>
+<li class="mce-root">Then, we reshape the image data to a shape of 28 x 28 x 1 for our model and normalize it by 255 to keep the input of the model between 0 and 1.</li>
+<li class="mce-root">We split the training data into train and validation datasets, each with 55,000 and 5000 images respectively.</li>
+<li class="mce-root">We convert our target array <strong>y</strong> for both training and testing datasets so that we have a one-hot representation of the 10 classes in the dataset that we are going to feed into the model. </li>
+</ul>
+</li>
+</ol>
+<div class="packt_tip">Make sure to choose around 10% of data for out validation. In this project, we choose 5000 random images <span>(8% of the total images) for the validation data set.</span></div>
+<p style="padding-left: 60px">The code for the preceding steps is as follows:</p>
+<pre style="padding-left: 60px"><span>def </span><span>load_data</span>(<span>load_type</span><span>=</span><span>'train'</span>)<span>:<br/></span><span>    </span><span>'''<br/></span><span><br/></span><span>    :param load_type: train or test depending on the use case<br/></span><span>    :return: x (images), y(labels)<br/></span><span>    '''<br/></span><span>    </span>data_dir <span>= </span>os.path.<span>join</span>(<span>'data'</span>,<span>'fashion-mnist'</span>)<br/>    <span>if </span><span>load_type </span><span>== </span><span>'train'</span><span>:<br/></span><span>        </span>image_file <span>= </span><span>open</span>(os.path.<span>join</span>(data_dir,<span>'train-images-idx3-ubyte'</span>))<br/>        image_data <span>= </span>np.<span>fromfile</span>(<span>file</span><span>=</span>image_file, <span>dtype</span><span>=</span>np.uint8)<br/>        x <span>= </span>image_data[<span>16</span><span>:</span>].<span>reshape</span>((<span>60000</span>, <span>28</span>, <span>28</span>, <span>1</span>)).<span>astype</span>(np.float32)<br/><br/>        label_file <span>= </span><span>open</span>(os.path.<span>join</span>(data_dir, <span>'train-labels-idx1-ubyte'</span>))<br/>        label_data <span>= </span>np.<span>fromfile</span>(<span>file</span><span>=</span>label_file, <span>dtype</span><span>=</span>np.uint8)<br/>        y <span>= </span>label_data[<span>8</span><span>:</span>].<span>reshape</span>(<span>60000</span>).<span>astype</span>(np.int32)<br/><br/>        x_train <span>= </span>x[<span>:</span><span>55000</span>] <span>/ </span><span>255.<br/></span><span>        </span>y_train <span>= </span>y[<span>:</span><span>55000</span>]<br/>        y_train <span>= </span>(np.<span>arange</span>(N_CLASSES) <span>== </span>y_train[<span>:</span>, <span>None</span>]).<span>astype</span>(np.float32)<br/><br/>        x_valid <span>= </span>x[<span>55000</span><span>:</span>, ] <span>/ </span><span>255.<br/></span><span>        </span>y_valid <span>= </span>y[<span>55000</span><span>:</span>]<br/>        y_valid <span>= </span>(np.<span>arange</span>(N_CLASSES) <span>== </span>y_valid[<span>:</span>, <span>None</span>]).<span>astype</span>(np.float32)<br/>        <span>return </span>x_train, y_train, x_valid, y_valid<br/>    <span>elif </span><span>load_type </span><span>== </span><span>'test'</span><span>:<br/></span><span>        </span>image_file <span>= </span><span>open</span>(os.path.<span>join</span>(data_dir, <span>'t10k-images-idx3-ubyte'</span>))<br/>        image_data <span>= </span>np.<span>fromfile</span>(<span>file</span><span>=</span>image_file, <span>dtype</span><span>=</span>np.uint8)<br/>        x_test <span>= </span>image_data[<span>16</span><span>:</span>].<span>reshape</span>((<span>10000</span>, <span>28</span>, <span>28</span>, <span>1</span>)).<span>astype</span>(np.float)<br/><br/>        label_file <span>= </span><span>open</span>(os.path.<span>join</span>(data_dir, <span>'t10k-labels-idx1-ubyte'</span>))<br/>        label_data <span>= </span>np.<span>fromfile</span>(<span>file</span><span>=</span>label_file, <span>dtype</span><span>=</span>np.uint8)<br/>        y_test <span>= </span>label_data[<span>8</span><span>:</span>].<span>reshape</span>(<span>10000</span>).<span>astype</span>(np.int32)<br/>        y_test <span>= </span>(np.<span>arange</span>(N_CLASSES) <span>== </span>y_test[<span>:</span>, <span>None</span>]).<span>astype</span>(np.float32)<br/> <span>return </span>x_test <span>/ </span><span>255.</span>, y_test</pre>
+<div class="packt_tip">Note that we normalize the image pixels by <kbd>255</kbd> after loading the dataset for training stability and faster convergence.</div>
+<ol start="2">
+<li>Implement the encoder by c<span>reating the three neural network layers that have been defined</span> in the <em>U</em><em>nderstanding the encoder</em> section:</li>
+</ol>
+<pre style="padding-left: 60px"><span>with </span>tf.<span>variable_scope</span>(<span>'Conv1_layer'</span>)<span>:<br/></span><span>    </span>conv1_layer <span>= </span>tf.layers.<span>conv2d</span>(<span>self</span>.X, <span>name</span><span>=</span><span>"conv1_layer"</span>, <span>**</span>CONV1_LAYER_PARAMS) <span># [batch_size, 20, 20, 256]<br/></span><span><br/></span><span>with </span>tf.<span>variable_scope</span>(<span>'PrimaryCaps_layer'</span>)<span>:<br/></span><span>    </span>conv2_layer <span>= </span>tf.layers.<span>conv2d</span>(conv1_layer, <span>name</span><span>=</span><span>"conv2_layer"</span>, <span>**</span>CONV2_LAYER_PARAMS) <span># [batch_size, 6, 6, 256]<br/></span><span><br/></span><span>    </span>primary_caps <span>= </span>tf.<span>reshape</span>(conv2_layer, (BATCH_SIZE, NCAPS_CAPS1, CAPS_DIM_CAPS1, <span>1</span>), <span>name</span><span>=</span><span>"primary_caps"</span>) <span># [batch_size, 1152, 8, 1]<br/></span><span>    </span>primary_caps_output <span>= </span><span>squash</span>(primary_caps, <span>name</span><span>=</span><span>"caps1_output"</span>)<br/>    <span># [batch_size, 1152, 8, 1]<br/></span><span><br/></span><span># DigitCaps layer, return [batch_size, 10, 16, 1]<br/></span><span>with </span>tf.<span>variable_scope</span>(<span>'DigitCaps_layer'</span>)<span>:<br/></span><span>    </span>digitcaps_input <span>= </span>tf.<span>reshape</span>(primary_caps_output, <span>shape</span><span>=</span>(BATCH_SIZE, NCAPS_CAPS1, <span>1</span>, CAPS_DIM_CAPS1, <span>1</span>)) <span># [batch_size, 1152, 1, 8, 1]<br/></span><span>    # [batch_size, 1152, 10, 1, 1]<br/></span><span>    </span><span>self</span>.digitcaps_output <span>= </span><span>routing</span>(digitcaps_input) <span># [batch_size, 10, 16, 1]</span></pre>
+<ol start="3">
+<li><span>N</span>ext, implement the decoder layers to reconstruct the images, as described in the <em>Understanding the decoder</em><strong> </strong>section. Here are the important steps once again for reference:</li>
+</ol>
+<ul>
+<li style="list-style-type: none">
+<ul>
+<li>First, we calculate the norm of each activity vector in a digit caps output for masking purposes. We also add an epsilon to the norm for stability purposes.</li>
+<li>For training, we mask all of the activity vectors in digit caps output, except the one with the correct label. On the other hand, for testing, we mask all the activity vectors in digit caps output, except the one with the highest norm (or predicted label). We implement this branching mechanism in the decoder with <strong>tf.cond</strong>, which defines a control flow operation in the TensorFlow graph. </li>
+<li>Finally, we flatten the masked output from the digit caps and flatten it as a one-dimensional vector that can be fed to the fully connected layers.</li>
+</ul>
+</li>
+</ul>
+<div class="packt_infobox">To read up on <kbd>tf.cond</kbd>, refer to <a href="https://www.tensorflow.org/api_docs/python/tf/cond">https://www.tensorflow.org/api_docs/python/tf/cond</a>.</div>
+<p style="padding-left: 60px">The code for the preceding steps is as follows:</p>
+<pre style="padding-left: 60px"><span># Decoder<br/></span><span>with </span>tf.<span>variable_sc</span><span>ope</span>(<span>'Masking'</span>)<span>:</span><span><br/></span><span>    </span><span>self</span>.v_norm <span>= </span>tf.<span>sqrt</span>(tf.<span>reduce_sum</span>(tf.<span>square</span>(<span>self</span>.digitcaps_output), <span>axis</span><span>=</span><span>2</span>, <span>keep_dims</span><span>=</span><span>True</span>) <span>+ </span>tf.keras.backend.<span>epsilon</span>())<br/><br/>    predicted_class <span>= </span>tf.<span>to_int32</span>(tf.<span>argmax</span>(<span>self</span>.v_norm, <span>axis</span><span>=</span><span>1</span>)) <span>#[batch_size, 10,1,1]<br/></span><span>    </span><span>self</span>.y_predicted <span>= </span>tf.<span>reshape</span>(predicted_class, <span>shape</span><span>=</span>(BATCH_SIZE,))  <span>#[batch_size]<br/></span><span>    </span>y_predicted_one_hot <span>= </span>tf.<span>one_hot</span>(<span>self</span>.y_predicted, <span>depth</span><span>=</span>NCAPS_CAPS2)  <span>#[batch_size,10]  One hot operation<br/></span><span><br/></span><span>    </span>reconstruction_targets <span>= </span>tf.<span>cond</span>(<span>self</span>.mask_with_labels,  <span># condition<br/></span><span>                              </span><span>lambda</span><span>: </span><span>self</span>.Y,  <span># if True (Training)<br/></span><span>                              </span><span>lambda</span><span>: </span>y_predicted_one_hot,  <span># if False (Test)<br/></span><span>                              </span><span>name</span><span>=</span><span>"reconstruction_targets"</span>)<br/><br/>    digitcaps_output_masked <span>= </span>tf.<span>multiply</span>(tf.<span>squeeze</span>(<span>self</span>.digitcaps_output), tf.<span>expand_dims</span>(reconstruction_targets, <span>-</span><span>1</span>)) <span># [batch_size, 10, 16]<br/></span><span><br/></span><span><br/></span><span>    #Flattening as suggested by the paper<br/></span><span>    </span>decoder_input <span>= </span>tf.<span>reshape</span>(digitcaps_output_masked, [BATCH_SIZE, <span>-</span><span>1</span>]) <span># [batch_size, 160]<br/></span><span><br/></span><span><br/></span><span>with </span>tf.<span>variable_scope</span>(<span>'Decoder'</span>)<span>:<br/></span><span>    </span>fc1 <span>= </span>tf.layers.<span>dense</span>(decoder_input, layer1_size, <span>activation</span><span>=</span>tf.nn.relu, <span>name</span><span>=</span><span>"FC1"</span>) <span># [batch_size, 512]<br/></span><span>    </span>fc2 <span>= </span>tf.layers.<span>dense</span>(fc1, layer2_size, <span>activation</span><span>=</span>tf.nn.relu, <span>name</span><span>=</span><span>"FC2"</span>) <span># [batch_size, 1024]<br/></span><span>    </span><span>self</span>.decoder_output <span>= </span>tf.layers.<span>dense</span>(fc2, output_size, <span>activation</span><span>=</span>tf.nn.sigmoid, <span>name</span><span>=</span><span>"FC3"</span>) <span># [batch_size, 784]</span></pre>
+<ol start="4">
+<li>Implement margin loss using the formula mentioned in the <em>Defining the loss function</em> section as follows:</li>
+</ol>
+<pre style="padding-left: 60px"><span>with </span>tf.<span>variable_scope</span>(<span>'Margin_Loss'</span>)<span>:<br/></span><span>    </span><span># max(0, m_plus-||v_c||)^2<br/></span><span>    </span>positive_error <span>= </span>tf.<span>square</span>(tf.<span>maximum</span>(<span>0.</span>, <span>0.9 </span><span>- </span><span>self</span>.v_norm)) <span># [batch_size, 10, 1, 1]<br/></span><span>    # max(0, ||v_c||-m_minus)^2<br/></span><span>    </span>negative_error <span>= </span>tf.<span>square</span>(tf.<span>maximum</span>(<span>0.</span>, <span>self</span>.v_norm <span>- </span><span>0.1</span>)) <span># [batch_size, 10, 1, 1]<br/></span><span>    # reshape: [batch_size, 10, 1, 1] =&gt; [batch_size, 10]<br/></span><span>    </span>positive_error <span>= </span>tf.<span>reshape</span>(positive_error, <span>shape</span><span>=</span>(BATCH_SIZE, <span>-</span><span>1</span>))<br/>    negative_error <span>= </span>tf.<span>reshape</span>(negative_error, <span>shape</span><span>=</span>(BATCH_SIZE, <span>-</span><span>1</span>))<br/><br/>    Loss_vec <span>= </span><span>self</span>.Y <span>* </span>positive_error <span>+ </span><span>0.5 </span><span>* </span>(<span>1</span><span>- </span><span>self</span>.Y) <span>* </span>negative_error <span># [batch_size, 10]<br/></span><span>    </span><span>self</span>.margin_loss <span>= </span>tf.<span>reduce_mean</span>(tf.<span>reduce_sum</span>(Loss_vec, <span>axis</span><span>=</span><span>1</span>), <span>name</span><span>=</span><span>"margin_loss"</span>)<br/><br/></pre>
+<ol start="5">
+<li>Implement reconstruction loss using the formula mentioned in the <em>Defining the loss function</em> section:</li>
+</ol>
+<pre style="padding-left: 60px"><span>with </span>tf.<span>variable_scope</span>(<span>'Reconstruction_Loss'</span>)<span>:<br/></span><span>    </span>ground_truth <span>= </span>tf.<span>reshape</span>(<span>self</span>.X, <span>shape</span><span>=</span>(BATCH_SIZE, <span>-</span><span>1</span>))<br/>    <span>self</span>.reconstruction_loss <span>= </span>tf.<span>reduce_mean</span>(tf.<span>square</span>(<span>self</span>.decoder_output <span>- </span>ground_truth))</pre>
+<ol start="6">
+<li>Define the optimizer a<span>s an Adam optimizer, using the default parameters and an accuracy </span><span>metric </span><span>as the usual classification accuracy. </span>These need to be implemented in the CapsNet class itself using the following code:</li>
+</ol>
+<pre style="padding-left: 60px"><span>def </span><span>define_accuracy</span>(<span>self</span>)<span>:<br/></span><span>    </span><span>with </span>tf.<span>variable_scope</span>(<span>'Accuracy'</span>)<span>:<br/></span><span>        </span>correct_predictions <span>= </span>tf.<span>equal</span>(tf.<span>to_int32</span>(tf.<span>argmax</span>(<span>self</span>.Y, <span>axis</span><span>=</span><span>1</span>)), <span>self</span>.y_predicted)<br/>        <span>self</span>.accuracy <span>= </span>tf.<span>reduce_mean</span>(tf.<span>cast</span>(correct_predictions, tf.float32))<br/><br/><span>def </span><span>define_optimizer</span>(<span>self</span>)<span>:<br/></span><span>    </span><span>with </span>tf.<span>variable_scope</span>(<span>'Optimizer'</span>)<span>:<br/></span><span>        </span>optimizer <span>= </span>tf.train.<span>AdamOptimizer</span>()<br/>        <span>self</span>.train_optimizer <span>= </span>optimizer.<span>minimize</span>(<span>self</span>.combined_loss, <span>name</span><span>=</span><span>"training_optimizer"</span>)</pre>
+<div class="packt_tip">To learn more about the Adam Optimizer, refer to<a href="https://www.tensorflow.org/api_docs/python/tf/train/AdamOptimizer"> https://www.tensorflow.org/api_docs/python/tf/train/AdamOptimizer</a>.</div>
+<ol start="7">
+<li>Implement the support for checkpointing and restoring the model. Select the best model based on validation set accuracy; we checkpoint the model only for the epoch, where we observe a decrease in the validation set accuracy and finally, log the summary output for TensorBoard visualization. We train our model for 10 epochs each having batch size 128. Remember, you can vary these parameters to improve the accuracy of your model:</li>
+</ol>
+<pre style="padding-left: 60px"><span>def </span><span>train</span>(<span>model</span>)<span>:<br/></span><span>    </span><span>global </span>fd_train<br/>    x_train, y_train, x_valid, y_valid <span>= </span><span>load_data</span>(<span>load_type</span><span>=</span><span>'train'</span>)<br/>    <span>print</span>(<span>'Data set Loaded'</span>)<br/>    num_batches <span>= </span><span>int</span>(y_train.shape[<span>0</span>] <span>/ </span>BATCH_SIZE)<br/>    <span>if not </span>os.path.<span>exists</span>(CHECKPOINT_PATH_DIR)<span>:<br/></span><span>        </span>os.<span>makedirs</span>(CHECKPOINT_PATH_DIR)<br/><br/>    <span>with </span>tf.<span>Session</span>() <span>as </span>sess<span>:<br/></span><span>        </span><span>if </span>RESTORE_TRAINING<span>:<br/></span><span>            </span>saver <span>= </span>tf.train.<span>Saver</span>()<br/>            ckpt <span>= </span>tf.train.<span>get_checkpoint_state</span>(CHECKPOINT_PATH_DIR)<br/>            saver.<span>restore</span>(sess, ckpt.model_checkpoint_path)<br/>            <span>print</span>(<span>'Model Loaded'</span>)<br/>            start_epoch <span>= </span><span>int</span>(<span>str</span>(ckpt.model_checkpoint_path).<span>split</span>(<span>'-'</span>)[<span>-</span><span>1</span>])<br/>            train_file, val_file, best_loss_val <span>= </span><span>load_existing_details</span>()<br/>        <span>else</span><span>:<br/></span><span>            </span>saver <span>= </span>tf.train.<span>Saver</span>(tf.<span>global_variables</span>())<br/>            tf.<span>global_variables_initializer</span>().<span>run</span>()<br/>            <span>print</span>(<span>'All variables initialized'</span>)<br/>            train_file, val_file <span>= </span><span>write_progress</span>(<span>'train'</span>)<br/>            start_epoch <span>= </span><span>0<br/></span><span>            </span>best_loss_val <span>= </span>np.infty<br/>        <span>print</span>(<span>'Training Starts'</span>)<br/>        acc_batch_all <span>= </span>loss_batch_all <span>= </span>np.<span>array</span>([])<br/>        train_writer <span>= </span>tf.summary.<span>FileWriter</span>(LOG_DIR, sess.graph)<br/>        <span>for </span>epoch <span>in </span><span>range</span>(start_epoch, EPOCHS)<span>:<br/></span><span>            </span><span># Shuffle the input data<br/></span><span>            </span>x_train, y_train <span>= </span><span>shuffle_data</span>(x_train, y_train)<br/>            <span>for </span>step <span>in </span><span>range</span>(num_batches)<span>:<br/></span><span>                </span>start <span>= </span>step <span>* </span>BATCH_SIZE<br/>                end <span>= </span>(step <span>+ </span><span>1</span>) <span>* </span>BATCH_SIZE<br/>                global_step <span>= </span>epoch <span>* </span>num_batches <span>+ </span>step<br/>                x_batch, y_batch <span>= </span>x_train[start<span>:</span>end], y_train[start<span>:</span>end]<br/>                feed_dict_batch <span>= </span>{<span>model</span>.X<span>: </span>x_batch, <span>model</span>.Y<span>: </span>y_batch, <span>model</span>.mask_with_labels<span>: </span><span>True</span>}<br/>                <span>if not </span>(step <span>% </span><span>100</span>)<span>:<br/></span><span>                    </span>_, acc_batch, loss_batch, summary_ <span>= </span>sess.<span>run</span>([<span>model</span>.train_optimizer, <span>model</span>.accuracy,<br/>                                                                     <span>model</span>.combined_loss, <span>model</span>.summary_],<br/>                                                                    <span>feed_dict</span><span>=</span>feed_dict_batch)<br/>                    train_writer.<span>add_summary</span>(summary_, global_step)<br/>                    acc_batch_all <span>= </span>np.<span>append</span>(acc_batch_all, acc_batch)<br/>                    loss_batch_all <span>= </span>np.<span>append</span>(loss_batch_all, loss_batch)<br/>                    mean_acc,mean_loss <span>= </span>np.<span>mean</span>(acc_batch_all),np.<span>mean</span>(loss_batch_all)<br/>                    summary_ <span>= </span>tf.<span>Summary</span>(<span>value</span><span>=</span>[tf.Summary.<span>Value</span>(<span>tag</span><span>=</span><span>'Accuracy'</span>, <span>simple_value</span><span>=</span>mean_acc)])<br/>                    train_writer.<span>add_summary</span>(summary_, global_step)<br/>                    summary_ <span>= </span>tf.<span>Summary</span>(<span>value</span><span>=</span>[tf.Summary.<span>Value</span>(<span>tag</span><span>=</span><span>'Loss/combined_loss'</span>, <span>simple_value</span><span>=</span>mean_loss)])<br/>                    train_writer.<span>add_summary</span>(summary_, global_step)<br/><br/>                    train_file.<span>write</span>(<span>str</span>(global_step) <span>+ </span><span>',' </span><span>+ </span><span>str</span>(mean_acc) <span>+ </span><span>',' </span><span>+ </span><span>str</span>(mean_loss) <span>+ </span><span>"</span><span>\n</span><span>"</span>)<br/>                    train_file.<span>flush</span>()<br/>                    <span>print</span>(<span>"  Batch #{0}, Epoch: #{1}, Mean Training loss: {2:.4f}, Mean Training accuracy: {3:.01%}"</span>.<span>format</span>(<br/>                        step, (epoch<span>+</span><span>1</span>), mean_loss, mean_acc))<br/>                    acc_batch_all <span>= </span>loss_batch_all <span>= </span>np.<span>array</span>([])<br/>                <span>else</span><span>:<br/></span><span>                    </span>_, acc_batch, loss_batch <span>= </span>sess.<span>run</span>([<span>model</span>.train_optimizer, <span>model</span>.accuracy, <span>model</span>.combined_loss],<br/>                                                        <span>feed_dict</span><span>=</span>feed_dict_batch)<br/>                    acc_batch_all <span>= </span>np.<span>append</span>(acc_batch_all, acc_batch)<br/>                    loss_batch_all <span>= </span>np.<span>append</span>(loss_batch_all, loss_batch)<br/><br/>            <span># Validation metrics after each EPOCH<br/></span><span>            </span>acc_val, loss_val <span>= </span><span>eval_performance</span>(sess, <span>model</span>, x_valid, y_valid)<br/>            val_file.<span>write</span>(<span>str</span>(epoch <span>+ </span><span>1</span>) <span>+ </span><span>',' </span><span>+ </span><span>str</span>(acc_val) <span>+ </span><span>',' </span><span>+ </span><span>str</span>(loss_val) <span>+ </span><span>'</span><span>\n</span><span>'</span>)<br/>            val_file.<span>flush</span>()<br/>            <span>print</span>(<span>"</span><span>\r</span><span>Epoch: {}  Mean Train Accuracy: {:.4f}% ,Mean Val accuracy: {:.4f}%  Loss: {:.6f}{}"</span>.<span>format</span>(<br/>                epoch <span>+ </span><span>1</span>, mean_acc <span>* </span><span>100</span>, acc_val <span>* </span><span>100</span>, loss_val,<br/>                <span>" (improved)" </span><span>if </span>loss_val <span>&lt; </span>best_loss_val <span>else </span><span>""</span>))<br/><br/>            <span># Saving the improved model<br/></span><span>            </span><span>if </span>loss_val <span>&lt; </span>best_loss_val<span>:<br/></span><span>                </span>saver.<span>save</span>(sess, CHECKPOINT_PATH_DIR <span>+ </span><span>'/model.tfmodel'</span>, <span>global_step</span><span>=</span>epoch <span>+ </span><span>1</span>)<br/>                best_loss_val <span>= </span>loss_val<br/>        train_file.<span>close</span>()<br/>        val_file.<span>close</span>()</pre>
+<p>This model achieved almost <kbd>99%</kbd> accuracy with <kbd>10</kbd> epochs on the validation and test sets, which is quite good. </p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Reconstructing sample images</h1>
+                </header>
+            
+            <article>
+                
+<p>We will also reconstruct some sample images to see how the model is performing. We will use the following images as the input:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-105 image-border" src="assets/d1e7025d-af36-486e-bbd0-88ccce351187.png" style="width:34.33em;height:10.58em;"/></p>
+<p>The code for reconstructing the preceding images is as follows:</p>
+<pre><span>def </span><span>reconstruct_sample</span>(<span>mode</span><span>l</span>, <span>n_samples</span><span>=</span><span>5</span>)<span>:<br/></span><span>    </span>x_test, y_test <span>= </span><span>load_data</span>(<span>load_type</span><span>=</span><span>'test'</span>)<br/>    sample_images, sample_labels <span>= </span>x_test[<span>:</span>BATCH_SIZE], y_test[<span>:</span>BATCH_SIZE]<br/>    saver <span>= </span>tf.train.<span>Saver</span>()<br/>    ckpt <span>= </span>tf.train.<span>get_checkpoint_state</span>(CHECKPOINT_PATH_DIR)<br/>    <span>with </span>tf.<span>Session</span>() <span>as </span>sess<span>:<br/></span><span>        </span>saver.<span>restore</span>(sess, ckpt.model_checkpoint_path)<br/>        feed_dict_samples <span>= </span>{<span>model</span>.X<span>: </span>sample_images, <span>model</span>.Y<span>: </span>sample_labels}<br/>        decoder_out, y_predicted <span>= </span>sess.<span>run</span>([<span>model</span>.decoder_output, <span>model</span>.y_predicted],<br/>                                       <span>feed_dict</span><span>=</span>feed_dict_samples)<br/>    <span>reconstruction</span>(sample_images, sample_labels, decoder_out, y_predicted, <span>n_samples</span>)</pre>
+<p>The reconstruction function for plotting the images and saving them is given as follows:</p>
+<pre style="padding-left: 60px"><span>def </span><span>reconstruction</span>(<span>x</span>, <span>y</span>, <span>decoder_output</span>, <span>y_pred</span>, <span>n_samples</span>)<span>:<br/></span><span>    </span><span>'''<br/></span><span>    This function is used to reconstruct sample images for analysis<br/></span><span>    :param x: Images<br/></span><span>    :param y: Labels<br/></span><span>    :param decoder_output: output from decoder<br/></span><span>    :param y_pred: predictions from the model<br/></span><span>    :param n_samples: num images<br/></span><span>    :return: saves the reconstructed images<br/></span><span>    '''<br/></span><span><br/></span><span>    </span>sample_images <span>= </span><span>x</span>.<span>reshape</span>(<span>-</span><span>1</span>, IMG_WIDTH, IMG_HEIGHT)<br/>    decoded_image <span>= </span><span>decoder_output</span>.<span>reshape</span>([<span>-</span><span>1</span>, IMG_WIDTH, IMG_WIDTH])<br/><br/>    fig <span>= </span>plt.<span>figure</span>(<span>figsize</span><span>=</span>(<span>n_samples </span><span>* </span><span>2</span>, <span>3</span>))<br/>    <span>for </span>i <span>in </span><span>range</span>(<span>n_samples</span>)<span>:<br/></span><span>        </span>plt.<span>subplot</span>(<span>1</span>, <span>n_samples</span>, i<span>+ </span><span>1</span>)<br/>        plt.<span>imshow</span>(sample_images[i], <span>cmap</span><span>=</span><span>"binary"</span>)<br/>        plt.<span>title</span>(<span>"Label:" </span><span>+ </span>IMAGE_LABELS[np.<span>argmax</span>(<span>y</span>[i])])<br/>        plt.<span>axis</span>(<span>"off"</span>)<br/>    fig.<span>savefig</span>(RESULTS_DIR <span>+ </span><span>'/' </span><span>+ </span><span>'input_images.png'</span>)<br/>    plt.<span>show</span>()<br/><br/>    fig <span>= </span>plt.<span>figure</span>(<span>figsize</span><span>=</span>(<span>n_samples </span><span>* </span><span>2</span>, <span>3</span>))<br/>    <span>for </span>i <span>in </span><span>range</span>(<span>n_samples</span>)<span>:<br/></span><span>        </span>plt.<span>subplot</span>(<span>1</span>, <span>n_samples</span>, i <span>+ </span><span>1</span>)<br/>        plt.<span>imshow</span>(decoded_image[i], <span>cmap</span><span>=</span><span>"binary"</span>)<br/>        plt.<span>title</span>(<span>"Prediction:" </span><span>+ </span>IMAGE_LABELS[<span>y_pred</span>[i]])<br/>        plt.<span>axis</span>(<span>"off"</span>)<br/>    fig.<span>savefig</span>(RESULTS_DIR <span>+ </span><span>'/' </span><span>+ </span><span>'decod</span><span>er_images.png'</span>)<br/>    plt.<span>show</span>()</pre>
+<p>The reconstructed images now look like this:</p>
+<p class="CDPAlignCenter CDPAlign"><img class="alignnone size-full wp-image-106 image-border" src="assets/401f42ba-c0c8-42d5-988c-8f6457e32506.png" style="width:27.00em;height:10.67em;"/></p>
+<p class="mce-root">As we can see, the l<span>abels are perfect, while the reconstructed images aren't as perfect but very similar. With more hyper parameter tuning, we can generate much better reconstructed images.</span></p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Limitations of capsule networks</h1>
+                </header>
+            
+            <article>
+                
+<p>While capsule networks are great and they address the core issues of convolutional neural networks, they still have a long way to go. Some of the limitations of capsule networks are as follows:</p>
+<ul>
+<li>The network has not been tested on large datasets like ImageNet. This puts a question mark on their ability to perform well on large datasets.</li>
+<li>The algorithm is slow, mainly due to the inner loop of the dynamic routing algorithm. The number of iterations can be fairly large for large datasets.</li>
+<li>Capsule networks definitely have higher complexity in implementation compared to CNNs. </li>
+</ul>
+<p>It would be interesting to see how the deep learning community addresses the limitations of capsule networks.</p>
+
+
+            </article>
+
+            
+        </section>
+    
+
+        <section>
+
+                            <header>
+                    <h1 class="header-title">Summary</h1>
+                </header>
+            
+            <article>
+                
+<p>In this chapter, we looked at the very popular neural network architecture CapsNet, by Geoff Hinton (presumably the father of deep learning).</p>
+<p>We started off by understanding the limitations of CNNs in their current form. They use max pooling as a crutch to achieve invariance in activities. Max pooling has a tendency to lose information, and it can't model the relationships between different objects in the image. We then touched upon how the human brain detects objects and are viewpoint invariant. We drew an analogy to computer graphics and understood how we can probably incorporate pose information in neural networks.</p>
+<p>Subsequently, we learned about the basic building blocks of capsule networks, that is, capsules. We understood how they differ from the traditional neuron in that they take a vector as the input and produce a vector output. We also learned about a special kind of non-linearity in capsules, namely the <kbd>squash</kbd><strong> </strong>function. </p>
+<p>In the next section, we learned about the novel <strong>dynamic routing algorithm</strong>, which helps route the output from lower layer capsules to higher layer capsules. The coefficients <img class="fm-editor-equation" src="assets/71dd376b-2924-4d16-855c-5fbe21567127.png" style="width:1.33em;height:1.17em;"/> are learned through several iterations of the routing algorithm. The crux of the algorithm was the step in which we update the coefficients <img class="fm-editor-equation" src="assets/91b45590-99bc-4394-afde-cde1358ade36.png" style="width:1.33em;height:1.25em;"/>  by using the dot product of the predicted vector <img class="fm-editor-equation" src="assets/1df88cb6-46c6-4d83-b51f-ade7ad980ed4.png" style="width:1.67em;height:1.42em;"/> and the output vector of the higher-layer capsule <img class="fm-editor-equation" src="assets/89497384-2dc1-46c8-aa49-7a2f0f64d41d.png" style="width:1.08em;height:1.00em;"/>. </p>
+<p>Furthermore, we implemented CapsNet for the Fashion MNIST dataset. We used a convolutional layer, followed by a PrimaryCaps layer and a DigitCaps layer. We learned about the encoder architecture and how we can get a vector representation of the images. This was followed by an understanding of the decoder architecture to reconstruct the image from the learned representations. The loss function in this architecture was a combination of margin loss (like in SVMs) and weighted-down reconstruction loss. The reconstruction loss was weighted down so that the model could focus more on margin loss during training. </p>
+<p>We then trained the model on 10 epochs with a batch size of 128 and achieved over 99% accuracy on the validation and test sets. We reconstructed some sample images to visualize the output and found the reconstruction to be fairly accurate. </p>
+<p>In summary, throughout this chapter, we were able to understand and implement capsule networks from scratch using TensorFlow and trained them on the Fashion MNIST dataset.</p>
+<p>Now that you have built the basic capsule network, you can try to extend this model by incorporating multiple capsule layers and see how it performs, use <span>on other image datasets and see whether this algorithm is scalable, run it without </span>reconstruction loss, and see whether you can still reconstruct the input image. <span>By doing this, you will be able to develop a good intuition toward this algorithm.</span></p>
+<p><span>In the next chapter, we will look at the face-detection project using TensorFlow. </span></p>
+
+
+            </article>
+
+            
+        </section>
+    </body></html>

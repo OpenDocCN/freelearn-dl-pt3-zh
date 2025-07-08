@@ -1,0 +1,802 @@
+<html><head></head><body>
+  <div id="_idContainer144">
+    <h1 class="chapterNumber">12</h1>
+    <h1 id="_idParaDest-300" class="chapterTitle">Taking TensorFlow to Production</h1>
+    <p class="normal">Throughout this book, we have seen that TensorFlow is capable of implementing many models, but there is more that TensorFlow can do. This chapter will show you a few of those things. In this chapter, we will cover the following topics:</p>
+    <ul>
+      <li class="bullet">Visualizing graphs in TensorBoard</li>
+      <li class="bullet">Managing hyperparameter tuning with TensorBoard's HParams</li>
+      <li class="bullet">Implementing unit tests using tf.test</li>
+      <li class="bullet">Using multiple executors</li>
+      <li class="bullet">Parallelizing TensorFlow using tf.distribute.strategy</li>
+      <li class="bullet">Saving and restoring a TensorFlow model</li>
+      <li class="bullet">Using TensorFlow Serving</li>
+    </ul>
+    <p class="normal">We'll start by showing how to use the various aspects of TensorBoard, a capability that comes with TensorFlow. This tool allows us to visualize summary metrics, graphs, and images even while our model is training. Next, we will show you how to write code that is ready for production use with a focus on unit tests, training distribution across multiple processing units, and efficient model saving and loading. Finally, we will address a machine learning serving solution by hosting a model as REST endpoints.</p>
+    <h1 id="_idParaDest-301" class="title">Visualizing Graphs in TensorBoard</h1>
+    <p class="normal">Monitoring and <a id="_idIndexMarker651"/>troubleshooting machine learning <a id="_idIndexMarker652"/>algorithms can be a daunting task, especially if you have to wait a long time for the training to complete before you know the results. To work around this, TensorFlow includes a computational graph visualization <a id="_idIndexMarker653"/>tool called <strong class="keyword">TensorBoard</strong>. With TensorBoard, we can visualize graphs and important values (loss, accuracy, batch training time, and so on) even during training.</p>
+    <h2 id="_idParaDest-302" class="title">Getting ready</h2>
+    <p class="normal">To illustrate the various ways we can use TensorBoard, we will reimplement the MNIST model from <em class="italic">The Introductory CNN Model</em> recipe in <em class="chapterRef">Chapter 8</em>, <em class="italic">Convolutional Neural Networks</em>. Then, we'll add the TensorBoard callback and fit the model. We will show how to monitor numerical values, histograms of sets of values, how to create an image in TensorBoard, and how to visualize TensorFlow models.</p>
+    <h2 id="_idParaDest-303" class="title">How to do it...</h2>
+    <ol>
+      <li class="numbered">First, we'll <a id="_idIndexMarker654"/>load the libraries necessary for <a id="_idIndexMarker655"/>the script:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> datetime
+</code></pre>
+      </li>
+      <li class="numbered">We'll now reimplement the MNIST model:
+        <pre class="programlisting code"><code class="hljs-code">(x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+x_train = x_train.reshape(<span class="hljs-number">-1</span>, <span class="hljs-number">28</span>, <span class="hljs-number">28</span>, <span class="hljs-number">1</span>)
+x_test = x_test.reshape(<span class="hljs-number">-1</span>, <span class="hljs-number">28</span>, <span class="hljs-number">28</span>, <span class="hljs-number">1</span>)
+<span class="hljs-comment"># Padding the images by 2 pixels since in the paper input images were 32x32</span>
+x_train = np.pad(x_train, ((<span class="hljs-number">0</span>,<span class="hljs-number">0</span>),(<span class="hljs-number">2</span>,<span class="hljs-number">2</span>),(<span class="hljs-number">2</span>,<span class="hljs-number">2</span>),(<span class="hljs-number">0</span>,<span class="hljs-number">0</span>)), <span class="hljs-string">'constant'</span>)
+x_test = np.pad(x_test, ((<span class="hljs-number">0</span>,<span class="hljs-number">0</span>),(<span class="hljs-number">2</span>,<span class="hljs-number">2</span>),(<span class="hljs-number">2</span>,<span class="hljs-number">2</span>),(<span class="hljs-number">0</span>,<span class="hljs-number">0</span>)), <span class="hljs-string">'constant'</span>)
+<span class="hljs-comment"># Normalize</span>
+x_train = x_train / <span class="hljs-number">255</span>
+x_test = x_test/ <span class="hljs-number">255</span>
+<span class="hljs-comment"># Set model parameters</span>
+image_width = x_train[<span class="hljs-number">0</span>].shape[<span class="hljs-number">0</span>]
+image_height = x_train[<span class="hljs-number">0</span>].shape[<span class="hljs-number">1</span>]
+num_channels = <span class="hljs-number">1</span> <span class="hljs-comment"># grayscale = 1 channel</span>
+<span class="hljs-comment"># Training and Test data variables</span>
+batch_size = <span class="hljs-number">100</span>
+evaluation_size = <span class="hljs-number">500</span>
+generations = <span class="hljs-number">300</span>
+eval_every = <span class="hljs-number">5</span>
+<span class="hljs-comment"># Set for reproducible results</span>
+seed = <span class="hljs-number">98</span>
+np.random.seed(seed)
+tf.random.set_seed(seed)
+<span class="hljs-comment"># Declare the model</span>
+input_data = tf.keras.Input(dtype=tf.float32, shape=(image_width,image_height, num_channels), name=<span class="hljs-string">"INPUT"</span>)
+<span class="hljs-comment"># First Conv-ReLU-MaxPool Layer</span>
+conv1 = tf.keras.layers.Conv2D(filters=<span class="hljs-number">6</span>,
+                               kernel_size=<span class="hljs-number">5</span>,
+                               padding=<span class="hljs-string">'VALID'</span>,
+                               activation=<span class="hljs-string">"relu"</span>,
+                               name=<span class="hljs-string">"C1"</span>)(input_data)
+max_pool1 = tf.keras.layers.MaxPool2D(pool_size=<span class="hljs-number">2</span>,
+                                      strides=<span class="hljs-number">2</span>, 
+                                      padding=<span class="hljs-string">'SAME'</span>,
+                                      name=<span class="hljs-string">"S1"</span>)(conv1)
+<span class="hljs-comment"># Second Conv-ReLU-MaxPool Layer</span>
+conv2 = tf.keras.layers.Conv2D(filters=<span class="hljs-number">16</span>,
+                               kernel_size=<span class="hljs-number">5</span>,
+                               padding=<span class="hljs-string">'VALID'</span>,
+                               strides=<span class="hljs-number">1</span>,
+                               activation=<span class="hljs-string">"relu"</span>,
+                               name=<span class="hljs-string">"C3"</span>)(max_pool1)
+max_pool2 = tf.keras.layers.MaxPool2D(pool_size=<span class="hljs-number">2</span>,
+                                      strides=<span class="hljs-number">2</span>, 
+                                      padding=<span class="hljs-string">'SAME'</span>,
+                                      name=<span class="hljs-string">"S4"</span>)(conv2)
+<span class="hljs-comment"># Flatten Layer</span>
+flatten = tf.keras.layers.Flatten(name=<span class="hljs-string">"FLATTEN"</span>)(max_pool2)
+<span class="hljs-comment"># First Fully Connected Layer</span>
+fully_connected1 = tf.keras.layers.Dense(units=<span class="hljs-number">120</span>,
+                                         activation=<span class="hljs-string">"relu"</span>,
+                                         name=<span class="hljs-string">"F5"</span>)(flatten)
+<span class="hljs-comment"># Second Fully Connected Layer</span>
+fully_connected2 = tf.keras.layers.Dense(units=<span class="hljs-number">84</span>,
+                                         activation=<span class="hljs-string">"relu"</span>,
+                                         name=<span class="hljs-string">"F6"</span>)(fully_connected1)
+<span class="hljs-comment"># Final Fully Connected Layer</span>
+final_model_output = tf.keras.layers.Dense(units=<span class="hljs-number">10</span>,
+                                           activation=<span class="hljs-string">"softmax"</span>,
+                                           name=<span class="hljs-string">"OUTPUT"</span>
+                                           )(fully_connected2)
+    
+model = tf.keras.Model(inputs= input_data, outputs=final_model_output)
+</code></pre>
+      </li>
+      <li class="numbered">Next, we will <a id="_idIndexMarker656"/>compile the model with the sparse <a id="_idIndexMarker657"/>categorical cross-entropy loss and the Adam optimizer. Then, we'll display the summary:
+        <pre class="programlisting code"><code class="hljs-code">model.compile(
+    optimizer=<span class="hljs-string">"adam"</span>, 
+    loss=<span class="hljs-string">"sparse_categorical_crossentropy"</span>,
+    metrics=[<span class="hljs-string">"accuracy"</span>]
+)
+model.summary()
+</code></pre>
+      </li>
+      <li class="numbered">We will create a timestamped subdirectory for each run. The summary writer will write the <code class="Code-In-Text--PACKT-">TensorBoard</code> logs to this folder:
+        <pre class="programlisting code"><code class="hljs-code">log_dir=<span class="hljs-string">"logs/experiment-"</span> + datetime.datetime.now().strftime(<span class="hljs-string">"%Y%m%d-%H%M%S"</span>) 
+</code></pre>
+      </li>
+      <li class="numbered">Next, we will instantiate a <code class="Code-In-Text--PACKT-">TensorBoard</code> callback and pass it to the <code class="Code-In-Text--PACKT-">fit</code> method. All logs during the training phase will be stored in this directory and can be viewed instantly in <code class="Code-In-Text--PACKT-">TensorBoard</code>:
+        <pre class="programlisting code"><code class="hljs-code">tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, 
+                                                      write_images=<span class="hljs-literal">True</span>,
+                                                      histogram_freq=<span class="hljs-number">1</span> )
+model.fit(x=x_train, 
+          y=y_train, 
+          epochs=<span class="hljs-number">5</span>,
+          validation_data=(x_test, y_test), 
+          callbacks=[tensorboard_callback])
+</code></pre>
+      </li>
+      <li class="numbered">We then <a id="_idIndexMarker658"/>start the <code class="Code-In-Text--PACKT-">TensorBoard</code> application by running <a id="_idIndexMarker659"/>the following command:
+        <pre class="programlisting code"><code class="hljs-code">$ tensorboard --logdir=<span class="hljs-string">"logs"</span>
+</code></pre>
+      </li>
+      <li class="numbered">Then we navigate in our browser to the following link: <code class="Code-In-Text--PACKT-">http://127.0.0.0:6006</code>. We can specify a different port if needed by passing, for example, a <code class="Code-In-Text--PACKT-">--port 6007 </code>command (for running on port 6007). We can also start TensorBoard within the notebook through the <code class="Code-In-Text--PACKT-">%tensorboard --logdir="logs"</code> command line. Remember that TensorBoard will be viewable as your program is running.</li>
+      <li class="numbered">We can quickly and easily visualize and compare metrics of several experiments during the model training through TensorBoard's scalars view. By default, TensorBoard writes the metrics and losses every epoch. We can update this frequency by batch using the following argument: <code class="Code-In-Text--PACKT-">update_freq='batch'</code>. We can also visualize model weights as images with the argument <code class="Code-In-Text--PACKT-">write_images=True</code> or display bias and weights with histograms (computing every epoch) using <code class="Code-In-Text--PACKT-">histogram_freq=1.</code> </li>
+      <li class="numbered">Here is a screenshot of the scalars view:<figure class="mediaobject"><img src="../Images/B16254_12_01.png" alt=""/></figure>
+        <p class="packt_figref">Figure 12.1: Training and test loss decrease over time while the training and test accuracy increase</p>
+      </li>
+      <li class="numbered">Here, we show <a id="_idIndexMarker660"/>how to visualize weights and bias with a <a id="_idIndexMarker661"/>histogram summary. With this dashboard, we can plot many histogram visualizations of all the values of a non-scalar tensor (such as weights and bias) at different points in time. So, we can see how the values have changed over time:<figure class="mediaobject"><img src="../Images/B16254_12_02.png" alt=""/></figure>
+        <p class="packt_figref">Figure 12.2: The Histograms view to visualize weights and bias in TensorBoard</p>
+      </li>
+      <li class="numbered">Now, we will visualize the <a id="_idIndexMarker662"/>TensorFlow model through TensorFlow's Graphs dashboard, which <a id="_idIndexMarker663"/>shows the model using different views. This dashboard allows visualizing the op-level graph but also the conceptual graph. The op-level displays the Keras model with extra edges to other computation nodes, whereas the conceptual graph displays only the Keras model. These views allow quickly examining and comparing our intended design and understanding the TensorFlow model structure. </li>
+      <li class="numbered">Here, we show how to visualize the op-level graph:<figure class="mediaobject"><img src="../Images/B16254_12_03.png" alt=""/></figure>
+        <p class="packt_figref">Figure 12.3: The op-level graph in TensorBoard</p>
+      </li>
+      <li class="numbered">By adding the TensorBoard <a id="_idIndexMarker664"/>callback, we can visualize the loss, the metrics, model weights as <a id="_idIndexMarker665"/>images, and so on. But we can also use the <code class="Code-In-Text--PACKT-">tf.summary</code> module for writing summary data that can be visualized in TensorFlow. First, we have to create a <code class="Code-In-Text--PACKT-">FileWriter</code> and then, we can write histogram, scalar, text, audio, or image summaries. Here, we'll write images using the Image Summary API and visualize them in TensorBoard:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Create a FileWriter for the timestamped log directory.</span>
+file_writer = tf.summary.create_file_writer(log_dir)
+<span class="hljs-keyword">with</span> file_writer.as_default():
+    <span class="hljs-comment"># Reshape the images and write image summary.</span>
+    images = np.reshape(x_train[<span class="hljs-number">0</span>:<span class="hljs-number">10</span>], (<span class="hljs-number">-1</span>, <span class="hljs-number">32</span>, <span class="hljs-number">32</span>, <span class="hljs-number">1</span>))
+    tf.summary.image(<span class="hljs-string">"10 training data examples"</span>, images, max_outputs=<span class="hljs-number">10</span>, step=<span class="hljs-number">0</span>)
+</code></pre>
+      </li>
+    </ol>
+    <figure class="mediaobject"><img src="../Images/B16254_12_04.png" alt=""/></figure>
+    <p class="packt_figref">Figure 12.4: Visualize images in TensorBoard</p>
+    <div class="packt_tip">
+      <p class="Tip--PACKT-">Be careful of writing image summaries too often to TensorBoard. For example, if we were to write an image summary every generation for 10,000 generations, that would generate 10,000 images worth of summary data. This tends to eat up disk space very quickly.</p>
+    </div>
+    <h2 id="_idParaDest-304" class="title">How it works...</h2>
+    <p class="normal">In this section, we <a id="_idIndexMarker666"/>implemented a CNN model on the MNIST <a id="_idIndexMarker667"/>dataset. We added a TensorBoard callback and fitted the model. Then, we used TensorFlow's visualization tool, which enables you to monitor numerical values and histograms of sets of values, to visualize the model graph, and so on.</p>
+    <p class="normal">Remember that we can launch TensorBoard through a command line as in the recipe but we can also launch it within a notebook by using the <code class="Code-In-Text--PACKT-">%tensorboard</code> magic line.</p>
+    <h2 id="_idParaDest-305" class="title">See also</h2>
+    <p class="normal">For some references on the <a id="_idIndexMarker668"/>TensorBoard API, visit the following websites:</p>
+    <ul>
+      <li class="bullet">The official TensorBoard guide: <a href="https://www.tensorflow.org/tensorboard/get_started"><span class="url">https://www.tensorflow.org/tensorboard/get_started</span></a></li>
+      <li class="bullet">The TensorFlow summary API: <a href="https://www.tensorflow.org/api_docs/python/tf/summary"><span class="url">https://www.tensorflow.org/api_docs/python/tf/summary</span></a></li>
+    </ul>
+    <h2 id="_idParaDest-306" class="title">There's more...</h2>
+    <p class="normal">TensorBoard.dev is a free <a id="_idIndexMarker669"/>managed service provided by Google. The aim is to easily host, track, and share machine learning experiments with anyone. After we launch our experiments, we just have to upload our TensorBoard logs to the TensorBoard server. Then, we share the link and anyone who has the link can view our experiments. Note not to upload sensitive data because uploaded TensorBoard datasets are public and visible to everyone.</p>
+    <h1 id="_idParaDest-307" class="title">Managing Hyperparameter tuning with TensorBoard's HParams</h1>
+    <p class="normal">Tuning hyperparameters in a <a id="_idIndexMarker670"/>machine learning project <a id="_idIndexMarker671"/>can be a real pain. The process is iterative and can take a long time to test all the hyperparameter combinations. But fortunately, HParams, a TensorBoard plugin, comes to the rescue. It allows testing to find the best combination of hyperparameters.</p>
+    <h2 id="_idParaDest-308" class="title">Getting ready</h2>
+    <p class="normal">To illustrate how the HParams plugin works, we will use a sequential model implementation on the MNIST dataset. We'll configure HParams and compare several hyperparameter combinations in order to find the best hyperparameter optimization.</p>
+    <h2 id="_idParaDest-309" class="title">How to do it...</h2>
+    <ol>
+      <li class="numbered" value="1">First, we'll load the libraries necessary for the script:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+<span class="hljs-keyword">from</span> tensorboard.plugins.hparams <span class="hljs-keyword">import</span> api <span class="hljs-keyword">as</span> hp
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> datetime
+</code></pre>
+      </li>
+      <li class="numbered">Next, we'll load and prepare the MNIST dataset:
+        <pre class="programlisting code"><code class="hljs-code">(x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+<span class="hljs-comment"># Normalize</span>
+x_train = x_train / <span class="hljs-number">255</span>
+x_test = x_test/ <span class="hljs-number">255</span>
+<span class="hljs-comment">## Set model parameters</span>
+image_width = x_train[<span class="hljs-number">0</span>].shape[<span class="hljs-number">0</span>]
+image_height = x_train[<span class="hljs-number">0</span>].shape[<span class="hljs-number">1</span>]
+num_channels = <span class="hljs-number">1</span> <span class="hljs-comment"># grayscale = 1 channel</span>
+</code></pre>
+      </li>
+      <li class="numbered">Then, for each hyperparameter, we'll define the list or the interval of values to test. In this section, we'll go over three hyperparameters: the number of units per layer, the dropout rate, and the optimizer:
+        <pre class="programlisting code"><code class="hljs-code">HP_ARCHITECTURE_NN = hp.HParam(<span class="hljs-string">'archi_nn'</span>, 
+hp.Discrete([<span class="hljs-string">'128,64'</span>,<span class="hljs-string">'256,128'</span>]))
+HP_DROPOUT = hp.HParam(<span class="hljs-string">'dropout'</span>, hp.RealInterval(<span class="hljs-number">0.0</span>, <span class="hljs-number">0.1</span>))
+HP_OPTIMIZER = hp.HParam(<span class="hljs-string">'optimizer'</span>, hp.Discrete([<span class="hljs-string">'adam'</span>, <span class="hljs-string">'sgd'</span>])) 
+</code></pre>
+      </li>
+      <li class="numbered">The model will be a <a id="_idIndexMarker672"/>sequential model with five layers: a flatten layer, followed by a dense layer, a dropout layer, another dense layer, and the output layer with 10 units. The train <a id="_idIndexMarker673"/>function takes as an argument the HParams dictionary that contains a combination of hyperparameters. As we use a Keras model, we add an HParams Keras callback on the fit method to monitor each experiment. For each experiment, the plugin will log the hyperparameter combinations, losses, and metrics. We can add a summary File Writer if we want to monitor other information:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">train_model</span><span class="hljs-function">(</span><span class="hljs-params">hparams, experiment_run_log_dir</span><span class="hljs-function">):</span>
+    
+    nb_units = list(map(int, hparams[HP_ARCHITECTURE_NN].split(<span class="hljs-string">","</span>)))
+    
+    model = tf.keras.models.Sequential()
+    model.add(tf.keras.layers.Flatten(name=<span class="hljs-string">"FLATTEN"</span>))
+    model.add(tf.keras.layers.Dense(units=nb_units[<span class="hljs-number">0</span>], activation=<span class="hljs-string">"relu"</span>, name=<span class="hljs-string">"D1"</span>))
+    model.add(tf.keras.layers.Dropout(hparams[HP_DROPOUT], name=<span class="hljs-string">"DROP_OUT"</span>))
+    model.add(tf.keras.layers.Dense(units=nb_units[<span class="hljs-number">1</span>], activation=<span class="hljs-string">"relu"</span>, name=<span class="hljs-string">"D2"</span>))
+    model.add(tf.keras.layers.Dense(units=<span class="hljs-number">10</span>, activation=<span class="hljs-string">"softmax"</span>, name=<span class="hljs-string">"OUTPUT"</span>))
+    
+    model.compile(
+        optimizer=hparams[HP_OPTIMIZER], 
+        loss=<span class="hljs-string">"sparse_categorical_crossentropy"</span>,
+        metrics=[<span class="hljs-string">"accuracy"</span>]
+    )
+    
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=experiment_run_log_dir)
+    hparams_callback = hp.KerasCallback(experiment_run_log_dir, hparams)
+    
+    model.fit(x=x_train, 
+              y=y_train, 
+              epochs=<span class="hljs-number">5</span>,
+              validation_data=(x_test, y_test),
+              callbacks=[tensorboard_callback, hparams_callback]
+             )
+model = tf.keras.Model(inputs= input_data, outputs=final_model_output)
+</code></pre>
+      </li>
+      <li class="numbered">Next, we'll iterate <a id="_idIndexMarker674"/>on all the <a id="_idIndexMarker675"/>hyperparameters:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">for</span> archi_nn <span class="hljs-keyword">in</span> HP_ARCHITECTURE_NN.domain.values:
+    <span class="hljs-keyword">for</span> optimizer <span class="hljs-keyword">in</span> HP_OPTIMIZER.domain.values:
+        <span class="hljs-keyword">for</span> dropout_rate <span class="hljs-keyword">in</span> (HP_DROPOUT.domain.min_value, HP_DROPOUT.domain.max_value):
+            hparams = {
+                HP_ARCHITECTURE_NN : archi_nn, 
+                HP_OPTIMIZER: optimizer,
+                HP_DROPOUT : dropout_rate
+            }
+            
+            experiment_run_log_dir=<span class="hljs-string">"logs/experiment-"</span> + datetime.datetime.now().strftime(<span class="hljs-string">"%Y%m%d-%H%M%S"</span>)
+            
+            train_model(hparams, experiment_run_log_dir)
+</code></pre>
+      </li>
+      <li class="numbered">We then start the TensorBoard application by running this command:
+        <pre class="programlisting code"><code class="hljs-code">$ tensorboard --logdir=<span class="hljs-string">"logs"</span>
+</code></pre>
+      </li>
+      <li class="numbered">Then, we <a id="_idIndexMarker676"/>can quickly and easily visualize the results (hyperparameters and metrics) in the HParams <a id="_idIndexMarker677"/>table view. Filters and sorting can be applied on the left pane if needed:<figure class="mediaobject"><img src="../Images/B16254_12_05.png" alt=""/></figure>
+        <p class="packt_figref">Figure 12.5: The HParams table view visualized in TensorBoard</p>
+      </li>
+      <li class="numbered">On the parallel coordinates view, each axis represents a hyperparameter or a metric and each run is represented by a line. This visualization allows the quick identification of the best hyperparameter combination:<figure class="mediaobject"><img src="../Images/B16254_12_06.png" alt=""/></figure>
+      </li>
+    </ol>
+    <p class="packt_figref">Figure 12.6: The HParams parallel coordinates view visualized in TensorBoard</p>
+    <p class="normal">Using TensorBoard HParams is a <a id="_idIndexMarker678"/>simple and insightful <a id="_idIndexMarker679"/>way to identify the best hyperparameters and also to manage your experiments with TensorFlow.</p>
+    <h2 id="_idParaDest-310" class="title">See also </h2>
+    <p class="normal">For a reference on the HParams TensorBoard plugin, visit <a id="_idIndexMarker680"/>the following website:</p>
+    <ul>
+      <li class="bullet">The official TensorBoard guide: <a href="https://www.tensorflow.org/tensorboard/hyperparameter_tuning_with_hparams "><span class="url">https://www.tensorflow.org/tensorboard/hyperparameter_tuning_with_hparams</span></a></li>
+    </ul>
+    <h1 id="_idParaDest-311" class="title">Implementing unit tests</h1>
+    <p class="normal">Testing code <a id="_idIndexMarker681"/>results in faster prototyping, more efficient debugging, faster changing, and makes it easier to share code. TensorFlow 2.0 provides the <code class="Code-In-Text--PACKT-">tf.test</code> module and we will cover it in this recipe.</p>
+    <h2 id="_idParaDest-312" class="title">Getting ready</h2>
+    <p class="normal">When programming a TensorFlow model, it helps to have unit tests to check the functionality of the program. This helps us because when we want to make changes to a program unit, tests will make sure those changes do not break the model in unknown ways. In Python, the main test framework is <code class="Code-In-Text--PACKT-">unittest</code> but TensorFlow provides its own test framework. In this recipe, we will create a custom layer class. We will implement a unit test to illustrate how to write it in TensorFlow.</p>
+    <h2 id="_idParaDest-313" class="title">How to do it...</h2>
+    <ol>
+      <li class="numbered" value="1">First, we need to load the necessary libraries as follows:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+</code></pre>
+      </li>
+      <li class="numbered">Then, we need to declare our custom gate that applies the function <code class="Code-In-Text--PACKT-">f(x) = a1 * x + b1</code>:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">class</span><span class="hljs-class"> </span><span class="hljs-title">MyCustomGate</span><span class="hljs-class">(</span><span class="hljs-params">tf.keras.layers.Layer</span><span class="hljs-class">):</span>
+ 
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">__init__</span><span class="hljs-function">(</span><span class="hljs-params">self, units, a1, b1</span><span class="hljs-function">):</span>
+        super(MyCustomGate, self).__init__()
+        self.units = units
+        self.a1 = a1
+        self.b1 = b1
+    <span class="hljs-comment"># Compute f(x) = a1 * x + b1</span>
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">call</span><span class="hljs-function">(</span><span class="hljs-params">self, inputs</span><span class="hljs-function">):</span>
+        <span class="hljs-keyword">return</span> inputs * self.a1 + self.b1 
+</code></pre>
+      </li>
+      <li class="numbered">Next, we create <a id="_idIndexMarker682"/>our unit test class that inherits from the <code class="Code-In-Text--PACKT-">tf.test.TestCase</code> class. The <code class="Code-In-Text--PACKT-">setup</code> method is a <code class="Code-In-Text--PACKT-">hook</code> method that is called before every <code class="Code-In-Text--PACKT-">test</code> method. The <code class="Code-In-Text--PACKT-">assertAllEqual</code> method checks that the expected and the computed outputs have the same values:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">class</span><span class="hljs-class"> </span><span class="hljs-title">MyCustomGateTest</span><span class="hljs-class">(</span><span class="hljs-params">tf.test.TestCase</span><span class="hljs-class">):</span>
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">setUp</span><span class="hljs-function">(</span><span class="hljs-params">self</span><span class="hljs-function">):</span>
+        super(MyCustomGateTest, self).setUp()
+        <span class="hljs-comment"># Configure the layer with 1 unit, a1 = 2 et b1=1</span>
+        self.my_custom_gate = MyCustomGate(<span class="hljs-number">1</span>,<span class="hljs-number">2</span>,<span class="hljs-number">1</span>)
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">testMyCustomGateOutput</span><span class="hljs-function">(</span><span class="hljs-params">self</span><span class="hljs-function">):</span>
+        input_x = np.array([[<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>],
+                           [<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>]])
+        output = self.my_custom_gate(input_x)
+        expected_output = np.array([[<span class="hljs-number">3</span>,<span class="hljs-number">1</span>,<span class="hljs-number">1</span>,<span class="hljs-number">3</span>], [<span class="hljs-number">3</span>,<span class="hljs-number">1</span>,<span class="hljs-number">1</span>,<span class="hljs-number">3</span>]])
+        self.assertAllEqual(output, expected_output) 
+</code></pre>
+      </li>
+      <li class="numbered">Now we need a <code class="Code-In-Text--PACKT-">main()</code> function in our script, to run all unit tests:
+        <pre class="programlisting code"><code class="hljs-code">tf.test.main()
+</code></pre>
+      </li>
+      <li class="numbered">From the terminal, run the following command. We should get the following output:
+        <pre class="programlisting code"><code class="hljs-code">$ python3 01_implementing_unit_tests.py
+...
+[       OK ] MyCustomGateTest.testMyCustomGateOutput
+[ RUN      ] MyCustomGateTest.test_session
+[  SKIPPED ] MyCustomGateTest.test_session
+----------------------------------------------------------------------
+Ran 2 tests in 0.016s
+OK (skipped=1)
+</code></pre>
+      </li>
+    </ol>
+    <p class="normal">We implemented one test <a id="_idIndexMarker683"/>and it passed. Don't worry about the two <code class="Code-In-Text--PACKT-">test_session</code> tests – they are phantom tests. </p>
+    <p class="normal">Note that many assertions tailored to TensorFlow are available in the <code class="Code-In-Text--PACKT-">tf.test</code> API. </p>
+    <h2 id="_idParaDest-314" class="title">How it works...</h2>
+    <p class="normal">In this section, we <a id="_idIndexMarker684"/>implemented a TensorFlow unit test using the <code class="Code-In-Text--PACKT-">tf.test</code> API that is very similar to the Python unit test. Remember that unit testing helps assure us that code will function as expected, provides confidence in sharing code, and makes reproducibility more accessible.</p>
+    <h2 id="_idParaDest-315" class="title">See also </h2>
+    <p class="normal">For a reference on the <code class="Code-In-Text--PACKT-">tf.test</code> module, visit <a id="_idIndexMarker685"/>the following website:</p>
+    <ul>
+      <li class="bullet">The official TensorFlow test API: <a href="https://www.tensorflow.org/api_docs/python/tf/test"><span class="url">https://www.tensorflow.org/api_docs/python/tf/test</span></a></li>
+    </ul>
+    <h1 id="_idParaDest-316" class="title">Using multiple executors</h1>
+    <p class="normal">You will be aware that there are many features of TensorFlow, including computational graphs that lend <a id="_idIndexMarker686"/>themselves naturally to being computed in parallel. Computational graphs can be split over different processors as well as in processing different batches. We will address how to access different processors on the same machine in this recipe.</p>
+    <h2 id="_idParaDest-317" class="title">Getting ready</h2>
+    <p class="normal">In this recipe, we will show you how to access multiple devices on the same system and train on them. A device is a CPU or an accelerator unit (GPUs, TPUs) where TensorFlow can run operations. This is a very common occurrence: along with a CPU, a machine may have one or more GPUs that can share the computational load. If TensorFlow can access these devices, it will automatically distribute the computations to multiple devices via a greedy process. However, TensorFlow also allows the program to specify which operations will be on which device via a name scope placement.</p>
+    <p class="normal">In this recipe, we will show you different commands that will allow you to access various devices on your system; we'll also demonstrate how to find out which devices TensorFlow is using. Remember that some functions are still experimental and are subject to change.</p>
+    <h2 id="_idParaDest-318" class="title">How to do it...</h2>
+    <ol>
+      <li class="numbered" value="1">In order to find out which devices TensorFlow is using for which operations, we will activate the logs for device placement by setting <code class="Code-In-Text--PACKT-">tf.debugging.set_log_device_placement</code> to <code class="Code-In-Text--PACKT-">True</code>. If a TensorFlow operation is implemented for CPU and GPU devices, the operation will be executed by default on a GPU device if a GPU is available:
+        <pre class="programlisting code"><code class="hljs-code">tf.debugging.set_log_device_placement(<span class="hljs-literal">True</span>)
+a = tf.constant([<span class="hljs-number">1.0</span>, <span class="hljs-number">2.0</span>, <span class="hljs-number">3.0</span>, <span class="hljs-number">4.0</span>, <span class="hljs-number">5.0</span>, <span class="hljs-number">6.0</span>], shape=[<span class="hljs-number">2</span>, <span class="hljs-number">3</span>], name=<span class="hljs-string">'a'</span>)
+b = tf.constant([<span class="hljs-number">1.0</span>, <span class="hljs-number">2.0</span>, <span class="hljs-number">3.0</span>, <span class="hljs-number">4.0</span>, <span class="hljs-number">5.0</span>, <span class="hljs-number">6.0</span>], shape=[<span class="hljs-number">3</span>, <span class="hljs-number">2</span>], name=<span class="hljs-string">'b'</span>)
+c = tf.matmul(a, b)
+Executing op Reshape in device /job:localhost/replica:0/task:0/device:GPU:0
+Executing op Reshape in device /job:localhost/replica:0/task:0/device:GPU:0
+Executing op MatMul in device /job:localhost/replica:0/task:0/device:GPU:0
+</code></pre>
+      </li>
+      <li class="numbered">We can also use the tensor device attribute that returns the name of the device on which this tensor will be assigned:
+        <pre class="programlisting code"><code class="hljs-code">a = tf.constant([<span class="hljs-number">1.0</span>, <span class="hljs-number">2.0</span>, <span class="hljs-number">3.0</span>, <span class="hljs-number">4.0</span>, <span class="hljs-number">5.0</span>, <span class="hljs-number">6.0</span>], shape=[<span class="hljs-number">2</span>, <span class="hljs-number">3</span>], name=<span class="hljs-string">'a'</span>)
+print(a.device)
+b = tf.constant([<span class="hljs-number">1.0</span>, <span class="hljs-number">2.0</span>, <span class="hljs-number">3.0</span>, <span class="hljs-number">4.0</span>, <span class="hljs-number">5.0</span>, <span class="hljs-number">6.0</span>], shape=[<span class="hljs-number">3</span>, <span class="hljs-number">2</span>], name=<span class="hljs-string">'b'</span>)
+print(b.device)
+Executing op Reshape in device /job:localhost/replica:0/task:0/device:GPU:0
+Executing op MatMul in device /job:localhost/replica:0/task:0/device:GPU:0
+</code></pre>
+      </li>
+      <li class="numbered">By default, TensorFlow <a id="_idIndexMarker687"/>automatically decides how to distribute computations across computing devices (CPUs and GPUs) and sometimes we need to select the device to use by creating a device context with the <code class="Code-In-Text--PACKT-">tf.device</code> function. Each operation executed in this context will use the selected device:
+        <pre class="programlisting code"><code class="hljs-code">tf.debugging.set_log_device_placement(<span class="hljs-literal">True</span>)
+<span class="hljs-keyword">with</span> tf.device(<span class="hljs-string">'/device:CPU:0'</span>):
+    a = tf.constant([<span class="hljs-number">1.0</span>, <span class="hljs-number">2.0</span>, <span class="hljs-number">3.0</span>, <span class="hljs-number">4.0</span>, <span class="hljs-number">5.0</span>, <span class="hljs-number">6.0</span>], shape=[<span class="hljs-number">2</span>, <span class="hljs-number">3</span>], name=<span class="hljs-string">'a'</span>)
+    b = tf.constant([<span class="hljs-number">1.0</span>, <span class="hljs-number">2.0</span>, <span class="hljs-number">3.0</span>, <span class="hljs-number">4.0</span>, <span class="hljs-number">5.0</span>, <span class="hljs-number">6.0</span>], shape=[<span class="hljs-number">3</span>, <span class="hljs-number">2</span>], name=<span class="hljs-string">'b'</span>)
+    c = tf.matmul(a, b)
+Executing op Reshape in device /job:localhost/replica:0/task:0/device:CPU:0
+Executing op Reshape in device /job:localhost/replica:0/task:0/device:CPU:0
+Executing op MatMul in device /job:localhost/replica:0/task:0/device:CPU:0
+</code></pre>
+      </li>
+      <li class="numbered">If we move the <code class="Code-In-Text--PACKT-">matmul</code> operation out of the context, this operation will be executed on a GPU device if it's available:
+        <pre class="programlisting code"><code class="hljs-code">tf.debugging.set_log_device_placement(<span class="hljs-literal">True</span>)
+<span class="hljs-keyword">with</span> tf.device(<span class="hljs-string">'/device:CPU:0'</span>):
+    a = tf.constant([<span class="hljs-number">1.0</span>, <span class="hljs-number">2.0</span>, <span class="hljs-number">3.0</span>, <span class="hljs-number">4.0</span>, <span class="hljs-number">5.0</span>, <span class="hljs-number">6.0</span>], shape=[<span class="hljs-number">2</span>, <span class="hljs-number">3</span>], name=<span class="hljs-string">'a'</span>)
+    b = tf.constant([<span class="hljs-number">1.0</span>, <span class="hljs-number">2.0</span>, <span class="hljs-number">3.0</span>, <span class="hljs-number">4.0</span>, <span class="hljs-number">5.0</span>, <span class="hljs-number">6.0</span>], shape=[<span class="hljs-number">3</span>, <span class="hljs-number">2</span>], name=<span class="hljs-string">'b'</span>)
+c = tf.matmul(a, b)
+Executing op Reshape in device /job:localhost/replica:0/task:0/device:CPU:0
+Executing op Reshape in device /job:localhost/replica:0/task:0/device:CPU:0
+Executing op MatMul in device /job:localhost/replica:0/task:0/device:GPU:0
+</code></pre>
+      </li>
+      <li class="numbered">When using GPUs, TensorFlow automatically takes up a large portion of the GPU memory. While this is <a id="_idIndexMarker688"/>usually desired, we can take steps to be more careful with GPU memory allocation. While TensorFlow never releases GPU memory, we can slowly grow its allocation to the maximum limit (only when needed) by setting a GPU memory growth option. Note that physical devices cannot be modified after being initialized:
+        <pre class="programlisting code"><code class="hljs-code">gpu_devices = tf.config.list_physical_devices(<span class="hljs-string">'GPU'</span>)
+<span class="hljs-keyword">if</span> gpu_devices:
+    <span class="hljs-keyword">try</span>:
+        tf.config.experimental.set_memory_growth(gpu_devices[<span class="hljs-number">0</span>], <span class="hljs-literal">True</span>)
+    <span class="hljs-keyword">except</span> RuntimeError <span class="hljs-keyword">as</span> e:
+        <span class="hljs-comment"># Memory growth cannot be modified after GPU has been initialized</span>
+        print(e)
+</code></pre>
+      </li>
+      <li class="numbered">If we want to put a hard limit on the GPU memory used by TensorFlow, we can also create a virtual GPU device and set the maximum memory limit (in MB) to allocate on this virtual GPU. Note that virtual devices cannot be modified after being initialized:
+        <pre class="programlisting code"><code class="hljs-code">gpu_devices = tf.config.list_physical_devices(<span class="hljs-string">'GPU'</span>)
+<span class="hljs-keyword">if</span> gpu_devices:
+    <span class="hljs-keyword">try</span>:
+tf.config.experimental.set_virtual_device_configuration(gpu_devices[<span class="hljs-number">0</span>],
+                                                   [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=<span class="hljs-number">1024</span>)])
+    <span class="hljs-keyword">except</span> RuntimeError <span class="hljs-keyword">as</span> e:
+        <span class="hljs-comment"># Memory growth cannot be modified after GPU has been initialized</span>
+        print(e)
+</code></pre>
+      </li>
+      <li class="numbered">We can also simulate <a id="_idIndexMarker689"/>virtual GPU devices with a single physical GPU. This is done with the following code:
+        <pre class="programlisting code"><code class="hljs-code">gpu_devices = tf.config.list_physical_devices(<span class="hljs-string">'GPU'</span>)
+<span class="hljs-keyword">if</span> gpu_devices:
+    <span class="hljs-keyword">try</span>:
+        tf.config.experimental.set_virtual_device_configuration(gpu_devices[<span class="hljs-number">0</span>],
+                                                   [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=<span class="hljs-number">1024</span>),
+                                                    tf.config.experimental.VirtualDeviceConfiguration(memory_limit=<span class="hljs-number">1024</span>) ])
+    <span class="hljs-keyword">except</span> RuntimeError <span class="hljs-keyword">as</span> e:
+        <span class="hljs-comment"># Memory growth cannot be modified after GPU has been initialized</span>
+        print(e)
+</code></pre>
+      </li>
+      <li class="numbered">Sometimes we may need to write robust code that can determine whether it is running with the GPU available or not. TensorFlow has a built-in function that can test whether the GPU is available. This is helpful when we want to write code that takes advantage of the GPU when it is available and assign specific operations to it. This is done with the following code:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">if</span> tf.test.is_built_with_cuda(): 
+    &lt;Run GPU specific code here&gt;
+</code></pre>
+      </li>
+      <li class="numbered">If we need to assign specific operations, say, to the GPU, we input the following code. This will perform simple calculations and assign operations to the main CPU and the two auxiliary GPUs:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">if</span> tf.test.is_built_with_cuda():
+    <span class="hljs-keyword">with</span> tf.device(<span class="hljs-string">'/cpu:0'</span>):
+        a = tf.constant([<span class="hljs-number">1.0</span>, <span class="hljs-number">3.0</span>, <span class="hljs-number">5.0</span>], shape=[<span class="hljs-number">1</span>, <span class="hljs-number">3</span>])
+        b = tf.constant([<span class="hljs-number">2.0</span>, <span class="hljs-number">4.0</span>, <span class="hljs-number">6.0</span>], shape=[<span class="hljs-number">3</span>, <span class="hljs-number">1</span>])
+        
+        <span class="hljs-keyword">with</span> tf.device(<span class="hljs-string">'/gpu:0'</span>):
+            c = tf.matmul(a,b)
+            c = tf.reshape(c, [<span class="hljs-number">-1</span>])
+        
+        <span class="hljs-keyword">with</span> tf.device(<span class="hljs-string">'/gpu:1'</span>):
+            d = tf.matmul(b,a)
+            flat_d = tf.reshape(d, [<span class="hljs-number">-1</span>])
+        
+        combined = tf.multiply(c, flat_d)
+    print(combined)
+Num GPUs Available:  2
+Executing op Reshape in device /job:localhost/replica:0/task:0/device:CPU:0
+Executing op Reshape in device /job:localhost/replica:0/task:0/device:CPU:0
+Executing op MatMul in device /job:localhost/replica:0/task:0/device:GPU:0
+Executing op Reshape in device /job:localhost/replica:0/task:0/device:GPU:0
+Executing op MatMul in device /job:localhost/replica:0/task:0/device:GPU:1
+Executing op Reshape in device /job:localhost/replica:0/task:0/device:GPU:1
+Executing op Mul in device /job:localhost/replica:0/task:0/device:CPU:0
+tf.Tensor([  88.  264.  440.  176.  528.  880.  264.  792. 1320.], shape=(9,), dtype=float32)
+</code></pre>
+      </li>
+    </ol>
+    <p class="normal">We can see that the first two <a id="_idIndexMarker690"/>operations have been performed on the main CPU, the next two on the first auxiliary GPU, and the last two on the second auxiliary GPU.</p>
+    <h2 id="_idParaDest-319" class="title">How it works...</h2>
+    <p class="normal">When we want to set <a id="_idIndexMarker691"/>specific devices on our machine for TensorFlow operations, we need to know how TensorFlow refers to such devices. Device names in TensorFlow follow the following conventions:</p>
+    <table id="table001-3" class="No-Table-Style _idGenTablePara-1">
+      <colgroup>
+        <col/>
+        <col/>
+      </colgroup>
+      <tbody>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Heading--PACKT-">Device</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Heading--PACKT-">Device name</p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Main CPU</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-"><code class="Code-In-Text--PACKT-">/device:CPU:0</code></p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Main GPU</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-"><code class="Code-In-Text--PACKT-">/GPU:0</code></p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Second GPU</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-"><code class="Code-In-Text--PACKT-">/job:localhost/replica:0/task:0/device:GPU:1</code></p>
+          </td>
+        </tr>
+        <tr class="No-Table-Style">
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-">Third GPU</p>
+          </td>
+          <td class="No-Table-Style">
+            <p class="Table-Column-Content--PACKT-"><code class="Code-In-Text--PACKT-">/job:localhost/replica:0/task:0/device:GPU:2</code></p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="normal">Remember that TensorFlow considers a CPU as a unique processor even if the processor is a multi-core processor. All cores <a id="_idIndexMarker692"/>are wrapped in <code class="Code-In-Text--PACKT-">/device:CPU:0</code>, that is to say, TensorFlow does indeed use multiple CPU cores by default.</p>
+    <h2 id="_idParaDest-320" class="title">There's more...</h2>
+    <p class="normal">Fortunately, running TensorFlow in the cloud is now easier than ever. Many cloud computation service providers offer GPU instances that have a main CPU and a powerful GPU alongside it. Note that an easy way to have a GPU is to run the code in Google Colab and set the GPU as the hardware accelerator in the notebook settings.</p>
+    <h1 id="_idParaDest-321" class="title">Parallelizing TensorFlow</h1>
+    <p class="normal">Training a model can be <a id="_idIndexMarker693"/>very time-consuming. Fortunately, TensorFlow offers several distributed strategies to speed up the training, whether for a very large model or a very large dataset. This recipe will show us how to use the TensorFlow distributed API.</p>
+    <h2 id="_idParaDest-322" class="title">Getting ready</h2>
+    <p class="normal">The TensorFlow distributed API allows us to distribute the training by replicating the model into different nodes and training on different subsets of data. Each strategy supports a hardware platform (multiple GPUs, multiple machines, or TPUs) and uses either a synchronous or asynchronous training strategy. In synchronous training, each worker trains over different batches of data and aggregates their gradients at each step. While in the asynchronous mode, each worker is independently training over the data and the variables are updated asynchronously. Note that for the moment, TensorFlow only supports data parallelism described above and according to the roadmap, it will soon support model parallelism. This paradigm is used when the model is too large to fit on a single device and needs to be distributed over many devices. In this recipe, we will go over the mirrored strategy provided by this API.</p>
+    <h2 id="_idParaDest-323" class="title">How to do it...</h2>
+    <ol>
+      <li class="numbered" value="1">First, we'll load the libraries necessary for this recipe as follows:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+<span class="hljs-keyword">import</span> tensorflow_datasets <span class="hljs-keyword">as</span> tfds
+</code></pre>
+      </li>
+      <li class="numbered">We will create <a id="_idIndexMarker694"/>two virtual GPUs:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Create two virtual GPUs</span>
+gpu_devices = tf.config.list_physical_devices(<span class="hljs-string">'GPU'</span>)
+<span class="hljs-keyword">if</span> gpu_devices:
+    <span class="hljs-keyword">try</span>:
+        tf.config.experimental.set_virtual_device_configuration(gpu_devices[<span class="hljs-number">0</span>],
+                                                   [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=<span class="hljs-number">1024</span>),
+                                                    tf.config.experimental.VirtualDeviceConfiguration(memory_limit=<span class="hljs-number">1024</span>) ])
+    <span class="hljs-keyword">except</span> RuntimeError <span class="hljs-keyword">as</span> e:
+        <span class="hljs-comment"># Memory growth cannot be modified after GPU has been initialized</span>
+        print(e)
+</code></pre>
+      </li>
+      <li class="numbered">Next, we will load the MNIST dataset via the <code class="Code-In-Text--PACKT-">tensorflow_datasets</code> API as follows:
+        <pre class="programlisting code"><code class="hljs-code">datasets, info = tfds.load(<span class="hljs-string">'mnist'</span>, with_info=<span class="hljs-literal">True</span>, as_supervised=<span class="hljs-literal">True</span>)
+mnist_train, mnist_test = datasets[<span class="hljs-string">'train'</span>], datasets[<span class="hljs-string">'test'</span>]
+</code></pre>
+      </li>
+      <li class="numbered">Then, we will prepare the data:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">normalize_img</span><span class="hljs-function">(</span><span class="hljs-params">image, label</span><span class="hljs-function">):</span>
+  <span class="hljs-string">"""Normalizes images: `uint8` -&gt; `float32`."""</span>
+  <span class="hljs-keyword">return</span> tf.cast(image, tf.float32) / <span class="hljs-number">255.</span>, label
+mnist_train = mnist_train.map(
+    normalize_img, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+mnist_train = mnist_train.cache()
+mnist_train = mnist_train.shuffle(info.splits[<span class="hljs-string">'train'</span>].num_examples)
+mnist_train = mnist_train.prefetch(tf.data.experimental.AUTOTUNE)
+mnist_test = mnist_test.map(
+    normalize_img, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+mnist_test = mnist_test.cache()
+mnist_test = mnist_test.prefetch(tf.data.experimental.AUTOTUNE)
+</code></pre>
+      </li>
+      <li class="numbered">We are now ready to apply a mirrored strategy. The goal of this strategy is to replicate the model across all GPUs on the same machine. Each model is trained on different batches of data and a synchronous training strategy is applied:
+        <pre class="programlisting code"><code class="hljs-code">mirrored_strategy = tf.distribute.MirroredStrategy()
+</code></pre>
+      </li>
+      <li class="numbered">Next, we check that we <a id="_idIndexMarker695"/>have two devices corresponding to the two virtual GPUs created at the beginning of this recipe as follows:
+        <pre class="programlisting code"><code class="hljs-code">print(<span class="hljs-string">'Number of devices: {}'</span>.format(mirrored_strategy.num_replicas_in_sync))
+</code></pre>
+      </li>
+      <li class="numbered">Then, we'll define the value of the batch size. The batch size given to the dataset is the global batch size. The global batch size is the sum of all batch sizes of every replica. So, we had to compute the global batch size using the number of replicas:
+        <pre class="programlisting code"><code class="hljs-code">BATCH_SIZE_PER_REPLICA = <span class="hljs-number">128</span>
+BATCH_SIZE = BATCH_SIZE_PER_REPLICA * mirrored_strategy.num_replicas_in_sync
+mnist_train = mnist_train.batch(BATCH_SIZE)
+mnist_test = mnist_test.batch(BATCH_SIZE)
+</code></pre>
+      </li>
+      <li class="numbered">Next, we'll define and compile our model using the mirrored strategy scope. Note that all variables created inside the scope are mirrored across all replicas:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">with</span> mirrored_strategy.scope():
+    model = tf.keras.Sequential()
+    model.add(tf.keras.layers.Flatten(name=<span class="hljs-string">"FLATTEN"</span>))
+    model.add(tf.keras.layers.Dense(units=<span class="hljs-number">128</span> , activation=<span class="hljs-string">"relu"</span>, name=<span class="hljs-string">"D1"</span>))
+    model.add(tf.keras.layers.Dense(units=<span class="hljs-number">64</span> , activation=<span class="hljs-string">"relu"</span>, name=<span class="hljs-string">"D2"</span>))
+    model.add(tf.keras.layers.Dense(units=<span class="hljs-number">10</span>, activation=<span class="hljs-string">"softmax"</span>, name=<span class="hljs-string">"OUTPUT"</span>))
+    
+    model.compile(
+        optimizer=<span class="hljs-string">"sgd"</span>, 
+        loss=<span class="hljs-string">"sparse_categorical_crossentropy"</span>,
+        metrics=[<span class="hljs-string">"accuracy"</span>]
+    )
+</code></pre>
+      </li>
+      <li class="numbered">Once the compilation is over, we <a id="_idIndexMarker696"/>can fit the previous model as we would normally:
+        <pre class="programlisting code"><code class="hljs-code">model.fit(mnist_train, 
+          epochs=<span class="hljs-number">10</span>,
+          validation_data= mnist_test
+          )
+</code></pre>
+      </li>
+    </ol>
+    <p class="normal">Using a strategy scope is the only thing you have to do to distribute your training.</p>
+    <h2 id="_idParaDest-324" class="title">How it works...</h2>
+    <p class="normal">Using the distributed TensorFlow API is quite easy. All you have to do is to assign the scope. Then, operations can <a id="_idIndexMarker697"/>be manually or automatically assigned to workers. Note that we can easily switch between strategies.</p>
+    <p class="normal">Here's a brief overview <a id="_idIndexMarker698"/>of some distributed strategies:</p>
+    <ul>
+      <li class="bullet">The TPU strategy is like the mirrored strategy but it runs on TPUs.</li>
+      <li class="bullet">The Multiworker Mirrored strategy is very similar to the mirrored strategy but the model is trained across several machines, potentially with multiple GPUs. We have to specify the cross-device communication.</li>
+      <li class="bullet">The Central Storage strategy uses a synchronous mode on one machine with multiple GPUs. Variables aren't mirrored but placed on the CPU and operations are replicated into all local GPUs. </li>
+      <li class="bullet">The Parameter Server strategy is implemented on a cluster of machines. Some machines have a worker role and others have a parameter server role. The workers compute and the parameter servers store the variable of the model.</li>
+    </ul>
+    <h2 id="_idParaDest-325" class="title">See also </h2>
+    <p class="normal">For some references on the <code class="Code-In-Text--PACKT-">tf.distribute.Strategy</code> module, visit <a id="_idIndexMarker699"/>the following websites:</p>
+    <ul>
+      <li class="bullet">Distributed training with TensorFlow: <a href="https://www.tensorflow.org/guide/distributed_training"><span class="url">https://www.tensorflow.org/guide/distributed_training</span></a></li>
+      <li class="bullet">The <code class="Code-In-Text--PACKT-">tf.distribute</code> API: <a href="https://www.tensorflow.org/api_docs/python/tf/distribute"><span class="url">https://www.tensorflow.org/api_docs/python/tf/distribute</span></a></li>
+    </ul>
+    <h2 id="_idParaDest-326" class="title">There's more...</h2>
+    <p class="normal">In this recipe, we've just gotten over the mirrored strategy and we've executed our program eagerly with the Keras API. Note that the TensorFlow distributed API works better when used in graph mode than in eager mode. </p>
+    <p class="normal">This API moves quickly so feel free to consult the official documentation to know which distributed strategies are supported in which scenarios (the Keras API, a custom training loop, or the Estimator API).</p>
+    <h1 id="_idParaDest-327" class="title">Saving and restoring a TensorFlow model</h1>
+    <p class="normal">If we want to <a id="_idIndexMarker700"/>use our machine learning model in production or reuse our trained <a id="_idIndexMarker701"/>model for a transfer learning task, we have to store our model. In this section, we will outline some methods for storing and restoring the weights or the whole model.</p>
+    <h2 id="_idParaDest-328" class="title">Getting ready</h2>
+    <p class="normal">In this recipe, we want to summarize various ways to store a TensorFlow model. We will cover the best way to save and restore an entire model, only the weights, and model checkpoints. </p>
+    <h2 id="_idParaDest-329" class="title">How to do it...</h2>
+    <ol>
+      <li class="numbered" value="1">We start by loading the necessary libraries:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+</code></pre>
+      </li>
+      <li class="numbered">Next, we'll <a id="_idIndexMarker702"/>build an MNIST model using the Keras Sequential <a id="_idIndexMarker703"/>API:
+        <pre class="programlisting code"><code class="hljs-code">(x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+<span class="hljs-comment"># Normalize</span>
+x_train = x_train / <span class="hljs-number">255</span>
+x_test = x_test/ <span class="hljs-number">255</span>
+model = tf.keras.Sequential()
+model.add(tf.keras.layers.Flatten(name=<span class="hljs-string">"FLATTEN"</span>))
+model.add(tf.keras.layers.Dense(units=<span class="hljs-number">128</span> , activation=<span class="hljs-string">"relu"</span>, name=<span class="hljs-string">"D1"</span>))
+model.add(tf.keras.layers.Dense(units=<span class="hljs-number">64</span> , activation=<span class="hljs-string">"relu"</span>, name=<span class="hljs-string">"D2"</span>))
+model.add(tf.keras.layers.Dense(units=<span class="hljs-number">10</span>, activation=<span class="hljs-string">"softmax"</span>, name=<span class="hljs-string">"OUTPUT"</span>))
+    
+model.compile(optimizer=<span class="hljs-string">"sgd"</span>, 
+              loss=<span class="hljs-string">"sparse_categorical_crossentropy"</span>,
+              metrics=[<span class="hljs-string">"accuracy"</span>]
+             )
+model.fit(x=x_train, 
+          y=y_train, 
+          epochs=<span class="hljs-number">5</span>,
+          validation_data=(x_test, y_test)
+         )
+</code></pre>
+      </li>
+      <li class="numbered">Then, we will use the recommended format to save an entire model on disk named the SavedModel format. This format saves the model graph and variables:
+        <pre class="programlisting code"><code class="hljs-code">model.save(<span class="hljs-string">"SavedModel"</span>)
+</code></pre>
+      </li>
+      <li class="numbered">A directory named <code class="Code-In-Text--PACKT-">SavedModel</code> is created on disk. It contains a TensorFlow program,the <code class="Code-In-Text--PACKT-">saved_model.pb</code> file; the <code class="Code-In-Text--PACKT-">variables</code> directory, which contains the exact value of all parameters; and the <code class="Code-In-Text--PACKT-">assets</code> directory, which contains files used by the TensorFlow graph:
+        <pre class="programlisting code"><code class="hljs-code">SavedModel
+|_ assets
+|_ variables
+|_ saved_model.pb 
+</code></pre>
+        <div class="packt_tip">
+          <p class="Tip--PACKT-">Note that the <code class="Code-In-Text--PACKT-">save()</code> operation also takes other parameters. Extra directories can be created based on the model complexity and the signatures and options passed to the s<code class="Code-In-Text--PACKT-">ave</code> method.</p>
+        </div>
+      </li>
+      <li class="numbered">Next, we'll restore our saved model:
+        <pre class="programlisting code"><code class="hljs-code">model2 = tf.keras.models.load_model(<span class="hljs-string">"SavedModel"</span>) 
+</code></pre>
+      </li>
+      <li class="numbered">If we prefer <a id="_idIndexMarker704"/>to save the model in the H5 format, we can either <a id="_idIndexMarker705"/>pass a filename that ends in <code class="Code-In-Text--PACKT-">.h5</code> or add the <code class="Code-In-Text--PACKT-">save_format="h5"</code> argument:
+        <pre class="programlisting code"><code class="hljs-code">model.save(<span class="hljs-string">"SavedModel.h5"</span>)
+model.save(<span class="hljs-string">"model_save"</span>, save_format=<span class="hljs-string">"h5"</span>)
+</code></pre>
+      </li>
+      <li class="numbered">We can also use a <code class="Code-In-Text--PACKT-">ModelCheckpoint</code> callback in order to save an entire model or just the weights into a checkpoint structure at some intervals. This callback is added to the <code class="Code-In-Text--PACKT-">callback</code> argument in the <code class="Code-In-Text--PACKT-">fit</code> method. In the configuration below, the model weights will be stored at each epoch:
+        <pre class="programlisting code"><code class="hljs-code">checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(filepath=<span class="hljs-string">"./checkpoint"</span>,save_weights_only=<span class="hljs-literal">True</span>, save_freq=<span class="hljs-string">'epoch'</span>)
+model.fit(x=x_train, 
+          y=y_train, 
+          epochs=<span class="hljs-number">5</span>,
+          validation_data=(x_test, y_test),
+          callbacks=[checkpoint_callback]
+         )
+</code></pre>
+      </li>
+      <li class="numbered">We can load the entire model or only the weights later in order to continue the training. Here, we will reload the weights:
+        <pre class="programlisting code"><code class="hljs-code">model.load_weights(<span class="hljs-string">"./checkpoint"</span>)
+</code></pre>
+      </li>
+    </ol>
+    <p class="normal">Now, you're ready to save and restore an entire model, only the weights, or model checkpoints.</p>
+    <h2 id="_idParaDest-330" class="title">How it works...</h2>
+    <p class="normal">In this section, we provided several ways to store and restore an entire model or only the weights. That allows you to put a model into production or avoids retraining a <a id="_idIndexMarker706"/>full model from scratch. We have also seen how to store a model during the training process and after it.</p>
+    <h2 id="_idParaDest-331" class="title">See also </h2>
+    <p class="normal">For some references on this topic, visit the following websites:</p>
+    <ul>
+      <li class="bullet">The official training <a id="_idIndexMarker707"/>checkpoints guide: <a href="https://www.tensorflow.org/guide/checkpoint"><span class="url">https://www.tensorflow.org/guide/checkpoint</span></a></li>
+      <li class="bullet">The official SavedModel <a id="_idIndexMarker708"/>format guide: <a href="https://www.tensorflow.org/guide/saved_model"><span class="url">https://www.tensorflow.org/guide/saved_model</span></a></li>
+      <li class="bullet">The <code class="Code-In-Text--PACKT-">tf.saved_model</code> <a id="_idIndexMarker709"/>API: <a href="https://www.tensorflow.org/api_docs/python/tf/saved_model/save"><span class="url">https://www.tensorflow.org/api_docs/python/tf/saved_model/save</span></a></li>
+      <li class="bullet">The Keras Model <a id="_idIndexMarker710"/>Checkpoint API: <a href="https://www.tensorflow.org/api_docs/python/tf/keras/callbacks/ModelCheckpoint"><span class="url">https://www.tensorflow.org/api_docs/python/tf/keras/callbacks/ModelCheckpoint</span></a></li>
+    </ul>
+    <h1 id="_idParaDest-332" class="title">Using TensorFlow Serving</h1>
+    <p class="normal">In this section, we will show you how to serve machine learning models in production. We will use the TensorFlow <a id="_idIndexMarker711"/>Serving components of the <strong class="keyword">TensorFlow Extended</strong> (<strong class="keyword">TFX</strong>) platform. TFX is an MLOps tool that builds complete, end-to-end machine learning pipelines for scalable and high-performance model tasks. A TFX pipeline is composed of a sequence of components for data validation, data transformation, model analysis, and model serving. In this recipe, we will focus on the last component, which can support model versioning, multiple models, and so on.</p>
+    <h2 id="_idParaDest-333" class="title">Getting ready</h2>
+    <p class="normal">We'll start this section by encouraging you to read through the official documentation and the short tutorials on the TFX site, available at <a href="https://www.tensorflow.org/tfx"><span class="url">https://www.tensorflow.org/tfx</span></a>.</p>
+    <p class="normal">For this example, we will build an MNIST model, save it, download the TensorFlow Serving Docker image, run it, and send POST requests to the REST server in order to get some image predictions.</p>
+    <h2 id="_idParaDest-334" class="title">How to do it...</h2>
+    <ol>
+      <li class="numbered" value="1">Here, we will start in the same way as before, by loading the necessary libraries:
+        <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> requests
+<span class="hljs-keyword">import</span> matplotlib.pyplot <span class="hljs-keyword">as</span> plt
+<span class="hljs-keyword">import</span> json
+</code></pre>
+      </li>
+      <li class="numbered">We'll build an MNIST <a id="_idIndexMarker712"/>model using the Keras Sequential API:
+        <pre class="programlisting code"><code class="hljs-code">(x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+<span class="hljs-comment"># Normalize</span>
+x_train = x_train / <span class="hljs-number">255</span>
+x_test = x_test/ <span class="hljs-number">255</span>
+model = tf.keras.Sequential()
+model.add(tf.keras.layers.Flatten(name=<span class="hljs-string">"FLATTEN"</span>))
+model.add(tf.keras.layers.Dense(units=<span class="hljs-number">128</span> , activation=<span class="hljs-string">"relu"</span>, name=<span class="hljs-string">"D1"</span>))
+model.add(tf.keras.layers.Dense(units=<span class="hljs-number">64</span> , activation=<span class="hljs-string">"relu"</span>, name=<span class="hljs-string">"D2"</span>))
+model.add(tf.keras.layers.Dense(units=<span class="hljs-number">10</span>, activation=<span class="hljs-string">"softmax"</span>, name=<span class="hljs-string">"OUTPUT"</span>))
+    
+model.compile(optimizer=<span class="hljs-string">"sgd"</span>, 
+              loss=<span class="hljs-string">"sparse_categorical_crossentropy"</span>,
+              metrics=[<span class="hljs-string">"accuracy"</span>]
+             )
+model.fit(x=x_train, 
+          y=y_train, 
+          epochs=<span class="hljs-number">5</span>,
+          validation_data=(x_test, y_test)
+         )
+</code></pre>
+      </li>
+      <li class="numbered">Then, we will save our model as the SavedModel format and create a directory for each version of our model. TensorFlow Serving wants a specific tree structure and models saved <a id="_idIndexMarker713"/>into SavedModel format. Each model version should be exported to a different subdirectory under a given path. So, we can easily specify the version of a model we want to use when we call the server to do predictions:<figure class="mediaobject"><img src="../Images/B16254_12_07.png" alt=""/></figure>
+        <p class="packt_figref">Figure 12.7: A screenshot of the directory structure that TensorFlow Serving expects</p>
+        <p class="bullet-para">The preceding screenshot shows the desired directory structure. In it, we have our defined data directory, <code class="Code-In-Text--PACKT-">my_mnist_model</code>, followed by our model-version number, <code class="Code-In-Text--PACKT-">1</code>. In the version number directory, we save our protobuf model and a <code class="Code-In-Text--PACKT-">variables</code> folder that contains the desired variables to save.</p>
+        <div class="note">
+          <p class="Information-Box--PACKT-">We should be aware that inside our data directory, TensorFlow Serving will look for integer folders. TensorFlow Serving will automatically boot up and grab the model under the largest integer number. This means that to deploy a new model, we need to label it version 2 and stick it under a new folder that is also labeled 2. TensorFlow Serving will then automatically pick up the model.</p>
+        </div>
+      </li>
+      <li class="numbered">Then, we'll install TensorFlow Serving by using Docker. We encourage readers to visit the official Docker documentation to get Docker installation instructions if needed.<p class="bullet-para">The first step is to pull the latest TensorFlow Serving Docker image:</p>
+        <pre class="programlisting code"><code class="hljs-code">$ docker pull tensorflow/serving
+</code></pre>
+      </li>
+      <li class="numbered">Now, we'll start a Docker container: publish the REST API port 8501 to our host's port 8501, take the previously created model, <code class="Code-In-Text--PACKT-">my_mnist_model</code>, bind it to the model base path, <code class="Code-In-Text--PACKT-">/models/my_mnist_model</code>, and fill in the environment variable <code class="Code-In-Text--PACKT-">MODEL_NAME</code> with <code class="Code-In-Text--PACKT-">my_mnist_model</code>:
+        <pre class="programlisting code"><code class="hljs-code">$ docker run -p <span class="hljs-number">8501</span>:<span class="hljs-number">8501</span> \
+  --mount type=bind,source=<span class="hljs-string">"$(pwd)/my_mnist_model/"</span>,target=/models/my_mnist_model \
+  -e MODEL_NAME=my_mnist_model -t tensorflow/serving
+</code></pre>
+      </li>
+      <li class="numbered">Then, we will <a id="_idIndexMarker714"/>display the images to predict:
+        <pre class="programlisting code"><code class="hljs-code">num_rows = <span class="hljs-number">4</span>
+num_cols = <span class="hljs-number">3</span>
+plt.figure(figsize=(<span class="hljs-number">2</span>*<span class="hljs-number">2</span>*num_cols, <span class="hljs-number">2</span>*num_rows))
+<span class="hljs-keyword">for</span> row <span class="hljs-keyword">in</span> range(num_rows):
+    <span class="hljs-keyword">for</span> col <span class="hljs-keyword">in</span> range(num_cols):
+        index = num_cols * row + col
+        image = x_test[index]
+        true_label = y_test[index]
+        plt.subplot(num_rows, <span class="hljs-number">2</span>*num_cols, <span class="hljs-number">2</span>*index+<span class="hljs-number">1</span>)
+        plt.imshow(image.reshape(<span class="hljs-number">28</span>,<span class="hljs-number">28</span>), cmap=<span class="hljs-string">"binary"</span>)
+        plt.axis(<span class="hljs-string">'off'</span>)
+        plt.title(<span class="hljs-string">'\n\n It is a {}'</span>.format(y_test[index]), fontdict={<span class="hljs-string">'size'</span>: <span class="hljs-number">16</span>})
+plt.tight_layout()
+plt.show()
+</code></pre>
+        <figure class="mediaobject"><img src="../Images/B16254_12_08.png" alt=""/></figure>
+      </li>
+      <li class="numbered">We can now <a id="_idIndexMarker715"/>submit binary data to the <code class="Code-In-Text--PACKT-">&lt;host&gt;:8501</code> and get back the JSON response showing the results. We can do this via any machine and with any programming language. It is very useful to not have to rely on the client to have a local copy of TensorFlow.<p class="bullet-para">Here, we will send POST predict requests to our server and pass the images. The server will return 10 probabilities for each image corresponding to the probability for each digit between <code class="Code-In-Text--PACKT-">0</code> and <code class="Code-In-Text--PACKT-">9</code>:</p>
+        <pre class="programlisting code"><code class="hljs-code">json_request = <span class="hljs-string">'{{ "instances" : {} }}'</span>.format(x_test[<span class="hljs-number">0</span>:<span class="hljs-number">12</span>].tolist())
+resp = requests.post(<span class="hljs-string">'http://localhost:8501/v1/models/my_mnist_model:predict'</span>, data=json_request, headers = {<span class="hljs-string">"content-type"</span>: <span class="hljs-string">"application/json"</span>})
+print(<span class="hljs-string">'response.status_code: {}'</span>.format(resp.status_code))     
+print(<span class="hljs-string">'response.content: {}'</span>.format(resp.content))
+predictions = json.loads(resp.text)[<span class="hljs-string">'predictions'</span>]
+</code></pre>
+      </li>
+      <li class="numbered">Then, we will <a id="_idIndexMarker716"/>display the prediction results for our images:
+        <pre class="programlisting code"><code class="hljs-code">num_rows = <span class="hljs-number">4</span>
+num_cols = <span class="hljs-number">3</span>
+plt.figure(figsize=(<span class="hljs-number">2</span>*<span class="hljs-number">2</span>*num_cols, <span class="hljs-number">2</span>*num_rows))
+<span class="hljs-keyword">for</span> row <span class="hljs-keyword">in</span> range(num_rows):
+    <span class="hljs-keyword">for</span> col <span class="hljs-keyword">in</span> range(num_cols):
+        index = num_cols * row + col
+        image = x_test[index]
+        predicted_label = np.argmax(predictions[index])
+        true_label = y_test[index]
+        plt.subplot(num_rows, <span class="hljs-number">2</span>*num_cols, <span class="hljs-number">2</span>*index+<span class="hljs-number">1</span>)
+        plt.imshow(image.reshape(<span class="hljs-number">28</span>,<span class="hljs-number">28</span>), cmap=<span class="hljs-string">"binary"</span>)
+        plt.axis(<span class="hljs-string">'off'</span>)
+        <span class="hljs-keyword">if</span> predicted_label == true_label:
+            color = <span class="hljs-string">'blue'</span>
+        <span class="hljs-keyword">else</span>:
+            color = <span class="hljs-string">'red'</span>
+        plt.title(<span class="hljs-string">'\n\n The model predicts a {} \n and it is a {}'</span>.format(predicted_label, true_label), fontdict={<span class="hljs-string">'size'</span>: <span class="hljs-number">16</span>}, color=color)
+plt.tight_layout()
+plt.show()
+</code></pre>
+        <p class="bullet-para">Now, let's look at a visual representation of 16 predictions:</p>
+        <figure class="mediaobject"><img src="../Images/B16254_12_09.png" alt=""/></figure>
+      </li>
+    </ol>
+    <h2 id="_idParaDest-335" class="title">How it works...</h2>
+    <p class="normal">Machine learning teams <a id="_idIndexMarker717"/>focus on creating machine learning models and operations teams focus on deploying models. MLOps applies DevOps principles to machine learning. It brings the best practices of software development (commenting, documentation, versioning, testing, and so on) to data science. MLOps is about removing the barriers between the machine learning teams that produce models and the operations teams that deploy models.</p>
+    <p class="normal">In this recipe, we only focus on serving models using the TFX Serving component but TFX is an MLOps tool that builds complete, end-to-end machine learning pipelines. We can only encourage the reader to explore this platform.</p>
+    <p class="normal">There are also many other solutions available that may be used to serve a model, such as Kubeflow, Django/Flask, or managed cloud services such as AWS SageMaker, GCP AI Platform, or Azure ML.</p>
+    <h2 id="_idParaDest-336" class="title">There's more...</h2>
+    <p class="normal">Links to tools and resources for architectures not covered in this chapter are as follows:</p>
+    <ul>
+      <li class="bullet"><strong class="keyword">Using TensorFlow Serving </strong><strong class="keyword"><a id="_idIndexMarker718"/></strong><strong class="keyword">with Docker</strong>: <a href="https://www.tensorflow.org/serving/docker"><span class="url">https://www.tensorflow.org/serving/docker</span></a></li>
+      <li class="bullet"><strong class="keyword">Using TensorFlow Serving </strong><strong class="keyword"><a id="_idIndexMarker719"/></strong><strong class="keyword">with Kubernetes</strong>: <a href="https://www.tensorflow.org/tfx/serving/serving_kubernetes"><span class="url">https://www.tensorflow.org/tfx/serving/serving_kubernetes</span></a></li>
+      <li class="bullet"><strong class="keyword">Installing </strong><strong class="keyword"><a id="_idIndexMarker720"/></strong><strong class="keyword">TensorFlow Serving</strong>: <a href="https://www.tensorflow.org/tfx/tutorials/serving/rest_simple"><span class="url">https://www.tensorflow.org/tfx/tutorials/serving/rest_simple</span></a></li>
+      <li class="bullet"><strong class="keyword">TensorFlow </strong><strong class="keyword"><a id="_idIndexMarker721"/></strong><strong class="keyword">extended</strong>: <a href="https://www.tensorflow.org/tfx"><span class="url">https://www.tensorflow.org/tfx</span></a></li>
+      <li class="bullet"><strong class="keyword">Kubeflow – The machine </strong><strong class="keyword"><a id="_idIndexMarker722"/></strong><strong class="keyword">learning toolkit for Kubernetes</strong>: <a href="https://www.kubeflow.org/"><span class="url">https://www.kubeflow.org/</span></a></li>
+      <li class="bullet"><strong class="keyword">GCP AI </strong><strong class="keyword"><a id="_idIndexMarker723"/></strong><strong class="keyword">Platform</strong>: <a href="https://cloud.google.com/ai-platform"><span class="url">https://cloud.google.com/ai-platform</span></a></li>
+      <li class="bullet"><strong class="keyword">AWS </strong><strong class="keyword"><a id="_idIndexMarker724"/></strong><strong class="keyword">SageMaker</strong>: <a href="https://aws.amazon.com/fr/sagemaker/"><span class="url">https://aws.amazon.com/fr/sagemaker/</span></a></li>
+      <li class="bullet"><strong class="keyword">Azure </strong><strong class="keyword"><a id="_idIndexMarker725"/></strong><strong class="keyword">ML</strong>: <a href="https://azure.microsoft.com/services/machine-learning/"><span class="url">https://azure.microsoft.com/services/machine-learning/</span></a></li>
+    </ul>
+    <div class="Basic-Text-Frame">
+      <table id="table002-2" class="Basic-Table _idGenTablePara-2">
+        <colgroup>
+          <col/>
+        </colgroup>
+        <tbody>
+          <tr class="Basic-Table">
+            <td class="Basic-Table">
+              <p class="normal"><strong class="screenText">Share your experience</strong></p>
+              <p class="normal">Thank you for taking the time to read this book. If you enjoyed this book, help others to find it. Leave a review at <a href="https://www.amazon.com/dp/1800208863"><span class="url">https://www.amazon.com/dp/1800208863</span></a></p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body></html>

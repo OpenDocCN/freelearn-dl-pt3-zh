@@ -1,0 +1,583 @@
+<html><head></head><body>
+  <div id="_idContainer130">
+    <h1 class="chapterNumber">11</h1>
+    <h1 id="_idParaDest-290" class="chapterTitle">Reinforcement Learning with TensorFlow and TF-Agents</h1>
+    <p class="normal">TF-Agents is a library for <strong class="keyword">reinforcement learning</strong> (<strong class="keyword">RL</strong>) in <strong class="keyword">TensorFlow </strong>(<strong class="keyword">TF</strong>). It makes the design and implementation of various algorithms easier by providing a number of modular components corresponding to the core parts of an RL problem:</p>
+    <ul>
+      <li class="bullet">An agent operates in an <strong class="keyword">environment</strong> and learns by processing signals received every time it chooses an action. In TF-Agents, an environment is typically implemented in Python and wrapped in a TF wrapper to enable efficient parallelization.</li>
+      <li class="bullet">A <strong class="keyword">policy</strong> maps an observation from the environment into a distribution over actions.</li>
+      <li class="bullet">A <strong class="keyword">driver</strong> executes a policy in an environment for a specified number of steps (also called <strong class="keyword">episodes</strong>).</li>
+      <li class="bullet">A <strong class="keyword">replay buffer</strong> is used to store experience (agent trajectories in action space, along with associated rewards) of executing a policy in an environment; the buffer content is queried for a subset of trajectories during training.</li>
+    </ul>
+    <p class="normal">The basic idea is to cast each of the problems we discuss as a RL problem, and then map the components into TF-Agents counterparts. In this chapter, we will show how TF-Agents can be used to solve some simple RL problems:</p>
+    <ul>
+      <li class="bullet">The GridWorld problem</li>
+      <li class="bullet">The OpenAI Gym environment</li>
+      <li class="bullet">Multi-armed bandits for content personalization</li>
+    </ul>
+    <p class="normal">The best way to start our demonstration of RL capabilities in TF-Agents is with a toy problem: GridWorld is a good choice due to its intuitive geometry and easy-to-interpret action but, despite this simplicity, it constitutes a proper objective, where we can investigate the optimal paths an agent takes to achieve the goal.</p>
+    <h1 id="_idParaDest-291" class="title">GridWorld</h1>
+    <p class="normal">The code in this section is adapted from <a href="https://github.com/sachag678"><span class="url">https://github.com/sachag678</span></a>.</p>
+    <p class="normal">We begin by <a id="_idIndexMarker599"/>demonstrating the basic TF-Agents <a id="_idIndexMarker600"/>functionality in the GridWorld environment. RL problems are best studied in the context of either games (where we have a clearly defined set of rules and fully observable context), or toy problems such as GridWorld. Once the basic concepts are clearly defined in a simplified but non-straightforward environment, we can move to progressively more challenging situations. </p>
+    <p class="normal">The first step is to define a GridWorld environment: this is a 6x6 square board, where the agent starts at (0,0), the finish is at (5,5), and the goal of the agent is to find the path from the start to the finish. Possible actions are moves up/down/left/right. If the agent lands on the finish, it receives a reward of 100, and the game terminates after 100 steps if the end was not reached by the agent. An example of the GridWorld "map" is provided here:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_11_01.png" alt="Chart, box and whisker chart  Description automatically generated"/></figure>
+    <p class="packt_figref">Figure 11.1: The GridWorld "map"</p>
+    <p class="normal">Now we understand <a id="_idIndexMarker601"/>what we're working with, let's <a id="_idIndexMarker602"/>build a model to find its way around the GridWorld from <strong class="screenText">(0,0)</strong> to <strong class="screenText">(5,5)</strong>.</p>
+    <h2 id="_idParaDest-292" class="title">How do we go about it?</h2>
+    <p class="normal">As usual, we begin by loading the necessary libraries:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">from</span> tf_agents.environments <span class="hljs-keyword">import</span> py_environment, tf_environment, tf_py_environment, utils, wrappers, suite_gym
+<span class="hljs-keyword">from</span> tf_agents.specs <span class="hljs-keyword">import</span> array_spec
+<span class="hljs-keyword">from</span> tf_agents.trajectories <span class="hljs-keyword">import</span> trajectory,time_step <span class="hljs-keyword">as</span> ts
+<span class="hljs-keyword">from</span> tf_agents.agents.dqn <span class="hljs-keyword">import</span> dqn_agent
+<span class="hljs-keyword">from</span> tf_agents.networks <span class="hljs-keyword">import</span> q_network
+<span class="hljs-keyword">from</span> tf_agents.drivers <span class="hljs-keyword">import</span> dynamic_step_driver
+<span class="hljs-keyword">from</span> tf_agents.metrics <span class="hljs-keyword">import</span> tf_metrics, py_metrics
+<span class="hljs-keyword">from</span> tf_agents.policies <span class="hljs-keyword">import</span> random_tf_policy
+<span class="hljs-keyword">from</span> tf_agents.replay_buffers <span class="hljs-keyword">import</span> tf_uniform_replay_buffer
+<span class="hljs-keyword">from</span> tf_agents.utils <span class="hljs-keyword">import</span> common
+<span class="hljs-keyword">from</span> tf_agents.drivers <span class="hljs-keyword">import</span> py_driver, dynamic_episode_driver
+<span class="hljs-keyword">from</span> tf_agents.utils <span class="hljs-keyword">import</span> common
+<span class="hljs-keyword">import</span> matplotlib.pyplot <span class="hljs-keyword">as</span> plt
+</code></pre>
+    <p class="normal">TF-Agents is a library under active development, so, despite our best efforts to keep the code up to date, certain imports might need to be modified by the time you are running this code.</p>
+    <p class="normal">A crucial <a id="_idIndexMarker603"/>step is defining the environment that our agent will be operating in. Inheriting from the <code class="Code-In-Text--PACKT-">PyEnvironment</code> class, we <a id="_idIndexMarker604"/>specify the <code class="Code-In-Text--PACKT-">init</code> method (action and observation definitions), conditions for resetting/terminating the state, and the mechanics for moving:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">class</span><span class="hljs-class"> </span><span class="hljs-title">GridWorldEnv</span><span class="hljs-class">(</span><span class="hljs-params">py_environment.PyEnvironment</span><span class="hljs-class">):</span>
+<span class="hljs-comment"># the _init_ contains the specifications for action and observation</span>
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">__init__</span><span class="hljs-function">(</span><span class="hljs-params">self</span><span class="hljs-function">):</span>
+        self._action_spec = array_spec.BoundedArraySpec(
+            shape=(), dtype=np.int32, minimum=<span class="hljs-number">0</span>, maximum=<span class="hljs-number">3</span>, name=<span class="hljs-string">'action'</span>)
+        self._observation_spec = array_spec.BoundedArraySpec(
+            shape=(<span class="hljs-number">4</span>,), dtype=np.int32, minimum=[<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>],                            maximum=[<span class="hljs-number">5</span>,<span class="hljs-number">5</span>,<span class="hljs-number">5</span>,<span class="hljs-number">5</span>], name=<span class="hljs-string">'observation'</span>)
+        self._state=[<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">5</span>,<span class="hljs-number">5</span>] <span class="hljs-comment">#represent the (row, col, frow, fcol) of the player and the finish</span>
+        self._episode_ended = <span class="hljs-literal">False</span>
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">action_spec</span><span class="hljs-function">(</span><span class="hljs-params">self</span><span class="hljs-function">):</span>
+        <span class="hljs-keyword">return</span> self._action_spec
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">observation_spec</span><span class="hljs-function">(</span><span class="hljs-params">self</span><span class="hljs-function">):</span>
+        <span class="hljs-keyword">return</span> self._observation_spec
+<span class="hljs-comment"># once the same is over, we reset the state</span>
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">_reset</span><span class="hljs-function">(</span><span class="hljs-params">self</span><span class="hljs-function">):</span>
+        self._state=[<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">5</span>,<span class="hljs-number">5</span>]
+        self._episode_ended = <span class="hljs-literal">False</span>
+        <span class="hljs-keyword">return</span> ts.restart(np.array(self._state, dtype=np.int32))
+<span class="hljs-comment"># the _step function handles the state transition by applying an action to the current state to obtain a new one</span>
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">_step</span><span class="hljs-function">(</span><span class="hljs-params">self, action</span><span class="hljs-function">):</span>
+        <span class="hljs-keyword">if</span> self._episode_ended:
+            <span class="hljs-keyword">return</span> self.reset()
+        self.move(action)
+        <span class="hljs-keyword">if</span> self.game_over():
+            self._episode_ended = <span class="hljs-literal">True</span>
+        <span class="hljs-keyword">if</span> self._episode_ended:
+            <span class="hljs-keyword">if</span> self.game_over():
+                reward = <span class="hljs-number">100</span>
+            <span class="hljs-keyword">else</span>:
+                reward = <span class="hljs-number">0</span>
+            <span class="hljs-keyword">return</span> ts.termination(np.array(self._state, dtype=np.int32),             reward)
+        <span class="hljs-keyword">else</span>:
+            <span class="hljs-keyword">return</span> ts.transition(
+                np.array(self._state, dtype=np.int32), reward=<span class="hljs-number">0</span>,                 discount=<span class="hljs-number">0.9</span>)
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">move</span><span class="hljs-function">(</span><span class="hljs-params">self, action</span><span class="hljs-function">):</span>
+        row, col, frow, fcol = self._state[<span class="hljs-number">0</span>],self._state[<span class="hljs-number">1</span>],self._        state[<span class="hljs-number">2</span>],self._state[<span class="hljs-number">3</span>]
+        <span class="hljs-keyword">if</span> action == <span class="hljs-number">0</span>: <span class="hljs-comment">#down</span>
+            <span class="hljs-keyword">if</span> row - <span class="hljs-number">1</span> &gt;= <span class="hljs-number">0</span>:
+                self._state[<span class="hljs-number">0</span>] -= <span class="hljs-number">1</span>
+        <span class="hljs-keyword">if</span> action == <span class="hljs-number">1</span>: <span class="hljs-comment">#up</span>
+            <span class="hljs-keyword">if</span> row + <span class="hljs-number">1</span> &lt; <span class="hljs-number">6</span>:
+                self._state[<span class="hljs-number">0</span>] += <span class="hljs-number">1</span>
+        <span class="hljs-keyword">if</span> action == <span class="hljs-number">2</span>: <span class="hljs-comment">#left</span>
+            <span class="hljs-keyword">if</span> col - <span class="hljs-number">1</span> &gt;= <span class="hljs-number">0</span>:
+                self._state[<span class="hljs-number">1</span>] -= <span class="hljs-number">1</span>
+        <span class="hljs-keyword">if</span> action == <span class="hljs-number">3</span>: <span class="hljs-comment">#right</span>
+            <span class="hljs-keyword">if</span> col + <span class="hljs-number">1</span> &lt; <span class="hljs-number">6</span>:
+                self._state[<span class="hljs-number">1</span>] += <span class="hljs-number">1</span>
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">game_over</span><span class="hljs-function">(</span><span class="hljs-params">self</span><span class="hljs-function">):</span>
+        row, col, frow, fcol = self._state[<span class="hljs-number">0</span>],self._state[<span class="hljs-number">1</span>],self._        state[<span class="hljs-number">2</span>],self._state[<span class="hljs-number">3</span>]
+        <span class="hljs-keyword">return</span> row==frow <span class="hljs-keyword">and</span> col==fcol
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">compute_avg_return</span><span class="hljs-function">(</span><span class="hljs-params">environment, policy, num_episodes=</span><span class="hljs-number">10</span><span class="hljs-function">):</span>
+    total_return = <span class="hljs-number">0.0</span>
+    <span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> range(num_episodes):
+        time_step = environment.reset()
+        episode_return = <span class="hljs-number">0.0</span>
+        <span class="hljs-keyword">while</span> <span class="hljs-keyword">not</span> time_step.is_last():
+            action_step = policy.action(time_step)
+            time_step = environment.step(action_step.action)
+            episode_return += time_step.reward
+            total_return += episode_return
+    avg_return = total_return / num_episodes
+    <span class="hljs-keyword">return</span> avg_return.numpy()[<span class="hljs-number">0</span>]
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">collect_step</span><span class="hljs-function">(</span><span class="hljs-params">environment, policy</span><span class="hljs-function">):</span>
+    time_step = environment.current_time_step()
+    action_step = policy.action(time_step)
+    next_time_step = environment.step(action_step.action)
+    traj = trajectory.from_transition(time_step, action_step, next_time_step)
+    <span class="hljs-comment"># Add trajectory to the replay buffer</span>
+    replay_buffer.add_batch(traj)
+</code></pre>
+    <p class="normal">We have the following preliminary setup:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># parameter settings</span>
+num_iterations = <span class="hljs-number">10000</span>  
+initial_collect_steps = <span class="hljs-number">1000</span>  
+collect_steps_per_iteration = <span class="hljs-number">1</span>  
+replay_buffer_capacity = <span class="hljs-number">100000</span>  
+fc_layer_params = (<span class="hljs-number">100</span>,)
+batch_size = <span class="hljs-number">128</span> <span class="hljs-comment"># </span>
+learning_rate = <span class="hljs-number">1e-5</span>  
+log_interval = <span class="hljs-number">200</span>  
+num_eval_episodes = <span class="hljs-number">2</span>  
+eval_interval = <span class="hljs-number">1000</span>  
+</code></pre>
+    <p class="normal">We begin by creating the environments and wrapping them to ensure that they terminate after 100 steps:</p>
+    <pre class="programlisting code"><code class="hljs-code">train_py_env = wrappers.TimeLimit(GridWorldEnv(), duration=<span class="hljs-number">100</span>)
+eval_py_env = wrappers.TimeLimit(GridWorldEnv(), duration=<span class="hljs-number">100</span>)
+train_env = tf_py_environment.TFPyEnvironment(train_py_env)
+eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
+</code></pre>
+    <p class="normal">For <a id="_idIndexMarker605"/>this recipe, we will <a id="_idIndexMarker606"/>be using a <strong class="keyword">Deep Q-Network</strong> (<strong class="keyword">DQN</strong>) agent. This <a id="_idIndexMarker607"/>means that we need to define the network and the associated optimizer first:</p>
+    <pre class="programlisting code"><code class="hljs-code">q_net = q_network.QNetwork(
+        train_env.observation_spec(),
+        train_env.action_spec(),
+        fc_layer_params=fc_layer_params)
+optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate)
+</code></pre>
+    <p class="normal">As indicated above, the TF-Agents library is under active development. The current version works with TF &gt; 2.3, but it was originally written for TensorFlow 1.x. The code used in this adaptation was developed using a previous version, so for the sake of backward compatibility, we require a less-than-elegant workaround, such as the following:</p>
+    <pre class="programlisting code"><code class="hljs-code">train_step_counter = tf.compat.v2.Variable(<span class="hljs-number">0</span>)
+</code></pre>
+    <p class="normal">Define the agent:</p>
+    <pre class="programlisting code"><code class="hljs-code">tf_agent = dqn_agent.DqnAgent(
+        train_env.time_step_spec(),
+        train_env.action_spec(),
+        q_network=q_net,
+        optimizer=optimizer,
+        td_errors_loss_fn = common.element_wise_squared_loss,
+        train_step_counter=train_step_counter)
+tf_agent.initialize()
+eval_policy = tf_agent.policy
+collect_policy = tf_agent.collect_policy
+</code></pre>
+    <p class="normal">As a next <a id="_idIndexMarker608"/>step, we create the replay buffer and replay observer. The former is used for storing the (action, observation) pairs <a id="_idIndexMarker609"/>for training:</p>
+    <pre class="programlisting code"><code class="hljs-code">replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
+        data_spec = tf_agent.collect_data_spec,
+        batch_size = train_env.batch_size,
+        max_length = replay_buffer_capacity)
+print(<span class="hljs-string">"Batch Size: {}"</span>.format(train_env.batch_size))
+replay_observer = [replay_buffer.add_batch]
+train_metrics = [
+            tf_metrics.NumberOfEpisodes(),
+            tf_metrics.EnvironmentSteps(),
+            tf_metrics.AverageReturnMetric(),
+            tf_metrics.AverageEpisodeLengthMetric(),
+]
+</code></pre>
+    <p class="normal">We then create a dataset from our buffer so that it can be iterated over:</p>
+    <pre class="programlisting code"><code class="hljs-code">dataset = replay_buffer.as_dataset(
+            num_parallel_calls=<span class="hljs-number">3</span>,
+            sample_batch_size=batch_size,
+    num_steps=<span class="hljs-number">2</span>).prefetch(<span class="hljs-number">3</span>)
+</code></pre>
+    <p class="normal">The final bit of preparation involves creating a driver that will simulate the agent in the game and store the (state, action, reward) tuples in the replay buffer, along with storing a number of metrics:</p>
+    <pre class="programlisting code"><code class="hljs-code">driver = dynamic_step_driver.DynamicStepDriver(
+            train_env,
+            collect_policy,
+            observers=replay_observer + train_metrics,
+    num_steps=<span class="hljs-number">1</span>)
+iterator = iter(dataset)
+print(compute_avg_return(eval_env, tf_agent.policy, num_eval_episodes))
+tf_agent.train = common.function(tf_agent.train)
+tf_agent.train_step_counter.assign(<span class="hljs-number">0</span>)
+final_time_step, policy_state = driver.run()
+</code></pre>
+    <p class="normal">Having finished the <a id="_idIndexMarker610"/>preparatory groundwork, we <a id="_idIndexMarker611"/>can run the driver, draw experience from the dataset, and use it to train the agent. For monitoring/logging purposes, we print the loss and average return at specific intervals:</p>
+    <pre class="programlisting code"><code class="hljs-code">episode_len = []
+step_len = []
+<span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(num_iterations):
+    final_time_step, _ = driver.run(final_time_step, policy_state)
+    experience, _ = next(iterator)
+    train_loss = tf_agent.train(experience=experience)
+    step = tf_agent.train_step_counter.numpy()
+    <span class="hljs-keyword">if</span> step % log_interval == <span class="hljs-number">0</span>:
+        print(<span class="hljs-string">'step = {0}: loss = {1}'</span>.format(step, train_loss.loss))
+        episode_len.append(train_metrics[<span class="hljs-number">3</span>].result().numpy())
+        step_len.append(step)
+        print(<span class="hljs-string">'Average episode length: {}'</span>.format(train_metrics[<span class="hljs-number">3</span>].                                                  result().numpy()))
+    <span class="hljs-keyword">if</span> step % eval_interval == <span class="hljs-number">0</span>:
+        avg_return = compute_avg_return(eval_env, tf_agent.policy,                                        num_eval_episodes)
+        print(<span class="hljs-string">'step = {0}: Average Return = {1}'</span>.format(step, avg_return))
+</code></pre>
+    <p class="normal">Once the code executes successfully, you should observe output similar to the following:</p>
+    <pre class="programlisting code"><code class="hljs-code">step = 200: loss = 0.27092617750167847 Average episode length: 96.5999984741211 step = 400: loss = 0.08925052732229233 Average episode length: 96.5999984741211 step = 600: loss = 0.04888586699962616 Average episode length: 96.5999984741211 step = 800: loss = 0.04527277499437332 Average episode length: 96.5999984741211 step = 1000: loss = 0.04451741278171539 Average episode length: 97.5999984741211 step = 1000: Average Return = 0.0 step = 1200: loss = 0.02019939199090004 Average episode length: 97.5999984741211 step = 1400: loss = 0.02462056837975979 Average episode length: 97.5999984741211 step = 1600: loss = 0.013112186454236507 Average episode length: 97.5999984741211 step = 1800: loss = 0.004257255233824253 Average episode length: 97.5999984741211 step = 2000: loss = 78.85380554199219 Average episode length: 100.0 step = 2000:
+Average Return = 0.0 step = 2200: loss = 0.010012316517531872 Average episode length: 100.0 step = 2400: loss = 0.009675763547420502 Average episode length: 100.0 step = 2600: loss = 0.00445540901273489 Average episode length: 100.0 step = 2800: loss = 0.0006154756410978734 
+</code></pre>
+    <p class="normal">While <a id="_idIndexMarker612"/>detailed, the <a id="_idIndexMarker613"/>output of the training routine is not that well suited for reading by a human. However, we can visualize the progress of our agent instead: </p>
+    <pre class="programlisting code"><code class="hljs-code">plt.plot(step_len, episode_len)
+plt.xlabel(<span class="hljs-string">'Episodes'</span>)
+plt.ylabel(<span class="hljs-string">'Average Episode Length (Steps)'</span>)
+plt.show()
+</code></pre>
+    <p class="normal">Which will deliver us the following graph:</p>
+    <p class="normal"><img src="../Images/B16254_11_02.png" alt=""/></p>
+    <p class="packt_figref">Figure 11.2: Average episode length over number of episodes</p>
+    <p class="normal">The <a id="_idIndexMarker614"/>graph demonstrates the progress in our <a id="_idIndexMarker615"/>model: after the first 4,000 episodes, there is a massive drop in the average episode length, indicating that it takes our agent less and less time to reach the ultimate objective. </p>
+    <h2 id="_idParaDest-293" class="title">See also</h2>
+    <p class="normal">Documentation for customized environments <a id="_idIndexMarker616"/>can be found at <a href="https://www.tensorflow.org/agents/tutorials/2_environments_tutorial"><span class="url">https://www.tensorflow.org/agents/tutorials/2_environments_tutorial</span></a>.</p>
+    <p class="normal">RL is a huge field and even a basic introduction is beyond the scope of this book, but for those interested in learning more, the best recommendation is the classic Sutton and Barto book: <a href="http://incompleteideas.net/book/the-book.html"><span class="url">http://incompleteideas.net/book/the-book.html</span></a></p>
+    <h1 id="_idParaDest-294" class="title">CartPole</h1>
+    <p class="normal">In this section, we will <a id="_idIndexMarker617"/>make use of Open AI Gym, a <a id="_idIndexMarker618"/>set of environments containing non-trivial elementary problems that can be solved using RL approaches. We'll use the CartPole environment. The objective of the agent is to learn how to keep a pole balanced on a moving cart, with possible actions including a movement to the left or to the right:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_11_03.png" alt=""/></figure>
+    <p class="packt_figref">Figure 11.3: The CartPole environment, with the black cart balancing a long pole</p>
+    <p class="normal">Now we understand our environment, let's build a model to balance a pole.</p>
+    <h2 id="_idParaDest-295" class="title">How do we go about it?</h2>
+    <p class="normal">We begin by installing some prerequisites and importing the necessary libraries. The installation part is mostly required to ensure that we can generate visualizations of the trained agent's performance:</p>
+    <pre class="programlisting code"><code class="hljs-code">!sudo apt-get install -y xvfb ffmpeg
+!pip install gym
+!pip install <span class="hljs-string">'imageio==2.4.0'</span>
+!pip install PILLOW
+!pip install pyglet
+!pip install pyvirtualdisplay
+!pip install tf-agents
+<span class="hljs-keyword">from</span> __future__ <span class="hljs-keyword">import</span> absolute_import, division, print_function
+<span class="hljs-keyword">import</span> base64
+<span class="hljs-keyword">import</span> imageio
+<span class="hljs-keyword">import</span> IPython
+<span class="hljs-keyword">import</span> matplotlib
+<span class="hljs-keyword">import</span> matplotlib.pyplot <span class="hljs-keyword">as</span> plt
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> PIL.Image
+<span class="hljs-keyword">import</span> pyvirtualdisplay
+<span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+<span class="hljs-keyword">from</span> tf_agents.agents.dqn <span class="hljs-keyword">import</span> dqn_agent
+<span class="hljs-keyword">from</span> tf_agents.drivers <span class="hljs-keyword">import</span> dynamic_step_driver
+<span class="hljs-keyword">from</span> tf_agents.environments <span class="hljs-keyword">import</span> suite_gym
+<span class="hljs-keyword">from</span> tf_agents.environments <span class="hljs-keyword">import</span> tf_py_environment
+<span class="hljs-keyword">from</span> tf_agents.eval <span class="hljs-keyword">import</span> metric_utils
+<span class="hljs-keyword">from</span> tf_agents.metrics <span class="hljs-keyword">import</span> tf_metrics
+<span class="hljs-keyword">from</span> tf_agents.networks <span class="hljs-keyword">import</span> q_network
+<span class="hljs-keyword">from</span> tf_agents.policies <span class="hljs-keyword">import</span> random_tf_policy
+<span class="hljs-keyword">from</span> tf_agents.replay_buffers <span class="hljs-keyword">import</span> tf_uniform_replay_buffer
+<span class="hljs-keyword">from</span> tf_agents.trajectories <span class="hljs-keyword">import</span> trajectory
+<span class="hljs-keyword">from</span> tf_agents.utils <span class="hljs-keyword">import</span> common
+tf.compat.v1.enable_v2_behavior()
+<span class="hljs-comment"># Set up a virtual display for rendering OpenAI gym environments.</span>
+display = pyvirtualdisplay.Display(visible=<span class="hljs-number">0</span>, size=(<span class="hljs-number">1400</span>, <span class="hljs-number">900</span>)).start()
+</code></pre>
+    <p class="normal">As before, there <a id="_idIndexMarker619"/>are some hyperparameters of <a id="_idIndexMarker620"/>our toy problem that we define:</p>
+    <pre class="programlisting code"><code class="hljs-code">num_iterations = <span class="hljs-number">20000</span> 
+initial_collect_steps = <span class="hljs-number">100</span>  
+collect_steps_per_iteration = <span class="hljs-number">1</span>  
+replay_buffer_max_length = <span class="hljs-number">100000</span>  
+<span class="hljs-comment"># parameters of the neural network underlying at the core of an agent</span>
+batch_size = <span class="hljs-number">64</span>  
+learning_rate = <span class="hljs-number">1e-3</span>  
+log_interval = <span class="hljs-number">200</span>  
+num_eval_episodes = <span class="hljs-number">10</span>  
+eval_interval = <span class="hljs-number">1000</span>  
+</code></pre>
+    <p class="normal">Next, we proceed <a id="_idIndexMarker621"/>with function definitions for our problem. Start by computing the average return for a policy in <a id="_idIndexMarker622"/>our environment over a fixed period (measured by the number of episodes):</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">compute_avg_return</span><span class="hljs-function">(</span><span class="hljs-params">environment, policy, num_episodes=</span><span class="hljs-number">10</span><span class="hljs-function">):</span>
+  total_return = <span class="hljs-number">0.0</span>
+  <span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> range(num_episodes):
+    time_step = environment.reset()
+    episode_return = <span class="hljs-number">0.0</span>
+    <span class="hljs-keyword">while</span> <span class="hljs-keyword">not</span> time_step.is_last():
+      action_step = policy.action(time_step)
+      time_step = environment.step(action_step.action)
+      episode_return += time_step.reward
+    total_return += episode_return
+  avg_return = total_return / num_episodes
+  <span class="hljs-keyword">return</span> avg_return.numpy()[<span class="hljs-number">0</span>]
+</code></pre>
+    <p class="normal">Boilerplate code for collecting a single step and the associated data aggregation are as follows:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">collect_step</span><span class="hljs-function">(</span><span class="hljs-params">environment, policy, buffer</span><span class="hljs-function">):</span>
+  time_step = environment.current_time_step()
+  action_step = policy.action(time_step)
+  next_time_step = environment.step(action_step.action)
+  traj = trajectory.from_transition(time_step, action_step, next_time_step)
+  <span class="hljs-comment"># Add trajectory to the replay buffer</span>
+  buffer.add_batch(traj)
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">collect_data</span><span class="hljs-function">(</span><span class="hljs-params">env, policy, buffer, steps</span><span class="hljs-function">):</span>
+  <span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> range(steps):
+    collect_step(env, policy, buffer)
+</code></pre>
+    <p class="normal">If a picture is <a id="_idIndexMarker623"/>worth a thousand words, then surely a video must be even better. In order to visualize the performance <a id="_idIndexMarker624"/>of our agent, we need a function that renders the actual animation:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">embed_mp4</span><span class="hljs-function">(</span><span class="hljs-params">filename</span><span class="hljs-function">):</span>
+  <span class="hljs-string">"""Embeds an mp4 file in the notebook."""</span>
+  video = open(filename,<span class="hljs-string">'rb'</span>).read()
+  b64 = base64.b64encode(video)
+  tag = <span class="hljs-string">'''</span>
+<span class="hljs-string">  &lt;video width="640" height="480" controls&gt;</span>
+<span class="hljs-string">    &lt;source src="data:video/mp4;base64,{0}" type="video/mp4"&gt;</span>
+<span class="hljs-string">  Your browser does not support the video tag.</span>
+<span class="hljs-string">  &lt;/video&gt;'''</span>.format(b64.decode())
+  <span class="hljs-keyword">return</span> IPython.display.HTML(tag)
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">create_policy_eval_video</span><span class="hljs-function">(</span><span class="hljs-params">policy, filename, num_episodes=</span><span class="hljs-number">5</span><span class="hljs-params">, fps=</span><span class="hljs-number">30</span><span class="hljs-function">):</span>
+  filename = filename + ".mp4"
+  <span class="hljs-keyword">with</span> imageio.get_writer(filename, fps=fps) <span class="hljs-keyword">as</span> video:
+    <span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> range(num_episodes):
+      time_step = eval_env.reset()
+      video.append_data(eval_py_env.render())
+      <span class="hljs-keyword">while</span> <span class="hljs-keyword">not</span> time_step.is_last():
+        action_step = policy.action(time_step)
+        time_step = eval_env.step(action_step.action)
+        video.append_data(eval_py_env.render())
+  <span class="hljs-keyword">return</span> embed_mp4(filename)
+</code></pre>
+    <p class="normal">With the preliminaries out of the way, we can now proceed to actually setting up our environment:</p>
+    <pre class="programlisting code"><code class="hljs-code">env_name = <span class="hljs-string">'CartPole-v0'</span>
+env = suite_gym.load(env_name)
+env.reset()
+</code></pre>
+    <p class="normal">In the CartPole environment, the following applies:</p>
+    <ul>
+      <li class="bullet">An observation is an array of four floats:<ul>
+          <li class="bullet-l2">The position and velocity of the cart</li>
+          <li class="bullet-l2">The angular position and velocity of the pole</li>
+        </ul>
+      </li>
+      <li class="bullet">The reward is a scalar float value</li>
+      <li class="bullet">An action is a scalar integer with only two possible values:<ul>
+          <li class="bullet-l2">0 — "move left"</li>
+          <li class="bullet-l2">1 — "move right"</li>
+        </ul>
+      </li>
+    </ul>
+    <p class="normal">As before, split the training and evaluation environments and apply the wrappers:</p>
+    <pre class="programlisting code"><code class="hljs-code">train_py_env = suite_gym.load(env_name)
+eval_py_env = suite_gym.load(env_name)
+train_env = tf_py_environment.TFPyEnvironment(train_py_env)
+eval_env = tf_py_environment.TFPyEnvironment(eval_py_env)
+</code></pre>
+    <p class="normal">Define <a id="_idIndexMarker625"/>the network <a id="_idIndexMarker626"/>forming the backbone of the learning algorithm in our agent: a neural network predicting the expected returns of all actions (commonly referred to as Q-values in <a id="_idIndexMarker627"/>RL literature) given an observation of the environment as input:</p>
+    <pre class="programlisting code"><code class="hljs-code">fc_layer_params = (<span class="hljs-number">100</span>,)
+q_net = q_network.QNetwork(
+    train_env.observation_spec(),
+    train_env.action_spec(),
+    fc_layer_params=fc_layer_params)
+optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=learning_rate)
+train_step_counter = tf.Variable(<span class="hljs-number">0</span>)
+</code></pre>
+    <p class="normal">With this, we can instantiate a DQN agent: </p>
+    <pre class="programlisting code"><code class="hljs-code">agent = dqn_agent.DqnAgent(
+    train_env.time_step_spec(),
+    train_env.action_spec(),
+    q_network=q_net,
+    optimizer=optimizer,
+    td_errors_loss_fn=common.element_wise_squared_loss,
+    train_step_counter=train_step_counter)
+agent.initialize()
+</code></pre>
+    <p class="normal">Set up the policies – the main one used for evaluation and deployment, and the secondary one that is utilized for data collection:</p>
+    <pre class="programlisting code"><code class="hljs-code">eval_policy = agent.policy
+collect_policy = agent.collect_policy
+</code></pre>
+    <p class="normal">In order to have an admittedly not very sophisticated comparison, we will also create a random policy (as the name suggests, it acts randomly). This demonstrates an important point, however: a policy can be created independently of an agent:</p>
+    <pre class="programlisting code"><code class="hljs-code">random_policy = random_tf_policy.RandomTFPolicy(train_env.time_step_spec(), train_env.action_spec())
+</code></pre>
+    <p class="normal">To get <a id="_idIndexMarker628"/>an action from a policy, we call the <code class="Code-In-Text--PACKT-">policy.action(time_step)</code> method. The <code class="Code-In-Text--PACKT-">time_step</code> contains <a id="_idIndexMarker629"/>the observation from the environment. This method returns a policy step, which is a named tuple with three components:</p>
+    <ul>
+      <li class="bullet"><strong class="keyword">Action</strong>: the action to be taken (move left or move right)</li>
+      <li class="bullet"><strong class="keyword">State</strong>: used for stateful (RNN-based) policies</li>
+      <li class="bullet"><strong class="keyword">Info</strong>: auxiliary data, such as the log probabilities of actions:</li>
+    </ul>
+    <pre class="programlisting code"><code class="hljs-code">example_environment = tf_py_environment.TFPyEnvironment(
+    suite_gym.load(<span class="hljs-string">'CartPole-v0'</span>))
+time_step = example_environment.reset()
+</code></pre>
+    <p class="normal">The replay buffer tracks the data collected from the environment, which is used for training:</p>
+    <pre class="programlisting code"><code class="hljs-code">replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
+    data_spec=agent.collect_data_spec,
+    batch_size=train_env.batch_size,
+    max_length=replay_buffer_max_length)
+</code></pre>
+    <p class="normal">For most agents, <code class="Code-In-Text--PACKT-">collect_data_spec</code> is a named <a id="_idIndexMarker630"/>tuple called <strong class="keyword">Trajectory</strong>, containing the specs for observations, actions, rewards, and other items.</p>
+    <p class="normal">We now make use of our random policy to explore the environment:</p>
+    <pre class="programlisting code"><code class="hljs-code">collect_data(train_env, random_policy, replay_buffer, initial_collect_steps)
+</code></pre>
+    <p class="normal">The replay buffer can now be accessed by an agent by means of a pipeline. Since our DQN agent needs both the current and the next observation to calculate the loss, the pipeline samples two adjacent rows at a time (<code class="Code-In-Text--PACKT-">num_steps = 2</code>):</p>
+    <pre class="programlisting code"><code class="hljs-code">dataset = replay_buffer.as_dataset(
+    num_parallel_calls=<span class="hljs-number">3</span>, 
+    sample_batch_size=batch_size, 
+    num_steps=<span class="hljs-number">2</span>).prefetch(<span class="hljs-number">3</span>)
+iterator = iter(dataset)
+</code></pre>
+    <p class="normal">During the <a id="_idIndexMarker631"/>training part, we <a id="_idIndexMarker632"/>switch between two steps, collecting data from the environment and using it to train the DQN:</p>
+    <pre class="programlisting code"><code class="hljs-code">agent.train = common.function(agent.train)
+<span class="hljs-comment"># Reset the train step</span>
+agent.train_step_counter.assign(<span class="hljs-number">0</span>)
+<span class="hljs-comment"># Evaluate the agent's policy once before training.</span>
+avg_return = compute_avg_return(eval_env, agent.policy, num_eval_episodes)
+returns = [avg_return]
+<span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> range(num_iterations):
+  <span class="hljs-comment"># Collect a few steps using collect_policy and save to the replay buffer.</span>
+  collect_data(train_env, agent.collect_policy, replay_buffer, collect_steps_per_iteration)
+  <span class="hljs-comment"># Sample a batch of data from the buffer and update the agent's network.</span>
+  experience, unused_info = next(iterator)
+  train_loss = agent.train(experience).loss
+  step = agent.train_step_counter.numpy()
+  <span class="hljs-keyword">if</span> step % log_interval == <span class="hljs-number">0</span>:
+    print(<span class="hljs-string">'step = {0}: loss = {1}'</span>.format(step, train_loss))
+  <span class="hljs-keyword">if</span> step % eval_interval == <span class="hljs-number">0</span>:
+    avg_return = compute_avg_return(eval_env, agent.policy, num_eval_episodes)
+    print(<span class="hljs-string">'step = {0}: Average Return = {1}'</span>.format(step, avg_return))
+    returns.append(avg_return)
+</code></pre>
+    <p class="normal">A (partial) output <a id="_idIndexMarker633"/>of the code block is given here. By way of a quick reminder, <code class="Code-In-Text--PACKT-">step</code> is the iteration in the training <a id="_idIndexMarker634"/>process, <code class="Code-In-Text--PACKT-">loss</code> is the value of the loss function in the deep network driving the logic behind our agent, and <code class="Code-In-Text--PACKT-">Average Return</code> is the reward at the end of the current run:</p>
+    <pre class="programlisting code"><code class="hljs-code">step = 200: loss = 4.396056175231934
+step = 400: loss = 7.12950325012207
+step = 600: loss = 19.0213623046875
+step = 800: loss = 45.954856872558594
+step = 1000: loss = 35.900394439697266
+step = 1000: Average Return = 21.399999618530273
+step = 1200: loss = 60.97482681274414
+step = 1400: loss = 8.678962707519531
+step = 1600: loss = 13.465248107910156
+step = 1800: loss = 42.33995056152344
+step = 2000: loss = 42.936370849609375
+step = 2000: Average Return = 21.799999237060547
+</code></pre>
+    <p class="normal">Each iteration consists of 200 time steps and keeping the pole up gives a reward of 1, so our maximum reward per episode is 200:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_11_04.png" alt=""/></figure>
+    <p class="packt_figref">Figure 11.4: Average return over number of iterations</p>
+    <p class="normal">As you can <a id="_idIndexMarker635"/>see from the preceding graph, the agent takes about 10 thousand iterations to discover a successful <a id="_idIndexMarker636"/>policy (with some hits and misses, as the U-shaped pattern of reward in that part demonstrates). After that, the reward stabilizes and the algorithm is able to successfully complete the task each time. </p>
+    <p class="normal">We can also observe the performance of our agents in a video. As regards the random policy, you can try the following:</p>
+    <pre class="programlisting code"><code class="hljs-code">create_policy_eval_video(random_policy, "random-agent")
+</code></pre>
+    <p class="normal">And as regards the trained one, you can try the following:</p>
+    <pre class="programlisting code"><code class="hljs-code">create_policy_eval_video(agent.policy, "trained-agent")
+</code></pre>
+    <h2 id="_idParaDest-296" class="title">See also</h2>
+    <p class="normal">Open AI Gym environment documentation can be found at <a href="https://gym.openai.com/"><span class="url">https://gym.openai.com/</span></a>.</p>
+    <h1 id="_idParaDest-297" class="title">MAB</h1>
+    <p class="normal">In probability theory, a <strong class="keyword">multi-armed bandit</strong> (<strong class="keyword">MAB</strong>) problem <a id="_idIndexMarker637"/>refers to a situation <a id="_idIndexMarker638"/>where a limited set <a id="_idIndexMarker639"/>of resources must be allocated between competing choices in such a manner that some form of long-term objective is maximized. The name originated from the analogy that was used to formulate the first version of the model. Imagine we have a gambler facing a row of slot machines who has to decide which ones to play, how many times, and in what order. In RL, we formulate it as an agent that wants to balance exploration (acquisition of new knowledge) and exploitation (optimizing decisions based on experience already acquired). The objective of this balancing is the maximization of a total reward over a period of time. </p>
+    <p class="normal">An MAB is a simplified RL problem: an action taken by the agent does not influence the subsequent state of the environment. This means that there is no need to model state transitions, credit rewards to past actions, or plan ahead to get to rewarding states. The goal of an MAB agent is to determine a policy that maximizes the cumulative reward over time.</p>
+    <p class="normal">The main challenge is an efficient approach to the exploration-exploitation dilemma: if we always try to exploit the action with the highest expected rewards, there is a risk we miss out on better actions that could have been uncovered with more exploration.</p>
+    <p class="normal">The setup used in this example is adapted from the Vowpal Wabbit tutorial at <a href="https://vowpalwabbit.org/tutorials/cb_simulation.html"><span class="url">https://vowpalwabbit.org/tutorials/cb_simulation.html</span></a>.</p>
+    <p class="normal">In this section, we will simulate the problem of personalizing online content: Tom and Anna go to a website at different times of the day and are shown an article. Tom likes politics in the morning and music in the afternoon, while Anna prefers sport or politics in the morning and politics in the afternoon. Casting the problem in MAB terms, this means the following:</p>
+    <ul>
+      <li class="bullet">The context is a pair {user, time of day}</li>
+      <li class="bullet">Possible actions are news topics {politics, sport, music, food}</li>
+      <li class="bullet">The reward is 1 if a user is shown content they find interesting at this time, and 0 otherwise</li>
+    </ul>
+    <p class="normal">The objective is to maximize the <a id="_idIndexMarker640"/>reward measured through the <strong class="keyword">clickthrough rate</strong> (<strong class="keyword">CTR</strong>) of the users.</p>
+    <h2 id="_idParaDest-298" class="title">How do we go about it?</h2>
+    <p class="normal">As <a id="_idIndexMarker641"/>usual, we begin by loading the necessary <a id="_idIndexMarker642"/>packages:</p>
+    <pre class="programlisting code"><code class="hljs-code">!pip install tf-agents
+<span class="hljs-keyword">import</span> abc
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+<span class="hljs-keyword">from</span> tf_agents.agents <span class="hljs-keyword">import</span> tf_agent
+<span class="hljs-keyword">from</span> tf_agents.drivers <span class="hljs-keyword">import</span> driver
+<span class="hljs-keyword">from</span> tf_agents.environments <span class="hljs-keyword">import</span> py_environment
+<span class="hljs-keyword">from</span> tf_agents.environments <span class="hljs-keyword">import</span> tf_environment
+<span class="hljs-keyword">from</span> tf_agents.environments <span class="hljs-keyword">import</span> tf_py_environment
+<span class="hljs-keyword">from</span> tf_agents.policies <span class="hljs-keyword">import</span> tf_policy
+<span class="hljs-keyword">from</span> tf_agents.specs <span class="hljs-keyword">import</span> array_spec
+<span class="hljs-keyword">from</span> tf_agents.specs <span class="hljs-keyword">import</span> tensor_spec
+<span class="hljs-keyword">from</span> tf_agents.trajectories <span class="hljs-keyword">import</span> time_step <span class="hljs-keyword">as</span> ts
+<span class="hljs-keyword">from</span> tf_agents.trajectories <span class="hljs-keyword">import</span> trajectory
+<span class="hljs-keyword">from</span> tf_agents.trajectories <span class="hljs-keyword">import</span> policy_step
+tf.compat.v1.reset_default_graph()
+tf.compat.v1.enable_resource_variables()
+tf.compat.v1.enable_v2_behavior()
+nest = tf.compat.v2.nest
+<span class="hljs-keyword">from</span> tf_agents.bandits.agents <span class="hljs-keyword">import</span> lin_ucb_agent
+<span class="hljs-keyword">from</span> tf_agents.bandits.environments <span class="hljs-keyword">import</span> stationary_stochastic_py_environment <span class="hljs-keyword">as</span> sspe
+<span class="hljs-keyword">from</span> tf_agents.bandits.metrics <span class="hljs-keyword">import</span> tf_metrics
+<span class="hljs-keyword">from</span> tf_agents.drivers <span class="hljs-keyword">import</span> dynamic_step_driver
+<span class="hljs-keyword">from</span> tf_agents.replay_buffers <span class="hljs-keyword">import</span> tf_uniform_replay_buffer
+<span class="hljs-keyword">import</span> matplotlib.pyplot <span class="hljs-keyword">as</span> plt
+</code></pre>
+    <p class="normal">We then define some hyperparameters that will be used later:</p>
+    <pre class="programlisting code"><code class="hljs-code">batch_size = <span class="hljs-number">2</span>
+num_iterations = <span class="hljs-number">100</span> 
+steps_per_loop = <span class="hljs-number">1</span> 
+</code></pre>
+    <p class="normal">The first function we need is a context sampler to generate observations coming from the environment. Since we have two users and two parts of the day, it comes down to generating two-element binary vectors:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">context_sampling_fn</span><span class="hljs-function">(</span><span class="hljs-params">batch_size</span><span class="hljs-function">):</span>
+  <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">_context_sampling_fn</span><span class="hljs-function">():</span>
+    <span class="hljs-keyword">return</span> np.random.randint(<span class="hljs-number">0</span>, <span class="hljs-number">2</span>, [batch_size, <span class="hljs-number">2</span>]).astype(np.float32)
+  <span class="hljs-keyword">return</span> _context_sampling_fn
+</code></pre>
+    <p class="normal">Next, we <a id="_idIndexMarker643"/>define a generic function for calculating <a id="_idIndexMarker644"/>the reward per arm:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">class</span><span class="hljs-class"> </span><span class="hljs-title">CalculateReward</span><span class="hljs-class">(</span><span class="hljs-params">object</span><span class="hljs-class">):</span>
+    
+    <span class="hljs-string">"""A class that acts as linear reward function when called."""</span>
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">__init__</span><span class="hljs-function">(</span><span class="hljs-params">self, theta, sigma</span><span class="hljs-function">):</span>
+        self.theta = theta
+        self.sigma = sigma
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">__call__</span><span class="hljs-function">(</span><span class="hljs-params">self, x</span><span class="hljs-function">):</span>
+        mu = np.dot(x, self.theta)
+        <span class="hljs-comment">#return np.random.normal(mu, self.sigma)</span>
+        <span class="hljs-keyword">return</span> (mu &gt; <span class="hljs-number">0</span>) + <span class="hljs-number">0</span>
+</code></pre>
+    <p class="normal">We can use the function to define the rewards per arm. They reflect the set of preferences described at the beginning of this recipe:</p>
+    <pre class="programlisting code"><code class="hljs-code">arm0_param = [<span class="hljs-number">2</span>, <span class="hljs-number">-1</span>]
+arm1_param = [<span class="hljs-number">1</span>, <span class="hljs-number">-1</span>] 
+arm2_param = [<span class="hljs-number">-1</span>, <span class="hljs-number">1</span>] 
+arm3_param = [ <span class="hljs-number">0</span>, <span class="hljs-number">0</span>] 
+arm0_reward_fn = CalculateReward(arm0_param, <span class="hljs-number">1</span>)
+arm1_reward_fn = CalculateReward(arm1_param, <span class="hljs-number">1</span>)
+arm2_reward_fn = CalculateReward(arm2_param, <span class="hljs-number">1</span>)
+arm3_reward_fn = CalculateReward(arm3_param, <span class="hljs-number">1</span>)
+</code></pre>
+    <p class="normal">The final part of our function's setup involves a calculation of the optimal rewards for a given context:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">compute_optimal_reward</span><span class="hljs-function">(</span><span class="hljs-params">observation</span><span class="hljs-function">):</span>
+    expected_reward_for_arms = [
+      tf.linalg.matvec(observation, tf.cast(arm0_param, dtype=tf.float32)),
+      tf.linalg.matvec(observation, tf.cast(arm1_param, dtype=tf.float32)),
+      tf.linalg.matvec(observation, tf.cast(arm2_param, dtype=tf.float32)),
+      tf.linalg.matvec(observation, tf.cast(arm3_param, dtype=tf.float32))
+    ]
+    optimal_action_reward = tf.reduce_max(expected_reward_for_arms, axis=<span class="hljs-number">0</span>)
+    
+    <span class="hljs-keyword">return</span> optimal_action_reward
+</code></pre>
+    <p class="normal">For the sake of <a id="_idIndexMarker645"/>this example, we assume that <a id="_idIndexMarker646"/>the environment is stationary; in other words, the preferences do not change over time (which does not need to be the case in a practical scenario, depending on your time horizon of interest): </p>
+    <pre class="programlisting code"><code class="hljs-code">environment = tf_py_environment.TFPyEnvironment(
+    sspe.StationaryStochasticPyEnvironment(
+        context_sampling_fn(batch_size),
+        [arm0_reward_fn, arm1_reward_fn, arm2_reward_fn, arm3_reward_fn],
+        batch_size=batch_size))
+</code></pre>
+    <p class="normal">We are now ready to instantiate an agent implementing a bandit algorithm. We use a predefined <code class="Code-In-Text--PACKT-">LinUCB</code> class; as usual, we define the observation (two elements representing the user and the time of day), time step, and action specification (one of four possible types of content):</p>
+    <pre class="programlisting code"><code class="hljs-code">observation_spec = tensor_spec.TensorSpec([<span class="hljs-number">2</span>], tf.float32)
+time_step_spec = ts.time_step_spec(observation_spec)
+action_spec = tensor_spec.BoundedTensorSpec(
+    dtype=tf.int32, shape=(), minimum=<span class="hljs-number">0</span>, maximum=<span class="hljs-number">2</span>)
+agent = lin_ucb_agent.LinearUCBAgent(time_step_spec=time_step_spec,
+                                     action_spec=action_spec)
+</code></pre>
+    <p class="normal">A crucial component of the MAB setup is regret, which is defined as the difference between an actual reward collected by the agent and the expected reward of an <strong class="keyword">oracle policy</strong>:</p>
+    <pre class="programlisting code"><code class="hljs-code">regret_metric = tf_metrics.RegretMetric(compute_optimal_reward)
+</code></pre>
+    <p class="normal">We can now commence the training of our agent. We run the trainer loop for <code class="Code-In-Text--PACKT-">num_iterations</code> and <a id="_idIndexMarker647"/>execute <code class="Code-In-Text--PACKT-">steps_per_loop</code> in each step. Finding the appropriate values <a id="_idIndexMarker648"/>for those parameters is usually about striking a balance between the recent nature of updates and training efficiency:</p>
+    <pre class="programlisting code"><code class="hljs-code">replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
+    data_spec=agent.policy.trajectory_spec,
+    batch_size=batch_size,
+    max_length=steps_per_loop)
+observers = [replay_buffer.add_batch, regret_metric]
+driver = dynamic_step_driver.DynamicStepDriver(
+    env=environment,
+    policy=agent.collect_policy,
+    num_steps=steps_per_loop * batch_size,
+    observers=observers)
+regret_values = []
+<span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> range(num_iterations):
+    driver.run()
+    loss_info = agent.train(replay_buffer.gather_all())
+    replay_buffer.clear()
+    regret_values.append(regret_metric.result())
+</code></pre>
+    <p class="normal">We can visualize the results of our experiment by plotting the regret (negative reward) over subsequent iterations of the algorithm:</p>
+    <pre class="programlisting code"><code class="hljs-code">plt.plot(regret_values)
+plt.ylabel(<span class="hljs-string">'Average Regret'</span>)
+plt.xlabel(<span class="hljs-string">'Number of Iterations'</span>)
+</code></pre>
+    <p class="normal">Which will plot the following graph for us:</p>
+    <figure class="mediaobject"><img src="../Images/B16254_11_05.png" alt=""/></figure>
+    <p class="packt_figref">Figure 11.5: Performance of a trained UCB agent over time</p>
+    <p class="normal">As the preceding graph <a id="_idIndexMarker649"/>demonstrates, after an <a id="_idIndexMarker650"/>initial period of learning (indicating a spike in regret around iteration 30), the agent keeps getting better at serving the desired content. There is a lot of variation going on, which shows that even in a simplified setting – two users – efficient personalization remains a challenge. Possible avenues of improvement could involve longer training or adapting a DQN agent so that more sophisticated logic can be employed for prediction.</p>
+    <h2 id="_idParaDest-299" class="title">See also</h2>
+    <p class="normal">An extensive collection of bandits and related environments can be found in the <em class="italic">TF-Agents documentation repository</em>: <a href="https://github.com/tensorflow/agents/tree/master/tf_agents/bandits/agents/examples/v2"><span class="url">https://github.com/tensorflow/agents/tree/master/tf_agents/bandits/agents/examples/v2</span></a>.</p>
+    <p class="normal">Readers interested in contextual multi-armed bandits are encouraged to follow the relevant chapters from the book by <em class="italic">Sutton and Barto</em>: <a href="https://web.stanford.edu/class/psych209/Readings/SuttonBartoIPRLBook2ndEd.pdf"><span class="url">https://web.stanford.edu/class/psych209/Readings/SuttonBartoIPRLBook2ndEd.pdf</span></a>.</p>
+  </div>
+</body></html>

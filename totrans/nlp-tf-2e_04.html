@@ -1,0 +1,948 @@
+<html><head></head><body>
+  <div id="_idContainer135" class="Basic-Text-Frame">
+    <h1 class="chapterNumber">4</h1>
+    <h1 id="_idParaDest-86" class="chapterTitle">Advanced Word Vector Algorithms</h1>
+    <p class="normal">In <em class="chapterRef">Chapter 3</em>, <em class="italic">Word2vec – Learning Word Embeddings</em>, we introduced you to Word2vec, the basics of learning word embeddings, and the two common Word2vec algorithms: skip-gram and CBOW. In this chapter, we will discuss several other word vector algorithms:</p>
+    <ul>
+      <li class="bulletList">GloVe – Global Vectors</li>
+      <li class="bulletList">ELMo – Embeddings from Language Models</li>
+      <li class="bulletList">Document classification with ELMo</li>
+    </ul>
+    <p class="normal">First, you will learn a word embedding learning technique known as <strong class="keyWord">Global Vectors</strong> (<strong class="keyWord">GloVe</strong>) and the specific advantages that GloVe has over skip-gram and CBOW.</p>
+    <p class="normal">You will also look at a recent approach for representing language called <strong class="keyWord">Embeddings from Language Models </strong>(<strong class="keyWord">ELMo</strong>). ELMo has an edge over other algorithms as it is able to disambiguate words, as well as capture semantics. Specifically, ELMo generates “contextualized” word representations, by using a given word along with its surrounding words, as opposed to treating word representations independently, as in skip-gram or CBOW. </p>
+    <p class="normal">Finally, we will solve an exciting use-case of document classification using our newly founded ELMo vectors.</p>
+    <h1 id="_idParaDest-87" class="heading-1">GloVe – Global Vectors representation</h1>
+    <p class="normal">One of the main limitations of skip-gram and CBOW algorithms is that they can only capture local <a id="_idIndexMarker350"/>contextual information, as they only look at a fixed-length window around a word. There’s an important part of the puzzle missing here as these algorithms do not look at global statistics (by global statistics we mean a way for us to see all the occurrences of words in the context of another word in a text corpus). </p>
+    <p class="normal">However, we have already studied a structure that could contain this information in <em class="chapterRef">Chapter 3</em>, <em class="italic">Word2vec – Learning Word Embeddings</em>: the co-occurrence matrix. Let’s refresh our memory on the co-occurrence matrix, as GloVe uses the statistics captured in the co-occurrence matrix to compute vectors.</p>
+    <p class="normal">Co-occurrence matrices encode the context information of words, but they require maintaining a V × V matrix, where V is the size of the vocabulary. To understand the co-occurrence matrix, let’s take two example sentences:</p>
+    <ul>
+      <li class="bulletList"><em class="italic">Jerry and Mary are friends</em>.</li>
+      <li class="bulletList"><em class="italic">Jerry buys flowers for Mary</em>.</li>
+    </ul>
+    <p class="normal">If we assume a context window of size 1, on each side of a chosen word, the co-occurrence matrix will look like the following (we only show the upper triangle of the matrix, as the matrix is symmetric):</p>
+    <table id="table001-2" class="table-container">
+      <tbody>
+        <tr>
+          <td class="table-cell"/>
+          <td class="table-cell">
+            <p class="normal"><strong class="keyWord">Jerry</strong></p>
+          </td>
+          <td class="table-cell">
+            <p class="normal"><strong class="keyWord">and</strong></p>
+          </td>
+          <td class="table-cell">
+            <p class="normal"><strong class="keyWord">Mary</strong></p>
+          </td>
+          <td class="table-cell">
+            <p class="normal"><strong class="keyWord">are</strong></p>
+          </td>
+          <td class="table-cell">
+            <p class="normal"><strong class="keyWord">friends</strong></p>
+          </td>
+          <td class="table-cell">
+            <p class="normal"><strong class="keyWord">buys</strong></p>
+          </td>
+          <td class="table-cell">
+            <p class="normal"><strong class="keyWord">flowers</strong></p>
+          </td>
+          <td class="table-cell">
+            <p class="normal"><strong class="keyWord">for</strong></p>
+          </td>
+        </tr>
+        <tr>
+          <td class="table-cell">
+            <p class="normal"><strong class="keyWord">Jerry</strong></p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">1</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">1</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+        </tr>
+        <tr>
+          <td class="table-cell">
+            <p class="normal"><strong class="keyWord">and</strong></p>
+          </td>
+          <td class="table-cell"/>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">1</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+        </tr>
+        <tr>
+          <td class="table-cell">
+            <p class="normal"><strong class="keyWord">Mary</strong></p>
+          </td>
+          <td class="table-cell"/>
+          <td class="table-cell"/>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">1</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">1</p>
+          </td>
+        </tr>
+        <tr>
+          <td class="table-cell">
+            <p class="normal"><strong class="keyWord">are</strong></p>
+          </td>
+          <td class="table-cell"/>
+          <td class="table-cell"/>
+          <td class="table-cell"/>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">1</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+        </tr>
+        <tr>
+          <td class="table-cell">
+            <p class="normal"><strong class="keyWord">friends</strong></p>
+          </td>
+          <td class="table-cell"/>
+          <td class="table-cell"/>
+          <td class="table-cell"/>
+          <td class="table-cell"/>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+        </tr>
+        <tr>
+          <td class="table-cell">
+            <p class="normal"><strong class="keyWord">buys</strong></p>
+          </td>
+          <td class="table-cell"/>
+          <td class="table-cell"/>
+          <td class="table-cell"/>
+          <td class="table-cell"/>
+          <td class="table-cell"/>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">1</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+        </tr>
+        <tr>
+          <td class="table-cell">
+            <p class="normal"><strong class="keyWord">flowers</strong></p>
+          </td>
+          <td class="table-cell"/>
+          <td class="table-cell"/>
+          <td class="table-cell"/>
+          <td class="table-cell"/>
+          <td class="table-cell"/>
+          <td class="table-cell"/>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+          <td class="table-cell">
+            <p class="normal">1</p>
+          </td>
+        </tr>
+        <tr>
+          <td class="table-cell">
+            <p class="normal"><strong class="keyWord">for</strong></p>
+          </td>
+          <td class="table-cell"/>
+          <td class="table-cell"/>
+          <td class="table-cell"/>
+          <td class="table-cell"/>
+          <td class="table-cell"/>
+          <td class="table-cell"/>
+          <td class="table-cell"/>
+          <td class="table-cell">
+            <p class="normal">0</p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="normal">We can see that this matrix shows us how a word in a corpus is related to any other word, hence it contains global statistics about the corpus. That said, what are some of the advantages of having a co-occurrence matrix, as opposed to seeing just the local context?</p>
+    <ul>
+      <li class="bulletList">It provides you with <a id="_idIndexMarker351"/>additional information about the characteristics of the words. For example, if you consider the sentence “the cat sat on the mat,” it is difficult to say if “the” is a special word that appears in the context of words such as “cat” or “mat.” However, if you have a large-enough corpus and a co-occurrence matrix, it’s very easy to see that “the” is a frequently occurring stop word.</li>
+      <li class="bulletList">The co-occurrence matrix recognizes the repeating usages of contexts or phrases, whereas in the local context this information is ignored. For example, in a large enough corpus, “New York” will be a clear winner, showing that the two words appear in the same context many times.</li>
+    </ul>
+    <p class="normal">It is important to keep in mind that Word2vec algorithms use various techniques to approximately inject some word co-occurrence patterns, while learning word vectors. For example, the sub-sampling technique we used in the previous chapter (i.e. sampling lower-frequency words more) helps to detect and avoid stop words. But they introduce additional hyperparameters and are not as informative as the co-occurrence matrix.</p>
+    <div class="note">
+      <p class="normal">Using global statistics to come up with word representations is not a new concept. An algorithm<a id="_idIndexMarker352"/> known as <strong class="keyWord">Latent Semantic Analysis</strong> (<strong class="keyWord">LSA</strong>) has been using global statistics in its approach.</p>
+      <p class="normal">LSA is used as a document analysis technique that maps words in the documents to<a id="_idIndexMarker353"/> something known as a <strong class="keyWord">concept</strong>, a common pattern of words that appears in a document. Global matrix factorization-based methods efficiently exploit the global statistics of a corpus (for example, co-occurrence of words in a global scope), but have been shown to perform poorly at word analogy tasks. On the other hand, context window-based methods have been shown to perform well at word analogy tasks, but do not utilize global statistics of the corpus, leaving space for improvement. GloVe attempts to get the best of both worlds—an approach that efficiently leverages global corpus statistics while optimizing the learning model in a context window-based manner similar to skip-gram or CBOW.</p>
+    </div>
+    <p class="normal">GloVe, a new <a id="_idIndexMarker354"/>technique for learning word embeddings was introduced in the paper “GloVe: Global Vectors for Word Representation” by Pennington et al. (<a href="https://nlp.stanford.edu/pubs/glove.pdf"><span class="url">https://nlp.stanford.edu/pubs/glove.pdf</span></a>). GloVe attempts to bridge the gap of missing global co-occurrence information in Word2vec algorithms. The main contribution of GloVe is a new cost function (or an objective function) that uses the valuable statistics available in the co-occurrence matrix. Let’s first understand the motivation behind the GloVe method.</p>
+    <h2 id="_idParaDest-88" class="heading-2">Understanding GloVe</h2>
+    <p class="normal">Before looking at the implementation<a id="_idIndexMarker355"/> details of GloVe, let’s take time to understand the concepts governing the computations in GloVe. To do so, let’s consider an example:</p>
+    <ul>
+      <li class="bulletList">Consider word <em class="italic">i</em>=Ice and <em class="italic">j</em>=Steam</li>
+      <li class="bulletList">Define an arbitrary probe word <em class="italic">k</em></li>
+      <li class="bulletList">Define <img src="../Images/B14070_04_001.png" alt="" style="height: 1.15em !important; vertical-align: -0.20em !important;"/> to be the probability of words <em class="italic">i</em> and <em class="italic">k</em> occurring close to each other, and <img src="../Images/B14070_04_002.png" alt="" style="height: 1.35em !important; vertical-align: -0.39em !important;"/> to be the words <em class="italic">j</em> and <em class="italic">k</em> occurring together</li>
+    </ul>
+    <p class="normal">Now let’s look at how the <img src="../Images/B14070_04_003.png" alt="" style="height: 1.35em !important; vertical-align: -0.39em !important;"/> entity behaves with different values for <em class="italic">k</em>.</p>
+    <p class="normal">For <em class="italic">k</em> = “Solid” , it is highly likely to appear with <em class="italic">i</em>, thus, <img src="../Images/B14070_04_001.png" alt="" style="height: 1.15em !important; vertical-align: -0.20em !important;"/> will be high. However, <em class="italic">k</em> would not often appear along with <em class="italic">j</em> causing a low <img src="../Images/B14070_04_002.png" alt="" style="height: 1.35em !important; vertical-align: -0.39em !important;"/>. Therefore, we get the following expression:</p>
+    <p class="center"><img src="../Images/B14070_04_006.png" alt="" style="height: 1.35em !important; vertical-align: 0.01em !important;"/></p>
+    <p class="normal">Next, for <em class="italic">k</em> = “gas”, it is unlikely to appear in the close proximity of <em class="italic">i</em> and therefore will have a low <img src="../Images/B14070_04_001.png" alt="" style="height: 1.15em !important; vertical-align: -0.20em !important;"/>; however, since <em class="italic">k</em> highly correlates with <em class="italic">j</em>, the value of <img src="../Images/B14070_04_002.png" alt="" style="height: 1.35em !important; vertical-align: -0.39em !important;"/> will be high. This leads to the following:</p>
+    <p class="center"><img src="../Images/B14070_04_009.png" alt="" style="height: 1.35em !important; vertical-align: 0.01em !important;"/></p>
+    <p class="normal">Now, for words such as <em class="italic">k</em> = “water”, which has a strong relationship with both <em class="italic">i</em> and <em class="italic">j</em>, or <em class="italic">k</em> = “Fashion”, which <em class="italic">i</em> and <em class="italic">j</em> both have minimal relevance to, we get this:</p>
+    <p class="center"><img src="../Images/B14070_04_010.png" alt="" style="height: 1.35em !important; vertical-align: 0.01em !important;"/></p>
+    <p class="normal">If you assume we have learned sensible word embeddings for these words, these relationships can be visualized in a vectors space to understand why the ratio <img src="../Images/B14070_04_003.png" alt="" style="height: 1.35em !important; vertical-align: -0.39em !important;"/> behaves this way (see <em class="italic">Figure 4. 1</em>). In the figure below, the solid arrow shows the distance between the words (<em class="italic">i, j</em>), whereas the dashed lines express the distance between the words, (<em class="italic">i, k</em>) and (<em class="italic">j, k</em>). These distances can then be associated with the probability values we discussed. For example, when <em class="italic">i</em> = “ice” and <em class="italic">k</em> = “solid”, we expect their vectors to have a shorter distance between them (i.e. more frequently co-occurring). Therefore, we can associate distance between (<em class="italic">i, k</em>) as the inverse of <img src="../Images/B14070_04_001.png" alt="" style="height: 1.15em !important; vertical-align: -0.20em !important;"/> (i.e. <img src="../Images/B14070_04_013.png" alt="" style="height: 1.15em !important; vertical-align: -0.20em !important;"/>) due to the definition of <img src="../Images/B14070_04_001.png" alt="" style="height: 1.15em !important; vertical-align: -0.20em !important;"/>. This diagram shows how these distances vary as the probe word <em class="italic">k</em> changes:</p>
+    <figure class="mediaobject"><img src="../Images/B14070_04_01.png" alt=""/></figure>
+    <p class="packt_figref">Figure 4.1: How the entities P_ik and P_jk behave as the probe word changes in proximity to the words i and j</p>
+    <p class="normal">It can be seen that the <img src="../Images/B14070_04_003.png" alt="" style="height: 1.35em !important; vertical-align: -0.39em !important;"/> entity, which is calculated by measuring the frequency of two words appearing close to each other, behaves in different ways as the relationship between the three words<a id="_idIndexMarker356"/> changes. As a result, it becomes a good candidate for learning word vectors. Therefore, a good starting point for defining the loss function will be as shown here:</p>
+    <p class="center"><img src="../Images/B14070_04_016.png" alt="" style="height: 1.45em !important; vertical-align: -0.01em !important;"/></p>
+    <p class="normal">Here, <em class="italic">F</em> is some function and <em class="italic">w</em> and <img src="../Images/B14070_04_017.png" alt="" style="height: 1.05em !important; vertical-align: -0.08em !important;"/> are two different embedding spaces we’ll be using. In other words, the words <img src="../Images/B14070_04_018.png" alt="" style="height: 1.05em !important; vertical-align: -0.08em !important;"/> and <img src="../Images/B14070_04_019.png" alt="" style="height: 1.25em !important; vertical-align: -0.30em !important;"/> are looked up from one embedding space, whereas the probe word <img src="../Images/B14070_04_020.png" alt="" style="height: 1.05em !important; vertical-align: -0.08em !important;"/> is looked up from another. From this point, the original paper goes through the derivation meticulously to reach the following loss function:</p>
+    <p class="center"><img src="../Images/B14070_04_021.png" alt="" style="height: 3.55em !important;"/></p>
+    <p class="normal">We will not go through the derivation here, as that’s out of scope for this book. Rather we will use the derived loss function and implement the algorithm with TensorFlow. If you need a less<a id="_idIndexMarker357"/> mathematically dense explanation of how we can derive this cost function, please refer to the author-written article at <a href="https://towardsdatascience.com/light-on-math-ml-intuitive-guide-to-understanding-glove-embeddings-b13b4f19c010"><span class="url">https://towardsdatascience.com/light-on-math-ml-intuitive-guide-to-understanding-glove-embeddings-b13b4f19c010</span></a>.</p>
+    <p class="normal">Here, <img src="../Images/B14070_04_022.png" alt="" style="height: 1.25em !important; vertical-align: -0.30em !important;"/> is defined as <img src="../Images/B14070_04_023.png" alt="" style="height: 1.45em !important; vertical-align: -0.25em !important;"/>, if <img src="../Images/B14070_04_024.png" alt="" style="height: 1.15em !important; vertical-align: -0.20em !important;"/>, else 1, where <img src="../Images/B14070_04_025.png" alt="" style="height: 1.35em !important; vertical-align: -0.39em !important;"/> is the frequency with which the word <em class="italic">j</em> appeared in the context of the word <em class="italic">i</em>. <img src="../Images/B14070_04_034.png" alt="" style="height: 1.15em !important; vertical-align: -0.15em !important;"/> is a hyperparameter we set. Remember that we defined two embedding spaces <img src="../Images/B14070_04_026.png" alt="" style="height: 1.05em !important; vertical-align: -0.08em !important;"/> and <img src="../Images/B14070_04_017.png" alt="" style="height: 1.05em !important; vertical-align: -0.08em !important;"/> in our loss function. <img src="../Images/B14070_04_028.png" alt="" style="height: 1.15em !important; vertical-align: -0.20em !important;"/> and <img src="../Images/B14070_04_029.png" alt="" style="height: 1.15em !important; vertical-align: -0.20em !important;"/> represent the word embedding and the bias embedding for the word <em class="italic">i</em> obtained from embedding space <img src="../Images/B14070_04_026.png" alt="" style="height: 1.05em !important; vertical-align: -0.08em !important;"/>, respectively. And, <img src="../Images/B14070_04_031.png" alt="" style="height: 1.35em !important; vertical-align: -0.43em !important;"/> and <img src="../Images/B14070_04_032.png" alt="" style="height: 1.45em !important; vertical-align: -0.28em !important;"/> represent the word embedding and bias embedding for word <em class="italic">j</em> obtained from embedding space <img src="../Images/B14070_04_017.png" alt="" style="height: 1.05em !important; vertical-align: -0.08em !important;"/>, respectively. Both these embeddings behave similarly except for the randomization at the initialization. At the evaluation phase, these two embeddings are added together, leading to improved performance.</p>
+    <h2 id="_idParaDest-89" class="heading-2">Implementing GloVe</h2>
+    <p class="normal">In this<a id="_idIndexMarker358"/> subsection, we will discuss the steps for implementing GloVe. The full code is available in the <code class="inlineCode">ch4_glove.ipynb</code> exercise file located in the <code class="inlineCode">ch4</code> folder.</p>
+    <p class="normal">First, we’ll define the hyperparameters as we did in the previous chapter: </p>
+    <pre class="programlisting code"><code class="hljs-code">batch_size = <span class="hljs-number">4096</span> <span class="hljs-comment"># Data points in a single batch</span>
+embedding_size = <span class="hljs-number">128</span> <span class="hljs-comment"># Dimension of the embedding vector.</span>
+window_size=<span class="hljs-number">1</span> <span class="hljs-comment"># We use a window size of 1 on either side of target word</span>
+epochs = <span class="hljs-number">5</span> <span class="hljs-comment"># Number of epochs to train for</span>
+<span class="hljs-comment"># We pick a random validation set to sample nearest neighbors</span>
+valid_size = <span class="hljs-number">16</span> <span class="hljs-comment"># Random set of words to evaluate similarity on.</span>
+<span class="hljs-comment"># We sample valid datapoints randomly from a large window without always </span>
+<span class="hljs-comment"># being deterministic</span>
+valid_window = <span class="hljs-number">250</span>
+<span class="hljs-comment"># When selecting valid examples, we select some of the most frequent words # as well as</span> <span class="hljs-comment">some moderately rare words as well</span>
+np.random.seed(<span class="hljs-number">54321</span>)
+random.seed(<span class="hljs-number">54321</span>)
+valid_term_ids = np.array(random.sample(<span class="hljs-built_in">range</span>(valid_window), valid_size))
+valid_term_ids = np.append(
+    valid_term_ids, random.sample(<span class="hljs-built_in">range</span>(<span class="hljs-number">1000</span>, <span class="hljs-number">1000</span>+valid_window), valid_ 
+    size),
+    axis=<span class="hljs-number">0</span>
+)
+</code></pre>
+    <p class="normal">The hyperparameters you define here are the same hyperparameters we defined in the previous chapter. We <a id="_idIndexMarker359"/>have a batch size, embedding size, window size, the number of epochs, and, finally, a set of held-out validation word IDs that we will print the most similar words to.</p>
+    <p class="normal">We will then define the model. First, we will import a few things we will need down the line: </p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow.keras.backend <span class="hljs-keyword">as</span> K
+<span class="hljs-keyword">from</span> tensorflow.keras.layers <span class="hljs-keyword">import</span> Input, Embedding, Dot, Add
+<span class="hljs-keyword">from</span> tensorflow.keras.models <span class="hljs-keyword">import</span> Model
+K.clear_session()
+</code></pre>
+    <p class="normal">The model is going to have two input layers: <code class="inlineCode">word_i </code>and <code class="inlineCode">word_j</code>. They represent a batch of context words and a batch of target words (or a batch of positive skip-grams): </p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Define two input layers for context and target words</span>
+word_i = Input(shape=())
+word_j = Input(shape=())
+</code></pre>
+    <p class="normal">Note how the shape is defined. The shape is defined as an empty tuple. This means the final shape of <code class="inlineCode">word_i</code> and <code class="inlineCode">word_j</code> would be <code class="inlineCode">[None]</code>, meaning it will take a vector of an arbitrary number of elements as the input. </p>
+    <p class="normal">Next, we are going to define the embedding layers. There will be four embedding layers:</p>
+    <ul>
+      <li class="bulletList"><code class="inlineCode">embeddings_i</code> – The context embedding layer</li>
+      <li class="bulletList"><code class="inlineCode">embeddings_j</code> – The target embedding layer</li>
+      <li class="bulletList"><code class="inlineCode">b_i </code>– The context embedding bias</li>
+      <li class="bulletList"><code class="inlineCode">b_j </code>– The target embedding bias</li>
+    </ul>
+    <p class="normal">The following code defines these:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Each context and target has their own embeddings (weights and biases)</span>
+<span class="hljs-comment"># Embedding weights</span>
+embeddings_i = Embedding(n_vocab, embedding_size, name=<span class="hljs-string">'target_embedding'</span>)(word_i)
+embeddings_j = Embedding(n_vocab, embedding_size, name=<span class="hljs-string">'context_embedding'</span>)(word_j)
+<span class="hljs-comment"># Embedding biases</span>
+b_i = Embedding(n_vocab, <span class="hljs-number">1</span>, name=<span class="hljs-string">'target_embedding_bias'</span>)(word_i)
+b_j = Embedding(n_vocab, <span class="hljs-number">1</span>, name=<span class="hljs-string">'context_embedding_bias'</span>)(word_j)
+</code></pre>
+    <p class="normal">Next, we are going to compute the output. The output of this model will be:</p>
+    <p class="center"><img src="../Images/B14070_04_035.png" alt="" style="height: 1.45em !important; vertical-align: -0.01em !important;"/></p>
+    <p class="normal">As you can see, that’s a portion <a id="_idIndexMarker360"/>of our final loss function. We have all the right ingredients to compute this result: </p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Compute the dot product between embedding vectors (i.e. w_i.w_j)</span>
+ij_dot = Dot(axes=-<span class="hljs-number">1</span>)([embeddings_i,embeddings_j])
+<span class="hljs-comment"># Add the biases (i.e. w_i.w_j + b_i + b_j )</span>
+pred = Add()([ij_dot, b_i, b_j])
+</code></pre>
+    <p class="normal">First we will use the <code class="inlineCode">tensorflow.keras.layers.Dot</code> layer to compute the dot product batch-wise between the context embedding lookup (<code class="inlineCode">embeddings_i</code>) and the target embedding lookup (<code class="inlineCode">embeddings_j</code>). For example, the two inputs to the <code class="inlineCode">Dot</code> layer will be of size <code class="inlineCode">[batch size, embedding size]</code>. After the dot product, the output <code class="inlineCode">ij_dot</code> will be <code class="inlineCode">[batch size, 1]</code>, where <code class="inlineCode">ij_dot[k]</code> will be the dot product between <code class="inlineCode">embeddings_i[k, :]</code> and <code class="inlineCode">embeddings_j[k, :]</code>. Then we simply add <code class="inlineCode">b_i</code> and <code class="inlineCode">b_j</code> (which has shape <code class="inlineCode">[None, 1]</code>) element-wise to <code class="inlineCode">ij_dot</code>.</p>
+    <p class="normal">Finally, the model is defined as taking <code class="inlineCode">word_i</code> and <code class="inlineCode">word_j</code> as inputs and outputting <code class="inlineCode">pred</code>:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># The final model</span>
+glove_model = Model(
+    inputs=[word_i, word_j],outputs=pred,
+name=<span class="hljs-string">'glove_model'</span>
+)
+</code></pre>
+    <p class="normal">Next, we are going to<a id="_idIndexMarker361"/> do something quite important. </p>
+    <p class="normal">We have to devise a way to compute the complex loss function defined above, using various components/functionality available in a model. First let’s revisit the loss function.</p>
+    <p class="center"><img src="../Images/B14070_04_021.png" alt="" style="height: 3.55em !important;"/></p>
+    <p class="normal">where,</p>
+    <p class="center"><img src="../Images/B14070_04_023.png" alt="" style="height: 1.45em !important; vertical-align: -0.25em !important;"/>, if <img src="../Images/B14070_04_024.png" alt="" style="height: 1.15em !important; vertical-align: -0.20em !important;"/>, else 1.</p>
+    <p class="normal">Although it looks complex, we can use already existing loss functions and other functionality to implement the GloVe loss. You can abstract this loss function into three components as shown in the image below:</p>
+    <figure class="mediaobject"><img src="../Images/B14070_04_02.png" alt=""/></figure>
+    <p class="packt_figref">Figure 4.2: The breakdown of the GloVe loss function showing how predictions, targets, and weights interact with each other to compute the final loss</p>
+    <p class="normal">Therefore, if sample weights are denoted by <img src="../Images/B14070_04_039.png" alt="" style="height: 1.05em !important; vertical-align: -0.08em !important;"/>, predictions are denoted by <img src="../Images/B14070_04_040.png" alt="" style="height: 1.05em !important; vertical-align: -0.02em !important;"/>, and true targets are denoted by <img src="../Images/B14070_04_041.png" alt="" style="height: 1.05em !important; vertical-align: -0.08em !important;"/>, then we can write the loss as:</p>
+    <p class="center"><img src="../Images/B14070_04_042.png" alt="" style="height: 1.57em !important; vertical-align: 0.05em !important;"/></p>
+    <p class="normal">This is simply a weighted mean squared loss. Therefore, we will use <code class="inlineCode">"mse"</code> as the loss for our model:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Glove has a specific loss function with a sound mathematical</span>
+<span class="hljs-comment"># underpinning</span>
+<span class="hljs-comment"># It is a form of mean squared error</span>
+glove_model.<span class="hljs-built_in">compile</span>(loss=<span class="hljs-string">"mse"</span>, optimizer = <span class="hljs-string">'adam'</span>)
+</code></pre>
+    <p class="normal">We will later see how we can feed in sample weights to the model to complete the loss function. So far, we <a id="_idIndexMarker362"/>have defined different components of the GloVe algorithm and compiled the model. Next, we are going to have a look at how data can be generated to train the GloVe model.</p>
+    <h2 id="_idParaDest-90" class="heading-2">Generating data for GloVe</h2>
+    <p class="normal">The dataset <a id="_idIndexMarker363"/>we will be using is the same as the dataset from the previous chapter. To recap, we will be using the BBC news articles dataset available at <a href="http://mlg.ucd.ie/datasets/bbc.html"><span class="url">http://mlg.ucd.ie/datasets/bbc.html</span></a>. It contains 2225 news articles belonging to 5 topics, business, entertainment, politics, sport, and tech, which were published on the BBC website between 2004 and 2005.</p>
+    <p class="normal">Let’s now generate the data. We will be encapsulating the data generation in a function called <code class="inlineCode">glove_data_generator()</code>. As the first step, let us write a function signature: </p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span> <span class="hljs-title">glove_data_generator</span>(
+<span class="hljs-params">    sequences, window_size, batch_size, vocab_size, cooccurrence_matrix,</span>
+<span class="hljs-params">    x_max=</span><span class="hljs-number">100.0</span><span class="hljs-params">, alpha=</span><span class="hljs-number">0.75</span><span class="hljs-params">, seed=</span><span class="hljs-literal">None</span>
+):
+</code></pre>
+    <p class="normal">The function takes several arguments:</p>
+    <ul>
+      <li class="bulletList"><code class="inlineCode">sequences</code> (<code class="inlineCode">List[List[int]]</code>) – a list of a list of word IDs. This is the output generated by tokenizer’s <code class="inlineCode">texts_to_sequences()</code> function. </li>
+      <li class="bulletList"><code class="inlineCode">window_size</code> (<code class="inlineCode">int</code>) – Window size for the context.</li>
+      <li class="bulletList"><code class="inlineCode">batch_size</code> (<code class="inlineCode">int</code>) – Batch size.</li>
+      <li class="bulletList"><code class="inlineCode">vocab_size</code> (<code class="inlineCode">int</code>) – Vocabulary size. </li>
+      <li class="bulletList"><code class="inlineCode">cooccurrence_matrix</code> (<code class="inlineCode">scipy.sparse.lil_matrix</code>) – A sparse matrix containing co-occurrences of words.</li>
+      <li class="bulletList"><code class="inlineCode">x_max</code> (<code class="inlineCode">int</code>) – Hyperparameter used by GloVe to compute sample weights.</li>
+      <li class="bulletList"><code class="inlineCode">alpha</code> (<code class="inlineCode">float</code>) – Hyperparameter used by GloVe to compute sample weights.</li>
+      <li class="bulletList"><code class="inlineCode">seed</code> – The random seed.</li>
+    </ul>
+    <p class="normal">It also has several outputs:</p>
+    <ul>
+      <li class="bulletList">A batch of (target, context) word ID tuples</li>
+      <li class="bulletList">The corresponding <img src="../Images/B14070_04_043.png" alt="" style="height: 1.45em !important; vertical-align: -0.43em !important;"/> values for the (target, context) tuples</li>
+      <li class="bulletList">Sample weights (i.e. <img src="../Images/B14070_04_044.png" alt="" style="height: 1.45em !important; vertical-align: -0.43em !important;"/>) values for the (target, context) tuples</li>
+    </ul>
+    <p class="normal">First we will shuffle the order of news articles:</p>
+    <pre class="programlisting code"><code class="hljs-code">    <span class="hljs-comment"># Shuffle the data so that, every epoch, the order of data is</span>
+<span class="hljs-comment">    # different</span>
+    rand_sequence_ids = np.arange(<span class="hljs-built_in">len</span>(sequences))
+    np.random.shuffle(rand_sequence_ids)
+</code></pre>
+    <p class="normal">Next, we will create the<a id="_idIndexMarker364"/> sampling table, so that we can use sub-sampling to avoid over-sampling common words (e.g. stop words):</p>
+    <pre class="programlisting code"><code class="hljs-code">    sampling_table = 
+    tf.keras.preprocessing.sequence.make_sampling_table(vocab_size)
+</code></pre>
+    <p class="normal">With that, for every sequence (i.e. list of word IDs) representing an article, we generate positive skip-grams. Note how we are keeping <code class="inlineCode">negative_samples=0.0</code> as, unlike skip-gram or CBOW algorithms, GloVe does not rely on negative candidates: </p>
+    <pre class="programlisting code"><code class="hljs-code">    <span class="hljs-comment"># For each story/article</span>
+    <span class="hljs-keyword">for</span> si <span class="hljs-keyword">in</span> rand_sequence_ids:
+        
+        <span class="hljs-comment"># Generate positive skip-grams while using sub-sampling </span>
+        positive_skip_grams, _ = tf.keras.preprocessing.sequence.
+        skipgrams(
+            sequences[si], 
+            vocabulary_size=vocab_size, 
+            window_size=window_size, 
+            negative_samples=<span class="hljs-number">0.0</span>, 
+            shuffle=<span class="hljs-literal">False</span>,   
+            sampling_table=sampling_table,
+            seed=seed
+        )
+</code></pre>
+    <p class="normal">With that, we first break down the skip-gram tuples into two lists, one containing targets and the other <a id="_idIndexMarker365"/>containing context words, and convert them to NumPy arrays subsequently:</p>
+    <pre class="programlisting code"><code class="hljs-code">        <span class="hljs-comment"># Take targets and context words separately</span>
+        targets, context = <span class="hljs-built_in">zip</span>(*positive_skip_grams)
+        targets, context = np.array(targets).ravel(),
+        np.array(context).ravel()
+</code></pre>
+    <p class="normal">We then index the positions given by the (target, context) word pairs, from the co-occurrence matrix to retrieve the corresponding <img src="../Images/B14070_04_025.png" alt="" style="height: 1.35em !important; vertical-align: -0.39em !important;"/> values, where (<em class="italic">i,j</em>) represents a (target, context) pair:</p>
+    <pre class="programlisting code"><code class="hljs-code">        x_ij = np.array(cooccurrence_matrix[targets, 
+        context].toarray()).ravel()
+</code></pre>
+    <p class="normal">Then we compute a corresponding <img src="../Images/B14070_04_043.png" alt="" style="height: 1.45em !important; vertical-align: -0.43em !important;"/> (denoted by <code class="inlineCode">log_x_ij</code>) and <img src="../Images/B14070_04_044.png" alt="" style="height: 1.45em !important; vertical-align: -0.43em !important;"/> (denoted by <code class="inlineCode">sample_weights</code>):</p>
+    <pre class="programlisting code"><code class="hljs-code">        <span class="hljs-comment"># Compute log - Introducing an additive shift to make sure we</span>
+<span class="hljs-comment">        # don't compute log(0)</span>
+        log_x_ij = np.log(x_ij + <span class="hljs-number">1</span>)
+        
+        <span class="hljs-comment"># Sample weights </span>
+        <span class="hljs-comment"># if x &lt; x_max =&gt; (x/x_max)**alpha / else =&gt; 1        </span>
+        sample_weights = np.where(x_ij &lt; x_max, (x_ij/x_max)**alpha, <span class="hljs-number">1</span>)
+</code></pre>
+    <p class="normal">If a code is not chosen, a random seed is set. Afterward, all of <code class="inlineCode">context</code>, <code class="inlineCode">targets</code>, <code class="inlineCode">log_x_ij</code>, and <code class="inlineCode">sample_weights</code> are shuffled while maintaining the correspondence of elements between the arrays:</p>
+    <pre class="programlisting code"><code class="hljs-code">        <span class="hljs-comment"># If seed is not provided generate a random one</span>
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> seed:
+            seed = random.randint(<span class="hljs-number">0</span>, <span class="hljs-number">10e6</span>)
+        
+        <span class="hljs-comment"># Shuffle data</span>
+        np.random.seed(seed)
+        np.random.shuffle(context)
+        np.random.seed(seed)
+        np.random.shuffle(targets)
+        np.random.seed(seed)
+        np.random.shuffle(log_x_ij)
+        np.random.seed(seed)
+        np.random.shuffle(sample_weights)
+</code></pre>
+    <p class="normal">Finally, we iterate<a id="_idIndexMarker366"/> through batches of the data we created above. Each batch will consist of</p>
+    <ul>
+      <li class="bulletList">A batch of (target, context) word ID tuples</li>
+      <li class="bulletList">The corresponding <img src="../Images/B14070_04_043.png" alt="" style="height: 1.45em !important; vertical-align: -0.43em !important;"/> values for the (target, context) tuples</li>
+      <li class="bulletList">Sample weights (i.e. <img src="../Images/B14070_04_044.png" alt="" style="height: 1.45em !important; vertical-align: -0.43em !important;"/>) values for the (target, context) tuples</li>
+    </ul>
+    <p class="normal">in that order.</p>
+    <pre class="programlisting code"><code class="hljs-code">        <span class="hljs-comment"># Generate a batch or data in the format </span>
+        <span class="hljs-comment"># ((target words, context words), log(X_ij) &lt;- true targets,</span>
+<span class="hljs-comment">        # f(X_ij) &lt;- sample weights)</span>
+        <span class="hljs-keyword">for</span> eg_id_start <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">0</span>, context.shape[<span class="hljs-number">0</span>], batch_size):            
+            <span class="hljs-keyword">yield</span> (
+                targets[eg_id_start: <span class="hljs-built_in">min</span>(eg_id_start+batch_size, 
+                targets.shape[<span class="hljs-number">0</span>])], 
+                context[eg_id_start: <span class="hljs-built_in">min</span>(eg_id_start+batch_size, 
+                context.shape[<span class="hljs-number">0</span>])]
+            ), log_x_ij[eg_id_start: <span class="hljs-built_in">min</span>(eg_id_start+batch_size, 
+            log_x_ij.shape[<span class="hljs-number">0</span>])], \
+            sample_weights[eg_id_start: <span class="hljs-built_in">min</span>(eg_id_start+batch_size, 
+            sample_weights.shape[<span class="hljs-number">0</span>])]
+</code></pre>
+    <p class="normal">Now that the data is ready to be pumped in, let’s discuss the final piece of the puzzle: training the model.</p>
+    <h2 id="_idParaDest-91" class="heading-2">Training and evaluating GloVe</h2>
+    <p class="normal">Training the <a id="_idIndexMarker367"/>model is effortless, as we have all the components to train<a id="_idIndexMarker368"/> the model. As the first step, we will reuse the <code class="inlineCode">ValidationCallback</code> we created in <em class="chapterRef">Chapter 3</em>, <em class="italic">Word2vec – Learning Word Embeddings</em>. To recap, <code class="inlineCode">ValidationCallback</code> is a Keras callback. Keras callbacks give you a way to execute some important operation(s) at the end of every training iteration, epoch, prediction step, etc. Here we are using the callback to perform a validation step at the end of every epoch. Our callback would take a list of word IDs intended as the validation words (held out in <code class="inlineCode">valid_term_ids</code>), the model containing the embedding matrix, and a tokenizer to decode word IDs. Then it will compute the most similar top-k words for every word in the validation word set and print that as the output:</p>
+    <pre class="programlisting code"><code class="hljs-code">glove_validation_callback = ValidationCallback(valid_term_ids, glove_model, tokenizer)
+<span class="hljs-comment"># Train the model for several epochs</span>
+<span class="hljs-keyword">for</span> ei <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(epochs):
+    
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"Epoch: {}/{} started"</span>.<span class="hljs-built_in">format</span>(ei+<span class="hljs-number">1</span>, epochs))
+    
+    news_glove_data_gen = glove_data_generator(
+        news_sequences, window_size, batch_size, n_vocab
+    )
+    
+    glove_model.fit(
+        news_glove_data_gen, epochs=<span class="hljs-number">1</span>, 
+        callbacks=glove_validation_callback,
+    )
+</code></pre>
+    <p class="normal">You should get a <a id="_idIndexMarker369"/>sensible-looking output once the model has finished <a id="_idIndexMarker370"/>training. Here are some of the cherry-picked results:</p>
+    <pre class="programlisting con"><code class="hljs-con">election: attorney, posters, forthcoming, november's, month's
+months: weeks, years, nations, rbs, thirds
+you: afford, we, they, goodness, asked
+music: cameras, mp3, hp's, refuseniks, divide
+best: supporting, category, asante, counterparts, actor
+mr: ron, tony, bernie, jack, 63
+leave: pay, need, unsubstantiated, suited, return
+5bn: 8bn, 2bn, 1bn, 3bn, 7bn
+debut: solo, speakerboxxx, youngster, nasty, toshack
+images: 117, pattern, recorder, lennon, unexpectedly
+champions: premier, celtic, football, representatives, neighbour
+individual: extra, attempt, average, improvement, survived
+businesses: medium, sell, redder, abusive, handedly
+deutsche: central, austria's, donald, ecb, austria
+machine: unforced, wireless, rapid, vehicle, workplace
+</code></pre>
+    <p class="normal">You can see that words like “months,” “weeks,” and “years” are grouped together. Numbers like “5bn,” “8bn,” and “2bn” are grouped together as well. “Deutsche” is surrounded by “Austria’s” and “Austria.” Finally, we will save the embeddings to the disk. We will <a id="_idIndexMarker371"/>combine weights and the bias of each context and target vector space to a single array, where the last column of the array will represent the bias<a id="_idIndexMarker372"/> and save it to the disk:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span> <span class="hljs-title">save_embeddings</span>(<span class="hljs-params">model, tokenizer, vocab_size, save_dir</span>):
+    
+    os.makedirs(save_dir, exist_ok=<span class="hljs-literal">True</span>)
+    
+    _, words_sorted = <span class="hljs-built_in">zip</span>(*<span class="hljs-built_in">sorted</span>(<span class="hljs-built_in">list</span>(tokenizer.index_word.items()),
+    key=<span class="hljs-keyword">lambda</span> x: x[<span class="hljs-number">0</span>])[:vocab_size-<span class="hljs-number">1</span>])
+        
+    words_sorted = [<span class="hljs-literal">None</span>] + <span class="hljs-built_in">list</span>(words_sorted)
+    
+    context_embedding_weights = model.get_layer(<span class="hljs-string">"context_embedding"</span>).get_
+    weights()[<span class="hljs-number">0</span>]
+    context_embedding_bias = model.get_layer(<span class="hljs-string">"context_embedding_bias"</span>).
+    get_weights()[<span class="hljs-number">0</span>]
+    context_embedding = np.concatenate([context_embedding_weights,
+    context_embedding_bias], axis=<span class="hljs-number">1</span>)
+    
+    target_embedding_weights = model.get_layer(<span class="hljs-string">"target_embedding"</span>).get_
+    weights()[<span class="hljs-number">0</span>]
+    target_embedding_bias = model.get_layer(<span class="hljs-string">"target_embedding_bias"</span>).get_
+    weights()[<span class="hljs-number">0</span>]
+    target_embedding = np.concatenate([target_embedding_weights, target_
+    embedding_bias], axis=<span class="hljs-number">1</span>)
+    
+    pd.DataFrame(
+        context_embedding, 
+        index = words_sorted
+    ).to_pickle(os.path.join(save_dir, <span class="hljs-string">"context_embedding_and_bias.pkl"</span>))
+    
+    pd.DataFrame(
+        target_embedding, 
+        index = words_sorted
+    ).to_pickle(os.path.join(save_dir, <span class="hljs-string">"target_embedding_and_bias.pkl"</span>))
+    
+save_embeddings(glove_model, tokenizer, n_vocab, save_dir=<span class="hljs-string">'glove_embeddings'</span>)
+</code></pre>
+    <p class="normal">We will save embeddings as pandas DataFrames. First we get all the words sorted by their IDs. We subtract 1 to discount the reserved word ID 0 as we’ll add that manually, in the following line. Note that, word ID 0 will not show up in <code class="inlineCode">tokenizer.index_word</code>. Next we get the required layers by name (namely, <code class="inlineCode">context_embedding</code>, <code class="inlineCode">target_embedding</code>, <code class="inlineCode">context_embedding_bias</code> and <code class="inlineCode">target_embedding_bias</code>). Once we have the layers we can use the <code class="inlineCode">get_weights()</code> function to retrieve weights. </p>
+    <p class="normal">In this section, we looked at GloVe, another word embedding learning technique. </p>
+    <p class="normal">The main advantage of GloVe over the Word2vec techniques discussed in <em class="chapterRef">Chapter 3</em>, <em class="italic">Word2vec – Learning Word Embeddings</em>, is that it pays attention to both global and local statistics of the corpus to learn embeddings. As GloVe is able to capture the global information about words, it tends to give better performance, especially when the corpus size increases. Another <a id="_idIndexMarker373"/>advantage is that, unlike in Word2vec techniques, GloVe does not approximate the cost function (for example, Word2vec using<a id="_idIndexMarker374"/> negative sampling), but calculates the true cost. This leads to better and easier optimization of the loss.</p>
+    <p class="normal">In the next section, we are going to look at one more word vector algorithm known as <strong class="keyWord">Embeddings from Language Models</strong> (<strong class="keyWord">ELMo</strong>).<a id="_idIndexMarker375"/></p>
+    <h1 id="_idParaDest-92" class="heading-1">ELMo – Taking ambiguities out of word vectors</h1>
+    <p class="normal">So far, we’ve looked at word embedding algorithms that can give only a unique representation of the <a id="_idIndexMarker376"/>words in the vocabulary. However, they will give a constant representation for a given word, no matter how many times you query. Why would this be a problem? Consider the following two phrases:</p>
+    <p class="normal"><em class="italic">I went to the bank to deposit some money</em></p>
+    <p class="normal">and</p>
+    <p class="normal"><em class="italic">I walked along the river bank</em></p>
+    <p class="normal">Clearly, the word “bank” is used in two totally different contexts. If you use a vanilla word vector algorithm (e.g. skip-gram), you can only have one representation for the word “bank”, and it is probably going to be muddled between the concept of a financial institution and the concept of walkable edges along a river, depending on the references to this word found in the corpus it’s trained on. Therefore, it is more sensible to provide embeddings for a word while preserving and leveraging the context around it. This is exactly what ELMo is striving for.</p>
+    <p class="normal">Specifically, ELMo takes in a<a id="_idIndexMarker377"/> sequence, as opposed to a single token, and provides contextualized representations for each token in the sequence. <em class="italic">Figure 4.3</em> depicts various components encompassing the model. The first thing to understand is that ELMo is a complicated beast! There are lots of neural network models orchestrating in ELMo to produce the output. Particularly, the model uses: </p>
+    <ul>
+      <li class="bulletList">A character embedding layer (an embedding vector for each character).</li>
+      <li class="bulletList">A <strong class="keyWord">convolutional neural network</strong> (<strong class="keyWord">CNN</strong>) – a CNN consists of many convolutional layers followed by an optional fully connected classification layer. </li>
+    </ul>
+    <p class="bulletList">A convolution layer takes in a sequence of inputs (e.g. sequence of characters in a word) and moves a window of weights over the input to generate a latent representation. We will discuss CNNs in detail in the coming chapters.</p>
+    <ul>
+      <li class="bulletList">Two bi-directional LSTM layers – an LSTM is a type of model that is used to process time-series data. Given a sequence of inputs (e.g. sequence of word vectors), an LSTM goes from one input to the other, on the time dimension, and produces an output at each position. Unlike fully connected networks, LSTMs have memory, meaning the output at the current position will be affected by what the LSTM has seen in the past. We will discuss LSTMs in detail in the coming chapters.</li>
+    </ul>
+    <p class="normal">The specifics of these different components are outside the scope of this chapter. They will be discussed in detail in the coming chapters. Therefore, do not worry if you do not understand the exact mechanisms of the sub-components shown here (<em class="italic">Figure 4.3</em>).</p>
+    <figure class="mediaobject"><img src="../Images/B14070_04_03.png" alt=""/></figure>
+    <p class="packt_figref">Figure 4.3: Different components of the ELMo model. Token embeddings are generated using a type of neural network known as a CNN. These token embeddings are fed to an LSTM model (that can process time-series data). The output of the first LSTM model is fed to a second LSTM model to generate a latent contextualized representation for each token</p>
+    <p class="normal">We can download a pretrained ELMo model from TensorFlow Hub (<a href="https://tfhub.dev"><span class="url">https://tfhub.dev</span></a>). TF Hub is <a id="_idIndexMarker378"/>a repository for various pretrained models. </p>
+    <p class="normal">It hosts models for tasks such as image classification, text classification, text generation, etc. You can go to the site and browse various available models.</p>
+    <h2 id="_idParaDest-93" class="heading-2">Downloading ELMo from TensorFlow Hub</h2>
+    <p class="normal">The ELMo<a id="_idIndexMarker379"/> model we will be using is found at <a href="https://tfhub.dev/google/elmo/3"><span class="url">https://tfhub.dev/google/elmo/3</span></a>. It has been trained <a id="_idIndexMarker380"/>on a very large corpus of text to solve a task known as language modeling. In language modeling, we try to predict the next word given the previous sequence of tokens. We will learn more about language modeling in the coming chapters.</p>
+    <p class="normal">Before downloading the model, let’s set the following environment variables:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Not allocating full GPU memory upfront</span>
+%env TF_FORCE_GPU_ALLOW_GROWTH=true
+<span class="hljs-comment"># Making sure we cache the models and are not downloaded all the time</span>
+%env TFHUB_CACHE_DIR=./tfhub_modules
+</code></pre>
+    <p class="normal"><code class="inlineCode">TF_FORCE_GPU_ALLOW_GROWTH</code> allows TensorFlow to allocate GPU memory on-demand as opposed to allocating all GPU memory at once. <code class="inlineCode">TFHUB_CACHE_DIR</code> sets the directory where the models will be downloaded. We will first import TensorFlow Hub:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow_hub <span class="hljs-keyword">as</span> hub
+</code></pre>
+    <p class="normal">Next, as usual, we<a id="_idIndexMarker381"/> will clear any running TensorFlow sessions by running the following code:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+<span class="hljs-keyword">import</span> tensorflow.keras.backend <span class="hljs-keyword">as</span> K
+K.clear_session()
+</code></pre>
+    <p class="normal">Finally, we will <a id="_idIndexMarker382"/>download the ELMo model. You can employ two ways to download pretrained models from TF Hub and use them in our code:</p>
+    <ul>
+      <li class="bulletList"><code class="inlineCode">hub.load(&lt;url&gt;, **kwargs)</code> – Recommended way for downloading and using TensorFlow 2-compatible models</li>
+      <li class="bulletList"><code class="inlineCode">hub.KerasLayer(&lt;url&gt;, **kwargs)</code> – This is a workaround for using TensorFlow 1-based models in TensorFlow 2</li>
+    </ul>
+    <p class="normal">Unfortunately, ELMo has not been ported to TensorFlow 2 yet. Therefore, we will use the <code class="inlineCode">hub.KerasLayer()</code> as the workaround to load ELMo in TensorFlow 2:</p>
+    <pre class="programlisting code"><code class="hljs-code">elmo_layer = hub.KerasLayer(
+    <span class="hljs-string">"https://tfhub.dev/google/elmo/3"</span>, 
+    signature=<span class="hljs-string">"tokens"</span>,signature_outputs_as_dict=<span class="hljs-literal">True</span>
+)
+</code></pre>
+    <p class="normal">Note that we are providing two arguments, <code class="inlineCode">signature</code> and <code class="inlineCode">signature_outputs_as_dict</code>: </p>
+    <ul>
+      <li class="bulletList"><code class="inlineCode">signature</code> (<code class="inlineCode">str</code>) – Can be <code class="inlineCode">default</code> or <code class="inlineCode">tokens</code>. The default signature accepts a list of strings, where each string will be converted to a list of tokens internally. The tokens signature takes in inputs as dictionary having two keys. Namely, <code class="inlineCode">tokens</code> (a list of list of tokens. Each list of tokens is a single phrase/sentence and includes padding tokens to bring them to a fixed length) and “<code class="inlineCode">sequence_len</code>" (the length of each list of tokens, to determine the padding length).</li>
+      <li class="bulletList"><code class="inlineCode">signature_outputs_as_dict</code> (<code class="inlineCode">bool</code>) – When set to <code class="inlineCode">true</code>, it will return all the outputs defined in the provided signature. </li>
+    </ul>
+    <p class="normal">Now that we have <a id="_idIndexMarker383"/>understood the<a id="_idIndexMarker384"/> components of ELMo and downloaded it from TensorFlow Hub, let’s see how we can process input data for ELMo.</p>
+    <h2 id="_idParaDest-94" class="heading-2">Preparing inputs for ELMo</h2>
+    <p class="normal">Here we will define <a id="_idIndexMarker385"/>a function that will convert a given list of strings to the format ELMo expects the inputs to be in. Remember that we set the signature of ELMo to be <code class="inlineCode">tokens</code>. An example input to the signature <code class="inlineCode">"tokens"</code> would look as follows.</p>
+    <pre class="programlisting code"><code class="hljs-code">{
+    'tokens': [
+        ['the', 'cat', 'sat', 'on', 'the', 'mat'],
+        ['the', 'mat', 'sat', '', '', '']
+    ], 
+    'sequence_len': [6, 3]
+}
+</code></pre>
+    <p class="normal">Let’s take a moment to process what the input comprises. First it has the key <code class="inlineCode">tokens</code>, which has a list of tokens. Each list of tokens can be thought of as a sentence. Note how padding is added to the end of the short sentence to match the length. This is important as, otherwise, the model will throw an error as it can’t convert arbitrary-length sequences to a tensor. Next we have <code class="inlineCode">sequence_len</code>, which is a list of integers. Each integer specifies the true length of each sequence. Note how the second element says 3, to match the actual tokens present in the second sequence.</p>
+    <p class="normal">Given a list of strings, we can write a function to do this transformation for us. That’s what the <code class="inlineCode">format_text_for_elmo()</code> function will <a id="_idIndexMarker386"/>do for us. Let’s sink our teeth into the specifics:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span> <span class="hljs-title">format_text_for_elmo</span>(<span class="hljs-params">texts, lower=</span><span class="hljs-literal">True</span><span class="hljs-params">, split=</span><span class="hljs-string">" "</span><span class="hljs-params">, max_len=</span><span class="hljs-literal">None</span>):
+    
+<span class="hljs-comment">    """ Formats a given text for the ELMo model (takes in a list of</span>
+<span class="hljs-comment">    strings) """</span>
+        
+    token_inputs = [] <span class="hljs-comment"># Maintains individual tokens</span>
+    token_lengths = [] <span class="hljs-comment"># Maintains the length of each sequence</span>
+    
+    max_len_inferred = <span class="hljs-number">0</span> 
+    <span class="hljs-comment"># We keep a variable to maintain the max length of the input</span>
+    <span class="hljs-comment"># Go through each text (string)</span>
+    <span class="hljs-keyword">for</span> text <span class="hljs-keyword">in</span> texts:    
+        
+        <span class="hljs-comment"># Process the text and get a list of tokens</span>
+        tokens = tf.keras.preprocessing.text.text_to_word_sequence(text, 
+        lower=lower, split=split)
+        
+        <span class="hljs-comment"># Add the tokens </span>
+        token_inputs.append(tokens)                   
+        
+        <span class="hljs-comment"># Compute the max length for the collection of sequences</span>
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(tokens)&gt;max_len_inferred:
+            max_len_inferred = <span class="hljs-built_in">len</span>(tokens)
+    
+    <span class="hljs-comment"># It's important to make sure the maximum token length is only as</span>
+<span class="hljs-comment">    # large as the longest input in the sequence</span>
+    <span class="hljs-comment"># Here we make sure max_len is only as large as the longest input</span>
+    <span class="hljs-keyword">if</span> max_len <span class="hljs-keyword">and</span> max_len_inferred &lt; max_len:
+        max_len = max_len_inferred
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> max_len:
+        max_len = max_len_inferred
+    
+    <span class="hljs-comment"># Go through each token sequence and modify sequences to have same</span>
+<span class="hljs-comment">    # length</span>
+    <span class="hljs-keyword">for</span> i, token_seq <span class="hljs-keyword">in</span> <span class="hljs-built_in">enumerate</span>(token_inputs):
+        
+        token_lengths.append(<span class="hljs-built_in">min</span>(<span class="hljs-built_in">len</span>(token_seq), max_len))
+        
+        <span class="hljs-comment"># If the maximum length is less than input length, truncate</span>
+        <span class="hljs-keyword">if</span> max_len &lt; <span class="hljs-built_in">len</span>(token_seq):
+            token_seq = token_seq[:max_len]            
+        <span class="hljs-comment"># If the maximum length is greater than or equal to input length,</span>
+<span class="hljs-comment">        # add padding as needed</span>
+        <span class="hljs-keyword">else</span>:            
+            token_seq = token_seq+[<span class="hljs-string">""</span>]*(max_len-<span class="hljs-built_in">len</span>(token_seq))
+                
+        <span class="hljs-keyword">assert</span> <span class="hljs-built_in">len</span>(token_seq)==max_len
+        
+        token_inputs[i] = token_seq
+    
+    <span class="hljs-comment"># Return the final output</span>
+    <span class="hljs-keyword">return</span> {
+        <span class="hljs-string">"tokens"</span>: tf.constant(token_inputs), 
+        <span class="hljs-string">"sequence_len"</span>: tf.constant(token_lengths)
+    }
+</code></pre>
+    <p class="normal">We first create two lists, <code class="inlineCode">token_inputs</code> and <code class="inlineCode">token_lengths</code>, to contain individual tokens and their respective lengths. Next we go through each string in <code class="inlineCode">texts</code>, and get the individual tokens using the <code class="inlineCode">tf.keras.preprocessing.text.text_to_word_sequence()</code> function. While<a id="_idIndexMarker387"/> doing so, we will calculate the maximum token length we have observed so far. After iterating through the sequences, we check if the maximum length inferred from the inputs is different to <code class="inlineCode">max_len</code> (if specified). If so, we will use <code class="inlineCode">max_len_inferred</code> as the maximum length. This is important, because if you do otherwise, you may unnecessarily lengthen the inputs by defining a large value for <code class="inlineCode">max_len</code>. Not only that, the model will raise an error like the one below if you do so.</p>
+    <pre class="programlisting con"><code class="hljs-con">    #InvalidArgumentError:  Incompatible shapes: [2,6,1] vs. [2,10,1024]
+    #    [[node mul (defined at .../python3.6/site-packages/tensorflow_
+    hub/module_v2.py:106) ]] [Op:__inference_pruned_3391]
+</code></pre>
+    <p class="normal">Once the proper maximum length is found, we will go through the sequences and</p>
+    <ul>
+      <li class="bulletList">If it is longer than <code class="inlineCode">max_len</code>, truncate the sequence</li>
+      <li class="bulletList">If it is shorter than <code class="inlineCode">max_len</code>, add tokens until it reaches <code class="inlineCode">max_len</code></li>
+    </ul>
+    <p class="normal">Finally, we will convert them to <code class="inlineCode">tf.Tensor</code> objects using the <code class="inlineCode">tf.constant</code> construct. For example, you can call this function with:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-built_in">print</span>(format_text_for_elmo([<span class="hljs-string">"the cat sat on the mat"</span>, <span class="hljs-string">"the mat sat"</span>], max_len=<span class="hljs-number">10</span>))
+</code></pre>
+    <p class="normal">This will output:</p>
+    <pre class="programlisting con"><code class="hljs-con">{'tokens': &lt;tf.Tensor: shape=(2, 6), dtype=string, numpy=
+array([[b'the', b'cat', b'sat', b'on', b'the', b'mat'],
+       [b'the', b'mat', b'sat', b'', b'', b'']], dtype=object)&gt;, 'sequence_len': &lt;tf.Tensor: shape=(2,), dtype=int32, numpy=array([6, 3], dtype=int32)&gt;}
+</code></pre>
+    <p class="normal">We will now see<a id="_idIndexMarker388"/> how ELMo can be used to generate embeddings for the prepared inputs.</p>
+    <h2 id="_idParaDest-95" class="heading-2">Generating embeddings with ELMo</h2>
+    <p class="normal">Once the input is <a id="_idIndexMarker389"/>prepared, generating embeddings is quite easy. First we will transform the inputs to the stipulated<a id="_idIndexMarker390"/> format of the ELMo layer. Here we are using some example titles from the BBC dataset:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Titles of 001.txt - 005.txt in bbc/business</span>
+elmo_inputs = format_text_for_elmo([
+    <span class="hljs-string">"Ad sales boost Time Warner profit"</span>,
+    <span class="hljs-string">"Dollar gains on Greenspan speech"</span>,
+    <span class="hljs-string">"Yukos unit buyer faces loan claim"</span>,
+    <span class="hljs-string">"High fuel prices hit BA's profits"</span>,
+    <span class="hljs-string">"Pernod takeover talk lifts Domecq"</span>
+])
+</code></pre>
+    <p class="normal">Next, simply pass the <code class="inlineCode">elmo_inputs</code> to the <code class="inlineCode">elmo_layer</code> as the input and get the result:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Get the result from ELMo</span>
+elmo_result = elmo_layer(elmo_inputs)
+</code></pre>
+    <p class="normal">Let’s now print the results and their shapes with the following line:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Print the result</span>
+<span class="hljs-keyword">for</span> k,v <span class="hljs-keyword">in</span> elmo_result.items():    
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"Tensor under key={} is a {} shaped Tensor"</span>.<span class="hljs-built_in">format</span>(k, v.shape))
+</code></pre>
+    <p class="normal">This will print out:</p>
+    <pre class="programlisting con"><code class="hljs-con">Tensor under key=sequence_len is a (5,) shaped Tensor
+Tensor under key=elmo is a (5, 6, 1024) shaped Tensor
+Tensor under key=default is a (5, 1024) shaped Tensor
+Tensor under key=lstm_outputs1 is a (5, 6, 1024) shaped Tensor
+Tensor under key=lstm_outputs2 is a (5, 6, 1024) shaped Tensor
+Tensor under key=word_emb is a (5, 6, 512) shaped Tensor
+</code></pre>
+    <p class="normal">As you can see, the model returns 6 different outputs. Let’s go through them one by one:</p>
+    <ul>
+      <li class="bulletList"><code class="inlineCode">sequence_len</code> – The same input we provided containing the lengths of the sequences in the input</li>
+      <li class="bulletList"><code class="inlineCode">word_emb</code> – The token embeddings obtained via the CNN layer in the ELMo model. We got a vector of size 512 for all sequence positions (i.e. 6) and for all rows in the batch (i.e. 5).</li>
+      <li class="bulletList"><code class="inlineCode">lstm_output1</code> – The contextualized representations of tokens obtained via the first LSTM layer</li>
+      <li class="bulletList"><code class="inlineCode">lstm_output2</code> – The contextualized representations of tokens obtained via the second LSTM layer</li>
+      <li class="bulletList"><code class="inlineCode">default</code> – The mean embedding vector obtained by averaging all of the <code class="inlineCode">lstm_output1</code> and <code class="inlineCode">lstm_output2</code> embeddings</li>
+      <li class="bulletList"><code class="inlineCode">elmo</code> – The weighted sum of all of <code class="inlineCode">word_emb</code>, <code class="inlineCode">lstm_output1</code>, and <code class="inlineCode">lstm_output2</code>, where weights are a set of task-specific trainable parameters that will be jointly trained during the task-specific training</li>
+    </ul>
+    <p class="normal">What we are interested in <a id="_idIndexMarker391"/>here is the <code class="inlineCode">default</code> output. That would give us a very good representation of what’s contained in the<a id="_idIndexMarker392"/> document.</p>
+    <div class="note">
+      <p class="normal"><strong class="keyWord">Other word embedding techniques</strong></p>
+      <p class="normal">Apart from the word embedding techniques we discussed here, there are a few notable widely used word embedding techniques. We will discuss a few of those here. </p>
+      <p class="normal"><strong class="keyWord">FastText</strong></p>
+      <p class="normal">FastText (<a href="https://fasttext.cc/"><span class="url">https://fasttext.cc/</span></a>), introduced in<a id="_idIndexMarker393"/> the paper “Enriching Word Vectors with <a id="_idIndexMarker394"/>Subword Information” by Bojanowski et al. (<a href="https://arxiv.org/pdf/1607.04606.pdf"><span class="url">https://arxiv.org/pdf/1607.04606.pdf</span></a>), introduces a technique where word embeddings are computed by considering the sub-components of a word. Specifically, they compute the word embedding as a summation of <a id="_idIndexMarker395"/>embeddings of <em class="italic">n</em>-grams of the word for several values of <em class="italic">n</em>. In the paper, they use <em class="italic">3</em> &lt;= <em class="italic">n</em> &lt;=<em class="italic">6</em>. For example, for the word “banana,” the tri-grams (<em class="italic">n</em>=3) would be <code class="inlineCode">['ban', 'ana', 'nan', 'ana']</code>. This leads to robust embeddings that can withstand common problems of text, such as spelling mistakes. </p>
+      <p class="normal"><strong class="keyWord">Swivel embeddings</strong></p>
+      <p class="normal">Swivel embeddings, introduced by the paper “<em class="italic">Swivel: Improving Embeddings by Noticing What’s Missing</em>” by Shazeer et al. (<a href="https://arxiv.org/pdf/1602.02215.pdf"><span class="url">https://arxiv.org/pdf/1602.02215.pdf</span></a>), tries to blend GloVe and skip-grams with negative sampling. One of the critical limitations of GloVe is that it only uses information <a id="_idIndexMarker396"/>about positive contexts. Therefore, the <a id="_idIndexMarker397"/>method is not penalized for trying to create similar vectors of words that have not been observed together. But the negative sampling used in skip-grams directly tackles this problem. The biggest innovation of Swivel is a loss function that incorporates unobserved word pairs. As an added benefit, it can also be trained in a distributed environment. </p>
+      <p class="normal"><strong class="keyWord">Transformer models</strong></p>
+      <p class="normal">Transformers are a type of model that <a id="_idIndexMarker398"/>has reimagined the way we think about NLP problems. The Transformer model was initially introduced in the paper “<em class="italic">Attention is all you need</em>” by Vaswani (<a href="https://arxiv.org/pdf/1706.03762.pdf"><span class="url">https://arxiv.org/pdf/1706.03762.pdf</span></a>). This model has many different embeddings within it and, like ELMo, can generate an embedding per token by processing a sequence of text. We will talk about Transformer models in detail in later chapters.</p>
+    </div>
+    <p class="normal">We have discussed all<a id="_idIndexMarker399"/> the bells and whistles required to confidently use the ELMo model. Next we will classify documents <a id="_idIndexMarker400"/>using ELMo, in which ELMo will generate document embeddings as inputs to a classification model.</p>
+    <h1 id="_idParaDest-96" class="heading-1">Document classification with ELMo</h1>
+    <p class="normal">Although Word2vec gives <a id="_idIndexMarker401"/>a very elegant way of learning numerical representations of words, learning word representations alone is not convincing enough to realize the power of word vectors in real-world applications. </p>
+    <p class="normal">Word embeddings are used as the feature representation of words for many tasks, such as image caption generation and machine translation. However, these tasks involve combining different learning<a id="_idIndexMarker402"/> models such as <strong class="keyWord">Convolutional Neural Networks</strong> (<strong class="keyWord">CNNs</strong>) and <strong class="keyWord">Long Short-Term Memory</strong> (<strong class="keyWord">LSTM</strong>) models or two LSTM models (the CNN and LSTM models <a id="_idIndexMarker403"/>will be discussed in more detail in later chapters). To understand a real-world usage of word embeddings let’s stick to a simpler task—document classification.</p>
+    <p class="normal">Document classification is <a id="_idIndexMarker404"/>one of the most popular tasks in NLP. Document classification is extremely useful for anyone who is handling massive collections of data such as those for news websites, publishers, and universities. Therefore, it is interesting to see how learning word vectors can be adapted to a real-world task such as document classification by means of embedding entire documents instead of words.</p>
+    <p class="normal">This exercise is available in the <code class="inlineCode">Ch04-Advance-Word-Vectors</code> folder (<code class="inlineCode">ch4_document_classification.ipynb</code>).</p>
+    <h2 id="_idParaDest-97" class="heading-2">Dataset</h2>
+    <p class="normal">For this task, we will use an <a id="_idIndexMarker405"/>already-organized set of text files. These are news articles from the BBC. Every document in this collection belongs to one of the following categories: <em class="italic">Business</em>, <em class="italic">Entertainment</em>, <em class="italic">Politics</em>, <em class="italic">Sports</em>, or <em class="italic">Technology</em>. </p>
+    <p class="normal">Here are a couple of brief snippets from the actual data:</p>
+    <p class="normal"><em class="italic">Business</em></p>
+    <p class="normal"><em class="italic">Japan narrowly escapes recession</em></p>
+    <p class="normal"><em class="italic">Japan’s economy teetered on the brink of a technical recession in the three months to September, figures show.</em></p>
+    <p class="normal"><em class="italic">Revised figures indicated growth of just 0.1% - and a similar-sized contraction in the previous quarter. On an annual basis, the data suggests annual growth of just 0.2%,...</em></p>
+    <p class="normal">First, we will download the data and load the data into memory. We will use the same <code class="inlineCode">download_data() </code>function to download the data. Then we will slightly modify the <code class="inlineCode">read_data()</code> function to not only<a id="_idIndexMarker406"/> return a list of articles, where each article is a string, but also to return a list of filenames, where each filename corresponds to the file the article was stored in. The filenames will subsequently help us to create the labels for our classification model.</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span> <span class="hljs-title">read_data</span>(<span class="hljs-params">data_dir</span>):
+    
+    <span class="hljs-comment"># This will contain the full list of stories</span>
+    news_stories = []    
+    filenames = []
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"Reading files"</span>)
+    
+    i = <span class="hljs-number">0</span> <span class="hljs-comment"># Just used for printing progress</span>
+    <span class="hljs-keyword">for</span> root, dirs, files <span class="hljs-keyword">in</span> os.walk(data_dir):
+        
+        <span class="hljs-keyword">for</span> fi, f <span class="hljs-keyword">in</span> <span class="hljs-built_in">enumerate</span>(files):
+            
+            <span class="hljs-comment"># We don't read the readme file</span>
+            <span class="hljs-keyword">if</span> <span class="hljs-string">'README'</span> <span class="hljs-keyword">in</span> f:
+                <span class="hljs-keyword">continue</span>
+            
+            <span class="hljs-comment"># Printing progress</span>
+            i += <span class="hljs-number">1</span>
+            <span class="hljs-built_in">print</span>(<span class="hljs-string">"."</span>*i, f, end=<span class="hljs-string">'\r'</span>)
+            
+            <span class="hljs-comment"># Open the file</span>
+            <span class="hljs-keyword">with</span> <span class="hljs-built_in">open</span>(os.path.join(root, f), encoding=<span class="hljs-string">'latin-1'</span>) <span class="hljs-keyword">as</span> text_
+            file:
+                story = []
+                <span class="hljs-comment"># Read all the lines</span>
+                <span class="hljs-keyword">for</span> row <span class="hljs-keyword">in</span> text_file:
+                    story.append(row.strip())
+                    
+                <span class="hljs-comment"># Create a single string with all the rows in the doc</span>
+                story = <span class="hljs-string">' '</span>.join(story)                        
+                <span class="hljs-comment"># Add that to the list</span>
+                news_stories.append(story)  
+                filenames.append(os.path.join(root, f))
+                
+        <span class="hljs-built_in">print</span>(<span class="hljs-string">''</span>, end=<span class="hljs-string">'\r'</span>)
+        
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">"\nDetected {} stories"</span>.<span class="hljs-built_in">format</span>(<span class="hljs-built_in">len</span>(news_stories)))
+    <span class="hljs-keyword">return</span> news_stories, filenames
+news_stories, filenames = read_data(os.path.join(<span class="hljs-string">'data'</span>, <span class="hljs-string">'bbc'</span>))
+</code></pre>
+    <p class="normal">We will then create and fit a tokenizer on the data, as we have done before.</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">from</span> tensorflow.keras.preprocessing.text <span class="hljs-keyword">import</span> Tokenizer
+n_vocab = <span class="hljs-number">15000</span> + <span class="hljs-number">1</span>
+tokenizer = Tokenizer(
+    num_words=n_vocab - <span class="hljs-number">1</span>,
+    filters=<span class="hljs-string">'!"#$%&amp;()*+,-./:;&lt;=&gt;?@[\\]^_'{|}~\t\n'</span>,
+    lower=<span class="hljs-literal">True</span>, split=<span class="hljs-string">' '</span>, oov_token=<span class="hljs-string">''</span>
+)
+tokenizer.fit_on_texts(news_stories)
+</code></pre>
+    <p class="normal">As the next step, we<a id="_idIndexMarker407"/> will create labels. Since we are training a classification model, we need both inputs and labels. Our inputs will be document embeddings (we will see how to compute them soon), and the targets will be a label ID between 0 and 4. Each class we mentioned above (e.g. business, tech, etc.) will be assigned to a separate category. Since the filename includes the category as a folder, we can leverage the filename to generate a label ID.</p>
+    <p class="normal">We will use the pandas library to create the labels. First we will convert the list of filenames to a pandas Series object using:</p>
+    <pre class="programlisting code"><code class="hljs-code">labels_ser = pd.Series(filenames, index=filenames)
+</code></pre>
+    <p class="normal">An example entry in this series could look like <code class="inlineCode">data/bbc/tech/127.txt</code>. Next, we will split each item on the “/” character, which will return a list <code class="inlineCode">['data', 'bbc', 'tech', '127.txt']</code>. We will also set <code class="inlineCode">expand=True</code>. <code class="inlineCode">expand=True</code> will transform our Series object to a DataFrame by turning each item in the list of tokens into a separate column of a DataFrame. In other words, our <code class="inlineCode">pd.Series</code> object will become an <code class="inlineCode">[N, 4]</code>-sized <code class="inlineCode">pd.DataFrame</code> with one token in each column, where <code class="inlineCode">N</code> is the number of files:</p>
+    <pre class="programlisting code"><code class="hljs-code">labels_ser = labels_ser.<span class="hljs-built_in">str</span>.split(os.path.sep, expand=<span class="hljs-literal">True</span>)
+</code></pre>
+    <p class="normal">In the resulting data, we only care about the third column, which has the category of a given article (e.g. <code class="inlineCode">tech</code>). Therefore, we will discard the rest of the data and only keep that column:</p>
+    <pre class="programlisting code"><code class="hljs-code">labels_ser = labels_ser.iloc[:, -<span class="hljs-number">2</span>]
+</code></pre>
+    <p class="normal">Finally, we will map the string label to an integer ID using the pandas <code class="inlineCode">map()</code> function as follows:</p>
+    <pre class="programlisting code"><code class="hljs-code">labels_ser = labels_ser.<span class="hljs-built_in">map</span>({<span class="hljs-string">'business'</span>: <span class="hljs-number">0</span>, <span class="hljs-string">'entertainment'</span>: <span class="hljs-number">1</span>, <span class="hljs-string">'politics'</span>: <span class="hljs-number">2</span>, <span class="hljs-string">'sport'</span>: <span class="hljs-number">3</span>, <span class="hljs-string">'tech'</span>: <span class="hljs-number">4</span>})
+</code></pre>
+    <p class="normal">This will result in something like:</p>
+    <pre class="programlisting con"><code class="hljs-con">data/bbc/tech/272.txt    4
+data/bbc/tech/127.txt    4
+data/bbc/tech/370.txt    4
+data/bbc/tech/329.txt    4
+data/bbc/tech/240.txt    4
+Name: 2, dtype: int64
+</code></pre>
+    <p class="normal">What we did here can be written as just one line by chaining the sequence of commands to a single line:</p>
+    <pre class="programlisting code"><code class="hljs-code">labels_ser = pd.Series(filenames, index=filenames).<span class="hljs-built_in">str</span>.split(os.path.sep, expand=<span class="hljs-literal">True</span>).iloc[:, -<span class="hljs-number">2</span>].<span class="hljs-built_in">map</span>(
+    {<span class="hljs-string">'business'</span>: <span class="hljs-number">0</span>, <span class="hljs-string">'entertainment'</span>: <span class="hljs-number">1</span>, <span class="hljs-string">'politics'</span>: <span class="hljs-number">2</span>, <span class="hljs-string">'sport'</span>: <span class="hljs-number">3</span>,
+    <span class="hljs-string">'tech'</span>: <span class="hljs-number">4</span>}
+)
+</code></pre>
+    <p class="normal">With that, we move<a id="_idIndexMarker408"/> on to the next important step, i.e. splitting the data into train/test subsets. When training a supervised model, we generally need three datasets:</p>
+    <ul>
+      <li class="bulletList">A training set – This is the dataset the model will be trained on.</li>
+      <li class="bulletList">A validation set – This will be used during the training to monitor model performance (e.g. signs of overfitting).</li>
+      <li class="bulletList">A testing set – This will be not exposed to the model at any time during the model training. It will only be used after the model training to evaluate the model on unseen data.</li>
+    </ul>
+    <p class="normal">In this exercise, we will only use the training set and the testing set. This will help us to keep our conversation more focused on embeddings and keep the discussion about the downstream classification model simple. Here we will use 67% of the data as training data and use 33% of data as testing data. Data will be split randomly:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">from</span> sklearn.model_selection <span class="hljs-keyword">import</span> train_test_split
+train_labels, test_labels = train_test_split(labels_ser, test_size=<span class="hljs-number">0.33</span>)
+</code></pre>
+    <p class="normal">Now we have a training dataset to train the model and a test dataset to test it on unseen data. We will now <a id="_idIndexMarker409"/>see how we can generate document embeddings from token or word embeddings.</p>
+    <h2 id="_idParaDest-98" class="heading-2">Generating document embeddings</h2>
+    <p class="normal">Let’s first remind <a id="_idIndexMarker410"/>ourselves how we<a id="_idIndexMarker411"/> stored embeddings for skip-gram, CBOW, and GloVe algorithms. <em class="italic">Figure 4.4</em> depicts how these look in a <code class="inlineCode">pd.DataFrame</code> object.</p>
+    <figure class="mediaobject"><img src="../Images/B14070_04_04.png" alt=""/></figure>
+    <p class="packt_figref">Figure 4.4: A snapshot of the context embeddings of the skip-gram algorithm we saved to the disk. You can see below it says that it has 128 columns (i.e. the embedding size)</p>
+    <p class="normal">ELMo embeddings are an exception to this. Since ELMo generates contextualized representations for all tokens in a sequence, we have stored the mean embedding vectors resulting from averaging all the generated vectors:</p>
+    <figure class="mediaobject"><img src="../Images/B14070_04_05.png" alt=""/> </figure>
+    <p class="packt_figref">Figure 4.5: A snapshot of ELMo vectors. ELMo vectors have 1024 elements</p>
+    <p class="normal">To <a id="_idIndexMarker412"/>compute the document <a id="_idIndexMarker413"/>embeddings from skip-gram, CBOW, and GloVe embeddings, let us write the following function:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span> <span class="hljs-title">generate_document_embeddings</span>(<span class="hljs-params">texts, filenames, tokenizer, embeddings</span>):
+    
+<span class="hljs-comment">    """ This function takes a sequence of tokens and compute the mean</span>
+<span class="hljs-comment">    embedding vector from the word vectors of all the tokens in the</span>
+<span class="hljs-comment">    document """</span>
+    
+    doc_embedding_df = []
+    <span class="hljs-comment"># Contains document embeddings for all the articles</span>
+    <span class="hljs-keyword">assert</span> <span class="hljs-built_in">isinstance</span>(embeddings, pd.DataFrame), <span class="hljs-string">'embeddings must be a </span>
+<span class="hljs-string">    pd.DataFrame'</span>
+    
+    <span class="hljs-comment"># This is a trick we use to quickly get the text preprocessed by the</span>
+<span class="hljs-comment">    # tokenizer</span>
+    <span class="hljs-comment"># We first convert text to a sequences, and then back to text, which</span>
+<span class="hljs-comment">    # will give the</span><span class="hljs-comment"> preprocessed tokens</span>
+    sequences = tokenizer.texts_to_sequences(texts)    
+    preprocessed_texts = tokenizer.sequences_to_texts(sequences)
+    
+    <span class="hljs-comment"># For each text,</span>
+    <span class="hljs-keyword">for</span> text <span class="hljs-keyword">in</span> preprocessed_texts:
+        <span class="hljs-comment"># Make sure we had matches for tokens in the embedding matrx</span>
+        <span class="hljs-keyword">assert</span> embeddings.loc[text.split(<span class="hljs-string">' '</span>), :].shape[<span class="hljs-number">0</span>]&gt;<span class="hljs-number">0</span>
+        <span class="hljs-comment"># Compute mean of all the embeddings associated with words</span>
+        mean_embedding = embeddings.loc[text.split(<span class="hljs-string">'</span><span class="hljs-string"> '</span>), :].mean(axis=<span class="hljs-number">0</span>)
+        <span class="hljs-comment"># Add that to list</span>
+        doc_embedding_df.append(mean_embedding)
+        
+    <span class="hljs-comment"># Save the doc embeddings in a dataframe</span>
+    doc_embedding_df = pd.DataFrame(doc_embedding_df, index=filenames)
+    
+    <span class="hljs-keyword">return</span> doc_embedding_df
+</code></pre>
+    <p class="normal">The <code class="inlineCode">generate_document_embeddings() </code>function takes the following arguments: </p>
+    <ul>
+      <li class="bulletList"><code class="inlineCode">texts</code> – A list of strings, where each string represents an article</li>
+      <li class="bulletList"><code class="inlineCode">filenames</code> – A list of filenames corresponding to the articles in <code class="inlineCode">texts</code></li>
+      <li class="bulletList"><code class="inlineCode">tokenizer</code> – A tokenizer that can process <code class="inlineCode">texts</code></li>
+      <li class="bulletList"><code class="inlineCode">embeddings</code> – The embeddings as a <code class="inlineCode">pd.DataFrame</code>, where each row represents a word vector, indexed by the corresponding token</li>
+    </ul>
+    <p class="normal">The function first preprocesses the texts by converting the strings to sequences, and then back to a list of strings. This helps us to use the built-in preprocessing functionalities of the<a id="_idIndexMarker414"/> tokenizer to clean the text. Next, each preprocessed string is split by the space character to return a list of tokens. Then we index all the positions in the embeddings matrix<a id="_idIndexMarker415"/> that corresponds to all the tokens in the text. Finally, the mean vector is computed for the document by computing the mean of all the chosen embedding vectors.</p>
+    <p class="normal">With that, we can load the embeddings from different algorithms (skip-gram, CBOW, and GloVe), and compute the document embeddings. Here we will only show the process for the skip-gram algorithm. But you can easily extend it to the other algorithms, as they have similar inputs and outputs:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Load the skip-gram embeddings context and target</span>
+skipgram_context_embeddings = pd.read_pickle(
+    os.path.join(<span class="hljs-string">'../Ch03-Word-Vectors/skipgram_embeddings'</span>,
+    <span class="hljs-string">'context_embedding.pkl'</span>)
+)
+skipgram_target_embeddings = pd.read_pickle(
+    os.path.join(<span class="hljs-string">'../Ch03-Word-Vectors/skipgram_embeddings'</span>,
+    <span class="hljs-string">'target_embedding.pkl'</span>)
+)
+<span class="hljs-comment"># Compute the mean of context &amp; target embeddings for better embeddings</span>
+skipgram_embeddings = (skipgram_context_embeddings + skipgram_target_embeddings)/<span class="hljs-number">2</span>
+<span class="hljs-comment"># Generate the document embeddings with the average context target</span>
+<span class="hljs-comment"># embeddings</span>
+skipgram_doc_embeddings = generate_document_embeddings(news_stories, filenames, tokenizer, skipgram_embeddings)
+</code></pre>
+    <p class="normal">Now we will see how we <a id="_idIndexMarker416"/>can leverage the generated document<a id="_idIndexMarker417"/> embedding to train a classifier.</p>
+    <h2 id="_idParaDest-99" class="heading-2">Classifying documents with document embeddings</h2>
+    <p class="normal">We will be<a id="_idIndexMarker418"/> training a simple<a id="_idIndexMarker419"/> multi-class (or a multinomial) logistic regression classifier on this data. The logistic regression model will look as follows:</p>
+    <figure class="mediaobject"><img src="../Images/B14070_04_06.png" alt=""/></figure>
+    <p class="packt_figref">Figure 4.6: This diagram depicts the multinomial logistic regression model. The model takes in an embedding vector and outputs a probability distribution over different available classes</p>
+    <p class="normal">It’s a very simple model with a single layer, where the input is the embedding vector (e.g. a 128-element-long vector), and the output is a 5-node softmax layer that will output the likelihood of the input belonging to each category, as a probability distribution.</p>
+    <p class="normal">We will be training <a id="_idIndexMarker420"/>several models, as opposed to a single run. This will give us a more consistent result on the performance of the model. To implement the model, we’ll be using a popular general-purpose<a id="_idIndexMarker421"/> machine learning library called scikit-learn (<a href="https://scikit-learn.org/stable/"><span class="url">https://scikit-learn.org/stable/</span></a>). In each run, a multi-class <a id="_idIndexMarker422"/>logistic regression classifier is created with the <code class="inlineCode">sklearn.linear_model.LogisticRegression</code> object. Additionally, in each run:</p>
+    <ol class="numberedList" style="list-style-type: decimal;">
+      <li class="numberedList" value="1">The model is trained on the training inputs and targets</li>
+      <li class="numberedList">The model predicts the class (a value from 0 to 4) for each test input, where the class of an input is the one that has the maximum probability from all classes</li>
+      <li class="numberedList">The model computes the test accuracy using the predicted classes and true classes of the test set</li>
+    </ol>
+    <p class="normal">The code looks like the following:</p>
+    <pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">from</span> sklearn.linear_model <span class="hljs-keyword">import</span> LogisticRegression
+<span class="hljs-keyword">from</span> sklearn.metrics <span class="hljs-keyword">import</span> accuracy_score
+<span class="hljs-keyword">def</span> <span class="hljs-title">get_classification_accuracy</span>(<span class="hljs-params">doc_embeddings, train_labels, test_labels, n_trials</span>):
+<span class="hljs-comment">    """ Train a simple MLP model for several trials and measure test </span>
+<span class="hljs-comment">    accuracy"""</span>
+    
+    accuracies = [] <span class="hljs-comment"># Store accuracies across trials</span>
+    
+    <span class="hljs-comment"># For each trial</span>
+    <span class="hljs-keyword">for</span> trial <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(n_trials):
+        <span class="hljs-comment"># Create a MLP classifier</span>
+        lr_classifier = LogisticRegression(multi_class=<span class="hljs-string">'multinomial'</span>, 
+        max_iter=<span class="hljs-number">500</span>)
+        
+        <span class="hljs-comment"># Fit the model on training data</span>
+        lr_classifier.fit(doc_embeddings.loc[train_labels.index],
+        train_labels)
+        
+        <span class="hljs-comment"># Get the predictions for test data</span>
+        predictions = lr_classifier.predict(doc_embeddings.loc[test_
+        labels.index])
+    
+        <span class="hljs-comment"># Compute accuracy</span>
+        accuracies.append(accuracy_score(predictions, test_labels))
+    
+    <span class="hljs-keyword">return</span> accuracies
+<span class="hljs-comment"># Get classification accuracy for skip-gram models</span>
+skipgram_accuracies = get_classification_accuracy(
+    skipgram_doc_embeddings, train_labels, test_labels, n_trials=<span class="hljs-number">5</span>
+)
+<span class="hljs-built_in">print</span>(<span class="hljs-string">"Skip-gram accuracies: {}"</span>.<span class="hljs-built_in">format</span>(skipgram_accuracies))
+</code></pre>
+    <p class="normal">By setting <code class="inlineCode">multi_class='multinomial'</code>, we are making sure it’s a multi-class logistic regression model (or a softmax classifier). This will output:</p>
+    <pre class="programlisting con"><code class="hljs-con">Skip-gram accuracies: [0.882…, 0.882…, 0.881…, 0.882…, 0.884…]
+</code></pre>
+    <p class="normal">When you follow the <a id="_idIndexMarker423"/>procedure for all the skip-gram, CBOW, GloVe, and ELMo algorithms, you will see a result similar to the<a id="_idIndexMarker424"/> following. This is a box plot diagram. However, as performance is quite similar between trials, you won’t see much variation present in the diagram:</p>
+    <figure class="mediaobject"><img src="../Images/B14070_04_07.png" alt=""/></figure>
+    <p class="packt_figref">Figure 4.7: Box plot interpreting performance on document classification for different models. We can see that ELMo is a clear-cut winner, where GloVe performs the worst</p>
+    <p class="normal">We can see that skip-gram achieves around 86% accuracy, followed closely by CBOW, which achieves on-par performance. Surprisingly GloVe achieves performance far below the skip-gram and<a id="_idIndexMarker425"/> CBOW, around 66% accuracy. </p>
+    <p class="normal">This could be pointing to a limitation of the GloVe loss function. Unlike, skip-gram and CBOW, which are considered both positive (observed) and negative (unobserved) target and context pairs, GloVe only focuses on observed pairs. </p>
+    <p class="normal">This<a id="_idIndexMarker426"/> could be hurting GloVe’s ability to generate effective representations of words. Finally, ELMo achieves the best, which is around 98% accuracy. But it is important to keep in mind that ELMo has been trained on a much larger dataset than the BBC dataset, thus it is not fair to compare ELMo with other models just on this number.</p>
+    <p class="normal">In this section, you learned how we can extend word embeddings turned to document embeddings and how these can be used in a downstream classifier model to classify documents. First, you learned about word embeddings using a selected algorithm (e.g. skip-gram, CBOW, and GloVe). Then we created document embeddings by averaging the word embeddings of all the words found in that document. This was the case for the skip-gram, CBOW, and GloVe algorithms. In the case of the ELMo algorithm, we were able to infer <a id="_idIndexMarker427"/>document embeddings<a id="_idIndexMarker428"/> straight from the model. Later we used these document embeddings to classify some BBC news articles that fall into these categories: entertainment, tech, politics, business, and sports. </p>
+    <h1 id="_idParaDest-100" class="heading-1">Summary</h1>
+    <p class="normal">In this chapter, we discussed GloVe—another word embedding learning technique. GloVe takes the current Word2vec algorithms a step further by incorporating global statistics into the optimization, thus increasing the performance. </p>
+    <p class="normal">Next, we learned about a much more advanced algorithm known as ELMo (which stands for Embeddings from Language Models). ELMo provides contextualized representations of words by looking at a word within a sentence or a phrase, not by itself. </p>
+    <p class="normal">Finally, we discussed a real-world application of using word embeddings—document classification. We showed that word embeddings are very powerful and allow us to classify related documents with a simple multi-class logistic regression model reasonably well. ELMo performed the best out of skip-gram, CBOW, and GloVe, due to the vast amount of data it has been trained on.</p>
+    <p class="normal">In the next chapter, we will move on to discussing a different family of deep networks that are more powerful in exploiting spatial information present in data, known as <strong class="keyWord">Convolutional Neural Networks</strong> (<strong class="keyWord">CNNs</strong>). </p>
+    <p class="normal">Precisely, we will see how CNNs can be used to exploit the spatial structure of sentences to classify them into different classes.</p>
+    <p class="center">To access the code files for this book, visit our GitHub page at: <a href="https://packt.link/nlpgithub"><span class="url">https://packt.link/nlpgithub</span></a></p>
+    <p class="center">Join our Discord community to meet like-minded people and learn alongside more than 1000 members at: <a href="https://packt.link/nlp"><span class="url">https://packt.link/nlp</span></a></p>
+    <figure class="mediaobject"> <img src="../Images/QR_Code5143653472357468031.png" alt=""/></figure>
+  </div>
+</body></html>

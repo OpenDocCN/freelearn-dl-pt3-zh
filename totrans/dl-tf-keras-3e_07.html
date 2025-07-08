@@ -1,0 +1,565 @@
+<html><head></head><body>
+<div id="sbo-rt-content"><div class="Basic-Text-Frame" id="_idContainer279">
+<h1 class="chapterNumber">7</h1>
+<h1 class="chapterTitle" id="_idParaDest-219">Unsupervised Learning</h1>
+<p class="normal">The book till now has focused on supervised learning and the models that learn via supervised learning. Starting from this chapter we will explore a less explored and more challenging area of unsupervised learning, self-supervised learning, and contrastive learning. In this chapter, we will delve deeper into some popular and useful unsupervised learning models. In contrast to supervised learning, where the training dataset consists of both the input and the desired labels, unsupervised learning deals with a case where the model is provided with only the input. The model learns the inherent input distribution by itself without any desired label guiding it. Clustering and dimensionality reduction are the two most commonly used unsupervised learning techniques. In this chapter, we will learn about different machine learning and neural network techniques for both. We will cover techniques required for clustering and dimensionality reduction, and go into the detail about Boltzmann machines, and finally, cover the implementation of the aforementioned techniques using TensorFlow. The concepts covered will be extended to build <strong class="keyWord">Restricted Boltzmann Machines</strong> (<strong class="keyWord">RBMs</strong>). The chapter will include:</p>
+<ul>
+<li class="bulletList">Principal component analysis</li>
+<li class="bulletList">K-means clustering</li>
+<li class="bulletList">Self-organizing maps</li>
+<li class="bulletList">Boltzmann machines</li>
+<li class="bulletList">RBMs</li>
+</ul>
+<div class="note">
+<p class="normal">All the code files for this chapter can be found at <a href="https://packt.link/dltfchp7"><span class="url">https://packt.link/dltfchp7</span></a>.</p>
+</div>
+<p class="normal">Let us start with the most common and frequently used technique for dimensionality reduction, the principal component analysis method.</p>
+<h1 class="heading-1" id="_idParaDest-220">Principal component analysis</h1>
+<p class="normal"><strong class="keyWord">Principal component analysis</strong> (<strong class="keyWord">PCA</strong>) is <a id="_idIndexMarker782"/>the most popular multivariate statistical technique for dimensionality reduction. It analyzes the training data consisting of several dependent variables, which are, in general, intercorrelated, and extracts important information from the training data in the form of a set of new orthogonal variables called principal components. </p>
+<p class="normal">We <a id="_idIndexMarker783"/>can perform PCA using two <a id="_idIndexMarker784"/>methods, either <strong class="keyWord">eigen decomposition</strong> or <strong class="keyWord">singular value decomposition</strong> (<strong class="keyWord">SVD</strong>).</p>
+<p class="normal">PCA reduces the <em class="italic">n</em>-dimensional input data to <em class="italic">r</em>-dimensional input data, where <em class="italic">r&lt;n</em>. In simple terms, PCA involves translating the origin and performing rotation of the axis such that one of the axes (principal axis) has the highest variance with data points. A reduced-dimensions dataset is obtained from the original dataset by performing this transformation and then dropping (removing) the orthogonal axes with low variance. Here, we employ the SVD method for PCA dimensionality reduction. Consider <em class="italic">X</em>, the <em class="italic">n</em>-dimensional data with <em class="italic">p</em> points, that is, <em class="italic">X</em> is a matrix of size <em class="italic">p × n</em>. From linear algebra we know that any real matrix can be decomposed using singular value decomposition:</p>
+<p class="center"><img alt="" height="46" src="../Images/B18331_07_001.png" style="height: 1.15em !important; vertical-align: 0.10em !important;" width="183"/></p>
+<p class="normal">Where <em class="italic">U</em> and <em class="italic">V</em> are orthonormal matrices (that is, <em class="italic">U.U</em><sup class="italic">T</sup><em class="italic"> = V.V</em><sup class="italic">T</sup><em class="italic"> = 1</em>) of size <em class="italic">p × p</em> and <em class="italic">n × n</em> respectively. <img alt="" height="46" src="../Images/B18331_07_002.png" style="height: 1.15em !important; vertical-align: -0.20em !important;" width="29"/> is a diagonal matrix of size <em class="italic">p × n</em>. The <em class="italic">U</em> matrix is <a id="_idIndexMarker785"/>called the <strong class="keyWord">left singular matrix</strong>, and <em class="italic">V</em> the <strong class="keyWord">right singular matrix</strong>, and <img alt="" height="46" src="../Images/B18331_07_002.png" style="height: 1.15em !important; vertical-align: -0.20em !important;" width="29"/>, the diagonal <a id="_idIndexMarker786"/>matrix, contains the singular values of <em class="italic">X</em> as its diagonal elements. Here we assume that the <em class="italic">X</em> matrix is centered. The columns of the <em class="italic">V</em> matrix are the principal components, and columns of <img alt="" height="46" src="../Images/B18331_07_004.png" style="height: 1.15em !important; vertical-align: -0.20em !important;" width="54"/> are the data transformed by principal components.</p>
+<p class="normal">Now to reduce the dimensions of the data from <em class="italic">n</em> to <em class="italic">k</em> (where <em class="italic">k &lt; n</em>), we will select the first <em class="italic">k</em> columns of <em class="italic">U</em> and the upper-left <em class="italic">k × k</em> part of <img alt="" height="46" src="../Images/B18331_07_002.png" style="height: 1.15em !important; vertical-align: -0.20em !important;" width="29"/>. The product of the two gives us our reduced-dimensions matrix:</p>
+<p class="center"><img alt="" height="46" src="../Images/B18331_07_006.png" style="height: 1.15em !important; vertical-align: 0.10em !important;" width="163"/></p>
+<p class="normal">The data <em class="italic">Y</em> obtained will be of reduced dimensions. Next, we implement PCA in TensorFlow 2.0.</p>
+<h2 class="heading-2" id="_idParaDest-221">PCA on the MNIST dataset</h2>
+<p class="normal">Let us <a id="_idIndexMarker787"/>now implement PCA in TensorFlow 2.0. We will be definitely using TensorFlow; we will also need NumPy for <a id="_idIndexMarker788"/>some elementary matrix calculation, and Matplotlib, Matplotlib toolkits, and Seaborn for plotting:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> matplotlib.pyplot <span class="hljs-keyword">as</span> plt
+<span class="hljs-keyword">from</span> mpl_toolkits.mplot3d <span class="hljs-keyword">import</span> Axes3D
+<span class="hljs-keyword">import</span> seaborn <span class="hljs-keyword">as</span> sns
+</code></pre>
+<p class="normal">Next we load the MNIST dataset. Since we are doing dimension reduction using PCA, we do not need a test dataset or even labels; however, we are loading labels so that after reduction we can verify the PCA performance. PCA should cluster similar data points in one cluster; hence, if we see that the clusters formed using PCA are similar to our labels, it would indicate that our PCA works:</p>
+<pre class="programlisting code"><code class="hljs-code">((x_train, y_train), (_, _)) = tf.keras.datasets.mnist.load_data()
+</code></pre>
+<p class="normal">Before we do PCA, we should preprocess the data. We first normalize it so that all data has values between 0 and 1, and then reshape the image from being a 28 × 28 matrix to a 784-dimensional vector, and finally, center it by subtracting the mean:</p>
+<pre class="programlisting code"><code class="hljs-code">x_train = x_train / <span class="hljs-number">255.</span>
+x_train = x_train.astype(np.float32)
+x_train = np.reshape(x_train, (x_train.shape[<span class="hljs-number">0</span>], <span class="hljs-number">784</span>))
+mean = x_train.mean(axis = <span class="hljs-number">1</span>)
+x_train = x_train - mean[:,<span class="hljs-literal">None</span>]
+</code></pre>
+<p class="normal">Now that our data is in the right format, we make use of TensorFlow’s powerful linear algebra (<code class="inlineCode">linalg</code>) module to calculate the SVD of our training dataset. TensorFlow provides the function <code class="inlineCode">svd()</code> defined in <code class="inlineCode">tf.linalg</code> to perform this task. And then use the <code class="inlineCode">diag</code> function to convert the sigma array (<code class="inlineCode">s</code>, a list of singular values) to a diagonal matrix:</p>
+<pre class="programlisting code"><code class="hljs-code">s, u, v = tf.linalg.svd(x_train)
+s = tf.linalg.diag(s)
+</code></pre>
+<p class="normal">This provides us with a diagonal matrix <em class="italic">s</em> of size 784 × 784; a left singular matrix <em class="italic">u</em> of size 60,000 × 784; and a right singular matrix <em class="italic">v</em> of size 784 × 784. This is so because the argument <code class="inlineCode">full_matrices</code> of the function <code class="inlineCode">svd()</code> is by default set to <code class="inlineCode">False</code>. As a result it does not generate the full <em class="italic">U</em> matrix (in this case, of size 60,000 × 60,000); instead, if input <em class="italic">X</em> is of size <em class="italic">m × n</em>, it generates <em class="italic">U</em> of size <em class="italic">p = min(m,n)</em>.</p>
+<p class="normal">The <a id="_idIndexMarker789"/>reduced-dimension data can now be generated by multiplying respective slices of <em class="italic">u</em> and <em class="italic">s</em>. We reduce<a id="_idIndexMarker790"/> our data from 784 to 3 dimensions; we can choose to reduce to any dimension less than 784, but we chose 3 here so that it is easier for us to visualize later. We make use of <code class="inlineCode">tf.Tensor.getitem</code> to slice our matrices in the Pythonic way:</p>
+<pre class="programlisting code"><code class="hljs-code">k = <span class="hljs-number">3</span>
+pca = tf.matmul(u[:,<span class="hljs-number">0</span>:k], s[<span class="hljs-number">0</span>:k,<span class="hljs-number">0</span>:k])
+</code></pre>
+<p class="normal">A comparison of the original and reduced data shape is done in the following code:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-built_in">print</span>(<span class="hljs-string">'original data shape'</span>,x_train.shape)
+<span class="hljs-built_in">print</span>(<span class="hljs-string">'reduced data shape'</span>, pca.shape)
+</code></pre>
+<pre class="programlisting con"><code class="hljs-con">original data shape (60000, 784)
+reduced data shape (60000, 3)
+</code></pre>
+<p class="normal">Finally, let us plot the data points in the three-dimensional space:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-type">Set</span> = sns.color_palette(<span class="hljs-string">"Set2"</span>, <span class="hljs-number">10</span>)
+color_mapping = {key:value <span class="hljs-keyword">for</span> (key,value) <span class="hljs-keyword">in</span> <span class="hljs-built_in">enumerate</span>(<span class="hljs-type">Set</span>)}
+colors = <span class="hljs-built_in">list</span>(<span class="hljs-built_in">map</span>(<span class="hljs-keyword">lambda</span> x: color_mapping[x], y_train))
+fig = plt.figure()
+ax = Axes3D(fig)
+ax.scatter(pca[:, <span class="hljs-number">0</span>], pca[:, <span class="hljs-number">1</span>],pca[:, <span class="hljs-number">2</span>], c=colors)
+</code></pre>
+<figure class="mediaobject"><img alt="Chart, scatter chart, surface chart  Description automatically generated" height="411" src="../Images/B18331_07_01.png" width="562"/></figure>
+<figure class="mediaobject">Figure 7.1: Scatter plot of MNIST dataset after dimensionality reduction using PCA</figure>
+<p class="normal">You <a id="_idIndexMarker791"/>can see that the points <a id="_idIndexMarker792"/>corresponding to the same color and, hence, the same label are clustered together. We have therefore successfully used PCA to reduce the dimensions of MNIST images. Each original image was of size 28 × 28. Using the PCA method we can reduce it to a smaller size. Normally for image data, dimensionality reduction is necessary. This is because images are large in size and contain a significant amount of redundant data.</p>
+<h2 class="heading-2" id="_idParaDest-222">TensorFlow Embedding API</h2>
+<p class="normal">TensorFlow <a id="_idIndexMarker793"/>also offers an Embedding API where one can find and visualize PCA and tSNE [1] clusters using TensorBoard. You can see the live PCA on MNIST images here: <a href="http://projector.tensorflow.org"><span class="url">http://projector.tensorflow.org</span></a>. The following image is reproduced for reference:</p>
+<figure class="mediaobject"><img alt="Chart, scatter chart  Description automatically generated" height="493" src="../Images/B18331_07_02.png" width="483"/></figure>
+<figure class="mediaobject">Figure 7.2: A visualization of a principal component analysis, applied to the MNIST dataset</figure>
+<p class="normal">You can <a id="_idIndexMarker794"/>process your data using TensorBoard. It contains a tool <a id="_idIndexMarker795"/>called <strong class="keyWord">Embedding Projector</strong> that allows one to interactively visualize embedding. The Embedding Projector tool has three panels:</p>
+<ul>
+<li class="bulletList"><strong class="keyWord">Data Panel</strong>: It is<a id="_idIndexMarker796"/> located at the top left, and you can choose the data, labels, and so on in this panel.</li>
+<li class="bulletList"><strong class="keyWord">Projections Panel</strong>: Available <a id="_idIndexMarker797"/>at the bottom left, you can choose the type of projections you want here. It offers three choices: PCA, t-SNE, and custom.</li>
+<li class="bulletList"><strong class="keyWord">Inspector Panel</strong>: On <a id="_idIndexMarker798"/>the right-hand side, here you can search for particular points and see a list of nearest neighbors.</li>
+</ul>
+<figure class="mediaobject"><img alt="Graphical user interface, chart, scatter chart  Description automatically generated" height="492" src="../Images/B18331_07_03.png" width="818"/></figure>
+<p class="packt_figref">Figure 7.3: Screenshot of the Embedding Projector tool</p>
+<p class="normal">PCA is a <a id="_idIndexMarker799"/>useful tool for visualizing datasets and for finding linear relationships between variables. It can also be used for clustering, outlier detection, and feature selection. Next, we will learn about the k-means algorithm, a method for clustering data.</p>
+<h1 class="heading-1" id="_idParaDest-223">K-means clustering</h1>
+<p class="normal">K-means clustering, as<a id="_idIndexMarker800"/> the name suggests, is a technique to cluster data, that is, to partition data into a specified number of data points. It is an unsupervised learning technique. It works by identifying patterns in the given data. Remember the sorting hat of Harry Potter fame? What it is doing in the book is clustering—dividing new (unlabelled) students into four different clusters: Gryffindor, Ravenclaw, Hufflepuff, and Slytherin.</p>
+<p class="normal">Humans are very good at grouping objects together; clustering algorithms try to give a similar capability to computers. There are many clustering techniques available, such as hierarchical, Bayesian, or partitional. K-means clustering belongs to partitional clustering; it partitions data into <em class="italic">k</em> clusters. Each cluster has a center, called the centroid. The number of clusters <em class="italic">k</em> has to be specified by the user.</p>
+<p class="normal">The k-means algorithm<a id="_idIndexMarker801"/> works in the following manner:</p>
+<ol class="numberedList" style="list-style-type: decimal;">
+<li class="numberedList" value="1">Randomly choose <em class="italic">k</em> data points as the initial centroids (cluster centers).</li>
+<li class="numberedList">Assign each data point to the closest centroid; there can be different measures to find closeness, the most common being the Euclidean distance.</li>
+<li class="numberedList">Recompute the centroids using current cluster membership, such that the sum of squared distances decreases.</li>
+<li class="numberedList">Repeat the last two steps until convergence is met.</li>
+</ol>
+<p class="normal">In the previous TensorFlow versions, the <code class="inlineCode">KMeans</code> class was implemented in the <code class="inlineCode">Contrib</code> module; however, the class is no longer available in TensorFlow 2.0. Here we will instead use the advanced mathematical functions provided in TensorFlow 2.0 to implement k-means clustering.</p>
+<h2 class="heading-2" id="_idParaDest-224">K-means in TensorFlow</h2>
+<p class="normal">To demonstrate<a id="_idIndexMarker802"/> k-means in TensorFlow, we will use randomly generated data in the code that follows. Our randomly generated data will contain 200 samples, and we will divide them into three clusters. We start by importing all the required modules, defining the variables, and determining the number of sample points (<code class="inlineCode">points_n</code>), the number of clusters to be formed (<code class="inlineCode">clusters_n</code>), and the number of iterations we will be doing (<code class="inlineCode">iteration_n</code>). We also set the seed for a random number to ensure that our work is reproducible:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> matplotlib.pyplot <span class="hljs-keyword">as</span> plt
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+points_n = <span class="hljs-number">200</span>
+clusters_n = <span class="hljs-number">3</span>
+iteration_n = <span class="hljs-number">100</span>
+seed = <span class="hljs-number">123</span>
+np.random.seed(seed)
+tf.random.set_seed(seed)
+</code></pre>
+<p class="normal">Now we randomly generate data and from the data select three centroids randomly:</p>
+<pre class="programlisting code"><code class="hljs-code">points = np.random.uniform(<span class="hljs-number">0</span>, <span class="hljs-number">10</span>, (points_n, <span class="hljs-number">2</span>))
+centroids = tf.<span class="hljs-built_in">slice</span>(tf.random.shuffle(points), [<span class="hljs-number">0</span>, <span class="hljs-number">0</span>], [clusters_n, -<span class="hljs-number">1</span>])
+</code></pre>
+<p class="normal">Let us now plot the points:</p>
+<pre class="programlisting code"><code class="hljs-code">plt.scatter(points[:, <span class="hljs-number">0</span>], points[:, <span class="hljs-number">1</span>], s=<span class="hljs-number">50</span>, alpha=<span class="hljs-number">0.5</span>)
+plt.plot(centroids[:, <span class="hljs-number">0</span>], centroids[:, <span class="hljs-number">1</span>], <span class="hljs-string">'kx'</span>, markersize=<span class="hljs-number">15</span>)
+plt.show()
+</code></pre>
+<p class="normal">You can <a id="_idIndexMarker803"/>see the scatter plot of all the points and the randomly selected three centroids in the following graph:</p>
+<figure class="mediaobject"><img alt="Chart, scatter chart  Description automatically generated" height="385" src="../Images/B18331_07_04.png" width="581"/></figure>
+<p class="packt_figref">Figure 7.4: Randomly generated data, from three randomly selected centroids, plotted</p>
+<p class="normal">We define the function <code class="inlineCode">closest_centroids()</code> to assign each point to the centroid it is closest to:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">closest_centroids</span><span class="hljs-function">(</span><span class="hljs-params">points, centroids</span><span class="hljs-function">):</span>
+    distances = tf.reduce_sum(tf.square(tf.subtract(points, centroids[:,<span class="hljs-literal">None</span>])), <span class="hljs-number">2</span>)
+    assignments = tf.argmin(distances, <span class="hljs-number">0</span>)
+    <span class="hljs-keyword">return</span> assignments
+</code></pre>
+<p class="normal">We create another function <code class="inlineCode">move_centroids()</code>. It recalculates the centroids such that the sum of squared distances decreases:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">move_centroids</span><span class="hljs-function">(</span><span class="hljs-params">points, closest, centroids</span><span class="hljs-function">):</span>
+    <span class="hljs-keyword">return</span> np.array([points[closest==k].mean(axis=<span class="hljs-number">0</span>) <span class="hljs-keyword">for</span> k <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(centroids.shape[<span class="hljs-number">0</span>])])
+</code></pre>
+<p class="normal">Now we call these two functions iteratively for 100 iterations. We have chosen the number of iterations arbitrarily; you can increase and decrease it to see the effect:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">for</span> step <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(iteration_n):
+    closest = closest_centroids(points, centroids)
+    centroids = move_centroids(points, closest, centroids)
+</code></pre>
+<p class="normal">Let us now <a id="_idIndexMarker804"/>visualize how the centroids have changed after 100 iterations:</p>
+<pre class="programlisting code"><code class="hljs-code">plt.scatter(points[:, <span class="hljs-number">0</span>], points[:, <span class="hljs-number">1</span>], c=closest, s=<span class="hljs-number">50</span>, alpha=<span class="hljs-number">0.5</span>)
+plt.plot(centroids[:, <span class="hljs-number">0</span>], centroids[:, <span class="hljs-number">1</span>], <span class="hljs-string">'kx'</span>, markersize=<span class="hljs-number">15</span>)
+plt.show()
+</code></pre>
+<p class="normal">In <em class="italic">Figure 7.5</em>, you can see the final centroids after 100 iterations. We have also colored the points based on which centroid they are closest to. The yellow points correspond to one cluster (nearest the cross in its center), and the same is true for the purple and green cluster points:</p>
+<figure class="mediaobject"><img alt="" height="373" src="../Images/B18331_07_05.png" width="572"/></figure>
+<p class="packt_figref">Figure 7.5: Plot of the final centroids after 100 iterations</p>
+<div class="note">
+<p class="normal">Please note that the <code class="inlineCode">plot</code> command works in <code class="inlineCode">Matplotlib 3.1.1</code> or higher versions.</p>
+</div>
+<p class="normal">In the preceding code, we decided to limit the number of clusters to three, but in most cases with unlabelled data, one is never sure how many clusters exist. One can determine the optimal number of clusters using the elbow method. The method is based on the principle that we should choose the cluster number that reduces the <strong class="keyWord">sum of squared error</strong> (<strong class="keyWord">SSE</strong>) distance. If <em class="italic">k</em> is the number of clusters, then as <em class="italic">k</em> increases, the SSE <a id="_idIndexMarker805"/>decreases, with SSE = 0; when <em class="italic">k</em> is equal to the number of data points, each point is its own cluster. It is clear we do not want this as our number of clusters, so when we plot the graph <a id="_idIndexMarker806"/>between SSE and the number of clusters, we should see a kink in the graph, like the elbow of the hand, which is how the method gets its name – the elbow method. The following code calculates the sum of squared errors for our data:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">sse</span><span class="hljs-function">(</span><span class="hljs-params">points, centroids</span><span class="hljs-function">):</span>
+    sse1 = tf.reduce_sum(tf.square(tf.subtract(points, centroids[:,<span class="hljs-literal">None</span>])), <span class="hljs-number">2</span>).numpy()
+    s = np.argmin(sse1, <span class="hljs-number">0</span>)
+    distance = <span class="hljs-number">0</span>
+    <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-built_in">len</span>(points)):
+      distance += sse1[s[i], i]
+    <span class="hljs-keyword">return</span> distance/<span class="hljs-built_in">len</span>(points)
+</code></pre>
+<p class="normal">Let us use the elbow method now for finding the optimum number of clusters for our dataset. To do that we will start with one cluster, that is, all points belonging to a single cluster, and increase the number of clusters sequentially. In the code, we increase the clusters by one, with eleven being the maximum number of clusters. For each cluster number value, we use the code above to find the centroids (and hence the clusters) and find the SSE:</p>
+<pre class="programlisting code"><code class="hljs-code">w_sse = []
+<span class="hljs-keyword">for</span> n <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-number">1</span>, <span class="hljs-number">11</span>):
+  centroids = tf.<span class="hljs-built_in">slice</span>(tf.random.shuffle(points), [<span class="hljs-number">0</span>, <span class="hljs-number">0</span>], [n, -<span class="hljs-number">1</span>])
+  <span class="hljs-keyword">for</span> step <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(iteration_n):
+    closest = closest_centroids(points, centroids)
+    centroids = move_centroids(points, closest, centroids)
+  <span class="hljs-comment">#print(sse(points, centroids))</span>
+  w_sse.append(sse(points, centroids))
+plt.plot(<span class="hljs-built_in">range</span>(<span class="hljs-number">1</span>, <span class="hljs-number">11</span>),w_sse) 
+plt.xlabel(<span class="hljs-string">'Number of clusters'</span>) 
+</code></pre>
+<p class="normal"><em class="italic">Figure 7.6</em> shows the different cluster values for the dataset. The kink is clearly visible when the number of clusters is four:</p>
+<figure class="mediaobject"><img alt="" height="368" src="../Images/B18331_07_06.png" width="516"/></figure>
+<p class="packt_figref">Figure 7.6: Plotting SSE against the number of clusters</p>
+<p class="normal">K-means clustering<a id="_idIndexMarker807"/> is very popular because it is fast, simple, and robust. It also has some disadvantages, the biggest being that the user has to specify the number of clusters. Second, the algorithm does not guarantee global optima; the results can change if the initial randomly chosen centroids change. Third, it is very sensitive to outliers.</p>
+<h2 class="heading-2" id="_idParaDest-225">Variations in k-means</h2>
+<p class="normal">In the original k-means algorithm <a id="_idIndexMarker808"/>each point belongs to a specific cluster (centroid); this is<a id="_idIndexMarker809"/> called <strong class="keyWord">hard clustering</strong>. However, we can have one point belong to all the clusters, with a membership function defining how much it <a id="_idIndexMarker810"/>belongs to a particular cluster (centroid). This is <a id="_idIndexMarker811"/>called <em class="italic">fuzzy clustering</em> or <em class="italic">soft clustering</em>. </p>
+<p class="normal">This variation was proposed in 1973 by J. C. Dunn and later improved upon by J. C. Bezdek in 1981. Though soft clustering takes longer to converge, it can be useful when a point is in multiple classes, or when we want to know how similar a given point is to different clusters.</p>
+<p class="normal">The accelerated k-means algorithm was created in 2003 by Charles Elkan. He exploited the triangle inequality relationship (that is, a straight line is the shortest distance between two points). Instead of just doing all distance calculations at each iteration, he also kept track of the lower and upper bounds for distances between points and centroids.</p>
+<p class="normal">In 2006, David Arthur and Sergei Vassilvitskii proposed the k-means++ algorithm. The major change they <a id="_idIndexMarker812"/>proposed was in the initialization of centroids. They showed that if we choose centroids that are distant from each other, then the k-means algorithm is less likely to converge on a suboptimal solution.</p>
+<p class="normal">Another alternative can be that at each iteration we do not use the entire dataset, instead using mini-batches. This modification was proposed by David Sculey in 2010. Now, that we have covered PCA and k-means, we move toward an interesting network called self-organized network or winner-take-all units.</p>
+<h1 class="heading-1" id="_idParaDest-226">Self-organizing maps</h1>
+<p class="normal">Both k-means and PCA can cluster the input data; however, they do not maintain a topological <a id="_idIndexMarker813"/>relationship. In this section, we will consider <strong class="keyWord">Self-Organizing Maps</strong> (<strong class="keyWord">SOMs</strong>), sometimes known as <strong class="keyWord">Kohonen networks</strong> or <strong class="keyWord">Winner-Take-All Units</strong> (<strong class="keyWord">WTUs</strong>). They<a id="_idIndexMarker814"/> maintain <a id="_idIndexMarker815"/>the topological relation. SOMs are a very special kind of neural network, inspired by a distinctive feature of the human brain. In our brain, different sensory inputs are represented in a topologically ordered manner. Unlike other neural networks, neurons are not all connected to each other via weights; instead, they influence each other’s learning. The most important aspect of SOM is that neurons represent the learned inputs in a topographic manner. They were proposed by Teuvo Kohonen [7] in 1982.</p>
+<p class="normal">In SOMs, neurons are usually placed on the nodes of a (1D or 2D) lattice. Higher dimensions are also possible but are rarely used in practice. Each neuron in the lattice is connected to all the input units via a weight matrix. <em class="italic">Figure 7.7</em> shows a SOM with 6 × 8 (48 neurons) and 5 inputs. For clarity, only the weight vectors connecting all inputs to one neuron are shown. In this case, each neuron will have seven elements, resulting in a combined weight matrix of size 40 × 5:</p>
+<figure class="mediaobject"><img alt="" height="308" src="../Images/B18331_07_07.png" width="556"/></figure>
+<p class="packt_figref">Figure 7.7: A self-organized map with 5 inputs and 48 neurons</p>
+<p class="normal">A SOM learns <a id="_idIndexMarker816"/>via competitive learning. It can be considered as a nonlinear generalization of PCA and, thus, like PCA, can be employed for dimensionality reduction.</p>
+<p class="normal">In order to<a id="_idIndexMarker817"/> implement SOM, let’s first understand how it works. As a first step, the weights of the network are initialized either to some random value or by taking random samples from the input. Each neuron occupying a space in the lattice will be assigned specific locations. Now as an input is presented, the neuron with the least distance from the input is declared the winner (WTU). This is done by measuring the distance between the weight vectors (<em class="italic">W</em>) and input vectors (<em class="italic">X</em>) of all neurons:</p>
+<p class="center"><img alt="" height="188" src="../Images/B18331_07_007.png" style="height: 4.70em !important;" width="363"/></p>
+<p class="normal">Here, <em class="italic">d</em><sub class="italic">j</sub> is the distance of the weights of neuron <em class="italic">j</em> from input <em class="italic">X</em>. The neuron with the lowest <em class="italic">d</em> value is the winner.</p>
+<p class="normal">Next, the weights of the winning neuron and its neighboring neurons are adjusted in a manner to ensure that the same neuron is the winner if the same input is presented next time.</p>
+<p class="normal">To decide which neighboring neurons need to be modified, the network uses a neighborhood function <img alt="" height="50" src="../Images/B18331_07_008.png" style="height: 1.25em !important; vertical-align: -0.30em !important;" width="83"/>; normally, the Gaussian Mexican hat function is chosen as a neighborhood function. The neighborhood function is mathematically represented as follows:</p>
+<p class="center"><img alt="" height="75" src="../Images/B18331_07_009.png" style="height: 1.88em !important; vertical-align: 0.11em !important;" width="233"/></p>
+<p class="normal">Here, <img alt="" height="42" src="../Images/B18331_07_010.png" style="height: 1.05em !important; vertical-align: -0.08em !important;" width="25"/> is a<a id="_idIndexMarker818"/> time-dependent radius of the influence of a neuron and <em class="italic">d</em> is its distance from the winning neuron. Graphically, the function looks like a hat (hence its name), as you can see in <em class="italic">Figure 7.8</em>:</p>
+<figure class="mediaobject"><img alt="" height="333" src="../Images/B18331_07_08.png" width="379"/></figure>
+<p class="packt_figref">Figure 7.8: The “Gaussian Mexican hat” function, visualized in graph form</p>
+<p class="normal">Another important property of the neighborhood function is that its radius reduces with time. As a result, in the beginning, many neighboring neurons’ weights are modified, but as the network learns, eventually a few neurons’ weights (at times, only one or none) are modified in the learning process. </p>
+<p class="normal">The change in weight is given by the following equation:</p>
+<p class="center"><img alt="" height="50" src="../Images/B18331_07_011.png" style="height: 1.25em !important;" width="321"/></p>
+<p class="normal">The process is repeated for all the inputs for a given number of iterations. As the iterations progress, we reduce the learning rate and the radius by a factor dependent on the iteration number.</p>
+<p class="normal">SOMs are <a id="_idIndexMarker819"/>computationally expensive and thus are not really useful for very large datasets. Still, they are easy to understand, and they can very nicely find the similarity between input data. Thus, they have been employed for image segmentation and to determine word similarity maps in NLP.</p>
+<h2 class="heading-2" id="_idParaDest-227">Colour mapping using a SOM</h2>
+<p class="normal">Some of the interesting <a id="_idIndexMarker820"/>properties of the feature map of the<a id="_idIndexMarker821"/> input space generated by a SOM are:</p>
+<ul>
+<li class="bulletList">The feature map provides a good representation of the input space. This property can be used to perform vector quantization so that we may have a continuous input space, and using a SOM we can represent it in a discrete output space.</li>
+<li class="bulletList">The feature map is topologically ordered, that is, the spatial location of a neuron in the output lattice corresponds to a particular feature of the input.</li>
+<li class="bulletList">The feature map also reflects the statistical distribution of the input space; the domain that has the largest number of input samples gets a wider area in the feature map.</li>
+</ul>
+<p class="normal">These features of SOM make them the natural choice for many interesting applications. Here we use SOM for clustering a range of given R, G, and B pixel values to a corresponding color map. We start with the importing of modules:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> matplotlib.pyplot <span class="hljs-keyword">as</span> plt
+</code></pre>
+<p class="normal">The main component of the code is our class <code class="inlineCode">WTU</code>. The class <code class="inlineCode">__init__</code> function initializes various hyperparameters of our SOM, the dimensions of our 2D lattice (<code class="inlineCode">m, n</code>), the number of features in the input (<code class="inlineCode">dim</code>), the neighborhood radius (<code class="inlineCode">sigma</code>), the initial weights, and the topographic information:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Define the Winner Take All units</span>
+<span class="hljs-keyword">class</span><span class="hljs-class"> </span><span class="hljs-title">WTU</span><span class="hljs-class">(</span><span class="hljs-built_in">object</span><span class="hljs-class">):</span>
+  <span class="hljs-comment">#_learned = False</span>
+  <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">__init__</span><span class="hljs-function">(</span><span class="hljs-params">self, m, n, dim, num_iterations, eta = </span><span class="hljs-number">0.5</span><span class="hljs-params">, sigma = </span><span class="hljs-literal">None</span><span class="hljs-function">):</span>
+    <span class="hljs-string">"""</span>
+<span class="hljs-string">    m x n : The dimension of 2D lattice in which neurons are arranged</span>
+<span class="hljs-string">    dim : Dimension of input training data</span>
+<span class="hljs-string">    num_iterations: Total number of training iterations</span>
+<span class="hljs-string">    eta : Learning rate</span>
+<span class="hljs-string">    sigma: The radius of neighbourhood function.</span>
+<span class="hljs-string">    """</span>
+    self._m = m
+    self._n = n
+    self._neighbourhood = []
+    self._topography = []
+    self._num_iterations = <span class="hljs-built_in">int</span>(num_iterations)
+    self._learned = <span class="hljs-literal">False</span>
+    self.dim = dim
+    self.eta = <span class="hljs-built_in">float</span>(eta)
+    
+    <span class="hljs-keyword">if</span> sigma <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span>:
+      sigma = <span class="hljs-built_in">max</span>(m,n)/<span class="hljs-number">2.0</span> <span class="hljs-comment"># Constant radius</span>
+    <span class="hljs-keyword">else</span>:
+      sigma = <span class="hljs-built_in">float</span>(sigma)
+    self.sigma = sigma
+        
+    <span class="hljs-built_in">print</span>(<span class="hljs-string">'</span><span class="hljs-string">Network created with dimensions'</span>,m,n)
+         
+    <span class="hljs-comment"># Weight Matrix and the topography of neurons</span>
+    self._W = tf.random.normal([m*n, dim], seed = <span class="hljs-number">0</span>)
+    self._topography = np.array(<span class="hljs-built_in">list</span>(self._neuron_location(m, n)))
+</code></pre>
+<p class="normal">The most <a id="_idIndexMarker822"/>important function of the class is the <code class="inlineCode">training()</code> function, where we use the Kohonen algorithm as discussed before to find the winner units and then update the weights based on the neighborhood function:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">training</span><span class="hljs-function">(</span><span class="hljs-params">self,x, i</span><span class="hljs-function">):</span>
+    m = self._m
+    n= self._n
+    
+    <span class="hljs-comment"># Finding the Winner and its location</span>
+    d = tf.sqrt(tf.reduce_sum(tf.<span class="hljs-built_in">pow</span>(self._W - tf.stack([x <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(m*n)]),<span class="hljs-number">2</span>),<span class="hljs-number">1</span>))
+    self.WTU_idx = tf.argmin(d,<span class="hljs-number">0</span>)
+    
+    slice_start = tf.pad(tf.reshape(self.WTU_idx, [<span class="hljs-number">1</span>]),np.array([[<span class="hljs-number">0</span>,<span class="hljs-number">1</span>]]))
+    self.WTU_loc = tf.reshape(tf.<span class="hljs-built_in">slice</span>(self._topography, slice_start,[<span class="hljs-number">1</span>,<span class="hljs-number">2</span>]), [<span class="hljs-number">2</span>])
+    
+    
+    <span class="hljs-comment"># Change learning rate and radius as a function of iterations</span>
+    learning_rate = <span class="hljs-number">1</span> - i/self._num_iterations
+    _eta_new = self.eta * learning_rate
+    _sigma_new = self.sigma * learning_rate
+    
+    
+    <span class="hljs-comment"># Calculating Neighbourhood function</span>
+    distance_square = tf.reduce_sum(tf.<span class="hljs-built_in">pow</span>(tf.subtract(
+        self._topography, tf.stack([self.WTU_loc <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(m * n)])), <span class="hljs-number">2</span>), <span class="hljs-number">1</span>)
+    neighbourhood_func = tf.exp(tf.negative(tf.math.divide(tf.cast(
+distance_square, <span class="hljs-string">"float32"</span>), tf.<span class="hljs-built_in">pow</span>(_sigma_new, <span class="hljs-number">2</span>))))
+    
+    <span class="hljs-comment"># multiply learning rate with neighbourhood func</span>
+    eta_into_Gamma = tf.multiply(_eta_new, neighbourhood_func)
+    
+    <span class="hljs-comment"># Shape it so that it can be multiplied to calculate dW</span>
+    weight_multiplier = tf.stack([tf.tile(tf.<span class="hljs-built_in">slice</span>(
+        eta_into_Gamma, np.array([i]), np.array([<span class="hljs-number">1</span>])), [self.dim])
+        <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(m * n)])
+    delta_W = tf.multiply(weight_multiplier,
+        tf.subtract(tf.stack([x <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(m * n)]),self._W))
+    new_W = self._W + delta_W
+    self._W = new_W
+</code></pre>
+<p class="normal">The <code class="inlineCode">fit()</code> function<a id="_idIndexMarker823"/> is a helper function that calls the <code class="inlineCode">training()</code> function and stores the centroid grid for easy retrieval:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">fit</span><span class="hljs-function">(</span><span class="hljs-params">self, X</span><span class="hljs-function">):</span>
+    <span class="hljs-string">"""</span>
+<span class="hljs-string">    Function to carry out training</span>
+<span class="hljs-string">    """</span>
+    <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(self._num_iterations):
+        <span class="hljs-keyword">for</span> x <span class="hljs-keyword">in</span> X:
+            self.training(x,i)
+    <span class="hljs-comment"># Store a centroid grid for easy retrieval</span>
+    centroid_grid = [[] <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(self._m)]
+    self._Wts = <span class="hljs-built_in">list</span>(self._W)
+    self._locations = <span class="hljs-built_in">list</span>(self._topography)
+    <span class="hljs-keyword">for</span> i, loc <span class="hljs-keyword">in</span> <span class="hljs-built_in">enumerate</span>(self._locations):
+        centroid_grid[loc[<span class="hljs-number">0</span>]].append(self._Wts[i])
+    self._centroid_grid = centroid_grid
+    self._learned = <span class="hljs-literal">True</span>
+</code></pre>
+<p class="normal">Then<a id="_idIndexMarker824"/> there are some more helper functions to find the winner and generate a 2D lattice of neurons, and a function to map input vectors to the corresponding neurons in the 2D lattice:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">winner</span><span class="hljs-function">(</span><span class="hljs-params">self, x</span><span class="hljs-function">):</span>
+    idx = self.WTU_idx,self.WTU_loc
+    <span class="hljs-keyword">return</span> idx
+      
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">_neuron_location</span><span class="hljs-function">(</span><span class="hljs-params">self,m,n</span><span class="hljs-function">):</span>
+    <span class="hljs-string">"""</span>
+<span class="hljs-string">    Function to generate the 2D lattice of neurons</span>
+<span class="hljs-string">    """</span>
+    <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(m):
+       <span class="hljs-keyword">for</span> j <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(n):
+          <span class="hljs-keyword">yield</span> np.array([i,j])
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">get_centroids</span><span class="hljs-function">(</span><span class="hljs-params">self</span><span class="hljs-function">):</span>
+    <span class="hljs-string">"""</span>
+<span class="hljs-string">    Function to return a list of 'm' lists, with each inner list containing the 'n' corresponding centroid locations as 1-D NumPy arrays.</span>
+<span class="hljs-string">    """</span>
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> self._learned:
+       <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"SOM not trained yet"</span>)
+    <span class="hljs-keyword">return</span> self._centroid_grid
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">map_vects</span><span class="hljs-function">(</span><span class="hljs-params">self, X</span><span class="hljs-function">):</span>
+    <span class="hljs-string">"""</span>
+<span class="hljs-string">    Function to map each input vector to the relevant neuron in the lattice</span>
+<span class="hljs-string">    """</span>
+    <span class="hljs-keyword">if</span> <span class="hljs-keyword">not</span> self._learned:
+       <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"SOM not trained yet"</span>)
+       to_return = []
+       <span class="hljs-keyword">for</span> vect <span class="hljs-keyword">in</span> X:
+          min_index = <span class="hljs-built_in">min</span>([i <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(<span class="hljs-built_in">len</span>(self._Wts))],
+                           key=<span class="hljs-keyword">lambda</span> x: np.linalg.norm(vect -
+                           self._Wts[x]))
+          to_return.append(self._locations[min_index])
+       <span class="hljs-keyword">return</span> to_return 
+</code></pre>
+<p class="normal">We will <a id="_idIndexMarker825"/>also need to normalize the input data, so we create a function to do so:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">normalize</span><span class="hljs-function">(</span><span class="hljs-params">df</span><span class="hljs-function">):</span>
+    result = df.copy()
+    <span class="hljs-keyword">for</span> feature_name <span class="hljs-keyword">in</span> df.columns:
+        max_value = df[feature_name].<span class="hljs-built_in">max</span>()
+        min_value = df[feature_name].<span class="hljs-built_in">min</span>()
+        result[feature_name] = (df[feature_name] - min_value) / (max_value - min_value)
+    <span class="hljs-keyword">return</span> result.astype(np.float32)
+</code></pre>
+<p class="normal">Let us read the data. The data contains red, green, and blue channel values for different colors. Let us normalize them:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment">## Reading input data from file</span>
+<span class="hljs-keyword">import</span> pandas <span class="hljs-keyword">as</span> pd
+df = pd.read_csv(<span class="hljs-string">'colors.csv'</span>)  <span class="hljs-comment"># The last column of data file is a label</span>
+data = normalize(df[[<span class="hljs-string">'R'</span>, <span class="hljs-string">'G'</span>, <span class="hljs-string">'B'</span>]]).values
+name = df[<span class="hljs-string">'</span><span class="hljs-string">Color-Name'</span>].values
+n_dim = <span class="hljs-built_in">len</span>(df.columns) - <span class="hljs-number">1</span>
+<span class="hljs-comment"># Data for Training</span>
+colors = data
+color_names = name
+</code></pre>
+<p class="normal">Let us create our SOM and fit it:</p>
+<pre class="programlisting code"><code class="hljs-code">som = WTU(<span class="hljs-number">30</span>, <span class="hljs-number">30</span>, n_dim, <span class="hljs-number">400</span>, sigma=<span class="hljs-number">10.0</span>)
+som.fit(colors)
+</code></pre>
+<p class="normal">The fit function takes slightly longer to run, since our code is not optimized for performance but for explaining the concept. Now, let’s look at the result of the trained model. Let us run the following code:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Get output grid</span>
+image_grid = som.get_centroids()
+<span class="hljs-comment"># Map colours to their closest neurons</span>
+mapped = som.map_vects(colors)
+<span class="hljs-comment"># Plot</span>
+plt.imshow(image_grid)
+plt.title(<span class="hljs-string">'Color Grid SOM'</span>)
+<span class="hljs-keyword">for</span> i, m <span class="hljs-keyword">in</span> <span class="hljs-built_in">enumerate</span>(mapped):
+    plt.text(m[<span class="hljs-number">1</span>], m[<span class="hljs-number">0</span>], color_names[i], ha=<span class="hljs-string">'center'</span>, va=<span class="hljs-string">'center'</span>,
+             bbox=<span class="hljs-built_in">dict</span>(facecolor=<span class="hljs-string">'white'</span>, alpha=<span class="hljs-number">0.5</span>, lw=<span class="hljs-number">0</span>))
+</code></pre>
+<p class="normal">You can<a id="_idIndexMarker826"/> see the color map in the 2D neuron lattice:</p>
+<figure class="mediaobject"><img alt="" height="392" src="../Images/B18331_07_09.png" width="383"/></figure>
+<p class="packt_figref">Figure 7.9: A plotted color map of the 2D neuron lattice</p>
+<p class="normal">You can see that neurons that win for similar colors are closely placed. Next, we move to an interesting architecture, the restricted Boltzmann machines.</p>
+<h1 class="heading-1" id="_idParaDest-228">Restricted Boltzmann machines</h1>
+<p class="normal">The<a id="_idIndexMarker827"/> RBM is a two-layered neural network—the first layer is called<a id="_idIndexMarker828"/> the <strong class="keyWord">visible layer</strong> and the second layer is called <a id="_idIndexMarker829"/>the <strong class="keyWord">hidden layer</strong>. They are called <strong class="keyWord">shallow neural networks</strong> because<a id="_idIndexMarker830"/> they are only two layers deep. They were first proposed in 1986 by Paul Smolensky (he called them Harmony Networks [1]) and later by Geoffrey Hinton who in 2006 proposed <strong class="keyWord">Contrastive Divergence</strong> (<strong class="keyWord">CD</strong>) as a method to train <a id="_idIndexMarker831"/>them. All neurons in the visible layer are connected to all the neurons in the hidden layer, but there is a <strong class="keyWord">restriction</strong>—no neuron in the same layer can be connected. All neurons in the RBM are binary by nature; they will either fire or not fire.</p>
+<p class="normal">RBMs can be used for dimensionality reduction, feature extraction, and collaborative filtering. The training of RBMs can be divided into three parts: forward pass, backward pass, and then a comparison.</p>
+<p class="normal">Let us delve deeper into the math. We can divide the operation of RBMs into two passes:</p>
+<p class="normal"><strong class="keyWord">Forward pass</strong>: The<a id="_idIndexMarker832"/> information at visible units (<em class="italic">V</em>) is passed via weights (<em class="italic">W</em>) and biases (<em class="italic">c</em>) to the hidden units (<em class="italic">h</em><sub class="italic">0</sub>). The hidden unit may fire or not depending on the stochastic probability (<img alt="" height="42" src="../Images/B18331_07_010.png" style="height: 1.05em !important; vertical-align: -0.08em !important;" width="25"/> is the stochastic probability), which is basically the sigmoid function:</p>
+<p class="center"><img alt="" height="50" src="../Images/B18331_07_013.png" style="height: 1.25em !important;" width="404"/></p>
+<p class="normal"><strong class="keyWord">Backward pass</strong>: The <a id="_idIndexMarker833"/>hidden unit representation (<em class="italic">h</em><sub class="italic">0</sub>) is then passed back to the visible units through the same weights, <em class="italic">W</em>, but a different bias, <em class="italic">c</em>, where the model reconstructs the input. Again, the input is sampled:</p>
+<p class="center"><img alt="" height="50" src="../Images/B18331_07_014.png" style="height: 1.25em !important;" width="400"/></p>
+<p class="normal">These two passes are repeated for <em class="italic">k</em> steps or until the convergence [4] is reached. According to researchers, <em class="italic">k=1</em> gives good results, so we will keep <em class="italic">k = 1</em>.</p>
+<p class="normal">The joint configuration of the visible vector <em class="italic">V</em> and the hidden vector <em class="italic">h</em> has energy given as follows:</p>
+<p class="center"><img alt="" height="50" src="../Images/B18331_07_015.png" style="height: 1.25em !important;" width="546"/></p>
+<p class="normal">Also associated with each visible vector <em class="italic">V</em> is free energy, the energy that a single configuration would need to have in order to have the same probability as all of the configurations that contain <em class="italic">V</em>:</p>
+<p class="center"><img alt="" height="113" src="../Images/B18331_07_016.png" style="height: 2.83em !important; vertical-align: 0.06em !important;" width="842"/></p>
+<p class="normal">Using the contrastive divergence objective function, that is, <em class="italic">Mean(F(V</em><sub class="italic">original</sub><em class="italic">)) - Mean(F(V</em><sub class="italic">reconstructed</sub><em class="italic">))</em>, the change in weights is given by:</p>
+<p class="center"><img alt="" height="54" src="../Images/B18331_07_017.png" style="height: 1.35em !important; vertical-align: 0.01em !important;" width="679"/></p>
+<p class="normal">Here, <img alt="" height="46" src="../Images/B18331_01_025.png" style="height: 1.15em !important; vertical-align: -0.18em !important;" width="21"/> is the learning rate. Similar expressions exist for the biases <em class="italic">b</em> and <em class="italic">c</em>.</p>
+<h2 class="heading-2" id="_idParaDest-229">Reconstructing images using an RBM</h2>
+<p class="normal">Let us <a id="_idIndexMarker834"/>build an RBM in TensorFlow. The RBM will be designed to reconstruct handwritten digits. This is the first generative model that you are learning; in the upcoming chapters, we will learn a few more. We import the TensorFlow, NumPy, and Matplotlib libraries:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">import</span> tensorflow <span class="hljs-keyword">as</span> tf
+<span class="hljs-keyword">import</span> numpy <span class="hljs-keyword">as</span> np
+<span class="hljs-keyword">import</span> matplotlib.pyplot <span class="hljs-keyword">as</span> plt
+</code></pre>
+<p class="normal">We define a class <code class="inlineCode">RBM</code>. The class <code class="inlineCode">__init_()</code> function initializes the number of neurons in the visible layer (<code class="inlineCode">input_size</code>) and the number of neurons in the hidden layer (<code class="inlineCode">output_size</code>). The function initializes the weights and biases for both hidden and visible layers. In the following code, we have initialized them to zero. You can try with random initialization as well:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment">#Class that defines the behavior of the RBM</span>
+<span class="hljs-keyword">class</span><span class="hljs-class"> </span><span class="hljs-title">RBM</span><span class="hljs-class">(</span><span class="hljs-built_in">object</span><span class="hljs-class">):</span>
+    
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">__init__</span><span class="hljs-function">(</span><span class="hljs-params">self, input_size, output_size, lr=</span><span class="hljs-number">1.0</span><span class="hljs-params">, batchsize=</span><span class="hljs-number">100</span><span class="hljs-function">):</span>
+        <span class="hljs-string">"""</span>
+<span class="hljs-string">        m: Number of neurons in visible layer</span>
+<span class="hljs-string">        n: number of neurons in hidden layer</span>
+<span class="hljs-string">        """</span>
+        <span class="hljs-comment"># Defining the hyperparameters</span>
+        self._input_size = input_size <span class="hljs-comment"># Size of Visible</span>
+        self._output_size = output_size <span class="hljs-comment"># Size of outp</span>
+        self.learning_rate = lr <span class="hljs-comment"># The step used in gradient descent</span>
+        self.batchsize = batchsize         <span class="hljs-comment"># The size of how much data will be used for training per sub iteration</span>
+        
+        <span class="hljs-comment"># Initializing weights and biases as matrices full of zeroes</span>
+        self.w = tf.zeros([input_size, output_size], np.float32) <span class="hljs-comment"># Creates and initializes the weights with 0</span>
+        self.hb = tf.zeros([output_size], np.float32) <span class="hljs-comment"># Creates and initializes the hidden biases with 0</span>
+        self.vb = tf.zeros([input_size], np.float32) <span class="hljs-comment"># Creates and initializes the visible biases with 0</span>
+</code></pre>
+<p class="normal">We define methods to provide the forward and backward passes:</p>
+<pre class="programlisting code"><code class="hljs-code">    <span class="hljs-comment"># Forward Pass</span>
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">prob_h_given_v</span><span class="hljs-function">(</span><span class="hljs-params">self, visible, w, hb</span><span class="hljs-function">):</span>
+        <span class="hljs-comment"># Sigmoid </span>
+        <span class="hljs-keyword">return</span> tf.nn.sigmoid(tf.matmul(visible, w) + hb)
+    <span class="hljs-comment"># Backward Pass</span>
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">prob_v_given_h</span><span class="hljs-function">(</span><span class="hljs-params">self, hidden, w, vb</span><span class="hljs-function">):</span>
+        <span class="hljs-keyword">return</span> tf.nn.sigmoid(tf.matmul(hidden, tf.transpose(w)) + vb)
+</code></pre>
+<p class="normal">We <a id="_idIndexMarker835"/>create a function to generate random binary values. This is because both hidden and visible units are updated using stochastic probability, depending upon the input to each unit in the case of the hidden layer (and the top-down input to visible layers):</p>
+<pre class="programlisting code"><code class="hljs-code">   <span class="hljs-comment"># Generate the sample probability</span>
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">sample_prob</span><span class="hljs-function">(</span><span class="hljs-params">self, probs</span><span class="hljs-function">):</span>
+        <span class="hljs-keyword">return</span> tf.nn.relu(tf.sign(probs - tf.random.uniform(tf.shape(probs))))
+</code></pre>
+<p class="normal">We will need functions to reconstruct the input:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">rbm_reconstruct</span><span class="hljs-function">(</span><span class="hljs-params">self,X</span><span class="hljs-function">):</span>
+    h = tf.nn.sigmoid(tf.matmul(X, self.w) + self.hb)
+    reconstruct = tf.nn.sigmoid(tf.matmul(h, tf.transpose(self.w)) + self.vb)
+    <span class="hljs-keyword">return</span> reconstruct
+</code></pre>
+<p class="normal">To train the RBM created we define the <code class="inlineCode">train()</code> function. The function calculates the positive and negative gradient terms of contrastive divergence and uses the weight update equation to update the weights and biases:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment"># Training method for the model</span>
+<span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">train</span><span class="hljs-function">(</span><span class="hljs-params">self, X, epochs=</span><span class="hljs-number">10</span><span class="hljs-function">):</span>
+    
+    loss = []
+    <span class="hljs-keyword">for</span> epoch <span class="hljs-keyword">in</span> <span class="hljs-built_in">range</span>(epochs):
+        <span class="hljs-comment">#For each step/batch</span>
+        <span class="hljs-keyword">for</span> start, end <span class="hljs-keyword">in</span> <span class="hljs-built_in">zip</span>(<span class="hljs-built_in">range</span>(<span class="hljs-number">0</span>, <span class="hljs-built_in">len</span>(X), self.batchsize),<span class="hljs-built_in">range</span>(self.batchsize,<span class="hljs-built_in">len</span>(X), self.batchsize)):
+            batch = X[start:end]
+            
+            <span class="hljs-comment">#Initialize with sample probabilities</span>
+            
+            h0 = self.sample_prob(self.prob_h_given_v(batch, self.w, self.hb))
+            v1 = self.sample_prob(self.prob_v_given_h(h0, self.w, self.vb))
+            h1 = self.prob_h_given_v(v1, self.w, self.hb)
+            
+            <span class="hljs-comment">#Create the Gradients</span>
+            positive_grad = tf.matmul(tf.transpose(batch), h0)
+            negative_grad = tf.matmul(tf.transpose(v1), h1)
+            
+            <span class="hljs-comment">#Update learning rates </span>
+            self.w = self.w + self.learning_rate *(positive_grad - negative_grad) / tf.dtypes.cast(tf.shape(batch)[<span class="hljs-number">0</span>],tf.float32)
+            self.vb = self.vb +  self.learning_rate * tf.reduce_mean(batch - v1, <span class="hljs-number">0</span>)
+            self.hb = self.hb +  self.learning_rate * tf.reduce_mean(h0 - h1, <span class="hljs-number">0</span>)
+            
+        <span class="hljs-comment">#Find the error rate</span>
+        err = tf.reduce_mean(tf.square(batch - v1))
+        <span class="hljs-built_in">print</span> (<span class="hljs-string">'Epoch: %d'</span> % epoch,<span class="hljs-string">'reconstruction error: %f'</span> % err)
+        loss.append(err)
+        
+    <span class="hljs-keyword">return</span> loss
+</code></pre>
+<p class="normal">Now that <a id="_idIndexMarker836"/>our class is ready, we instantiate an object of <code class="inlineCode">RBM</code> and train it on the MNIST dataset:</p>
+<pre class="programlisting code"><code class="hljs-code">(train_data, _), (test_data, _) =  tf.keras.datasets.mnist.load_data()
+train_data = train_data/np.float32(<span class="hljs-number">255</span>)
+train_data = np.reshape(train_data, (train_data.shape[<span class="hljs-number">0</span>], <span class="hljs-number">784</span>))
+test_data = test_data/np.float32(<span class="hljs-number">255</span>)
+test_data = np.reshape(test_data, (test_data.shape[<span class="hljs-number">0</span>], <span class="hljs-number">784</span>))
+<span class="hljs-comment">#Size of inputs is the number of inputs in the training set</span>
+input_size = train_data.shape[<span class="hljs-number">1</span>]
+rbm = RBM(input_size, <span class="hljs-number">200</span>)
+err = rbm.train(train_data,<span class="hljs-number">50</span>)
+</code></pre>
+<p class="normal">Let us plot the learning curve:</p>
+<pre class="programlisting code"><code class="hljs-code">plt.plot(err)
+plt.xlabel(<span class="hljs-string">'epochs'</span>)
+plt.ylabel(<span class="hljs-string">'cost'</span>)
+</code></pre>
+<p class="normal">In the figure below, you can see the learning curve of our RBM:</p>
+<figure class="mediaobject"><img alt="" height="399" src="../Images/B18331_07_10.png" width="622"/></figure>
+<p class="packt_figref">Figure 7.10: Learning curve for the RBM model</p>
+<p class="normal">Now, we <a id="_idIndexMarker837"/>present the code to visualize the reconstructed images:</p>
+<pre class="programlisting code"><code class="hljs-code">out = rbm.rbm_reconstruct(test_data)
+<span class="hljs-comment"># Plotting original and reconstructed images</span>
+row, col = <span class="hljs-number">2</span>, <span class="hljs-number">8</span>
+idx = np.random.randint(<span class="hljs-number">0</span>, <span class="hljs-number">100</span>, row * col // <span class="hljs-number">2</span>)
+f, axarr = plt.subplots(row, col, sharex=<span class="hljs-literal">True</span>, sharey=<span class="hljs-literal">True</span>, figsize=(<span class="hljs-number">20</span>,<span class="hljs-number">4</span>))
+<span class="hljs-keyword">for</span> fig, row <span class="hljs-keyword">in</span> <span class="hljs-built_in">zip</span>([test_data,out], axarr):
+    <span class="hljs-keyword">for</span> i,ax <span class="hljs-keyword">in</span> <span class="hljs-built_in">zip</span>(idx,row):
+        ax.imshow(tf.reshape(fig[i],[<span class="hljs-number">28</span>, <span class="hljs-number">28</span>]), cmap=<span class="hljs-string">'Greys_r'</span>)
+        ax.get_xaxis().set_visible(<span class="hljs-literal">False</span>)
+        ax.get_yaxis().set_visible(<span class="hljs-literal">False</span>)
+</code></pre>
+<p class="normal">And the reconstructed images:</p>
+<figure class="mediaobject"><img alt="" height="124" src="../Images/B18331_07_11.png" width="579"/></figure>
+<p class="packt_figref">Figure 7.11: Image reconstruction using an RBM</p>
+<p class="normal">The<a id="_idIndexMarker838"/> top row is the input handwritten image, and the bottom row is the reconstructed image. You can see that the images look remarkably similar to the human handwritten digits. In the upcoming chapters, you will learn about models that can generate even more complex images such as artificial human faces.</p>
+<h2 class="heading-2" id="_idParaDest-230">Deep belief networks</h2>
+<p class="normal">Now that we <a id="_idIndexMarker839"/>have a good understanding of RBMs and know how to train them using contrastive divergence, we <a id="_idIndexMarker840"/>can move toward the first successful deep neural network architecture, the <strong class="keyWord">deep belief networks</strong> (<strong class="keyWord">DBNs</strong>), proposed in 2006 by Hinton and his team in the paper <em class="italic">A fast learning algorithm for deep belief nets</em>. Before this model it was very difficult to train deep architectures, not just because of the limited computing resources, but also, as will be discussed in <em class="chapterRef">Chapter 8</em>, <em class="italic">Autoencoders</em>, because of the vanishing gradient problem. In DBNs it was first demonstrated how deep architectures can be trained via greedy layer-wise training.</p>
+<p class="normal">In the simplest terms, DBNs are just stacked RBMs. Each RBM is trained separately using the contrastive divergence. We start with the training of the first RBM layer. Once it is trained, we train the second RBM layer. The visible units of the second RBM are now fed the output of the hidden units of the first RBM, when it is fed the input data. The procedure is repeated with each RBM layer addition.</p>
+<p class="normal">Let us try stacking our <code class="inlineCode">RBM</code> class. To make the DBN, we will need to define one more function in the <code class="inlineCode">RBM</code> class; the output of the hidden unit of one RBM needs to feed into the next RBM:</p>
+<pre class="programlisting code"><code class="hljs-code">    <span class="hljs-comment">#Create expected output for our DBN</span>
+    <span class="hljs-keyword">def</span><span class="hljs-function"> </span><span class="hljs-title">rbm_output</span><span class="hljs-function">(</span><span class="hljs-params">self, X</span><span class="hljs-function">):</span>
+        out = tf.nn.sigmoid(tf.matmul(X, self.w) + self.hb)
+        <span class="hljs-keyword">return</span> out
+</code></pre>
+<p class="normal">Now we can just use the <code class="inlineCode">RBM</code> class to create a stacked RBM structure. In the following code we <a id="_idIndexMarker841"/>create an<a id="_idIndexMarker842"/> RBM stack: the first RBM will have 500 hidden units, the second will have 200 hidden units, and the third will have 50 hidden units:</p>
+<pre class="programlisting code"><code class="hljs-code">RBM_hidden_sizes = [<span class="hljs-number">500</span>, <span class="hljs-number">200</span> , <span class="hljs-number">50</span> ] <span class="hljs-comment">#create 2 layers of RBM with size 400 and 100</span>
+<span class="hljs-comment">#Since we are training, set input as training data</span>
+inpX = train_data
+<span class="hljs-comment">#Create list to hold our RBMs</span>
+rbm_list = []
+<span class="hljs-comment">#Size of inputs is the number of inputs in the training set</span>
+input_size = train_data.shape[<span class="hljs-number">1</span>]
+<span class="hljs-comment">#For each RBM we want to generate</span>
+<span class="hljs-keyword">for</span> i, size <span class="hljs-keyword">in</span> <span class="hljs-built_in">enumerate</span>(RBM_hidden_sizes):
+    <span class="hljs-built_in">print</span> (<span class="hljs-string">'RBM: '</span>,i,<span class="hljs-string">' '</span>,input_size,<span class="hljs-string">'-&gt;'</span>, size)
+    rbm_list.append(RBM(input_size, size))
+    input_size = size
+</code></pre>
+<pre class="programlisting con"><code class="hljs-con">---------------------------------------------------------------------
+RBM:  0   784 -&gt; 500
+RBM:  1   500 -&gt; 200
+RBM:  2   200 -&gt; 50
+</code></pre>
+<p class="normal">For the first RBM, the MNIST data is the input. The output of the first RBM is then fed as input to the second RBM, and so on through the consecutive RBM layers:</p>
+<pre class="programlisting code"><code class="hljs-code"><span class="hljs-comment">#For each RBM in our list</span>
+<span class="hljs-keyword">for</span> rbm <span class="hljs-keyword">in</span> rbm_list:
+    <span class="hljs-built_in">print</span> (<span class="hljs-string">'Next RBM:'</span>)
+    <span class="hljs-comment">#Train a new one</span>
+    rbm.train(tf.cast(inpX,tf.float32))
+    <span class="hljs-comment">#Return the output layer</span>
+    inpX = rbm.rbm_output(inpX)
+</code></pre>
+<p class="normal">Our DBN is ready. The three stacked RBMs are now trained using unsupervised learning. DBNs can also be trained using supervised training. To do so we need to fine-tune the weights of the trained RBMs and add a fully connected layer at the end. In their publication <em class="italic">Classification with Deep Belief Networks</em>, Hebbo and Kim show how they used a DBN for MNIST classification; it is a good introduction to the subject.</p>
+<h1 class="heading-1" id="_idParaDest-231">Summary</h1>
+<p class="normal">In this chapter, we covered the major unsupervised learning algorithms. We went through algorithms best suited for dimension reduction, clustering, and image reconstruction. We started with the dimension reduction algorithm PCA, then we performed clustering using k-means and self-organized maps. After this we studied the restricted Boltzmann machine and saw how we can use it for both dimension reduction and image reconstruction. Next, we delved into stacked RBMs, that is, deep belief networks, and we trained a DBN consisting of three RBM layers on the MNIST dataset.</p>
+<p class="normal">In the next chapter, we will explore another model using an unsupervised learning paradigm – autoencoders.</p>
+<h1 class="heading-1" id="_idParaDest-232">References</h1>
+<ol class="numberedList" style="list-style-type: decimal;">
+<li class="numberedList" value="1">Smith, Lindsay. (2006). <em class="italic">A tutorial on Principal Component Analysis</em>: <a href="http://www.cs.otago.ac.nz/cosc453/student_tutorials/principal_components.pdf"><span class="url">http://www.cs.otago.ac.nz/cosc453/student_tutorials/principal_components.pdf</span></a></li>
+<li class="numberedList">Movellan, J. R. <em class="italic">Tutorial on Principal component Analysis</em>: <a href="http://mplab.ucsd.edu/tutorials/pca.pdf"><span class="url">http://mplab.ucsd.edu/tutorials/pca.pdf</span></a></li>
+<li class="numberedList">TensorFlow Projector: <a href="http://projector.tensorflow.org/"><span class="url">http://projector.tensorflow.org/</span></a></li>
+<li class="numberedList"><strong class="keyWord">Singular Value Decomposition</strong> (<strong class="keyWord">SVD</strong>) tutorial. MIT: <a href="https://web.mit.edu/be.400/www/SVD/Singular_Value_Decomposition.htm"><span class="url">https://web.mit.edu/be.400/www/SVD/Singular_Value_Decomposition.htm</span></a></li>
+<li class="numberedList">Shlens, Jonathon. (2014). <em class="italic">A tutorial on principal component analysis</em>. arXiv preprint arXiv:1404.1100: <a href="https://arxiv.org/abs/1404.1100"><span class="url">https://arxiv.org/abs/1404.1100</span></a></li>
+<li class="numberedList">Goodfellow, I., Bengio, Y., and Courville, A. (2016). <em class="italic">Deep learning</em>. MIT press: <a href="https://www.deeplearningbook.org"><span class="url">https://www.deeplearningbook.org</span></a></li>
+<li class="numberedList">Kohonen, T. (1982). <em class="italic">Self-organized formation of topologically correct feature maps</em>. Biological cybernetics 43, no. 1: 59-69.</li>
+<li class="numberedList">Kanungo, Tapas, et al. (2002). <em class="italic">An Efficient k-Means Clustering Algorithm: Analysis and Implementation</em>. IEEE transactions on pattern analysis and machine intelligence 24.7: 881-892.</li>
+<li class="numberedList">Ortega, Joaquín Pérez, et al. <em class="italic">Research issues on K-means Algorithm: An Experimental Trial Using Matlab</em>. CEUR Workshop Proceedings: Semantic Web and New Technologies.</li>
+<li class="numberedList">Chen, K. (2009). <em class="italic">On Coresets for k-Median and k-Means Clustering in Metric and Euclidean Spaces and Their Applications.</em> SIAM Journal on Computing 39.3: 923-947.</li>
+<li class="numberedList"><em class="italic">Determining the number of clusters in a data set</em>: <a href="https://en.wikipedia.org/wiki/Determining_the_number_of_clusters_in_a_data_set"><span class="url">https://en.wikipedia.org/wiki/Determining_the_number_of_clusters_in_a_data_set</span></a></li>
+<li class="numberedList">Lloyd, S. P. (1982). <em class="italic">Least Squares Quantization in PCM</em>: <a href="http://mlsp.cs.cmu.edu/courses/fall2010/class14/lloyd.pdf"><span class="url">http://mlsp.cs.cmu.edu/courses/fall2010/class14/lloyd.pdf</span></a></li>
+<li class="numberedList">Dunn, J. C. (1973-01-01). <em class="italic">A Fuzzy Relative of the ISODATA Process and Its Use in Detecting Compact Well-Separated Clusters</em>. Journal of Cybernetics. 3(3): 32–57.</li>
+<li class="numberedList">Bezdek, James C. (1981). <em class="italic">Pattern Recognition with Fuzzy Objective Function Algorithms</em>.</li>
+<li class="numberedList">Peters, G., Crespo, F., Lingras, P., and Weber, R. (2013). <em class="italic">Soft clustering–Fuzzy and rough approaches and their extensions and derivatives</em>. International Journal of Approximate Reasoning 54, no. 2: 307-322.</li>
+<li class="numberedList">Sculley, D. (2010). <em class="italic">Web-scale k-means clustering</em>. In Proceedings of the 19th international conference on World wide web, pp. 1177-1178. ACM.</li>
+<li class="numberedList">Smolensky, P. (1986). <em class="italic">Information Processing in Dynamical Systems: Foundations of Harmony Theory</em>. No. CU-CS-321-86. COLORADO UNIV AT BOULDER DEPT OF COMPUTER SCIENCE.</li>
+<li class="numberedList">Salakhutdinov, R., Mnih, A., and Hinton, G. (2007). <em class="italic">Restricted Boltzmann Machines for Collaborative Filtering</em>. Proceedings of the 24th international conference on Machine learning. ACM.</li>
+<li class="numberedList">Hinton, G. (2010). <em class="italic">A Practical Guide to Training Restricted Boltzmann Machines</em>. Momentum 9.1: 926.</li>
+</ol>
+<h1 class="heading-1">Join our book’s Discord space</h1>
+<p class="normal">Join our Discord community to meet like-minded people and learn alongside more than 2000 members at: <a href="https://packt.link/keras"><span class="url">https://packt.link/keras</span></a></p>
+<p class="normal"><img alt="" height="177" src="../Images/QR_Code1831217224278819687.png" width="177"/></p>
+</div>
+</div>
+</body></html>
