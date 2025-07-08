@@ -1,6 +1,6 @@
-# Github DevOps 加速指南
+# TensorFlow2 强化学习秘籍
 
-> 原文：[`annas-archive.org/md5/677f27c30764b3701bc2b6cf6de3a30e`](https://annas-archive.org/md5/677f27c30764b3701bc2b6cf6de3a30e)
+> 原文：[`annas-archive.org/md5/ae4f6c3ed954fce75003dcfcae0c4977`](https://annas-archive.org/md5/ae4f6c3ed954fce75003dcfcae0c4977)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 

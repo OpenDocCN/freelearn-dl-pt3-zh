@@ -1,6 +1,6 @@
-# Github DevOps 加速指南
+# TensorFlow 自然语言处理第二版
 
-> 原文：[`annas-archive.org/md5/677f27c30764b3701bc2b6cf6de3a30e`](https://annas-archive.org/md5/677f27c30764b3701bc2b6cf6de3a30e)
+> 原文：[`annas-archive.org/md5/fc366c3f6d3023ea2889a905de68763e`](https://annas-archive.org/md5/fc366c3f6d3023ea2889a905de68763e)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 
