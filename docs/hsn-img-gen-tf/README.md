@@ -1,6 +1,6 @@
-# Github DevOps 加速指南
+# TensorFlow 图像生成实用指南
 
-> 原文：[`annas-archive.org/md5/677f27c30764b3701bc2b6cf6de3a30e`](https://annas-archive.org/md5/677f27c30764b3701bc2b6cf6de3a30e)
+> 原文：[`annas-archive.org/md5/0de4765c7da0b44560b86a9f1951b364`](https://annas-archive.org/md5/0de4765c7da0b44560b86a9f1951b364)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 

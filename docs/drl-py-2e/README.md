@@ -1,6 +1,6 @@
-# Github DevOps 加速指南
+# Python 深度强化学习第二版
 
-> 原文：[`annas-archive.org/md5/677f27c30764b3701bc2b6cf6de3a30e`](https://annas-archive.org/md5/677f27c30764b3701bc2b6cf6de3a30e)
+> 原文：[`annas-archive.org/md5/223c54d54a75689756f5c3d122685371`](https://annas-archive.org/md5/223c54d54a75689756f5c3d122685371)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 

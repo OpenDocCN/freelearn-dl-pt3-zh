@@ -1,6 +1,6 @@
-# Github DevOps 加速指南
+# TensorFlow 和 Keras 应用研讨会
 
-> 原文：[`annas-archive.org/md5/677f27c30764b3701bc2b6cf6de3a30e`](https://annas-archive.org/md5/677f27c30764b3701bc2b6cf6de3a30e)
+> 原文：[`annas-archive.org/md5/9b4f768de6a25886fb0e3fe70a17bf09`](https://annas-archive.org/md5/9b4f768de6a25886fb0e3fe70a17bf09)
 > 
 > 译者：[飞龙](https://github.com/wizardforcel)
 > 
