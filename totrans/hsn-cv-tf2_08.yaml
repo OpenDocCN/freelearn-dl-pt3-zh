@@ -1,7 +1,9 @@
 - en: Enhancing and Segmenting Images
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 图像增强与分割
 - en: We have just learned how to create neural networks that output predictions that
     are more complex than just a single class. In this chapter, we will push this
     concept further and introduce **encoders-decoders**, which are models used to
@@ -10,47 +12,69 @@
     instance segmentation. This chapter comes with several concrete examples, such
     as the application of encoders-decoders to semantic segmentation for self-driving
     cars.
+  id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们刚刚学习了如何创建神经网络，输出比单一类别更复杂的预测。在本章中，我们将进一步拓展这一概念，介绍**编码器-解码器**，这些模型用于编辑或生成完整图像。我们将展示编码器-解码器网络如何应用于从图像去噪到物体和实例分割的广泛应用。本章将提供几个具体示例，例如编码器-解码器在自动驾驶汽车语义分割中的应用。
 - en: 'The following topics will be covered in this chapter:'
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章将涵盖以下主题：
 - en: What encoders-decoders are, and how they are trained for pixel-level prediction
+  id: totrans-3
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 编码器-解码器是什么，以及如何训练它们进行像素级预测
 - en: Which novel layers they use to output high-dimensional data (unpooling, transposed,
     and atrous convolutions)
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 它们使用了哪些新颖的层来输出高维数据（反池化、转置卷积和空洞卷积）
 - en: How the FCN and U-Net architectures are tackling semantic segmentation
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: FCN和U-Net架构如何解决语义分割问题
 - en: How the models we have covered so far can be extended to deal with instance
     segmentation
+  id: totrans-6
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们迄今为止所讲解的模型如何扩展以处理实例分割
 - en: Technical requirements
+  id: totrans-7
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 技术要求
 - en: 'Jupyter notebooks illustrating the concepts presented in this chapter can be
     found in the following Git folder: [github.com/PacktPublishing/Hands-On-Computer-Vision-with-TensorFlow-2/tree/master/Chapter06](https://github.com/PacktPublishing/Hands-On-Computer-Vision-with-TensorFlow-2/tree/master/Chapter06)[.](https://github.com/PacktPublishing/Hands-On-Computer-Vision-with-Tensorflow/tree/master/ch3)'
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 展示本章概念的Jupyter笔记本可以在以下Git文件夹中找到：[github.com/PacktPublishing/Hands-On-Computer-Vision-with-TensorFlow-2/tree/master/Chapter06](https://github.com/PacktPublishing/Hands-On-Computer-Vision-with-TensorFlow-2/tree/master/Chapter06)[.](https://github.com/PacktPublishing/Hands-On-Computer-Vision-with-Tensorflow/tree/master/ch3)
 - en: Later in this chapter, we introduce the `pydensecrf` library to improve segmentation
     results. As detailed on its GitHub page (refer to the documentation at [https://github.com/lucasb-eyer/pydensecrf#installation](https://github.com/lucasb-eyer/pydensecrf#installation)),
     this Python module can be installed through `pip` (`pip install git+https://github.com/lucasb-eyer/pydensecrf.git`)
     and requires a recent version of Cython (`pip install -U cython`).
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章稍后我们将介绍`pydensecrf`库，以提高分割结果。根据其GitHub页面的详细说明（请参阅文档：[https://github.com/lucasb-eyer/pydensecrf#installation](https://github.com/lucasb-eyer/pydensecrf#installation)），此Python模块可以通过`pip`安装（`pip
+    install git+https://github.com/lucasb-eyer/pydensecrf.git`），并需要安装最新版本的Cython（`pip
+    install -U cython`）。
 - en: Transforming images with encoders-decoders
+  id: totrans-10
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用编码器-解码器转换图像
 - en: As presented in [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml), *Computer
     Vision and Neural Networks*, multiple typical tasks in computer vision require
     pixel-level results. For example, semantic segmentation methods classify each
@@ -58,20 +82,28 @@
     (for example, to remove unwanted elements). In this section, we will present encoders-decoders,
     and how **convolutional neural networks** (**CNNs**) following this paradigm can
     be applied to such applications.
+  id: totrans-11
   prefs: []
   type: TYPE_NORMAL
+  zh: 如[第1章](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml)《计算机视觉与神经网络》中所述，*计算机视觉与神经网络*，多个典型的计算机视觉任务要求像素级结果。例如，语义分割方法对图像的每个像素进行分类，智能编辑工具返回的图像会对某些像素进行修改（例如，删除不需要的元素）。在本节中，我们将介绍编码器-解码器，以及如何将遵循这一范式的**卷积神经网络**（**CNN**）应用于此类任务。
 - en: Introduction to encoders-decoders
+  id: totrans-12
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 编码器-解码器简介
 - en: Before tackling complex applications, let's first introduce what encoders-decoders
     are and what purpose they fulfill.
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 在处理复杂应用之前，让我们首先介绍什么是编码器-解码器及其所实现的功能。
 - en: Encoding and decoding
+  id: totrans-14
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 编码与解码
 - en: The encoder-decoder architecture is a very generic framework, with applications
     in communications, cryptography, electronics, and beyond. According to this framework,
     the **encoder** is a function that maps input samples into a **latent space**,
@@ -84,8 +116,10 @@
     formats we commonly use nowadays. JPEG tools encode our media, compressing them
     into lighter binary files; they then decode them to recover the pixel values at
     display time.
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 编码器-解码器架构是一个非常通用的框架，广泛应用于通信、密码学、电子学等领域。根据该框架，**编码器**是一个将输入样本映射到**潜在空间**的函数，也就是由编码器定义的一组隐藏的结构化值。**解码器**是与之互补的函数，它将潜在空间中的元素映射到预定义的目标域。例如，可以构建一个编码器来解析媒体文件（其内容在潜在空间中表示为元素），并可以与一个解码器配对，后者将媒体内容输出为不同的文件格式。我们现在常用的图像和音频压缩格式就是这种类型的例子。JPEG工具对我们的媒体进行编码，将其压缩为更小的二进制文件；然后它们解码这些文件以在显示时恢复像素值。
 - en: In machine learning, encoder-decoder networks have been used for a long time
     now (for instance, for text translation). An encoder network would take sentences
     from the source language as input (for instance, French sentences) and learn to
@@ -93,42 +127,59 @@
     as a feature vector. A decoder network would be trained alongside the encoder
     to convert the encoded vectors into sentences in the target language (for instance,
     English).
+  id: totrans-16
   prefs: []
   type: TYPE_NORMAL
+  zh: 在机器学习中，编码器-解码器网络已经被使用了很长时间（例如，用于文本翻译）。一个编码器网络会将源语言的句子作为输入（例如，法语句子），并学习将它们投影到潜在空间中，在这个空间中，句子的意义会作为特征向量进行编码。解码器网络会与编码器一起训练，将编码后的向量转换为目标语言的句子（例如，英语）。
 - en: Vectors from the latent space in encoder-decoder models are commonly called
     **codes**.
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 编码器-解码器模型中的潜在空间向量通常称为**代码**。
 - en: 'Note that a common property of encoders-decoders is for their latent space
     to be smaller than the input and target latent spaces, as shown in *Figure 6-1*:'
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，编码器-解码器的一个常见特性是其潜在空间比输入和目标潜在空间要小，如*图 6-1*所示：
 - en: '![](img/2500985a-3cd3-4bc5-8ef6-0a0fd5799262.png)'
+  id: totrans-19
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/2500985a-3cd3-4bc5-8ef6-0a0fd5799262.png)'
 - en: 'Figure 6-1: Example of an auto-encoder trained on the MNIST dataset (copyright
     owned by Yann LeCun and Corinna Cortes)'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 6-1：在 MNIST 数据集上训练的自编码器示例（版权归 Yann LeCun 和 Corinna Cortes 所有）
 - en: In *Figure 6-1*, the encoder is trained to convert the *28* × *28* images into
     vectors (codes) of *32* values here, and the decoder is trained to recover the
     images. These codes can be plotted with their class labels to highlight similarities/structures
     in the dataset (the *32*-dimensional vectors are projected on a 2D plane using
     **t-SNE**, a method developed by Laurens van der Maatens and Geoffrey Hinton and
     detailed in the notebooks).
+  id: totrans-21
   prefs: []
   type: TYPE_NORMAL
+  zh: 在*图 6-1*中，编码器被训练将*28* × *28*的图像转换为*32*个值的向量（代码），而解码器被训练来恢复这些图像。这些代码可以与它们的类别标签一起绘制，以突出数据集中的相似性/结构（*32*维的向量通过**t-SNE**方法投影到二维平面上，该方法由Laurens
+    van der Maatens和Geoffrey Hinton开发，并在笔记本中详细介绍）。
 - en: Encoders are designed or trained to extract/compress the semantic information
     contained in the samples (for example, the meaning of a French sentence, without
     the grammatical particularities of this language). Then, decoders apply their
     knowledge of the target domain to decompress/complete the information accordingly
     (for instance, converting the encoded information into a proper English sentence).
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: 编码器被设计或训练来提取/压缩样本中包含的语义信息（例如，法语句子的意思，而不考虑该语言的语法特点）。然后，解码器根据其对目标领域的知识，解压/补充信息（例如，将编码后的信息转换为正确的英语句子）。
 - en: Auto-encoding
+  id: totrans-23
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 自编码
 - en: '**Auto-encoders** (**AEs**) are a special type of encoders-decoders. As shown
     in *Figure 6-1*, their input and target domains are the same, so their goal is
     to properly encode and then decode images without impacting their quality, despite
@@ -136,8 +187,10 @@
     reduced to a compressed representation (as feature vectors). If an original input
     is requested later on, it can be reconstructed from its compressed representation
     by the decoder.'
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: '**自编码器**（**AEs**）是一种特殊类型的编码器-解码器。如*图6-1*所示，它们的输入和目标领域是相同的，因此它们的目标是正确编码并解码图像，而不影响图像质量，尽管它们有一个*瓶颈*（即其较低维度的潜在空间）。输入被压缩为一种压缩表示（作为特征向量）。如果后来需要原始输入，它可以通过解码器从压缩表示中重构出来。'
 - en: JPEG tools can thus be called AEs, as their goal is to encode images and then
     decode them back without losing too much of their quality. The distance between
     the input and output data is the typical loss to minimize for auto-encoding algorithms.
@@ -145,14 +198,19 @@
     as the L1/L2 loss (Manhattan and Euclidean distances, respectively) between the
     input images and resulting images (as illustrated in [Chapter 3](dd1d3406-d506-4690-bf13-e5e0584ea9d1.xhtml),
     *Modern Neural Networks*).
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 因此，JPEG 工具可以被称为自编码器（AEs），因为它们的目标是编码图像，然后将其解码回去而不失去太多质量。输入和输出数据之间的距离是自编码算法需要最小化的典型损失。对于图像，这个距离可以简单地通过交叉熵损失来计算，或者通过输入图像与结果图像之间的
+    L1/L2 损失（分别是曼哈顿距离和欧几里得距离）（如在[第3章](dd1d3406-d506-4690-bf13-e5e0584ea9d1.xhtml)，*现代神经网络*中所示）。
 - en: In machine learning, auto-encoding networks are really convenient to train,
     not only because their loss is straightforward to express, as we just described,
     but also because their training does not require any labels. The input images
     are the targets used to compute the loss.
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 在机器学习中，自编码网络非常容易训练，不仅因为其损失函数表达直接，如我们刚才所描述的那样，还因为其训练不需要任何标签。输入图像是用来计算损失的目标。
 - en: There is a schism among machine learning experts regarding AEs. Some claim that
     these models are **unsupervised** since they do not require any additional labels
     for their training. Others affirm that, unlike purely unsupervised methods (which
@@ -160,24 +218,32 @@
     AEs have clearly defined targets (that is, their input images). Therefore, it
     is also common for these models to be called **self-supervised** (that is, their
     targets can be directly derived from their inputs).
+  id: totrans-27
   prefs: []
   type: TYPE_NORMAL
+  zh: 在机器学习专家中，对于自编码器存在分歧。有些人认为这些模型是**无监督**的，因为它们的训练不需要任何额外的标签。另一些人则认为，与纯粹的无监督方法（通常使用复杂的损失函数来发现无标签数据集中的模式）不同，自编码器有明确的目标（即，它们的输入图像）。因此，这些模型也常被称为**自监督**（即，它们的目标可以直接从输入中推导出来）。
 - en: Given the smaller latent space of AEs, their encoding sub-network must learn
     to properly compress the data, whereas the decoder must learn a proper mapping
     to decompress it back.
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于自编码器的潜在空间较小，它们的编码子网络必须学习如何正确地压缩数据，而解码器必须学习如何正确地映射并解压数据。
 - en: Without the bottleneck condition, this identity mapping would be straightforward
     for networks with shortcut paths, such as ResNet (refer to [Chapter 4](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml),
     *Influential Classification Tools*)*.* They could simply forward the complete
     input information from encoder to decoder. With a lower-dimensional latent space
     (bottleneck), they are forced to learn a properly compressed representation.
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果没有瓶颈条件，对于具有快捷路径的网络（例如 ResNet），这种恒等映射将是直接的（参考[第4章](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml)，*影响力分类工具*）。它们可以简单地将完整的输入信息从编码器传递到解码器。由于存在较低维度的潜在空间（瓶颈），它们被迫学习一种正确的压缩表示。
 - en: Purpose
+  id: totrans-30
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 目的
 - en: Regarding the more generic encoders-decoders, their applications are numerous.
     They are used to convert images, to map them from one domain or modality to another.
     For example, such models are often applied to **depth regression**, that is, the
@@ -185,8 +251,10 @@
     for each pixel. This is an important operation for augmented-reality applications,
     for example, since it allows them to build a 3D representation of the surroundings,
     and thus to better interact with the environment.
+  id: totrans-31
   prefs: []
   type: TYPE_NORMAL
+  zh: 关于更通用的编码器-解码器，它们的应用非常广泛。它们用于转换图像，将它们从一个域或模态映射到另一个域。例如，这些模型经常被应用于**深度回归**，即估计相机与图像内容（深度）之间的距离，对于每个像素。例如，这对增强现实应用非常重要，因为它们可以建立环境的3D表示，从而更好地与环境进行交互。
 - en: 'Similarly, encoders-decoders are commonly used for **semantic segmentation**
     (refer to [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml), *Computer Vision
     and Neural Networks*, for its definition). In this case, the networks are trained
@@ -195,16 +263,22 @@
     chapter. Finally, encoders-decoders are also famous for their more *artistic use
     cases*, such as transforming doodle art into pseudo-realistic images or estimating
     the daytime equivalent of pictures taken at night:'
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 类似地，编码器-解码器常用于**语义分割**（参见[第1章](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml)，*计算机视觉和神经网络*，以获取其定义）。在这种情况下，网络被训练不是返回深度，而是为每个像素估计的类别（参见*图6-2-c*）。这个重要的应用将在本章的第二部分详细讨论。最后，编码器-解码器也因其更具*艺术性的用例*而闻名，例如将涂鸦艺术转换为伪现实图像或估算在夜间拍摄的照片的白天等效图像：
 - en: '![](img/dad5686d-2a67-4c74-97fd-dc41265ac87e.png)'
+  id: totrans-33
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/dad5686d-2a67-4c74-97fd-dc41265ac87e.png)'
 - en: 'Figure 6-2: Examples of applications for encoders-decoders. These three applications
     are covered in the Jupyter notebooks for this chapter, with additional explanations
     and implementation details'
+  id: totrans-34
   prefs: []
   type: TYPE_NORMAL
+  zh: 图6-2：编码器-解码器的应用示例。这三个应用在本章的Jupyter笔记本中有详细说明和实现细节。
 - en: The urban scene images and their labels for semantic segmentation in *Figure
     6-2*, *Figure 6-10*, and *Figure 6-11* come from the *Cityscapes* dataset ([https://www.cityscapes-dataset.com](https://www.cityscapes-dataset.com)).
     *Cityscapes* is an awesome dataset and a benchmark for recognition algorithms
@@ -212,14 +286,19 @@
     dataset, kindly gave us the authorization to use some of their images to illustrate
     this book and to demonstrate some algorithms presented later in this chapter (refer
     to Jupyter notebooks).
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: 城市场景图像及其语义分割标签在*图6-2*、*图6-10*和*图6-11*中来自*Cityscapes*数据集（[https://www.cityscapes-dataset.com](https://www.cityscapes-dataset.com)）。*Cityscapes*是一个很棒的数据集，也是应用于自动驾驶识别算法的基准。该数据集的研究者Marius
+    Cordts等很慷慨地授权我们使用其中的一些图像来说明本书内容，并在本章后面的Jupyter笔记本中演示一些算法。
 - en: Let's now consider AEs. Why should a network be trained to return its input
     images? The answer lies once again in the bottleneck property of AEs. While the
     encoding and decoding components are trained as a whole, they are applied separately
     depending on the use cases.
+  id: totrans-36
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在让我们考虑自动编码器（AE）。为什么一个网络应该被训练来返回其输入图像呢？答案再次在于AE的瓶颈特性。尽管编码和解码组件作为一个整体进行训练，但根据使用情况它们是分开应用的。
 - en: Because of the bottleneck, the encoder has to compress the data while preserving
     as much information as possible. Therefore, in case the training dataset has recurring
     patterns, the network will try to uncover these correlations to improve the encoding.
@@ -228,8 +307,10 @@
     they provide are often good at preserving the content similarity between images,
     for instance. Therefore, they are sometimes used for dataset visualization, to
     highlight clusters and patterns (refer to *Figure 6-1*).
+  id: totrans-37
   prefs: []
   type: TYPE_NORMAL
+  zh: 由于瓶颈的存在，编码器必须在尽可能保留信息的同时压缩数据。因此，如果训练数据集具有重复的模式，网络将尝试揭示这些相关性以改善编码。因此，AE的编码器部分可以用来从其训练的域中获取图像的低维表示。它们提供的低维表示通常能够有效地保持图像之间的内容相似性，例如。因此，它们有时用于数据集可视化，以突出集群和模式（参见*图6-1*）。
 - en: AEs are not as good as algorithms, such as JPEG for generic image compression.
     Indeed, AEs are *data-specific*; that is, they can only efficiently compress images
     from the domain they know (for example, an AE trained on images of natural landscapes
@@ -237,8 +318,11 @@
     However, unlike traditional compression methods, AEs have a better understanding
     of the images they were trained for, their recurring features, semantic information,
     and more).
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 自动编码器（AEs）并不像 JPEG 等算法那样适合通用的图像压缩。事实上，AEs是*数据特定的*；也就是说，它们只能有效地压缩它们所知道的领域中的图像（例如，训练在自然风景图像上的
+    AE 在处理肖像时效果较差，因为视觉特征差异太大）。然而，与传统压缩方法不同，AEs 对它们所训练的图像有更好的理解，了解其重复出现的特征、语义信息等等。
 - en: In some cases, AEs are trained for their decoders, which can be used for **generative
     tasks**. Indeed, if the latent space has been appropriately structured during
     training, then any vector randomly picked from this space can be turned into a
@@ -248,8 +332,10 @@
     not that easy, and requires some careful engineering for the resulting images
     to be realistic (this is especially true for the training of **generative adversarial
     networks** (**GANs**), as explained in the next chapter).
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: 在某些情况下，自动编码器（AEs）会针对其解码器进行训练，解码器可以用于**生成任务**。实际上，如果潜在空间在训练过程中得到了恰当的结构化，那么从这个空间中随机挑选的任何向量都可以通过解码器转化为一张图像！正如我们将在本章后面简要解释的，以及在[第七章](337ec077-c215-4782-b56c-beae4d94d718.xhtml)《复杂和稀缺数据集的训练》中提到的，*在复杂和稀缺数据集上的训练*，训练一个用于生成新图像的解码器实际上并不像想象的那么简单，这需要一些精心的工程设计，才能使生成的图像看起来真实（这对于**生成对抗网络**（**GANs**）的训练尤其如此，我们将在下一章中详细说明）。
 - en: However, **denoising AEs** are the most common AE instances found in practice.
     These models have the particularity that their input images undergo a lossy transformation
     before being passed to the networks. Since these models are still trained to return
@@ -260,72 +346,107 @@
     image upscaling**, also called **image super-resolution**. Indeed, these networks
     can learn to partially remove the artifacts (that is, noise) caused by traditional
     upscaling algorithms such as bilinear interpolation (refer to *Figure 6-2-b*).
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，**去噪自动编码器**（denoising AEs）是实践中最常见的 AE 实例。这些模型有一个特点，即它们的输入图像在传递给网络之前会经历一个有损的转换。由于这些模型仍然是被训练来恢复原始图像（即转换前的图像），它们将学会取消这个有损操作并恢复一些缺失的信息（参见*图
+    6-2-a*）。典型的模型会被训练来去除白噪声或高斯噪声，或者恢复丢失的内容（例如，遮挡或删除的图像区域）。此类 AEs 也被用于**智能图像放大**，也称为**图像超分辨率**。事实上，这些网络可以学习部分去除传统放大算法（如双线性插值）产生的伪影（即噪声）（参见*图
+    6-2-b*）。
 - en: Basic example – image denoising
+  id: totrans-41
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 基本示例 – 图像去噪
 - en: We will illustrate the usefulness of AEs on a simple example—the denoising of
     corrupted MNIST images.
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将通过一个简单的示例来说明 AEs 的有用性——去噪损坏的 MNIST 图像。
 - en: Simplistic fully connected AE
+  id: totrans-43
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 简单的全连接 AE
 - en: 'To demonstrate how simple, yet efficient, these models can be, we will opt
     for a shallow, fully connected architecture, which we will implement with Keras:'
+  id: totrans-44
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了演示这些模型是如何简单又高效，我们将选择一个浅层的、全连接的架构，并使用 Keras 实现：
 - en: '[PRE0]'
+  id: totrans-45
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: We have highlighted here the usual symmetrical architecture of encoders-decoders,
     with their lower-dimensional bottleneck. To train our AE, we use the images (`x_train`)
     both as inputs and as targets. Once trained, this simple model can be used to
     embed datasets, as shown in *Figure 6-1*.
+  id: totrans-46
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在此强调了常见的对称编码器-解码器架构，及其低维瓶颈。为了训练我们的 AE，我们使用图像（`x_train`）作为输入和目标。训练完成后，这个简单的模型可以用来嵌入数据集，如*图
+    6-1*所示。
 - en: We opted for *sigmoid* as the last activation function, in order to get output
     values between 0 and 1, like the input values.
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们选择了*sigmoid*作为最后的激活函数，以便将输出值限制在 0 和 1 之间，像输入值一样。
 - en: Application to image denoising
+  id: totrans-48
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 应用于图像去噪
 - en: 'Training our previous model for image denoising is as simple as creating a
     noisy copy of the training images and passing it as input to our network instead:'
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 训练我们之前的图像去噪模型其实非常简单，只需创建一份带噪声的训练图像副本，并将其作为输入传递给我们的网络即可：
 - en: '[PRE1]'
+  id: totrans-50
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: The first two notebooks dedicated to this chapter detail the training process,
     providing illustrations and additional tips (for instance, to visualize the images
     predicted during training).
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章的前两本笔记本详细介绍了训练过程，提供了插图和额外的提示（例如，用于可视化训练过程中预测的图像）。
 - en: Convolutional encoders-decoders
+  id: totrans-52
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 卷积编码器-解码器
 - en: Like other **neural network** (**NN**)-based systems, encoders-decoders benefited
     a lot from the introduction of convolutional and pooling layers. **Deep auto-encoders**
     (**DAEs**) and other architectures soon became widely used for increasingly complex
     tasks.
+  id: totrans-53
   prefs: []
   type: TYPE_NORMAL
+  zh: 与其他基于**神经网络**（**NN**）的系统一样，编码器-解码器从卷积层和池化层的引入中受益匪浅。**深度自编码器**（**DAEs**）和其他架构很快就被广泛应用于越来越复杂的任务。
 - en: In this section, we will first introduce new layers developed for convolutional
     encoders-decoders. We will then present some significant architectures based on
     these operations.
+  id: totrans-54
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本节中，我们将首先介绍为卷积编码器-解码器开发的新层。然后，我们将展示基于这些操作的一些重要架构。
 - en: Unpooling, transposing, and dilating
+  id: totrans-55
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 反池化、转置和膨胀
 - en: As we saw in previous chapters, such as [Chapter 3](dd1d3406-d506-4690-bf13-e5e0584ea9d1.xhtml),
     *Modern Neural Networks*, and [Chapter 4](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml),
     *Influential Classification Tools*, CNNs are great *feature extractors*. Their
@@ -333,48 +454,67 @@
     feature maps, while their pooling layers gradually down-sample the data, leading
     to compact and semantically rich features. Therefore, CNNs make for performant
     encoders.
+  id: totrans-56
   prefs: []
   type: TYPE_NORMAL
+  zh: 正如我们在前几章中所看到的，例如在[第3章](dd1d3406-d506-4690-bf13-e5e0584ea9d1.xhtml)，《现代神经网络》和[第4章](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml)，《影响力分类工具》中，CNNs是出色的*特征提取器*。它们的卷积层将输入张量转换为越来越高层次的特征图，而池化层则逐渐对数据进行下采样，从而生成紧凑且语义丰富的特征。因此，CNNs非常适合作为高效的编码器。
 - en: However, how could this process be reversed to decode these low-dimensional
     features into full images? As we will present in the following paragraphs, the
     same way convolutions and pooling operations replaced dense layers for the encoding
     of images, reverse operations—such as **transposed convolution** (also known as **deconvolutions**),
     **dilated convolutions**, and **unpooling**—were developed to better decode features.
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 然而，如何逆转这一过程，将这些低维特征解码为完整的图像呢？正如我们在接下来的段落中将要展示的那样，就像卷积和池化操作替代了密集层用于图像的编码一样，逆操作——如**转置卷积**（也称为**反卷积**）、**膨胀卷积**和**反池化**——也被开发出来，以更好地解码特征。
 - en: Transposed convolution (deconvolution)
+  id: totrans-58
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 转置卷积（反卷积）
 - en: 'Back in [Chapter 3](dd1d3406-d506-4690-bf13-e5e0584ea9d1.xhtml), *Modern Neural
     Networks*, we introduced convolutional layers, the operations they perform, and
     how their hyperparameters (kernel size *k*, input depth *D*, number of kernels
     *N*, padding *p*, and stride *s*) affect the dimensions of their output (*Figure
     6-3* serves as a reminder). For an input tensor of shape (*H*, *W*, *D*), we presented
     the following equations to evaluate the output shape (*H[o]*, *W[o]*, *N*):'
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 在[第3章](dd1d3406-d506-4690-bf13-e5e0584ea9d1.xhtml)，《现代神经网络》中，我们介绍了卷积层、它们执行的操作，以及它们的超参数（卷积核大小*k*、输入深度*D*、卷积核数量*N*、填充*p*和步幅*s*）如何影响输出的维度（*图6-3*可作为提醒）。对于形状为(*H*,
+    *W*, *D*)的输入张量，我们提出了以下方程来评估输出形状(*H[o]*, *W[o]*, *N*)：
 - en: '![](img/f8aa2ec8-6584-443a-b480-9c97145b58f0.png)'
+  id: totrans-60
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/f8aa2ec8-6584-443a-b480-9c97145b58f0.png)'
 - en: 'Now, let''s assume that we want to develop a layer to reverse the spatial transformation
     of convolutions. In other words, given a feature map of shape (*H[o]*, *W[o]*,
     *N*) and the same hyperparameters, *k*, *D*, *N*, *p*, and *s*, we would like
     a *convolution-like* operation to recover a tensor of shape (*H*, *W*, *D*). Isolating *H*
     and *W* in the previous equations, we thus want an operation upholding the following
     properties:'
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，假设我们想要开发一个层来逆转卷积的空间变换。换句话说，给定形状为(*H[o]*, *W[o]*, *N*)的特征图和相同的超参数，*k*、*D*、*N*、*p*和*s*，我们希望一个*类似卷积*的操作能恢复一个形状为(*H*,
+    *W*, *D*)的张量。在前面的方程式中隔离*H*和*W*，因此我们希望这个操作满足以下特性：
 - en: '![](img/1d436c0a-3be4-40bf-ad90-52ef801a8561.png)'
+  id: totrans-62
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/1d436c0a-3be4-40bf-ad90-52ef801a8561.png)'
 - en: This is how **transposed convolutions** were defined. As we briefly mentioned
     in [Chapter 4](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml), *Influential Classification
     Tools*, this new type of layer was proposed by Zeiler and Fergus, the researchers
     behind ZFNet, the winning methods at ILSVRC 2013 (*Visualizing and understanding
     convolutional networks*, *Springer, 2014*).
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: 这就是**反卷积**的定义。如我们在[第 4 章](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml)，*影响力分类工具*中简要提到的那样，这种新类型的层是由
+    Zeiler 和 Fergus 提出的，他们是 ZFNet 背后的研究人员，ZFNet 是 2013 年 ILSVRC 竞赛的获胜方法（*可视化与理解卷积网络*，*Springer，2014*）。
 - en: With a *k* × *k* × *D* × *N* stack of kernels, these layers convolve an *H[o]*
     × *W[o]* × *N* tensor into an *H* × *W* × *D* map. To achieve this, the input
     tensor first undergoes **dilation**. The dilation operation, defined by a rate, *d*,
@@ -387,38 +527,61 @@
     tensor is then finally convolved with the layer's filters using a stride of *s*'
     = 1, finally resulting in an *H* × *W* × *D* map. Normal and transposed convolutions
     are compared in *Figures 6-3* and *6-4*.
+  id: totrans-64
   prefs: []
   type: TYPE_NORMAL
+  zh: 使用 *k* × *k* × *D* × *N* 的卷积核堆栈，这些层将 *H[o]* × *W[o]* × *N* 的张量卷积成 *H* × *W*
+    × *D* 的映射。为了实现这一点，输入张量首先会经过**膨胀**操作。膨胀操作由一个速率 *d* 定义，包括在输入张量的每对行和列之间插入 *d* – 1
+    行和列的零值，如*图 6-4*所示。在反卷积中，膨胀率设置为 *s*（即它所反转的标准卷积所用的步幅）。经过这种重采样后，张量将使用 *p*' = *k*
+    – *p* – 1 进行填充。膨胀和填充参数这样定义是为了恢复原始形状（*H*，*W*，*D*）。然后，张量最终使用步幅 *s*' = 1 与层的滤波器进行卷积，最终得到
+    *H* × *W* × *D* 的映射。标准卷积和反卷积的比较见*图 6-3*和*图 6-4*。
 - en: 'The following is a normal convolution:'
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下是标准卷积操作：
 - en: '![](img/c33cac43-87ea-4a18-8a78-d962bc44b7c3.png)'
+  id: totrans-66
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/c33cac43-87ea-4a18-8a78-d962bc44b7c3.png)'
 - en: 'Figure 6-3: Reminder of the operations performed by a convolutional layer (defined
     here by a 3 × 3 kernel w, padding p = 1, and stride s = 2)'
+  id: totrans-67
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 6-3：卷积层执行的操作提醒（这里定义为一个 3 × 3 的卷积核 w，填充 p = 1，步幅 s = 2）
 - en: Note that in *Figure 6-3*, the mathematical operation between the patches and
     the kernel is actually a cross-correlation (refer to [Chapter 3](dd1d3406-d506-4690-bf13-e5e0584ea9d1.xhtml),
     *Modern Neural Networks*).
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，在*图 6-3*中，补丁与卷积核之间的数学操作实际上是互相关（请参见[第 3 章](dd1d3406-d506-4690-bf13-e5e0584ea9d1.xhtml)，*现代神经网络*）。
 - en: 'The following is a transposed convolution:'
+  id: totrans-69
   prefs: []
   type: TYPE_NORMAL
+  zh: 以下是反卷积操作：
 - en: '![](img/849cef3b-5538-4a9e-befe-17b6f6e7b6ed.png)'
+  id: totrans-70
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/849cef3b-5538-4a9e-befe-17b6f6e7b6ed.png)'
 - en: 'Figure 6-4: Operations performed by a transposed convolution layer to reverse
     the spatial transformation of a standard convolution (defined here by a 3 × 3
     kernel *w*, padding *p* = 1, and dilation *d* = 2, as in Figure 6-3)'
+  id: totrans-71
   prefs: []
   type: TYPE_NORMAL
+  zh: 图 6-4：反卷积层执行的操作，用于逆转标准卷积的空间变换（这里定义为 3 × 3 卷积核 *w*，填充 *p* = 1，膨胀 *d* = 2，如图 6-3
+    所示）
 - en: Note that this time, in *Figure 6-4*, the operation between the patches and
     the kernel is mathematical convolution.
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，这次在*图 6-4*中，补丁与卷积核之间的操作是数学卷积。
 - en: If this process seems a bit abstract, it is enough to remember that transposed
     convolutional layers are commonly used to mirror standard convolutions in order
     to increase the spatial dimensionality of feature maps while convolving their
@@ -427,16 +590,24 @@
     to the documentation at [https://www.tensorflow.org/api_docs/python/tf/layers/conv2d_transpose](https://www.tensorflow.org/api_docs/python/tf/layers/conv2d_transpose))
     and `tf.keras.layers.Conv2DTranspose()` (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/keras/layers/Conv2DTranspose](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Conv2DTranspose)),
     which have the same signatures as the standard `conv2d` ones.
+  id: totrans-73
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果这个过程看起来有些抽象，那么只需要记住，转置卷积层通常用于镜像标准卷积，以增加特征图的空间维度，同时与可训练的过滤器对其内容进行卷积。这使得这些层非常适合用于解码器架构。它们可以通过
+    `tf.layers.conv2d_transpose()`（参见[https://www.tensorflow.org/api_docs/python/tf/layers/conv2d_transpose](https://www.tensorflow.org/api_docs/python/tf/layers/conv2d_transpose)）和
+    `tf.keras.layers.Conv2DTranspose()`（参见[https://www.tensorflow.org/api_docs/python/tf/keras/layers/Conv2DTranspose](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Conv2DTranspose)）进行实例化，这些方法的签名与标准的
+    `conv2d` 相同。
 - en: There is another subtle difference between standard convolutions and transposed
     ones, which does not have any real impact in practice, but which is still good
     to know. Going back to [Chapter 3](dd1d3406-d506-4690-bf13-e5e0584ea9d1.xhtml),
     *Modern Neural Networks*, we mentioned that convolutional layers in CNNs actually
     perform cross-correlation. As shown in *Figure 6-4*, transposed convolutional
     layers actually use mathematical convolution, flipping the indices of the kernels.
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 标准卷积和转置卷积之间还有一个微妙的区别，虽然在实际应用中没有什么重大影响，但知道这一点仍然是有益的。回到[第3章](dd1d3406-d506-4690-bf13-e5e0584ea9d1.xhtml)，《现代神经网络》，我们提到
+    CNN 中的卷积层实际上执行的是交叉相关（cross-correlation）。如*图6-4*所示，转置卷积层实际上使用的是数学卷积，翻转了卷积核的索引。
 - en: Transposed convolutions are also popularly, yet wrongly, called **deconvolutions**.
     While there is a mathematical operation named *deconvolution*, it performs differently
     than transposed convolution. Deconvolutions actually fully revert convolutions,
@@ -444,17 +615,23 @@
     process and return tensors with the original shapes. As we can see in *Figures
     6-3* and *6-4*, the shapes of the original and final tensors match, but not their
     values.
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 转置卷积也常被错误地称为**反卷积**。虽然确实存在一种名为*反卷积*的数学操作，但其执行方式与转置卷积不同。反卷积实际上完全恢复卷积，返回原始张量。而转置卷积仅仅是近似这个过程，返回形状相同的张量。如*图6-3*和*6-4*所示，原始张量和最终张量的形状匹配，但它们的值并不相同。
 - en: Transposed convolutions are also sometimes called **fractionally strided convolutions**.
     Indeed, the dilation of the input tensors can somehow be seen as the equivalent
     of using a *fractional* stride for the convolution.
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 转置卷积（Transposed convolutions）有时也被称为**分数步幅卷积**。实际上，输入张量的扩张（dilation）可以在某种程度上看作是使用*分数*步幅进行卷积的等效操作。
 - en: Unpooling
+  id: totrans-77
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 反池化（Unpooling）
 - en: Although strided convolutions are often used in CNN architectures, average-pooling
     and max-pooling are the most common operations when it comes to reducing the spatial
     dimensions of images. Therefore, Zeiler and Fergus also proposed a **max-unpooling**
@@ -466,8 +643,12 @@
     invertible (that is, we cannot mathematically recover all the non-maximum values
     the operation discards), it is possible to define an operation approximating its
     inversion, at least in terms of spatial sampling.
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管步幅卷积（strided convolutions）常用于 CNN 架构中，但在减少图像空间维度时，平均池化（average-pooling）和最大池化（max-pooling）是最常见的操作。因此，Zeiler
+    和 Fergus 还提出了一种**最大反池化**操作（通常简称为**反池化**），用于伪逆最大池化。他们在一个名为**deconvnet**的网络中使用了这一操作，用于解码和可视化其*卷积网络*（即
+    CNN）的特征。在描述他们的解决方案的论文中（在赢得 ILSVRC 2013 后发表，见《可视化和理解卷积网络》，*Springer, 2014*），他们解释道，尽管最大池化不是可逆的（也就是说，我们无法通过数学方式恢复池化操作丢弃的所有非最大值），但至少在空间采样方面，定义一个近似其反转的操作是可能的。
 - en: 'To implement this pseudo-inverse operation, they first modified each max-pooling
     layer so that it outputs the pooling mask along with the resulting tensor. In
     other words, this mask indicates the original positions of the selected maxima.
@@ -476,19 +657,24 @@
     pooling mask. It uses the latter to scatter the input values into a tensor upscaled
     to its pre-pooling shape. A picture is worth a thousand words, so *Figure 6-5*
     may help you to understand the operation:'
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
 - en: '![](img/7dbfd6f3-6a7f-4ccc-aa49-df760cfec394.png)'
+  id: totrans-80
   prefs: []
   type: TYPE_IMG
 - en: 'Figure 6-5: Example of a max-unpooling operation, following a max-pooling layer
     edited to also output its pooling mask'
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
 - en: Note that, like pooling layers, unpooling operations are fixed/untrainable operations.
+  id: totrans-82
   prefs: []
   type: TYPE_NORMAL
 - en: Upsampling and resizing
+  id: totrans-83
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -497,12 +683,15 @@
     them into a single value. Therefore, an average-unpooling layer takes each value
     of a tensor and duplicates it into a *k* × *k* region, as illustrated in *Figure
     6-6*:'
+  id: totrans-84
   prefs: []
   type: TYPE_NORMAL
 - en: '![](img/fffece53-111c-4993-b031-1220992eb61e.png)'
+  id: totrans-85
   prefs: []
   type: TYPE_IMG
 - en: 'Figure 6-6: Example of an average-unpooling operation (also known as upsampling)'
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
 - en: This operation is nowadays used more often than max-unpooling, and is more commonly
@@ -516,6 +705,7 @@
     maps without adding any parameters to train, for example, by instantiating `tf.keras.layers.UpSampling2D()`
     with the `interpolation="bilinear"` argument (instead of the default `"nearest"` value),
     which is equivalent to calling `tf.image.resize()` with the default `method=tf.image.ResizeMethod.BILINEAR` attribute.
+  id: totrans-87
   prefs: []
   type: TYPE_NORMAL
 - en: In decoder architecture, each nearest-neighbor or bilinear upscaling is commonly
@@ -523,6 +713,7 @@
     the new shape). These combinations of predefined upscaling and convolutional operations
     mirror the convolutional and pooling layers composing encoders, and allow the
     decoder to learn its own features to better recover the target signals.
+  id: totrans-88
   prefs: []
   type: TYPE_NORMAL
 - en: Some researchers, such as Augustus Odena, favor these operations over transposed
@@ -530,9 +721,11 @@
     convolutions tend to cause some checkerboard artifacts (due to feature overlapping
     when the kernel size is not a multiple of the stride), impacting the output quality
     (*Deconvolution and Checkerboard artifacts, Distill, 2016*).
+  id: totrans-89
   prefs: []
   type: TYPE_NORMAL
 - en: Dilated/atrous convolution
+  id: totrans-90
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -542,38 +735,46 @@
     further sacrificing the spatial dimensionality of the data. To achieve this, **dilation**
     is applied here too (refer to the *Transposed convolutions (deconvolution)* section),
     though quite differently.
+  id: totrans-91
   prefs: []
   type: TYPE_NORMAL
 - en: 'Indeed, **dilated convolutions** are similar to standard convolutions, with
     an additional hyperparameter, *d*, defining the dilation applied to their kernels.
     *Figure 6-7* illustrates how this process does artificially increase the layer''s
     receptive field:'
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
 - en: '![](img/6d123b71-98b4-41cd-83c9-a11928744340.png)'
+  id: totrans-93
   prefs: []
   type: TYPE_IMG
 - en: 'Figure 6-7: Operations performed by a dilated-convolutional layer (defined
     here by a 2 × 2 kernel w, padding p = 1, stride s = 1, and dilation d = 2)'
+  id: totrans-94
   prefs: []
   type: TYPE_NORMAL
 - en: These layers are also called **atrous convolutions**, from the French expression
     *à trous* (*with holes*). Indeed, while the kernel dilation increases the receptive
     field, it does so by carving holes in it.
+  id: totrans-95
   prefs: []
   type: TYPE_NORMAL
 - en: With such properties, this operation is frequently used in modern encoders-decoders,
     to map images from one domain to another. In TensorFlow and Keras, instantiating
     dilated convolutions is just a matter of providing a value above the default 1
     for the `dilation_rate` parameter of `tf.layers.conv2d()` and `tf.keras.layers.Conv2D()`.
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
 - en: These various operations developed to preserve or increase the spatiality of
     feature maps led to multiple CNN architectures for pixel-wise dense prediction and
     data generation.
+  id: totrans-97
   prefs: []
   type: TYPE_NORMAL
 - en: Example architectures – FCN and U-Net
+  id: totrans-98
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -584,9 +785,11 @@
     architectures derived from this basic template. Both released in 2015, the FCN
     and U-Net models are still popular, and are commonly used as components for more
     complex systems (in semantic segmentation, domain adaptation, and others).
+  id: totrans-99
   prefs: []
   type: TYPE_NORMAL
 - en: Fully convolutional networks
+  id: totrans-100
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -598,14 +801,17 @@
     Long, Evan Shelhamer, and Trevor Darrell from the University of California, Berkeley,
     the FCN architecture perfectly illustrates the notions developed in the previous
     subsection:'
+  id: totrans-101
   prefs: []
   type: TYPE_NORMAL
 - en: How CNNs for feature extraction can be used as efficient encoders
+  id: totrans-102
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: How their feature maps can then be effectively upsampled and decoded by the
     operations we just introduced
+  id: totrans-103
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
@@ -618,6 +824,7 @@
     by convolutional ones. The final layer is then applied – a transposed convolution
     to upsample the data back to the input shape (that is, with a stride of *s* =
     32, since the spatial dimensions are divided by 32 through VGG).
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
 - en: However, Long et al. quickly noticed that this architecture, named **FCN-32s**,
@@ -628,6 +835,7 @@
     too much of their spatial definition is already lost. Therefore, the authors had
     the idea to fuse the feature maps from the last block with those larger ones from
     previous blocks.
+  id: totrans-105
   prefs: []
   type: TYPE_NORMAL
 - en: 'In FCN-16s, the last layer of FCN-32s is thus replaced by a transposed layer
@@ -639,19 +847,23 @@
     third block, before the final transposed convolution with *s* = 8\. For clarity,
     the complete architecture is presented in *Figure 6-8*, and a Keras implementation
     is provided in the next example:'
+  id: totrans-106
   prefs: []
   type: TYPE_NORMAL
 - en: '![](img/6bf5d945-e3fe-4a50-831b-85475c77e8f6.png)'
+  id: totrans-107
   prefs: []
   type: TYPE_IMG
 - en: 'Figure 6-8: FCN-8s architecture. The data dimensions are shown after each block,
     supposing an *H* × *W* input. *D*[o] represents the desired number of output channels'
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
 - en: '*Figure 6-8* illustrates how VGG-16 serves as a feature extractor/encoder,
     and how the transposed convolutions are used for decoding. The figure also highlights
     that FCN-32s and FCN-16s are simpler, lighter architectures, with only one skip
     connection, or none at all.'
+  id: totrans-109
   prefs: []
   type: TYPE_NORMAL
 - en: With its use of transfer learning and its fusion of multi-scale feature maps,
@@ -659,9 +871,11 @@
     convolutional nature, it can be applied to encode/decode images of different sizes.
     Performant and versatile, FCN-8s is still commonly used in many applications,
     while inspiring multiple other architectures.
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
 - en: U-Net
+  id: totrans-111
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -669,6 +883,7 @@
     of the first; it is probably the most popular (proposed by Olaf Ronneberger, Philipp
     Fischer, and Thomas Brox in a paper entitled *U-Net: Convolutional networks for
     biomedical image segmentation*, published by Springer).'
+  id: totrans-112
   prefs: []
   type: TYPE_NORMAL
 - en: Also developed for semantic segmentation (applied to medical imaging), it shares
@@ -678,6 +893,7 @@
     in FCNs, skip connections are used to connect encoding blocks to their decoding
     counterparts. The decoding blocks are thus provided with both the contextual information
     from the preceding block and the location information from the encoding path.
+  id: totrans-113
   prefs: []
   type: TYPE_NORMAL
 - en: 'U-Net also differs from FCN in two main ways. Unlike FCN-8s, U-Net is **symmetrical**,
@@ -686,12 +902,15 @@
     through **concatenation** (along the channel axis) instead of addition. The U-Net
     architecture is depicted in *Figure 6-9*. As for the FCN, a Jupyter Notebook is
     dedicated to its implementation from scratch:'
+  id: totrans-114
   prefs: []
   type: TYPE_NORMAL
 - en: '![](img/ca653a8b-5c09-41be-972e-3245084e067d.png)'
+  id: totrans-115
   prefs: []
   type: TYPE_IMG
 - en: 'Figure 6-9: U-Net architecture'
+  id: totrans-116
   prefs: []
   type: TYPE_NORMAL
 - en: Note also that while the original decoding blocks have transposed convolutions
@@ -700,33 +919,42 @@
     popularity, U-Net has known many variations and still inspires numerous architectures
     (for example, replacing its blocks with residual ones, and densifying the intra-block
     and extra-block connectivity).
+  id: totrans-117
   prefs: []
   type: TYPE_NORMAL
 - en: Intermediary example – image super-resolution
+  id: totrans-118
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: Let's briefly apply one of these models to a new problem – image super-resolution
     (complete implementation and additional tips are found in the related notebook).
+  id: totrans-119
   prefs: []
   type: TYPE_NORMAL
 - en: FCN implementation
+  id: totrans-120
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: 'Remembering the architecture we just presented, a simplified version of FCN-8s
     can be implemented as follows (note that the real model has additional convolutions
     before each transposed one):'
+  id: totrans-121
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE2]'
+  id: totrans-122
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: Reusing the Keras implementation of VGG and the Functional API, an FCN-8s model
     can be created with minimal effort.
+  id: totrans-123
   prefs: []
   type: TYPE_NORMAL
 - en: Application to upscaling images
+  id: totrans-124
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -735,12 +963,16 @@
     dimensions, before feeding them to the model. This way, the network can be trained
     as a denoising AE, whose task is to clear the upsampling artifacts and to recover
     lost details:'
+  id: totrans-125
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE3]'
+  id: totrans-126
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: Proper code and complete demonstration on images can be found in the notebooks.
+  id: totrans-127
   prefs: []
   type: TYPE_NORMAL
 - en: As mentioned earlier, the architectures we just covered are commonly applied
@@ -749,9 +981,11 @@
     for input a series of video frames), and image segmentation. In the second part
     of this chapter, we will develop the latter task, which is essential in many real-life
     applications.
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
 - en: Understanding semantic segmentation
+  id: totrans-129
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -762,14 +996,17 @@
     detection, covered in the previous chapters, segmentation tasks require the methods
     to return pixel-level dense predictions, that is, to assign a label to each pixel
     in the input images.'
+  id: totrans-130
   prefs: []
   type: TYPE_NORMAL
 - en: After explaining in more detail why encoders-decoders are thus great at object
     segmentation, and how their results can be further refined, we will present some
     solutions for the more complicated task of instance segmentation.
+  id: totrans-131
   prefs: []
   type: TYPE_NORMAL
 - en: Object segmentation with encoders-decoders
+  id: totrans-132
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -779,22 +1016,27 @@
     such operation – the mapping of images from the color domain to the class domain.
     Given its value and context, we want to assign one of the target classes to each
     pixel of a picture, returning a **label map** with the same height and width.
+  id: totrans-133
   prefs: []
   type: TYPE_NORMAL
 - en: Teaching encoders-decoders to take an image and return a label map still requires
     some consideration, which we will now discuss.
+  id: totrans-134
   prefs: []
   type: TYPE_NORMAL
 - en: Overview
+  id: totrans-135
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: In the following paragraphs, we will present how networks such as U-Net are
     used for object segmentation, and how their outputs can be further processed into
     refined label maps.
+  id: totrans-136
   prefs: []
   type: TYPE_NORMAL
 - en: Decoding as label maps
+  id: totrans-137
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -802,6 +1044,7 @@
     represents a class (for instance, `1` for *dog*, and `2` for *cat*)—would yield
     poor results. As with classifiers, we need a better way to output categorical
     values.
+  id: totrans-138
   prefs: []
   type: TYPE_NORMAL
 - en: 'To classify images among *N* categories, we learned to build networks with
@@ -813,14 +1056,17 @@
     vector of *N* logits containing the per-class scores for each full image, our
     network is built to return an *H* × *W* × *N* tensor with scores for each pixel
     (refer to *Figure 6-10*):'
+  id: totrans-139
   prefs: []
   type: TYPE_NORMAL
 - en: '![](img/041ed823-c5b3-47b2-850f-645a0916f564.png)'
+  id: totrans-140
   prefs: []
   type: TYPE_IMG
 - en: 'Figure 6-10: Given an input image of dimensions *H* × *W*, the network returns
     an *H* × *W* × *N* probability map, with *N* being the number of classes. Using
     argmax, the predicted label map can then be obtained'
+  id: totrans-141
   prefs: []
   type: TYPE_NORMAL
 - en: 'For the architectures we presented in this chapter, obtaining such an output
@@ -834,16 +1080,21 @@
     highest values along the channel axis (that is, `argmax` over the channel axis).
     For instance, the FCN-8s code presented earlier can be adapted to train a model
     for object segmentation, as follows:'
+  id: totrans-142
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE4]'
+  id: totrans-143
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: The Git repository contains a complete example of an FCN-8s model built and
     trained for semantic segmentation, as well as a U-Net model.
+  id: totrans-144
   prefs: []
   type: TYPE_NORMAL
 - en: Training with segmentation losses and metrics
+  id: totrans-145
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -852,6 +1103,7 @@
     models still need a proper loss to converge optimally. While cross-entropy is
     the default loss to train models both for coarse and dense classification, precautions
     should be taken for the latter cases.
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
 - en: For image-level and pixel-level classification tasks, **class imbalance** is
@@ -864,6 +1116,7 @@
     other classes may cover most of the images (such as *traffic sign* versus *road *classes
     for our self-driving car application). The dataset cannot be edited to compensate
     for such an imbalance.
+  id: totrans-147
   prefs: []
   type: TYPE_NORMAL
 - en: 'To prevent the segmentation models from developing a bias toward larger classes,
@@ -873,19 +1126,23 @@
     6-11*, the less a class appears in training images, the more it should weigh on
     the loss. This way, the network would be heavily penalized if it starts ignoring
     smaller classes:'
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
 - en: '![](img/578eba97-9363-4de3-b9d0-5a32c60dd13d.png)'
+  id: totrans-149
   prefs: []
   type: TYPE_IMG
 - en: 'Figure 6-11: Examples of pixel weighing strategies for semantic segmentation
     (the lighter the pixels, the greater their weight on the loss)'
+  id: totrans-150
   prefs: []
   type: TYPE_NORMAL
 - en: The weight maps are usually computed from the ground truth label maps. It should
     be noted that, as shown in *Figure 6-11*, the weight applied to each pixel can
     be set not only according to the class, but also according to the pixel's position
     relative to other elements, and more.
+  id: totrans-151
   prefs: []
   type: TYPE_NORMAL
 - en: Another solution is to replace the cross-entropy with another cost function
@@ -895,24 +1152,29 @@
     segment the different classes, whatever their areas. Therefore, several loss functions
     and metrics that are specific to semantic segmentation have been proposed by researchers
     to more explicitly capture this objective.
+  id: totrans-152
   prefs: []
   type: TYPE_NORMAL
 - en: '**Intersection-over-Union** (**IoU**), presented in [Chapter 5](593ada62-2ff4-4085-a15e-44f8f5e3d071.xhtml),
     *Object Detection Models*, is one of these common metrics. The **Sørensen–Dice
     coefficient** (often simply named the **Dice coefficient**) is another. Like IoU,
     it measures how well two sets overlap:'
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
 - en: '![](img/b7d499fd-2d60-4663-9f4e-a6af1a01abd8.png)'
+  id: totrans-154
   prefs: []
   type: TYPE_IMG
 - en: 'Here, *|**A|* and *|B|* represent the cardinality of each set (refer to the explanations
     in the previous chapter), and ![](img/72c18afa-cb39-4f19-b2ee-9b7f0743feca.png)
     represents the number of elements they have in common (cardinality of their intersection). IoU
     and Dice share several properties, and one can actually help calculate the other:'
+  id: totrans-155
   prefs: []
   type: TYPE_NORMAL
 - en: '![](img/6c5e9c55-7c4d-4de2-980e-e15be36d1799.png)'
+  id: totrans-156
   prefs: []
   type: TYPE_IMG
 - en: In semantic segmentation, *Dice* is, therefore, used to measure how well the
@@ -923,6 +1185,7 @@
     on the relative number of pixels one class takes in images. For multi-class tasks,
     scientists usually compute the *Dice* coefficient for each class (comparing each
     pair of predicted and ground truth masks), and then average the results.
+  id: totrans-157
   prefs: []
   type: TYPE_NORMAL
 - en: 'From the equation, we can see the *Dice* coefficient is defined between 0 and
@@ -930,9 +1193,11 @@
     they do perfectly. Therefore, to use it as a loss function that a network should
     minimize, we need to reverse this scoring. All in all, for semantic segmentation
     applied to *N* classes, the *Dice* loss is commonly defined as follows:'
+  id: totrans-158
   prefs: []
   type: TYPE_NORMAL
 - en: '![](img/3920f224-4661-4428-9ce8-ec9610b4bbe3.png)'
+  id: totrans-159
   prefs: []
   type: TYPE_IMG
 - en: Let's clarify this equation a bit. If *a* and *b* are two one-hot tensors, then
@@ -944,24 +1209,31 @@
     (for instance, below *1e-6*), is usually added to the denominator to avoid dividing
     by zero if the tensors contain nothing, and added to the numerator to smooth the
     result.
+  id: totrans-160
   prefs: []
   type: TYPE_NORMAL
 - en: Note that, in practice, unlike the ground truth one-hot tensors, the predictions
     do not contain binary values. They are composed of the softmax probabilities ranging
     continuously from 0 to 1\. This loss is therefore often named **soft Dice**.
+  id: totrans-161
   prefs: []
   type: TYPE_NORMAL
 - en: 'In TensorFlow, this loss can be implemented as follows:'
+  id: totrans-162
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE5]'
+  id: totrans-163
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: Both *Dice* and *IoU* are important tools for segmentation tasks, and their
     usefulness is further demonstrated in the related Jupyter notebook.
+  id: totrans-164
   prefs: []
   type: TYPE_NORMAL
 - en: Post-processing with conditional random fields
+  id: totrans-165
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -970,6 +1242,7 @@
     there are some methods that post-process the results, correcting some obvious
     defects. Among these methods, the **conditional random fields** (**CRFs**) methods
     are the most popular because of their overall efficiency.
+  id: totrans-166
   prefs: []
   type: TYPE_NORMAL
 - en: The theory behind this is beyond the scope of this book, but CRFs are able to
@@ -980,6 +1253,7 @@
     as the probability maps provided by the predictors (in our case, the softmax tensors
     from CNNs), CRF methods return refined label maps, which are better with respect
     to visual contours.
+  id: totrans-167
   prefs: []
   type: TYPE_NORMAL
 - en: Several ready-to-use implementations are available, such as `pydensecrf` by
@@ -989,18 +1263,22 @@
     CRFs with gaussian edge potentials*, *Advances in neural information processing
     systems*, *2011*). In the last notebook for this chapter, we explain how to use
     this framework.
+  id: totrans-168
   prefs: []
   type: TYPE_NORMAL
 - en: Advanced example – image segmentation for self-driving cars
+  id: totrans-169
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: As suggested at the beginning of this chapter, we will apply this new knowledge
     to a complex real-life use case—the segmentation of traffic images for self-driving
     cars.
+  id: totrans-170
   prefs: []
   type: TYPE_NORMAL
 - en: Task presentation
+  id: totrans-171
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -1009,6 +1287,7 @@
     images from a front camera would allow the system to know whether other cars are
     around, to know whether pedestrians or bikes are crossing the road, to follow
     traffic lines and signs, and more.
+  id: totrans-172
   prefs: []
   type: TYPE_NORMAL
 - en: This is, therefore, a critical process, and researchers are putting in lots
@@ -1019,9 +1298,11 @@
     *Proceedings of the IEEE CVPR Conference*), it contains video sequences from multiple
     cities, with semantic labels for more than 19 classes *(*road, car, plant, and
     so on). A notebook is specifically dedicated to getting started with this benchmark.
+  id: totrans-173
   prefs: []
   type: TYPE_NORMAL
 - en: Exemplary solution
+  id: totrans-174
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -1029,15 +1310,18 @@
     trained to tackle this task, using several of the tricks presented in this section.
     We demonstrate how to properly weigh each class when computing the loss, we present
     how to post-process the label maps, and more besides.
+  id: totrans-175
   prefs: []
   type: TYPE_NORMAL
 - en: As the whole solution is quite long and notebooks are better suited to the present
     code, we invite you to pursue the reading there, if you're interested in this
     use case. This way, we can dedicate the rest of this chapter to another fascinating
     problem—instance segmentation.
+  id: totrans-176
   prefs: []
   type: TYPE_NORMAL
 - en: The more difficult case of instance segmentation
+  id: totrans-177
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -1046,14 +1330,17 @@
     it does not express whether two pixels or blobs of pixels belong to the same instance
     of a class. For example, given the predicted label map shown in *Figure 6-10*,
     we have no way of counting the number of *tree* or *building* instances.
+  id: totrans-178
   prefs: []
   type: TYPE_NORMAL
 - en: In the following subsection, we will present two different ways of achieving
     instance segmentation by extending solutions for two related tasks that we've
     tackled already—object segmentation and object detection.
+  id: totrans-179
   prefs: []
   type: TYPE_NORMAL
 - en: From object segmentation to instance segmentation
+  id: totrans-180
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -1063,9 +1350,11 @@
     This idea was pushed further by Alexander Buslaev, Victor Durnov, and Selim Seferbekov,
     who famously won Kaggle's 2018 Data Science Bowl ([https://www.kaggle.com/c/data-science-bowl-2018](https://www.kaggle.com/c/data-science-bowl-2018)),
     a sponsored competition to advance instance segmentation for medical applications.
+  id: totrans-181
   prefs: []
   type: TYPE_NORMAL
 - en: Respecting boundaries
+  id: totrans-182
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -1075,6 +1364,7 @@
     in binary matrices and/or to provide a separate mask for each blob. For multi-class
     instance segmentation, this process can just be repeated for each class mask returned
     by object segmentation methods, splitting them further into instances.
+  id: totrans-183
   prefs: []
   type: TYPE_NORMAL
 - en: But precise semantic masks should first be obtained, or elements too close to
@@ -1082,6 +1372,7 @@
     models put enough attention into generating masks with precise contours, at least
     for non-overlapping elements? We know the answer already—the only way to teach
     networks to do something specific is to adapt their training loss accordingly.
+  id: totrans-184
   prefs: []
   type: TYPE_NORMAL
 - en: U-Net was developed for biomedical applications, to segment neuronal structures
@@ -1095,12 +1386,14 @@
     formula takes into account the pixel's distance to the two nearest class instances.
     The smaller the two distances, the higher the weight. The weight maps can be precomputed
     and stored along the ground truth masks to be used together during training.
+  id: totrans-185
   prefs: []
   type: TYPE_NORMAL
 - en: Note that this per-pixel weighting can be combined with the per-class weighting in
     multi-class scenarios. The idea to penalize the networks more heavily for certain
     regions of the images can also be adapted to other applications (for example,
     to better segment critical parts of manufactured objects).
+  id: totrans-186
   prefs: []
   type: TYPE_NORMAL
 - en: 'We mentioned the winners of Kaggle''s 2018 Data Science Bowl, who put a noteworthy
@@ -1109,9 +1402,11 @@
     the class boundaries. The ground truth boundary masks were precomputed based on
     the class masks. After proper training, the information from the two predicted
     masks can be used to obtain well-separated elements for each class.'
+  id: totrans-187
   prefs: []
   type: TYPE_NORMAL
 - en: Post-processing into instance masks
+  id: totrans-188
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -1119,6 +1414,7 @@
     non-overlapping instances can be identified from them by applying proper algorithms.
     This post-processing is usually done using **morphological functions**, such as
     **mask** **erosion** and **dilation**.
+  id: totrans-189
   prefs: []
   type: TYPE_NORMAL
 - en: '**Watershed transforms** are another common family of algorithms that further
@@ -1133,9 +1429,11 @@
     and the original RGB image, and returns an energy map that can be used to identify
     the ridges. Thanks to the RGB information, this solution can even separate overlapping
     instances with good accuracy.'
+  id: totrans-190
   prefs: []
   type: TYPE_NORMAL
 - en: From object detection to instance segmentation – Mask R-CNN
+  id: totrans-191
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -1145,9 +1443,11 @@
     instances appearing in images. In the following paragraphs, we will demonstrate
     how these results can be turned into more refined instance masks. More precisely,
     we will present **Mask R-CNN**, a network extending **Faster R-CNN**.
+  id: totrans-192
   prefs: []
   type: TYPE_NORMAL
 - en: Applying semantic segmentation to bounding boxes
+  id: totrans-193
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -1156,14 +1456,17 @@
     used as a preliminary step, providing image patches containing a single instance
     for further analysis. With this in mind, instance segmentation becomes a matter
     of two steps:'
+  id: totrans-194
   prefs: []
   type: TYPE_NORMAL
 - en: Using an object detection model to return bounding boxes for each instance of
     target classes
+  id: totrans-195
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Feeding each patch to a semantic segmentation model to obtain the instance mask
+  id: totrans-196
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
@@ -1171,14 +1474,17 @@
     element), then the task of the segmentation network is straightforward—to classify
     which pixels in the corresponding patch belong to the captured class, and which
     pixels are part of the background/belong to another class.
+  id: totrans-197
   prefs: []
   type: TYPE_NORMAL
 - en: This way of solving instance segmentation is advantageous, as we already have
     all the necessary tools to implement it (object detection and semantic segmentation
     models)!
+  id: totrans-198
   prefs: []
   type: TYPE_NORMAL
 - en: Building an instance segmentation model with Faster-RCNN
+  id: totrans-199
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -1190,10 +1496,12 @@
     is pretty much the original idea behind *Mask R-CNN* by Kaiming He et al. from
     **Facebook AI Research** (**FAIR**) in 2017 (*Mask R-CNN*, *Proceedings of the
     IEEE CVPR conference*).
+  id: totrans-200
   prefs: []
   type: TYPE_NORMAL
 - en: If the name rings a bell, Kaiming He was also among the main authors of ResNet
     and Faster R-CNN.
+  id: totrans-201
   prefs: []
   type: TYPE_NORMAL
 - en: 'Mask R-CNN is mostly based on Faster R-CNN. Like Faster R-CNN, Mask R-CNN is
@@ -1205,12 +1513,15 @@
     a couple of standard and transposed convolutions. As the authors highlighted in
     their paper, this parallel processing follows the spirit of Faster R-CNN, and
     contrasts with other instance segmentation methods, which are usually sequential:'
+  id: totrans-202
   prefs: []
   type: TYPE_NORMAL
 - en: '![](img/f5c8d229-30e0-4f17-8de2-bb52d744aefc.png)'
+  id: totrans-203
   prefs: []
   type: TYPE_IMG
 - en: 'Figure 6-12: Mask R-CNN architecture, based on Faster R-CNN'
+  id: totrans-204
   prefs: []
   type: TYPE_NORMAL
 - en: Thanks to this parallelism, He et al. could decouple the classification and
@@ -1221,6 +1532,7 @@
     of the instance class contributes to the cross-entropy loss applied to the segmentation
     branch. As explained by the authors, this lets the segmentation branch predict
     label maps without competition among the classes, thereby simplifying its task.
+  id: totrans-205
   prefs: []
   type: TYPE_NORMAL
 - en: Another famous contribution of the Mask R-CNN authors is the **RoI** **a****lign**
@@ -1233,15 +1545,18 @@
     this would affect the quality of the pixel-level prediction of the segmentation
     branch. To avoid this, He et al. simply *removed the discretization* and *used
     bilinear interpolation* instead to obtain the cells' content.
+  id: totrans-206
   prefs: []
   type: TYPE_NORMAL
 - en: Mask R-CNN distinguished itself at the COCO 2017 challenges, and is widely used
     nowadays. Multiple implementations can be found online, for instance, in the folder
     of the `tensorflow/models` repository dedicated to object detection and instance
     segmentation ([https://github.com/tensorflow/models/tree/master/research/object_detection](https://github.com/tensorflow/models/tree/master/research/object_detection)).
+  id: totrans-207
   prefs: []
   type: TYPE_NORMAL
 - en: Summary
+  id: totrans-208
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -1250,6 +1565,7 @@
     to multiple tasks from image denoising to semantic segmentation. We also demonstrated
     how different solutions can be combined to tackle more advanced problems, such
     as instance segmentation.
+  id: totrans-209
   prefs: []
   type: TYPE_NORMAL
 - en: As we tackle more and more complex tasks, new challenges arise. For example,
@@ -1258,30 +1574,37 @@
     be taken to avoid overfitting. Furthermore, because the training images and their
     ground truths are heavier, well-engineered data pipelines are needed for efficient
     training.
+  id: totrans-210
   prefs: []
   type: TYPE_NORMAL
 - en: In the following chapter, we will, therefore, provide in-depth details of how
     TensorFlow can be used to effectively augment and serve training batches.
+  id: totrans-211
   prefs: []
   type: TYPE_NORMAL
 - en: Questions
+  id: totrans-212
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: What is the particularity of AEs?
+  id: totrans-213
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Which classification architecture are FCNs based on?
+  id: totrans-214
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: How can a semantic segmentation model be trained so that it does not ignore
     small classes?
+  id: totrans-215
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Further reading
+  id: totrans-216
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -1289,5 +1612,6 @@
     by Kaiming He, Georgia Gkioxari, Piotr Dollar, and Ross Girshick: This nicely
     written conference paper mentioned in the chapter presents Mask R-CNN, providing
     additional illustrations and details that may help you to understand this model.'
+  id: totrans-217
   prefs: []
   type: TYPE_NORMAL
