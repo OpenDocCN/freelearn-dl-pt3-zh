@@ -1660,6 +1660,12 @@
   id: totrans-223
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们现在对EMD有了基本的了解，但我们仍然不知道为什么在GAN模型中使用这个度量是必要的。WGAN论文提供了一个详细但有些复杂的答案。在这一节中，我们将尝试解释它。首先，注意到生成器从一个低维的潜在向量开始，
+    ![](img/7a361be8-949f-4b71-a9ba-641c76c67d3b.png)，然后将其转换为一个高维的生成图像（例如，在MNIST的情况下是784）。图像的输出大小也暗示了生成数据的高维分布，
+    ![](img/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png)。然而，它的内在维度（潜在向量， ![](img/7a361be8-949f-4b71-a9ba-641c76c67d3b.png)）要低得多。正因为如此，
+    ![](img/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png) 将被排除在高维特征空间的大部分区域之外。另一方面， ![](img/e043e680-d6bc-4abe-949a-441df0f3a05d.png)
+    是实际的高维的，因为它不是从潜在向量开始的；相反，它通过其完整的丰富性表示了真实数据。因此，很可能 ![](img/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png)
+    和 ![](img/e043e680-d6bc-4abe-949a-441df0f3a05d.png) 在特征空间中没有交集。
 - en: 'To understand why this matters, let''s note that we can transform the generator
     and discriminator cost functions (see the *Training GANs* section) into functions
     of the KL and the **Jensen–Shannon** (**JS**,[https://en.wikipedia.org/wiki/Jensen%E2%80%93Shannon_divergence](https://en.wikipedia.org/wiki/Jensen%E2%80%93Shannon_divergence))
@@ -1674,15 +1680,20 @@
   id: totrans-224
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了理解这个问题为什么重要，我们注意到可以将生成器和判别器的代价函数（见 *训练GAN* 部分）转化为KL散度和 **Jensen–Shannon**
+    (**JS**, [https://en.wikipedia.org/wiki/Jensen%E2%80%93Shannon_divergence](https://en.wikipedia.org/wiki/Jensen%E2%80%93Shannon_divergence))
+    的函数。这些度量的问题在于，当两个分布不交集时，它们提供零梯度。也就是说，无论两个分布之间的距离是小还是大，如果它们没有交集，度量将无法提供关于它们实际差异的任何信息。然而，正如我们刚才解释的，很可能这些分布是不会交集的。与此相反，Wasserstein距离无论分布是否交集都能正常工作，这使得它成为GAN模型的更好选择。我们可以用以下图示直观地说明这个问题：
 - en: '![](img/178670ad-2cb5-4f1c-9d7e-12c8738f532d.png)'
   id: totrans-225
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/178670ad-2cb5-4f1c-9d7e-12c8738f532d.png)'
 - en: The advantage of the Wasserstein distance over the regular GAN discriminator.
     Source: https://arxiv.org/abs/1701.07875
   id: totrans-226
   prefs: []
   type: TYPE_NORMAL
+  zh: Wasserstein距离相较于常规GAN判别器的优势。来源：[https://arxiv.org/abs/1701.07875](https://arxiv.org/abs/1701.07875)
 - en: Here, we can see two non-intersecting Gaussian distributions, ![](img/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png) and ![](img/e043e680-d6bc-4abe-949a-441df0f3a05d.png) (to
     the left and to the right, respectively). The regular GAN discriminator output
     is the sigmoid function (with a range of (0, 1)), which tells us the probability
@@ -1772,6 +1783,7 @@
   id: totrans-236
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在我们对Wasserstein GAN的基本工作原理有了初步了解，让我们来实现它。我们将再次使用DCGAN的框架，并省略重复的代码段，以便我们可以专注于不同之处。`build_generator`和`build_critic`函数分别实例化生成器和判别器。为了简化起见，这两个网络只包含全连接层。所有隐藏层都使用LeakyReLU激活函数。根据论文的指导，生成器使用Tanh输出激活函数，而判别器则有一个单一的标量输出（没有sigmoid激活）。接下来，让我们实现`train`方法，因为它包含一些WGAN的特定内容。我们将从方法的声明和训练过程的初始化开始：
 - en: '[PRE16]'
   id: totrans-237
   prefs: []
@@ -1788,6 +1800,7 @@
   id: totrans-238
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们将继续训练循环，按照我们在本节中前面描述的WGAN算法步骤进行。内循环每训练`generator`的每个训练步骤时，训练`critic`的`n_critic`步骤。事实上，这是训练`critic`和在*实现DCGAN*部分的训练函数中训练`discriminator`的主要区别，后者在每一步都交替进行生成器和判别器的训练。此外，每个小批次后，`critic`的`weights`都会被裁剪。以下是实现（请注意缩进；这段代码是`train`函数的一部分）：
 - en: '[PRE17]'
   id: totrans-239
   prefs: []
@@ -1799,6 +1812,7 @@
   id: totrans-240
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们将实现Wasserstein损失本身的导数。这是一个TensorFlow操作，表示网络输出与标签（真实或伪造）乘积的均值：
 - en: '[PRE18]'
   id: totrans-241
   prefs: []
@@ -1809,6 +1823,7 @@
   id: totrans-242
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们可以构建完整的GAN模型。这个步骤类似于其他GAN模型：
 - en: '[PRE19]'
   id: totrans-243
   prefs: []
@@ -1818,6 +1833,7 @@
   id: totrans-244
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，让我们开始训练和评估：
 - en: '[PRE20]'
   id: totrans-245
   prefs: []
@@ -1828,24 +1844,29 @@
   id: totrans-246
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦运行这个示例，WGAN将在训练40,000个小批次后生成以下图像（这可能需要一些时间）：
 - en: '![](img/118f62d9-b265-4744-a119-eb5a3fe348f6.png)'
   id: totrans-247
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/118f62d9-b265-4744-a119-eb5a3fe348f6.png)'
 - en: WGAN MNIST generator results
   id: totrans-248
   prefs: []
   type: TYPE_NORMAL
+  zh: WGAN MNIST生成器结果
 - en: This concludes our discussion of WGANs. In the next section, we'll discuss how
     to implement image-to-image translation with CycleGAN.
   id: totrans-249
   prefs: []
   type: TYPE_NORMAL
+  zh: 这部分结束了我们对WGAN的讨论。在下一节中，我们将讨论如何使用CycleGAN实现图像到图像的转换。
 - en: Image-to-image translation with CycleGAN
   id: totrans-250
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 使用CycleGAN进行图像到图像转换
 - en: In this section, we'll discuss **Cycle-Consistent Adversarial Networks** (**CycleGAN**, *Unpaired
     Image-to-Image Translation using Cycle-Consistent Adversarial Networks*, [https://arxiv.org/abs/1703.10593](https://arxiv.org/abs/1703.10593))
     and their application for image-to-image translation. To quote the paper itself, image-to-image
@@ -1857,6 +1878,7 @@
   id: totrans-251
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这一部分，我们将讨论**循环一致性对抗网络**（**CycleGAN**，*使用循环一致性对抗网络进行无配对图像到图像的转换*，[https://arxiv.org/abs/1703.10593](https://arxiv.org/abs/1703.10593)）及其在图像到图像转换中的应用。引用论文中的话，图像到图像转换是一类视觉与图形学问题，其目标是利用对齐的图像对训练集，学习输入图像和输出图像之间的映射。例如，如果我们有同一图像的灰度图和RGB版本，我们可以训练一个机器学习算法来为灰度图上色，或反之亦然。
 - en: 'Another example is image segmentation ([Chapter 3](9ac88546-8662-4b23-aa96-7eb00f48fedb.xhtml),* Object
     Detection and Image Segmentation*), where the input image is translated into a
     segmentation map of the same image. In the latter case, we train the model (U-Net,
@@ -1868,16 +1890,20 @@
   id: totrans-252
   prefs: []
   type: TYPE_NORMAL
+  zh: 另一个例子是图像分割（[第3章](9ac88546-8662-4b23-aa96-7eb00f48fedb.xhtml)，*物体检测与图像分割*），其中输入图像被转换成与该图像相同的分割图。在后一种情况下，我们使用图像/分割图配对训练模型（U-Net，Mask
+    R-CNN）。然而，许多任务可能无法获得配对的训练数据。CycleGAN为我们提供了一种方法，能够在没有配对样本的情况下，将源领域*X*中的图像转换为目标领域*Y*中的图像。下图展示了一些配对和未配对图像的例子：
 - en: '![](img/7f45296e-5e6d-40af-b836-d2cce1a0c2d8.png)'
   id: totrans-253
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/7f45296e-5e6d-40af-b836-d2cce1a0c2d8.png)'
 - en: 'Left: Paired training samples with the corresponding source and target images;
     Right: Unpaired training samples, where the source and target images don''t correspond.
     Source: https://arxiv.org/abs/1703.10593'
   id: totrans-254
   prefs: []
   type: TYPE_NORMAL
+  zh: 左：配对的训练样本，包含相应的源图像和目标图像；右：未配对的训练样本，其中源图像和目标图像不对应。来源： https://arxiv.org/abs/1703.10593
 - en: The *Image-to-Image Translation with Conditional Adversarial Networks* (known
     as Pix2Pix, [https://arxiv.org/abs/1611.07004](https://arxiv.org/abs/1611.07004))
     paper from the same team also does image-to-image translation for paired training
@@ -1885,6 +1911,7 @@
   id: totrans-255
   prefs: []
   type: TYPE_NORMAL
+  zh: 同一个团队的*图像到图像的转换与条件对抗网络*（即Pix2Pix，[https://arxiv.org/abs/1611.07004](https://arxiv.org/abs/1611.07004)）论文也针对配对训练数据进行图像到图像的转换。
 - en: But how does CycleGAN do this? First, the algorithm assumes that, although there
     are no direct pairs in the two sets, there is still some relationship between
     the two domains. For example, these could be photographs of the same scene but
@@ -1902,6 +1929,7 @@
   id: totrans-256
   prefs: []
   type: TYPE_NORMAL
+  zh: 那么，CycleGAN是如何做到这一点的呢？首先，算法假设，尽管在这两个集合中没有直接的配对，但这两个领域之间仍然存在某种关系。例如，这些图像可能是同一场景的不同角度拍摄的照片。CycleGAN的目标是学习这种集合级别的关系，而不是学习不同配对之间的关系。从理论上讲，GAN模型非常适合这个任务。我们可以训练一个生成器，将 ![](img/cc8fc839-1087-4065-b914-46ecf623989b.png)映射为生成图像，![](img/f006826f-ea20-4518-b662-fd68d2e1c38d.png)，而判别器无法将其与目标图像区分开，![](img/5a05feb6-7899-4a80-8011-091b7aebd4d3.png)。更具体地说，最佳的*G*应该将领域X转换为一个与领域*Y*具有相同分布的领域 ![](img/fc044c73-e153-4d7c-a777-1b23fa8b114f.png)。在实践中，论文的作者发现，尽管如此样的转换并不能保证一个特定的输入*x*和输出*y*在有意义的方式上配对——有无数种映射*G*，可以产生相同的分布。它们还发现，这个GAN模型会遭遇熟悉的模式崩溃问题。
 - en: CycleGAN tries to solve these issues with the so-called **cycle consistency**.
     To understand what this is, let's say that we translate a sentence from English
     into German. The translation will be cycle-consistent if we translate the sentence
@@ -1912,20 +1940,24 @@
   id: totrans-257
   prefs: []
   type: TYPE_NORMAL
+  zh: CycleGAN尝试通过所谓的**循环一致性**来解决这些问题。为了理解这是什么意思，假设我们将一句话从英语翻译成德语。如果我们从德语翻译回英语，并且回到了我们最初的原始句子，那么这次翻译就被认为是循环一致的。在数学上下文中，如果我们有一个翻译器，![](img/0c4fefb7-620d-4f2d-9106-739d207e735b.png)，还有另一个翻译器，![](img/06c75834-066b-49ee-be8f-d15acea94fc5.png)，这两个翻译器应该是彼此的逆。
 - en: 'To explain how CycleGAN implements cycle consistency, let''s start with the
     following diagram:'
   id: totrans-258
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了说明 CycleGAN 如何实现循环一致性，让我们从下图开始：
 - en: '![](img/83c40c4d-e712-4b0f-8b07-8486589d8b64.png)'
   id: totrans-259
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/83c40c4d-e712-4b0f-8b07-8486589d8b64.png)'
 - en: 'Left: Overall CycleGAN schema; Middle: Forward cycle-consistency loss; Right:
     Backward cycle-consistency loss. Source: https://arxiv.org/abs/1703.10593'
   id: totrans-260
   prefs: []
   type: TYPE_NORMAL
+  zh: 左：整体 CycleGAN 结构图；中：前向循环一致性损失；右：后向循环一致性损失。来源：[https://arxiv.org/abs/1703.10593](https://arxiv.org/abs/1703.10593)
 - en: 'The model has two generators, [![](img/0c4fefb7-620d-4f2d-9106-739d207e735b.png)]
     and [![](img/06c75834-066b-49ee-be8f-d15acea94fc5.png)], and two associated discriminators, *D[x]*
     and *D[y]*, respectively (left in the preceding diagram). Let''s take a look at *G*
@@ -1938,10 +1970,16 @@
   id: totrans-261
   prefs: []
   type: TYPE_NORMAL
+  zh: 该模型有两个生成器，[![](img/0c4fefb7-620d-4f2d-9106-739d207e735b.png)] 和 [![](img/06c75834-066b-49ee-be8f-d15acea94fc5.png)]，以及两个相关的判别器，分别是
+    *D[x]* 和 *D[y]*（在前面的图中位于左侧）。首先让我们来看一下 *G*。它接收一张输入图像，![](img/204079ed-a5c5-4cf1-b474-ba34f7a7de2f.png)，并生成
+    ![](img/fe49c7be-9444-4ede-b029-b9586188e0f3.png)，这些图像与域 *Y* 中的图像相似。*D[y]* 旨在区分真实图像，![](img/a242aec9-02be-4228-ab67-c1fb68d37a08.png)，和生成的
+    ![](img/98d91a20-d6b6-4ba5-ba80-acf9b5851539.png)。这部分模型的功能类似于常规的 GAN，使用常规的极小极大
+    GAN 对抗损失：
 - en: '![](img/a11267c7-2a3e-496c-a180-c46a94d2f204.png)'
   id: totrans-262
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/a11267c7-2a3e-496c-a180-c46a94d2f204.png)'
 - en: The first term represents the original images, *y*, and the second represents
     the images that were generated by *G*. The same formula is valid for the generator, *F*.
     As we mentioned previously, this loss only ensures that ![](img/ca6d7e8d-990f-49b2-96a7-bb18d26f4af0.png) will
@@ -1955,6 +1993,9 @@
   id: totrans-263
   prefs: []
   type: TYPE_NORMAL
+  zh: 第一个项表示原始图像，*y*，第二个项表示由 *G* 生成的图像。相同的公式对生成器 *F* 也有效。正如我们之前提到的，这个损失仅确保 ![](img/ca6d7e8d-990f-49b2-96a7-bb18d26f4af0.png)
+    将具有与 *Y* 中图像相同的分布，但并未创建一个有意义的 **x** 和 **y** 配对。引用论文中的话：具有足够大容量的网络可以将同一组输入图像映射到目标域中任何随机排列的图像，任何学习到的映射都能引起一个与目标分布匹配的输出分布。因此，仅靠对抗损失无法保证学习到的函数能够将单个输入
+    **x**[*i*] 映射到期望的输出 **y**[*i*]。
 - en: 'The authors of the paper argue that the learned mapping functions should be
     cycle-consistent (preceding diagram, middle). For each image, ![](img/ff116f2a-7091-4b4d-b4a3-86dfcee3af5f.png),
     the image translation cycle should be able to bring **x** back to the original
@@ -1966,14 +2007,20 @@
   id: totrans-264
   prefs: []
   type: TYPE_NORMAL
+  zh: 论文的作者认为，学习到的映射函数应该是循环一致的（前面的图，中）。对于每张图像，![](img/ff116f2a-7091-4b4d-b4a3-86dfcee3af5f.png)，图像翻译的循环应该能够将
+    **x** 恢复到原始图像（这叫做前向循环一致性）。*G* 生成一张新图像，![](img/36649dd2-269f-4f3f-a035-ea23bfc54e00.png)，它作为
+    *F* 的输入，*F* 进一步生成一张新图像，![](img/9d6869b8-ecf9-410f-a32a-29a9e9037cc3.png)，其中 ![](img/af5abbe3-616b-4a4b-8e26-2b9842551933.png)：![](img/72a089ab-26c4-47f9-9d78-6a638e887967.png)。*G*
+    和 *F* 还应满足后向循环一致性（前面的图，右）：![](img/6e24c434-598b-4a8c-87a4-77c7ffb6b636.png)。
 - en: 'This new path creates an additional cycle-consistency loss term:'
   id: totrans-265
   prefs: []
   type: TYPE_NORMAL
+  zh: 这条新路径创建了额外的循环一致性损失项：
 - en: '![](img/06594f64-84da-453e-9adf-20357b3d00ca.png)'
   id: totrans-266
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/06594f64-84da-453e-9adf-20357b3d00ca.png)'
 - en: 'This measures the absolute difference between the original images, that is, *x*
     and *y*, and their generated counterparts, ![](img/ce8ce93b-93ba-426b-8d18-1f6e6f116879.png) and
     ![](img/f39352cb-a3a2-48e2-a1dd-35da7c23a89f.png). Note that these paths can be
@@ -1984,29 +2031,35 @@
   id: totrans-267
   prefs: []
   type: TYPE_NORMAL
+  zh: 这衡量的是原始图像（即*x*和*y*）与其生成对比图像之间的绝对差异，分别为![](img/ce8ce93b-93ba-426b-8d18-1f6e6f116879.png)和![](img/f39352cb-a3a2-48e2-a1dd-35da7c23a89f.png)。请注意，这些路径可以视为联合训练两个自编码器，![](img/cfdf4e9a-1ea4-4749-a426-21b3fa1f6d55.png)和![](img/987e6078-8c09-4169-968a-f0eb1dcf7bfe.png)。每个自编码器都有一个特殊的内部结构：它借助中间表示将图像映射到自身——即将图像转化为另一个领域。
 - en: 'The full CycleGAN objective is a combination of the cycle consistency loss
     and the adversarial losses of *F* and *G*:'
   id: totrans-268
   prefs: []
   type: TYPE_NORMAL
+  zh: 完整的CycleGAN目标是循环一致性损失和*F*与*G*的对抗损失的结合：
 - en: '![](img/99d5230b-cef3-4d67-9ae4-624bd1176b8f.png)'
   id: totrans-269
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/99d5230b-cef3-4d67-9ae4-624bd1176b8f.png)'
 - en: 'Here, the coefficient, λ, controls the relative importance between the two
     losses. CycleGAN aims to solve the following minimax objective:'
   id: totrans-270
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这里，系数λ控制两个损失之间的相对重要性。CycleGAN旨在解决以下最小最大目标：
 - en: '![](img/2d6daef8-178c-4fda-884e-faf0f245ecd0.png)'
   id: totrans-271
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/2d6daef8-178c-4fda-884e-faf0f245ecd0.png)'
 - en: Implementing CycleGAN
   id: totrans-272
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 实现CycleGAN
 - en: This example contains several source files located at [https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter05/cyclegan](https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter05/cyclegan).
     Besides TF, the code also depends on `tensorflow_addons` and `imageio` packages.
     You can install them with the `pip` package installer. We'll implement CycleGAN
@@ -2021,11 +2074,14 @@
   id: totrans-273
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个例子包含了几个源文件，位于[https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter05/cyclegan](https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter05/cyclegan)。除了
+    TensorFlow，代码还依赖于`tensorflow_addons`和`imageio`包。你可以使用`pip`包管理器安装它们。我们将为多个训练数据集实现CycleGAN，这些数据集均由论文的作者提供。在运行示例之前，你需要通过`download_dataset.sh`可执行脚本下载相关数据集，该脚本使用数据集名称作为参数。可用数据集的列表已包含在文件中。下载完成后，你可以借助`DataLoader`类访问图像，该类位于`data_loader.py`模块中（我们不会在此包含其源代码）。简单来说，`DataLoader`类可以加载`numpy`数组形式的mini-batches和整个归一化图像数据集。我们还将省略常见的导入语句。
 - en: Building the generator and discriminator
   id: totrans-274
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 构建生成器和判别器
 - en: 'First, we''ll implement the `build_generator` function. The GAN models we''ve
     looked at so far started with some sort of latent vector. But here, the generator
     input is an image from one of the domains and the output is an image from the
@@ -2036,6 +2092,7 @@
   id: totrans-275
   prefs: []
   type: TYPE_NORMAL
+  zh: 首先，我们将实现`build_generator`函数。到目前为止，我们看到的GAN模型都是从某种潜在向量开始的。但在这里，生成器的输入是来自其中一个领域的图像，输出是来自另一个领域的图像。按照论文中的指南，生成器采用U-Net风格的网络。它有一个下采样的编码器，一个上采样的解码器，以及在相应的编码器/解码器块之间的快捷连接。我们将从`build_generator`的定义开始：
 - en: '[PRE21]'
   id: totrans-276
   prefs: []
@@ -2053,6 +2110,9 @@
   id: totrans-277
   prefs: []
   type: TYPE_NORMAL
+  zh: U-Net 的下采样编码器由多个卷积层和 `LeakyReLU` 激活组成，后跟 `InstanceNormalization`。批量归一化和实例归一化的区别在于，批量归一化计算它的参数是跨整个小批量的，而实例归一化是单独为小批量中的每个图像计算参数。为了更清晰，我们将实现一个单独的子程序，名为
+    `downsampling2d`，它定义了这样一层。我们将使用此函数在构建网络编码器时构建所需数量的层（请注意这里的缩进；`downsampling2d`
+    是在 `build_generator` 中定义的子程序）：
 - en: '[PRE22]'
   id: totrans-278
   prefs: []
@@ -2071,6 +2131,10 @@
   id: totrans-279
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，让我们关注解码器，它不是通过转置卷积来实现的。相反，输入数据通过 `UpSampling2D` 操作进行上采样，这只是将每个输入像素复制为一个
+    2×2 的块。接着是一个常规卷积操作，以平滑这些块。这个平滑后的输出会与来自相应编码器块的捷径（或 `skip_input`）连接进行拼接。解码器由多个这样的上采样块组成。为了更清晰，我们将实现一个单独的子程序，名为
+    `upsampling2d`，它定义了这样一个块。我们将使用它来构建网络解码器所需的多个块（请注意这里的缩进；`upsampling2d` 是在 `build_generator`
+    中定义的子程序）：
 - en: '[PRE23]'
   id: totrans-280
   prefs: []
@@ -2081,6 +2145,7 @@
   id: totrans-281
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们将使用刚刚定义的子程序实现 U-Net 的完整定义（请注意这里的缩进；代码是 `build_generator` 的一部分）：
 - en: '[PRE24]'
   id: totrans-282
   prefs: []
@@ -2094,11 +2159,14 @@
   id: totrans-283
   prefs: []
   type: TYPE_NORMAL
+  zh: 接着，我们应该实现 `build_discriminator` 函数。我们在这里省略实现，因为它是一个相当直接的 CNN，类似于前面示例中展示的（你可以在本书的
+    GitHub 仓库中找到此实现）。唯一的不同是，它使用实例归一化，而不是批量归一化。
 - en: Putting it all together
   id: totrans-284
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 综合起来
 - en: 'At this point, we usually implement the `train` method, but because CycleGAN
     has more components, we''ll show you how to build the entire model. First, we
     instantiate the `data_loader` object, where you can specify the name of the training
@@ -2108,6 +2176,9 @@
   id: totrans-285
   prefs: []
   type: TYPE_NORMAL
+  zh: 此时，我们通常会实现 `train` 方法，但由于 CycleGAN 有更多的组件，我们将展示如何构建整个模型。首先，我们实例化 `data_loader`
+    对象，你可以指定训练集的名称（可以随意尝试不同的数据集）。所有图像将被调整为 `img_res=(IMG_SIZE, IMG_SIZE)`，作为网络输入，其中
+    `IMG_SIZE = 256`（你也可以尝试 `128` 以加速训练过程）：
 - en: '[PRE25]'
   id: totrans-286
   prefs: []
@@ -2117,6 +2188,7 @@
   id: totrans-287
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后，我们将定义优化器和损失权重：
 - en: '[PRE26]'
   id: totrans-288
   prefs: []
@@ -2132,6 +2204,7 @@
   id: totrans-289
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，我们将创建两个生成器，`g_XY` 和 `g_YX`，以及它们各自的判别器，`d_Y` 和 `d_X`。我们还将创建 `combined` 模型，以同时训练这两个生成器。然后，我们将创建复合损失函数，其中包含一个额外的身份映射项。你可以在相关论文中了解更多内容，但简而言之，它有助于在将图像从绘画领域转换到照片领域时，保持输入和输出之间的颜色组合：
 - en: '[PRE27]'
   id: totrans-290
   prefs: []
@@ -2141,6 +2214,7 @@
   id: totrans-291
   prefs: []
   type: TYPE_NORMAL
+  zh: 接下来，让我们配置用于训练的`combined`模型：
 - en: '[PRE28]'
   id: totrans-292
   prefs: []
@@ -2152,6 +2226,7 @@
   id: totrans-293
   prefs: []
   type: TYPE_NORMAL
+  zh: 一旦模型准备好，我们便通过`train`函数启动训练过程。根据论文的指导方针，我们将使用大小为1的小批量：
 - en: '[PRE29]'
   id: totrans-294
   prefs: []
@@ -2163,6 +2238,7 @@
   id: totrans-295
   prefs: []
   type: TYPE_NORMAL
+  zh: 最后，我们将实现`train`函数。它与之前的GAN模型有些相似，但也考虑到了两对生成器和判别器：
 - en: '[PRE30]'
   id: totrans-296
   prefs: []
@@ -2176,24 +2252,29 @@
   id: totrans-297
   prefs: []
   type: TYPE_NORMAL
+  zh: 训练可能需要一些时间才能完成，但该过程将在每个`sample_interval`批次后生成图像。以下是通过机器感知中心外立面数据库生成的图像示例（[http://cmp.felk.cvut.cz/~tylecr1/facade/](http://cmp.felk.cvut.cz/~tylecr1/facade/)）。该数据库包含建筑物的外立面，其中每个像素都标记为与外立面相关的多个类别之一，如窗户、门、阳台等：
 - en: '![](img/2a6ef916-a9a3-4107-bc54-86806b502521.png)'
   id: totrans-298
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/2a6ef916-a9a3-4107-bc54-86806b502521.png)'
 - en: An example of CycleGAN image-to-image translation
   id: totrans-299
   prefs: []
   type: TYPE_NORMAL
+  zh: CycleGAN图像到图像的转换示例
 - en: This concludes our discussion of GANs. Next, we'll focus on a different type
     of generative model called artistic style transfer.
   id: totrans-300
   prefs: []
   type: TYPE_NORMAL
+  zh: 这部分内容结束了我们对GAN的讨论。接下来，我们将重点介绍另一种生成模型——艺术风格迁移。
 - en: Introducing artistic style transfer
   id: totrans-301
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 引入艺术风格迁移
 - en: In this final section, we'll discuss artistic style transfer. Similar to one
     of the applications of CycleGAN, it allows us to use the style (or texture) of
     one image to reproduce the semantic content of another. Although it can be implemented
@@ -2206,33 +2287,40 @@
   id: totrans-302
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这一最终部分，我们将讨论艺术风格迁移。类似于CycleGAN的一种应用，它允许我们使用一张图像的风格（或纹理）来再现另一张图像的语义内容。尽管它可以通过不同的算法来实现，但最流行的方法是在2015年通过论文《*艺术风格的神经算法*》中提出的（[https://arxiv.org/abs/1508.06576](https://arxiv.org/abs/1508.06576)）。它也被称为神经风格迁移，并且使用了（你猜对了！）卷积神经网络（CNN）。基本算法在过去几年中得到了改进和调整，但在本节中，我们将探讨其原始形式，因为这将为理解最新版本奠定良好的基础。
 - en: 'The algorithm takes two images as input:'
   id: totrans-303
   prefs: []
   type: TYPE_NORMAL
+  zh: 该算法接受两张图像作为输入：
 - en: The content image (*C*) we would like to redraw
   id: totrans-304
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们想要重新绘制的内容图像（*C*）
 - en: The style image (I) whose style (texture) we'll use to redraw *C*
   id: totrans-305
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 我们将用来重新绘制*C*的风格图像（I），其风格（纹理）来自此图像
 - en: 'The result of the algorithm is a new image: *G = C + S*. The following is an
     example of neural style transfer:'
   id: totrans-306
   prefs: []
   type: TYPE_NORMAL
+  zh: 该算法的结果是一张新图像：*G = C + S*。以下是神经风格迁移的示例：
 - en: '![](img/5881e581-891e-4120-bdd1-38e5aec76e40.png)'
   id: totrans-307
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/5881e581-891e-4120-bdd1-38e5aec76e40.png)'
 - en: An example of neural style transfer
   id: totrans-308
   prefs: []
   type: TYPE_NORMAL
+  zh: 神经风格迁移的示例
 - en: 'To understand how neural style transfer works, let''s recall that CNNs learn a
     hierarchical representation of their features. We know that initial convolutional
     layers learn basic features, such as edges and lines. Conversely, deeper layers
@@ -2241,6 +2329,7 @@
   id: totrans-309
   prefs: []
   type: TYPE_NORMAL
+  zh: 为了理解神经风格迁移是如何工作的，让我们回顾一下CNN如何学习其特征的层次化表示。我们知道，初始的卷积层学习基本特征，如边缘和线条。而较深的层则学习更复杂的特征，如面孔、汽车和树木。了解这一点后，让我们来看一下算法本身：
 - en: Like many other tasks (for example, [Chapter 3](9ac88546-8662-4b23-aa96-7eb00f48fedb.xhtml)*, Object
     Detection and Image Segmentation*), this algorithm starts with a pretrained VGG
     network.
@@ -2248,6 +2337,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 就像许多其他任务一样（例如，[第3章](9ac88546-8662-4b23-aa96-7eb00f48fedb.xhtml)*，物体检测与图像分割*），该算法从一个预训练的VGG网络开始。
 - en: Feed the network with the content image, *C*. Extract and store the output activations
     (or feature maps or slices) of one or more of the hidden convolutional layers
     in the middle of the network. Let's denote these activations with *A[c]^l*, where *l* is
@@ -2257,6 +2347,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将内容图像*C*输入网络。提取并存储网络中间层一个或多个隐藏卷积层的输出激活（或特征图或切片）。我们用*A[c]^l*表示这些激活，其中*l*是层的索引。我们关注中间层，因为它们编码的特征抽象层次最适合这个任务。
 - en: Do the same with the style image, *S*. This time, denote the style activations
     of the *l* layer with *A[s]^l*. The layers we choose for the content and style
     are not necessarily the same.
@@ -2264,6 +2355,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 对风格图像*S*做同样的处理。这一次，用*A[s]^l*表示风格图像在*l*层的激活。我们选择的内容和风格层不一定相同。
 - en: 'Generate a single random image (white noise), *G*. This random image will gradually
     turn into the end result of the algorithm. We''ll repeat this for a number of
     iterations:'
@@ -2271,6 +2363,7 @@
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 生成一张单一的随机图像（白噪声），*G*。这张随机图像将逐渐转变为算法的最终结果。我们将对其进行多次迭代：
 - en: Propagate *G* through the network. This is the only image we'll use throughout
     the whole process. Like we did previously, we'll store the activations for all
     the *l* layers (here, *l* is a combination of all layers we used for the content
@@ -2280,6 +2373,7 @@
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 将*G*传播通过网络。这是我们在整个过程中唯一使用的图像。像之前一样，我们将存储所有*l*层的激活（这里，*l*是我们用于内容和风格图像的所有层的组合）。我们用*A[g]^l*表示这些激活。
 - en: 'Compute the difference between the random noise activations, *A[g]^l*, on one
     hand and *A[c]^l* and *A[s]^l* on the other. These will be the two components of
     our loss function:'
@@ -2288,6 +2382,7 @@
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 计算随机噪声激活*A[g]^l*与*A[c]^l*和*A[s]^l*之间的差异。这些将是我们损失函数的两个组成部分：
 - en: '![](img/40dba1df-c29d-4daf-b191-cf57362f210e.png), known as the **content loss**:
     This is just the MSE over the element-wise difference between the two activations
     of all *l* layers.'
@@ -2297,6 +2392,7 @@
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '![](img/40dba1df-c29d-4daf-b191-cf57362f210e.png)，称为**内容损失**：这只是所有*l*层两个激活之间逐元素差异的均方误差（MSE）。'
 - en: '![](img/5e6ed128-6148-46ff-82e9-10b6a9f5363c.png), known as the **style loss**:
     This is similar to the content loss, but instead of raw activations we''ll compare
     their **gram matrices** (we won''t go into  this in any detail).'
@@ -2306,6 +2402,7 @@
   - PREF_IND
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '![](img/5e6ed128-6148-46ff-82e9-10b6a9f5363c.png)，称为**风格损失**：这与内容损失相似，但我们不会直接比较原始激活，而是比较它们的**格拉姆矩阵**（我们不会深入讨论这一点）。'
 - en: Use the content and style losses to compute the total loss, ![](img/31512847-eade-4abd-9f49-e81cbcd56250.png),
     which is just a weighted sum of the two. The α and β coefficients determine which
     of the components will carry more weight.
@@ -2314,6 +2411,8 @@
   - PREF_OL
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 使用内容和风格损失计算总损失，![](img/31512847-eade-4abd-9f49-e81cbcd56250.png)，这只是两者的加权和。α
+    和 β 系数决定了哪个组件将占据更大权重。
 - en: Backpropagate the gradients to the start of the network and update the generated
     image, ![](img/b0971a06-2691-47a8-b6d4-ca441b8b02e9.png). In this way, we make *G* more
     similar to both the content and style images since the loss function is a combination
@@ -2323,12 +2422,14 @@
   - PREF_IND
   - PREF_OL
   type: TYPE_NORMAL
+  zh: 反向传播梯度至网络的起始位置，并更新生成的图像，![](img/b0971a06-2691-47a8-b6d4-ca441b8b02e9.png)。通过这种方式，我们使*G*更接近内容和风格图像，因为损失函数是两者的组合。
 - en: This algorithm makes it possible for us to harness the powerful representational
     power of CNNs for artistic style transfer. It does this with a novel loss function
     and the smart use of backpropagation.
   id: totrans-320
   prefs: []
   type: TYPE_NORMAL
+  zh: 该算法使我们能够利用卷积神经网络（CNN）强大的表达能力进行艺术风格迁移。它通过一种新颖的损失函数和智能的反向传播方法实现这一点。
 - en: If you are interested in implementing neural style transfer, check out the official
     PyTorch tutorial at [https://pytorch.org/tutorials/advanced/neural_style_tutorial.html](https://pytorch.org/tutorials/advanced/neural_style_tutorial.html).
     Alternatively, go to [https://www.tensorflow.org/beta/tutorials/generative/style_transfer](https://www.tensorflow.org/beta/tutorials/generative/style_transfer)
@@ -2336,6 +2437,8 @@
   id: totrans-321
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你有兴趣实现神经风格迁移，请查看官方的 PyTorch 教程：[https://pytorch.org/tutorials/advanced/neural_style_tutorial.html](https://pytorch.org/tutorials/advanced/neural_style_tutorial.html)。或者，访问[https://www.tensorflow.org/beta/tutorials/generative/style_transfer](https://www.tensorflow.org/beta/tutorials/generative/style_transfer)查看
+    TF 2.0 实现。
 - en: One shortcoming of this algorithm is that it's relatively slow. Typically, we
     have to repeat this pseudo-training procedure for a couple of hundred iterations
     to produce a visually appealing result. Fortunately, the paper *Perceptual Losses
@@ -2345,11 +2448,14 @@
   id: totrans-322
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个算法的一个缺点是相对较慢。通常，我们需要重复几百次伪训练过程才能得到一个视觉上令人满意的结果。幸运的是，论文《*实时风格迁移与超分辨率的感知损失*》([https://arxiv.org/abs/1603.08155](https://arxiv.org/abs/1603.08155))
+    基于原始算法提出了一个解决方案，使其速度提高了三个数量级。
 - en: Summary
   id: totrans-323
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 摘要
 - en: In this chapter, we discussed how to create new images with generative models,
     which is one of the most exciting deep learning areas at the moment. We learned
     about the theoretical foundations of VAEs and then we implemented a simple VAE to
@@ -2361,8 +2467,10 @@
   id: totrans-324
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本章中，我们讨论了如何使用生成模型创建新图像，这是目前深度学习领域最令人兴奋的方向之一。我们了解了变分自编码器（VAE）的理论基础，然后实现了一个简单的VAE来生成新的MNIST数字。接着，我们介绍了GAN框架，并讨论并实现了多种类型的GAN，包括DCGAN、CGAN、WGAN和CycleGAN。最后，我们提到了神经风格迁移算法。本章是专门讲解计算机视觉的四章系列中的最后一章，希望你喜欢这些内容。
 - en: In the next few chapters, we'll talk about Natural Language Processing and recurrent
     networks.
   id: totrans-325
   prefs: []
   type: TYPE_NORMAL
+  zh: 在接下来的几章中，我们将讨论自然语言处理和递归网络。
