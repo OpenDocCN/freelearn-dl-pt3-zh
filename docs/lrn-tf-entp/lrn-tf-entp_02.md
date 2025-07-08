@@ -1,6 +1,6 @@
 第一章：
 
-# TensorFlow Enterprise 概览
+# 第二章：TensorFlow Enterprise 概览
 
 在本章节的介绍中，您将学习如何在**Google Cloud Platform**（**GCP**）环境中设置和运行 TensorFlow Enterprise。这将帮助您获得一些关于 TensorFlow Enterprise 如何与 GCP 中的其他服务集成的初步实践经验。TensorFlow Enterprise 最重要的改进之一是与 Google Cloud 中的数据存储选项（如 Google Cloud Storage 和 BigQuery）的集成。
 

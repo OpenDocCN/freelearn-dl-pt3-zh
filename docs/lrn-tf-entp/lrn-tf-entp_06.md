@@ -1,6 +1,6 @@
 第四章：
 
-# 可重用模型与可扩展数据管道
+# 第五章：可重用模型与可扩展数据管道
 
 在本章中，你将学习如何使用 TensorFlow Enterprise 高级 API 中的预制模型元素，构建可扩展的数据摄取管道。这些选项提供了灵活性，适应不同的需求或风格，以便构建、训练和部署模型。掌握这些知识后，你将能够做出明智的选择，并理解不同模型开发方法之间的取舍。三种主要的方法是 TensorFlow Hub、TensorFlow Estimators API 和 TensorFlow Keras API。
 

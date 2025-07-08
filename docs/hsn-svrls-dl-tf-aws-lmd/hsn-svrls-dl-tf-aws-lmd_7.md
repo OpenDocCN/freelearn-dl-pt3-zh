@@ -1,4 +1,4 @@
-# 创建深度学习工作流
+# 第七章：创建深度学习工作流
 
 在本章中，你将学习 AWS Step Functions 服务，并通过使用 AWS 控制台连接到 AWS Lambda 来创建 AWS Step Functions。你还将学习如何使用 Serverless 框架创建 AWS Step Functions 连接，最后，你将查看一个深度学习工作流的示例项目。
 

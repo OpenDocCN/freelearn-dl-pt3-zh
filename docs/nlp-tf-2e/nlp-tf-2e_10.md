@@ -1,6 +1,6 @@
 
 
-# Transformer
+# 第十章：Transformer
 
 Transformer 模型改变了大多数涉及顺序数据的机器学习问题的游戏规则。与之前的 RNN 基模型相比，它们显著提高了技术水平。Transformer 模型之所以如此高效的一个主要原因是，它能够访问整个序列（例如，令牌序列），而不像 RNN 基模型那样一次只查看一个元素。Transformer 这一术语在我们的讨论中多次出现，它是一种超越其他顺序模型（如 LSTM 和 GRU）的方法。现在，我们将深入了解 Transformer 模型。
 

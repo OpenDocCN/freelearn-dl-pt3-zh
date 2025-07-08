@@ -1,6 +1,6 @@
 第二章：
 
-# 在 Google AI 平台上运行 TensorFlow Enterprise
+# 第三章：在 Google AI 平台上运行 TensorFlow Enterprise
 
 当前，TensorFlow Enterprise 发行版仅通过 Google Cloud AI 平台提供。本章将演示如何启动 AI 平台并将其用于 TensorFlow Enterprise。在 AI 平台中，TensorFlow Enterprise 可以通过各自的命令行工具以及简单的 API 与 Cloud Storage 和 BigQuery 进行交互，从而加载源数据。本章将展示如何启动 AI 平台，并且演示开始使用 TensorFlow Enterprise 发行版的简便方法。
 

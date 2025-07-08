@@ -1,4 +1,4 @@
-# 从 TensorFlow 1 迁移到 TensorFlow 2
+# 第十章：从 TensorFlow 1 迁移到 TensorFlow 2
 
 由于 TensorFlow 2 最近才发布，因此大多数在线项目仍然是为 TensorFlow 1 构建的。尽管第一版已经具备了许多有用的功能，如 AutoGraph 和 Keras API，但建议你迁移到最新版本的 TensorFlow，以避免技术债务。幸运的是，TensorFlow 2 提供了一个自动迁移工具，能够将大多数项目转换为其最新版本。该工具几乎不需要额外的努力，并且会输出功能正常的代码。然而，要将代码迁移到符合 TensorFlow 2 规范的版本，需要一些细心和对两个版本的了解。在本节中，我们将介绍迁移工具，并将 TensorFlow 1 的概念与其 TensorFlow 2 对应概念进行比较。
 

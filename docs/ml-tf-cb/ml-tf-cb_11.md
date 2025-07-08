@@ -1,6 +1,6 @@
 
 
-# 使用 TensorFlow 和 TF-Agents 进行强化学习
+# 第十一章：使用 TensorFlow 和 TF-Agents 进行强化学习
 
 TF-Agents 是一个用于 **强化学习**（**RL**）的 **TensorFlow**（**TF**）库。通过提供多个模块化组件，TF-Agents 使得各种算法的设计和实现变得更加简单，这些组件对应 RL 问题的核心部分：
 

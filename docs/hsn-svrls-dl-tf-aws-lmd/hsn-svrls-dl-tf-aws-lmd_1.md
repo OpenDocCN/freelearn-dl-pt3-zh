@@ -1,4 +1,4 @@
-# 从无服务器计算和 AWS Lambda 开始
+# 第一章：从无服务器计算和 AWS Lambda 开始
 
 本书将鼓励你使用自定义训练的模型与 AWS Lambda 进行配合，并使用简化的无服务器计算方法。稍后，你将实现一些示例项目，展示使用 AWS Lambda 为 TensorFlow 模型提供服务的方式。
 

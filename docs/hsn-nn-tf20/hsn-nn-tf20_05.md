@@ -1,4 +1,4 @@
-# TensorFlow 图形架构
+# 第三章：TensorFlow 图形架构
 
 TensorFlow 的最简洁和完整的解释可以在项目主页上找到（[`www.tensorflow.org/`](https://www.tensorflow.org/)），它突出了库的每个重要部分。TensorFlow 是一个用于高性能数值计算的开源软件库。其灵活的架构允许在多种平台（CPU、GPU 和 TPU）上轻松部署计算，从桌面到服务器集群，再到移动设备和边缘设备。最初由 Google AI 组织内的 Google Brain 团队的研究人员和工程师开发，TensorFlow 对机器学习和深度学习提供强大支持，其灵活的数值计算核心在许多其他科学领域中都有应用。
 

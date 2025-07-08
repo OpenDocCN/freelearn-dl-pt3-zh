@@ -1,6 +1,6 @@
 
 
-# LSTM 的应用——生成文本
+# 第八章：LSTM 的应用——生成文本
 
 现在，我们已经对 LSTM 的基本机制有了充分的理解，例如它们如何解决梯度消失问题和更新规则，我们可以看看如何在 NLP 任务中使用它们。LSTM 被用于文本生成和图像标题生成等任务。例如，语言建模是任何 NLP 任务的核心，因为有效的语言建模能力直接导致了有效的语言理解。因此，语言建模通常用于预训练下游决策支持 NLP 模型。单独使用时，语言建模可以用于生成歌曲（[`towardsdatascience.com/generating-drake-rap-lyrics-using-language-models-and-lstms-8725d71b1b12`](https://towardsdatascience.com/generating-drake-rap-lyrics-using-language-models-and-lstms-8725d71b1b12)），电影剧本（[`builtin.com/media-gaming/ai-movie-script`](https://builtin.com/media-gaming/ai-movie-script)）等。
 

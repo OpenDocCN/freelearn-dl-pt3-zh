@@ -1,4 +1,4 @@
-# 使用 AWS Lambda 函数开始部署
+# 第二章：使用 AWS Lambda 函数开始部署
 
 在本章中，我们将更深入了解 AWS Lambda 并学习它是如何工作的。我们还将讨论部署 Lambda 的不同方式以及在为 AWS Lambda 开发应用时需要考虑的事项。
 

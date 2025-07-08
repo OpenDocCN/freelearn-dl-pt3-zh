@@ -1,4 +1,4 @@
-# 在 Google Cloud Platform 上使用 Python 进行深度学习
+# 第九章：在 Google Cloud Platform 上使用 Python 进行深度学习
 
 在上一章，我们看到了一些由各个组织提供的深度学习 API。我们还看到它们的应用范围大致可以分为两类——第一类是计算机视觉和图像处理，第二类是自然语言处理。我们将在本章继续探索深度学习 API。本章将介绍 **Google Cloud Platform** (**GCP**) 及其在深度学习领域提供的三个 API。
 

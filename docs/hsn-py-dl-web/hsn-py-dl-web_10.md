@@ -1,4 +1,4 @@
-# 使用 Python 在 AWS 上进行 DL：对象检测和家庭自动化
+# 第十章：使用 Python 在 AWS 上进行 DL：对象检测和家庭自动化
 
 我们熟悉了来自 Google Cloud Platform 的几个基于深度学习的产品，并学习了它们如何在第六章中使用 Python 在 Google Cloud Platform 上进行深度学习。现在，我们已经对云计算有了相当好的概述，在本章中，我们将介绍另一个云计算平台，**Amazon Web Services**（**AWS**），它也提供一些高性能和高可靠性的基于深度学习的解决方案，以便更轻松地解决问题。在本章中，我们将以 API 的形式介绍其中的两个，并学习如何从 Python 程序中使用它们。
 

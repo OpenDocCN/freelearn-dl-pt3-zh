@@ -1,6 +1,6 @@
 
 
-# 使用 Transformer 进行图像标题生成
+# 第十一章：使用 Transformer 进行图像标题生成
 
 Transformer 模型改变了许多 NLP 问题的解决方式。与之前的主流模型 RNN 模型相比，它们通过显著的优势重新定义了当前的技术水平。我们已经研究过 Transformer，并理解了它们的工作原理。Transformer 可以访问整个序列的所有项（例如，一个 token 序列），而 RNN 模型一次只查看一个项，这使得 Transformer 更适合解决序列问题。在 NLP 领域取得成功之后，研究人员已经成功地将 Transformer 应用于计算机视觉问题。在这里，我们将学习如何使用 Transformer 来解决一个涉及图像和文本的多模态问题：图像标题生成。
 
