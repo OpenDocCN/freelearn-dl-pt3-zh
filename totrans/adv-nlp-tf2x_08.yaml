@@ -1,0 +1,1586 @@
+- en: '8'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Weakly Supervised Learning for Classification with Snorkel
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Models such as BERT and GPT use massive amounts of unlabeled data along with
+    an unsupervised training objective, such as a **masked language model** (**MLM**)
+    for BERT or a next word prediction model for GPT, to learn the underlying structure
+    of text. A small amount of task-specific data is used for fine-tuning the pre-trained
+    model using transfer learning. Such models are quite large, with hundreds of millions
+    of parameters, and require massive datasets for pre-training and lots of computation
+    capacity for training and pre-training. Note that the critical problem being solved
+    is the lack of adequate training data. If there were enough domain-specific training
+    data, the gains from BERT-like pre-trained models would not be that big. In certain
+    domains such as medicine, the vocabulary used in task-specific data is typical
+    for the domain. Modest increases in training data can improve the quality of the
+    model to a large extent. However, hand labeling data is a tedious, resource-intensive, and
+    unscalable task for the amounts required for deep learning to be successful.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We discuss an alternative approach in this chapter, based on the concept of
+    weak supervision. Using the Snorkel library, we label tens of thousands of records
+    in a couple of hours and exceed the accuracy of the model developed in *Chapter
+    3*, *Named Entity Recognition (NER) with BiLSTMs, CRFs, and Viterbi Decoding*
+    using, BERT. This chapter covers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: An overview of weakly supervised learning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: An overview of the differences between generative and discriminative models
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building a baseline model with handcrafted features for labeling data
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Snorkel library basics
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Augmenting training data using Snorkel labeling functions at scale
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Training models using noisy machine-labeled data
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It is essential to understand the concept of weakly supervised learning, so
+    let's cover that first.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Weak supervision
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Deep learning models have delivered incredible results in the recent past. Deep
+    learning architectures obviated the need for feature engineering, given enough
+    training data. However, enormous amounts of data are needed for a deep learning
+    model to learn the underlying structure of the data. On the one hand, deep learning
+    reduced the manual effort required to handcraft features, but on the other, it
+    significantly increased the need for labeled data for a specific task. In most
+    domains, gathering a sizable set of high-quality, labeled data is an expensive
+    and resource-intensive task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This problem can be solved in several different ways. In previous chapters,
+    we have seen the use of transfer learning to train a model on a large dataset
+    before fine-tuning the model for a specific task. *Figure 8.1* shows this and
+    other approaches to acquiring labels:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing clock  Description automatically generated](img/B16252_08_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.1: Options for getting more labeled data'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hand labeling the data is a common approach. Ideally, we have enough time and
+    money to hire **subject matter experts** (**SMEs**) to hand label every piece
+    of data, which is not practical. Consider labeling a tumor detection dataset and
+    hiring oncologists for the labeling task. Labeling data is probably way lower
+    in priority for an oncologist than treating tumor patients. In a previous company,
+    we organized pizza parties where we would feed people lunch for labels. In an
+    hour, a person could label about 100 records. Feeding 10 people monthly for a
+    year resulted in 12,000 labeled records! This scheme was useful for ongoing maintenance
+    of models, where we would sample the records that were out of distribution, or
+    that the model had shallow confidence in. Thus, we adopted active learning, which
+    determines the records upon labeling, which would have the highest impact on the
+    performance of a classifier.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another option is to hire labelers that are not experts but are more abundant
+    and cheaper. This is the approach taken by the Amazon Mechanical Turk service.
+    There are a large number of companies that provide labeling services. Since the
+    labelers are not experts, the same record is labeled by multiple people, and some
+    mechanism, like majority vote, is used to decide on the final label of the record.
+    The charge for labeling one record by one labeler may vary from a few cents to
+    a few dollars depending on the complexity of the steps needed for associating
+    a label. The output of such a process is a set of noisy labels that have high
+    coverage, as long as your budget allows for it. We still need to figure out the
+    quality of the labels acquired to see how these labels can be used in the eventual
+    model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Weak supervision tries to address the problem differently. What if, using heuristics,
+    an SME could hand label thousands of records in a fraction of the time? We will
+    work on the IMDb movie review dataset and try to predict the sentiment of the
+    review. We used the IMDb dataset in *Chapter 4* , *Transfer Learning with BERT*,
+    where we explored transfer learning. It is appropriate to use the same example
+    to show an alternate technique to transfer learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Weak supervision techniques don't have to be used as substitutes for transfer
+    learning. Weak supervision techniques help create larger domain-specific labeled
+    datasets. In the absence of transfer learning, a larger labeled dataset improves
+    model performance even with noisy labels coming from weak supervision. However,
+    the gain in model performance will be even more significant if transfer learning
+    and weak supervision are both used together.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'An example of a simple heuristic function for labeling a review as having a
+    positive sentiment can be shown with the following pseudocode:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: While this may seem like a trivial example for our use case, you will be surprised
+    how effective it can be. In a more complicated setting, an oncologist can provide
+    some of these heuristics and define a few of these functions, which can be called
+    labeling functions, to label some records. These functions may conflict or overlap
+    with each other, similar to crowdsourced labels. Another approach for getting
+    labels is through *distant supervision*. An external knowledge base, like Wikipedia,
+    can be used to label data records heuristically. In a **Named-Entity Recognition**
+    (**NER**) use case, a gazetteer is used to match entities to a list of known entities,
+    as discussed in *Chapter 2*, *Understanding Sentiment in Natural Language with
+    BiLSTMs*. In relation extraction between entities, for example, *employee of*
+    or *spouse of*, the Wikipedia page of an entity can be mined to extract the relation,
+    and the data record can be labeled. There are other methods of obtaining these
+    labels, such as using thorough knowledge of the underlying distributions generating
+    the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For a given data set, there can be several sources for labels. Each crowdsourced
+    labeler is a source. Each heuristic function, like the "amazing acting" one shown
+    above, is also a source. The core problem in weak supervision is combining these
+    multiple sources to yield labels of sufficient quality for the final classifier.
+    The key points of the model are described in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The domain-specific model is being referred to as the classifier in this chapter
+    as the example we are taking is the binary classification of movie review sentiment.
+    However, the labels generated can be used for a variety of domain-specific models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Inner workings of weak supervision with labeling functions
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The idea that a few heuristic labeling functions with low coverage and less
+    than perfect accuracy can help improve the accuracy of a discriminative model
+    sounds fantastic. This section provides a high-level overview of how this works,
+    before we see it in practice on the IMDb sentiment analysis dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We assume a binary classification problem for the sake of explanation though
+    the scheme works for any number of labels. The set of labels for binary classification
+    is {NEG, POS}. We have a set of unlabeled data points, *X*, with *m* samples.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that we do not have access to the actual labels for these data points,
+    but we represent the generated labels using *Y*. Let's assume we have *n* labeling
+    functions *LF*[1] to *LF*[n], each of which produces a label. However, we add
+    another label for weak supervision – an abstain label. Each labeling function
+    has the ability to choose whether it wants to apply a label or abstain from labeling.
+    This is a vital aspect of the weak supervision approach. Hence, the set of labels
+    produced by labeling functions is expanded to {NEG, ABSTAIN, POS}.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this setting, the objective is to train a generative model which models
+    two things:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The probability of a given labeling function abstaining for a given data point
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The probability of a given labeling function correctly assigning a label to
+    a data point
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'By applying all the labeling functions on all the data points, we generate
+    an *m × n* matrix of data points and their labels. The label generated by the
+    heuristic *LF*[j] on the data point *X*[i] can be represented by:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16252_08_001.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The generative model is trying to learn from the agreements and disagreements
+    between the labeling functions to learn the parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Generative versus Discriminative models**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we have a set of data, *X*, and labels, *Y* corresponding to the data, then
+    we can say that the discriminative model tries to capture the *conditional probability*
+    *p(Y | X)*. A generative model captures the *joint probability p(X, Y)*. Generative
+    models, as their name implies, can generate new data points. We saw examples of
+    generative models in *Chapter 5*, *Generating Text with RNNs and GPT-2*, where
+    we generated news headlines. **GANs** (**Generative Adversarial Networks**) and
+    AutoEncoders are well-known generative models. Discriminative models label data
+    points in a given data set. It does so by drawing a plane in the space of features
+    that separates the data points into different classes. Classifiers, like the IMDb
+    sentiment review prediction model, are typically discriminative models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As can be imagined, generative models have a much more challenging task of learning
+    the whole underlying structure of the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The parameter weights, *w*, of the generative model *P*[w] can be estimated
+    via:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16252_08_002.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Not that the log marginal likelihood of the observed labels factors out the
+    predicted labels *Y*. Hence, this generative model works in an unsupervised fashion.
+    Once the parameters of the generative model are computed, we can predict the labels
+    for the data points as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16252_08_003.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Where *Y*[i] represents labels based on labeling functions and ![](img/B16252_08_004.png)
+    represents the predicted label from the generative model. These predicted labels
+    can be fed to a downstream discriminative model for classification.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'These concepts were implemented in the Snorkel library. The authors of the
+    Snorkel library were the key contributors to introducing the *Data Programming*
+    approach, in a paper of the same name presented at the Neural Information Process
+    Systems conference in 2016\. The Snorkel library was introduced formally in a
+    paper titled *Snorkel: rapid training data creation with weak supervision* by
+    Ratner et al. in 2019\. Apple and Google have published papers using the Snorkel
+    library, with papers on *Overton* and *Snorkel Drybell*, respectively. These papers
+    can provide an in-depth discussion of the mathematical proof underlying the creation
+    of training data with weak supervision.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As complex as the underlying principles may be, using Snorkel for labeling data
+    is not difficult in practice. Let us get started by preparing the data set.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using weakly supervised labels to improve IMDb sentiment analysis
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Sentiment analysis of movie reviews on the IMDb website is a standard task for
+    classification-type **Natural Language Processing** (**NLP**) models. We used
+    this data in Chapter 4 to demonstrate transfer learning with GloVe and VERT embeddings.
+    The IMDb data set has 25,000 training examples and 25,000 testing examples. The
+    dataset also includes 50,000 unlabeled reviews. In previous attempts, we ignored
+    these unsupervised data points. Adding more training data will improve the accuracy
+    of the model. However, hand labeling would be a time-consuming and expensive exercise.
+    We'll use Snorkel-powered labeling functions to see if the accuracy of the predictions
+    can be improved on the testing set.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pre-processing the IMDb dataset
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Previously, we used the `tensorflow_datasets` package to download and manage
+    the dataset. However, we need lower-level access to the data to enable writing
+    the labeling functions. Hence, the first step is to download the dataset from
+    the web.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The code for this chapter is split across two files. The `snorkel-labeling.ipynb`
+    file contains the code for downloading data and generating labels using Snorkel.
+    The second file, `imdb-with-snorkel-labels.ipynb`, contains the code that trains
+    models with and without the additional labeled data. If running the code, then
+    it is best to run all the code in the `snorkel-labeling.ipynb` file first so that
+    all the labeled data files are generated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The dataset is available in one compressed archive and can be downloaded and
+    expanded like so, as shown in `snorkel-labeling.ipynb`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This expands the archive in the `aclImdb` directory. The training and unsupervised
+    data is in the `train/` subdirectory while the testing data is in the `test/`
+    subdirectory. There are additional files, but they can be ignored. *Figure 8.2*
+    below shows the directory structure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16252_08_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.2: Directory structure for the IMDb data'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Reviews are stored as individual text files inside the leaf directories. Each
+    file is named using the format `<review_id>_<rating>.txt`. Review identifiers
+    are sequentially numbered from 0 to 24999 for training and testing examples. For
+    the unsupervised data, the highest review number is 49999\.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The rating is a number between 0 and 9 and has meaning only in the test and
+    training data. This number reflects the actual rating given to a certain review.
+    The sentiment of all reviews in the `pos/` subdirectory is positive. The sentiment
+    of reviews in the `neg/` subdirectory is negative. Ratings of 0 to 4 are considered
+    negative, while ratings between 5 and 9 inclusive are considered positive. In
+    this particular example, we do not use the actual rating and only consider the
+    overall sentiment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We load the data into `pandas` DataFrames for ease of processing. A convenience
+    function is defined to load reviews from a subdirectory into a DataFrame:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The method above loads the data into two columns – one for the name of the
+    file and one for the text of the file. Using this method, the unsupervised dataset
+    is loaded:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A slightly different method is used for the training and testing datasets:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: This method returns three columns – the file name, the text of the review, and
+    a sentiment label. The sentiment label is 0 if the sentiment is negative and 1
+    if the sentiment is positive, as determined by the directory the review is found
+    in.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The training dataset can now be loaded in like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| --- | --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'While we don''t use the raw scores for the sentiment analysis, it is a good
+    exercise for you to try predicting the score instead of the sentiment on your
+    own. To help with processing the score from the raw files, the following code
+    can be used, which extracts the scores from the file names:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: This adds a new *score* column to the DataFrame, which can be used as a starting
+    point.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The testing data can be loaded using the same convenience function by passing
+    a different starting data directory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: Once the reviews are loaded in, the next step is to create a tokenizer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Learning a subword tokenizer
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A subword tokenizer can be learned using the `tensorflow_datasets` package.
+    Note that we want to pass all the training and unsupervised reviews while learning
+    this tokenizer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: This step creates a list of 75,000 items. If the text of the reviews is inspected,
+    there are some HTML tags in the reviews as they were scraped from the IMDb website.
+    We use the Beautiful Soup package to clean these tags.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: Then, we learn the vocabulary with 8,266 entries.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: This encoder is saved to disk. Learning the vocabulary can be a time-consuming
+    task and needs to be done only once. Saving it to disk saves effort on subsequent
+    runs of the code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A pre-trained subword encoder is supplied. It can be found in the GitHub folder
+    corresponding to this chapter and is titled `imdb.subwords` in case you want to
+    skip these steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before we jump into a model using data labeled with Snorkel, let us define a
+    baseline model so that we can compare the performance of the models before and
+    after the addition of weakly supervised labels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A BiLSTM baseline model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: To understand the impact of additional labeled data on model performance, we
+    need a point of comparison. So, we set up a BiLSTM model that we have seen previously
+    as the baseline. There are a few steps of data processing, like tokenizing, vectorization,
+    and padding/truncating the lengths of the data. Since this is code we have seen
+    before in Chapter 3 and 4, it is replicated here for completeness with concise
+    descriptions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Snorkel is effective when the training data size is 10x to 50x the original.
+    IMDb provides 50,000 unlabeled examples. If all these were labeled, then the training
+    data would be 3x the original, which is not enough to show the value of Snorkel.
+    Consequently, we simulate an ~18x ratio by limiting the training data to only
+    2,000 records. The rest of the training records are treated as unlabeled data,
+    and Snorkel is used to supply noisy labels. To prevent the leakage of labels,
+    we split the training data and store two separate DataFrames. The code for this
+    split can be found in the `snorkel-labeling.ipynb` notebook. The code fragment
+    used to generate the split is shown below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: A stratified split is used to ensure an equal number of positive and negative
+    labels are sampled. A DataFrame with 2,000 records is saved. This DataFrame is
+    used for training the baseline. Note that this may look like a contrived example
+    but remember that the key feature of text data is that there is a lot of it; however,
+    labels are scarce. Often the main barrier to labeling is the amount of effort
+    required to label more data. Before we see how to label large amounts of data,
+    let's complete training the baseline model for comparison.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Tokenization and vectorizing data
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'We tokenize all reviews in the training set and truncate/pad to a maximum of
+    150 tokens. Reviews are passed through Beautiful Soup to remove any HTML markup.
+    All the code for this section can be found in the section titled *Training Data
+    Vectorization* in the `imdb-with-snorkel-labels.ipynb` file. Only the specific
+    pieces of code are shown here for brevity:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Tokenization and vectorization are done through helper functions and applied
+    over the dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The test data is also processed similarly:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: Once the data is ready, the next step is setting up the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training using a BiLSTM model
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The code for creating and training the baseline is in the *Baseline Model*
+    section of the notebook. A modestly sized model is created as the focus is on
+    showing the gains from unsupervised labeling as opposed to model complexity. Plus,
+    a smaller model trains faster and allows more iteration:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The model uses a small 64-dimensional embedding and RNN units. The function
+    for creating the model is below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: A modest amount of dropout is added to have the model generalize better. This
+    model has about 700K parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The model is compiled with a binary cross-entropy loss function and the ADAM
+    optimizer. Accuracy, precision, and recall metrics are tracked. This model is
+    trained for 15 epochs and it can be seen that the model is saturated:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: As we can see, the model is overfitting to the small training set even after
+    dropout regularization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Batch-and-Shuffle or Shuffle-and-Batch**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note the second line of code in the fragment above, which shuffles and batches
+    the data. The data is shuffled and then batched. Shuffling data between epochs
+    is a form of regularization and enables the model to learn better. Shuffling before
+    batching is a key point to remember in TensorFlow. If data is batched before shuffling,
+    then only the order of the batches will be moved around when being fed to the
+    model. However, the composition of each batch remains the same across epochs.
+    By shuffling before batching, we ensure each batch looks different in each epoch.
+    You are encouraged to train with and without shuffled data. While shuffling increases
+    training time slightly, it gives better performance on the test set.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let us see how this model does on the test data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: The model has 75.9% accuracy. The precision of the model is higher than the
+    recall. Now that we have a baseline, we can see if weakly supervised labeling
+    helps improve model performance. That is the focus of the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Weakly supervised labeling with Snorkel
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The IMDb dataset has 50,000 unlabeled reviews. This is double the size of the
+    training set, which has 25,000 labeled reviews. As explained in the previous section,
+    we have reserved 23,000 records from the training data in addition to the unsupervised
+    set for weakly supervised labeling. Labeling records in Snorkel is performed via
+    labeling functions. Each labeling function can return one of the possible labels
+    of abstain from labeling. Since this is a binary classification problem, corresponding
+    constants are defined. A sample labeling function is also shown. All the code
+    for this section can be found in the notebook titled `snorkel-labeling.ipynb`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Labeling functions are annotated with a `labeling_function()` provided Snorkel.
+    Note that the Snorkel library needs to be installed. Detailed instructions can
+    be found on GitHub in this chapter''s subdirectory. In short, Snorkel can be installed
+    by:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: Any warnings you see can be safely ignored as the library uses different versions
+    of components such as TensorBoard. To be doubly sure, you can create a separate
+    `conda`/virtual environment for Snorkel and its dependencies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter would not have been possible without the support of the Snorkel.ai
+    team. Frederic Sala and Alexander Ratner from Snorkel.ai were instrumental in
+    providing guidance and the script for hyperparameter tuning to get the most out
+    of Snorkel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Coming back to the labeling function, the function above is expecting a row
+    from a DataFrame. It is expecting that the row has a text "review" column. This
+    function tries to see if the review states that the movie or show was a waste
+    of time. If so, it returns a negative label; else, it abstains from labeling the
+    row of data. Note that we are trying to label thousands of rows of data in a short
+    time using these labeling functions. The best way to do this is to print some
+    random samples of positive and negative reviews and use some words from the text
+    as labeling functions. The central idea here is to create a number of functions
+    that have good accuracy for a subset of the rows. Let''s examine some negative
+    reviews in the training set to see what labeling functions can be created:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE62]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'One of the reviews starts off as "A very cheesy and dull road movie," which
+    gives an idea for a labeling function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE63]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'There are a number of different words that occur in negative reviews. Here
+    is a subset of negative labeling functions. The full list is in the notebook:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE64]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'All the negative labeling functions are added to a list:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE65]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Examining a sample of negative reviews can give us many ideas. Typically, a
+    small amount of effort from a domain expert can yield multiple labeling functions
+    that can be implemented easily. If you have ever watched a movie, you are an expert
+    as far as this dataset is concerned. Examining a sample of positive reviews results
+    in more labeling functions. Here is a sample of labeling functions that identify
+    positive sentiment in reviews:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE66]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'All of the positive labeling functions can be seen in the notebook. Similar
+    to the negative functions, a list of the positive labeling functions is defined:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE67]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The development of labeling is an iterative process. Don''t be intimidated
+    by the number of labeling functions shown here. You can see that they are quite
+    simple, for the most part. To help you understand the amount of effort, I spent
+    a total of 3 hours on creating and testing labeling functions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the notebook contains a large number of simple labeling functions,
+    of which only a subset are shown here. Please refer to the actual code for all
+    the labeling functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The process involved looking at some samples and creating the labeling functions,
+    followed by evaluating the results on a subset of the data. Checking out examples
+    of where the labeling functions disagreed with the labeled examples was very useful
+    in making functions narrower or adding compensating functions. So, let's see how
+    we can evaluate these functions so we can iterate on them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Iterating on labeling functions
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Once a set of labeling functions are defined, they can be applied to a pandas
+    DataFrame, and a model can be trained to compute the weights assigned to various
+    labeling functions while computing the labels. Snorkel provides functions that
+    help with these tasks. First, let us apply these labeling functions to compute
+    a matrix. This matrix has as many columns as there are labeling functions for
+    every row of data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE68]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the code above, a sample of 1000 rows of data from the training data is
+    extracted. Then, the list of all labeling functions created previously is passed
+    to Snorkel and applied to this sample of training data. If we created 25 labeling
+    functions, the shape of `L_train` would be (1000, 25). Each column represents
+    the output of a labeling function. A generative model can now be trained on this
+    label matrix:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE69]'
+  prefs: []
+  type: TYPE_PRE
+- en: A `LabelModel` instance is created with a parameter specifying how many labels
+    are in the actual model. This model is then trained, and labels are predicted
+    for the subset of data. These predicted labels are added as a new column to the
+    DataFrame. Note the `tie_break_policy` parameter being passed into the `predict()`
+    method. In case the model has conflicting outputs from labeling functions, and
+    they have the same scores from the model, this parameter specifies how the conflict
+    should be resolved. Here, we instruct the model to abstain from labeling the records
+    in case of a conflict. Another possible setting is "random," where the model will
+    randomly assign the output from one of the tied labeling functions. The main difference
+    between these two options, in the context of the problem at hand, is precision.
+    By asking the model to abstain from labeling, we get higher precision results,
+    but fewer records will be labeled. Randomly choosing one of the functions that
+    were tied results in higher coverage, but presumably at lower quality. This hypothesis
+    can be tested by training the same model with the outputs of the two options separately.
+    You are encouraged to try these options and see the results for yourself.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since the abstain policy was chosen, all of the 1000 rows may not have been
+    labeled:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE70]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE71]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE72]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE73]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| --- | --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE74]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE75]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE76]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE77]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Out of 1000 records, only 458 were labeled. Let''s check how many of these
+    were labeled incorrectly:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE78]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|  |'
+  prefs: []
+  type: TYPE_TB
+- en: '[PRE79]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE80]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE81]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| --- | --- | --- | --- |'
+  prefs: []
+  type: TYPE_TB
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE82]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE83]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE84]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE85]'
+  prefs: []
+  type: TYPE_PRE
+- en: '|'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Snorkel, armed with our labeling functions, labeled 598 records, out of which
+    434 labels were correct and 164 records were incorrectly labeled. The label model
+    has an accuracy of ~72.6%. To get inspiration for more labeling functions, you
+    should inspect a few of the rows where the label model produced the wrong results
+    and update or add labeling functions. As mentioned above, a total of approximately
+    3 hours was spent on iterating and creating labeling functions to get a total
+    of 25 functions. To get more out of Snorkel, we need to increase the amount of
+    training data. The objective is to develop a method that gets us many labels quickly,
+    without a lot of manual effort. One technique that can be used in this specific
+    case is training a simple Naïve-Bayes model to get words that are highly correlated
+    with positive or negative labels. This is the focus of the next section. **Naïve-Bayes**
+    (**NB**) is a basic technique covered in many basic NLP books.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Naïve-Bayes model for finding keywords
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Building an NB model on this dataset takes under an hour and has the potential
+    to significantly increase the quality and coverage of the labeling functions.
+    The core model code for the NB model can be found in the `spam-inspired-technique-naive-bayes.ipynb`
+    notebook. Note that these explorations are aside from the main labeling code,
+    and this section can be skipped if desired, as the learnings from this section
+    are applied to construct better labeling functions outlined in the `snorkel-labeling.ipynb`
+    notebook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The main flow of the NB-based exploration is to load the reviews, remove stop
+    words, take the top 2,000 words to construct a simple vectorization scheme, and
+    train an NB model. Since data loading is the same as covered in previous sections,
+    the details are skipped in this section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This section uses the NLTK and `wordcloud` Python packages. NLTK should already
+    be installed as we have used it in *Chapter 1*, *Essentials of NLP*. `wordcloud`
+    can be installed with:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tf24nlp) $ pip install wordcloud==1.8`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Word clouds help get an aggregate understanding of the positive and negative
+    review text. Note that counters are required for the top-2000 word vectorization
+    scheme. A convenience function that cleans HTML text along with removing stop
+    words and tokenizing the rest into a list is defined as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE86]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, the positive reviews are separated and a word cloud is generated for
+    visualization purposes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE87]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output of the preceding code is shown in *Figure 8.3*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A close up of a sign  Description automatically generated](img/B16252_08_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.3: Positive reviews word cloud'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It is not surprising that *movie* and *film* are the biggest words. However,
+    there are a number of other suggestions for keywords that can be seen here. Similarly,
+    a word cloud for the negative reviews can be generated, as shown in *Figure 8.4*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A close up of a sign  Description automatically generated](img/B16252_08_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.4: Negative reviews word cloud'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'These visualizations are interesting; however, a clearer picture will emerge
+    after training the model. Only the top 2,000 words are needed for training the
+    model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE88]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE89]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Combined counters show the top 10 most frequently appearing words in all reviews.
+    These are extracted into a list:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE90]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The vectorization of each review is fairly simple – each of the 2000 words
+    becomes a column for a given review. If the word represented by the column is
+    present in the review, the value of the column is marked as 1 for that review,
+    or 0 otherwise. So, each review is represented by a sequence of 0s and 1s representing
+    which of the top 2000 words the review contained. The code below shows this transformation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE91]'
+  prefs: []
+  type: TYPE_PRE
+- en: Training the model is quite trivial. Note that the Bernoulli NB model is used
+    here as each word is represented according to its presence or absence in the review.
+    Alternatively, the frequency of the word in the review could also be used. If
+    the frequency of the word is used while vectorizing the review above, then the
+    multinomial form of NB should be used.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'NLTK also provides a way to inspect the most informative features:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE92]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE93]'
+  prefs: []
+  type: TYPE_PRE
+- en: This whole exercise was done to find which words are most useful in predicting
+    negative and positive reviews. The table above shows the words and the likelihood
+    ratios. Taking the first row of the output for the word *unfunny* as an example,
+    the model is saying that reviews containing *unfunny* are negative 14.1 times
+    more often than they are positive. The labeling functions are updated using a
+    number of these keywords.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Upon analyzing the labels assigned by the labeling functions in `snorkel-labeling.ipynb`,
+    it can be seen that more negative reviews are being labeled as compared to positive
+    reviews. Consequently, the labeling functions use a larger list of words for positive
+    labels as compared to negative labels. Note that imbalanced datasets have issues
+    with overall training accuracy and specifically with recall. The following code
+    fragment shows augmented labeling functions using the keywords discovered through
+    NB above:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE94]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Since keyword-based labeling functions are quite common, Snorkel provides an
+    easy way to define such functions. The following code fragment uses two programmatic
+    ways of converting a list of words into a set of labeling functions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE95]'
+  prefs: []
+  type: TYPE_PRE
+- en: The first function does the simple matching and returns the specific label,
+    or it abstains. Check out the `snorkel-labeling.ipynb` file for the full list
+    of labeling functions that were iteratively developed. All in all, I spent approximately
+    12-14 hours on labeling functions and investigations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before we try to train the model using this data, let us evaluate the accuracy
+    of this model on the entire training data set.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Evaluating weakly supervised labels on the training set
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We apply the labeling functions and train a model on the entire training dataset
+    just to evaluate the quality of this model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE96]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE97]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Our set of labeling functions covers 83.4% of the 25,000 training records,
+    with 85.6% correct labels. Snorkel provides the ability to analyze the performance
+    of each labeling function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE98]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE99]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Note that a snipped version of the output has been presented here. The full
+    output is available in the notebook. For each labeling function, the table presents
+    what labels are produced and the coverage of the function – that is, the fraction
+    of records it provides a label for, the fraction where it overlaps with another
+    function producing the same label, and the fraction where it conflicts with another
+    function producing a different label. A positive and a negative label function
+    are highlighted. The `bad_acting()` function covers 8.7% of the records but overlaps
+    with other functions about 8.3% of the time. However, it conflicts with a function
+    producing a positive label about 4.3% of the time. The `amazing()` function covers
+    about 5% of the dataset. It conflicts about 2.3% of the time. This data can be
+    used to fine-tune specific functions further and examine how we''ve separated
+    the data. *Figure 8.5* shows the balance between positive, negative, and abstain
+    labels:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screen shot of a social media post  Description automatically generated](img/B16252_08_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.5: Distribution of labels generated by Snorkel'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Snorkel has several options for hyperparameter tuning to improve the quality
+    of labeling even further. We execute a grid search over the parameters to find
+    the best training parameters, while we exclude the labeling functions that are
+    adding noise in the final output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Hyperparameter tuning is done via choosing different learning rates, L2 regularizations,
+    numbers of epochs to run training on, and optimizers to use. Finally, a threshold
+    is used to determine which labeling functions should be kept for the actual labeling
+    task:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE100]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Snorkel may print a warning that metrics are being calculated over non-abstain
+    labels only. This is by design, as we are interested in high-confidence labels.
+    If there is a conflict between labeling functions, then our model abstains from
+    giving it a label. The best parameters printed out are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE101]'
+  prefs: []
+  type: TYPE_PRE
+- en: Through this tuning, the accuracy of the model improved from 78.5% to 84%!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using these parameters, we label the 23k records from the training set and
+    50k records from the unsupervised set. For the first part, we label all the 25k
+    training records and then split them into two sets. This particular part of splitting
+    was referenced in the baseline model section above:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE102]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The last two lines of code inspect the state of the labels and contrasts with
+    actual labels and generate the graph shown in *Figure 8.6*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing screen, building, drawing, food  Description automatically
+    generated](img/B16252_08_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.6: Comparison of labels in the training set versus labels generated
+    using Snorkel'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When the Snorkel model abstains from labeling, it assigns -1 for the label.
+    We see that the model is able to label a lot more negative reviews than positive
+    labels. We filter out the rows where Snorkel abstained from labeling and saved
+    the records:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE103]'
+  prefs: []
+  type: TYPE_PRE
+- en: However, the key question that we face is that if we augmented the training
+    data with these noisy labels, which are 84% accurate, would it make our model
+    perform better or worse? Note that the baseline model had an accuracy of ~74%.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To answer this question, we label the unsupervised set and then train the same
+    model architecture as the baseline.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating unsupervised labels for unlabeled data
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'As we saw in the previous section, where we labeled the training data set,
+    it is quite simple to run the model on the unlabeled reviews of the dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE104]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now the label model is trained, and predictions are added to an additional column
+    of the unsupervised dataset. The model labels 29,583 records out of 50,000\. This
+    is almost equal to the size of the training dataset. Assuming that the error rate
+    on the unsupervised set is similar to that observed on the training set, we just
+    added ~24,850 records with correct labels and ~4,733 records with incorrect labels
+    into the training set. However, the balance of this dataset is very tilted, as
+    positive label coverage is still poor. There are approximately 9,000 positive
+    labels for over 20,000 negative labels. The *Increase Positive Label Coverage*
+    section of the notebook tries to further improve the coverage of the positive
+    labels by adding more keyword functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This results in a slightly more balanced set, as shown in the following chart:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screen shot of a social media post  Description automatically generated](img/B16252_08_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.7: Further improvements in labeling functions applied to the unsupervised
+    dataset improves the positive labels'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This dataset is saved to disk for use during training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE105]'
+  prefs: []
+  type: TYPE_PRE
+- en: Labeled datasets are saved to disk and reloaded in the training code for better
+    modularity and ease of readability. In a production pipeline, intermediate outputs
+    may not be persisted and fed directly into the training steps. Another small consideration
+    here is the separation of virtual/conda environments for running Snorkel. Having
+    a separate script for weakly supervised labeling allows the use of a different
+    Python environment as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We switch our focus back to the `imdb-with-snorkel-labels.ipynb` notebook,
+    which has the models for training. The code for this part begins from the section
+    *With Snorkel Labeled Data*. The newly labeled records need to be loaded from
+    disk, cleansed, vectorized, and padded before training can be run. We extract
+    the labeled records and remove HTML markup, as shown below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE106]'
+  prefs: []
+  type: TYPE_PRE
+- en: The original training dataset was balanced across positive and negative labels.
+    However, there is an imbalance in the data labeled using Snorkel. We balance the
+    dataset and ignore the excess rows with negative labels. Note that the 2,000 training
+    records used in the baseline model also need to be added, resulting in a total
+    of 33,914 training records. As mentioned before, it really shines when the amount
+    of data is 10x to 50x the original dataset. Here, we achieve a ratio closer to
+    17x, or 18x if the 2,000 training records are also included.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing screen, orange, drawing  Description automatically generated](img/B16252_08_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.8: Distribution of records after using Snorkel and weak supervision'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As shown in *Figure 8.8* above, the records in blue are dropped to balance
+    the dataset. Next, the data needs to be cleansed and vectorized using the subword
+    vocabulary:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE107]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we convert the pandas DataFrames into TensorFlow data sets and vectorize
+    and pad them:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE108]'
+  prefs: []
+  type: TYPE_PRE
+- en: We are ready to try training our BiLSTM model to see if the performance improves
+    on this task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training BiLSTM on weakly supervised data from Snorkel
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: To ensure we are comparing apples to apples, we use the same BiLSTM as the baseline
+    model. We instantiate a model with 64-dimensional embeddings, 64 RNN units, and
+    a batch size of 100\. The model uses the binary cross-entropy loss and the Adam
+    optimizer. Accuracy, precision, and recall are tracked as the model is trained.
+    An important step is to shuffle the datasets every epoch to help the model keep
+    errors to a minimum.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is an important concept. Deep models work on the assumption that the loss
+    is a convex surface, and the gradient is descending to the bottom of this surface.
+    The surface has many local minima or saddle points in reality. If the model gets
+    stuck in local minima during a mini-batch, it will be hard for the model to come
+    out of it as across epochs, it receives the same data points again and again.
+    Shuffling the data changes the data set and the order in which the model receives
+    it. This enables the model to learn better by getting out of these local minima
+    faster. The code for this section is in the `imdb-with-snorkel-labels.ipynb` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE109]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Note that we cache all the records that will be part of the batch so that we
+    can get perfect buffering. This comes at the cost of slightly slower training
+    and higher memory use. Also, since our batch size is 100 and the dataset has 35,914
+    records, we drop the remainder of the records. We train the model for 20 epochs,
+    a little more than the baseline model. The baseline model was overfitting at 15
+    epochs. So, it was not useful to train it longer. This model has a lot more data
+    to train on. Consequently, it needs more epochs to learn:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE110]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE111]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The model achieves an accuracy of 98.9%. The precision and recall numbers are
+    quite close to each other. Evaluating the baseline model on the test data gave
+    an accuracy score of 76.23%, which clearly proved that it was overfitting to the
+    training data. Upon evaluating the model trained with weakly supervised labeling,
+    the following results are obtained:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE112]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE113]'
+  prefs: []
+  type: TYPE_PRE
+- en: This model trained on weakly supervised noisy labels achieves 76.6% accuracy,
+    which is 0.7%% higher than baseline mode. Also note that the precision went from
+    74.5% to 78.1% but recall decreased. In this toy setting, we kept a lot of the
+    variables constant, such as model type, dropout ratio, etc. In a realistic setting,
+    we can drive the accuracy even higher by optimizing the model architecture and
+    hyperparameter tuning. There are other options to try. Recall that we instruct
+    Snorkel to abstain from labeling if it is unsure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By changing that to a majority vote or some other policy, the amount of training
+    data could be increased even further. You could also try and train on unbalanced
+    datasets and see the impact. The focus here was on showing the value of weak supervision
+    for massively increasing the amount of training data rather than building the
+    best model. However, you should be able to take these lessons and apply them to
+    your projects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is important to take a moment and think about the causes of this result.
+    There are a few important deep learning lessons hidden in this story. First, more
+    labeled data is always good, given a model of sufficient complexity. There is
+    a correlation between the amount of data and model capacity. Models with higher
+    capacities can handle more complex relationships in the data. They also need much
+    larger datasets to learn the complexities. However, if the model is kept a constant
+    and with sufficient capacity, the quantity of labeled data makes a huge difference,
+    as evidenced here. There are some limits to how much of an improvement we can
+    achieve by increasing labeled data scale. In a paper titled *Revisiting Unreasonable
+    Effectiveness of Data in Deep Learning Era* by Chen Sun et al., published at ICCV
+    2017, the authors examine the role of data in the computer vision domain. They
+    report that the performance of models increases logarithmically with an increase
+    in training data. The second result they report is that learning representations
+    through pretraining helps downstream tasks quite a bit. Techniques in this chapter
+    can be applied to generate more data for the fine-tuning step, which will significantly
+    boost the performance of the fine-tuned model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second lesson is one about the basics of machine learning – shuffling the
+    training data set has a disproportionate impact on the performance of the model.
+    In the book, we have not always done this in order to manage training times. For
+    training production models, it is important to focus on basics such as shuffling
+    data sets before each epoch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's review everything we learned in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: It is apparent that deep models perform very well when they have a lot of data.
+    BERT and GPT models have shown the value of pre-training on massive amounts of
+    data. It is still very hard to get good-quality labeled data for use in pretraining
+    or fine-tuning. We used the concepts of weak supervision combined with generative
+    models to cheaply label data. With relatively small amounts of effort, we were
+    able to multiply the amount of training data by 18x. Even though the additional
+    training data was noisy, the BiLSTM model was able to learn effectively and beat
+    the baseline model by 0.6%.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Representation learning or pre-training leads to transfer learning and fine-tuning
+    models performing well on their downstream tasks. However, in many domains like
+    medicine, the amount of labeled data may be small or quite expensive to acquire.
+    Using the techniques learned in this chapter, the amount of training data can
+    be expanded rapidly with little effort. Building a state-of-the-art- beating model
+    helped recall some basic lessons in deep learning, such as how larger data boosts
+    performance quite a bit, and that larger models are not always better.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, we turn our focus to conversational AI. Building a conversational AI system
+    is a very challenging task with many layers. The material covered so far in the
+    book can help in building various parts of chatbots. The next chapter goes over
+    the key parts of conversational AI or chatbot systems and outlines effective ways
+    to build them.
+  prefs: []
+  type: TYPE_NORMAL

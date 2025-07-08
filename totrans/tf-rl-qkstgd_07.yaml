@@ -1,0 +1,637 @@
+- en: Trust Region Policy Optimization and Proximal Policy Optimization
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the last chapter, we saw the use of A3C and A2C, with the former being asynchronous
+    and the latter synchronous. In this chapter, we will see another on-policy **reinforcement
+    learning** (**RL**) algorithm; two algorithms, to be precise, with a lot of similarities
+    in the mathematics, differing, however, in how they are solved. We will be introduced
+    to the algorithm called **Trust Region Policy Optimization** (**TRPO**), which
+    was introduced in 2015 by researchers at OpenAI and the University of California,
+    Berkeley (the latter is incidentally my former employer!). This algorithm, however,
+    is difficult to solve mathematically, as it involves the conjugate gradient algorithm,
+    which is relatively difficult to solve; note that first order optimization methods,
+    such as the well established Adam and **Stochastic Gradient Descent** (**SGD**),
+    cannot be used to solve the TRPO equations. We will then see how solving the policy
+    optimization equations can be combined into one, to result in the **Proximal Policy
+    Optimization** (**PPO**) algorithm, and first order optimization algorithms such
+    as Adam or SGD can be used.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following topics will be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Learning TRPO
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Learning PPO
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using PPO to solve the MountainCar problem
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Evaluating the performance
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'To successfully complete this chapter, the following software are required:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Python (2 and above)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: NumPy
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: TensorFlow (version 1.4 or higher)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Learning TRPO
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: TRPO is a very popular on-policy algorithm from OpenAI and the University of
+    California, Berkeley, and was introduced in 2015\. There are many flavors of TRPO,
+    but we will learn about the vanilla TRPO version from the paper *Trust Region
+    Policy Optimization*, by *John Schulman, Sergey Levine, Philipp Moritz, Michael
+    I. Jordan, and Pieter Abbeel*, *arXiv:1502.05477*: [https://arxiv.org/abs/1502.05477](https://arxiv.org/abs/1502.05477).
+  prefs: []
+  type: TYPE_NORMAL
+- en: TRPO involves solving a policy optimization equation subject to an additional
+    constraint on the size of the policy update. We will see these equations now.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TRPO equations
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'TRPO involves the maximization of the expectation of the ratio of the current
+    policy distribution, *π[θ]*, to the old policy distribution, *π[θ]^(old)* (that
+    is, at an earlier time step), multiplied by the advantage function, *A[t]*, subject
+    to an additional constraint that the expectation of the **Kullback-Leibler** (**KL**) divergence
+    of the old and new policy distributions is bounded by a user-specified value, *δ*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4dbed06d-6157-49f9-8f80-676f882bc648.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The first equation here is the policy objective, and the second equation is
+    an additional constraint that ensures that the policy update is gradual and does not
+    make large policy updates that can take the policy to regions that are very far
+    away in parameter space.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since we have two equations that need to be jointly optimized, first-order optimization
+    algorithms, such as Adam and SGD, will not work. Instead, the equations are solved
+    using the conjugate gradient algorithm, making a linear approximation to the first
+    equation, and a quadratic approximation to the second equation. This, however,
+    is mathematically involved, and so we do not present it here in this book. Instead,
+    we will proceed to the PPO algorithm, which is relatively easier to code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Learning PPO
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: PPO is an extension to TRPO, and was introduced in 2017 by researchers at OpenAI.
+    PPO is also an on-policy algorithm, and can be applied to discrete action problems
+    as well as continuous actions. It uses the same ratio of policy distributions
+    as in TRPO, but does not use the KL divergence constraint. Specifically, PPO uses
+    three loss functions that are combined into one. We will now see the three loss
+    functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PPO loss functions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The first of the three loss functions involved in PPO is called the clipped
+    surrogate objective. Let *r[t](θ)* denote the ratio of the new to old policy probability
+    distributions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e30659b4-bb3e-4805-8066-2af8caa3d12d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The clipped surrogate objective is given by the following equation, where *A[t]* is
+    the advantage function and *ε* is a hyper parameter; typically, *ε* = 0.1 or 0.2
+    is used:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b89128a1-c704-4ea9-8ff7-9d07e4020a83.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The `clip()` function bounds the ratio between *1-ε* and *1+ε*, thus keeping
+    the ratio bounded within the range. The `min()` function is the minimum function
+    to ensure that the final objective is a lower bound on the unclipped objective.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The second loss function is the L2 norm of the state value function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d07eb74a-f603-46a7-94e4-0a0f42c3dc2c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The third loss is the Shannon entropy of the policy distribution, which comes
+    from information theory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/dacc3a5a-3e4f-446c-876b-0de7f13fc689.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We will now combine the three losses. Note that we need to maximize *L^(clip)*
+    and *L^(entropy)*, but minimize *L^V*. So, we define our total PPO loss function
+    as in the following equation, where *c[1]* and *c[2]* are positive constants used
+    to scale the terms:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/5d181518-8ba1-4033-997f-a19a79dbf602.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Note that, if we share the neural network parameters between the policy and
+    the value networks, then the preceding *L^(PPO)* loss function alone can be maximized.
+    On the other hand, if we have separate neural networks for the policy and the
+    value, then we can have separate loss functions as in the following equation,
+    where *L^(policy)* is maximized and *L^(value)* is minimized:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f7f691e8-e6c0-4b54-b01d-de1193e00b00.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Notice that the constant *c[1]* is not required in this latter setting, where
+    we have separate neural networks for the policy and the value. The neural network
+    parameters are updated over multiple iteration steps over a batch of data points,
+    where the number of update steps are specified by the user as hyper parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using PPO to solve the MountainCar problem
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We will solve the MountainCar problem using PPO. MountainCar involves a car
+    trapped in the valley of a mountain. It has to apply throttle to accelerate against
+    gravity and try to drive out of the valley up steep mountain walls to reach a
+    desired flag point on the top of the mountain. You can see a schematic of the
+    MountainCar problem from OpenAI Gym at [https://gym.openai.com/envs/MountainCar-v0/](https://gym.openai.com/envs/MountainCar-v0/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: This problem is very challenging, as the agent cannot just apply full throttle
+    from the base of the mountain and try to reach the flag point, as the mountain
+    walls are steep and gravity will not allow the car to achieve sufficient enough
+    momentum. The optimal solution is for the car to initially go backward and then
+    step on the throttle to pick up enough momentum to overcome gravity and successfully
+    drive out of the valley. We will see that the RL agent actually learns this trick.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will code the following two files to solve MountainCar using PPO:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`class_ppo.py`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`train_test.py`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Coding the class_ppo.py file
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We will now code the `class_ppo.py` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Import packages**: First, we will import the required packages as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Set the neural network initializers**: Then, we will set the neural network
+    parameters (we will use two hidden layers) and the initializers for the weights
+    and biases. As we have also done in past chapters, we will use the Xavier initializer
+    for the weights and a small positive value for the initial values of the biases:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Define the PPO** **class**: The `PPO()` class is now defined. First, the `__init__()`
+    constructor is defined using the arguments passed to the class. Here, `sess` is
+    the TensorFlow `session`; `S_DIM` and `A_DIM` are the state and action dimensions,
+    respectively; `A_LR` and `C_LR` are the learning rates for the actor and the critic,
+    respectively; `A_UPDATE_STEPS` and `C_UPDATE_STEPS` are the number of update steps
+    used for the actor and the critic; `CLIP_METHOD` stores the epsilon value:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Define TensorFlow placeholders**: We will next need to define the TensorFlow
+    placeholders: `tfs` for the state, `tfdc_r` for the discounted rewards, `tfa`
+    for the actions, and `tfadv` for the advantage function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Define the critic**: The critic neural network is defined next. We use the
+    state (*s[t]*) placeholder, `self.tfs`, as input to the neural network. Two hidden
+    layers are used with the `nhidden1` and `nhidden2` number of neurons and the `relu`
+    activation function (both `nhidden1` and `nhidden2` were set to `64` previously).
+    The output layer has one neuron that will output the state value function *V(s[t])*,
+    and so no activation function is used for the output. We then compute the advantage
+    function as the difference between the discounted cumulative rewards, which is
+    stored in the `self.tfdc_r` placeholder and the `self.v` output that we just computed.
+    The critic loss is computed as an L2 norm and the critic is trained using the
+    Adam optimizer with the objective to minimize this L2 loss.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Note that this loss is the same as *L^(value)* mentioned earlier in this chapter
+    in the theory section:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Call the** **_build_anet** **function**: We define the actor using a `_build_anet()`
+    function that will soon be specified. Specifically, the policy distribution and
+    the list of model parameters are output from this function. We call this function
+    once for the current policy and again for the older policy. The mean and standard
+    deviation can be obtained from `self.pi` by calling the `mean()` and `stddev()`
+    functions, respectively:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Sample actions**: From the policy distribution, `self.pi`, we can also sample
+    actions using the `sample()` function that is part of TensorFlow distributions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Update older policy parameters**: The older policy network parameters can
+    be updated using the new policy values simply by assigning the values from the
+    latter to the former, using TensorFlow''s `assign()` function. Note that the new
+    policy is optimized – the older policy is simply a copy of the current policy,
+    albeit from one update cycle earlier:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Compute policy distribution ratio**: The policy distribution ratio is computed
+    at the `self.tfa` action, and is stored in `self.ratio`. Note that, exponentially,
+    the difference of logarithms of the distributions is the same as the ratio of
+    the distributions. This ratio is then clipped to bound it between *1-ε* and *1+ε*,
+    as explained earlier in the theory:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Compute losses**: The total loss for the policy, as mentioned previously,
+    involves three losses that are combined when the policy and value neural networks
+    share weights. However, since we consider the other setting mentioned in the theory
+    earlier in this chapter, where we have separate neural networks for the policy
+    and the value, we will have two losses for the policy optimization. The first
+    is the minimum of the product of the unclipped ratio and the advantage function
+    and its clipped analogue—this is stored in `self.aloss`. The second loss is the
+    Shannon entropy, which is the product of the policy distribution and its logarithm,
+    summed over, and a minus sign included. This term is scaled with the hyper parameter, *c[1]*
+    = 0.01, and subtracted from the loss. For the time being, the entropy loss term
+    is set to zero, as it also is in the PPO paper. We can consider including this
+    entropy loss later to see if it makes any difference in the learning of the policy.
+    We use the Adam optimizer. Note that we need to maximize the original policy loss
+    mentioned in the theory earlier in this chapter, but the Adam optimizer has the
+    `minimize()` function, so we have included a minus sign in `self.aloss` (see the
+    first line of the following code), as maximizing a loss is the same as minimizing
+    the negative of it:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Define the** **update** **function**: The `update()` function is defined
+    next, which takes the `s` state, the `a` action, and the `r` reward as arguments.
+    It involves running a TensorFlow session on updating the old policy network parameters
+    by calling the TensorFlow `self.update_oldpi_op` operation. Then, the advantage
+    is computed, which, along with the state and action, is used to update the `A_UPDATE_STEPS` actor
+    number of iterations. Then, the critic is updated by the `C_UPDATE_STEPS` number
+    of iterations by running a TensorFlow session on the critic train operation:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Define the** **_build_anet** **function**: We will next define the `_build_anet()`
+    function that was used earlier. It will compute the policy distribution, which
+    is treated as a Gaussian (that is, normal). It takes the `self.tfs` state placeholder as
+    input, has two hidden layers with the `nhidden1` and `nhidden2` neurons, and uses
+    the `relu` activation function. This is then sent to two output layers with the `A_DIM`
+     action dimension number of outputs, with one representing the mean, `mu`, and
+    the other the standard deviation, `sigma`.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Note that the mean of the actions are bounded, and so the `tanh` activation
+    function is used, including a small clipping to avoid edge values; for sigma,
+    the `softplus` activation function is used, shifted by `0.1` to avoid zero sigma
+    values. Once we have the mean and standard deviations for the actions, TensorFlow
+    distributions'' `Normal` is used to treat the policy as a Gaussian distribution.
+    We can also call `tf.get_collection()` to obtain the model parameters, and the
+    `Normal` distribution and the model parameters are returned from the function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Define the** **choose_action** **function**: We also define a `choose_action()`
+    function to sample from the policy to obtain actions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Define the** **get_v** **function**: Finally, we also define a `get_v()`
+    function to return the state value by running a TensorFlow session on `self.v`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: That concludes `class_ppo.py`. We will now code `train_test.py`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Coding train_test.py file
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We will now code the `train_test.py` file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Importing the packages:** First, we import the required packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Define function:** We then define a function for reward shaping that will
+    give out some extra bonus rewards and penalties for good and bad performance,
+    respectively. We do this for encouraging the car to go higher towards the side
+    of the flag which is on the mountain top, without which the learning will be slow:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We next choose `MountainCarContinuous` as the environment. The total number
+    of episodes we will train the agent for is `EP_MAX`, and we set this to `1000`.
+    The `GAMMA` discount factor is set to `0.9` and the learning rates to `2e-4`.
+    We use a batch size of `32` and perform `10` update steps per cycle. The state
+    and action dimensions are obtained and stored in `S_DIM` and `A_DIM`, respectively.
+    For the PPO `clip` parameter, `epsilon`, we use a value of `0.1`. `train_test`
+    is set to `0` for training the agent and `1` for testing:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We create a TensorFlow session and call it `sess`. An instance of the `PPO`
+    class is created, called `ppo`. We also create a TensorFlow saver. Then, if we
+    are training from scratch, we initialize all the model parameters by calling `tf.global_variables_initializer()`,
+    or, if we are continuing the training from a saved agent or testing, then we restore
+    from the `ckpt/model` path:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The main `for loop` over episodes is then defined. Inside it, we reset the
+    environment and also set buffers to empty lists. The terminal Boolean, `done`,
+    and the number of time steps, `t`, are also initialized:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Inside the outer loop, we have the inner `while` loop over time steps. This
+    problem involves short time steps during which the car may not significantly move,
+    and so we use sticky actions where actions are sampled from the policy only once
+    every `8` time steps. The `choose_action()` function in the `PPO` class will sample
+    the actions for a given state. A small Gaussian noise is added to the actions
+    to explore, and are clipped in the `-1.0` to `1.0` range, as required for the
+    `MountainCarContinuous` environment. The action is then fed into the environment''s
+    `step()` function, which will output the next `s_` state, `r` reward, and the
+    terminal `done` Boolean. The `reward_shaping()` function is called to shape rewards.
+    To track how far the agent is pushing its limits, we also compute its maximum
+    position and speed in `max_pos` and `max_speed`, respectively:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we are in training mode, the state, action, and reward are appended to the
+    buffer. The new state is set to the current state and we proceed to the next time
+    step if the episode has not already terminated. The `ep_r` episode total rewards
+    and the `t` time step count are also updated:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we are in the training mode, if the number of samples is equal to a batch,
+    or if the episode has terminated, we will train the neural networks. For this,
+    the state value for the new state is first obtained using `ppo.get_v`. Then, we
+    compute the discounted rewards. The buffer lists are also converted to NumPy arrays,
+    and the buffer lists are reset to empty lists. These `bs`, `ba`, and `br` NumPy
+    arrays are then used to update the `ppo` object''s actor and critic networks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we are in testing mode, Python is paused briefly for better visualization.
+    If the episode has terminated, the `while` loop is exited with a `break` statement.
+    Then, we print the maximum position and speed values on the screen, as well as
+    write them, along with the episode rewards, to a file called `performance.txt`.
+    Once every 10 episodes, the model is also saved by calling `saver.save`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: This concludes the coding of PPO. We will next evaluate its performance on MountainCarContinuous.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Evaluating the performance
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The PPO agent is trained by the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once the training is complete, we can test the agent by setting the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: Then, we will repeat `python train_test.py` again. On visualizing the agent,
+    we can observe that the car first moves backward to climb the left mountain. Then
+    it goes full throttle and picks up enough momentum to drive past the steep slope
+    of the right mountain with the flag on top. So, the PPO agent has learned to drive
+    out of the mountain valley successfully.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Full throttle
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Note that we had to navigate backward first and then step on the throttle in
+    order to have sufficient momentum to escape gravity and successfully drive out
+    of the mountain valley. What if we had just stepped on the throttle right from
+    the first step – would the car still be able to escape? Let's check by coding
+    and running `mountaincar_full_throttle.py`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will now set the action to `1.0`, that is, full throttle:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: As is evident from the video generated during the training, the car is unable
+    to escape the inexorable pull of gravity, and remains stuck at the base of the
+    mountain valley.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Random throttle
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'What if we try random throttle values? We will code `mountaincar_random_throttle.py`
+    with random actions in the `-1.0` to `1.0` range:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here too, the car fails to escape gravity and remains stuck at the base. So,
+    the RL agent is required to figure out that the optimum policy here is to first
+    go backward, and then step on the throttle to escape gravity and reach the flag
+    on the mountain top.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes our MountainCar exercise with PPO.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we were introduced to the TRPO and PPO RL algorithms. TRPO
+    involves two equations that need to be solved, with the first equation being the
+    policy objective and the second equation being a constraint on how much we can
+    update. TRPO requires second-order optimization methods, such as conjugate gradient.
+    To simplify this, the PPO algorithm was introduced, where the policy ratio is
+    clipped within a certain user-specified range so as to keep the update gradual.
+    In addition, we also saw the use of data samples collected from experience to
+    update the actor and the critic for multiple iteration steps. We trained the PPO
+    agent on the MountainCar problem, which is a challenging problem, as the actor
+    must first drive the car backward up the left mountain, and then accelerate to
+    gain sufficient momentum to overcome gravity and reach the flag point on the right
+    mountain. We also saw that a full throttle policy or a random policy will not
+    help the agent reach its goal.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With this chapter, we have looked at several RL algorithms. In the next chapter,
+    we will apply DDPG and PPO to train an agent to drive a car autonomously.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Can we apply Adam or SGD optimization in TRPO?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is the role of the entropy term in the policy optimization?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Why do we clip the policy ratio? What will happen if the clipping parameter
+    epsilon is large?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Why do we use the `tanh` activation function for `mu` and `softplus` for sigma?
+    Can we use the `tanh` activation function for sigma?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Does reward shaping always help in the training?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Do we need reward shaping when we test an already trained agent?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '*Trust Region Policy Optimization*, *John Schulman*, *Sergey Levine*, *Philipp
+    Moritz*, *Michael I. Jordan*, *Pieter Abbeel*, arXiv:1502.05477 (TRPO paper):
+    [https://arxiv.org/abs/1502.05477](https://arxiv.org/abs/1502.05477)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Proximal Policy Optimization Algorithms*, *John Schulman*, *Filip Wolski*,
+    *Prafulla Dhariwal*, *Alec Radford*, *Oleg Klimov*, arXiv:1707.06347 (PPO paper):
+    [https://arxiv.org/abs/1707.06347](https://arxiv.org/abs/1707.06347)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Deep Reinforcement Learning Hands-On*, *Maxim Lapan*, *Packt Publishing*:
+    [https://www.packtpub.com/big-data-and-business-intelligence/deep-reinforcement-learning-hands](https://www.packtpub.com/big-data-and-business-intelligence/deep-reinforcement-learning-hands)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

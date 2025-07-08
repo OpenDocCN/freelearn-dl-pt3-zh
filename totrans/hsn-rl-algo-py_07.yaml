@@ -1,0 +1,1418 @@
+- en: Deep Q-Network
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we've approached and developed reinforcement learning algorithms that
+    learn about a value function, *V*, for each state, or an action-value function,
+    *Q*, for each action-state pair. These methods involve storing and updating each
+    value separately in a table (or an array). These approaches do not scale because,
+    for a large number of states and actions, the table's dimensions increase exponentially
+    and can easily exceed the available memory capacity.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will introduce the use of function approximation in reinforcement
+    learning algorithms to overcome this problem. In particular, we will focus on
+    deep neural networks that are applied to Q-learning. In the first part of this
+    chapter, we'll explain how to extend Q-learning with function approximation to
+    store Q values, and we'll explore some major difficulties that we may face. In
+    the second part, we will present a new algorithm called **Deep Q-network** (**DQN**),
+    which using new ideas, offers an elegant solution to some challenges that are
+    found in the vanilla version of Q-learning with neural networks. You'll see how
+    this algorithm achieves surprising results on a wide variety of games that learn
+    only from pixels. Moreover, you'll implement this algorithm and apply it to Pong,
+    and see some of its strengths and vulnerabilities for yourself.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since DQN was proposed, other researchers have proposed many variations that
+    provide more stability and efficiency for the algorithm. We'll quickly look at
+    and implement some of them so that we have a better understanding of the weaknesses
+    of the basic version of DQN and so that we can provide you with some ideas so
+    that you can improve it yourself.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following topics will be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Deep neural networks and Q-learning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: DQN
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: DQN applied to Pong
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: DQN variations
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Deep neural networks and Q-learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The Q-learning algorithm, as we saw in [Chapter 4](6364d5e9-40e9-4991-a88f-1ce5b0f0a6e9.xhtml),
+    *Q-Learning and SARSA Applications*, has many qualities that enable its application
+    in many real-world contexts. A key ingredient of this algorithm is that it makes
+    use of the Bellman equation for learning the Q-function. The Bellman equation, as
+    used by the Q-learning algorithm, enables the updating of Q-values from subsequent
+    state-action values. This makes the algorithm able to learn at every step, without
+    waiting until the trajectory is completed. Also, every state or action-state pair
+    has its own values stored in a lookup table that saves and retrieves the corresponding
+    values. Being designed in this way, Q-learning converges to optimal values as
+    long as all the state-action pairs are repeatedly sampled. Furthermore, the method
+    uses two policies: a non-greedy behavior policy to gather experience from the
+    environment (for example, ![](img/2456b0f9-50be-4a72-8670-0095bae6292b.png)-greedy)
+    and a target greedy policy that follows the maximum Q-value.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Maintaining a tabular representation of values can be contraindicated and in
+    some cases, harmful. That's because most problems have a very high number of states
+    and actions. For example, images (including small ones) have more state than the
+    atoms in the universe. You can easily guess that, in this situation, tables cannot
+    be used. Besides the infinite memory that the storage of such a table requires,
+    only a few states will be visited more than once, making learning about the Q-function
+    or V-function extremely difficult. Thus, we may want to generalize across states.
+    In this case, generalization means that we are not only interested in the precise
+    value of a state, *V(s)*, but also in the values in similar and near states. If
+    a state has never been visited, we could approximate it with the value of a state
+    near it. Generally speaking, the concept of generalization is incredibly important
+    in all machine learning, including reinforcement learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The concept of generalization is fundamental in circumstances where the agent
+    doesn't have a complete view of the environment. In this case, the full state
+    of the environment will be hidden by the agent that has to make decisions based
+    solely on a restricted representation of the environment. This is known as **observation**.
+    For example, think about a humanoid agent that deals with basic interactions in
+    the real world. Obviously, it doesn't have a view of the complete state of the
+    universe and of all the atoms. It only has a limited viewpoint, that is, observation,
+    which is perceived by its sensors (such as video cameras). For this reason, the
+    humanoid agent should generalize what's happening around it and behave accordingly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Function approximation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that we have talked about the main constraints of tabular algorithms and
+    expressed the need for generalization capabilities in RL algorithms, we have to
+    deal with the tools that allow us to get rid of these tabular constraints and
+    address the generalization problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can now dismiss tables and represent value functions with a function approximator.
+    Function approximation allows us to represent value functions in a constraint
+    domain using only a fixed amount of memory. Resource allocation is only dependent
+    on the function that's used to approximate the problem. The choice of function
+    approximator is, as always, task-dependent. Examples of function approximation
+    are linear functions, decision trees, nearest neighbor algorithms, artificial
+    neural networks, and so on. As you may expect, artificial neural networks are
+    preferred over all the others – it is not a coincidence that it is widespread
+    across all kinds of RL algorithms. In particular, deep artificial neural networks,
+    or for brevity, **deep neural networks** (**DNNs**), are used. Their popularity
+    is due to their efficiency and ability to learn features by themselves, creating
+    a hierarchical representation as the hidden layers of the network increase. Also,
+    deep neural networks, and in particular, **convolutional neural networks** (**CNNs**),
+    deal incredibly well with images, as demonstrated by recent breakthroughs, especially
+    in supervised tasks. But despite the fact that almost all studies of deep neural
+    networks have been done in supervised learning, their integration in an RL framework
+    has produces very interesting results. However, as we'll see shortly, this is
+    not easy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Q-learning with neural networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In Q-learning, a deep neural network learns a set of weights to approximate
+    the Q-value function. Thereby, the Q-value function is parametrized by ![](img/47f90968-1930-465a-95df-834ba7ae1cde.png) (the
+    weights of the network) and written as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/98a40f0c-b8e7-4983-a2ba-d19839d56bf4.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: To adapt Q-learning with deep neural networks (this combination takes the name
+    of deep Q-learning), we have to come up with a loss function (or objective) to
+    minimize.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As you may recall, the tabular Q-learning update is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e222333f-62b2-47e8-80ec-cd3e387e4699.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/e4c0615d-ded4-4546-802e-410419febed6.png) is the state at the
+    next step. This update is done online on each sample that's collected by the behavior
+    policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Compared to the previous chapters, to simplify the notation, here, we refer
+    to ![](img/00457ffe-7e2c-485e-adbf-7a8aff8e0bc5.png) as the state and action in
+    the present step, while ![](img/1a6b4da8-b62e-4792-9d4d-94a718870eed.png) is referred
+    to as the state and action in the next step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With the neural network, our objective is to optimize the weight, ![](img/db3c4a2b-d406-4101-9489-dbdbefc7ac01.png), so
+    that ![](img/8b1968e5-7d3b-4b46-985f-cbb14efcb476.png) resembles the optimal Q-value
+    function. But since we don''t have the optimal Q-function, we can only make small
+    steps toward it by minimizing the Bellman error for one step, ![](img/0a5374d6-404d-45e1-8c8e-1fd5288dbab8.png).
+    This step is similar to what we''ve done in tabular Q-learning. However, in deep
+    Q-learning, we don''t update the single value, ![](img/55fd7330-0019-4509-a791-cb1f3a7960a8.png).
+    Instead, we take the gradient of the Q-function with respect to the parameters, ![](img/a480d51f-1eb1-463f-9270-59e39cd03366.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/231422ae-3ae5-47e8-b3a1-cf18a09cf8af.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/bdd2ace6-17d7-4f48-a39e-ed1808930af8.png) is the partial derivate
+    of ![](img/e941b29d-7599-4d23-81bc-a654b086904f.png) with respect to ![](img/9205cd8e-8704-4fbb-a34d-9063dcc45453.png) . ![](img/9f063db9-8f96-4021-9a6a-5a2adfd0af21.png) is
+    called the learning rate, which is the size of the step to take toward the gradient.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In reality, the smooth transition that we just saw from tabular Q-learning
+    to deep Q-learning doesn''t yield a good approximation. The first fix involves
+    the use of the **Mean Square Error** (**MSE**) as a loss function (instead of
+    the Bellman error). The second fix is to migrate from an online Q-iteration to
+    a batch Q-iteration. This means that the parameters of the neural network are
+    updated using multiple transitions at once (such as using a mini-batch of size
+    greater than 1 in supervised settings). These changes produce the following loss
+    function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8b4a9659-3b2d-47fc-956b-91e4dfbe7805.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, ![](img/8e2d8ca5-6815-4a91-822f-23c145349a67.png) isn''t the true action-value
+    function since we haven''t used it. Instead, it is the Q-target value:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/89094609-0115-4184-84e1-040099cdd2b1.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Then, the network parameter, ![](img/af8c754c-5f09-4058-901d-a6cbb18fc3c6.png), is
+    updated by gradient descent on the MSE loss function, ![](img/42695026-a675-49e2-b51e-d2b9526c6926.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/38257569-a20d-4b7b-b4f6-23fac713e899.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: It's very important to note that ![](img/f31318a0-7dcd-43eb-8eac-270a9914848a.png) is treated
+    as a constant and that the gradient of the loss function isn't propagated further.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since, in the previous chapter, we introduced MC algorithms, we want to highlight
+    that these algorithms can also be adapted to work with neural networks. In this
+    case, ![](img/162cb052-26ad-42c8-b542-2c45e9dd0fe6.png) will be the return, ![](img/73088934-4648-4058-b4bd-266e60d814c0.png). Since
+    the MC update isn't biased, it's asymptotically better than TD, but the latter
+    has better results in practice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Deep Q-learning instabilities
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: With the loss function and the optimization technique we just presented, you
+    should be able to develop a deep Q-learning algorithm. However, the reality is
+    much more subtle. Indeed, if we try to implement it, it probably won't work. Why?
+    Once we introduce neural networks, we can no longer guarantee improvement. Although
+    tabular Q-learning has convergence capabilities, its neural network counterpart
+    does not.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Sutton and Barto in *Reinforcement Learning: An Introduction*, introduced a
+    problem called the deadly triad, which arises when the following three factors
+    are combined:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Function approximation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Bootstrapping (that is, the update used by other estimates)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Off-policy learning (Q-learning is an off-policy algorithm since its update
+    is independent on the policy that's being used)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: But these are exactly the three main ingredients of the deep Q-learning algorithm.
+    As the authors noted, we cannot get rid of bootstrapping without affecting the
+    computational cost or data efficiency. Moreover, off-policy learning is important
+    for creating more intelligent and powerful agents. And clearly, without deep neural
+    networks, we'll lose an extremely important component. Therefore, it is very important
+    to design algorithms that preserve these three components but at the same time
+    mitigate the deadly triad problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Besides, from equations (5.2) and (5.3), the problem may seem similar to supervised
+    regression, but it's not. In supervised learning, when performing SGD, the mini-batches are
+    always sampled randomly from a dataset to make sure that they are **independent
+    and identically distributed** (**IID**). In RL, it is the policy that gathers
+    the experience. And because the states are sequential and strongly related to
+    each other, the i.i.d assumption is immediately lost, causing severe instabilities
+    when performing SGD.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another cause of instability is due to the non-stationarity of the Q-learning
+    process. From equation, (5.2) and (5.3), you can see that the same neural network
+    that is updated is also the one that computes the target values, ![](img/5867eec4-30f5-46f8-a86b-5809cb70bf16.png).
+    This is dangerous, considering that the target values will also be updated during
+    training. It's like shooting at a moving circular target without taking into consideration
+    its movement. These behaviors are only due to the generalization capabilities
+    of the neural network; in fact, they are not a problem in a tabular case.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Deep Q-learning is poorly understood theoretically but, as we'll soon see, there
+    is an algorithm that deploys a few tricks to increase the i.i.d of the data and
+    alleviate the moving target problem. These tricks make the algorithm much more
+    stable and flexible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: DQN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: DQN, which was introduced for the first time in the paper *Human-level control
+    through deep reinforcement learning*by Mnih and others from DeepMind, is the first
+    scalable reinforcement learning algorithm that combines Q-learning with deep neural
+    networks. To overcome stability issues, DQN adopts two novel techniques that turned
+    out to be essential for the balance of the algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: DQN has proven itself to be the first artificial agent capable of learning in
+    a diverse array of challenging tasks. Furthermore, it has learned how to control
+    many tasks using only high-dimensional row pixels as input and using an end-to-end
+    RL approach.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The solution
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The key innovations brought by DQN involve a **replay buffer** to get over the
+    data correlation drawback, and a separate *target network* to get over the non-stationarity
+    problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Replay memory
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To use more IID data during SGD iterations, DQN introduced a replay memory (also
+    called experienced replay) to collect and store the experience in a large buffer.
+    This buffer ideally contains all the transitions that have taken place during
+    the agent's lifetime. When doing SGD, a random mini-batch will be gathered from
+    the experienced replay and used in the optimization procedure. Since the replay
+    memory buffer holds varied experience, the mini-batch that's sampled from it will
+    be diverse enough to provide independent samples. Another very important feature
+    behind the use of an experience replay is that it enables the reusability of the
+    data as the transitions will be sampled multiple times. This greatly increases
+    the data efficiency of the algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The target network
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The moving target problem is due to continuously updating the network during
+    training, which also modifies the target values. Nevertheless, the neural network
+    has to update itself in order to provide the best possible state-action values.
+    The solution that's employed in DQNs is to use two neural networks. One is called
+    the *online network*, which is constantly updated, while the other is called the *target
+    network*, which is updated only every *N* iterations (with *N* usually being between
+    1,000 and 10,000). The online network is used to interact with the environment
+    while the target network is used to predict the target values. In this way, for
+    *N* iterations, the target values that are produced by the target network remain
+    fixed, preventing the propagation of instabilities and decreasing the risk of
+    divergence. A potential disadvantage is that the target network is an old version
+    of the online network. Nonetheless, in practice, the advantages greatly outweigh
+    the disadvantages and the stability of the algorithm will improve significantly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The DQN algorithm
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The introduction of a replay buffer and of a separate target network in a deep
+    Q-learning algorithm has been able to control Atari games (such as Space Invaders,
+    Pong, and Breakout) from nothing but images, a reward, and a terminal signal.
+    DQN learns completely end to end with a combination of CNN and fully connected
+    neural networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: DQN has been trained separately on 49 Atari games with the same algorithm, network
+    architecture, and hyperparameters. It performed better than all the previous algorithms,
+    achieving a level comparable to or better than professional gamers on many games.
+    The Atari games are not easy to solve and many of them demand complex planning
+    strategies. Indeed, a few of them (such as the well-known Montezuma's Revenge)
+    required a level that even DQN hasn't been able to achieve.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A particularity of these games is that, as they provide only images to the agent,
+    they are partially observable. They don't show the full state of the environment.
+    In fact, a single image isn't enough to fully understand the current situation.
+    For example, can you deduce the direction of the ball in the following image?
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/35491dfb-ad59-49c7-aa1b-84480f56a173.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.1\. Rendering of pong
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can't, and neither can the agent. To overcome this situation, at each point
+    in time, a sequence of the previous observations is considered. Usually the last
+    two to five frames are used, and in most cases, they give a pretty accurate approximation
+    of the actual overall state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The loss function
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The deep Q-network is trained by minimizing the loss function (5.2) that we
+    have already presented, but with the further employment of a separate Q-target
+    network, ![](img/3804d279-d7a4-4dab-b5d4-2f9287074dad.png), with a weight, ![](img/cbd02dbe-17b9-4d28-a7ed-961ac768c913.png),
+    putting everything together, the loss function becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e80dd0ac-24a7-43fd-8d6a-2b528a551450.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/9420e431-c0af-40fd-8207-eec9aba0ffcb.png) is the parameters of
+    the online network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The optimization of the differentiable loss function (5.4) is performed with
+    our favorite iterative method, namely mini-batch gradient descent. That is, the
+    learning update is applied to mini-batches that have been drawn uniformly from
+    the experienced buffer. The derivative of the loss function is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/06c6fb1b-1b4d-4ff4-8f33-c1a63bfe59fd.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Unlike the problem framed in the case of deep Q-learning, in DQN, the learning
+    process is more stable. Furthermore, because the data is more i.i.d. and the target
+    is (somehow) fixed, it's very similar to a regression problem. But on the other
+    hand, the targets still depend on the network weights.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you optimize the loss function (5.4) at each step and only on a single sample,
+    you would obtain the Q-learning algorithm with function approximation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pseudocode
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that all the components of DQN have been explained, we can put all the pieces
+    together and show you the pseudocode version of the algorithm to clarify any uncertainties
+    (don't worry if it doesn't – in the next section, you'll implement it and everything
+    will be clearer).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The DQN algorithm involves three main parts:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Data collection and storage. The data is collected by following a behavior policy
+    (for example, ![](img/93596807-c9b3-4293-b605-b0981360a525.png)-greedy).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Neural network optimization (performing SGD on mini-batches that have been sampled
+    from the buffer).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Target update.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The pseudocode of DQN is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, `d` is a flag that's returned by the environment that signals whether
+    the environment is in its final state. If `d=True`, that is, the episode has ended,
+    the environment has to be reset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d100d047-49cf-46bc-9477-439651e55000.png) is a preprocessing step that
+    changes the images to reduce their dimensionality (it converts the images into
+    grayscale and resizes them into smaller images) and adds the last `n` frames to
+    the current frame. Usually, `n` is a value between 2 and 4\. The preprocessing
+    part will be explained in more detail in the next section, where we''ll implement
+    DQN.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In DQN, the experienced replay, ![](img/16e1586f-bf6d-42a9-9cb4-b16f41425950.png), is
+    a dynamic buffer that stores a limited number of frames. In the paper, the buffer
+    contains the last 1 million transitions and when it exceeds this dimension, it
+    discards the older experiences.
+  prefs: []
+  type: TYPE_NORMAL
+- en: All the other parts have already been described. If you are wondering why the
+    target value, ![](img/928f3116-b6f5-4883-a7b1-6bbf04bbfea4.png), takes the ![](img/010c7f88-1ae7-4ef4-be70-385d773d785b.png) if ![](img/d963cc36-1c16-4e04-aa06-86afe819f31a.png) value,
+    it is because there won't be any other interactions with the environment after
+    and so ![](img/11b366a5-5a09-4f41-9fa0-9acef6d01b9a.png) is its actual unbiased
+    Q-value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model architecture
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we have talked about the algorithm itself, but we haven't explained
+    the architecture of the DQN. Besides the new ideas that have been adopted to stabilize
+    its training, the architecture of the DQN plays a crucial role in the final performance
+    of the algorithm. In the *DQN* paper, a single model architecture is used in all
+    of the Atari environments. It combines CNNs and FNNs. In particular, as observation
+    images are given as input, it employs a CNN to learn about feature maps from those
+    images. CNNs have been widely used with images for their translation invariance characteristics
+    and for their property of sharing weights, which allows the network to learn with
+    fewer weights compared to other deep neural network types.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The output of the model corresponds to the state-action values, with one for
+    each action. Thus, to control an agent with five actions, the model will output
+    a value for each of those five actions. Such a model architecture allows us to
+    compute all the Q-values with only one forward pass.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are three convolutional layers. Each layer includes a convolution operation
+    with an increasing number of filters and a decreasing dimension, as well as a
+    non-linear function. The last hidden layer is a fully connected layer, followed
+    by a rectified activation function and a fully-connected linear layer with an
+    output for each action. A simple representation of this architecture is shown
+    in the following illustration:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/01c3e6d6-1c32-4f3c-bef6-e4aa962214f0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.2\. Illustration of a DNN architecture for DQN composed with a CNN
+    and FNN
+  prefs: []
+  type: TYPE_NORMAL
+- en: DQN applied to Pong
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Equipped with all the technical knowledge about Q-learning, deep neural networks,
+    and DQN, we can finally put it to work and start to warm up the GPU. In this section,
+    we will apply DQN to an Atari environment, Pong. We have chosen Pong rather than
+    all the other Atari environments because it's simpler to solve and thus requires
+    less time, computational power, and memory. That being said, if you have a decent
+    GPU available, you can apply the same exact configuration to almost all the other
+    Atari games (some may require a little bit of fine-tuning). For the same reason,
+    we adopted a lighter configuration compared to the original DQN paper, both in
+    terms of the capacity of the function approximator (that is, fewer weights) and
+    hyperparameters such as a smaller buffer size. This does not compromise the results
+    rather on Pong but might degrade the performance of other games.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, we will briefly introduce the Atari environment and the preprocessing
+    pipeline before moving on to the DQN implementation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Atari games
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Atari games became a standard testbed for deep RL algorithms since their introduction
+    in the DQN paper. These were first provided in the **Arcade Learning Environment**
+    (**ALE**) and subsequently wrapped by OpenAI Gym to provide a standard interface.
+    ALE (and Gym) includes 57 of the most popular Atari 2600 video games, such as
+    Montezuma''s Revenge, Pong, Breakout, and Space Invaders, as shown in the following
+    illustration. These games have been widely used in RL research for their high-dimensional
+    state space (210 x 160 pixels) and their task diversity between games:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4252c8ec-b509-42d2-93d8-d1cfc94e9e4b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.3 The Montezuma's Revenge, Pong, Breakout, and Space Invaders environments
+  prefs: []
+  type: TYPE_NORMAL
+- en: A very important note about Atari environments is that they are deterministic,
+    meaning that, given a fixed set of actions, the results will be the same across
+    multiple matches. From an algorithm perspective, this determinism holds true until
+    all the history is used to choose an action from a stochastic policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Preprocessing
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The frames in Atari are 210 x 160 pixels with RGB color, thus having an overall
+    size of 210 x 160 x 3\. If a history of 4 frames was used, the input would have
+    a dimension of 210 x 160 x 12\. Such dimensionality can be computationally demanding
+    and it could be difficult to store a large number of frames in the experienced
+    buffer. Therefore, a preprocessing step to reduce the dimensionality is necessary.
+    In the original DQN implementation, the following preprocessing pipeline is used:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: RGB colors are converted into grayscale
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The images are downsampled to 110 x 84 and then cropped to 84 x 84
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The last three to four frames are concatenated to the current frame
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The frames are normalized
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Furthermore, because the games are run at a high frame rate, a technique called
+    frame-skipping is used to skip ![](img/c56514f6-eae8-4703-b818-0b357b964b3e.png) consecutive frames.
+    This technique allows the agent to store and train on fewer frames for each game
+    without significantly degrading the performance of the algorithms. In practice,
+    with the frame-skipping technique, the agent selects an action every ![](img/6b679333-18df-4201-a115-199619733e58.png) frames and repeats
+    the action on the skipped frames.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In addition, in some environments, at the start of each game, the agent has
+    to push the fire button in order to start the game. Also, because of the determinism
+    of the environment, some no-ops are taken on the reset of the environment to start
+    the agent in a random position.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Luckily for us, OpenAI released an implementation of the preprocessing pipeline
+    that is compatible with the Gym interface. You can find it in this book''s GitHub
+    repository in the `atari_wrappers.py` file. Here, we will give just a brief explanation
+    of the implementation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`NoopResetEnv(n)`: Takes `n` no-ops on reset of the environment to provide
+    a random starting position for the agent.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`FireResetEnv()`: Fires on reset of the environment (required only in some
+    games).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`MaxAndSkipEnv(skip)`: Skips `skip` frames while taking care of repeating the
+    actions and summing the rewards.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`WarpFrame()`: Resizes the frame to 84 x 84 and converts it into grayscale.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`FrameStack(k)`: Stacks the last `k` frames.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'All of these functions are implemented as a wrapper. A wrapper is a way to
+    easily transform an environment by adding a new layer on top of it. For example,
+    to scale the frames on Pong, we would use the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'A wrapper has to inherit the `gym.Wrapper` class and override at least one
+    of the following methods: `__init__(self, env)`, `step`, `reset`, `render`, `close`,
+    or `seed`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We won''t show the implementation of all the wrappers listed here as they are
+    outside of the scope of this book, but we will use `FireResetEnv `and `WrapFrame` as
+    examples to give you a general idea of their implementation. The complete code
+    is available in this book''s GitHub repository:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: First, `FireResetEnv` inherits the `Wrapper` class from Gym. Then, during the
+    initialization, it checks the availability of the `fire` action by unwrapping
+    the environment through `env.unwrapped`. The function overrides the `reset` function
+    by calling `reset`, which was defined in the previous layer with `self.env.reset`,
+    then takes a fire action by calling `self.env.step(1)` and an environment-dependent
+    action, `self.env.step(2)`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`WrapFrame` has a similar definition:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: This time, `WarpFrame` inherits the properties from `gym.ObservationWrapper`
+    and creates a `Box` space with values between 0 and 255 and with the shape 84
+    x 84\. When `observation()` is called, it converts the RGB frames into grayscale
+    and resizes the images to the chosen shape.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can then create a function, `make_env`, to apply every wrapper to an environment:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: The only preprocessing step that is missing is the scaling of the frame. We'll
+    take care of scaling immediately before giving the observation frame as input
+    to the neural network. This is because `FrameStack` uses a particular memory-efficient
+    array called a lazy array, which is lost whenever scaling is applied as a wrapper.
+  prefs: []
+  type: TYPE_NORMAL
+- en: DQN implementation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Though DQN is a pretty simple algorithm, it requires particular attention when
+    it comes to its implementation and design choices. This algorithm, like every
+    other deep RL algorithm, is not easy to debug and tune. Therefore, throughout
+    this book, we'll give you some techniques and suggestions for how to do this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The DQN code contains four main components:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: DNNs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: An experienced buffer
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A computational graph
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A training (and evaluation) loop
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The code, as usual, is written in Python and TensorFlow, and we'll use TensorBoard
+    to visualize the training and the performance of the algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: All the code is available in this book's GitHub repository. Make sure to check
+    it out there. We don't provide the implementation of some simpler functions here
+    to avoid weighing down the code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s immediately jump into the implementation by importing the required libraries:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`atari_wrappers` includes the `make_env` function we defined previously.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: DNNs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The DNN architecture is as follows (the components are built in sequential
+    order):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A convolution of 16 filters of dimension 8 x 8 with 4 strides and rectifier
+    nonlinearity.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A convolution of 32 filters of dimension 4 x 4 with 2 strides and rectifier
+    nonlinearity.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A convolution of 32 filters of dimension 3 x 3 with 1 strides and rectifier
+    nonlinearity.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A dense layer of 128 units and ReLU activation.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: A dense layer with a number of units equal to the actions that are allowed in
+    the environment and a linear activation.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'In `cnn`, we define the first three convolutional layers, while in `fnn`, we
+    define the last two dense layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, `hidden_layers` is a list of integer values. In our implementation,
+    this is `hidden_layers=[128]`. On the other hand, `output_layer` is the number
+    of agent actions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In `qnet`,the CNN and FNN layers are connected with a layer that flattens the
+    2D output of the CNN:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: The deep neural network is now fully defined. All we need to do is connect it
+    to the main computational graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The experienced buffer
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The experienced buffer is a class of the `ExperienceBuffer` type and stores
+    a queue of type **FIFO** (**First In**, **First Out**) for each of the following
+    components: observation, reward, action, next observation, and done. FIFO means
+    that once it reaches the maximum capacity specified by `maxlen`, it discards the
+    elements starting from the oldest one. In our implementation, the capacity is
+    `buffer_size`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `ExperienceBuffer` class also manages the sampling of mini-batches, which
+    are used to train the neural network. These are uniformly sampled from the buffer
+    and have a predefined `batch_size` size:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Lastly, we override the `_len` method to provide the length of the buffers.
+    Note that because every buffer is the same size as the others, we only return
+    the length of `self.obs_buf`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: The computational graph and training loop
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The core of the algorithm, namely the computational graph and the training
+    (and evaluation) loop, is implemented in the `DQN` function, which takes the name
+    of the environment and all the other hyperparameters as arguments:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the first few lines of the preceding code, two environments are created:
+    one for training and one for testing. Moreover, `gym.wrappers.Monitor` is a Gym
+    wrapper that saves the games of an environment in video format, while `video_callable`
+    is a function parameter that establishes how often the videos are saved, which
+    in this case is every 20 episodes.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, we can reset the TensorFlow graph and create placeholders for the observations,
+    the actions, and the target values. This is done with the following lines of code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we can create a target and an online network by calling the `qnet` function
+    that we defined previously. Because the target network has to update itself sometimes
+    and take the parameters of the online network, we create an operation called `update_target_op`,
+    which assigns every variable of the online network to the target network. This
+    assignment is done by the TensorFlow `assign` method. `tf.group`, on the other
+    hand, aggregates every element of the `update_target` list as a single operation.
+    The implementation is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now that we have defined the placeholder that's created the deep neural network
+    and defined the target update operation, all that remains is to define the loss
+    function. The loss function is ![](img/a831e7fc-45db-4469-a046-032ff17c8b3d.png) (or,
+    equivalently, (5.5)). It requires the target values, ![](img/88f8b378-b9c3-4831-a529-36fd4cdca94e.png),
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'computed as they are in formula (5.6), which are passed through the `y_ph` placeholder
+    and the Q-values of the online network, ![](img/4c3d2453-13e9-4a90-a0f6-4f70c3870bce.png).
+    A Q-value is dependent on the action, ![](img/75e3b146-8d3a-44a9-a4d5-e68839ae0317.png),
+    but since the online network outputs a value for each action, we have to find
+    a way to retrieve only the Q-value of ![](img/75e3b146-8d3a-44a9-a4d5-e68839ae0317.png) while
+    discarding the other action-values. This operation can be achieved by using a
+    one-hot encoding of the action, ![](img/75e3b146-8d3a-44a9-a4d5-e68839ae0317.png), and
+    then multiplying it by the output of the online network. For example, if there
+    are five possible actions and ![](img/2fd1422c-a331-4a0b-8e78-ea40cba7152e.png),
+    then the one-hot encoding will be ![](img/45cdd9fa-4046-428e-beb0-144c41ed74eb.png). Then,
+    supposing that the network outputs ![](img/5fa70caf-4f92-4cdc-9301-28ecd0a56d0e.png),
+    the results of the multiplication with the one-hot encoding will be ![](img/3e063c4c-06eb-47aa-9f2a-a80a98004442.png).
+    After, the q-value is obtained by summing this vector. The result will be ![](img/8578bb25-bfaf-444e-b319-116517194c6c.png).
+    All of this is done in the following three lines of code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To minimize the loss function we just defined, we will use Adam, a variant
+    of SGD:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This concludes the creation of the computation graph. Before going through
+    the main DQN cycle, we have to prepare everything so that we can save the scalars
+    and the histograms. By doing this, we will be able to visualize them later in
+    TensorBoard:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: Everything is quite self-explanatory. The only things that you may question
+    are the `mr_v` and `ml_v` variables. These are variables we want to track with
+    TensorBoard. However, because they aren't defined internally by the computation
+    graph, we have to declare them separately and assign them in `session.run` later.
+    `FileWriter` is created with a unique name and associated with the default graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can now define the `agent_op` function that computes the forward pass on
+    a scaled observation. The observation has already passed through the preprocessing
+    pipeline (built in the environment with the wrappers), but we left the scaling
+    aside:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, the session is created, the variables are initialized, and the environment
+    is reset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The next move involves instantiating the replay buffer, updating the target
+    network so that it has the same parameters as the online network, and initializing
+    the decay rate with `eps_decay`. The policy for the epsilon decay is the same
+    as the one that was adopted in the DQN paper. A decay rate has been chosen so
+    that, when it''s applied linearly to the `eps` variable, it reaches a terminal
+    value, `end_explor`, in about `explor_steps` steps. For example, if you want to
+    decrease from 1.0 to 0.1 in 1,000 steps, you have to decrement the variable by
+    a value equal to ![](img/951d4743-6522-4fda-a081-4e6b31ab9563.png) on each step.
+    All of this is accomplished in the following lines of code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As you may recall, the training loop comprises two inner cycles: the first
+    iterates across the epochs while the other iterates across each transition of
+    the epoch. The first part of the innermost cycle is quite standard. It selects an
+    action following an ![](img/d28bbae0-9b7d-46ba-b063-afde075d2465.png)-greedy behavior
+    policy that uses the online network, takes a step in the environment, adds the
+    new transition to the buffer, and finally, updates the variables:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, `obs` takes the value of the next observation and the
+    cumulative game reward is incremented.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, in the same cycle, `eps` is decayed and if some of the conditions are
+    met, it trains the online network. These conditions make sure that the buffer
+    has reached a minimal size and that the neural network is trained only once every
+    `update_freq` steps. To train the online network, first, a minibatch is sampled from
+    the buffer and the target values are calculated. Then, the session is run to minimize
+    the loss function, `v_loss`, which feeds the dictionary with the target values,
+    the actions, and the observations of the minibatch. While the session is running,
+    it also returns `v_loss` and `scalar_summary` for statistics purposes. `scalar_summary`
+    is then added to `file_writer` to be saved in the TensorBoard logging file. Finally,
+    every `update_target_net` epochs, the target network is updated. A summary with
+    the mean losses is also run and added to the TensorBoard logging file. All of
+    this is done by the following snippet of code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When an epoch terminates, the environment is reset, the total reward of the
+    game is appended to `batch_rew`, and the latter is set to zero. Moreover, every
+    `test_frequency` epochs, the agent is tested for 10 games, and the statistics
+    are added to `file_writer`. At the end of the training, the environments and the
+    writer are closed. The code is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'That''s it. We can now call the `DQN` function with the name of the Gym environment
+    and all the hyperparameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: There's one last note before reporting the results. The environment that's being
+    used here isn't the default version of `Pong-v0` but a modified version of it.
+    The reason for this is that in the regular version, each action is performed 2,
+    3, or 4 times where this number is sampled uniformly. But because we want to skip
+    a fixed number of times, we opted for the version without the built-in skip feature, `NoFrameskip`,
+    and added the custom `MaxAndSkipEnv` wrapper.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Results
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Evaluating the progress of an RL algorithm is very challenging. The most obvious
+    way to do this is to keep track of its end goal; that is, monitoring the total
+    reward that's accumulated during the epochs. This is a good metric. However, training
+    the average reward can be very noisy due to changes in the weights. This leads
+    to large changes in the distribution of the state that's being visited.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For these reasons, we evaluated the algorithm on 10 test games every 20 training
+    epochs and kept track of the average of the total (non-discounted) reward that
+    was accumulated throughout the games. Moreover, because of the determinism of
+    the environment, we tested the agent on an ![](img/3e83ab04-37b2-43ca-961d-e824a111b62b.png)-greedy
+    policy (with ![](img/ddd88359-b1c5-411d-a2a1-3141eceef4d2.png)) so that we have
+    a more robust evaluation. The scalar summary is called `test_rew`. You can see
+    it in TensorBoard if you access the directory where the logs have been saved,
+    and execute the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The plot, which should be similar to yours (if you run the DQN code), is shown
+    in the following diagram. The x axis represents the number of steps. You can see
+    that it reaches a steady score of ![](img/18045cf6-a26c-47a2-86c0-b0b4a12d89be.png) after
+    a linear increase in the first 250,000 steps and a more significant growth in
+    the next 300,000 steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ca751dbb-bf2d-4ab7-b33d-844493dd0249.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.4\. A plot of the mean total reward across 10 games. The x axis represents
+    the number of steps
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pong is a relatively simple task to complete. In fact, our algorithm has been
+    trained on around 1.1 million steps, whereas in the DQN paper, all the algorithms
+    were trained on 200 million steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'An alternative way to evaluate the algorithm involves the estimated action-values. Indeed,
+    the estimated action-values are a valuable metric because they measure the belief
+    of the quality of the state-action pair. Unfortunately, this option is not optimal
+    as some algorithms tend to overestimate the Q-values, as we will soon learn. Despite
+    this, we tracked it during training. The plot is visible in the following diagram
+    and, as we expected, the Q-value increases throughout the training in a similar
+    way to the plot in the preceding diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ef3a10c0-7a08-4540-8edc-131c01d9ec65.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.5\. A plot of the estimated training Q-values. The x axis represents
+    the number of steps
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Another important plot, shown in the following diagram, shows the loss function
+    through time. It''s not as useful as in supervised learning as the target values
+    aren''t the ground truth, but it can always provide a good insight into the quality
+    of the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d2981b99-48bc-461e-b12f-4d3e28b04cd3.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.6\. A plot of the loss function
+  prefs: []
+  type: TYPE_NORMAL
+- en: DQN variations
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Following the amazing results of DQN, many researchers have studied it and come
+    up with integrations and changes to improve its stability, efficiency, and performance.
+    In this section, we will present three of these improved algorithms, explain the
+    idea and solution behind them, and provide their implementation. The first is
+    Double DQN or DDQN, which deals with the over-estimation problem we mentioned
+    in the DQN algorithm. The second is Dueling DQN, which decouples the Q-value function
+    in a state value function and an action-state advantage value function. The third
+    is n-step DQN, an old idea taken from TD algorithms, which spaces the step length
+    between one-step learning and MC learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Double DQN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The over-estimation of the Q-values in Q-learning algorithms is a well-known
+    problem. The cause of this is the max operator, which over-estimates the actual
+    maximum estimated values. To comprehend this problem, let''s assume that we have
+    noisy estimates with a mean of 0 but a variance different from 0, as shown in
+    the following illustration. Despite the fact that, asymptotically, the average
+    value is 0, the max function will always return values greater than 0:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/68325277-2d84-44bc-b051-22073024f483.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.7\. Six values sampled from a normal distribution with a mean of 0
+  prefs: []
+  type: TYPE_NORMAL
+- en: In Q-learning, this over-estimation is not a real problem until the higher values
+    are uniformly distributed. If, however, the over-estimation is not uniform and
+    the error differs from states and actions, this over-estimation negatively affects
+    the DQN algorithm, which degrades the resulting policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To address this problem, in the paper [*Deep Reinforcement Learning with Double
+    Q-learning*](https://arxiv.org/abs/1509.06461), the authors suggest using two
+    different estimators (that is, two neural networks): one for the action selection
+    and one for the Q-values estimation. But instead of using two different neural
+    networks and increasing the complexity, the paper proposes the use of the online
+    network to choose the best action with the max operation, and the use of the target
+    network to compute its Q-values. With this solution, the target value, ![](img/e442e4a2-47fe-4157-ba8b-6712adf8ce79.png),
+    will change from being as follows for standard Q-learning:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/adee62f0-f82e-408b-8ad3-7712a033f964.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Now, it''s as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/7c3cadf2-80f3-4ec7-817f-a2e26452e0ba.png) (5.7)'
+  prefs: []
+  type: TYPE_IMG
+- en: This uncoupled version significantly reduces over-estimation problems and improves
+    the stability of the algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: DDQN implementation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'From an implementation perspective, the only change to make in order to implement
+    DDQN is in the training phase. You just need to replace the following lines of
+    code in the DDQN implementation itself:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Replace this with the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, `double_q_target_values` is a function that computes (5.7) for each transition
+    of the minibatch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Results
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'To see if DQN actually overestimates the Q-values in respect to DDQN, we reported
+    the Q-value plot in the following diagram. We also included the results of DQN
+    (the orange line) so that we have a direct comparison between the two algorithms:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/159e4130-41ea-412a-81a0-053dc4d830f7.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.8\. A plot of the estimated training Q-values. The DDQN values are
+    plotted in blue and the DQN values are plotted in orange. The x axis represents
+    the number of steps
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The performance of both DDQN (the blue line) and DQN (the orange line), which
+    are represented by the average reward of the test games, is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For all the color references mentioned in the chapter, please refer to the color
+    images bundle at [http://www.packtpub.com/sites/default/files/downloads/9781789131116_ColorImages.pdf](http://www.packtpub.com/sites/default/files/downloads/9781789131116_ColorImages.pdf).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e28c62d0-1fad-4ade-82ac-871bcd133565.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.9\. A plot of the mean test rewards. The DDQN values are plotted in
+    blue and the DQN values are plotted in orange. The x axis represents the number
+    of steps
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we expected, the Q-values are always smaller in DDQN than in DQN, meaning
+    that the latter was actually over-estimating the values. Nonetheless, the performance
+    on the test games doesn't seem to be impacted, meaning that those over-estimations
+    were probably not hurting the performance of the algorithm. However, be aware
+    that we only tested the algorithm on Pong. The effectiveness of an algorithm shouldn't
+    be evaluated in a single environment. In fact, in the paper, the authors apply
+    it to all 57 ALE games and reported that DDQN not only yields more accurate value
+    estimates but leads to much higher scores on several games.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dueling DQN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In the paper *Dueling Network Architectures for Deep Reinforcement Learning*
+    ([https://arxiv.org/abs/1511.06581](https://arxiv.org/abs/1511.06581)), a novel
+    neural network architecture with two separate estimators was proposed: one for
+    the state value function and the other for the state-action advantage value function.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The advantage function is used everywhere in RL and is defined as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/64a74303-d3e7-43c5-8947-1545ae6515f9.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The advantage function tells us the improvement of an action, ![](img/6f4dc9fe-7775-44c2-977d-dadd3a3638d7.png), compared
+    to the average action in a given state, ![](img/4f1e190b-1fd1-4e81-a14d-2b65d067daf1.png). Thus,
+    if ![](img/f25da7b2-1b41-4b79-8c00-c07aeb8e8e68.png) is a positive value, this
+    means that the action, ![](img/f6f612ff-260f-44df-bc3d-9f6a1f847c4c.png), is better
+    then the average action in the state, ![](img/3046c2b4-7e2a-4d4c-bf7f-2045d93b9a47.png). On
+    the contrary, if ![](img/3ab03d6c-2d75-41c1-a225-da18a7ccf1eb.png) is a negative
+    value, this means that ![](img/b6cfea02-e054-4d3c-bdcf-86bced05dc87.png) is worse
+    than the average action in the state, ![](img/dd4b1b99-d383-470b-86a8-6e807cf54980.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Thus, estimating the value function and the advantage function separately,
+    as done in the paper, allows us to rebuild the Q-function, like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/666038cd-facd-41ff-9d71-c791f381e9fd.png) (5.8)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, the mean of the advantage has been added to increase the stability of
+    the DQN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The architecture of Dueling DQN consists of two heads (or streams): one for
+    the value function and one for the advantage function, all while sharing a common
+    convolutional module. The authors reported that this architecture can learn which
+    states are or are not valuable, without having to learn the absolute value of
+    each action in a state. They tested this new architecture on the Atari games and
+    obtained considerable improvements regarding their overall performance.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dueling DQN implementation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'One of the benefits of this architecture and of formula (5.8) is that it doesn''t
+    impose any changes on the underlying RL algorithm. The only changes are in the
+    construction of the Q-network. Thus, we can replace `qnet` with the `dueling_qnet`
+    function, which can be implemented as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Two forward neural networks are created: one with only one output (for the
+    value function) and one with as many outputs as the actions of the agent (for
+    the state-dependent action advantage function). The last line returns formula
+    (5.8).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Results
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The results of the test rewards, as shown in the following diagram, are promising,
+    proving a clear benefit in the use of a dueling architecture:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ecc126ee-5f2f-4add-8071-4079f554f481.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.10\. A plot of the test rewards. The dueling DQN values are plotted
+    in red and the DQN values are plotted in orange. The x axis represents the number
+    of steps
+  prefs: []
+  type: TYPE_NORMAL
+- en: N-step DQN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The idea behind n-step DQN is old and comes from the shift between temporal
+    difference learning and Monte Carlo learning. These algorithms, which were introduced
+    in [Chapter 4](6364d5e9-40e9-4991-a88f-1ce5b0f0a6e9.xhtml), *Q-Learning and SARSA
+    Applications*, are at the opposite extremes of a common spectrum. TD learning
+    learns from a single step, while MC learns from the complete trajectory. TD learning
+    exhibits a minimal variance but a maximal bias, where as MC exhibits high variance
+    but a minimal bias. The variance-bias problem can be balanced using an n-step
+    return. An n-step return is a return computed after `n` steps. TD learning can
+    be viewed as a 0-step return while MC can be viewed as a ![](img/d58022ac-8a1b-4abc-9928-056dba5f837b.png)-step
+    return.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With the n-step return, we can update the target value, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a3b14f9a-3c6d-470a-a97b-c39b5b2c7083.png) (5.9)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/8d681a90-0f01-4b60-9ad8-7e758e2fe930.png) is the number of steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: An n-step return is like looking ahead `n` steps, but in practice, as it's impossible
+    to actually look into the future, it's done in the opposite way, that is, by computing
+    the ![](img/1735a426-eb5c-412e-9704-af27fbe339ca.png) value of n-steps ago. This
+    leads to values that are only available at time ![](img/e0bc4154-db21-474c-ad06-9e3669b80c3c.png),
+    delaying the learning process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The main advantage of this approach is that the target values are less biased
+    and this can lead to faster learning. An important problem that arises is that
+    the target values that are calculated in this way are correct, but only when the
+    learning is on-policy (DQN is off-policy). This is because formula (5.9) assumes
+    that the policy that the agent will follow for the next n-steps is the same policy that
+    collected the experience. There are some ways to adjust for the off-policy case,
+    but they are generally complicated to implement and the best general practice
+    is just to keep a small `n` and ignore the problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To implement n-step DQN, only a few changes in the buffer are required. When
+    sampling from the buffer, the n-step reward, the n-step next state, and the n-step
+    done flag have to be returned. We will not provide the implementation here as
+    it is quite simple but you can look at it in the code provided in this book's
+    GitHub repository. The code to support n-step return is in the `MultiStepExperienceBuffer` class.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Results
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: For off-policy algorithms (such as DQN), n-step learning works well with small
+    values of `n`. In DQN, it has been shown that the algorithm works well with values
+    of `n` between 2 and 4, leading to improvements in a wide range of Atari games.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the following graph, the results of our implementation are visible. We tested
+    DQN with a three-step return. From the results, we can see that it requires more
+    time before taking off. Afterward, it has a steeper learning curve but with an
+    overall similar learning curve compared to DQN:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4826853c-0cde-4d5d-9c63-6c4edb58eeda.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.11\. A plot of the mean test total reward. The three-step DQN values
+    are plotted in violet and the DQN values are plotted in orange. The x axis represents
+    the number of steps
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we went further into RL algorithms and talked about how these
+    can be combined with function approximators so that RL can be applied to a broader
+    variety of problems. Specifically, we described how function approximation and
+    deep neural networks can be used in Q-learning and the instabilities that derive
+    from it. We demonstrated that, in practice, deep neural networks cannot be combined
+    with Q-learning without any modifications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first algorithm that was able to use deep neural networks in combination
+    with Q-learning was DQN. It integrates two key ingredients to stabilize learning
+    and control complex tasks such as Atari 2600 games. The two ingredients are the
+    replay buffer, which is used to store the old experience, and a separate target
+    network, which is updated less frequently than the online network. The former
+    is employed to exploit the off-policy quality of Q-learning so that it can learn
+    from the experiences of different policies (in this case, old policies) and to
+    sample more i.i.d mini-batches from a larger pool of data to perform stochastic
+    gradient descent. The latter is introduced to stabilize the target values and
+    reduce the non-stationarity problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After this formal introduction to DQN, we implemented it and tested it on Pong,
+    an Atari game. Moreover, we showed more practical aspects of the algorithm, such
+    as the preprocessing pipeline and the wrappers. Following the publication of DQN,
+    many other variations have been introduced to improve the algorithm and overcome
+    its instabilities. We took a look at them and implemented three variations, namely
+    Double DQN, Dueling DQN, and n-step DQN. Despite the fact that, in this chapter,
+    we applied these algorithms exclusively to Atari games, they can be employed in
+    many real-world problems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we'll introduce a different category of deep RL algorithms
+    called policy gradient algorithms. These are on-policy and, as we'll soon see,
+    they have some very important and unique characteristics that widen their applicability
+    to a larger set of problems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: What is the cause of the deadly triad problem?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How does DQN overcome instabilities?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What's the moving target problem?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How is the moving target problem mitigated in DQN?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What's the optimization procedure that's used in DQN?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What's the definition of a state-action advantage value function?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: For a comprehensive tutorial regarding OpenAI Gym wrappers, read the following
+    article: [https://hub.packtpub.com/openai-gym-environments-wrappers-and-monitors-tutorial/](https://hub.packtpub.com/openai-gym-environments-wrappers-and-monitors-tutorial/).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For the original *Rainbow* paper, go to [https://arxiv.org/abs/1710.02298](https://arxiv.org/abs/1710.02298).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

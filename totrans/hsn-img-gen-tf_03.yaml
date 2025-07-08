@@ -1,0 +1,1140 @@
+- en: '*Chapter 2*: Variational Autoencoder'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous chapter, we looked at how a computer sees an image as pixels,
+    and we devised a probabilistic model for pixel distribution for image generation.
+    However, this is not the most efficient way to generate an image. Instead of scanning
+    an image pixel by pixel, we first look at the image and try to understand what
+    is inside. For example, a girl is sitting, wearing a hat, and smiling. Then we
+    use that information to draw a portrait. This is how autoencoders work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will first learn how to use an autoencoder to encode pixels
+    into latent variables that we can sample from to generate images. Then we will
+    learn how to tweak it to create a more powerful model known as a **variational
+    autoencoder** (**VAE**). Finally, we will train our VAE to generate faces and
+    perform face editing. The following topics will be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Learning latent variables with autoencoders
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Variational autoencoders
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Generating faces with VAEs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Controlling face attributes
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The Jupyter notebooks and codes can be found at [https://github.com/PacktPublishing/Hands-On-Image-Generation-with-TensorFlow-2.0/tree/master/Chapter02](https://github.com/PacktPublishing/Hands-On-Image-Generation-with-TensorFlow-2.0/tree/master/Chapter02).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The notebooks used in this chapter are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`ch2_autoencoder.ipynb`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`ch2_vae_mnist.ipynb`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`ch2_vae_faces.ipynb`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Learning latent variables with autoencoders
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Autoencoders were first introduced in the 1980s, and one of the inventors is
+    Geoffrey Hinton, who is one of the godfathers of modern deep learning. The hypothesis
+    is that there are many redundancies in high-dimensional input space that can be
+    compressed into some low-dimensional variables. There are traditional machine
+    learning techniques such as **Principal Component Analysis** (**PCA**) for dimension
+    reduction.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, in image generation, we will also want to restore the low dimension
+    space into high dimension space. Although the way to do it is quite different,
+    you can think of it like image compression where a raw image is compressed into
+    a file format such as JPEG, which is small and easy to store and transfer. Then
+    the computer can restore the JPEG into pixels that we can see and manipulate.
+    In other words, the raw pixels are compressed into low-dimensional JPEG format
+    and restored to high-dimensional raw pixels for display.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Autoencoders are an *unsupervised machine learning* technique where no labels
+    are needed to train the model. However, some call this *self-supervised* machine
+    learning (*auto* means *self* in Latin) because we do need to use labels, and
+    these labels are not annotated labels but the images themselves.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The basic building blocks of autoencoders are an **encoder** and a **decoder**.
+    The encoder is responsible for reducing high-dimensional input into some low-dimensional
+    latent (hidden) variables. Although it is not clear from the name, the decoder
+    is the block that converts latent variables back into high dimensional space.
+    The encoder-decoder architecture is also used in other machine learning tasks,
+    such as **semantic segmentation**, where the neural network first learns about
+    the image representation, then produces pixel-level labels. The following diagram
+    shows the general architecture of an autoencoder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.1 – General autoencoder architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_02_01.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 2.1 – General autoencoder architecture
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding image, the **input** and **output** are images of the same
+    dimension, and **z** is the low dimensional latent vector. The **encoder** compresses
+    input into **z**, and the **decoder** reverses the process to generate the output
+    image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Having examined the overall architecture, let's look into how the encoder works.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Encoder
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The encoder is made up of multiple neural network layers, and it is best illustrated
+    by using fully connected (dense) layers. We will now jump straight into building
+    an encoder for the `MNIST` dataset, which has a dimension of 28x28x1\. We need
+    to set the dimension of latent variables, which is a 1D vector. We will stick
+    to the convention and name the latent variables as `z`, as seen in the following
+    code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The code can be found in `ch2_autoencoder.ipynb`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: The size of the latent variable should be smaller than the input dimension.
+    It is a hyperparameter, and we will first try with 10, which will give us a compression
+    rate of *28*28/10 = 78.4*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will then use three fully connected layers with a decreasing number of neurons
+    (`128`, `64`, `32`, and finally `10`, which is our `z` dimension). We can see
+    in the following model summary that the feature sizes got squeezed from `784`
+    gradually down to `10` in the network''s output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.2 – Model summary of our encoder'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_02_02.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 2.2 – Model summary of our encoder
+  prefs: []
+  type: TYPE_NORMAL
+- en: This network topology forces the model to learn what is important and discard
+    less important features from layer to layer, to finally come down to the 10 most
+    important features. If you come to think of it, this looks very similar to the
+    **CNN** classification, where the feature map size reduces gradually as it traverses
+    to the top layers. **Feature map** refers to the first two dimensions (height,
+    width) of the tensor.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As CNNs are more efficient and better suited for image inputs, we will build
+    the encoder using **convolutional layers**. Old CNNs, such as **VGG**, used max
+    pooling for feature map downsampling, but newer networks tend to achieve that
+    by using stride of 2 in the convolutional layers. The following diagram illustrates
+    the sliding of the convolutional kernel with a stride of 2 to produce a feature
+    map that is half the size of the input feature map:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.3 – From left to right, the figure illustrates a convolutional operation
+    working with an input stride of 2 ](img/B14538_02_03.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 2.3 – From left to right, the figure illustrates a convolutional operation
+    working with an input stride of 2
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(Source: Vincent Dumoulin, Francesco Visin, “A guide to convolution arithmetic
+    for deep learning” https://www.arxiv-vanity.com/papers/1603.07285/)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this example, we will use four convolutional layers with `8` filters and
+    include an input stride of `2` for downsampling, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: In a typical CNN architectures, the number of filters increases while the feature
+    map size decreases. However, our objective is to reduce the dimension, hence I
+    have kept the filter size as constant. This is sufficient for simple data such
+    as MNIST, and it is fine to change the filter sizes as we move toward the latent
+    variables. Lastly, we flatten the output of the last convolutional layer and feed
+    it to a dense layer to output our latent variables.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Decoder
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: If a decoder were a human, they would probably feel ill-treated. This is because
+    the decoder does half of the work but only the encoder gets a place in the name.
+    It should have been called auto-encoder-decoder!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The job of the decoder is essentially the reverse of the encoder, which is
+    to convert low-dimensional latent variables into high-dimensional output to look
+    like the input image. There is no need for layers in the decoder to look like
+    the encoder in reverse order. You could use completely different layers, for instance,
+    dense layers only in the encoder and convolutional layers only in the decoder.
+    Anyway, we will still use convolutional layers in our decoder to upsample feature
+    maps from 7x7 to 28x28\. The following code snippet shows the construction of
+    the decoder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: The first layer is a dense layer that takes in the latent variables and produces
+    a tensor with a size of [7 x 7 x the number of filters] of our first convolutional
+    layer. Unlike the encoder, the objective of the decoder is not to reduce dimensionality,
+    thus we could and should use more filters to give it more generative capacity.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`UpSampling2D` interpolates the pixels to increase the resolution. It is an
+    affine transformation (linear multiplications and additions), therefore it could
+    **backpropagate**, but it uses fixed weights and is therefore is not trainable.
+    Another popular upsampling method is to use the **transpose convolutional layer**,
+    which is trainable, but it can create checkerboard-like artifacts in the generated
+    image. You can read more at [https://distill.pub/2016/deconv-checkerboard/](https://distill.pub/2016/deconv-checkerboard/).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The checkerboard artifacts are more obvious for low-dimension images or when
+    you zoom into an image. The effect can be reduced by using an even-numbered convolutional
+    kernel size, for example, 4 rather than the more popular size of 3\. Therefore,
+    recent image generative models tend to not use transpose convolution. We will
+    be using `UpSampling2D` throughout the rest of the book. The following table shows
+    the model summary of the decoder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.4 – Model summary of the decoder'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_02_04.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 2.4 – Model summary of the decoder
+  prefs: []
+  type: TYPE_NORMAL
+- en: Tips
+  prefs: []
+  type: TYPE_NORMAL
+- en: When designing a CNN, it is important to know how to work out the convolutional
+    layer's output tensor shape. If `padding='same'` is used, the output feature map
+    will have the same size (height and width) as the input feature map. If `padding='valid'`
+    is used instead, then the output size may be slightly smaller depending on the
+    filter kernel dimension. When input `stride = 2` is used together with the same
+    padding, the feature map size is halved. Lastly, the channel number of the output
+    tensor is the same as the convolutional filter number. For example, if the input
+    tensor has a shape of (28,28,1) and goes through `conv2d(filters=32, strides=2,
+    padding='same')`, we know the output will have a shape of (14,14, 32).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building an autoencoder
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now we are ready to put the encoder and decoder together to create an autoencoder.
+    First, we instantiate the encoder and decoder separately. We then feed the encoder''s
+    output into the decoder''s input, and we instantiate a `Model` using the encoder''s
+    input and the decoder''s output as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'A deep neural network can look complex and scary to build. However, we could
+    break it down into smaller blocks or modules, then put them together later. The
+    whole task becomes more manageable! For training, we will use L2 loss, this is
+    implemented using **mean squared error** (**MSE**) to compare each of the pixels
+    between the output and expected result. In this example, I have added in some
+    callback functions that will be called after training every epoch as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`ModelCheckpoint(monitor=''val_loss'')` to save the model if the validation
+    loss is lower than in earlier epochs.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`EarlyStopping(monitor=''val_loss'', patience = 10)` to stop the training earlier
+    if the validation loss has not improved for 10 epochs.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The image generated is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.5 – The first row is the input image and the second row is generated
+    by the autoencoder'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_02_05.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 2.5 – The first row is the input image and the second row is generated
+    by the autoencoder
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see, the first row is the input image and the second row is generated
+    by our autoencoder. We can see that the generated images are a bit blurry; that
+    is probably because we have compressed it too much and some data information is
+    lost during the process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To confirm our suspicion, we increase the latent variable dimension from 10
+    to 100 and generate the output and the result is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.6 – Image generated by autoencoder with z_dim = 100'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_02_06.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 2.6 – Image generated by autoencoder with z_dim = 100
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see, the generated images now look a lot sharper!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating images from latent variables
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: So, how do we use an autoencoder? It is not very useful to have an AI model
+    to convert an image into a blurrier version of itself. One of the first applications
+    of autoencoders is image denoising, where we add some noise into the input image
+    and train the model to produce a clean image. However, we are more interested
+    in using it to generate images. So, let's see how we can do it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have a trained autoencoder, we can ignore the encoder and use only
+    the decoder to sample from the latent variables to generate images (See? The decoder
+    deserves more recognition because it will still need to keep working after completing
+    the training). The first challenge we face is working out how we sample from the
+    latent variables. As we did not use any activation in the last layer before the
+    latent variables, the latent space is unbounded and can be any real floating numbers,
+    and there are hundreds of them!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To illustrate how this should work, we will train another autoencoder using
+    `z_dim=2` so we can explore the latent space in two dimensions. The following
+    graph shows the plot of the latent space:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.7 – Plot of latent space. A color version is available in the Jupyter
+    notebook'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_02_07.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 2.7 – Plot of latent space. A color version is available in the Jupyter
+    notebook
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The plot was generated by passing 1,000 samples into the trained encoder and
+    plotting the two latent variables on the scatter plot. The color bar on the right
+    indicates the intensity of the digit labels. We can observe the following from
+    the plots:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The latent variables sit roughly between **–5** and **+4**. We won't know the
+    exact range unless we create this plot and look at it. This can change when you
+    train the model again, and quite often the samples can scatter more widely beyond
+    +-10.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The classes are not distributed uniformly. You can see clusters in the top left
+    and on the right that are well separated from other classes (refer to the color
+    version in the Jupyter notebook). However, the classes at the center of the plot
+    tend to be more densely packed and overlap with each other.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'You might be able to see the non-uniformity better in the following images,
+    which were generated by sweeping the latent variables from **–5** to **+5** with
+    a 1.0 interval:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.8 - Images generated by sweeping the two latent variables'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_02_08.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 2.8 - Images generated by sweeping the two latent variables
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can see that digits 0 and 1 are well represented in the sample distribution
+    and they are nicely drawn too. It is not the case for digits in the center, which
+    are blurry, and some digits are even missing from the samples. The latter shows
+    the shortcoming where there is very little variation in generated images for those
+    classes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It's not all bad. If you look closer, you can see how the digit 1 morphs into
+    7, then to 9 and 4, and that is interesting! It looks like the autoencoder has
+    learned some relationship between the latent variables. It might be that the digits
+    with round appearances are mapped into the latent space toward the top-right corner,
+    while digits that look more like a stick sit on the left-hand side. That is good
+    news!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fun
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is a widget in the notebook that allows you to slide the latent variable
+    bars to generate images interactively. Have fun!
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the coming section, we will see how we can use a VAE to solve the distribution
+    issue in the latent space.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Variational autoencoders
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In an autoencoder, the decoder samples directly from latent variables. **Variational
+    autoencoders** (**VAEs**), which were invented in 2014, differ in that the sampling
+    is taken from a distribution parameterized by the latent variables. To be clear,
+    let's say we have an autoencoder with two latent variables, and we draw samples
+    randomly and get two samples of 0.4 and 1.2\. We then send them to the decoder
+    to generate an image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In a VAE, these samples don't go to the decoder directly. Instead, they are
+    used as a mean and variance of a **Gaussian distribution**, and we draw samples
+    from this distribution to be sent to the decoder for image generation. As this
+    is one of the most important distributions in machine learning, so let's go over
+    some basics of Gaussian distributions before creating a VAE.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Gaussian distribution
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'A Gaussian distribution is characterized by two parameters – **mean** and **variance**.
+    I think we are all familiar with the different bell curves shown in the following
+    graph. The bigger the standard deviation (the square root of the variance), the
+    larger the spread:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.9 – Gaussian distribution probability density function with different
+    standard deviations'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_02_09.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 2.9 – Gaussian distribution probability density function with different
+    standard deviations
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can use the ![](img/Formula_02_001.png) notation to describe a univariate
+    Gaussian distribution, where *µ* is the mean and ![](img/Formula_02_002.png) is
+    the standard deviation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The mean tells us where the peak is: it is the value that has the highest probability
+    density, in other words, the most frequent value. If we are to draw samples of
+    pixel location (x,y) of an image, and each x and y have different Gaussian distributions,
+    then we have a *multivariate* Gaussian distribution. In this case, it is a *bivariate*
+    distribution.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The mathematical equations of a multivariate Gaussian distribution can look
+    quite intimidating, so I'm not going to put them in here. The only thing we need
+    to know is that we now incorporate standard deviations into the covariance matrix.
+    The diagonal elements in the covariance matrix are simply the standard deviations
+    of individual Gaussian distributions. The other elements measure the covariance
+    between two Gaussian distributions, that is, the correlation between them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following graph shows us the bivariate Gaussian samples without correlation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.10 – Samples from a bivariate Gaussian distribution with no correlation'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_02_10.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 2.10 – Samples from a bivariate Gaussian distribution with no correlation
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can see that when the standard deviation of one dimension increases from
+    1 to 4, the spread increases only in that dimension (the *y* axis) without affecting
+    the others. Here, we say the two Gaussian distributions are **identically and
+    independently distributed** (abbreviated as **iid**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, in the second example, the plot on the left shows that the covariance
+    is non-zero and positive, which means when the density increases in one dimension,
+    the other dimension will follow suit and they are correlated. The plot on the
+    right shows a negative correlation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.11 – Samples from a bivariate Gaussian distribution with correlation'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_02_11.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 2.11 – Samples from a bivariate Gaussian distribution with correlation
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is some good news for you: Gaussian distributions in VAEs are assumed
+    to be iid and therefore do not require covariance matrix to describe the correlation
+    between the variables. As a result, we need just *n*-pairs of mean and variance
+    to describe our multivariate Gaussian distribution. What we hope to achieve is
+    to create a nicely distributed latent space where latent variables'' distributions
+    for different data classes are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Evenly spread so we have a better variation to sample from
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Overlap slightly with each other to create a continuous transition
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'This can be illustrated with the following plot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.12 – Four samples drawn from a multivariate Gaussian distribution'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_02_12.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 2.12 – Four samples drawn from a multivariate Gaussian distribution
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we will learn how to incorporate Gaussian distribution sampling into a
+    VAE.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sampling latent variables
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: When we train an autoencoder, the encoded latent variables go straight to the
+    decoder. With a VAE, there is an additional sampling step between the encoder
+    and the decoder. The encoder produces the mean and variance of Gaussian distributions
+    as latent variables, and we draw samples from them to send to the decoder. The
+    problem is, sampling is not back-propagatable and therefore is not trainable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Backpropagation
+  prefs: []
+  type: TYPE_NORMAL
+- en: For those who are not familiar with the fundamentals of deep learning, a neural
+    network is trained using **backpropagation**. One of the steps is to calculate
+    the gradients of the loss with respect to the network weights. Therefore, all
+    operations must be differentiable for backpropagation to work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To solve this, we can employ a simple *reparameterization trick* where we cast
+    the Gaussian random variable *N* (mean, variance) into *mean + sigma * N(0, 1)*.
+    In other words, we first sample from a standard Gaussian distribution of N(0,1),
+    then multiply it with sigma then add mean to it. As you can see in the following
+    diagram, the sampling becomes an affine transformation (which is composed of only
+    add and multiplication operations) and the error could backpropagate from the
+    output back to the encoder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.13 – Gaussian sampling in a VAE'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_02_13.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 2.13 – Gaussian sampling in a VAE
+  prefs: []
+  type: TYPE_NORMAL
+- en: The sampling from a standard Gaussian distribution **N(0,1)** can be seen as
+    input to the VAE, and we do not need to backpropagate back to inputs. However,
+    we will put the **N(0,1)** sampling inside our model. Now that we understand how
+    sampling works, we can now go and build our VAE model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s now implement the sampling as a custom layer, as shown in the following
+    snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that we use log variance in the encoder space rather than variance for
+    numerical stability. By definition, variance is a positive number, but unless
+    we use an activation function such as `relu` to constrain it, the variance of
+    latent variables can become negative. Furthermore, the variance can vary greatly,
+    say from 0.01 to 100, which can make it difficult to train. However, the natural
+    log of those values is -4.6 and +4.6, which is a smaller range. Nevertheless,
+    we will need to convert the log variance into the standard deviation when doing
+    sampling, hence the `tf.exp(0.5*logvar)` code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are a few ways to construct models in TensorFlow. One is to use the `Sequential`
+    class to add layers sequentially. The input of the last layer goes into the next
+    layer; therefore, you don't need to specify the input for the layer. While this
+    is convenient, you can't use this on models that have branches. The next is to
+    use the `tf.random.normal()` will fail in eager execution mode, which is the default
+    mode of TensorFlow 2 for creating a dynamic graph. This is because the function
+    needs to know the batch size to generate the random numbers, but it is unknown
+    as we create the layers. Thus, we would get an error in our Jupyter notebook when
+    trying to draw a sample by passing in a size of `(None, 2)`. As a result, we will
+    switch our model creation to using `call()` is run, we will already know the batch
+    size and hence complete the information of the shape.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now we reconstruct our encoder using the `__init__()` or in `__built__()` if
+    we need to use the input shape to construct the layers. Within the subclass, we
+    use the `Sequential` class to create a block of convolutional layers conveniently
+    as we don''t need to read any intermediate tensors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We then use two dense layers to predict the mean and log variance of `z` from
+    the extracted features. Latent variables are sampled and return as output together
+    with the mean and log variance for the loss calculation. The decoder is identical
+    to the autoencoder except that we now re-write it using subclassing:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now the encoder block is completed. The decoder block design is unchanged from
+    the autoencoder, so what is left to be done is to define a new loss function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loss function
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We can now sample from a multivariate Gaussian distribution, but there is still
+    no guarantee that the Gaussian blobs won't be far apart from each other and widely
+    spread. The way VAEs do this is by putting in some regularization to encourage
+    the Gaussian distribution to look like N(0,1). In other words, we want them to
+    have a mean close to 0 to keep them close together, and variance close to 1 for
+    a better variation to sample from. This is done by using **Kullback-Leibler divergence
+    (KLD)**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'KLD is a measurement of how different one probability distribution is to another.
+    For two distributions, *P* and *Q*, the KLD of *P* with respect to *Q* is the
+    cross-entropy of *P* and *Q* minus the entropy of *P*. In information theory,
+    entropy is a measure of information or the uncertainty of a random variable:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/Formula_02_003.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Without going into the mathematical details, KLD is proportional to cross-entropy,
+    hence minimizing cross-entropy will also minimize KLD. When KLD is zero, then
+    the two distributions are identical. It suffices to say that there is a closed-form
+    solution for KLD when the distribution to compare with is a standard Gaussian.
+    This can be calculated directly from the following means and variances:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/Formula_02_004.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We create custom loss function that takes in labels and network output to calculate
+    the KL loss. I have used `tf.reduce_mean()` instead of `tf.reduce_sum()` to normalize
+    it to the number of latent space dimensions. This doesn''t really matter as the
+    KL loss is multiplied by a hyperparameter, which we will discuss shortly:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The other loss function is what we have used in the autoencoder to compare
+    the generated images with the label images. This is also called the **reconstruction
+    loss**, which measures the difference in reconstructed images with the target
+    image, hence the name. This can be either **binary cross-entropy** (**BCE**) or
+    **mean squared error** (**MSE**). MSE tends to generate sharper images as it penalizes
+    more severely for pixels that deviate from the label (by squaring the error):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we add the two losses together:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, let's talk about `kl_weight_factor`, which is an important hyperparameter
+    that is often neglected in VAE examples or tutorials. As we can see, the total
+    loss is made up of the KL loss and the reconstruction loss. The background of
+    MNIST digits is black, and therefore the reconstruction loss is relatively low
+    even though the network hasn't learned much and only outputs all zeroes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Comparatively, the distribution of latent variables is all over the place at
+    the beginning, and therefore the gain in reducing the KLD outweighs that of reducing
+    the reconstruction loss. This encourages the network to ignore the reconstruction
+    loss and optimize only for the KLD loss. As a result, the latent variables will
+    have a perfect standard Gaussian distribution of N(0,1) but the generated images
+    will look nothing like the training images, and that is a disaster for a generative
+    model!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Important note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The encoder is discriminative in that it tries to spot differences in the images.
+    We can think of each latent variable as a feature. If we use two latent variables
+    for MNIST digits, they could mean *round* or *straight*. When a decoder sees a
+    digit, it predicts the likelihood of whether they are round or straight by using
+    the means and variances. If a neural network is forced to make the KLD loss 0,
+    the distribution of the latent variables will be identical – the center at 0 with
+    a variance of 1\. In other words, it is equally likely to be round and straight.
+    Hence, the encoder loses its discriminative capacity. When this happens, you will
+    see the decoder produces the same image every time and they look like the average
+    pixel values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before we move on to the next part, I suggest you go to `ch2_vae_mnist.ipynb`
+    and try a different `kl_weight_factor` with `VAE(z_dim=2)` to look at the latent
+    variable distribution after training. You can also try to increase `kl_weight_factor`
+    to see how it stops the VAE from learning to generate, and then look at the generated
+    images and distributions again.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating faces with VAEs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Now that you have learned the theory of VAEs and have built one for MNIST,
+    it is time to grow up, ditch the toy, and generate some serious stuff. We will
+    use VAE to generate some faces. Let''s get started! The code is in `ch2_vae_faces.ipynb`.
+    There are a few face datasets available for training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Celeb A ([http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html](http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html)).
+    This is a popular dataset in academia as it contains annotations of face attributes,
+    but unfortunately it is not available for commercial use.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Flickr-Faces-HQ Dataset** (**FFHQ**) ([https://github.com/NVlabs/ffhq-dataset](https://github.com/NVlabs/ffhq-dataset)).
+    This dataset is freely available for commercial use and contains high-resolution
+    images.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In this exercise, we will only assume the dataset contains RGB images; feel
+    free to use any dataset that suits your needs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Network architecture
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We reuse the **MNIST VAE** and training pipeline with some modifications given
+    that the dataset is now different from MNIST. Feel free to reduce the layers,
+    parameters, image size, epoch number, and batch size to suit your computing power.
+    The modifications are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Increase the latent space dimension to 200\.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The input shape is changed from (28,28,1) to (112,112,3) as we now have 3 color
+    channels instead of grayscale. Why 112? Early CNNs such as VGG use the input size
+    of 224x224 and set the standard for image classification CNNs. We don't want to
+    use too-high resolutions now as we have not mastered the skills needed to generate
+    high-resolution images. Therefore, I picked 224/2 = 112, but you could use any
+    even values.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Add image resizing in the pre-processing pipeline. We add more downsampling
+    layers. In MNIST, the encoder downsamples twice, from 28 to 14 to 7\. As we have
+    a higher resolution to start with, we need to downsample four times in total.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'As the dataset is more complex, we increase the number of filters to increase
+    the network capacity. Therefore, the convolutional layers in encoders are as follows.
+    It is similar for the decoder but in the reverse direction. Instead of downsampling,
+    the convolutional layers upsample the feature maps by striding:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: a) `Conv2D(filters = 32, kernel_size=(3,3), strides = 2)`
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: b) `Conv2D(filters = 32, kernel_size=(3,3), strides = 2)`
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: c) `Conv2D(filters = 64, kernel_size=(3,3), strides = 2)`
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: d) `Conv2D(filters = 64, kernel_size=(3,3), strides = 2)`
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Tips
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Although we use the overall loss, that is, the KLD loss and the reconstruction
+    loss in network training, we should only use the reconstruction loss as a metric
+    to monitor when to save the model and early termination of the training. The KLD
+    loss acts as regularization, but we are more interested in the reconstructed image's
+    quality.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Facial reconstruction
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let''s look at the following reconstructed images:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![ Figure 2.14 – Reconstructed images with a VAE'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_02_14.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 2.14 – Reconstructed images with a VAE
+  prefs: []
+  type: TYPE_NORMAL
+- en: They do look good despite not being a perfect reconstruction. The VAE has managed
+    to learn some features from the input image and use that to paint a new face.
+    It looks like the VAE is better at reconstructing female faces. This is not surprising
+    as we have seen the *mean face* in [*Chapter 1*](B14538_01_Final_JM_ePub.xhtml#_idTextAnchor017),
+    *Getting Started with Image Generation Using TensorFlow*, which is of female appearance
+    due to the higher proportion of females in the dataset. That is why mature men
+    were given a younger, more feminine complexion.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The image background is also interesting. As the image backgrounds are so diverse,
+    it was not possible for the encoder to encode every fine detail into low dimensions,
+    so we can see the VAE encodes the background colors and the decoder creates a
+    blurry backdrop based on those colors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One fun thing to share with you, when the KL weight factor is too high and the
+    VAE doesn't learn, then the *mean face* will come back to haunt you again. This
+    is as if the VAE's encoder was blinded and told the decoder *“Hey, I can't see
+    anything, just draw me a person”*, and then the decoder draws a portrait of what
+    it thinks an average person looks like.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating new faces
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To generate a new image, we create random numbers from the standard Gaussian
+    distribution and feed it to the decoder, as shown in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: And most of the generated faces look horrible!
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![ Figure 2.15 – Faces generated with standard normal sampling'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_02_15.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 2.15 – Faces generated with standard normal sampling
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can improve the image fidelity by using a **sampling trick**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sampling trick
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We have just seen that the trained VAE could reconstruct the faces rather well.
+    My suspicion was that there was something not quite right in samples generated
+    by random sampling. To debug this problem, I fed in a few thousand images into
+    the VAE decoder to collect the latent space means and variance. Then I plotted
+    the average mean of each latent space variable, and the following is what I got:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.16 – Average mean of the latent variable'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_02_16.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 2.16 – Average mean of the latent variable
+  prefs: []
+  type: TYPE_NORMAL
+- en: In theory, they should center at 0 and have a variance of 1, but they may not
+    due to suboptimal KLD weight and stochasticity in the network training. Because
+    of this, the randomly generated samples do not always match the distribution expected
+    by the decoder. This is the trick I use to generate samples. Using steps similar
+    to the preceding ones, I have collected the average standard deviation of latent
+    variables (one scalar value), which I use for generating normally distributed
+    samples (200 dimensions). Then I added the average mean (200 dimensions) to it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Ta-da! Now they look a lot better and sharper!
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.17 – Faces generated with the sampling trick'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_02_17.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 2.17 – Faces generated with the sampling trick
+  prefs: []
+  type: TYPE_NORMAL
+- en: Instead of generating random faces, in the next section we will learn how to
+    perform face editing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Controlling face attributes
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Everything we have done in this chapter serves only one purpose: to prepare
+    us for **face editing**! This is the climax of this chapter!'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Latent space arithmetic
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We have talked about the latent space several times now but haven't given it
+    a proper definition. Essentially, it means every possible value of the latent
+    variables. In our VAE, it is a vector of 200 dimensions, or simply 200 variables.
+    As much as we hope each variable has a distinctive semantic meaning to us, such
+    as *z[0]* is for eyes, *z[1]* dictates the eye color, and so on, things are never
+    that straightforward. We will simply have to assume the information is encoded
+    in all the latent vectors and we can use vector arithmetic to explore the space.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before diving into high-dimensional space, let's try to understand it using
+    a two-dimensional example. Imagine you are now at point *(0,0)* on a map and your
+    home is at *(x,y)*. Therefore, the direction toward your home is *(x – 0 ,y -
+    0)* divided by the L2 norm of *(x,y)*, or let's denote the direction as *(x_dot,
+    y_dot)*. Therefore, whenever you move *(x_dot, y_dot)*, you are moving toward
+    your house; and when you move *(-2*x_dot, -2*y_dot)*, you are moving further away
+    from home with twice as many steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, if we know the direction vector of the `smiling` attributes, we could
+    add that to the latent variables to make the face smile:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`smiling_magnitude` is a scalar value that we set, so the next step is to work
+    out the way to obtain `smiling_vector`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finding attribute vectors
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Some datasets, such as Celeb A, come with annotations of facial attributes
+    for each image. The labels are binary, meaning they indicate whether a certain
+    attribute exists or not in the image. We will use the labels and the encoded latent
+    variables to find our direction vectors! The idea is simple:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Use the test dataset or a few thousand samples from the training dataset and
+    use the VAE decoder to generate the latent vectors.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Separate the latent vectors into two groups: with (positive) or without (negative)
+    the one attribute we are interested in.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Calculate the average of the positive vectors and negative vectors separately.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Obtain the attribute direction vector by subtracting the average negative vector
+    from the average positive vector.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The pre-processing function is modified to return the label of the attribute
+    we are interested in. We then use a `lambda` function to map to the data pipeline:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Not to be confused with the Keras Lambda layer that wraps arbitrary TensorFlow
+    functions into a Keras layer, the `lambda` in the code is a generic Python expression.
+    The `lambda` function is used as a small function but without the overhead code
+    to define the function. The `lambda` function in the preceding code is equivalent
+    to the following function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: When chaining `map` to the dataset, the dataset object will read each image
+    sequentially and call the `lambda` function equivalent to `preprocess(image)`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Face editing
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'With the attribute vectors extracted, we can now do the magic:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, we take an image from the dataset, which is the leftmost face from the
+    following screenshot.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We encode the face into latent variables, then decode it to generate a new face,
+    which we place in the middle of the row.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Then we add the attribute vector increasingly toward the right.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Similarly, we minus the attribute vector while going toward the left of the
+    row.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The following screenshot shows the generated images by interpolating the latent
+    vector for male, chubby, moustache, smiling, and glasses:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.18 – Changing facial features by exploring latent space'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_02_18.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 2.18 – Changing facial features by exploring latent space
+  prefs: []
+  type: TYPE_NORMAL
+- en: The transitions were rather smooth. You should have noticed that these attributes
+    are not exclusive to each other. For example, as we increase the moustache-ness
+    of a female, the complexion and hair become more manlike, and the VAE even puts
+    a tie on the person. This is totally reasonable, and in fact what we wanted. This
+    shows that some latent variable distributions overlap.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similarly, some latent variables do not overlap if we set the male vector to
+    be the most negative. It will push the latent states to a place where traversing
+    the moustache vector will not have an effect on growing a moustache on the face.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we can try to change several face attributes together. The mathematics
+    are similar; we now only need to add up all the attribute vectors. In the following
+    screenshot, the image on the left was generated randomly and is used as a baseline.
+    On the right is a new image after some latent space arithmetic, as shown in the
+    bars preceding the images:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 2.19 – Latent space exploration widget'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_02_19.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 2.19 – Latent space exploration widget
+  prefs: []
+  type: TYPE_NORMAL
+- en: The widget is available in the Jupyter notebook. Feel free to use it to explore
+    the latent space and generate new faces!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We started this chapter by learning how to use an encoder to compress high-dimensional
+    data into low-dimensional latent variables, then use a decoder to reconstruct
+    the data from the latent variables. We learned that the autoencoder's limitation
+    is not being able to guarantee a continuous and uniform latent space, which makes
+    it difficult to sample from. Then we incorporated Gaussian sampling to build a
+    VAE to generate MNIST digits.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we built a bigger VAE to train on the face dataset and had fun creating
+    and manipulating faces. We learned the importance of the sampling distribution
+    in the latent space, latent space arithmetic, and KLD, which lay the foundation
+    for [*Chapter 3*](B14538_03_Final_JM_ePub.xhtml#_idTextAnchor060), *Generative
+    Adversarial Network*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although GANs are more powerful than VAEs in generating photorealistic images,
+    the earlier GANs were difficult to train. Therefore, we will learn about the fundamentals
+    of GANs. By the end of the next chapter, you will have learned the fundamentals
+    of all three main families of deep generative algorithms, which will prepare you
+    for more advanced models in part two of the book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before we move on to GANs, I should stress that (variational) autoencoders are
+    still being used widely. The variational encoding aspect has been incorporated
+    into GANs. Therefore, mastering VAEs will help you master the advanced GAN models
+    that we will cover in later chapters. We will cover the use of autoencoders to
+    generate deep fake videos in [*Chapter 9*](B14538_09_Final_JM_ePub.xhtml#_idTextAnchor175)*,
+    Video Synthesis*. That chapter doesn't assume prior knowledge of GANs, therefore
+    feel free to jump ahead to have a peek at how to use autoencoders to perform face
+    swapping.
+  prefs: []
+  type: TYPE_NORMAL

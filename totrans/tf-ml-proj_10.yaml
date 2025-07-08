@@ -1,0 +1,840 @@
+- en: Classifying Clothing Images using Capsule Networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we will learn how to implement capsule networks on the Fashion
+    MNIST dataset. This chapter will cover the inner workings of capsule networks
+    and explain how to implement them in TensorFlow. You will also learn how to evaluate
+    and optimize the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have chosen capsule networks because they have the ability to preserve the
+    spatial relationships of images. Capsule networks were introduced by Geoff Hinton,
+    et al. They published a paper in 2017 that can be found at [https://arxiv.org/abs/1710.09829](https://arxiv.org/abs/1710.09829).
+    Capsule networks gained immense popularity within the deep learning community
+    as a new type of neural network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'By the end of this chapter, we will be able to classify clothing using capsule
+    networks after going through the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the importance of capsule networks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A brief understanding of capsules
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The routing by agreement algorithm
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The implementation of the CapsNet architecture for classifying Fashion-MNIST
+    images
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The limitations of capsule networks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding the importance of capsule networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Convolutional neural networks** (**CNNs**) form the backbone of all the major
+    breakthroughs in image detection today. CNNs work by detecting the basic features
+    that are present in the lower layers of the network and then proceed to detect
+    the higher level features present in the higher layers of the network. This setup
+    does not contain a pose (translational and rotational) relationship between the
+    lower-level features that make up any complex object.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Imagine trying to identify a face. In this case, just having eyes, nose, and
+    ears in an image can lead a CNN to conclude that it's a face without caring about
+    the relative orientation of the concerned objects. To explain this further, if
+    an image has a nose above the eyes, CNNs still can detect that it's an image.
+    CNNs take care of this problem by using *max pooling*, which helps increase the
+    *field of view* for the higher layers. However, this operation is not a perfect
+    solution as we tend to lose valuable information in the image by using it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As a matter of fact, Hinton himself states the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '"The pooling operation used in convolutional neural networks is a big mistake
+    and the fact that it works so well is a disaster."'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the paper, Hinton tries to provide an intuition on solving this problem using
+    the inverse graphics approach. For graphics in computers, an image is constructed
+    by using an internal representation of the objects present in the image. This
+    is done using arrays and matrices. This internal representation helps preserve
+    the shape, the orientation, and the object's relative position when compared to
+    all other objects in the image. The software takes this internal representation
+    and publishes the image on the screen using a process known as **rendering**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hinton specifies that the human brain does some sort of inverse graphics. We
+    see an image through our eyes, and then brain our dissects the image and constructs
+    a hierarchical representation of different objects in the image before trying
+    to match them to the existing patterns that we have seen. An interesting observation
+    to note is that humans can identify objects in an image, irrespective of their
+    viewing angle.
+  prefs: []
+  type: TYPE_NORMAL
+- en: He then proceeds to argue that in order to perform classification, it is necessary
+    to preserve the relative orientation and position of different objects in the
+    image (this helps mimic the human capability, as we discussed previously). It's
+    quite intuitive that once we have these relationships built into the representation
+    using the model, it is very easy for a model to detect an object when it views
+    it from various angles. Let's imagine the case of viewing the Taj Mahal (the famous
+    monument in India). Our eyes can identify the Taj Mahal from various angles. However,
+    if you present the same images to a CNN, it might fail to detect the Taj Mahal
+    from different viewpoints. This is because CNNs don't have an understanding of
+    3D space like our brains do. This is the reason capsule network theory is quite
+    important.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One of the major concerns here is this: *How do we incorporate these hierarchical
+    relationships into the deep neural networks?* The relationship between different
+    objects in an image is modeled by something called a **pose**, which is basically
+    rotation and translation. This is specific to the graphics of a computer. We will
+    look at how these relationships are modeled in capsule networks in the subsequent
+    sections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding capsules
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In traditional CNNs, we define different filters that run over the entire image.
+    The 2D matrices produced by each filter are stacked on top of one another to constitute
+    the output of a convolutional layer. Subsequently, we perform the max pooling
+    operation to find the invariance in activities. Invariance here implies that the
+    output is robust to small changes in the input as the max pooling operation always
+    picks up the max activity. As mentioned previously, max pooling results in the
+    valuable loss of information and is unable to represent the relative orientation
+    of different objects to others in the image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Capsules, on the other hand, encode all of the information of the objects they
+    are detecting in a vector form as opposed to a scalar output by a neuron. These
+    vectors have the following properties:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The length of the vector indicates the probability of an object in the image.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Different elements of the vector encode different properties of the object.
+    These properties include various kinds of instantiation parameters such as pose
+    (position, size, orientation), hue, thickness, and so on.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: With this representation, if the detected object moves in the image, the length
+    of the vector remains the same. However, the orientation or values of different
+    elements in the vector representation will change. Let's take the previous example
+    of viewing the Taj Mahal again. Even if we were to move (or change the orientation)
+    of the Taj Mahal in the image, the capsule representation should be able to detect
+    the object in the image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How do capsules work?
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Before looking at how capsules work, let's try to revisit how neurons function.
+    A neuron receives scalar inputs from the previous layer's neurons, multiplies
+    them by the corresponding weights, and sums the outputs. This summed output is
+    passed through some non-linearity (such as ReLU) that outputs a new scalar, which
+    is passed on to next layer's neurons.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In contrast to this, capsules take a vector as an input, as well as output
+    a vector. The following diagram illustrates the process of computing the output
+    of a capsule:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/efb3f69b-0e10-4527-a848-796048ff6eba.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Let''s look at each step in detail:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Capsule j** (at the higher levels) receives the vector inputs from the lower
+    layers as **u**[**1**, ]**u**[**2**, ]**u**[**3**, ]and so on. As discussed earlier,
+    each input vector encodes both the probability of an object detected at the lower
+    layer and also its orientation parameters. These input vectors are multiplied
+    by weight matrices, **W[ij]**, which try to model the relationship between lower
+    layer objects and higher layer objects. In the case of detecting the Taj Mahal,
+    you can think of this as a relationship between edges that are detected at the
+    lower layers and the pillars of the Taj Mahal at the higher layers. The output
+    of this multiplication is the predicted vector of the higher level object (in
+    this case, the pillar) based on the detected objects in the lower layer. Therefore, ![](img/f9addba5-b122-4fd1-ab7c-8335d149797e.png) denotes
+    the position of a pillar of the Taj Mahal based on the detected vertical edge,
+    ![](img/7b4dd575-4305-455f-93a0-7795e596a253.png) can denote the position of the
+    pillar based on the detected horizontal edge, and so on. Intuitively, if all of
+    the predicted vectors point to the same object with a similar orientation, then
+    that object must be present in the image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/76ec11e0-dab3-4c7f-8f7e-94b3ab7853b7.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Next, these predicted vectors are multiplied by scalar weights (**c[i]**s),
+    which help in routing the predicted vectors to the right capsules in the higher
+    layer. We then sum the weighted vectors that are obtained through this multiplication.
+    This step will feel familiar to traditional neural networks, which multiply the
+    scalar inputs by weights before providing them to the input of higher-level neurons.
+    In such cases, the weights are determined by a back propagation algorithm. However,
+    in the case of capsule networks, they are determined by the dynamic routing algorithm,
+    which we will discuss in detail in the next section. The formula is given as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/3ef7fa87-24ea-4fb5-9316-0bb69f379088.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We mentioned a new word in the previous formula, known as **squashing**. This
+    is the non-linearity that is used in capsule networks. You can think of this as
+    a counterpart to the non-linearity we use in traditional neural networks. Essentially,
+    squashing tries to reduce the vector to less than a unit norm to facilitate the
+    interpretation of the length of the vector as probability:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/9270c789-f218-4f63-a002-18f28ea3935b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, **v[j]**is the output of the **j** layer capsule.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The implementation of the squashing function in the code is done as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: The dynamic routing algorithm
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As mentioned earlier, it is necessary for the capsule in the lower layer to
+    decide how to send its output to the higher-level capsules. This is achieved through
+    the novel concept of the dynamic routing algorithm, which was introduced in the paper ([https://arxiv.org/pdf/1710.09829.pdf](https://arxiv.org/pdf/1710.09829.pdf)).
+    The key idea behind this algorithm is that the lower layer capsule will send their
+    output to the higher-level capsules that *match* the input.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is achieved through the weights (**c[ij]**) mentioned in the last section.
+    These weights multiply the outputs from the lower layer capsule **i** before pushing
+    them as the input to the higher level capsule **j**. Some of the properties of
+    these weights are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**c[ij]**s are non-negative in nature and are determined by the dynamic-routing
+    algorithm'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The number of weights in the lower layer capsule is equal to the number of higher-level
+    capsules
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The sum of the weights of each lower layer capsule **i** amounts to 1
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Implement the iterative routing algorithm using the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Note that, in the previous code, we are dividing the actual routing function
+    in the code into two parts so that we can focus on the dynamic routing algorithm part. The
+    first part of the function takes vector **u **as input from the lower layer capsule(s).
+    First, it generates the vector ![](img/e99506b5-2cc6-4303-97e8-a8458ab3a538.png) using
+    the weight vector **W**. Also, observe that we define a temporary variable called ![](img/b8ffc378-2e7a-43e7-8fe4-366e59603847.png),
+    which is initialized to zero at the start of training. The values of ![](img/789003d1-8295-41a1-873d-997492b18576.png) will
+    be updated in the algorithm and will be stored in **c[ij ]**at the end of the
+    algorithm. The second part of the function implements the actual iterative routing
+    algorithm, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: First, we define a loop over `ROUTING_ITERATIONS`. This is the parameter that
+    is defined by the user. Hinton mentions in his paper that the typical values of
+    `3` should suffice for this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we perform a softmax on ![](img/21f4dcdf-7490-4e0f-b9a0-0b272bdcb52d.png) to
+    compute the initial values of the **c[ij]**s. Note that **c[ij]**s are not to
+    be included in the back propagation since these can only be obtained through the
+    iterative algorithm. For this reason, all of the routing iterations before the
+    last one are performed on ![](img/def7cb9b-d181-4391-b933-e6f0086112a2.png) (which
+    helps to stop gradients, as defined earlier).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For each routing iteration, we use the following operations for each higher-level
+    capsule **j**:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e2a65403-0c31-4567-904f-d450bce8425b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/facf7cb8-585c-40b8-a5ad-b69d902e31ba.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/59a19cee-4b0a-4be8-abaa-18cfa02582aa.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We have explained the first two equations already. Now let's try to understand
+    the third equation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The third equation is the essence of the iterative routing algorithm. It updates
+    the weights ![](img/531663b5-de20-45e0-bc3a-98af928f53d9.png). The formula states
+    that the new weight value is the sum of the old weights: the predicted vector
+    from lower layer capsules and the output of the higher layer capsule. The dot
+    product is essentially trying to capture the notion of similarity between the
+    input vector and the output vector of the capsule. This way, the output from the
+    lower capsule **i **is only sent to the higher-level capsule **j**, which agrees
+    to its input. The dot product achieves the agreement. This algorithm is repeated
+    a number of times equal to the `ROUTING_ITERATIONS` parameter in the code.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes our discussion on the innovative routing algorithm and its applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CapsNet for classifying Fashion MNIST images
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Now let''s take a look at the implementation of CapsNet for classifying Fashion
+    MNIST images. **Zalando**, the e-commerce company, recently released a new replacement
+    for the MNIST dataset, known as **Fashion MNIST** ([https://github.com/zalandoresearch/fashion-mnist](https://github.com/zalandoresearch/fashion-mnist)).
+    The Fashion MNIST dataset includes 28 x 28 grayscale images under 10 categories:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Category name** | **Label (in dataset)** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| T-shirt/top | 0 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Trouser | 1 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Pullover | 2 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Dress | 3 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Coat | 4 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Sandal | 5 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Shirt | 6 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Sneaker | 7 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Bag | 8 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Ankle boot | 9 |'
+  prefs: []
+  type: TYPE_TB
+- en: 'The following are some sample images from the dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/9d0d1cb9-d86b-4668-8d17-8f00a05bbff0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The training set contains 60K examples, and the test set contains 10K examples.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CapsNet implementation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The CapsNet architecture consists of two parts, each consisting of three layers.
+    The first three layers are encoders, while the next three layers are decoders:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Layer Num** | **Layer Name ** | **Layer Type** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 1 | Convolutional Layer | Encoder |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 2 | PrimaryCaps Layer | Encoder |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 3 | DigitCaps Layer | Encoder |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 4 | Fully Connected Layer 1 | Decoder |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 5 | Fully Connected Layer 2 | Decoder |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 6 | Fully Connecter Layer 3 | Decoder |'
+  prefs: []
+  type: TYPE_TB
+- en: Let's try to understand these layers in detail.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the encoder
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The following diagram illustrates the structure of the encoder used for modeling.
+    Note that it shows the MNIST digit image as an input, but we are using the Fashion-MNIST
+    data as an input to the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d86e413b-dce9-47e9-b9a0-f8feca24cfff.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The encoder essentially takes an input of a 28x28 image and produces a 16-dimensional
+    representation of that image. As mentioned previously, the length of the 16D vector
+    denotes the probability that an object is present in the image. The components
+    of the vector represent various instantiation parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The three layers dedicated to the encoder are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Layer 1-convolutional layer**: Layer 1 is a standard convolutional layer.
+    The input to this layer is a 28x28 grayscale image and the output is a 20x20x256
+    tensor. The other parameters of this layer are as follows:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '| Parameter name | Value |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Filters | 256 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Kernel Size  | 9 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Activation | ReLU |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Strides | 1 |'
+  prefs: []
+  type: TYPE_TB
+- en: '**Layer 2-primary caps layer**: Layer 2 is the first layer with capsules. The
+    main purpose of this layer is to use the output of the first convolutional layer
+    to produce higher level features. It has 32 primary capsules. It also takes an
+    input of a 20 x 20 x 256 tensor. Every capsule present in this layer applies the
+    convolutional kernels to the input to produce an output of a 6 x 6 x 8 tensor.
+    With 32 capsules, this output is now a 6 x 6 x 8 x 32 tensor.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The convolutional parameters that are common for all capsules in the layer
+    are mentioned as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Parameter Name** | **Value** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Filters | 256 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Kernel Size | 9 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Activation | ReLU |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Strides | 2 |'
+  prefs: []
+  type: TYPE_TB
+- en: Note that we also `squash`the output of this layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Layer 3-DigitCaps layer**: This layer has 10 capsules – one for each class
+    label. Each capsule is a 16D vector. The input to this layer are 6x6x32 8D vectors
+    (**u**, as we defined previously). Each of these vectors have their own weight
+    matrix, ![](img/bb7634a1-9cfe-4935-975a-c356f2a634f4.png), which produces ![](img/dc96a72e-28a1-4c91-a972-aac9c5e4142c.png).
+    These ![](img/dedba9da-b209-4ec0-b93b-9eb5d7672693.png) are then used in the routing
+    by the agreement algorithm that we described previously.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Note that the original paper names this layer as the DigitCaps layer because
+    it uses the MNIST dataset. We are continuing to use the same name for the Fashion
+    MNIST dataset, as it is easier to relate to the original paper.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the decoder
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The structure of the decoder is shown in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b0cc93a8-ad5a-44fb-89a0-8c77c2de32b1.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The decoder essentially tries to reconstruct the image from the correct DigitCaps
+    capsule for each image. You can view this as a regularization step, with *loss*
+    being the Euclidean distance between the predicted output and the original label.
+    You could argue that you don't require reconstruction in this application as you
+    are just carrying out classification. However, Hinton specifically shows in his
+    original paper that adding reconstruction loss does improve the accuracy of the
+    model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The decoder''s structure is pretty simple, and consists of only three fully
+    connected layers. The input and the output shapes of all three layers are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Layer** | **Input Shape** | **Output Shape** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Fully Connected Layer 4  | 16 x 10 | 512 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Fully Connected Layer 5  | 512 | 1,024 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Fully Connected Layer 6 | 1,024 | 784 |'
+  prefs: []
+  type: TYPE_TB
+- en: However, before passing the input to the three fully connected layers, during
+    training, we mask all but the activity vector of the correct digit capsule. Since
+    we don't have the correct labels during testing, we pass the activity vector with
+    the highest norm to the fully connected layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the loss function
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The loss function for capsule networks is composed of two parts:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Margin loss**: Margin loss is exactly the same as what''s used in **Support
+    Vector Machines** (**SVM**). Effectively, we want the digit capsule to have an
+    instantiation vector for class *k*, but only if the label is class *k*. For all
+    other classes, we don''t require any instantiation parameters. For each digit
+    capsule k, we define separate loss as ![](img/b555a2b5-ab4e-461a-822d-582948acdf34.png):'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/525e47e1-a86f-4a4c-8688-be37e9595e7c.png)'
+  prefs:
+  - PREF_IND
+  type: TYPE_IMG
+- en: If an image belongs to class k, then ![](img/4bc5e47a-3971-4d9d-9e54-6ba9e79ea6a4.png) else
+    0. ![](img/4ffb1d5c-d0ef-4d06-8d7a-10b3a6e0d1a7.png) are the other two parameters. ![](img/cf48ef4f-6a62-46d3-9e1b-614c7f7d1cf3.png) is
+    used for stability when initial learning the model. The total margin loss is the
+    sum of losses of all digit capsules.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To explain this simply, for digit caps *k* (which is the true label), the loss
+    is zero if we predict a correct label with a probability of > 0.9; otherwise it
+    is non-zero. For all other digit caps, the loss is zero if we predict the probability
+    of all those classes to be less than 0.1; otherwise, it is non-zero.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Reconstruction loss**: Reconstruction loss is mainly used as a regularizer
+    for the model so that we can focus on learning the representations to reproduce
+    the image. Intuitively, this can also result in easing the learning of the instantiation
+    parameters of the model. This is generated by taking the Euclidean distance between
+    the pixels of the reconstructed image and the input image. The total loss for
+    the model is given as follows:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Total loss = Margin loss + 0.0005 Reconstruction loss*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that reconstruction loss is weighted down heavily to ensure that it doesn't
+    dominate the margin loss during training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training and testing the model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The following are the steps for training and testing the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first step is to read the training and testing datasets. Here are steps
+    we must implement for reading the data:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: First, we load the training/testing images and label data from the files we
+    downloaded for the **Fashion MNIST **data ([https://github.com/zalandoresearch/fashion-mnist](https://github.com/zalandoresearch/fashion-mnist)).
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Then, we reshape the image data to a shape of 28 x 28 x 1 for our model and
+    normalize it by 255 to keep the input of the model between 0 and 1.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We split the training data into train and validation datasets, each with 55,000 and
+    5000 images respectively.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We convert our target array **y** for both training and testing datasets so
+    that we have a one-hot representation of the 10 classes in the dataset that we
+    are going to feed into the model.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Make sure to choose around 10% of data for out validation. In this project,
+    we choose 5000 random images (8% of the total images) for the validation data
+    set.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The code for the preceding steps is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that we normalize the image pixels by `255` after loading the dataset for
+    training stability and faster convergence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Implement the encoder by creating the three neural network layers that have
+    been defined in the *U**nderstanding the encoder* section:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, implement the decoder layers to reconstruct the images, as described
+    in the *Understanding the decoder*section. Here are the important steps once again
+    for reference:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: First, we calculate the norm of each activity vector in a digit caps output
+    for masking purposes. We also add an epsilon to the norm for stability purposes.
+  prefs:
+  - PREF_UL
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For training, we mask all of the activity vectors in digit caps output, except
+    the one with the correct label. On the other hand, for testing, we mask all the
+    activity vectors in digit caps output, except the one with the highest norm (or
+    predicted label). We implement this branching mechanism in the decoder with **tf.cond**, which
+    defines a control flow operation in the TensorFlow graph.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Finally, we flatten the masked output from the digit caps and flatten it as
+    a one-dimensional vector that can be fed to the fully connected layers.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: To read up on `tf.cond`, refer to [https://www.tensorflow.org/api_docs/python/tf/cond](https://www.tensorflow.org/api_docs/python/tf/cond).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The code for the preceding steps is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Implement margin loss using the formula mentioned in the *Defining the loss
+    function* section as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Implement reconstruction loss using the formula mentioned in the *Defining
+    the loss function* section:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Define the optimizer as an Adam optimizer, using the default parameters and
+    an accuracy metric as the usual classification accuracy. These need to be implemented
+    in the CapsNet class itself using the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: To learn more about the Adam Optimizer, refer to[ https://www.tensorflow.org/api_docs/python/tf/train/AdamOptimizer](https://www.tensorflow.org/api_docs/python/tf/train/AdamOptimizer).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Implement the support for checkpointing and restoring the model. Select the
+    best model based on validation set accuracy; we checkpoint the model only for
+    the epoch, where we observe a decrease in the validation set accuracy and finally,
+    log the summary output for TensorBoard visualization. We train our model for 10
+    epochs each having batch size 128\. Remember, you can vary these parameters to
+    improve the accuracy of your model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: This model achieved almost `99%` accuracy with `10` epochs on the validation
+    and test sets, which is quite good.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Reconstructing sample images
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We will also reconstruct some sample images to see how the model is performing.
+    We will use the following images as the input:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d1e7025d-af36-486e-bbd0-88ccce351187.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The code for reconstructing the preceding images is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The reconstruction function for plotting the images and saving them is given
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The reconstructed images now look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/401f42ba-c0c8-42d5-988c-8f6457e32506.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: As we can see, the labels are perfect, while the reconstructed images aren't
+    as perfect but very similar. With more hyper parameter tuning, we can generate
+    much better reconstructed images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Limitations of capsule networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'While capsule networks are great and they address the core issues of convolutional
+    neural networks, they still have a long way to go. Some of the limitations of
+    capsule networks are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The network has not been tested on large datasets like ImageNet. This puts a
+    question mark on their ability to perform well on large datasets.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The algorithm is slow, mainly due to the inner loop of the dynamic routing algorithm.
+    The number of iterations can be fairly large for large datasets.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Capsule networks definitely have higher complexity in implementation compared
+    to CNNs.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It would be interesting to see how the deep learning community addresses the
+    limitations of capsule networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we looked at the very popular neural network architecture CapsNet,
+    by Geoff Hinton (presumably the father of deep learning).
+  prefs: []
+  type: TYPE_NORMAL
+- en: We started off by understanding the limitations of CNNs in their current form.
+    They use max pooling as a crutch to achieve invariance in activities. Max pooling
+    has a tendency to lose information, and it can't model the relationships between
+    different objects in the image. We then touched upon how the human brain detects
+    objects and are viewpoint invariant. We drew an analogy to computer graphics and
+    understood how we can probably incorporate pose information in neural networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Subsequently, we learned about the basic building blocks of capsule networks,
+    that is, capsules. We understood how they differ from the traditional neuron in
+    that they take a vector as the input and produce a vector output. We also learned
+    about a special kind of non-linearity in capsules, namely the `squash`function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we learned about the novel **dynamic routing algorithm**,
+    which helps route the output from lower layer capsules to higher layer capsules.
+    The coefficients ![](img/71dd376b-2924-4d16-855c-5fbe21567127.png) are learned
+    through several iterations of the routing algorithm. The crux of the algorithm
+    was the step in which we update the coefficients ![](img/91b45590-99bc-4394-afde-cde1358ade36.png) 
+    by using the dot product of the predicted vector ![](img/1df88cb6-46c6-4d83-b51f-ade7ad980ed4.png) and
+    the output vector of the higher-layer capsule ![](img/89497384-2dc1-46c8-aa49-7a2f0f64d41d.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Furthermore, we implemented CapsNet for the Fashion MNIST dataset. We used a
+    convolutional layer, followed by a PrimaryCaps layer and a DigitCaps layer. We
+    learned about the encoder architecture and how we can get a vector representation
+    of the images. This was followed by an understanding of the decoder architecture
+    to reconstruct the image from the learned representations. The loss function in
+    this architecture was a combination of margin loss (like in SVMs) and weighted-down
+    reconstruction loss. The reconstruction loss was weighted down so that the model
+    could focus more on margin loss during training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We then trained the model on 10 epochs with a batch size of 128 and achieved
+    over 99% accuracy on the validation and test sets. We reconstructed some sample
+    images to visualize the output and found the reconstruction to be fairly accurate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In summary, throughout this chapter, we were able to understand and implement
+    capsule networks from scratch using TensorFlow and trained them on the Fashion
+    MNIST dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that you have built the basic capsule network, you can try to extend this
+    model by incorporating multiple capsule layers and see how it performs, use on
+    other image datasets and see whether this algorithm is scalable, run it without reconstruction
+    loss, and see whether you can still reconstruct the input image. By doing this,
+    you will be able to develop a good intuition toward this algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will look at the face-detection project using TensorFlow.
+  prefs: []
+  type: TYPE_NORMAL

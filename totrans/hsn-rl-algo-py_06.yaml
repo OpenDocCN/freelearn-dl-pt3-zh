@@ -1,0 +1,939 @@
+- en: Q-Learning and SARSA Applications
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Dynamic programming** (**DP**) algorithms are effective for solving **reinforcement
+    learning** (**RL**) problems, but they require two strong assumptions. The first
+    is that the model of the environment has to be known, and the second is that the
+    state space has to be small enough so that it does not suffer from the curse of
+    dimensionality problem.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we'll develop a class of algorithms that get rid of the first
+    assumption. In addition, it is a class of algorithms that aren't affected by the
+    problem of the curse of dimensionality of DP algorithms. These algorithms learn
+    directly from the environment and from the experience, estimating the value function
+    based on many returns, and do not compute the expectation of the state values
+    using the model, in contrast with DP algorithms. In this new setting, we'll talk
+    about experience as a way to learn value functions. We'll take a look at the problems
+    that arise from learning a policy through mere interactions with the environment
+    and the techniques that can be used to solve them. After a brief introduction
+    to this new approach, you'll learn about **temporal difference** (**TD**) learning,
+    a powerful way to learn optimal policies from experience. TD learning uses ideas
+    from DP algorithms while using only information gained from interactions with
+    the environment. Two temporal difference learning algorithms are SARSA and Q-learning.
+    Though they are very similar and both guarantee convergence in tabular cases,
+    they have interesting differences that are worth acknowledging. Q-learning is
+    a key algorithm, and many state-of-the-art RL algorithms combined with other techniques use
+    this method, as we will see in later chapters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To gain a better grasp on TD learning and to understand how to move from theory
+    to practice, you'll implement Q-learning and SARSA in a new game. Then, we'll
+    elaborate on the difference between the two algorithms, both in terms of their
+    performance and use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following topics will be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Learning without a model
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: TD learning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: SARSA
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Applying SARSA to Taxi-v2
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Q-learning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Applying Q-learning to Taxi-v2
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Learning without a model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'By definition, the value function of a policy is the expected return (that
+    is, the sum of discounted rewards) of that policy starting from a given state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/bd09e7fe-1faf-4516-99a2-705c097e11b4.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Following the reasoning of [Chapter 3](f2414b11-976a-4410-92d8-89ee54745d99.xhtml),
+    *Solving Problems with Dynamic Programming*, DP algorithms update state values
+    by computing expectations for all the next states of their values:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/afefe32e-0b3f-4c54-86af-5c6dc47d9456.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Unfortunately, computing the value function means that you need to know the
+    state transition probabilities. In fact, DP algorithms use the model of the environment
+    to obtain those probabilities. But the major concern is what to do when it's not
+    available. The best answer is to gain all the information by interacting with
+    the environment. If done well, it works because by sampling from the environment
+    a substantial number of times, you should able to approximate the expectation
+    and have a good estimation of the value function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: User experience
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Now, the first thing we need to clarify is how to sample from the environment,
+    and how to interact with it to get usable information about its dynamics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/891bc12d-6d45-4ff1-9cbd-9967c18c2063.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.1\. A trajectory that starts from state [![](img/d2f04276-d89b-4c09-be66-5c3e046bdcc1.png)]
+  prefs: []
+  type: TYPE_NORMAL
+- en: The simple way to do this is to execute the current policy until the end of
+    the episode. You would end up with a trajectory as shown in figure 4.1\. Once
+    the episode terminates, the return values can be computed for each state by backpropagating
+    upward the sum of the rewards, [![](img/530430fd-e98a-4631-92d1-6d399c977298.png)].
+    Repeating this process multiple times (that is, running multiple trajectories)
+    for every state would have multiple return values. The return values are then averaged
+    for each state to compute the expected returns. The expected returns computed
+    in such a way is an approximated value function. The execution of a policy until
+    a terminal state is called a trajectory or an episode. The more trajectories are
+    run, the more returns are observed and by the law of large numbers, the average
+    of these estimations will converge to the expected value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Like DP, the algorithms that learn a policy by direct interaction with the environment
+    rely on the concepts of policy evaluation and policy improvement. Policy evaluation
+    is the act of estimating the value function of a policy, while policy improvement
+    uses the estimates made in the previous phase to improve the policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Policy evaluation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We just saw how using real experience to estimate the value function is an
+    easy process. It is about running the policy in an environment until a final state
+    is reached, then computing the return value and averaging the sampled return,
+    as can be seen in equation (1):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/91e0d32e-f26f-40f4-9bbc-596c6b72bb96.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Thus the expected return of a state can be approximated from the experience
+    by averaging the sampling episodes from that state. The methods that estimate
+    the return function using (1) are called **Monte Carlo methods**. Until all of
+    the state-action pairs are visited and enough trajectory has been sampled, Monte
+    Carlo methods guarantee convergence to the optimal policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The exploration problem
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: How can we guarantee that every action of each state is chosen? And why is that
+    so important? We will first answer the latter question, and then show how we can
+    (at least in theory) explore the environment to reach every possible state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why explore?
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The trajectories are sampled following a policy that can be stochastic or deterministic.
+    In the case of a deterministic policy, each time a trajectory is sampled, the
+    visited states will always be the same, and the update of the value function will
+    take into account only this limited set of states. This will considerably limit
+    your knowledge about the environment. It is like learning from a teacher that
+    never changes their opinion on a subject—you will be stuck with those ideas without
+    learning about others.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus the exploration of the environment is crucial if you want to achieve good
+    results, and it ensures that there are no better policies that could be found.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the other hand, if a policy is designed in such a way that it explores the
+    environment constantly without taking into consideration what has already been
+    learned, the achievement of a good policy is very difficult, perhaps even impossible.
+    This balance between exploration and exploitation (behaving according to the best
+    policy currently available) is called the exploration-exploitation dilemma and
+    will be considered in greater detail in [Chapter 12](800cfc13-07b5-4b59-a8d9-b93ea3320237.xhtml),
+    *Developing an ESBAS Algorithm*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to explore
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: A very effective method that can be used when dealing with such situations is
+    called ![](img/a4dfaa2a-9c4c-42df-ac65-5686eb8e422f.png)-greedy exploration. It
+    is about acting randomly with probability ![](img/3f6cb003-0dad-4616-bbd6-4186cb5d92ce.png)
+    while acting greedily (that means choosing the best action) with probability ![](img/0955e0dc-b44d-4d6a-95a6-8d3ecbadf807.png).
+    For example, if ![](img/0cb992a9-ec1e-469a-a0c1-83068847eafa.png), on average,
+    for every 10 actions, the agent will act randomly 8 times.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To avoid exploring too much in later stages when the agent is confident about
+    its knowledge, ![](img/855b7b6e-158b-473e-903e-3bf0ac18deb6.png) can decrease over
+    time. This strategy is called **epsilon-decay**. With this variation, an initial
+    stochastic policy will gradually converge to a deterministic and, hopefully, optimal
+    policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are many other exploration techniques (such as Boltzmann exploration)
+    that are more accurate, but they are also quite complicated, and for the purpose
+    of this chapter, ![](img/85b6b1ad-0cdd-4a7c-b81e-ed1522a3c7ea.png)-greedy is a
+    perfect choice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TD learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Monte Carlo methods are a powerful way to learn directly by sampling from the
+    environment, but they have a big drawback—they rely on the full trajectory. They
+    have to wait until the end of the episode, and only then can they update the state
+    values. Therefore, a crucial factor is knowing what happens when the trajectory
+    has no end, or if it's very long. The answer is that it will produce terrifying
+    results. A similar solution to this problem has already come up in DP algorithms,
+    where the state values are updated at each step, without waiting until the end.
+    Instead of using the complete return accumulated during the trajectory, it just
+    uses the immediate reward and the estimate of the next state value. A visual example
+    of this update is given in figure 4.2 and shows the parts involved in a single
+    step of learning. This technique is called **bootstrapping**, and it is not only
+    useful for long or potentially infinite episodes, but for episodes of any length.
+    The first reason for this is that it helps to decrease the variance of the expected
+    return. The variance is decreased because the state values depend only on the
+    immediate next reward and not on all the rewards of the trajectory. The second
+    reason is that the learning process takes place at every step, making these algorithms
+    learn online. For this reason, it is called one-step learning. In contrast, Monte
+    Carlo methods are offline as they use the information only after the conclusion
+    of the episode. Methods that learn online using bootstrapping are called TD learning
+    methods*. *
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/045ce027-d975-43f6-aff7-b051a802bfd3.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.2\. One-step learning update with bootstrapping
+  prefs: []
+  type: TYPE_NORMAL
+- en: TD learning can be viewed as a combination of Monte Carlo methods and DP because
+    they use the idea of sampling from the former and the idea of bootstrapping from
+    the latter. TD learning is widely used all across RL algorithms, and it constitutes
+    the core of many of these algorithms. The algorithms that will be presented later in
+    this chapter (namely SARSA and Q-learning) are all one-step, tabular, model-free
+    (meaning that they don't use the model of the environment) TD methods.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TD update
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'From the previous chapter, *Solving Problems with Dynamic Programming *we know
+    the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3af8fde4-f56e-4c59-ad79-9a7249a2cf3d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Empirically, the Monte Carlo update estimates this value by averaging returns
+    from multiple full trajectories. Developing the equation further, we obtain the
+    following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/41d4a96c-3ed0-4d61-b5f2-41318dc3ce17.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The preceding equation is approximated by the DP algorithms. The difference
+    is that TD algorithms estimate the expected value instead of computing it. The
+    estimate is done in the same way as Monte Carlo methods do, by averaging:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e6bc2f84-563b-4d4b-b067-b80d1ca84f39.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In practice, instead of calculating the average, the TD update is carried out
+    by improving the state value by a small amount toward the optimal value:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b8fbcf7b-0605-489c-b7da-68fa840e2313.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/fbe576ca-39b1-4b16-807b-3b836f07ae75.png) is a constant that establishes
+    how much the state value should change at each update. If ![](img/c03ec553-2338-4dab-b54d-35c70afb5d9f.png),
+    then the state value will not change at all. Instead, if ![](img/5fbde5cc-9a40-4bae-9c18-97184ceb61b9.png),
+    the state value will be equal to ![](img/0d9b1ea1-fa41-433e-84c2-b1aaf4dcaaf3.png)
+    (called the **TD target**) and it will completely forget the previous value. In
+    practice, we don''t want these extreme cases, and usually ![](img/eb159765-c1ac-48f2-a063-faf81fadd941.png) ranges
+    from 0.5 to 0.001.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Policy improvement
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: TD learning converges to the optimal condition as long as each action of every
+    state has a probability of greater than zero of being chosen. To satisfy this
+    requirement, TD methods, as we saw in the previous section, have to explore the
+    environment. Indeed, the exploration can be carried out using an ![](img/5c54d0da-f5a4-4ee8-a1a2-73705e530baf.png)-greedy
+    policy. It makes sure that both greedy actions and random actions are chosen in
+    order to ensure both the exploitation and exploration of the environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Comparing Monte Carlo and TD
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: An important of both Monte Carlo TD methods is that they converge to an optimal
+    solution as long as they deal with tabular cases (meaning that state values are
+    stored in tables or arrays) and have an exploratory strategy. Nonetheless, they
+    differ in the way they update the value function. Overall, TD learning has lower
+    variance but suffers from a higher bias than Monte Carlo learning. In addition
+    to this, TD methods are generally faster in practice and are preferred to Monte
+    Carlo methods.
+  prefs: []
+  type: TYPE_NORMAL
+- en: SARSA
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we have presented TD learning as a general way to estimate a value function
+    for a given policy. In practice, TD cannot be used as it is because it lacks the
+    primary component to actually improve the policy. SARSA and Q-learning are two
+    one-step, tabular TD algorithms that both estimate the value functions and optimize
+    the policy, and that can actually be used in a great variety of RL problems. In
+    this section, we will use SARSA to learn an optimal policy for a given MDP. Then,
+    we'll introduce Q-learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A concern with TD learning is that it estimates the value of a state. Think
+    about that. In a given state, how can you choose the action with the highest next
+    state value? Earlier, we said that you should pick the action that will move the
+    agent to the state with the highest value. However, without a model of the environment
+    that provides a list of the possible next states, you cannot know which action
+    will move the agent to that state. SARSA, instead of learning the value function,
+    learns and applies the state-action function, ![](img/b734e28e-01c0-40bc-8583-569ba97c58e5.png).
+    ![](img/8e2818a4-9f52-45f7-b551-b14f14b6e446.png) tells the value of a state, ![](img/fdbded2a-a552-42a3-80be-a42bff79adf1.png),
+    if the action, ![](img/229a340d-a599-4777-b3b5-df6ee0b24519.png), is taken.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The algorithm
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Basically, all the observations we have done for the TD update are also valid
+    for SARSA. Once we apply them to the definition of Q-function, we obtain the SARSA
+    update:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d0cd69ef-50ea-4131-88d5-a05ab1c1ffa3.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/1a685bc4-b99e-4c43-aea0-89e8c7f11fb3.png) is a coefficient that determines
+    how much the action value has been updated. ![](img/320ab0ac-4203-4ead-b5dc-10eba45f5849.png) is
+    the discount factor, a coefficient between 0 and 1 used to give less importance
+    to the values that come from distant future decisions (short-term actions are
+    preferred to long-term ones). A visual interpretation of the SARSA update is given
+    in figure 4.3.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The name SARSA comes from the update that is based on the state, ![](img/a4ccb68c-970d-490b-9c86-874d84aeb271.png);
+    the
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'action, ![](img/29d4bf6c-98ba-41ed-914d-549566d03369.png), the reward, ![](img/9653ec88-0bed-4aa5-8821-cd19a7c573f5.png); the
+    next state, ![](img/e80bc89b-3fc7-4d59-825e-4c15a483c2f6.png); and finally, the
+    next action, ![](img/337c2089-dcd8-4b8b-ac27-404cc365ce00.png). Putting everything
+    together, it forms ![](img/083544e5-5496-4797-bdfb-134e99081692.png), as can be
+    seen in figure 4.3:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/91e24270-8c44-4ff7-9fe7-cb70af24364f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.3 SARSA update
+  prefs: []
+  type: TYPE_NORMAL
+- en: SARSA is an on-policy algorithm. On-policy means that the policy that is used
+    to collect experience through interaction with the environment (called a behavior
+    policy) is the same policy that is updated. The on-policy nature of the method
+    is due to the use of the current policy to select the next action, ![](img/92e66d09-e556-4192-ba60-e709abab7396.png), to
+    estimate ![](img/2c2e535d-bf82-4c70-8702-d6c76a9abec4.png), and the assumption
+    that in the following action it will follow the same policy (that is, it acts
+    according to action ![](img/cd7f94cc-71ec-4804-8769-2e82a835cb00.png)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'On-policy algorithms are usually easier than off-policy algorithms, but they
+    are less powerful and usually require more data to learn. Despite this, as for
+    TD learning, SARSA is guaranteed to converge to the optimal policy if it visits
+    every state-action an infinite number of times and the policy, over time, becomes
+    a deterministic one. Practical algorithms use an ![](img/9abb1d02-9ae0-492d-9681-7a41fb1bba29.png)-greedy
+    policy with a decay that tends to be zero, or a value close to it. The pseudocode
+    of SARSA is summarized in the following code block. In the pseudocode, we used
+    an ![](img/9abb1d02-9ae0-492d-9681-7a41fb1bba29.png)-greedy policy, but any strategy that
+    encourages exploration can be used:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![](img/4d600891-0329-46b9-bbf7-3b597dffc849.png) is a function that implements
+    the ![](img/1bf5501b-78b9-49b7-81a6-c8135dfddedf.png) strategy. Note that SARSA
+    executes the same action that has been selected and used in the previous step
+    to update the state-action value.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Applying SARSA to Taxi-v2
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: After a more theoretical view of TD learning and particularly of SARSA, we are
+    finally able to implement SARSA to solve problems of interest. As we saw previously,
+    SARSA can be applied to environments with unknown models and dynamics, but as
+    it is a tabular algorithm with scalability constraints, it can only be applied
+    to environments with small and discrete action and state spaces. So, we choose
+    to apply SARSA to a gym environment called Taxi-v2 that satisfies all the requirements
+    and is a good test bed for these kinds of algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Taxi-v2 is a game that was introduced to study hierarchical reinforcement learning
+    (a type of RL algorithm that creates a hierarchy of policies, each with the goal
+    of solving a subtask) where the aim is to pick up a passenger and drop them at
+    a precise location. A reward of +20 is earned when the taxi performs a successful
+    drop-off, but a penalty of -10 is incurred for illegal pickup or drop-off. Moreover,
+    a point is lost for every timestep. The render of the game is given in figure
+    4.4\. There are six legal moves corresponding to the four directions, the pickup,
+    and the drop-off actions. In figure 4.4, the `:` symbol represents an empty location;
+    the `|` symbol represents a wall that the taxi can't travel through; and `R,G,Y,B`
+    are the four locations. The taxi, the yellow rectangle in the diagram, has to
+    pick up a person in the location identified by the light blue color and drop them
+    off in the location identified by the color violet.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f8f30f96-62a1-40e1-9564-76b3a549628b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.4 Start state of the Taxi-v2 environment
+  prefs: []
+  type: TYPE_NORMAL
+- en: The implementation is fairly straightforward and follows the pseudocode given
+    in the previous section. Though we explain and show all the code here, it is also
+    available on the GitHub repository of the book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's first implement the main function, `SARSA(..)`, of the SARSA algorithm,
+    which does most of the work. After this, we'll implement a couple of auxiliary
+    functions that perform simple but essential tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`SARSA` needs an environment and a few other hyperparameters as arguments to
+    work:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A learning rate, `lr`, previously called ![](img/130995d6-a1de-4526-bd0b-cecb56cc7b94.png),
+    that controls the amount of learning at each update.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`num_episodes` speaks for itself because it is the number of episodes that
+    SARSA will execute before terminating.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`eps` is the initial value of the randomness of the ![](img/62d758d1-d853-4663-b013-9e0dacc1380f.png)-greedy
+    policy.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`gamma` is the discount factor used to give less importance to actions more
+    in the future.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`eps_decay` is the linear decrement of `eps` across episodes.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The first lines of code are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, some variables are initialized. `nA` and `nS` are the numbers of actions
+    and observations respectively of the environment, `Q` is the matrix that will
+    contain the Q-values of each state-action pair, and `test_rewards` and `games_rewards`
+    are lists used later to hold information about the scores of the games.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we can implement the main loop that learns the Q-values:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Line 2 in the preceding code block resets the environment on each new episode
+    and stores the current state of the environment. Line 3 initializes a Boolean
+    variable that will be set to `True` when the environment is in a terminal state.
+    The following two lines update the `eps` variable until it has a value higher
+    than 0.01\. We set this threshold to keep, in the long run, a minimum rate of
+    exploration of the environment. The last line chooses an ![](img/c438fb76-8f61-4cb6-a685-8b6b774c4a4e.png)-greedy
+    action based on the current state and the Q-matrix. We'll define this function
+    later.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we have taken care of the initialization needed at the start of each
+    episode and have chosen the first action, we can loop until the episode (the game)
+    ends. The following piece of code samples from the environment and updates the
+    following Q-function, as per formula (5):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`done` holds a Boolean value that indicates whether the agent is still interacting
+    with the environment, as can be seen in line 2\. Therefore, to loop for a complete
+    episode is the same as iterating as long as `done` is `False` (the first line
+    of the code). Then, as usual, `env.step` returns the next state, the reward, the
+    done flag, and an information string. In the next line, `eps_greedy` chooses the
+    next action based on the `next_state` and the Q-values. The heart of the SARSA
+    algorithm is contained in the subsequent line, which performs the update as per
+    formula (5). Besides the learning rate and the gamma coefficient, it uses the
+    reward obtained in the last step and the values held in the `Q` array.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The final lines set the state and action as the previous one, adds the reward
+    to the total reward of the game, and if the environment is in a final state, the
+    sum of the rewards is appended to `games_reward` and the inner cycle terminates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the last lines of the `SARSA` function, every 300 epochs, we run 1,000 test
+    games and print information such as the epoch, the `eps` value, and the mean of
+    the test rewards. Moreover, we return the `Q` array:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can now implement the `eps_greedy` function, which chooses a random action
+    from those that are allowed with probability, `eps`. To do this, it just samples
+    a uniform number between 0 and 1, and if this is smaller than `eps`, it selects
+    a random action. Otherwise, it selects a greedy action:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The greedy policy is implemented by returning the index that corresponds to
+    the maximum Q value in state `s`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The last function to implement is `run_episodes`, which runs a few episodes
+    to test the policy. The policy used to select the actions is the greedy policy.
+    That''s because we don''t want to explore while testing. Overall, the function
+    is almost identical to the one implemented in the previous chapter for the dynamic
+    programming algorithms:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Great!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now we''re almost done. The last part involves only creating and resetting
+    the environment and the call to the `SARSA` function, passing the environment
+    along with all the hyperparameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As you can see, we start with an `eps` of `0.4`. This means that the first
+    actions will be random with a probability of 0.4 and because of the decay, it
+    will decrease until it reaches the minimum value of 0.01 (that is, the threshold
+    we set in the code):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8dc67ed8-30a7-4d56-9d77-75086fc3ab67.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.5 Results of the SARSA algorithm on Taxi-v2
+  prefs: []
+  type: TYPE_NORMAL
+- en: The performance plot of the test games' cumulative rewards is shown in figure
+    4.5\. Moreover, figure 4.6 shows a complete episode run with the final policy.
+    It has to be read from left to right and from top to bottom. We can see that the
+    taxi (highlighted in yellow first, and green later) has driven along an optimal
+    path in both directions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/96385f67-a4db-409a-ad56-a599607f285f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.6 Render of the Taxi game. The policy derives from the Q-values trained
+    with SARSA
+  prefs: []
+  type: TYPE_NORMAL
+- en: For all the color references mentioned in the chapter, please refer to the color
+    images bundle at [http://www.packtpub.com/sites/default/files/downloads/9781789131116_ColorImages.pdf](http://www.packtpub.com/sites/default/files/downloads/9781789131116_ColorImages.pdf).
+  prefs: []
+  type: TYPE_NORMAL
+- en: To have a better view of the algorithm and all the hyperparameters, we suggest
+    you play with them, change them, and observe the results. You can also try to
+    use an exponential ![](img/5e164cd1-0f13-42ad-b36f-e831f4067a4d.png)-decay rate
+    instead of a linear one. You learn by doing just as RL algorithms do, by trial
+    and error.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Q-learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Q-learning is another TD algorithm with some very useful and distinct features
+    from SARSA. Q-learning inherits from TD learning all the characteristics of one-step
+    learning (from TD learning, that is, the ability of learning at each step) and
+    the characteristic to learn from experience without a proper model of the environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The most distinctive feature about Q-learning compared to SARSA is that it's
+    an off-policy algorithm. As a reminder, off-policy means that the update can be
+    made independently from whichever policy has gathered the experience. This means
+    that off-policy algorithms can use old experiences to improve the policy. To distinguish
+    between the policy that interacts with the environment and the one that actually
+    improves, we call the former a behavior policy and the latter a target policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, we'll explain the more primitive version of the algorithm that copes with
+    tabular cases, but it can easily be adapted to work with function approximators
+    such as artificial neural networks. In fact, in the next chapter, we'll implement
+    a more sophisticated version of this algorithm that is able to use deep neural
+    networks and that also uses previous experiences to exploit the full capabilities
+    of the off-policy algorithms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But first, let's see how Q-learning works, formalize the update rule, and create
+    a pseudocode version of it to unify all the components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Theory
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The idea of Q-learning is to approximate the Q-function by using the current
+    optimal action value. The Q-learning update is very similar to the update done
+    in SARSA, with the exception that it takes the maximum state-action value:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/fb0b7f8a-8518-444a-80a5-59a167b198e1.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/d962bd58-7a56-43e8-b739-270a615d2d4c.png) is the usual learning rate
+    and ![](img/44419044-3cd5-432f-ad02-ed49ccd71a98.png) is the discount factor.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: While the SARSA update is done on the behavior policy (like a ![](img/f70f0377-f506-45eb-804f-c31684795df5.png)-greedy
+    policy), the Q-update is done on the greedy target policy that results from the
+    maximum action value. If this concept is not clear yet, take a look at figure
+    4.7\. While in SARSA we had figure 4.3, where both actions ![](img/b231d43d-ef10-4d2f-88d2-33f8005762e7.png) and ![](img/5266e9e4-152f-4cfa-9cc8-fef3471a0317.png) come
+    from the same policy, in Q-learning, action ![](img/46e4ade2-5c1e-4c82-8025-cb0992bdc14f.png) is
+    chosen based on the next maximum state-action value. Because an update in Q-learning
+    is not more dependent on the behavior policy (which is used only for sampling
+    from the environment), it becomes an off-policy algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/33d09a14-c300-4a4f-a24e-06664799d4e2.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.7\. Q-learning update
+  prefs: []
+  type: TYPE_NORMAL
+- en: The algorithm
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As Q-learning is a TD method, it needs a behavior policy that, as time passes,
+    will converge to a deterministic policy. A good strategy is to use an ![](img/20394dda-420a-4364-b4ba-b70ace279a17.png)-greedy
+    policy with linear or exponential decay (as has been done for SARSA).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To recap, the Q-learning algorithm uses the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A target greedy policy that constantly improves
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A behavior ![](img/31f67e90-d151-47d5-be3b-1fef83212307.png)-greedy policy to
+    interact with and explore the environment
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'After these conclusive observations, we can finally come up with the following
+    pseudocode for the Q-learning algorithm:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: In practice, ![](img/6e1c9159-3acf-48e1-b9aa-5fe753a24ff7.png) usually has values
+    between 0.5 and 0.001 and ![](img/bacc1adc-cabe-4814-84d7-b21beb1cd5e3.png) ranges
+    from 0.9 to 0.999.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Applying Q-learning to Taxi-v2
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In general, Q-learning can be used to solve the same kinds of problems that
+    can be tackled with SARSA, and because they both come from the same family (TD
+    learning), they generally have similar performances. Nevertheless, in some specific
+    problems, one approach can be preferred to the other. So it's useful to also know
+    how Q-learning is implemented.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For this reason, here we'll implement Q-learning to solve Taxi-v2, the same
+    environment that was used for SARSA. But be aware that with just a few adaptations,
+    it can be used with every other environment with the correct characteristics.
+    Having the results from both Q-learning and SARSA from the same environment we'll
+    have the opportunity to compare their performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To be as consistent as possible, we kept some functions unchanged from the
+    SARSA implementation. These are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`eps_greedy(Q,s,eps)` is the ![](img/680d9c2c-3eff-46ca-ab5c-aa21b40ae4d9.png)-greedy
+    policy that takes a `Q` matrix, a state `s`, and the `eps` value. It returns an
+    action.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`greedy(Q,s)` is the greedy policy that takes a `Q` matrix and a state `s`.
+    It returns the action associated with the maximum Q-value in the state `s`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`run_episodes(env,Q,num_episodes,to_print)` is a function that runs `num_episodes`
+    games to test the greedy policy associated with the `Q` matrix. If `to_print`
+    is `True` it prints the results. Otherwise, it returns the mean of the rewards.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: To see the implementation of those functions, you can refer to the *SARSA applied
+    to Taxi-v2* section or the GitHub repository of the book, which can be found at [https://github.com/PacktPublishing/Reinforcement-Learning-Algorithms-with-Python](https://github.com/PacktPublishing/Reinforcement-Learning-Algorithms-with-Python).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The main function that executes the Q-learning algorithm takes an environment, `env`;
+    a learning rate, `lr` (the ![](img/938bd970-d732-4e79-9f7a-004484d24ea3.png) variable
+    used in (6)); the number of episodes to train the algorithm, `num_episodes`; the
+    initial ![](img/af85e4b0-f91e-433d-b793-84d243e166ac.png) value, `eps`, used by
+    the ![](img/d506f91c-1270-406d-90ae-df116f43c808.png)-greedy policy; the decay
+    rate, `eps_decay`; and the discount factor, `gamma`, as arguments:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: The first lines of the function initialize the variables with the dimensions
+    of the action and observation space, initialize the array `Q` that contains the
+    Q-value of each state-action pair, and create empty lists used to keep track of
+    the progress of the algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, we can implement the cycle that iterates `num_episodes` times:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: Each iteration (that is, each episode) starts by resetting the environment,
+    initializing the `done` and `tot_rew` variables, and decreasing `eps` linearly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, we have to iterate across all of the timesteps of an episode (that correspond
+    to an episode) because that is where the Q-learning update takes place:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is the main body of the algorithm. The flow is fairly standard:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The action is chosen following the ![](img/16c14ae5-c0ba-41bc-a4ca-0d0cb955060d.png)-greedy
+    policy (the behavior policy).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The action is executed in the environment, which returns the next state, a reward,
+    and the done flag.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The action-state value is updated based on formula (6).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`next_state` is assigned to the `state` variable.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The reward of the last step is added up to the cumulative reward of the episode.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: If it was the final step, the reward is stored in `games_reward` and the cycle
+    terminates.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'In the end, every 300 iterations of the outer cycle, we can run 1,000 games
+    to test the agent, print some useful information, and return the `Q` array:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'That''s everything. As a final step, in the `main` function, we can create
+    the environment and run the algorithm:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The algorithm reaches steady results after about 3,000 episodes, as can be
+    deduced from figure 4.8\. This plot can be created by plotting `test_rewards`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a274ced2-3c3c-40df-bec8-099457bd2e54.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.8 The results of Q-learning on Taxi-v2
+  prefs: []
+  type: TYPE_NORMAL
+- en: As usual, we suggest that you tune the hyperparameters and play with the implementation
+    to gain better insight into the algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Overall, the algorithm has found a policy similar to the one found by the SARSA
+    algorithm. To find it by yourself, you can render some episodes or print the greedy
+    action resulting from the `Q` array.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Comparing SARSA and Q-learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We will now look at a quick comparison of the two algorithms. In figure 4.9,
+    the performance of Q-learning and SARSA in the Taxi-v2 environment is plotted
+    as the episode progresses. We can see that both are converging to the same value
+    (and to the same policy) with comparable speed. While doing these comparisons,
+    you have to consider that the environment and the algorithms are stochastic and
+    they may produce different results. We can also see from plot 4.9 that Q-learning
+    has a more regular shape. This is due to the fact that it is more robust and less
+    sensitive to change:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/95b84c0e-2eea-4232-ab65-f58a52018e3a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.9 Comparison of the results between SARSA and Q-learning on Taxi-v2
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, is it better to use Q-learning? Overall, the answer is yes, and in most
+    cases, Q-learning outperforms the other algorithms, but there are some environments
+    in which SARSA works better. The choice between the two is dependent on the environment
+    and the task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we introduced a new family of RL algorithms that learn from
+    experience by interacting with the environment. These methods differ from dynamic
+    programming in their ability to learn a value function and consequently a policy
+    without relying on the model of the environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Initially, we saw that Monte Carlo methods are a simple way to sample from the
+    environment but because they need the full trajectory before starting to learn,
+    they are not applicable in many real problems. To overcome these drawbacks, bootstrapping
+    can be combined with Monte Carlo methods, giving rise to so-called temporal difference
+    (TD) learning. Thanks to the bootstrapping technique, these algorithms can learn
+    online (one-step learning) and reduce the variance while still converging to optimal
+    policies. Then, we learned two one-step, tabular, model-free TD methods, namely
+    SARSA and Q-learning. SARSA is on-policy because it updates a state value by choosing
+    the action based on the current policy (the behavior policy). Q-learning, instead,
+    is off-policy because it estimates the state value of a greedy policy while collecting
+    experience using a different policy (the behavior policy). This difference between
+    SARSA and Q-learning makes the latter slightly more robust and efficient than
+    the former.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Every TD method needs to explore the environment in order to know it well and
+    find the optimal policies. The exploration of the environment is in the hands
+    of the behavior policy, which occasionally has to act non-greedily, for example,
+    by following an ![](img/00dff209-29c8-4bf8-b170-49e428beccd1.png)-greedy policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We implemented both SARSA and Q-learning and applied them to a tabular game
+    called Taxi. We saw that both converge to the optimal policy with similar results.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Q-learning algorithm is key in RL because of its qualities. Moreover, through careful
+    design, it can be adapted to work with very complex and high-dimensional games.
+    All of this is possible thanks to the use of function approximations such as deep
+    neural networks. In the next chapter, we'll elaborate on this, and introduce a
+    deep Q-network that can learn to play Atari games directly from pixels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: What's the main property of the Monte Carlo method used in RL?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Why are Monte Carlo methods offline?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What are the two main ideas of TD learning?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What are the differences between Monte Carlo and TD?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Why is exploration important in TD learning?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Why is Q-learning off-policy?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

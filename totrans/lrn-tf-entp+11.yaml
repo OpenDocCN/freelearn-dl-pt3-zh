@@ -1,0 +1,2352 @@
+- en: 'Chapter 7:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model Optimization
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we will learn about the concept of model optimization through
+    a technique known as quantization. This is important because even though capacity,
+    such as compute and memory, are less of an issue in a cloud environment, latency
+    and throughput are always a factor in the quality and quantity of the model's
+    output. Therefore, model optimization to reduce latency and maximize throughput
+    can help reduce the compute cost. In the edge environment, many of the constraints
+    are related to resources such as memory, compute, power consumption, and bandwidth.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, you will learn how to make your model as lean and mean as
+    possible, with acceptable or negligible changes in the model''s accuracy. In other
+    words, we will reduce the model size so that we can have the model running on
+    less power and fewer compute resources without overly impacting its performance.
+    In this chapter, we are going to take a look at recent advances and a method available
+    for TensorFlow: TFLite Quantization.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the quantization concept
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Preparing a full original model for scoring
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Converting a full model to a reduced float16 model
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Converting a full model to a reduced hybrid quantization model
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Converting a full model to an integer quantization model
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: You will find all the source code in [https://github.com/PacktPublishing/learn-tensorflow-enterprise.git](https://github.com/PacktPublishing/learn-tensorflow-enterprise.git).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You may clone it with a `git` command in your command terminal:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: All the resources for this chapter are available in the `chapter_07` folder
+    in the GitHub link for the book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the quantization concept
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Quantization is a technique whereby the model size is reduced and its efficiency
+    therefore improved. This technique is helpful in building models for mobile or
+    edge deployment, where compute resources or power supply are constrained. Since
+    our aim is to make the model run as efficiently as possible, we are also accepting
+    the fact that the model has to become smaller and therefore less precise than
+    the original model. This means that we are transforming the model into a lighter
+    version of its original self, and that the transformed model is an approximation
+    of the original one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Quantization may be applied to a trained model. This is known as a post-training
+    quantization API. Within this type of quantization, there are three approaches:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`float 32 bits` ops to `float 16` ops.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`8 bits`, while keeping biases and activation as `32 bits` ops.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`8 bits`, while biases and activations may be `8` or `16 bits`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The preceding approaches are applicable to a TensorFlow model that was built
+    and trained using traditional means. Another approach is to train the model while
+    performing optimization. This is known as **quantization-aware training**, in
+    which we apply the API to emulate the quantization operations during the forward
+    pass of the deep learning training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The result model contains quantized values. This is relatively new and only
+    an integer quantization API is available. Quantization-aware training currently
+    only works for custom built models, not models from TensorFlow Hub, which are
+    pre-trained. If you wish to use a quantized version of those famous pre-trained
+    models, you can find these models here: [https://www.tensorflow.org/lite/guide/hosted_models](https://www.tensorflow.org/lite/guide/hosted_models).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training a baseline model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let''s begin start by training an image classification model with five classes
+    of flowers. We will leverage a pre-trained ResNet feature vector hosted in TensorFlow
+    Hub ([https://tfhub.dev/google/imagenet/resnet_v2_50/feature_vector/4](https://tfhub.dev/google/imagenet/resnet_v2_50/feature_vector/4))
+    and you can download the flower images in TFRecord format from here: [https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/1ECTVN](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/1ECTVN).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Alternatively, if you cloned the repository for this book, the source code and
+    TFRecord dataset for training a baseline model can be found at [https://github.com/PacktPublishing/learn-tensorflow-enterprise/tree/master/chapter_07/train_base_model](https://github.com/PacktPublishing/learn-tensorflow-enterprise/tree/master/chapter_07/train_base_model).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following is a training script `default_trainer.py` file that trains this
+    model with the TFRecord dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We start this training script with an `import` statement for all the libraries
+    we will require:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: A `Absl` is a useful library. In this library, the `flags` API is used to define
+    user input. This is especially handy because we invoke this script through a user
+    command instead of running it as a notebook.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Equipped with a `flags` API in the `import` statement, we will define a short-hand
+    alias for `flags.FLAGS`, and then define a series of user inputs that we will
+    pass to the script. This is accomplished with the help of the `tf.compat.v1.flags`
+    API. Notice that we can define a data type for user inputs and provide a default
+    value so that users do not have to specify every input:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: There are a couple of user flags that are worthy of further explanation. The
+    `data-dir` flag defines the file path for training data. In this case, it is pointing
+    to a folder path, `tf_datasets/flower_photos`, from the current directory, `train_base_model`.
+    The other user flag is `cache_dir`. This is the path to our downloaded ResNet
+    feature vector model. While we can access the TensorFlow Hub directly through
+    the internet, there are occasions where connectivity may be an issue. Therefore,
+    downloading the model and putting it in a local environment is a good idea.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We may wrap the model architecture and compilation in the following function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This function is responsible for building the model and compiling it with proper
+    `optimizer` and `loss` functions. It returns a model object for training.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'As for the image data''s input pipeline, the pipeline needs to handle data
+    parsing. This is accomplished with the following function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: As the function's name suggests, this function takes a sample that is stored
+    in TFRecord. It is parsed with a feature description and the sample image (which
+    is a `byte string`) decoded as a JPEG image. As for the image label, the function
+    also parses the label name (`image`/`class`/`text`) and converts it into a one-hot
+    vector. The jpeg image is resized to `224` by `224`. As a result, this function
+    returns a tuple. This tuple consists of one resized image and its label.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We also need to normalize the image pixel value to a range of [0, 1.0]. This
+    is done through the following function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the `normalize` function, a JPEG image, represented as a NumPy array, is
+    normalized to a range of `[0, 1.0]`. At the same time, although we are not doing
+    anything with the label, it is a good idea to pass the label along with the image
+    and return them as a tuple so that you keep track of the image and label together.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Then we apply shuffle and batch ops to the training data in the following function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This function returns a dataset with shuffle, repeat, batch, and prefetch ops
+    attached. This is a standard approach for getting the dataset ready for training.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now we come to the main driver of this code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In this section of the `main()` function, we provide the logic for a distributed
+    training strategy.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Continuing with `main()`, the data paths are identified and handled by the
+    `tf.data` API:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: With the preceding code, all three data sources – training, validation, and
+    testing – are identified and referenced. Recall that the wildcard symbol, `*`,
+    in the filename pattern helps this pipeline to be scalable. It doesn't matter
+    how many TFRecord data parts you have; this pipeline can handle it.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Continuing with `main()`, now we need to apply feature engineering and normalization
+    functions to every sample in the training and validation datasets. This is done
+    through the `map` function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Training and validation datasets are batched according to the respective user
+    flags. If none are given, default values are used.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now we need to set up some parameters for training and validation:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we set the number of classes and image size in variables
+    to be passed into the model training process. Then we determine the number of
+    steps for each epoch of training and cross-validation.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Continuing with `main()`, we can now create the model by invoking the `model_default`
+    function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we invoke the `model_default` function to build and compile
+    our model. We also set up callbacks for the training checkpoint.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Continuing with `main()`, we can now launch the training process:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we pass the training and validation datasets into the
+    `fit` function. The number of epochs is determined by the user input. If none
+    is given, then the default value is used.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Continuing with `main()`, we may log output as `STDOUT` in the terminal where
+    this script is executed:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we also leverage a timestamp value to build a folder
+    name, where the models built each time may be saved according to the time of training
+    completion.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'This concludes `main()`. The model is saved in `model_save_dir`. To invoke
+    this script, you simply have to run the following command in your Python environment:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'From the directory where this script is stored, you will find a subfolder with
+    the prefix name `trained_resnet_vector`, followed by a date and time stamp such
+    as `20200910-213303`. This subfolder contains the saved model. We will use this
+    model as our baseline model. Once training is complete, you will find the saved
+    model in the following directory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`trained_resnet_vector-20200910-213303/save_model/assets`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This saved model is in the same directory where `default_trainer.py` is stored.
+    Now that we have a trained TensorFlow model, in the next section, we are going
+    score our test data with the trained model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Preparing a full original model for scoring
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: After training for a full model is complete, we will use a `Scoring` Jupyter
+    notebook in this repository to demonstrate scoring with a full model. This notebook
+    can be found in [https://github.com/PacktPublishing/learn-tensorflow-enterprise/blob/master/chapter_07/train_base_model/Scoring.ipynb](https://github.com/PacktPublishing/learn-tensorflow-enterprise/blob/master/chapter_07/train_base_model/Scoring.ipynb).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For the original model, it is stored in the `savedModel` Protobuf format. We
+    need to load it as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The full model we just trained is now loaded in our Jupyter notebook''s runtime
+    as `trained_model`. For scoring, a few more steps are required. We have to find
+    the model signature for prediction:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'It shows that there is only one signature in this list:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will create an `infer` wrapper function and pass the signature into it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here, `signature_list[0]` is equivalent to `serving_default`. Now let''s print
+    the output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s take a look at the output of the preceding function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: The output is a NumPy array of `shape=(None, 5)`. This array will hold the probability
+    of classes predicted by the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now let's work on the test data. The test data provided in this case is in TFRecord
+    format. We are going to convert it to a batch of images expressed as a NumPy array
+    in the dimensions of `[None, 224, 224, 3]`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Preparing test data
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: This part is very similar to what we saw in [*Chapter 6*](B16070_06_Final_JM_ePub.xhtml#_idTextAnchor177),
+    *Hyperparameter Tuning*, where we used TFRecord extensively as the input format
+    for model training. The TFRecord used here is available in [https://github.com/PacktPublishing/learn-tensorflow-enterprise/tree/master/chapter_07/train_base_model/tf_datasets/flower_photos](https://github.com/PacktPublishing/learn-tensorflow-enterprise/tree/master/chapter_07/train_base_model/tf_datasets/flower_photos).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loading test data
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let''s start by loading the TFRecord data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will check the sample size of the image with the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here is the output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: This shows that we have 50 samples in our test data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are `50` images in this test dataset. We will reuse the helper function
+    from [*Chapter 6*](B16070_06_Final_JM_ePub.xhtml#_idTextAnchor177), *Hyperparameter
+    Tuning*, to decode the TFRecord and the metadata within and then normalize the
+    pixel values:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE62]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE63]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE64]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE65]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE66]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE67]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE68]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE69]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE70]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `decode_and_resize` function parses an image, resizes it to `224` by `224`
+    pixels, and, at the same time, one-hot encodes the image's label. `decode_and_resize`
+    then returns the image and corresponding label as a tuple, so that the image and
+    label are always kept together.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `normalize` function divides the image pixel value by `255` in order to
+    bring the pixel range to `[0, 1.0]`. And even though nothing is done in relation
+    to the label, it is necessary to keep track of the image and label as a tuple
+    so that they are always kept together.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now we may apply the preceding helper functions to decode, standardize, and
+    normalize images in the TFRecord dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE71]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE72]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Notice that we introduced an additional dimension as the first dimension through
+    `np.expand_dims`. This extra dimension is intended for the variable batch size:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE73]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE74]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE75]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE76]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE77]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE78]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE79]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE80]'
+  prefs: []
+  type: TYPE_PRE
+- en: The test data is now in NumPy format with standardized dimensions, pixel values
+    between `0` and `1`, and is batched, as are the labels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will now inspect these images. In order to do so, we may display the NumPy
+    array, `np_img_holder`, as images with the following code in Figure 7.1:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE81]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE82]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE83]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE84]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE85]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE86]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the preceding code snippet, we iterate through our image array and place
+    each image in one of the subplots. There are 50 images (10 rows, with each row
+    having five subplots), as can be seen in the following figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.1 – 50 images within the test dataset of five flower classes'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/image0013.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 7.1 – 50 images within the test dataset of five flower classes
+  prefs: []
+  type: TYPE_NORMAL
+- en: Scoring a single image with a full model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let''s now take a look at the shape of the test data, and understand what it
+    takes to transform test data into the shape expected by the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will first test our scoring routine with just a single image. Just like
+    how we created an image batch by adding a new dimension as the first dimension,
+    we will do the same to create an image batch with a sample size of `1`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE87]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now the dimension is correct, which is a batch of one image. Let''s convert
+    this to a tensor with a type of `float32`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE88]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then, pass this to the `infer` function for scoring:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE89]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: You will recall that the last layer of our model is a dense layer named `custom_class`.
+    With five nodes, and softmax as the activation function in each node, we will
+    get the probability for each of the five classes.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We will now inspect the content of the prediction:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE90]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The output should appear similar to this:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE91]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: These values in the array represent probability. Each position in the array
+    represents a class of flower type. As you can see, the highest probability is
+    in the very last position of the array; the index corresponding to this position
+    is `4`. We need to map `4` to the plaintext name.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now we will convert it to a NumPy array so that we may find the index where
+    the maximum probability is predicted:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE92]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The fourth position index is where maximum probability is predicted. Now we
+    need to know what this represents by mapping this index to a label. We need to
+    create a reverse lookup dictionary to map probability back to the label. We just
+    found the index where the maximum probability is located. The next step is to
+    map `idx` to the correct flower type. In order to do this, we need to extract
+    this information from TFRecord:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE93]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we used the same feature description (`feature_description`)
+    to parse `test_all_ds`. Once it is parsed using `_parse_function`, we iterate
+    through the entire test dataset. The information we want is in `image/class/label`
+    and `image/class/text`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We simply create a dictionary, where the key is `label_idx` and the value is
+    `label_str`. The result is `val_label_map`. If we inspect it as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE94]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The output is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE95]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then we evaluate `idx`:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE96]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Here is the output:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE97]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This maps our image to the `tulip` class.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Scoring batch images with a full model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In the previous section, we looked at how to score one image. Now we want to
+    score a batch of images. In our test data, there are 50 images:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the previous section, we created the image batch in the proper shape of
+    `[50, 224, 224, 3]`. This is ready for scoring:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE98]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let''s create a function that assists in looking up the label name when given
+    a NumPy array and a lookup dictionary:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE99]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This function takes a NumPy array, maps the position where the maximum value
+    exists, and then maps that position with a dictionary.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'This is a list holding our ground truth labels as indicated by `np_lbl_holder`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE100]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '`actual` holds the actual plaintext labels of all 50 test samples.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'This is how we can get a list holding the predicted label:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE101]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '`predicted_label` holds the predictions for all 50 test samples in plaintext
+    because we leverage the `lookup` function to map the probability to the flower
+    type name.'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We will compare `predicted_label` and `actual` to get the accuracy of the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE102]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This shows that our full model's accuracy is 82%. This is simply done by comparing
+    `actual` with `predicted_label` using the `accuracy_score` API from `sklearn`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: It's expected that your model accuracy will be slightly different from the nominal
+    value printed here. Every time a base model is trained, the model accuracy will
+    not be identical. However, it should not be too dissimilar to the nominal value.
+    Another factor that impacts reproducibility in terms of model accuracy is the
+    number of epochs used in training; in this case, only five epochs for demonstration
+    and didactic purposes. More training epochs will give you a better and tighter
+    variance in terms of model accuracy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Converting a full model to a reduced float16 model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this section, we are going to load the model we just trained and quantize
+    it into a reduced `float16` model. For the convenience of step-by-step explanations
+    and your learning experience, it is recommended that you use JupyterLab or Jupyter
+    Notebook to follow along with the explanation here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s start by loading the trained model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE103]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `tf.saved_model.load` API helps us to load the saved model we built and
+    trained.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Then we will create a `converter` object to refer to the `savedModel` directory
+    with the following line of code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE104]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'For the `converter` object, we will select the `DEFAULT` optimization strategy
+    for the converter to best improve model size and latency:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE105]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The alternatives are `OPTIMIZE_FOR_LATENCY` or `OPTIMIZE_FOR_SIZE`. Refer to
+    [https://www.tensorflow.org/api_docs/python/tf/lite/Optimize](https://www.tensorflow.org/api_docs/python/tf/lite/Optimize)
+    for information.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Next, we will set `float16` as the target type for the model parameters and
+    start the conversion process:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE106]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We will set up a directory designation for saving the quantized model using
+    the following code:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE107]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, we will create a `pathlib` object to represent the directory where we
+    want to save our quantized model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE108]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let''s create the directory for saving the quantized model:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE109]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We will now create a `pathlib` object, `tgt`, to represent the quantized model
+    file:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE110]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We will now write the quantized model using the `pathlib` object, `tgt`:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE111]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'This will show the output in terms of the size of bytes written:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE112]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: With the last command, you will see that the quantized model size is slightly
+    more than `47` MB, at exactly `47,487,392` Bytes. Go to the following directory:`../trained_resnet_vector-unquantized/save_model/variables.`
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'This shows that the original model''s weight and bias file is slightly more
+    than 95 MB (results may vary and won''t be exactly the same if you train it again;
+    however, it should be very close to 95 MB) as shown in the following figure:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 7.2 – Original model’s weight and bias file size'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/image0032.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 7.2 – Original model's weight and bias file size
+  prefs: []
+  type: TYPE_NORMAL
+- en: The quantized model is about half the size of the original model. This is as
+    expected, as the model was converted from `float32` to `float16` format. Next,
+    we are going to score our test data with the reduced `float16` model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Preparing the reduced float16 model for scoring
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In this section, we will use the quantized model (reduced `float16`) to score
+    the same test dataset used in the previous section. We will execute scoring (inferencing)
+    with the TensorFlow Lite interpreter interface:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will load the quantized model from the file path represented by `tflite_models_dir`.
+    In the previous section, we created a `pathlib` object, `tgt`, to represent the
+    quantized model file:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE113]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then we need to get the `input_details` and `output_details` tensors:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE114]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'From these tensors, we will inspect the shape of the NumPy arrays in both the
+    input and output:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE115]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We verified that the model input and output are expected to be a batch because
+    there are four dimensions in these tensors. Next, we are going to see how well
+    this model performs by scoring the test data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Scoring a single image with a quantized model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now we may start the scoring process with a TFLite quantized model. In the
+    following steps, we first expand the sample to include a dimension for the batch,
+    pass the input data to the interpreter, perform scoring of input data, and then
+    get the output of the prediction:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE116]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE117]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE118]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE119]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE120]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here is the output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE121]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To map `output_data` back to the original labels, execute the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE122]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here is the output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE123]'
+  prefs: []
+  type: TYPE_PRE
+- en: Scoring a batch image with a quantized model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Currently, batch scoring in the TFLite model is supported through the iterative
+    scoring process of a single image. For our example of 50 test images, we may create
+    a helper function to encapsulate the entire single image scoring process:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is a function that handles batch scoring:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE124]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This function expands raw image dimensions to batches, and then passes the batched
+    image to the interpreter for scoring. The interpreter's output is then mapped
+    to a plaintext name by means of the `lookup` function and the plaintext is returned
+    as the predicted label.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Next, we will iterate through our test data to call on `batch_predict`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE125]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The result is stored in the `batch_quantized_prediction` list.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'And just like how we measure the prediction accuracy of our original model,
+    we may use `accuracy_score` to get the accuracy of the TFLite quantized model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE126]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The output is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE127]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The output here is shown to also be 82%. Results may vary if you retrained the
+    model, but in my experience, it is identical to the accuracy of the base model.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Note
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: It's expected that your model accuracy will be slightly different from the nominal
+    value printed here. Every time a base model is trained, the model accuracy will
+    not be identical. However, it should not be too dissimilar to the nominal value.
+    Another factor that impacts reproducibility in terms of model accuracy is the
+    number of epochs used in training; in this case, only five epochs for demonstration
+    and didactic purposes. More training epochs will give you a better and tighter
+    variance in terms of model accuracy.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The functions, routines, and workflow developed up to this point will be used
+    in the remaining sections of this chapter to demonstrate the process and outcome
+    of model optimization. We have learned how to score the original model, convert
+    the original model to the TFLite quantized model, and score the quantized model.
+    Next, we will convert the original model to different formats using the same conversion
+    and evaluation processes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Converting a full model to a reduced hybrid quantization model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous section, we converted a full model into a reduced `float16`
+    TFLite model, and demonstrated its scoring and evaluation processes. Now we will
+    try the second type of supported quantization, which is a hybrid approach.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hybrid quantization optimizes the model by converting the model to 8-bit integer
+    weights, 32-bit float biases, and activations. Since it contains both integer
+    and floating-point computations, it is known as hybrid quantization. This is intended
+    for a trade-off between accuracy and optimization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There is only one small difference that we need to make for hybrid quantization.
+    There is only one line of difference, as explained below. In the previous section,
+    this is how we quantized the full model to a reduced `float16` TFLite model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE128]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE129]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE130]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For hybrid quantization, we will simply remove the middle line about `supported_types`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE131]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE132]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Everything else remains pretty much the same. Following is the complete notebook
+    for hybrid quantization and scoring:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As usual, we will specify the necessary libraries and path to the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE133]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Now, the path to the model is specified in `saved_model_dir`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Then we create a `converter` object for `saved_model_dir` and use it to convert
+    our model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE134]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Now, the converter converts the full model to a hybrid quantization model.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now we will save our hybrid quantization model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE135]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The output shows the model size in bytes:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE136]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This is significantly smaller than the 95 MB of the original base model. Next,
+    let's see how well this smaller, hybrid quantized model performs with test data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Preparing test data for scoring
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We will begin by loading the test data, as we did with the reduced `float16`
+    model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can load TFRecord data, as we have done previously:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE137]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Now, `test_all_ds` represents the dataset object that points to the path of
+    our test data.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We may determine sample size by iterating through the dataset and keeping track
+    of the sample count:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE138]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This will show the sample size as `50`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We use the same helper functions seen in the reduced `float16` model section
+    to standardize the image size and pixel values:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE139]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `decode_and_resize` function parses an image, resizes it to `224` by `224`
+    pixels, and, at the same time, one-hot encodes the image's label. `decode_and_resize`
+    then returns the image and corresponding label as a tuple, so that the image and
+    label are always kept together.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The `normalize` function divides the image pixel value by `255` in order to
+    bring the pixel range to `[0, 1.0]`. And even though nothing is done in relation
+    to the label, it is necessary to keep track of the image and label as a tuple
+    so that they are always kept together.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Next, we will apply the transformation with the following helper functions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE140]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let''s convert TFRecord to a NumPy array for scoring:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE141]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Now, all test images are in NumPy format with standard `(224, 224, 3)` dimensions,
+    the pixel values are between `0` and `1`, and images are batched. Labels are batched
+    as well.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We now need to extract the ground truth labels so that we can measure our prediction
+    accuracy:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE142]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, `actual` is a list that contains class names for each
+    test image.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We may inspect the NumPy array, `np_img_holder`, as images with the following
+    code, and this will produce the images seen in *Figure 7.1*:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE143]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code snippet, we iterate through our image array, and place
+    each in one of the subplots, while there are 50 images (10 rows, with each row
+    having 5 subplots). The output images should appear in 10 rows with 5 images in
+    each row, as seen in *Figure 7.1*.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: For single test file scoring, we need to add a dimension to a sample. Since
+    a given image is of the shape `(224, 224, 3)`, we need to make it into `(1, 224,
+    224, 3)` so that it will be accepted by the model for scoring. This is why we
+    used `np.expand_dim` when we converted TFRecord to NumPy. As the model is built
+    to handle batch scoring, it is expecting four dimensions with the first dimension
+    being the sample size.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Mapping a prediction to a class name
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: From TFRecord, we need to create a reverse lookup dictionary to map probability
+    back to the label. In other words, we need to find the index where maximum probability
+    is positioned in the array. We will then map this position index to the flower
+    type.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To create the lookup dictionary, we will parse the TFRecord with feature descriptions
+    to extract the label indices and names as shown in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE144]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE145]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE146]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE147]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE148]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE149]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE150]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE151]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE152]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE153]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE154]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE155]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE156]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE157]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE158]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE159]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE160]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE161]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE162]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE163]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE164]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE165]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the preceding code, we used `feature_description` to parse `test_all_ds`.
+    Once it is parsed using `_parse_function`, we iterate through the entire test
+    dataset. The information we want can be found in `image/class/label` and `image/class/text`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can also inspect `val_label_map`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE166]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is the lookup table that maps the index to a plaintext name.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Scoring with a hybrid quantization model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'As we did for the reduced `float16` model, we want to see how a hybrid quantization
+    model performs with test data. Now we can start the process of scoring test images
+    with the hybrid quantization model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will begin by loading the model and allocating tensors as usual with the
+    help of the following lines of code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE167]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Now the hybrid quantization model is loaded.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'To ascertain the input and output shape of the tensors that the model operates
+    with, we may obtain input and output tensors in the following way:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE168]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, the `get_input_details` and `get_output_details` methods
+    will retrieve these tensor's details, such as `name`, `shape`, and data type,
+    and store these in `input_details` and `output_details`, respectively.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Scoring a single image
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We will score a single image by expanding its dimension, as if this is a batch
+    of a single image, pass it to the TFLite interpreter, and then get the output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We may begin by handling the image array and expanding its dimensions for batch:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE169]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code expands the image to a batch dimension, and then passes
+    it to the interpreter for prediction. The output of the preceding code is here:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE170]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: These are probabilities for each flower type. We need to map the position of
+    highest probability to its plaintext name. That's where we will use the `lookup`
+    function again.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We use a helper function (`lookup`) to convert probability into the most likely
+    class name:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE171]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The output is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE172]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the `lookup` function, the NumPy array, `np_entry`, is the output of our
+    model. It contains the probability for each class. We want to map the position
+    index of the array with the highest probability to the class name. To achieve
+    this, this function maps it to the dictionary by key. In this case, it is the
+    last position (which corresponds to position `4`) in the probability array that
+    has the highest probability. `4` is mapped to `tulips`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Scoring batch images
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Currently, batch scoring in the TFLite model is supported through the iterative
+    scoring process of a single image. For our example of 50 test images, we may create
+    a helper function to encapsulate the entire single image scoring process that
+    we just went through in the previous Scoring a single image section with the hybrid
+    quantization model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will iterate the entire dataset to score the batch with the help of the
+    following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE173]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `batch_predict()` function expands the raw image dimensions to batches,
+    and then passes the batched image to the interpreter for scoring. The interpreter's
+    output is then mapped to a plaintext name by means of the `lookup` function and
+    the plaintext is returned as the predicted label.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We then need to iterate through our test data to call on `batch_predict`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE174]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We may evaluate the model''s accuracy using the `accuracy_score` function in
+    the sklearn library:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE175]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Its output is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE176]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The output here is shown to also be 82%. Results may vary if you retrained the
+    model, but in my experience, it is identical to the accuracy of the base model.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Note
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: It's expected that your model accuracy will be slightly different from the nominal
+    value printed here. Every time a base model is trained, the model accuracy will
+    not be identical. However, it should not be too dissimilar to the nominal value.
+    Another factor that impacts reproducibility in terms of model accuracy is the
+    number of epochs used in training; in this case, only five epochs for demonstration
+    and didactic purposes. More training epochs will give you a better and tighter
+    variance in terms of model accuracy.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: So far, we have learned about two types of post-training quantization techniques,
+    namely, reduced `float16` quantization and hybrid quantization. Both techniques
+    make the TFLite model significantly smaller than the original model. This is important
+    when deploying the model in edge devices or devices with low compute or power
+    resources.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In these two strategies, we quantized the middle layers and left the input and
+    output untouched. Therefore, the input and output are not quantized and keep their
+    respective original data types. However, in some devices that are optimized for
+    speed and being lightweight, such as an edge TPU or devices that can only handle
+    integer ops, we need to quantize the input and output layers to an integer type.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we are going to learn the third quantization strategy,
+    which is integer quantization, which would do precisely this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Converting a full model to an integer quantization model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This strategy requires `int8` representation. This quantization strategy will
+    try to use `int8` representation for all ops or operations as the goal. When this
+    is not possible, the ops are left as the original precision (in other words, `float32`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: This quantization strategy requires some representative data. This data represents
+    the type of data that the model typically expects in terms of a range of values.
+    In other words, we need to provide either some training or validation data to
+    the integer quantization process. This may be the data already used, such as a
+    subset of the training or validation data. Usually, around 100 samples are recommended.
+    We are going to use 80 samples from the validation data because this will suffice
+    in this case.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will build a model with a pre-trained ResNet feature vector
+    from TensorFlow Hub. Once the training run is complete, we will use cross-validation
+    data again as the representative dataset. This dataset will help the model to
+    adjust parameters in both the input and output layers to integers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training a full model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We are going to use the same flower dataset as in [https://github.com/PacktPublishing/learn-tensorflow-enterprise/tree/master/chapter_07/train_base_model/tf_datasets](https://github.com/PacktPublishing/learn-tensorflow-enterprise/tree/master/chapter_07/train_base_model/tf_datasets).
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is the same dataset that you used for reduced `float16` and hybrid quantization
+    Let's get started:.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As usual, we begin by importing libraries and loading the datasets:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE177]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we use the `tf.io` API to encapsulate the file path and
+    all the filenames we will use, which are training, validation, and test data.
+    Once we have the file paths encoded, we use `tf.data.TFRecordDatasedt` to reference
+    these files. This process is performed for the training data, which is referenced
+    by `train_all_ds`, and for the validation data, which is referenced by `val_all_ds`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Then we will require the following helper functions to decode and standardize
+    images, normalize pixel values, and set up a training dataset:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE178]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The `decode_and_resize` function parses an image, resizes it to `224` by `224`
+    pixels, and, at the same time, one-hot encodes the image's label. `decode_and_resize`
+    then returns the image and corresponding label as a tuple, so that the image and
+    label are always kept together.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: The `normalize` function divides the image pixel value by `255` in order to
+    bring the pixel range to `[0, 1.0]`. And even though nothing is done in relation
+    to the label, it is necessary to keep track of the image and label as a tuple
+    so that they are always kept together.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We now need to define a function to shuffle and fetch the training dataset.
+    Here is the function to achieve this:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE179]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This function returns a dataset with shuffle, repeat, batch, and prefetch ops
+    attached. This is a standard approach for getting the dataset ready for training.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now we may apply the following steps to each element in the training dataset:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE180]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: So now, `decode_and_resize` is applied to each image in `train_all_ds` and `val_all_ds`.
+    The resulting datasets are `dataset` and `val_dataset`, respectively.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We also need to normalize the validation dataset and finalize the training
+    dataset for the training run process:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE181]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we use the `map` function to apply the `decode_and_resize`
+    function to each image in the dataset. For the training dataset, we also apply
+    `prepare_for_training` to prefetch the dataset and for the ingestion process.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now we will set up the parameters for cross-validation:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE182]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we set the number of classes and the image size in variables
+    to be passed to the model training process. Then we determine the number of steps
+    for each epoch of training and cross-validation.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The output should be as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE183]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This indicates that we have a training data sample size of `3540`, while the
+    cross-validation data sample size is `80`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now we will build the model with the help of the following code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE184]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we built and compiled our model using TensorFlow Hub's
+    ResNet feature vector as the middle layer, and the output is a classification
+    layer denoted by a dense layer with five outputs, with each output node providing
+    a probability for one of the five flower types.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Here is the model summary, and it consists of a layer from the *resnet_v1_101*
+    feature vector, followed by a classification head, as indicated in *Figure 7.3*:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Figure 7.3 – Model summary for flower type classification'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '](img/image0052.jpg)'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Figure 7.3 – Model summary for flower type classification
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: We will then use the `fit` API to train this model with the training and cross-validation
+    data provided.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The results of the model weights and biases are saved in the `checkpoint_prefix`
+    directory. This is how we start the training process for the model to recognize
+    five different types of flower images:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE185]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, the `fit` API is called to train the model. `train_ds`
+    and `val_ds` are the training and cross-validation data, respectively. At each
+    epoch, the weights and biases are stored as a checkpoint. This is specified by
+    the callbacks. To save training time, we will only train it for three epochs.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Next, we will save the model using the following lines of code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE186]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We can inspect the weight matrix file to get an idea of the model size using
+    the following command:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE187]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let''s standardize and normalize the validation images:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE188]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, we expand by one dimension to batch the images. This extra dimension
+    is intended for a variable batch size:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE189]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The image is now expanded by one dimension to indicate that the first dimension
+    holds the number of images, which is the size of the image batch, and the normalized
+    images are iterated through. As we iterate through each image, we capture the
+    image value as a NumPy array and the corresponding label, and append `np_img_holder`
+    and `np_lbl_holder`, respectively.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now that we have images as a NumPy array, we need to build a generator that
+    feeds this representative data into the conversion process:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE190]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We need to specify a function that is a generator to stream the representative
+    data during the conversion process. This is done through the `data_generator`
+    function. This function invokes the generator that streams a NumPy array.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Let''s confirm our sample size:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE191]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The output from the preceding `print` statement is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE192]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The preceding code iterates through a validation dataset and keeps track of
+    the sample count as it goes over a `for` loop. For every encounter of an image,
+    a counter (`sample_size`, which is initialized to `0`) is incremented by 1\. Currently
+    this is the only way to find out about sample sizes in a dataset. We have just
+    confirmed that there are 80 samples in our validation data.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now we may start the conversion process:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE193]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we set up the converter instance and optimizer as in
+    hybrid quantization, and then we set up a data generator object for the representative
+    dataset.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We also want to throw an error flag if there are any ops that failed to be
+    quantized:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE194]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, the supported data type we want for our model is set
+    as an 8-bit integer (`INT8`).
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now we designate the input and output tensors to be `INT8`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE195]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Now the model is converted to an integer quantization model. The model expects
+    an input data type of an 8-bit integer (`INT8`) and will output the data type
+    of an 8-bit integer (`INT8`).
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Once the preceding code finishes the execution, we may inspect and verify the
+    data type now associated with the input and output layer as unsigned `INT8`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE196]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we first have to get the interpreter interface to the
+    TFLite model. An interpreter object is the component in the TFLite model that
+    executes the inference. It has methods such as `get_input_details` and `get_output_details`,
+    which help us to look at the data types expected by the model during inference.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'The following is the output of the preceding code:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE197]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The model expects an input data type of an 8-bit integer (`INT8`) and will output
+    the data type of an 8-bit integer (`INT8`).
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Now we can save the quantized model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE198]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Now, with the help of the preceding code, we set up a directory path and encode
+    the path to a `string`. This string represents the path where we will write our
+    integer quantized model. Finally, the `write_bytes` API completes the write process
+    and saves our integer quantized model in the path as defined by the string, `tflite_models_dir`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'This shows the model size to be the following:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE199]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The preceding output shows that our integer quantization model is approximately
+    44 MB.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Next, we are going to see how well this model performs by scoring the test data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Scoring with an integer quantization model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: For scoring, we need to prepare the test dataset and a lookup table that maps
+    the model output to a class name. Our test dataset contains labels encoded as
+    an index and the corresponding class name. Therefore, we will use labels and class
+    names from the test dataset as the ground truth. This will be compared to the
+    model predictions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Preparing a test dataset for scoring
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'As we did for the reduced `float16` and hybrid quantization models, we want
+    to see how an integer quantization model performs with test data. Now we can start
+    the process of scoring test images with the integer quantization model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will proceed by loading the TFRecord test:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE200]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we use the `tf.io` API to encapsulate the file path and
+    all the filenames we will use, which is the test data. Once we have the file paths
+    encoded, we use `tf.data.TFRecordDatasedt` to reference the data. This process
+    is done for the test data, which is referenced by `test_all_ds`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Next, we can verify the sample size:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE201]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This will show that the sample size is `50`. The preceding code iterates through
+    the validation dataset and keeps track of the sample count as it goes over a `for`
+    loop. For every encounter of an image, a counter (`sample_size`, which is initialized
+    to `0`) is incremented by `1`. Currently, this is the only way to find out about
+    sample size in a dataset. We have just confirmed that there are 80 samples in
+    our validation data.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'As our model was quantized to handle integer ops, we don''t want to normalize
+    pixel values into floating-point values. We only need to standardize the image
+    size:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE202]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Then we convert TFRecord to NumPy arrays of image data and labels.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We also need to expand the data dimensions to handle the batch of images:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE203]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The image is now expanded by one dimension to indicate that the first dimension
+    holds the number of images, which is the size of the image batch, and the normalized
+    images are iterated through. As we iterate through each image, we capture the
+    image value as a NumPy array and the corresponding label, and append `np_img_holder`
+    and `np_lbl_holder`, respectively.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'To create a lookup dictionary to map the label index to the class name, we
+    may iterate through the TFRecord dataset to create a dictionary, `val_label_map`,
+    but first, we need to know how to parse the TFRecord dataset. This means that
+    we need to capture the tensors in the TFRecord dataset correctly. Therefore, we
+    need to use the following `feature_description`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE204]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '`The` `feature_description` in the preceding code is a collection of key-value
+    pairs. Each pair delineates a piece of metadata represented as a tensor:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE205]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The preceding code shows how to parse `test_all_ds` with the `feature_description`
+    provided. The result is a parsed dataset (`parsd_ds`) with all the necessary tensors
+    defined and parsed:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE206]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We now need to find out how the dataset assigns indices to class labels. One
+    way of doing this is to iterate through the whole dataset, or a portion of it.
+    At each iteration, we capture both the label index and the corresponding plaintext
+    for the label, and update this as a key-value pair in a dictionary such as `val_label_map`.
+    This is shown as the preceding code.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We may inspect the dictionary by typing `val_label_map` in a notebook cell:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE207]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'You may find `val_label_map` to be a dictionary such as this:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE208]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Keys are indexes of flower classes, and the values are plaintext names of flower
+    classes.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We will create a helper function to handle the lookup:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE209]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the `lookup` function, the NumPy array `np_entry` is the output of our model.
+    It contains the probability for each class. We want to map the position index
+    of the array with the highest probability to the class name. To achieve this,
+    this function maps it to the dictionary by key.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Next, we create a list that contains the ground truth flower class names:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE210]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: We can create a table that maps the integer value of the label to the corresponding
+    plaintext name. In the preceding code, we first set up an empty list, `actual`,
+    and then we use a `for` loop to iterate through the entire label holder, `np_lbl_holder`.
+    The next step is to find the position where the maximum value occurs in this record,
+    and assign it to `class_key`. `class_key` is the index that is used for looking
+    up `val_label_map`, which maps the key to the corresponding plaintext name. The
+    plaintext name is then added to `actual`. Then, the `for` loop starts over again
+    with the next record it finds in `np_lbl_holder`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Scoring batch images
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'A helper function is required for batch scoring. This is similar to what we
+    used in the hybrid and reduced `float16` quantization models. The only difference
+    lies in the data type for the NumPy array dimension expansion. Since we are using
+    a model built by integer quantization, we need to cast the data type to an unsigned
+    8-bit integer (`uint8`):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is a `batch_predict` function that treats the input NumPy array as an
+    unsigned 8-bit integer (`uint8`):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE211]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This concludes the `batch_predict` function. This function takes the `input_raw`
+    array and scores it using our interpreter. The interpreter's output is then mapped
+    to a plaintext label with the `lookup` function.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Let''s now load the integer quantization model and set up the input and output
+    tensors:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE212]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we initialized our quantization model and allocated memory
+    for input tensors as per this model. The `get_input_details` and `get_output_details`
+    methods will then retrieve these tensors' details, such as the name, shape, and
+    data type.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Then we may perform batched prediction:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE213]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: In the preceding code, we iterate through the test images, score them, and then
+    store the results in a list defined as `batch_quantized_prediction`.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We can calculate accuracy using `accuracy_score` from `sklearn`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE214]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The preceding function basically compares the `actual` list with the `batch_quantized_prediciton`
+    list.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'In this particular case, the accuracy is as follows:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE215]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: Note
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: It's expected that your model accuracy will be slightly different from the nominal
+    value printed here. Every time a base model is trained, the model accuracy will
+    not be identical. However, it should not be too dissimilar to the nominal value.
+    Another factor that impacts reproducibility in terms of model accuracy is the
+    number of epochs used in training; in this case, only five epochs for demonstration
+    and didactic purposes. More training epochs will give you a better and tighter
+    variance in terms of model accuracy.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: This result may vary if you retrained the full model over again, but it shouldn't
+    be too dissimilar to this value. Furthermore, based on my experience with this
+    data, integer quantized model performance is on a par with that of the original
+    full model. The preceding code shows that our TFLite model performed just as well
+    as the original model. As we reduce the model size through quantization, we are
+    still able to preserve the model's accuracy. In this example, the accuracy is
+    not impacted just because the model is now more compact.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned to optimize a trained model by making it smaller
+    and therefore more compact. Therefore, we have more flexibility when it comes
+    to deploying these models in various hardware or resource constrained conditions.
+    Optimization is important for model deployment in a resource constrained environment
+    such as edge devices with limited compute, memory, or power resources. We achieved
+    model optimization by means of quantization, where we reduced the model footprint
+    by altering the weight, biases, and activation levels' data type.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We learned about three quantization strategies: reduced `float16`, hybrid quantization,
+    and integer quantization. Of these three strategies, integer quantization currently
+    requires an upgrade to TensorFlow 2.3.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Choosing a quantization strategy depends on factors such as target compute,
+    resource, model size limit, and model accuracy. Furthermore, you have to consider
+    whether or not the target hardware requires integer ops only (in other words,
+    TPU). If so, then integer quantization is the obvious choice. With all the examples,
+    we learned that model accuracy is not impacted by model optimization strategies.
+    After quantization, model size is a fraction of the original. This demonstrates
+    the value of model optimization, especially when the deployment scenarios require
+    efficient use of the compute and power resources.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we are going to take a closer look at some common practices
+    in the model building process. This practice involves data ingestion pipeline
+    design and how to avoid model overfitting.
+  prefs: []
+  type: TYPE_NORMAL

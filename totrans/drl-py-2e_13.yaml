@@ -1,0 +1,2719 @@
+- en: '13'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: TRPO, PPO, and ACKTR Methods
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will learn two interesting state-of-art policy gradient
+    algorithms: trust region policy optimization and proximal policy optimization.
+    Both of these algorithms act as an improvement to the policy gradient algorithm
+    (REINFORCE with baseline) we learned in *Chapter 10*, *Policy Gradient Method.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We begin the chapter by understanding the **Trust Region Policy Optimization**
+    (**TRPO**) method and how it acts as an improvement to the policy gradient method.
+    Later we will understand several essential math concepts that are required to
+    understand TRPO. Following this, we will learn how to design and solve the TRPO
+    objective function. At the end of the section, we will understand how the TRPO
+    algorithm works step by step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Moving on, we will learn about **Proximal Policy Optimization** (**PPO**). We
+    will understand how PPO works and how it acts as an improvement to the TRPO algorithm
+    in detail. We will also learn two types of PPO algorithm called PPO-clipped and
+    PPO-penalty.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the end of the chapter, we will learn about an interesting actor-critic method
+    called the **Actor-Critic using Kronecker-Factored Trust Region** (**ACKTR**)
+    method, which uses Kronecker factorization to approximate the second-order derivative.
+    We will explore how ACKTR works and how it uses the trust region in its update
+    rule.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will learn the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Trust region policy optimization
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Designing the TRPO objective function
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Solving the TRPO objective function
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Proximal policy optimization
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The PPO algorithm
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Actor-critic using Kronecker-factored trust region
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Trust region policy optimization
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'TRPO is one of the most popularly used algorithms in deep reinforcement learning.
+    TRPO is a policy gradient algorithm and it acts as an improvement to the policy
+    gradient with baseline method we learned in *Chapter 10*, *Policy Gradient Method*.
+    We learned that policy gradient is an on-policy method, meaning that on every
+    iteration, we improve the same policy with which we are generating trajectories.
+    On every iteration, we update the parameter of our network and try to find the
+    improved policy. The update rule for updating the parameter ![](img/B15558_09_042.png)
+    of our network is given as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_11_005.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Where ![](img/B15558_10_113.png) is the gradient and ![](img/B15558_07_025.png)
+    is known as the step size or learning rate. If the step size is large then there
+    will be a large policy update, and if it is small then there will be a small update
+    in the policy. How can we find an optimal step size? In the policy gradient method,
+    we keep the step size small and so on every iteration there will be a small improvement
+    in the policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But what happens if we take a large step on every iteration? Let's suppose we
+    have a policy ![](img/B15558_04_099.png) parameterized by ![](img/B15558_09_087.png).
+    So, on every iteration, updating ![](img/B15558_09_118.png) implies that we are
+    improving our policy. If the step size is large, then the policy on every iteration
+    varies greatly, meaning the old policy (the policy used in the previous iteration)
+    and the new policy (the policy used in the current iteration) vary greatly. Since
+    we are using a parametrized policy, it implies that if we make a large update
+    (large step size) then the parameter of the old policy and the new policy vary
+    heavily, and this leads to a problem called model collapse.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is the reason that in the policy gradient method, instead of taking larger
+    steps and updating the parameter of our network, we take small steps and update the
+    parameter to keep the old policy and new policy close. But how can we improve this?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Can we take a larger step along with keeping the old and new policies close
+    so that it won't affect our model performance and also helps us to learn quickly?
+    Yes, this problem is solved by TRPO.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TRPO tries to make a large policy update while imposing a constraint that the
+    old policy and the new policy should not vary too much. Okay, what is this constraint?
+    But first, how can we measure and understand if the old policy and new policy
+    are changing greatly? Here is where we use a measure called the **Kullback-Leibler**
+    (**KL**) divergence. The KL divergence is ubiquitous in reinforcement learning.
+    It tells us how two probability distributions are different from each other. So,
+    we can use the KL divergence to understand if our old policy and new policy vary
+    greatly or not. TRPO adds a constraint that the KL divergence between the old
+    policy and the new policy should be less than or equal to some constant ![](img/B15558_09_135.png).
+    That is, when we make a policy update, the old policy and the new policy should
+    not vary more than some constant. This constraint is called the trust region constraint.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, TRPO tries to make a large policy update while imposing the constraint
+    that the parameter of the old policy and the new policy should be within the trust
+    region. Note that in the policy gradient method, we use a parameterized policy.
+    Thus, keeping the parameter of the old policy and the new policy within the trust
+    region implies that the old and new policies are within the trust region.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TRPO guarantees monotonic policy improvement; that is, it guarantees that there
+    will always be a policy improvement on every iteration. This is the fundamental
+    idea behind the TRPO algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To understand how exactly TRPO works, we should understand the math behind TRPO.
+    TRPO has pretty heavy math. But worry not! It will be simple if we understand
+    the fundamental math concepts required to understand TRPO. So, before diving into
+    the TRPO algorithm, first, we will understand several essential math concepts
+    that are required to understand TRPO. Then we will learn how to design a TRPO
+    objective function with the trust region constraint, and finally, we will see
+    how to solve the TRPO objective function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Math essentials
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Before understanding how TRPO works, first, we will understand the following
+    important math concepts:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Taylor series
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The trust region method
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The conjugate gradient method
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Lagrange multipliers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Importance sampling
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The Taylor series
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The Taylor series is a series of infinite terms and it is used for approximating
+    a function. Let''s say we have a function *f*(*x*) centered at *x* = *a*; we can
+    approximate it using an infinite sum of polynomial terms as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_009.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The preceding equation can be represented in sigma notation as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_010.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: So for each term in the Taylor series, we calculate the *n*^(th) order derivative,
+    divide them by *n*!, and multiply by (*x* – *a*)^n.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s understand how exactly the Taylor series approximates a function with
+    an example. Let''s say we have an exponential function *e*^x as shown in *Figure
+    13.1*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.1: Exponential function'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Can we approximate the exponential function *e*^x using the Taylor series?
+    We know that the Taylor series is given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_011.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, the function *f*(*x*) we want to approximate is *e*^x, that is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_012.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Say our function *f*(*x*) = *e*^x is centered at *x* = *a*, first, let''s calculate
+    the derivatives of the function up to 3 orders. The derivative of the exponential
+    function is the function itself, so we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_013.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Substituting the preceding terms in the equation (1), we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_014.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Let''s suppose *a* = 0; then our equation becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_015.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We know that *e*⁰ =1; thus, the Taylor series of the exponential function is
+    given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_016.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'It implies that the sum of the terms on the right-hand side approximates the
+    exponential function *e*^x. Let''s understand this with the help of a plot. Let''s
+    take only the terms till the 0^(th) order derivative from the Taylor series (equation
+    2), that is, *e*^x = 1, and plot them:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.2: Taylor series approximation till the 0^(th) order derivative'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As we can observe from the preceding plot, just taking the 0^(th) order derivative,
+    we are far away from the actual function *e*^x. That is, our approximation is
+    not good. So, let''s take the sum of terms till the 1^(st) order derivative from
+    the Taylor series (equation 2), that is, *e*^x = 1 + *x*, and plot them:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.3: Taylor series approximation till the 1^(st) order derivative'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As we can observe from the preceding plot, including the terms till the 1^(st)
+    order derivative from the Taylor series gets us closer to the actual function
+    *e*^x. So, let''s take the sum of terms till the 2^(nd) order derivative from
+    the Taylor series (equation 2), that is, ![](img/B15558_13_017.png), and plot
+    them. As we can observe from the following plot our approximation gets better
+    and we reach closer to the actual function *e*^x:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.4: Taylor series approximation till the 2^(nd) order derivative'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let''s take the sum of terms till the 3^(rd) order derivative from the
+    Taylor series, that is, ![](img/B15558_13_018.png), and plot them:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.5: Taylor series approximation till the 3^(rd) order derivative'
+  prefs: []
+  type: TYPE_NORMAL
+- en: By looking at the preceding graph, we can understand that our approximation
+    is far better after including the sum of terms till the 3^(rd) order derivative.
+    As you might have guessed, adding more and more terms in the Taylor series makes
+    our approximation of *e*^x better. Thus, using the Taylor series, we can approximate
+    any function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The Taylor polynomial till the first degree is called **linear approximation.**
+    In linear approximation, we calculate the Taylor series only till the first-order
+    derivative. Thus, the linear approximation (first-order) of the function *f*(*x*)
+    around the point *a* can be given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_019.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We can denote our first-order derivative by ![](img/B15558_13_020.png), so
+    we can just replace ![](img/B15558_13_021.png) by ![](img/B15558_13_022.png) and
+    rewrite the preceding equation as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_023.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The Taylor polynomial till the second degree is called **quadratic approximation**.
+    In quadratic approximation, we calculate the Taylor series only till the second-order
+    derivative. Thus, the quadratic approximation (second-order) of the function *f*(*x*)
+    around the point *a* can be given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_024.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We can denote our first-order derivative by ![](img/B15558_13_020.png) and
+    second-order derivative by ![](img/B15558_13_026.png); so, we can just replace
+    ![](img/B15558_13_021.png) with ![](img/B15558_13_020.png) and ![](img/B15558_13_029.png)
+    with ![](img/B15558_13_026.png) and rewrite the preceding equation as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_031.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'A Hessian is a second-order derivative, so we can denote ![](img/B15558_13_026.png)
+    by *H*(*a*) and rewrite the preceding equation as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_033.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Thus, to summarize, a **linear approximation** of the function *f*(*x*) is
+    given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_034.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The **quadratic approximation** of the function *f*(*x*) is given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_035.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The trust region method
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Let's say we have a function *f*(*x*) and we need to find the minimum of the
+    function. Let's suppose it is difficult to find the minimum of the function *f*(*x*).
+    So, what we can do is that we can use the Taylor series and approximate the given
+    function *f*(*x*) and try to find the minimum value using the approximated function.
+    Let's represent the approximated function with ![](img/B15558_13_036.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Say we use the quadratic approximation, we learned that with the quadratic
+    approximation, we calculate the Taylor series only till the second-order derivative.
+    Thus, the quadratic approximation (second-order) of the given function *f*(*x*)
+    around the region *a* can be given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_037.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: So, we can just use the approximated function ![](img/B15558_13_038.png) and
+    compute the minimum value. But wait! What if our approximated function ![](img/B15558_13_036.png)
+    is inaccurate at a particular point, say *a**, and if *a** is optimal, then we
+    miss out on finding the optimal value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, we will introduce a new constraint called the trust region constraint. The
+    trust region implies the region where our actual function *f*(*x*) and approximated
+    function ![](img/B15558_13_036.png) are close together. So, we can say that our
+    approximation will be accurate if our approximated function ![](img/B15558_13_036.png)
+    is in the trust region.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For instance, as shown in *Figure 13.6*, our approximated function ![](img/B15558_13_036.png)
+    is in the trust region and thus our approximation will be accurate since the approximated
+    function ![](img/B15558_13_036.png) is closer to the actual function *f*(*x*):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.6: Approximated function is in the trust region'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'But when ![](img/B15558_13_044.png) is not in the trust region, then our approximation
+    will not be accurate since the approximated function ![](img/B15558_13_036.png)
+    is far from the actual function *f*(*x*):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.7: Approximated function is not in the trust region'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, we need to make sure that our approximated function stays in the trust
+    region so that it will be close to the actual function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The conjugate gradient method
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The conjugate gradient method is an iterative method used to solve a system
+    of linear equations. It is also used to solve the optimization problem. The conjugate
+    gradient method is used when a system is of the form:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_046.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Where *A* is the positive definite, square, and symmetric matrix, *x* is the
+    vector we want to find, and *b* is the known vector. Let''s consider the following
+    quadratic function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_047.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: When *A* is the positive semi-definite matrix; finding the minimum of this function
+    is equal to solving the system *Ax* = *b*. Just like gradient descent, conjugate
+    gradient descent also tries to find the minimum of the function; however, the
+    search direction of conjugate gradient descent will be different from gradient
+    descent, and conjugate gradient descent attains convergence in *N* iterations.
+    Let's understand how conjugate gradient descent differs from gradient descent
+    with the help of a contour plot.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, let''s look at the contour plot of gradient descent. As we can see in
+    the following plot, in order to find the minimum value of a function, gradient
+    descent takes several search directions and we get a zigzag pattern of directions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.8: Contour plot of gradient descent'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Unlike the gradient descent method, in the conjugate gradient descent, the
+    search direction is orthogonal to the previous search direction as shown in *Figure
+    13.9*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.9: Contour plot of conjugate gradient descent'
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, using conjugate gradient descent, we can solve a system of the form *Ax*
+    = *b*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Lagrange multipliers
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Let''s say we have a function *f*(*x*) = *x*²: how do we find the minimum of
+    the function? We can find the minimum of the function by finding a point where
+    the gradient of the function is zero. The gradient of the function *f*(*x*) =
+    *x*² is given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_048.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: When *x* = 0, the gradient of the function is zero; that is, ![](img/B15558_13_049.png)
+    when *x* = 0\. So, we can say that the minimum of the function *f*(*x*) = *x*²
+    is at *x* = 0\. The problem we just saw is called the unconstrained optimization
+    problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Consider a case where we have a constraint—say we need to minimize the function
+    *f*(*x*) subject to the constraint that *g*(*x*) = 1, as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_050.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Now, how can we solve this problem? That is, how can we find the minimum of
+    the function *f*(*x*) while satisfying the constraint *g*(*x*)? We can find the
+    minimum value when the gradient of the objective function *f*(*x*) and the gradient
+    of the constraint *g*(*x*) point in the same direction. That is, we can find the
+    minimum value when the gradient of *f*(*x*) and the gradient of *g*(*x*) are parallel
+    or antiparallel to each other:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_051.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Although the gradients of *f*(*x*) and *g*(*x*) point in the same direction,
+    their magnitude will not be the same. So, we will just multiply the gradient of
+    *g*(*x*) by a variable called ![](img/B15558_13_052.png) as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_053.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Where ![](img/B15558_13_054.png) is known as the Lagrange multiplier. So, we
+    can rewrite the preceding equation as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_055.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Solving the preceding equation implies that we find the minimum of the function
+    *f*(*x*) along with satisfying the constraint *g*(*x*). So, we can rewrite our
+    objective function as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_056.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The gradient of the preceding function is given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_057.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We can find the minimum value when ![](img/B15558_13_058.png). Lagrange multipliers
+    are widely used for solving constrained optimization problems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s understand this with one more example. Say we want to find the minimum
+    of the function ![](img/B15558_13_059.png) subject to the constraint ![](img/B15558_13_060.png),
+    as the following shows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_061.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We can rewrite our objective function with the constraint multiplied by the
+    Lagrange multiplier as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_062.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Solving for ![](img/B15558_13_063.png), we can find the minimum of the function
+    ![](img/B15558_13_059.png) along with satisfying the constraint that ![](img/B15558_13_065.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Importance sampling
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Let''s recap the importance sampling method we learned in *Chapter 4*, *Monte
+    Carlo Methods*. Say we want to compute the expectation of a function *f*(*x*)
+    where the value of *x* is sampled from the distribution *p*(*x*), that is, ![](img/B15558_13_066.png);
+    we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_067.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Can we approximate the expectation of a function *f*(*x*)? We learned that
+    using the Monte Carlo method, we can approximate the expectation as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_068.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: That is, using the Monte Carlo method, we sample *x* from the distribution *p*(*x*)
+    for *N* times and compute the average of *f(x)* to approximate the expectation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Instead of using the Monte Carlo method, we can also use importance sampling
+    to approximate the expectation. In the importance sampling method, we estimate
+    the expectation using a different distribution *q*(*x*); that is, instead of sampling
+    *x* from *p*(*x*) we use a different distribution *q*(*x*):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_069.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The ratio ![](img/B15558_04_146.png) is called the importance sampling ratio
+    or the importance correction.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have understood the several important math prerequisites, we will
+    learn how the TRPO algorithm works in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Designing the TRPO objective function
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: At the beginning of the chapter, we learned that TRPO tries to make a large
+    policy update while imposing the constraint that the parameter of the old policy
+    and the new policy should stay within the trust region. In this section, we will
+    learn how to design the TRPO objective function along with the trust region constraint
+    so that the old policy and the new policy will not vary very much.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This section will be pretty dense and optional. If you are not interested in
+    math you can directly navigate to the section *Solving the TRPO objective function*,
+    where we learn how to solve the TRPO objective function step by step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let us say we have a policy ![](img/B15558_03_140.png); we can express the
+    expected discounted return ![](img/B15558_13_072.png) following the policy ![](img/B15558_03_008.png)
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_074.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We know that in the policy gradient method, on every iteration, we keep on
+    improving the policy ![](img/B15558_03_055.png). Say we updated our old policy
+    ![](img/B15558_03_140.png) and have a new policy ![](img/B15558_13_077.png); then,
+    we can express the expected discounted return ![](img/B15558_13_078.png), following
+    the new policy ![](img/B15558_13_079.png) in terms of advantage over the old policy
+    ![](img/B15558_03_084.png), as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_081.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'As we can notice from the preceding equation, the expected return following
+    the new policy ![](img/B15558_13_082.png), that is, ![](img/B15558_13_083.png),
+    is just the sum of the expected return following the old policy ![](img/B15558_03_084.png),
+    that is, ![](img/B15558_13_085.png), and the expected discounted advantage of
+    the old policy ![](img/B15558_13_086.png). That is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_12.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: But, why are we using the advantage of the old policy? Because we are measuring
+    how good the new policy ![](img/B15558_13_087.png) is with respect to the average
+    performance of the old policy ![](img/B15558_03_008.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can simplify the equation (2) and replace the sum over time steps with the
+    sum over states and actions as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_089.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Where ![](img/B15558_13_090.png) is the discounted visitation frequency of the
+    new policy. We already learned that the expected return of the new policy ![](img/B15558_13_091.png)
+    is obtained by adding the expected return of the old policy ![](img/B15558_13_092.png)
+    and the advantage of the old policy ![](img/B15558_13_093.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding equation (3), if the advantage ![](img/B15558_13_094.png) is
+    always positive, then it means that our policy is improving and we have better
+    ![](img/B15558_13_095.png). That is, if the advantage ![](img/B15558_13_094.png)
+    is always ![](img/B15558_13_097.png), then we will always have an improvement
+    in our policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, equation (3) is difficult to optimize, so we approximate ![](img/B15558_13_098.png)
+    by a local approximate ![](img/B15558_13_099.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_100.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: As you may notice, unlike equation (3), in equation (4) we use ![](img/B15558_13_101.png)
+    instead of ![](img/B15558_13_102.png). That is, we use a discounted visitation
+    frequency of the old policy ![](img/B15558_13_103.png) instead of the new policy
+    ![](img/B15558_13_090.png). But why do we have to do that? Because we already
+    have trajectories sampled from the old policy, so it is easier to obtain ![](img/B15558_13_103.png)
+    than ![](img/B15558_13_090.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: A surrogate function is a function that is an approximate of the objective function;
+    so, we can call ![](img/B15558_13_107.png) a surrogate function since it is the
+    local approximate of our objective function ![](img/B15558_13_098.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, ![](img/B15558_13_109.png) is the local approximate of our objective ![](img/B15558_13_091.png).
+    We need to make sure that our local approximate is accurate. Remember how, in
+    the *The trust region method* section, we learned that the local approximation
+    of the function will be accurate if it is in the trust region? So, our local approximate
+    ![](img/B15558_13_111.png) will be accurate if it is in the trust region. Thus,
+    while updating the values of ![](img/B15558_13_112.png), we need to make sure
+    that it remains in the trust region; that is, the policy updates should remain
+    in the trust region.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, when we update the old policy ![](img/B15558_03_140.png) to a new policy
+    ![](img/B15558_13_079.png), we just need to ensure that the new policy update
+    stays within the trust region. In order to do that, we have to measure how far
+    our new policy is from the old policy, so, we use the KL divergence to measure
+    this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_115.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Therefore, while updating the policy, we check the KL divergence between the
+    policy updates and make sure that our policy updates are within the trust region.
+    To satisfy this KL constraint, Kakade and Langford introduced a new policy updating
+    scheme called conservative policy iteration and derived the following lower bound:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_116.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: As we can observe, in the preceding equation, we have the KL divergence as the
+    penalty term and *C* is the penalty coefficient.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, our surrogate objective function (4) along with the penalized KL term
+    is written as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_117.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Maximizing the surrogate function ![](img/B15558_13_118.png) improves our true
+    objective function ![](img/B15558_13_098.png) and guarantees a monotonic improvement
+    in the policy. The preceding objective function is known as **KL penalized objective.**
+  prefs: []
+  type: TYPE_NORMAL
+- en: Parameterizing the policies
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: We learned that maximizing the surrogate objective function maximizes our true
+    objective function. We know that in the policy gradient method, we use a parameterized
+    policy; that is, we use a function approximator like a neural network parameterized
+    by some parameter ![](img/B15558_09_054.png) and learn the optimal policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We parameterize the old policy with ![](img/B15558_10_037.png) as ![](img/B15558_13_122.png)
+    and the new policy with ![](img/B15558_12_330.png) as ![](img/B15558_13_124.png).
+    So, we can rewrite our equation (5) in terms of parameterized policies as shown
+    here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_125.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'As shown in the preceding equation, we are using the max KL divergence between
+    the old and new policies, that is, ![](img/B15558_13_126.png). It is difficult
+    to optimize our objective with the max KL term, so instead of using max KL, we
+    can take the average KL divergence ![](img/B15558_13_127.png) and rewrite our
+    surrogate objective as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_128.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The issue with the preceding objective function is that when we substitute the
+    value of the penalty coefficient *C* as ![](img/B15558_13_129.png), it reduces
+    the step size, and it takes us a lot of time to attain convergence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, we can redefine our surrogate objective function as a constrained objective
+    function as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_130.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The preceding equation implies that we maximize our surrogate objective function
+    ![](img/B15558_13_131.png) while maintaining the constraint that the KL divergence
+    between the old policy ![](img/B15558_13_132.png) and new policy ![](img/B15558_10_111.png)
+    is less than or equal to a constant ![](img/B15558_09_135.png), and it ensures
+    that our old policy and the new policy will not vary very much. The preceding
+    objective function is called the **KL-constrained objective.**
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sample-based estimation
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In the previous section, we learned how to frame our objective function as a
+    KL-constrained objective with parameterized policies. In this section, we will
+    learn how to simplify our objective function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We learned that our KL constrained objective function is given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_135.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'From equation (4), substituting the value of ![](img/B15558_13_136.png) with
+    ![](img/B15558_13_137.png) in the preceding equation, we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_138.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Now we will see how we can simplify equation (9) by getting rid of the two summations
+    using sampling.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first sum ![](img/B15558_13_139.png) expresses the summation over state
+    visitation frequency; we can replace it by sampling states from state visitation
+    as ![](img/B15558_13_140.png). Then, our equation becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_141.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Next, we replace the sum over actions ![](img/B15558_13_142.png) with an importance
+    sampling estimator. Let *q* be the sampling distribution, and *a* is sampled from
+    *q*, that is, ![](img/B15558_13_143.png). Then, we can rewrite our preceding equation
+    as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_144.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Replacing the sampling distribution *q* with ![](img/B15558_13_145.png), we
+    can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_146.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Thus, our equation (9) becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_147.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In the next section, we will learn how to solve the preceding objective function
+    to find the optimal policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Solving the TRPO objective function
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In the previous section, we learned that the TRPO objective function is expressed
+    as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_147.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The preceding equation implies that we try to find the policy that gives the
+    maximum return along with the constraint that the KL divergence between the old
+    and new policies should be less than or equal to ![](img/B15558_09_135.png). This
+    KL constraint makes sure that our new policy is not too far away from the old
+    policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For notation brevity, let us represent our objective with ![](img/B15558_13_150.png)
+    and the KL constraint with ![](img/B15558_13_151.png) and rewrite the preceding
+    equation as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_152.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'By maximizing our objective function ![](img/B15558_13_153.png), we can find
+    the optimal policy. We can maximize the objective ![](img/B15558_13_154.png) by
+    calculating gradients with respect to ![](img/B15558_09_056.png) and update the
+    parameter using gradient ascent as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_156.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Where ![](img/B15558_13_157.png) is the search direction (gradient) and ![](img/B15558_13_158.png)
+    is the backtracking coefficient.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'That is, to update the parameter ![](img/B15558_09_054.png), we perform the
+    two following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, we compute the search direction ![](img/B15558_13_160.png) using the
+    Taylor series approximation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Next, we perform the line search in the computed search direction ![](img/B15558_13_161.png)
+    by finding the value of ![](img/B15558_09_143.png) using the backtracking line
+    search method
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We will learn what the backtracking coefficient is and how exactly the backtracking
+    line search method works in the *Performing a line search in the search direction*
+    section. Okay, but why do we have to perform these two steps? If you look at our
+    objective function (10), we have a constrained optimization problem. Our constraint
+    here is that while updating the parameter ![](img/B15558_09_054.png), we need
+    to make sure that our parameter updates are within the trust region; that is,
+    the KL divergence between the old and new parameters should be less than or equal
+    to ![](img/B15558_13_164.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, performing these two steps and updating our parameter helps us satisfy
+    the KL constraint and also guarantees monotonic improvement. Let's get into details
+    and learn how exactly the two steps work.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Computing the search direction
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: It is difficult to optimize our objective function (10) directly, so first,
+    we approximate our function using the Taylor series. We approximate the surrogate
+    objective function ![](img/B15558_13_154.png) using linear approximation and we
+    approximate our constraint ![](img/B15558_13_166.png) using quadratic approximation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To better understand the upcoming steps, recap *The Taylor series* from the
+    *Math essentials* section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The **linear approximation** of our objective function at a point ![](img/B15558_13_167.png)
+    is given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_168.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We represent the gradient ![](img/B15558_13_169.png) with *g*, so the preceding
+    equation becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_170.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'While solving the preceding equation, the value of ![](img/B15558_13_171.png)
+    becomes zero, so we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_172.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The **quadratic approximation** of our constraint at point ![](img/B15558_13_173.png)
+    is given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_174.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Where *H* is the second-order derivative, that is, ![](img/B15558_13_175.png).
+    In the preceding equation, the first term ![](img/B15558_13_176.png) becomes zero
+    as the KL divergence between two identical distributions is zero, and the first-order
+    derivative ![](img/B15558_13_177.png) becomes zero at ![](img/B15558_13_178.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, our final equation becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_179.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Substituting (11) and (12) in the equation (10), we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_180.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Note that in the preceding equation, ![](img/B15558_13_181.png) represents the
+    parameter of the old policy and ![](img/B15558_09_054.png) represents the parameter
+    of the new policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we can observe, in equation (13) we have a constrained optimization problem.
+    How can we solve this? We can solve this using the Lagrange multiplier.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Thus, using the Lagrange multiplier ![](img/B15558_13_054.png), we can rewrite
+    our objective function (13) as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_184.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'For notation brevity, let *s* represent ![](img/B15558_13_185.png), so we can
+    rewrite equation (14) as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_186.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Our goal is to find the optimal parameter ![](img/B15558_09_087.png). So, we
+    need to calculate the gradient of the preceding function and update our parameter
+    using gradient ascent as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_188.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Where ![](img/B15558_06_030.png) is the learning rate and *s* is the gradient.Now
+    we will look at how to determine the learning rate ![](img/B15558_13_190.png)
+    and the gradient *s*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we compute *s*. Calculating the derivative of the objective function
+    *L* given in equation (15) with respect to gradient *s*, we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_191.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Thus, we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_192.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B15558_13_193.png) is just our Lagrange multiplier and it will not
+    affect our gradient, so we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_194.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Thus, we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_195.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: However, computing the value of *s* directly in this way is not optimal. This
+    is because in the preceding equation, we have ![](img/B15558_13_196.png), which
+    implies the inverse of the second-order derivative. Computing the second-order
+    derivative and its inverse is a expensive task. So, we need to find a better way
+    to compute *s*; how we do that?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'From (17), we learned that:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_197.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'From the preceding equation, we can observe the equation is in the form of
+    *Ax* = *B*. Thus, using conjugate gradient descent, we can approximate the value
+    of *s* as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_198.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Thus, our update equation becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_199.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Where the value of ![](img/B15558_13_200.png) is computed using conjugated gradient
+    descent.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have calculated the gradient, we need to determine the learning
+    rate ![](img/B15558_06_030.png). We need to keep in mind that our update should
+    be within the trust region, so while calculating the value of ![](img/B15558_09_152.png),
+    we need to maintain the KL constraint.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In equation (18), we learned that our update rule is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_203.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'By rearranging the terms, we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_204.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'From equation (13), we can write our KL constraint as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_205.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Substituting (19) in the preceding equation, we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_206.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The preceding equation can be solved as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_207.png)![](img/B15558_13_208.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Thus, we can substitute the preceding value of the learning rate ![](img/B15558_06_030.png)
+    in the equation (18) and rewrite our parameter update as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_210.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Where the value of ![](img/B15558_13_211.png) is computed using conjugated gradient
+    descent.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Thus, we have computed the search direction using the Taylor series approximation
+    and the Lagrange multiplier:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_13.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In the next section, let's learn how to perform a line search.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Performing a line search in the search direction
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'In order to make sure that our policy updates satisfy the KL constraint, we
+    use a backtracking line search method. So, our update equation becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_212.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Okay, what does this mean? What's that new parameter ![](img/B15558_13_158.png)
+    doing there? It is called the backtracking coefficient and the value of ![](img/B15558_13_158.png)
+    ranges from 0 to 1\. It helps us to take a large step to update our parameter.
+    That is, we can set ![](img/B15558_09_143.png) to a high value and make a large
+    update. However, we need to make sure that we are maximizing our objective ![](img/B15558_13_216.png)
+    along with satisfying our constraint ![](img/B15558_13_217.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, we just try for different values of *j* from 0 to *N* and compute ![](img/B15558_09_106.png)
+    as ![](img/B15558_13_212.png). If ![](img/B15558_13_216.png) and ![](img/B15558_13_217.png)
+    for some values of *j*, then we just stop and update our parameter as ![](img/B15558_13_212.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following steps provide clarity on how the backtracking line search method
+    works:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For iterations *j* = 0, 1, 2, 3, . . . , *N*:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute ![](img/B15558_13_212.png)
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'If ![](img/B15558_13_224.png) and ![](img/B15558_13_225.png) then:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Update ![](img/B15558_13_212.png)
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Break
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Thus, our final parameter update rule of TRPO is given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_212.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In the next section, we will learn how exactly the TRPO algorithm works by using
+    the preceding update rule.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Algorithm – TRPO
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'TRPO acts as an improvement to the policy gradient algorithm we learned in
+    *Chapter 10*, *Policy Gradient Method*. It ensures that we can take large steps
+    and update our parameter along with maintaining the constraint that our old policy
+    and the new policy should not vary very much. The TRPO update rule is given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_212.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Now, let''s look at the algorithm of TRPO and see exactly how TRPO uses the
+    preceding update rule and finds the optimal policy. Before going ahead, let''s
+    recap how we computed gradient in the policy gradient method. In the policy gradient
+    method, we computed the gradient *g* as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_229.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Where *R*[t] is the reward-to-go. The reward-to-go is the sum of the rewards
+    of the trajectory starting from a state *s* and action *a*; it is expressed as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_230.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Isn''t the reward-to-go similar to something we learned about earlier? Yes!
+    If you recall, we learned that the Q function is the sum of rewards of the trajectory
+    starting from the state *s* and action *a*. So, we can just replace the reward-to-go
+    with the Q function and write our gradient as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_231.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In the preceding equation, we have a difference between the Q function and
+    the value function. We learned that the advantage function is the difference between
+    the Q function and the value function and hence we can rewrite our gradient with
+    the advantage function as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_232.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Now, let's look at the algorithm of TRPO. Remember that TRPO is the policy gradient
+    method, so unlike actor-critic methods, here, first we generate *N* number of trajectories
+    and then we update the parameter of the policy and value network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The steps involved in the TRPO are given as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Initialize the policy network parameter ![](img/B15558_13_233.png) and value
+    network parameter ![](img/B15558_13_234.png)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Generate *N* number of trajectories ![](img/B15558_10_058.png) following the
+    policy ![](img/B15558_10_111.png)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the return (reward-to-go) *R*[t]
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the advantage value *A*[t]
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the policy gradients:![](img/B15558_13_232.png)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute ![](img/B15558_13_238.png) using the conjugate gradient method
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Update the policy network parameter ![](img/B15558_09_054.png) using the update
+    rule:![](img/B15558_13_240.png)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the mean squared error of the value network:![](img/B15558_10_149.png)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Update the value network parameter ![](img/B15558_13_234.png) using gradient
+    descent as ![](img/B15558_13_243.png)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Repeat steps 2 to 9 for several iterations
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Now that we have understood how TRPO works, in the next section, we will learn
+    another interesting algorithm called proximal policy optimization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Proximal policy optimization
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous section, we learned how TRPO works. We learned that TRPO keeps
+    the policy updates in the trust region by imposing a constraint that the KL divergence
+    between the old and new policy should be less than or equal to ![](img/B15558_13_244.png).
+    The problem with the TRPO method is that it is difficult to implement and is computationally
+    expensive. So, now we will learn one of the most popular and state-of-the-art
+    policy gradient algorithms called **Proximal Policy Optimization** (**PPO**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: PPO improves upon the TRPO algorithm and is simple to implement. Similar to
+    TRPO, PPO ensures that the policy updates are in the trust region. But unlike
+    TRPO, PPO does not use any constraints in the objective function. Going forward,
+    we will learn how exactly PPO works and how PPO ensures that the policy updates
+    are in the trust region.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are two different types of PPO algorithm:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**PPO-clipped –** In the PPO-clipped method, in order to ensure that the policy
+    updates are in the trust region (that the new policy is not far away from the
+    old policy), PPO adds a new function called the clipping function, which ensures
+    that the new and old policies are not far away from each other.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**PPO-penalty –** In the PPO-penalty method, we modify our objective function
+    by converting the KL constraint term to a penalty term and update the penalty
+    coefficient adaptively during training by ensuring that the policy updates are
+    in the trust region.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We will now look into the preceding two types of PPO algorithm in detail.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PPO with a clipped objective
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'First, let us recall the objective function of TRPO. We learned that the TRPO
+    objective function is given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_245.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: It implies that we try to maximize our policy along with the constraint that
+    the old policy and the new policy stays within the trust region, that is, the
+    KL divergence between the old policy and new policy should be less than or equal
+    to ![](img/B15558_13_246.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let us take only the objective without the constraint and write the PPO objective
+    function as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_247.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In the preceding equation, the term ![](img/B15558_13_248.png) implies the
+    probability ratio, that is, the ratio of the new policy to the old policy. Let
+    us denote this using ![](img/B15558_13_249.png) and write the PPO objective function
+    as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_250.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'If we update the policy using the preceding objective function then the policy
+    updates will not be in the trust region. So, to ensure that our policy updates
+    are in the trust region (that the new policy is not far from the old policy),
+    we modify our objective function by adding a new function called the clipping
+    function and rewrite our objective function as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_251.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The preceding function implies that we take the minimum of two terms: one is
+    ![](img/B15558_13_252.png) and the other is ![](img/B15558_13_253.png).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We know that the first term ![](img/B15558_13_254.png) is basically our objective,
+    see equation (20), and the second term is called the clipped objective. Thus,
+    our final objective function is just the minimum of the unclipped and clipped
+    objectives. But what's the use of this? How does adding this clipped objective
+    help us in keeping our new policy not far away from the old policy?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s understand this by taking a closer look:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_251.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We know that the first term (unclipped objective) is just given by equation
+    (20). So, let''s take a look into the second term, the clipped objective. It is
+    given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_256.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: By looking at the preceding term, we can say that we are clipping the probability
+    ratio ![](img/B15558_13_257.png) in the range of ![](img/B15558_13_258.png). But
+    why do we have to clip ![](img/B15558_13_259.png)? This can be explained by considering
+    two cases of the advantage function—when the advantage is positive and when it
+    is negative.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Case 1: When the advantage is positive**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: When the advantage is positive, ![](img/B15558_13_260.png), then it means that
+    the corresponding action should be preferred over the average of all other actions.
+    So, we can increase the value of ![](img/B15558_13_261.png) for that action so
+    that it will have a greater chance of being selected. However, while increasing
+    the value of ![](img/B15558_13_257.png), we should not increase it too much that
+    it goes far away from the old policy. So, to prevent this, we clip ![](img/B15558_13_261.png)
+    at ![](img/B15558_13_264.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 13.10* shows how we increase the value of ![](img/B15558_13_261.png)
+    when the advantage is positive and how we clip it at ![](img/B15558_13_266.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_10.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.10: Value of ![](img/B15558_13_267.png) when the advantage is positive'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Case 2: When the advantage is negative**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: When the advantage is negative, ![](img/B15558_13_268.png), then it means that
+    the corresponding action should not be preferred over the average of all other
+    actions. So, we can decrease the value of ![](img/B15558_13_257.png) for that
+    action so that it will have a lower chance of being selected. However, while decreasing
+    the value of ![](img/B15558_13_257.png), we should not decrease it too much that
+    it goes far away from the old policy. So, in order to prevent that, we clip ![](img/B15558_13_257.png)
+    at ![](img/B15558_13_272.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 13.11* shows how we decrease the value of ![](img/B15558_13_273.png)
+    when the advantage is negative and how we clip it at ![](img/B15558_13_272.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_11.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 13.11: Value of ![](img/B15558_13_275.png) when the advantage is negative'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The value of ![](img/B15558_13_276.png) is usually set to 0.1 or 0.2\. Thus,
+    we learned that the clipped objective keeps our policy updates close to the old
+    policy by clipping at ![](img/B15558_13_266.png) and ![](img/B15558_04_123.png)
+    based on the advantage function. So, our final objective function takes the minimum
+    value of the unclipped and clipped objectives as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_251.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Now that we have learned how the PPO algorithm with a clipped objective works,
+    let's look into the algorithm in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Algorithm – PPO-clipped
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The steps involved in the PPO-clipped algorithm are given as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Initialize the policy network parameter ![](img/B15558_09_002.png) and value
+    network parameter ![](img/B15558_12_213.png)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Collect *N* number of trajectories ![](img/B15558_10_058.png) following the
+    policy ![](img/B15558_10_120.png)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the return (reward-to-go) *R*[t]
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the gradient of the objective function ![](img/B15558_13_284.png)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Update the policy network parameter ![](img/B15558_09_054.png) using gradient
+    ascent as ![](img/B15558_13_286.png)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the mean squared error of the value network:![](img/B15558_10_149.png)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the gradient of the value network ![](img/B15558_10_093.png)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Update the value network parameter ![](img/B15558_13_289.png) using gradient
+    descent as ![](img/B15558_10_150.png)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Repeat steps 2 to 8 for several iterations
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Implementing the PPO-clipped method
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Let's implement the PPO-clipped method for the swing-up pendulum task. The code
+    used in this section is adapted from one of the very good PPO implementations
+    ([https://github.com/MorvanZhou/Reinforcement-learning-with-tensorflow/tree/master/contents/12_Proximal_Policy_Optimization](https://github.com/MorvanZhou/Reinforcement-learning-with-tensorflow/tree/master/contents/12_Proxima))
+    by Morvan.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, let''s import the necessary libraries:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: Creating the Gym environment
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Let''s create a pendulum environment using Gym:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Get the state shape of the environment:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Get the action shape of the environment:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Note that the pendulum is a continuous environment and thus our action space
+    consists of continuous values. So, we get the bound of our action space:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Set the epsilon value that is used in the clipped objective:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: Defining the PPO class
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Let''s define a class called `PPO` where we will implement the PPO algorithm.
+    For a clear understanding, let''s take a look into the code line by line:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: Defining the init method
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'First, let''s define the `init` method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Start the TensorFlow session:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Define the placeholder for the state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, let''s build the value network that returns the value of a state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Define the placeholder for the Q value:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Define the advantage value as the difference between the Q value and the state
+    value:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Compute the loss of the value network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Train the value network by minimizing the loss using the Adam optimizer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we obtain the new policy and its parameter from the policy network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Obtain the old policy and its parameter from the policy network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Sample an action from the new policy:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Update the parameters of the old policy:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Define the placeholder for the action:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Define the placeholder for the advantage:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, let''s define our surrogate objective function of the policy network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We learned that the objective of the policy network is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_251.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'First, let''s define the ratio ![](img/B15558_13_257.png) as ![](img/B15558_13_248.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Define the objective by multiplying the ratio ![](img/B15558_13_257.png) and
+    the advantage value *A*[t]:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Define the objective function with the clipped and unclipped objectives:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we can compute the gradient and maximize the objective function using
+    gradient ascent. However, instead of doing that, we can convert the preceding
+    maximization objective into the minimization objective by just adding a negative
+    sign. So, we can denote the loss of the policy network as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Train the policy network by minimizing the loss using the Adam optimizer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Initialize all the TensorFlow variables:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: Defining the train function
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Now, let''s define the `train` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Update the old policy:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Compute the advantage value:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Train the policy network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Train the value network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: Building the policy network
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'We define a function called `build_policy_network` for building the policy
+    network. Note that our action space is continuous here, so our policy network
+    returns the mean and variance of the action as an output and then we generate
+    a normal distribution using this mean and variance and select an action by sampling
+    from this normal distribution:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Define the layer of the network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Compute the mean:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Compute the standard deviation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Compute the normal distribution:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Get the parameters of the policy network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: Selecting the action
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'Let''s define a function called `select_action` for selecting the action:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Sample an action from the normal distribution generated by the policy network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We clip the action so that it lies within the action bounds and then we return
+    the action:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: Computing the state value
+  prefs:
+  - PREF_H4
+  type: TYPE_NORMAL
+- en: 'We define a function called `get_state_value` to obtain the value of the state
+    computed by the value network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: Training the network
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Now, let''s start training the network. First, let''s create an object for
+    our PPO class:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Set the number of episodes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Set the number of time steps in each episode:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Set the discount factor, ![](img/B15558_03_190.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Set the batch size:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For each episode:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Initialize the state by resetting the environment:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Initialize the lists for holding the states, actions, and rewards obtained
+    in the episode:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Initialize the return:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For every step:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Render the environment:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Select the action:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Perform the selected action:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Store the state, action, and reward in the list:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Update the state to the next state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Update the return:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If we reached the batch size or if we reached the final step of the episode:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Compute the value of the next state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Compute the Q value as ![](img/B15558_13_296.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Stack the episodic states, actions, and rewards:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE62]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Train the network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE63]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Empty the lists:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE64]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Print the return for every 10 episodes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE65]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now that we have learned how PPO with a clipped objective works and how to implement
+    it, in the next section we will learn about another interesting type of PPO algorithm
+    called PPO with a penalized objective.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PPO with a penalized objective
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In the PPO-penalty method, we convert the constraint term into a penalty term.
+    First, let us recall the objective function of TRPO. We learned that the TRPO
+    objective function is given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_245.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In the PPO-penalty method, we can rewrite the preceding objective by converting
+    the KL constraint term into a penalty term as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_298.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Where ![](img/B15558_06_030.png) is called the penalty coefficient.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let ![](img/B15558_13_300.png) and let ![](img/B15558_13_301.png) be the target
+    KL divergence; then, we set the value of ![](img/B15558_09_151.png) adaptively
+    as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If *d* is greater than or equal to ![](img/B15558_13_303.png), then we set ![](img/B15558_13_304.png)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If *d* is less than or equal to ![](img/B15558_13_305.png), then we set ![](img/B15558_13_306.png)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We can understand how exactly this works by looking into the PPO-penalty algorithm
+    in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Algorithm – PPO-penalty
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The steps involved in the PPO-penalty algorithm are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Initialize the policy network parameter ![](img/B15558_09_008.png) and the value
+    network parameter ![](img/B15558_13_308.png), and initialize the penalty coefficient
+    ![](img/B15558_13_309.png) and the target KL divergence ![](img/B15558_13_310.png)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For iterations ![](img/B15558_13_311.png):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Collect *N* number of trajectories following the policy ![](img/B15558_10_111.png)
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the return (reward-to-go) *R*[t]
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute ![](img/B15558_13_313.png)
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the gradient of the objective function ![](img/B15558_13_284.png)
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Update the policy network parameter ![](img/B15558_09_054.png) using gradient
+    ascent as ![](img/B15558_13_316.png)
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: If *d* is greater than or equal to ![](img/B15558_13_317.png), then we set ![](img/B15558_13_318.png);
+    if *d* is less than or equal to ![](img/B15558_13_319.png), then we set ![](img/B15558_13_306.png)
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the mean squared error of the value network:![](img/B15558_13_321.png)
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the gradients of the value network ![](img/B15558_10_093.png)
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Update the value network parameter ![](img/B15558_13_234.png) using gradient
+    descent as ![](img/B15558_10_150.png)
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Thus, we learned how PPO-clipped and PPO-penalized objectives work. In general,
+    PPO with a clipped objective is used more often than the PPO method with a penalized
+    objective.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will learn another interesting algorithm called ACKTR.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Actor-critic using Kronecker-factored trust region
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: ACKTR, as the name suggests, is the actor-critic algorithm based on the Kronecker
+    factorization and trust region.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We know that the actor-critic architecture consists of the actor and critic
+    networks, where the role of the actor is to produce a policy and the role of the
+    critic is to evaluate the policy produced by the actor network. We learned that
+    in the actor network (policy network), we compute gradients and update the parameter
+    of the actor network using gradient ascent:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_10_027.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Instead of updating our actor network parameter using the preceding update
+    rule, we can also update it by computing the natural gradients as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_326.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Where *F* is called the Fisher information matrix. Thus, the natural gradient
+    is just the product of the inverse of the Fisher matrix and standard gradient:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_14.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The use of the natural gradient is that it guarantees a monotonic improvement
+    in the policy. However, updating the actor network (policy network) parameter
+    using the preceding update rule is a computationally expensive task, because computing
+    the Fisher information matrix and then taking its inverse is a computationally
+    expensive task. So, to avoid this tedious computation, we can just approximate
+    the value of ![](img/B15558_13_327.png) using a Kronecker-factored approximation.
+    Once we approximate ![](img/B15558_13_327.png) using a Kronecker-factored approximation,
+    then we can just update our policy network parameter using the natural gradient
+    update rule given in equation (21), and while updating the policy network parameter,
+    we also ensure that the policy updates are in the trust region so that the new
+    policy is not far from the old policy. This is the main idea behind the ACKTR
+    algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have a basic understanding of what ACKTR is, let us understand how
+    this works exactly in detail. First, we will understand what Kronecker factorization
+    is, then we will learn how it is used in the actor-critic setting, and later we
+    will learn how to incorporate the trust region in the policy updates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before going ahead, let's learn several math concepts that are required to understand
+    ACKTR.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Math essentials
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To understand how Kronecker factorization works, we will learn the following
+    important concepts:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Block matrix
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Block diagonal matrix
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The Kronecker product
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The vec operator
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Properties of the Kronecker product
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Block matrix
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'A block matrix is defined as a matrix that can be broken down into submatrices
+    called blocks, or we can say a block matrix is formed by a set of submatrices
+    or blocks. For instance, let''s consider a block matrix *A* as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_329.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The matrix *A* can be broken into four ![](img/B15558_13_330.png) submatrices
+    as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_331.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Now, we can simply write our block matrix *A* as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_332.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Block diagonal matrix
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'A block diagonal matrix is a block matrix that consists of a square matrix
+    on the diagonals, and off-diagonal elements are set to 0\. A block diagonal matrix
+    *A* is represented as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_333.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Where the diagonals ![](img/B15558_13_334.png) are the square matrices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'An example of a block diagonal matrix is shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_335.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'As we can see, the diagonals are basically the square matrix and off-diagonal
+    elements are set to zero:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_15.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Thus, we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_336.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Now, we can simply denote our block diagonal matrix *A* as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_337.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The Kronecker product
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The Kronecker product is an operation performed between two matrices. The Kronecker
+    product is not the same as matrix multiplication. When we perform the Kronecker
+    product between two matrices, it will output the block matrix. The Kronecker product
+    is denoted by ![](img/B15558_13_338.png). Let us say we have a matrix *A* of order
+    ![](img/B15558_13_339.png) and a matrix *B* of order ![](img/B15558_13_340.png);
+    the Kronecker product of matrices *A* and *B* is expressed as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_341.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This implies that we multiply every element in matrix *A* by matrix *B*. Let
+    us understand this with an example. Say we have two matrices *A* and *B* as shown
+    here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_342.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Then the Kronecker product of matrices *A* and *B* is given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_16.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The vec operator
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The vec operator creates a column vector by stacking all the columns in a matrix
+    below one another. For instance, let''s consider a matrix *A* as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_343.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Applying the vec operator on *A* stacks all the columns in the matrix one below
+    the other as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_344.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Properties of the Kronecker product
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The Kronecker product has several useful properties; these include:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_345.png)'
+  prefs:
+  - PREF_UL
+  type: TYPE_IMG
+- en: '![](img/B15558_13_346.png)'
+  prefs:
+  - PREF_UL
+  type: TYPE_IMG
+- en: '![](img/B15558_13_347.png)'
+  prefs:
+  - PREF_UL
+  type: TYPE_IMG
+- en: Now that we have learned several important concepts, let's understand what Kronecker
+    factorization is.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Kronecker-Factored Approximate Curvature (K-FAC)
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let''s suppose we have a neural network parametrized by ![](img/B15558_09_054.png)
+    and we train the neural network using gradient descent. We can write our update
+    rule, including the natural gradient, as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_349.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Where *F* is the Fisher information matrix. The problem is that computing *F*
+    and finding its inverse is an expensive task. So to avoid that, we use a Kronecker-factored
+    approximation to approximate the value of ![](img/B15558_13_350.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s learn how we approximate ![](img/B15558_13_350.png) using Kronecker
+    factors. Say our network has ![](img/B15558_13_352.png) layers and the weight
+    of the network is represented by ![](img/B15558_09_123.png). Thus, ![](img/B15558_13_354.png)
+    denotes the weights of the layers ![](img/B15558_13_355.png) respectively. Let
+    ![](img/B15558_13_356.png) denote the output distribution of the network, and
+    we will use the negative log-likelihood as the loss function *J*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_357.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Then, the Fisher information matrix can be written as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_358.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'K-FAC approximates the Fisher information matrix, *F*, as a block diagonal
+    matrix where each block refers to the gradients of the loss with respect to the
+    weights of a particular layer. For example, the block *F*[1] denotes the gradients
+    of the loss with respect to the weights of layer 1\. The block *F*[2] denotes
+    the gradients of the loss with respect to the weights of layer 2\. The block *F*[l]
+    denotes the gradients of the loss with respect to the weights of layer *l*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_359.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'That is, ![](img/B15558_13_360.png), where:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_361.png)'
+  prefs:
+  - PREF_UL
+  type: TYPE_IMG
+- en: '![](img/B15558_13_362.png)'
+  prefs:
+  - PREF_UL
+  type: TYPE_IMG
+- en: '![](img/B15558_13_363.png)'
+  prefs:
+  - PREF_UL
+  type: TYPE_IMG
+- en: '![](img/B15558_13_364.png)'
+  prefs:
+  - PREF_UL
+  type: TYPE_IMG
+- en: As we can observe, each block *F*[1] to *F*[L] contains the derivatives of loss
+    *J* with respect to the weights of the corresponding layer. Okay, how can we compute
+    each block? That is, how can the values in the preceding block diagonal matrix
+    be computed?
+  prefs: []
+  type: TYPE_NORMAL
+- en: To understand this, let's just take one block, say, *F*[l], and learn how it
+    is computed. Let's take a layer *l*. Let *a* be the input activation vector, let
+    ![](img/B15558_13_365.png) be the weights of the layer, and let *s* be the output
+    pre-activation vector, and it can be sent to the next layer *l* + 1.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We know that in the neural network, we multiply the activation vector by weights
+    and send that to the next layer; so, we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_366.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We can approximate the block *F*[l] corresponding to layer *l* as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_367.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The preceding equation *F*[l] denotes the gradient of the loss with respect
+    to the weights of layer *l*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'From (22), the partial derivative of the loss function *J* with respect to
+    weights ![](img/B15558_13_368.png) in layer *l* can be written as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_369.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Substituting (24) in (23), we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_370.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The preceding equation implies that *F*[l] is just the expected value of the
+    Kronecker product. So, we can rewrite it as the Kronecker product of the expected
+    value; that is, *F*[l] can be approximated as the Kronecker product of the expected
+    value:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_371.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Let ![](img/B15558_13_372.png) and ![](img/B15558_13_373.png). We can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_374.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This is known as Kronecker factorization and *A* and *S* are called the Kronecker
+    factors. Now that we have learned how to compute the block *F*[l], let's learn
+    how to update the weights ![](img/B15558_13_368.png) of the layer *l*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The update rule for updating the weights ![](img/B15558_13_376.png) of the
+    layer *l* is given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_377.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Let ![](img/B15558_13_378.png). We can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_379.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Let''s see how to compute the value of ![](img/B15558_13_380.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_378.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Applying the vec operator on both sides, we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_382.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'From (25), we can substitute the value of *F*[l] and write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_383.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Using the properties ![](img/B15558_13_384.png) and ![](img/B15558_13_347.png),
+    we can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_386.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'As you may observe, we have computed the value of ![](img/B15558_13_387.png)
+    without expensive computation of the inverse of the Fisher information matrix
+    using Kronecker factors. Now, using the value of ![](img/B15558_13_388.png) we
+    just derived, we can update the weights ![](img/B15558_13_389.png) of the layer
+    *l* as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_379.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In a nutshell, K-FAC approximates the Fisher information matrix as a block diagonal
+    matrix where each block contains the derivatives. Then, each block is approximated
+    as the Kronecker product of two matrices, which is known as Kronecker factorization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, we have learned how to approximate the natural gradient using Kronecker
+    factors. In the next section, we will learn how to apply this in an actor-critic
+    setting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: K-FAC in actor-critic
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We know that in the actor-critic method, we have actor and critic networks.
+    The role of the actor is to produce the policy and the role of the critic is to
+    evaluate the policy produced by the actor network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, let''s take a look at the actor network. In the actor network, our goal
+    is to find the optimal policy. So, we try to find the optimal parameter ![](img/B15558_09_087.png)
+    with which we can obtain the optimal policy. We compute gradients and update the
+    parameter of the actor network using gradient ascent:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_10_027.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Instead of updating the actor network parameter using the preceding update
+    rule, we can also update the parameter of the actor network by computing the natural
+    gradients as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_393.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'But computing ![](img/B15558_13_350.png) is an expensive task. So, we can use
+    Kronecker factorization for approximating the value of ![](img/B15558_13_350.png).
+    We can define the Fisher information matrix for the actor network *F* as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_396.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Now, just as we learned in the previous section, we can approximate the Fisher
+    information matrix as a block diagonal matrix where each block contains the derivatives,
+    and then we can approximate each block as the Kronecker product of two matrices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let ![](img/B15558_13_397.png). We can write:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_156.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The value of ![](img/B15558_13_399.png) can be computed using Kronecker factorization
+    as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_400.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This is exactly the same as what we learned in the previous section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let's look at the critic network. We know that the critic evaluates the
+    policy produced by the actor network by estimating the Q function. So, we train
+    the critic by minimizing the mean squared error between the target value and predicted
+    value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We minimize the loss using gradient descent and update the critic network parameter
+    ![](img/B15558_12_213.png) as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_10_150.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Where ![](img/B15558_10_093.png) is the standard first-order gradient.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Instead of using the first-order gradient, can we use the second-order gradient
+    and update the critic network parameter ![](img/B15558_10_148.png), similar to
+    what we did with the actor? Yes, in settings like least squares (MSE), we can
+    use an algorithm called the Gauss-Newton method for finding the second-order derivative.
+    You can learn more about the Gauss-Newton method here: [http://www.seas.ucla.edu/~vandenbe/236C/lectures/gn.pdf](http://www.seas.ucla.edu/~vandenbe/236C/lectures/gn.pdf).
+    Let''s represent our error as ![](img/B15558_13_405.png). According to the Gauss-Newton
+    method, the update rule for updating the critic network parameter ![](img/B15558_13_406.png)
+    is given as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_407.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Where *G* is called the Gauss-Newton matrix, and it is given as ![](img/B15558_13_408.png),
+    and *J* is the Jacobian matrix. (A Jacobian matrix is a matrix that contains a
+    first-order partial derivative for a vector-valued function.)
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you look at the preceding equation, computing ![](img/B15558_13_409.png)
+    is equivalent to computing the ![](img/B15558_13_350.png) we saw in the actor
+    network. That is, computing the inverse of the Gauss-Newton matrix is equivalent
+    to computing the inverse of the Fisher information matrix. So, we can use the
+    Kronecker factor (K-FAC) to approximate the value of ![](img/B15558_13_409.png)
+    just like we approximated the value of ![](img/B15558_13_412.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Instead of applying K-FAC to the actor and critic separately, we can also apply
+    them in a shared mode. As specified in the paper **Scalable trust-region method
+    for deep reinforcement learning using Kronecker-factored approximation** by Yuhuai
+    Wu, Elman Mansimov, Shun Liao, Roger Grosse, Jimmy Ba ([https://arxiv.org/pdf/1708.05144.pdf](https://arxiv.org/pdf/1708.05144.pdf)),
+    "*We can have a single architecture where both actor and critic share the lower
+    layer representations but they have different output layers*."
+  prefs: []
+  type: TYPE_NORMAL
+- en: In a nutshell, in the ACKTR method, we update the parameters of the actor and
+    critic networks by computing the second-order derivatives. Since computing the
+    second-order derivative is an expensive task, we use a method called Kronecker-factored
+    approximation to approximate the second-order derivative.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will learn how to incorporate the trust region into
+    our update rule so that our new and old policy updates will not be too far apart.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Incorporating the trust region
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We learned that we can update the parameter of our network with a natural gradient
+    as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B15558_13_413.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In the previous section, we learned how we can use K-FAC to approximate the
+    ![](img/B15558_13_350.png) matrix. While updating the policy, we need to make
+    sure that our policy updates are in the trust region; that is, our new policy
+    should not be too far away from the old policy. So to ensure this, we can choose
+    the step size ![](img/B15558_09_143.png) as ![](img/B15558_13_416.png), where
+    ![](img/B15558_09_143.png) and the trust region radius ![](img/B15558_09_135.png)
+    are the hyperparameters, as mentioned in the ACKTR paper (refer to the *Further
+    reading* section). Updating our network parameters with this step size ensures
+    that our policy updates are in the trust region.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We started off the chapter by understanding what TRPO is and how it acts as
+    an improvement to the policy gradient algorithm. We learned that when the new
+    policy and old policy vary greatly then it causes model collapse.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So in TRPO, we make a policy update while imposing the constraint that the parameters
+    of the old and new policies should stay within the trust region. We also learned
+    that TRPO guarantees monotonic policy improvement; that is, it guarantees that
+    there will always be a policy improvement on every iteration.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Later, we learned about the PPO algorithm, which acts as an improvement to
+    the TRPO algorithm. We learned about two types of PPO algorithm: PPO-clipped and
+    PPO-penalty. In the PPO-clipped method, in order to ensure that the policy updates
+    are in the trust region, PPO adds a new function called the clipping function
+    that ensures the new and old policies are not far away from each other. In the
+    PPO-penalty method, we modify our objective function by converting the KL constraint
+    term to a penalty term and update the penalty coefficient adaptively during training
+    by ensuring that the policy updates are in the trust region.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the end of the chapter, we learned about ACKTR. In the ACKTR method, we update
+    the parameters of the actor and critic networks by computing the second-order
+    derivative. Since computing the second-order derivative is an expensive task,
+    we use a method called Kronecker-factored approximation to approximate the second-order
+    derivatives, and while updating the policy network parameter, we also ensure that
+    the policy updates are in the trust region so that the new policy is not far from
+    the old policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will learn about several interesting distributional
+    reinforcement learning algorithms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s evaluate our understanding of the algorithms we learned in this chapter.
+    Try answering the following questions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is a trust region?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Why is TRPO useful?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How does the conjugate gradient method differ from gradient descent?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is the update rule of TRPO?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How does PPO differ from TRPO?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Explain the PPO-clipped method.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is Kronecker factorization?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'For more information, refer to the following papers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Trust Region Policy Optimization** by *John Schulman*, *Sergey Levine, Philipp
+    Moritz*, *Michael I. Jordan*, *Pieter Abbeel*, [https://arxiv.org/pdf/1502.05477.pdf](https://arxiv.org/pdf/1502.05477.pdf)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Proximal Policy Optimization Algorithms** by *John Schulman*, *Filip Wolski*,
+    *Prafulla Dhariwal*, *Alec Radford*, *Oleg Klimov*, [https://arxiv.org/pdf/1707.06347.pdf](https://arxiv.org/pdf/1707.06347.pdf)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Scalable trust-region method for deep reinforcement learning using Kronecker-factored
+    approximation** by*Yuhuai Wu*, *Elman Mansimov*, *Shun Liao*, *Roger Grosse*,
+    *Jimmy Ba*, [https://arxiv.org/pdf/1708.05144.pdf](https://arxiv.org/pdf/1708.05144.pdf)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

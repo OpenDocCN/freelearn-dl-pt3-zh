@@ -1,0 +1,576 @@
+- en: Sentiment Analysis in Your Browser Using TensorFlow.js
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Sentiment analysis is a popular problem in machine learning. People are constantly
+    trying to understand the sentiment of a product or movie review. Currently, for
+    sentiment analysis, we extract the text from a client/browser, pass it on to a
+    server that runs a machine learning model to predict sentiment of the text, and
+    the server then sends the result back to the client.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is perfectly fine if we don't care about the latency in the system. However,
+    there are many applications, such as stock trading, customer support conversations
+    where it might be helpful to predict sentiment of the text with low latency. One
+    obvious bottleneck in reducing latency is the server call.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If sentiment analysis could be achieved on the browser/client itself, we can
+    get rid of the server call and can predict the sentiment in real time. Google
+    recently released TensorFlow.js, which enables us to do the model training and
+    inference on a browser/client.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Additionally, training the models on the client side opens up a world of opportunities.
+    A brief summary of all the advantages of doing this are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Priv****acy**: Since data will never leave the client side, we are able to
+    provide the magical experience of machine learning without compromising on data
+    privacy'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**No hassle ML**: Since the code runs on a browser, the user doesn''t need
+    to install any libraries or dependencies'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Latency**: Since there is no need to transfer data to servers for training/predictions,
+    we can deploy ML models for low latency applications'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Device agnostic**: A web page can be opened on any device (laptop, mobile.
+    and so on) and so TensorFlow.js can take advantage of any hardware (GPU) or device
+    sensors, such as accelerometers in mobile devices, to train ML models'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Let''s learn how to incorporate sentiment analysis in the browser using TensorFlow.js
+    by covering the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding TensorFlow.js
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding Adam Optimization
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding Categorical Cross Entropy Loss
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding Word Embeddings
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Setting up the sentiment analysis problem and building a model in Python
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Deploying the model using TensorFlow.js in a browser
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Find the code for this chapter and Installation instructions are also present
+    in a **README** file in repository for this project.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding TensorFlow.js
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: TensorFlow recently open sourced TensorFlow.js. This is an open source library
+    that helps us define and train deep learning models entirely on the browser using
+    JavaScript as well as through a high-level layered API. We can use this to train
+    deep learning models entirely on the client side. A server GPU is not required
+    to train these models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following diagram illustrates the API overview of TensorFlow.js:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/1f074dbe-54eb-40d5-9042-6201fe2a9397.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This is powered by **WebGL**. It also provides a high-level layered API. It
+    has a support for **Eager** execution, too. You can achieve three things using
+    TensorFlow.js:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Load existing TensorFlow/Keras models for in browser predictions
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Retrain existing models using client data
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Define and train Deep Learning models from scratch on the **Browser**
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding Adam Optimization
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Before we look at Adam optimization, let's try to first understand the concept
+    of gradient descent.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Gradient descent is an iterative optimization algorithm to find the minimum
+    of a function. An analogous example could be as follows: let''s say we are stuck
+    on somewhere in middle of a mountain and we want to reach the ground in fastest
+    possible manner.  As a first step, we will observe the slope of mountain in all
+    directions around us and decide to take the the direction with steepest slope
+    down.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We re-evaluate our choice of direction after every step we take. Also, the size
+    of our walking also depends on the steepness of the downward slope. If the slope
+    is very steep, we take bigger steps as it can help us to reach faster to the ground.
+    This way after a few/large number of steps we can reach the ground safely. Similarly,
+    in machine learning, we want to minimize some error/cost function by updating
+    the weights of the algorithm. To find minimum of cost function using gradient,
+    we update the weights of the algorithm proportional to the gradient in the direction
+    of steepest descent. The proportionality constant is also known as Learning Rate
+    in neural network literature.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, in large scale machine learning, doing gradient descent optimization
+    is pretty costly because we take only one step after a single pass on our entire
+    training dataset. So, the time to converge to a minimum of cost function is huge
+    if we were to take several thousand steps to converge.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A solution to this problem is Stochastic Gradient Descent (SGD), an approach
+    to update weights of the algorithm after each training example and not wait for
+    entire training dataset to pass through the algorithm for the update. We use the
+    term, **stochastic** to denote the approximate nature of gradient as it is only
+    computed after every training example. However, it is shown in the literature
+    that after many iterations, SGD almost surely converges to the true local/global
+    minimum of the function. Generally, in deep learning algorithms, we can observe
+    that we tend to use mini-batch SGD where we update the weights after every mini
+    batch and not after every training example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Adam optimization is a variant of SGD where we maintain per parameter (weight)
+    learning rate and update it based on the mean and variance of previous gradients
+    of that parameter. Adam has been proven to be extremely good and fast for many
+    deep learning problems. For more details on Adam optimization, please refer to
+    the original paper ([https://arxiv.org/abs/1412.6980](https://arxiv.org/abs/1412.6980)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding categorical cross entropy loss
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Cross entropy loss, or log loss, measures the performance of the classification
+    model whose output is a probability between 0 and 1\. Cross entropy increases
+    as the predicted probability of a sample diverges from the actual value. Therefore,
+    predicting a probability of 0.05 when the actual label has a value of 1 increases
+    the cross entropy loss.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Mathematically, for a binary classification setting, cross entropy is defined
+    as the following equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/513a42dd-d240-46c7-8a74-dbd70a09d276.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/d8664366-e696-42ef-8019-5c5a534384a3.png) is the binary indicator
+    (0 or 1) denoting the class for the sample ![](img/3c66d06e-4997-4db5-aa30-89812b374e7a.png),
+    while ![](img/e6887a84-0522-4518-8e83-6448f23b9c49.png) denotes the predicted
+    probability between 0 and 1 for that sample.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Alternatively, if there are more than two classes, we define a new term known
+    as categorical cross entropy. It is calculated as a sum of separate loss for each
+    class label per observation. Mathematically, it is given as the following equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/710d38ef-dfc4-4150-8b23-cebe30073ab3.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/5d45ec5a-62bb-4442-84dd-dd65ce7722e1.png) denotes the number of
+    classes, ![](img/fc17a134-4c08-4d89-baf4-4d06c4309bd2.png) is a binary indicator
+    (0 or 1) that indicates whether ![](img/a8c647e5-8fe0-41c9-be72-a1bf309f9a0a.png) is
+    the correct class for the observation, ![](img/84984180-ad05-465c-84d4-b217cb23f6d6.png),
+    and ![](img/ddf45d66-3f33-4d35-8c57-1d5cf205fee3.png)denotes the probability of
+    observation ![](img/c6141838-e2a2-484d-b836-86931ea042ef.png) for class ![](img/61a34d4d-531a-4306-bae2-b62d653c96de.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, as we perform binary classification on reviews, we will only
+    use binary cross entropy as our classification loss.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding word embeddings
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Word embeddings refer to the class of feature learning techniques in **Natural
+    Language Processing** (**NLP**) that are used to generate a real valued vector
+    representation of a word, sentence, or document.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Many machine learning tasks today involve text. For example, Google's language
+    translation or spam detection in Gmail both use text as input to their models
+    to perform the tasks of translation and spam detection. However, modern day computers
+    can only take real valued numbers as input and can't understand strings or text
+    unless we encode them into numbers or vectors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, let''s consider a sentence, "*I like Football"*, for which we
+    want a representation of all of the words. A brute force method to generate the
+    embeddings of the three words "*I"*, *"like"*, and *"Football"* is done through
+    the one hot representation of words. In this case, the embeddings are given as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '"I" = [1,0,0]'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '"like" = [0,1,0]'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '"Football" = [0,0,1]'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The idea is to create a vector that has a dimension equal to the number of
+    unique words in the sentence and to assign a 1 to the position where a word exists
+    and zero everywhere else. There are two issues with this approach:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The number of vector dimension scales with the number of words in the corpus.
+    Let's say we have 100,000 unique words in a document. Therefore, we represent
+    each word with a vector that has a dimension of 100,000\. This increases the memory
+    required to represent words, making our system inefficient.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'One hot representations like this fail to capture the similarity between words.
+    For example, there are two words in a sentence, *"like"* and *"love"*. We know
+    that *"like"* is more similar to *"love"* than it is to *"Football"*. However,
+    in our current one hot representation, the dot product of any two vectors is zero.
+    Mathematically, the dot product of *"like"* and *"Football"* is represented as
+    follows:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*"like" * "Football" = Transpose([0,1,0]) *[0,0,1] = 0*0 + 1*0 + 0*1 = 0*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is because we have a separate position in the vector for each word and
+    only have 1 in that position.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For both spam detection and language translation problems, understanding the
+    similarity between words is quite crucial. For this reason, there are several
+    other ways (both supervised and unsupervised) in which we can learn about word
+    embeddings.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can learn more about how to use word embeddings with TensorFlow from this official
+    tutorial. ([https://www.tensorflow.org/tutorials/representation/word2vec](https://www.tensorflow.org/tutorials/representation/word2vec))
+  prefs: []
+  type: TYPE_NORMAL
+- en: This project uses the embedding layer from Keras to map the words in our movie
+    reviews to real valued vector representations. In this project, we learn the vector
+    representation of words in a supervised manner. Essentially, we initialize the
+    word embeddings randomly and then use back propagation in neural networks to update
+    the embeddings such that total network loss is minimized. Training them in a supervised
+    manner helps to generate task specific embeddings. For example, we expect a similar
+    representation of words such as *Awesome* and *Great* since they both signify
+    a positive sentiment. Once we have encoded words in movie reviews, we can use
+    them as input in our neural network layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building the sentiment analysis model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we will learn how to build a sentiment analysis model from
+    scratch using Keras. To perform sentiment analysis, we will use sentiment analysis
+    data from the University of Michigan that is available at [https://www.kaggle.com/c/si650winter11/data](https://www.kaggle.com/c/si650winter11/data).
+    This dataset contains 7,086 movie reviews with labels. Label `1` denotes a positive
+    sentiment, while `0` denotes a negative sentiment. In the repository, the dataset
+    is stored in the file named `sentiment.txt`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pre-processing data
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Once you have installed the requisite packages (can be found in a `requirements.txt`
+    file with the code) to run this project and read the data, the next step is to
+    preprocess the data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first step is to get the tokens/word list from the reviews. Remove any
+    punctuation and make sure that all of the tokens are in lowercase:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: For example, if we have an input `This is a GREAT movie!!!!`, our output should
+    be `this is a great movie`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Create a `token_idx` dictionarythat maps tokens to integers to create embeddings.
+    Note that the number of unique tokens (words) present in a dictionary can be very
+    large, so we must filter out the ones that occur less than the threshold (the
+    default value for this is `5` in the code) in the training set. This is because
+    it is difficult to learn any relationship between movie sentiment and words that
+    don''t occur much in the dataset:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Map each review in the dataset to a sequence of integers (based on the `token_idx`dictionary
+    we created in the last step). However, before doing that, find the review with
+    the largest number of tokens:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To create the sequences that will be fed into the model to learn the embeddings,
+    we must create a fixed-length sequence of `(max_tokens)` for each review in the
+    dataset. We pre-pad the sequences with zeros if they are less than the maximum
+    length to ensure that all of the sequences are of the same length. Pre-padding
+    a sequence is preferred over post padding as it helps to achieve a more accurate
+    result:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Building the model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'This model will consist of an embedding layer, followed by three layers of GRU and
+    a fully connected layer with sigmoid activation. For the optimization and accuracy
+    metric, we will use an `Adam` optimizer and `binary_crossentropy`, respectively:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The model is defined using the following parameters:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Train the model with the following parameters:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Epochs = 15
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Validation split = 0.05
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Batch size = 32
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Embedding Size = 8
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Test the model trained on a few random review sentences to verify its performance:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '| **Text** | **Predicted Score** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Awesome movie | 0.9957 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Terrible Movie | 0.0023 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| That movie really sucks  | 0.0021 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| I like that movie  | 0.9469 |'
+  prefs: []
+  type: TYPE_TB
+- en: The predicted score is close to 1 for positive sentences and close to 0 for
+    negative ones. This validates our random checks on the performance of our model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the actual scores might vary a little if you train your model on different
+    hardware types.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Running the model on a browser using TensorFlow.js
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we are going to deploy the model on a browser.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following steps demonstrate how to save the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Install TensorFlow.js, which will help us format our trained model in accordance
+    with what can be consumed by the browser:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Save the model in the TensorFlow.js format:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: This will create a json file called `model.json`, which will contain the meta-variables
+    and some other files, such as `group1-shard1of1`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Good job! Deploying the model in the HTML file is a little trickier, however:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For running the code mentioned in the repository, please follow the `README.md` documentation carefully
+    (note the troubleshooting part, if required) regarding the settings before running
+    the `Run_On_Browser.html` file.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Incorporate TensorFlow.js in your JavaScript through script tags:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Load the model and our `token_idx` dictionary. This will help us to load the
+    relevant data before processing any review from the browser:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Add some helper functions to process the review input from the browser. This
+    includes processing text, mapping words to `token_idx`, and creating sequences
+    for model predictions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Incorporate the predict function that processes the input sentence and uses
+    the model''s predict function to return a tensor with a predicted score, as shown
+    in the previous section:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To illustrate the entire process from a user''s point of view, open the `Run_on_Browser.html` file.
+    You will see something similar to what''s shown in the following screenshot:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/c3ecaa16-a349-4418-ad6f-00e0fa621d61.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The left-hand side of the screenshot denotes the website's layout, while the
+    right-hand side shows the console and outputs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that we can load the dictionary and model beforehand to make the predictions
+    faster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Type a review into the box provided and click submit to see the model''s predicted
+    score. Try running the application with the `Awesome Movie` text:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/29713226-a4ef-434b-9450-98be88b3e10f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The predicted score is quite high, which indicates a positive sentiment. You
+    can play around with different text to see the results.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that this is mainly for illustration purposes and that if you are up for
+    it, you can improve the UI through JavaScript.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This chapter was a brief introduction to how to build an en- to-end system that
+    trains a sentiment analysis model using Keras and deploys it in JavaScript using
+    TensorFlow.js. The process of deploying the model in production is pretty seamless.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A potential next step would be to modify the JavaScript to predict sentiment
+    as soon as a word is typed. As we mentioned previously, by deploying the model
+    using TensorFlow.js, you can enable low- latency applications like real-time sentiment
+    prediction without having to interact with the server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we built a neural network in Python and deployed it in JavaScript.
+    However, you can try building the entire model in JavaScript using TensorFlow.js.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will learn about Google's new library, TensorFlow Lite.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Can you evaluate the accuracy of the model if you use LSTM instead of GRUs?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What happens to the accuracy and training time if you increase Embedding Size?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Can you incorporate more layers in the model? What will happen to the training
+    time?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Can you modify the code  to train the model inside a browser instead of loading
+    the trained model?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL

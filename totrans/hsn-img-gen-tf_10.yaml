@@ -1,0 +1,929 @@
+- en: '*Chapter 7*: High Fidelity Face Generation'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As GANs began to become more stable to train, thanks to improvements to loss
+    functions and normalization techniques, people started to shift their focus to
+    trying to generate higher-resolution images. Previously, most GANs were only capable
+    of generating images up to a resolution of 256x256, and simply adding more upscaling
+    layers to the generator did not help.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will look at techniques that are capable of generating images
+    of high resolutions of 1024x1024 and beyond. We will start by implementing a seminal
+    GAN known as **Progressive GAN**, sometimes abbreviated to **ProGAN**. This was
+    the first GAN that was successful at generating 1024x1024 high-fidelity face portraits.
+    High-fidelity doesn't just mean high-resolution but also a high resemblance to
+    a real face. We can have a high-resolution generated face image, but if it has
+    four eyes, then it isn't high fidelity.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After ProGAN, we will implement **StyleGAN**, which builds on top of ProGAN.
+    StyleGAN incorporates AdaIN from style transfer to allow finer style control and
+    style mixing to generate a variety of images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will cover the following in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: ProGAN overview
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building a ProGAN
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Implementing StyleGAN
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The Jupyter notebooks and code can be found here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://github.com/PacktPublishing/Hands-On-Image-Generation-with-TensorFlow-2.0/tree/master/Chapter07](https://github.com/PacktPublishing/Hands-On-Image-Generation-with-TensorFlow-2.0/tree/master/Chapter07)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The notebooks used in this chapter are listed here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`ch7_progressive_gan.ipynb`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`ch7_style_gan.ipynb`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: ProGAN overview
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In a typical GAN setting, the generator output shape is fixed. In other words,
+    the training image size does not change. If we want to try to double the image
+    resolution, we add an additional upsampling layer to the generator architecture
+    and start the training from scratch. People have tried and failed to increase
+    image resolution by this brute-force method. The enlarged image resolution and
+    network size increases the dimension space, making it more difficult to learn.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'CNNs faced the same problem and solved it by using a batch normalization layer,
+    but this doesn''t work well with GANs. The idea of ProGAN is to not train all
+    the layers simultaneously but start by training the lowest layer in both the generator
+    and the discriminator, so that the layer''s weights are stabilized before adding
+    new layers. We can see it as pre-training the network with lower resolutions.
+    This idea is the core innovation brought by ProGAN, as detailed in the academic
+    paper *Progressive Growing of GANs for Improved Quality, Stability, and Variation*
+    by T. Karras et al. The following diagram illustrates the process of growing the
+    network in ProGAN:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.1 – Illustration of the progressive growing of layers.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: (Redrawn from T. Karras et al. 2018, "Progressive Growing of GANs for Improved
+    Quality, Stability,
+  prefs: []
+  type: TYPE_NORMAL
+- en: and Variation," https://arxiv.org/abs/1710.10196)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_07_01.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 7.1 – Illustration of the progressive growing of layers.(Redrawn from
+    T. Karras et al. 2018, "Progressive Growing of GANs for Improved Quality, Stability,
+    and Variation," https://arxiv.org/abs/1710.10196)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Like vanilla GANs, ProGAN''s input is a latent vector sampled from random noise.
+    As shown in the preceding diagram, we start with an image resolution of **4x4**
+    and only have one block in both the generator and the discriminator. After training
+    in the **4x4** resolution for a while, we add new layers for the **8x8** resolution.
+    We then keep doing that until we reach the final image resolution of **1024x1024**.
+    The following 256x256 images were generated using ProGAN and were released by
+    NVIDIA. The image quality is breathtaking; they are literally indistinguishable
+    from real faces:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.2 – High-fidelity images generated by ProGAN'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(Source: https://github.com/tkarras/progressive_growing_of_gans)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_07_02.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 7.2 – High-fidelity images generated by ProGAN (Source: https://github.com/tkarras/progressive_growing_of_gans)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is fair to say that the superior image generation is mostly down to growing
+    the networks progressively. The network architecture is quite simple, consisting
+    only of convolutional layers and dense layers, rather than more complex architectures
+    such as residual blocks or VAE-like architectures that were more common among
+    GANs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It was not until two generations after the introduction of ProGAN, with StyleGAN
+    2, that the authors started exploring these network architectures. The loss function
+    is also simple, just WGAN-GP loss, without any other losses such as content loss,
+    reconstruction loss, or KL divergence loss. However, there are several minor innovations
+    that we should go over before implementing the core part of growing layers progressively.
+    These innovations are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pixel normalization
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Minibatch statistics
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Equalized learning rate
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Pixel normalization
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Batch normalization should reduce the covariate shift, but the ProGAN authors
+    did not observe that in the network training. Therefore, they ditched batch normalization
+    and used a custom normalization for the generator, known as **pixel normalization**.
+    On a separate note, other researchers later found that batch normalization doesn't
+    really solve the covariate problem despite stabilizing deep neural network training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Anyway, the purpose of normalization in ProGAN is to limit the weight values
+    to prevent them from growing exponentially. Large weights could escalate signal
+    magnitudes and result in unhealthy competition between the generator and the discriminator.
+    Pixel normalization normalizes the feature in each pixel location (H, W) across
+    the channel dimension to unit length. If the tensor is a batched RGB image with
+    dimension (N, H, W, C), the RGB vector of any pixel will have a magnitude of 1\.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can implement the equation using a custom layer as shown in the following
+    code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: Unlike other normalizations, pixel normalization doesn't have any learnable
+    parameters; it only consists of simple arithmetic operations and hence is computationally
+    efficient to run.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Increasing image variation with minibatch statistics
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '**Mode collapse** happens when a GAN generates similar-looking images as it
+    captures only a subset of the variation found in the training data. One way to
+    encourage more variation is to show the statistics of a minibatch to the discriminator.
+    The statistics from a minibatch are more varied compared to only a single instance,
+    and this encourages the generator to generate images that show similar statistics.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Batch normalization uses minibatch statistics to normalize the activation, which
+    in some way serves this purpose, but ProGAN doesn't use batch normalization. Instead,
+    it uses a **minibatch layer** that calculates the minibatch standard deviation
+    and appends it to the activation without changing the activation itself.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The steps to calculate minibatch statistics are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Calculate the standard deviation for each feature in each spatial location over
+    the minibatch – in other words, across dimension *N*.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Calculate the average of these standard deviations across the (*H, W, C*) dimensions
+    to arrive at a single scale value.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Replicate this value across the feature map of (*H, W*) and append it to the
+    activation. As a result, the output activation has a shape of (*N, H, W, C+1*).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The following is the code for a minibatch standard deviation custom layer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: Before calculating the standard deviation, the activation is first split into
+    groups of `4` or the batch size, whichever is lower. To simplify the code, we
+    assume that the batch size is at least `4` during training. The minibatch layer
+    can be inserted anywhere in the discriminator, but it was found to be more effective
+    toward the end, which is the 4x4 layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Equalized learning rate
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The name can be misleading, as the **equalized learning rate** does not modify
+    the learning rate like **learning rate decay**. In fact, the learning rate of
+    the optimizer stays constant throughout the training. To understand this, let's
+    recap how backpropagation works. When using a simple **stochastic gradient descent**
+    (**SGD**) optimizer, the negative gradients are multiplied by the learning rate
+    before updating the weights. Therefore, the layers closer to the generator input
+    will receive less gradient (remember the vanishing gradient?).
+  prefs: []
+  type: TYPE_NORMAL
+- en: What if we want a layer to receive more gradient? Let's say we perform a simple
+    matrix multiplication *y = w*x*, and now we add a constant *2* to make it *y =
+    2*w*x*. During backpropagation, the gradients will also be multiplied by *2*,
+    hence becoming larger. We could then set different multiplier constants for different
+    layers to effectively have different learning rates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In ProGAN, these multiplier constants are calculated from He''s initializer.
+    **He** or **Kaiming** initialization is named after Kaiming He, the inventor of
+    ResNet. The **weight** initialization is designed specifically for networks that
+    use the ReLU family of activation functions. Usually, weights are initialized
+    using normal distribution with a specified standard deviation; for example, we
+    used 0.02 in previous chapters. Instead of having to guess the standard deviation,
+    He calculates it using the following equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/Formula_07_001.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '`kernel, kernel, channel_in, channel_out`), the *fan in* is the multiplication
+    of `kernel x kernel x channel_in`. To use this in weight initialization, we can
+    pass `tf.keras.initializers.he_normal` to the Keras layer. However, an equalized
+    learning rate does this at runtime, so we will write custom layers to calculate
+    the standard deviation.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The default gain factor for the initialization is 2, but ProGAN uses a lower
+    gain for the dense layer for the input of the 4x4 generator. ProGAN uses standard
+    normal distribution to initialize the layer weights and scale them with their
+    normalization constant. This deviates from the trend of careful weight initializations
+    that was common among GANs. We now write a custom Conv2D layer that uses pixel
+    normalization:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: The official ProGAN uses zero padding in the convolutional layer, and you can
+    see the border artifacts, especially when viewing low-resolution images. Therefore,
+    we added reflective padding except for the 1x1 kernel, where no padding is needed.
+    Larger layers have smaller scale factors, which effectively reduces the gradient
+    and hence the learning rate. This causes the learning rate to be adjusted based
+    on the layer size so that weights in big layers do not grow too quickly, hence
+    the name equalized learning rate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The custom `Dense` layer can be written in a similar manner:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice that the custom layer accepts `**kwargs` in the constructor, meaning
+    we can pass in the usual Keras keyword arguments for the `Dense` layer. We now
+    have all the ingredients required to start building a ProGAN in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building a ProGAN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We have now learned about the three features of ProGANs – pixel normalization,
+    minibatch standard deviation statistics, and the equalized learning rate. Now,
+    we are going to delve into the network architecture and look at how to grow the
+    network progressively. ProGAN grows an image by growing the layers, starting from
+    a resolution of 4x4, then doubling it to 8x8, 16x16, and so on to 1024x1024\.
+    Thus, we will first write the code to build the layer block at each scale. The
+    building blocks of the generator and discriminator are trivially simple, as we
+    will see.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building the generator blocks
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We will start by building the 4x4 generator block, which forms the base of
+    the generator and takes in the latent code as input. The input is normalized by
+    `PixelNorm` before going to `Dense`. A lower gain is used for the equalized learning
+    rate for that layer. Leaky ReLU and pixel normalization are used throughout all
+    the generator blocks. We build the generator as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After the 4x4 generator block, all subsequent blocks have the same architecture,
+    which involves an upsampling layer followed by two convolutional layers. The only
+    difference is the convolutional filter size. In the ProGAN''s default setting,
+    a filter size of 512 is used up to the 32x32 generator block, then it is halved
+    at each stage to finally reach 16 at 1024x1024, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To make the coding easier, we can linearize the resolution by taking logarithm
+    with base `2`. Hence, *log2(4)* is *2*, *log2(8)* is *3*, ... to *log2(1024)*
+    is *10*. Then, we can loop through the resolution linearly in `log2` from 2 to
+    10 as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can now use this code to build all the generator blocks from 4x4 all the
+    way to the target resolution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building the discriminator blocks
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We can now shift our attention to the discriminator. The basic discriminator
+    is at a 4x4 resolution, where it takes 4x4x3 images and predicts whether the image
+    is real or fake. It uses one convolutional layer, followed by two dense layers.
+    Unlike the generator, the discriminator does not use pixel normalization; in fact,
+    no normalization is used at all. We will insert the minibatch standard deviation
+    layer as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After that, the discriminator uses two convolutional layers followed by downsampling,
+    using average pooling at every stage:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: We now have all the basic building blocks defined. Next, we will look at how
+    to join them together to grow the network progressively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Progressively growing the network
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'This is the most important part of ProGAN – growing the network. We can use
+    the preceding functions to create generator and discriminator blocks at different
+    resolutions. All we need to do now is to join them together as we grow the layers.
+    The following diagram shows the process of growing the network. Let''s start from
+    the left-hand side:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.3 – Illustration of progressively growing layers.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Redrawn from T. Karras et al. 2018, "Progressive Growing of GANs for Improved
+    Quality, Stability, and Variation," https://arxiv.org/abs/1710.10196)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_07_03.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 7.3 – Illustration of progressively growing layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Redrawn from T. Karras et al. 2018, "Progressive Growing of GANs for Improved
+    Quality, Stability, and Variation," https://arxiv.org/abs/1710.10196)
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the generator and discriminator blocks that we have built, we assume both
+    the input and output to be layer activations rather than RGB images. Thus, we
+    will need to convert the activation from the generator block into an RGB image.
+    Similarly, for the discriminator, we will need to convert the image into activation.
+    This is shown by **(a)** in the preceding figure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will create two more functions that build the blocks to convert into and
+    from RGB images. Both blocks use a 1x1 convolutional layer; the `to_rgb` block
+    uses a filter size of 3 to match the RGB channels, while the `from_rgb` blocks
+    use a filter size that matches the input activation of the discriminator block
+    at that scale. The code of the two functions is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, assume the network is at 16x16, meaning there are already layers at the
+    lower resolutions of 8x8 and 4x4\. Now we are about to grow the 32x32 layer. However,
+    if we add a new untrained layer to the network, the newly generated images will
+    look like noise and will result in a huge loss. This can in turn result in exploding
+    gradients and destabilize the training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To minimize this disruption, the 32x32 image generated by the new layer is
+    not used immediately. Instead, we upsample the 16x16 image from the previous stage
+    and fade in with the new 32x32 image. Fade is a technical term in image processing
+    that refers to gradually increasing the opacity of an image. This is implemented
+    by using a weighted sum with the following equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/Formula_07_002.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In this transition phase, alpha increases from 0 to 1\. In other words, at
+    the start of the phase, we discard the image from the new layer completely and
+    use the one from the previous trained layer. We then increase alpha linearly to
+    1 when only the image generated by the new layer is used. The stable state is
+    shown by *(c)* in the preceding diagram. We can implement a custom layer to perform
+    the weighted sum as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: When using a subclass to define a layer, we can pass in a scalar alpha to the
+    function. However, it is not possible when we use `self.alpha = tf.Variable(1.0)`,
+    will be converted to a constant when we compile the model and can no longer be
+    changed in the training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One way to pass in a scalar alpha is to write the entire model with subclassing,
+    but I feel it is more convenient in this case to use the sequential or functional
+    API to create the models. To address this problem, we define alpha as an input
+    to the model. However, the model input is assumed to be a minibatch. To be concrete,
+    if we define `Input(shape=(1))`, its actual shape will be (*None, 1*), where the
+    first dimension is the batch size. Therefore, `tf.reduce_mean()` in `FadeIN()`
+    is meant to convert the batched value to a scalar value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, we can look at the following steps to grow the generator to, say, 32x32:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Add a 4x4 generator, where the input is a latent vector.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In a loop, add subsequent generators of gradually increasing resolutions until
+    the one before the target resolution (in our example, 16x16).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Add `to_rgb` from 16x16 and upsample it to 32x32.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Add the 32x32 generator block.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Fade in the two images to create one final RGB image.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The code is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The growing discriminator is done similarly but in the reverse direction, as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the resolution of the input image, say, 32x32, add `from_rgb` to the discriminator
+    block of 32x32\. The output is the activation with a 16x16 feature map.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Parallelly, downsample the input image to 16x16, and add `from_rgb` to the 16x16
+    discriminator block.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Fade in the two preceding features and feed that into the next discriminator
+    block of 8x8.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Continue adding the discriminator blocks to the base of 4x4, where the output
+    is a single prediction value.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The following is the code to grow the discriminator:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we build a model from the grown generator and discriminator as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: We reset the optimizer states after the new layer is added. This is because
+    optimizers such as Adam have internal states that store the gradient history for
+    each layer. The easiest way to do that is probably to instantiate a new optimizer
+    using the same parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loss function
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: You may have noticed the **Wasserstein loss** in the preceding code snippet.
+    That's right, the generator uses Wasserstein loss, where the loss function is
+    a multiplication between predictions and the labels. The discriminator uses the
+    WGAN-GP gradient penalty loss. We learned about WGAN-GP in [*Chapter 3*](B14538_03_Final_JM_ePub.xhtml#_idTextAnchor060)*,
+    Generative Adversarial Network*, but let's recap the loss function here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: WGAN-GP interpolates between fake and real images and feeds the interpolation
+    to the discriminator. From there, gradients are calculated with respect to the
+    input interpolation rather the usual optimization that calculate gradients against
+    the weights. From there, we calculate the gradient penalty (loss) and add it to
+    the discriminator loss for backpropagation. We will reuse the WGAN-GP that we
+    developed in [*Chapter 3*](B14538_03_Final_JM_ePub.xhtml#_idTextAnchor060)*, Generative
+    Adversarial Network*. Unlike the original WGAN-GP, which trains the discriminator
+    five times for every generator training step, ProGAN uses equal amounts of training
+    for both the discriminator and the generator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Apart from the WGAN-GP losses, there is an additional loss type known as **drift
+    loss**. The discriminator output is unbounded and can be large positive or negative
+    values. This drift loss aims to keep the discriminator output from drifting too
+    far away from zero toward the infinity. The following code snippet shows how to
+    calculate drift loss from the discriminator output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, we can start training our ProGAN!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Growing pains
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: ProGAN is extremely slow to train. It took the authors eight Tesla V100 GPUs
+    and 4 days to train on the 1024x1024 `CelebA-HQ` dataset. If you have access to
+    only one GPU, it would take you more than 1 month to train! Even for the relatively
+    low resolution of 256x256, it would take a good 2 or 3 days to train with a single
+    GPU. Take that into consideration before starting training. You might want to
+    start with a lower target resolution, such as 64x64.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Having said that, for a start, we don''t have to use a high-resolution dataset.
+    Datasets with a 256x256 resolution are sufficient. The notebook left out the input
+    part, so feel free to fill in the input to load your dataset. For your information,
+    there are two popular 1024x1024 face datasets that are freely downloadable:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'CelebA-HQ on the official ProGAN TensorFlow 1 implementation: [https://github.com/tkarras/progressive_growing_of_gans](https://github.com/tkarras/progressive_growing_of_gans).
+    It requires the download of the original `CelebA` dataset plus HQ-related files.
+    The generation scripts also rely on some dated libraries. Therefore, I don''t
+    recommend you do it this way; you should try finding a dataset that is pre-converted.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'FFHQ: [https://github.com/NVlabs/ffhq-dataset](https://github.com/NVlabs/ffhq-dataset).
+    This dataset was created for StyleGAN (a successor of ProGAN) and is more varied
+    and diverse than the `CelebA-HQ` dataset. It can also be difficult to download
+    due to the download limit set by the server.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: When we download high-resolution images, we will need to downscale them to lower
+    resolutions to be used for training. You can do that at runtime, but it can slow
+    down the training slightly due to the additional computation to perform the downsampling,
+    and it requires more memory bandwidth to transfer the images. Alternatively, you
+    can create the multiscale images from the original image resolution first, which
+    can save time in memory transfer and image resizing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The other thing to note is the batch size. As the image resolution grows, so
+    does the GPU memory required to store the images and the larger layer activations.
+    We will run out of GPU memory if we set the batch size too high. Therefore, we
+    use a batch size of 16 from 4x4 to 64x64, then halve the batch size as the resolution
+    doubles. You should adjust the batch size accordingly to fit your GPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following figure shows the generated images from 16x16 resolution to 64x64
+    resolution using our ProGAN:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.4 – Images growing from 8x8 to 64x64 as generated by our ProGAN'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_07_04.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 7.4 – Images growing from 8x8 to 64x64 as generated by our ProGAN
+  prefs: []
+  type: TYPE_NORMAL
+- en: ProGAN is a very delicate model. When reproducing the models in this book, I
+    only implemented the key parts to match the details of the original implementation.
+    I would leave out something that I thought was not that important and swap it
+    for something that I hadn't covered. This applied to optimizers, learning rates,
+    normalization techniques, and loss functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, I found that I had to implement everything to almost the exact original
+    specification for ProGAN in order to make it work. This includes using the same
+    batch size, drift loss, and equalized learning rate gain. Nevertheless, when we
+    get the network to work, it does generate high-fidelity faces that are unmatched
+    by any models that came before it!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now let's see how StyleGAN improves on ProGAN to allow for style mixing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing StyleGAN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: ProGAN is great at generating high-resolution images by growing the network
+    progressively, but the network architecture is quite primitive. The simple architecture
+    resembles earlier GANs such as DCGAN that generate images from random noise but
+    without fine control over the images to be generated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As we have seen in previous chapters, many innovations happened in image-to-image
+    translation to allow better manipulation of the generator outputs. One of them
+    is the use of the AdaIN layer ([*Chapter 5*](B14538_05_Final_JM_ePub.xhtml#_idTextAnchor104)*,
+    Style Transfer*) to allow style transfer, mixing the content and style features
+    from two different images. **StyleGAN** adopts this concept of style-mixing to
+    come out with *a style-based generator architecture for generative adversarial
+    networks* – this is the title of the paper written for **FaceBid**. The following
+    figure shows that StyleGAN can mix the style features from two different images
+    to generate a new one:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.5 – Mixing styles to produce new images'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(Source: T. Karras et al, 2019 "A Style-Based Generator Architecture for Generative
+    Adversarial Networks," https://arxiv.org/abs/1812.04948)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_07_05.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 7.5 – Mixing styles to produce new images (Source: T. Karras et al,
+    2019 "A Style-Based Generator Architecture for Generative Adversarial Networks,"
+    https://arxiv.org/abs/1812.04948)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will now delve into the StyleGAN generator architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Style-based generator
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The following diagram compares the generator architectures of ProGAN and StyleGAN:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.6 – Comparing generators between (a) ProGAN and (b) StyleGAN'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Redrawn from T. Karras et al, 2019 "A Style-Based Generator Architecture for
+    Generative Adversarial Networks," https://arxiv.org/abs/1812.04948)
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_07_06.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 7.6 – Comparing generators between (a) ProGAN and (b) StyleGAN Redrawn
+    from T. Karras et al, 2019 "A Style-Based Generator Architecture for Generative
+    Adversarial Networks," https://arxiv.org/abs/1812.04948)
+  prefs: []
+  type: TYPE_NORMAL
+- en: The ProGAN architecture is a simple feedforward design, where the single input
+    is the latent code. All the latent information, for example, content, style, and
+    randomness, are included in the single latent code *z*. On the right in the preceding
+    figure is the StyleGAN generator architecture, where the latent code no longer
+    goes directly into the synthesis network. The latent code is mapped to style code
+    that goes into a multi-scale synthesis network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will go through the generation pipeline now, which has the following the
+    major building blocks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Mapping network, f**: This is 8 dense layers with 512 dimensions. Its input
+    is 512-dimensional latent code, and the output *w* is also a vector of 512\. *w*
+    is broadcast to every scale of the generator.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Affine transform, A**: In every scale, there is a block that maps *w* into
+    styles *y = (y*s*, y*b*).* In other words, the global latent vector is converted
+    to localized style code at each image scale. The affine transform is implemented
+    using dense layers.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**AdaIN**: AdaIN modulates the style code and content code. The content code
+    *x* is the convolutional layer''s activation, while *y* is the style code:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/Formula_07_003.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: '**Synthesis network, g**: This is essentially made up of the ProGAN multiscale
+    generator blocks. The notable difference with ProGAN is that the input to the
+    synthesis network is just some constant values. This is because the latent code
+    presents itself as style codes in every generator layer, including the first 4x4
+    block, so there is no need to have another random input to the synthesis network.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Multiscale noise**: There are many aspects of human portraits that can be
+    seen as stochastic (random). For example, the exact placement of hairs and freckles
+    can be random, but this does not change our perception of an image. This randomness
+    comes from the noise that is injected into the generator. The Gaussian noise has
+    a shape that matches the convolution layer activation map (H, W, 1). It is scaled
+    per channel by *B* to (H, W, C) before being added to the convolutional activation.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In most GANs that came before StyleGAN, the latent code was injected only at
+    input or into one of the internal layer. The brilliance of the StyleGAN generator
+    is that we can now inject style code and noise at every layer, meaning we can
+    tweak images at different levels. Styles at coarse spatial resolutions (from 4x4
+    to 8x8) correspond to high-level aspects such as poses and face shapes. Middle
+    resolutions (from 16x16 to 32x32) are to do with smaller-scale facial features,
+    hairstyles, and whether eyes are open or closed. Finally, higher resolutions (from
+    64x64 to 1024x1024) mainly change the color scheme and microstructure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The StyleGAN generator may have looked complex at first, but hopefully it doesn't
+    look that scary now. As with ProGAN, the individual blocks are simple. We will
+    leverage code from ProGAN heavily; now let's start to build the StyleGAN generator!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing the mapping network
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The mapping network maps the 512-dimensional latent code into 512-dimensional
+    features as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: It is a straightforward implementation of dense layers with leaky ReLU activation.
+    One thing to note is that the learning rate is multiplied by 0.01 to make it more
+    stable to train. Therefore, the custom `Dense` layer is modified to take in an
+    additional `lrmul` argument. At the end of the network, we create eight copies
+    of `w`, which will go into eight layers of generator blocks. We could skip the
+    tiling if we don't intend to use style mixing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Adding noise
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We now create a custom layer to add noise to the convolution layer output,
+    which includes the *B* block in the architectural diagram. The code is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: The noise is multiplied with the learnable `B` to scale it per channel, then
+    it is added to the input activation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing AdaIN
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The AdaIN that we will implement for StyleGAN is different from the one for
+    style transfer for the following reasons:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will include affine transformation *A*. This is implemented with two dense
+    layers to predict *y**s* and *yb*, respectively.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Original AdaIN involves the normalization of the input activation, but since
+    the input activation to our AdaIN has undergone pixel normalization, we will not
+    perform normalization within this custom layer. The code for the AdaIN layer is
+    as follows:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: Comparing AdaIN with style transfer
+  prefs: []
+  type: TYPE_NORMAL
+- en: The AdaIN in ProGAN is different from the original implementation for style
+    transfer. In style transfer, the style feature is Gram matrix calculated from
+    VGG features of an input image. In ProGAN, the 'style' is vector *w* generated
+    from random noise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building the generator block
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now, we can put `AddNoise` and `AdaIN` into the generator block, which looks
+    similar to ProGAN''s code to build generator block, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: The generator block takes three inputs. For a 4x4 generator block, the input
+    is a constant tensor of 1 and we bypass the upsampling and convolutional blocks.
+    The other two inputs are the vector *w* and random noise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training StyleGAN
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As mentioned at the beginning of the section, the main changes from ProGAN to
+    StyleGAN are to the generator. There are some minor differences in the discriminator
+    and training details, but they don't affect performance as much. Therefore, we
+    will keep the rest of the pipeline the same as ProGAN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following figure shows 256x256 images generated by our StyleGAN. The same
+    style *w* is used but with different randomly generated noise:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.7 – Portraits generated using the same style but different noise'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_07_07.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 7.7 – Portraits generated using the same style but different noise
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can see that the faces belong to the same person but with varying details,
+    such as length of hair and head pose. We can also mix styles by using *w* from
+    different latent code as shown in the following figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 7.8 – All images are generated by our StyleGAN. The face on the right
+    was created by mixing styles from the first two faces](img/B14538_07_08.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.8 – All images are generated by our StyleGAN. The face on the right
+    was created by mixing styles from the first two faces
+  prefs: []
+  type: TYPE_NORMAL
+- en: Knowing that StyleGAN can be difficult to train, therefore I have provided a
+    pretrained 256x256 model that you can download. You can use the widget in the
+    Jupyter notebook to experiment with the face generation and style mixing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes our journey with StyleGAN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we entered the realm of high-definition image generation with
+    ProGAN. ProGAN first trains on low-resolution images before moving on to higher-resolution
+    images. The network training becomes more stable by growing the network progressively.
+    This lays the foundation for high-fidelity image generation, as this coarse-to-fine
+    training method is adopted by other GANs. For example, pix2pixHD has two generators
+    at two different scales, where the coarse generator is pre-trained before both
+    are trained together. We have also learned about equalized learning rates, minibatch
+    statistics, and pixel normalization, which are also used in StyleGAN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the use of the AdaIN layer from style transfer in the generator, not only
+    does StyleGAN produce better-quality images, but this also allows control of features
+    when mixing styles. By injecting different style code and noise at different scales,
+    we can control both the global and fine details of an image. StyleGAN achieved
+    state-of-the-art results in high-definition image generation and remains the state
+    of the art at the time of writing. The style-based model is now the mainstream
+    architecture. We have seen the use of this model in style transfer, image-to-image
+    translation, and StyleGAN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will look at another popular family of GANs, which are
+    known as attention-based models.
+  prefs: []
+  type: TYPE_NORMAL

@@ -1,0 +1,1983 @@
+- en: Training on Complex and Scarce Datasets
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: moData is the lifeblood of deep learning applications. As such, training data
+    should be able to flow unobstructed into networks, and it should contain all the
+    meaningful information that is essential to prepare the methods for their tasks.
+    Oftentimes, however, datasets can have complex structures or be stored on heterogeneous
+    devices, complicating the process of efficiently feeding their content to the
+    models. In other cases, relevant training images or annotations can be unavailable,
+    depriving models of the information they need to learn.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thankfully, for the former cases, TensorFlow provides a rich framework to set
+    up optimized data pipelines—`tf.data`. For the latter cases, researchers have
+    been proposing multiple alternatives when relevant training data is scarce—data
+    augmentation, generation of synthetic datasets, domain adaptation, and more. These
+    alternatives will also give us the opportunity to elaborate on generative models,
+    such as **variational autoencoders** (**VAEs**) and **generative adversarial networks**
+    (**GANs**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following topics will thus be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to build efficient input pipelines with `tf.data`, extracting and processing
+    samples of all kinds
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to augment and render images to compensate for training data scarcity
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What domain adaptation methods are, and how they can help train more robust
+    models
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to create novel images with generative models such as VAEs and GANs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Once again, several Jupyter notebooks and related source files to illustrate
+    the chapter can be found in the Git repository dedicated to this book: [https://github.com/PacktPublishing/Hands-On-Computer-Vision-with-TensorFlow-2/tree/master/Chapter07](https://github.com/PacktPublishing/Hands-On-Computer-Vision-with-TensorFlow-2/tree/master/Chapter07).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Some additional Python packages are required for the notebook, demonstrating
+    how to render synthetic images from 3D models, such as `vispy` ([http://vispy.org](http://vispy.org))
+    [and `plyfile` (](http://vispy.org)[https://github.com/dranjan/python-plyfile](https://github.com/dranjan/python-plyfile)[).
+    Installation instructions are provided in the notebook itself.](http://vispy.org)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Efficient data serving
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Well-defined input pipelines cannot only greatly reduce the time needed to train
+    models, but also help to better preprocess the training samples to guide the networks
+    toward more performant configurations. In this section, we will demonstrate how
+    to build such optimized pipelines, diving into the TensorFlow `tf.data` API.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing the TensorFlow Data API
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: While `tf.data` has already appeared multiple times in the Jupyter notebooks,
+    we have yet to properly introduce this API and its multiple facets.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Intuition behind the TensorFlow Data API
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Before covering `tf.data`, we will provide some context to justify its relevance
+    to the training of deep learning models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feeding fast and data-hungry models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Neural networks** (**NNs**) are *data-hungry* models. The larger the datasets
+    they can iterate on during training, the more accurate and robust these neural
+    networks will become. As we have already noticed in our experiments, training
+    a network is thus a heavy task, which can take hours, if not days.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As GPU/TPU hardware architectures are becoming more and more performant, the
+    time needed to feed forward and backpropagate for each training iteration keeps
+    decreasing (for those who can afford these devices). The speed is such nowadays
+    that NNs tend to *consume* training batches faster than typical input pipelines
+    can *produce* them. This is especially true in computer vision. Image datasets
+    are commonly too heavy to be entirely preprocessed, and reading/decoding image
+    files on the fly can cause significant delays (especially when repeated millions
+    of times per training).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Inspiration from lazy structures
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: More generally, with the rise of *big data* some years ago, plenty of literature,
+    frameworks, best practices, and more have appeared, offering new solutions to
+    the processing and serving of huge amounts of data for all kinds of applications.
+    The `tf.data` API was built by TensorFlow developers with those frameworks and
+    practices in mind, in order to provide *a clear and efficient framework to feed
+    data to neural networks*. More precisely, the goal of this API is to define input
+    pipelines that are able to *deliver data for the next step before the current
+    step has finished* (refer to the official API guide, [https://www.tensorflow.org/guide/performance/datasets](https://www.tensorflow.org/guide/performance/datasets)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: As explained in several online presentations by Derek Murray, one of the Google
+    experts working on TensorFlow (one of his presentations was video recorded and
+    is available at [https://www.youtube.com/watch?v=uIcqeP7MFH0](https://www.youtube.com/watch?v=uIcqeP7MFH0)),
+    pipelines built with the `tf.data` API are comparable to *lazy lists* in functional
+    languages. They can iterate over huge or infinite datasets batch by batch in a
+    call-by-need fashion (*infinite*, for instance, when new data samples are generated
+    on the fly). They provide operations such as `map()`, `reduce()`, `filter()`,
+    and `repeat()` to process data and control its flow. They can be compared to Python
+    generators*,* but with a more advanced interface and, more importantly, with a
+    C++ backbone for computational performance. Though you could manually implement
+    a multithreaded Python generator to process and serve batches in parallel with
+    the main training loop, `tf.data` does all this out of the box (and most probably
+    in a more optimized manner).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Structure of TensorFlow data pipelines
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As indicated in the previous paragraphs, data scientists have already developed
+    extensive know-how regarding the processing and pipelining of large datasets,
+    and the structure of `tf.data` pipelines directly follows these best practices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Extract, Transform, Load
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The API guide also makes the parallel between data pipelines for training and
+    **Extract, Transform, Load** (**ETL**) processes. ETL is a common paradigm for
+    data processing in computer science. In computer vision, ETL pipelines in charge
+    of feeding models with training data usually look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/5a5940f7-93b6-4d4d-8ae2-84f5506b44e8.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7-1: A typical ETL pipeline to provide data for the training of computer
+    vision models'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The **extraction** step consists of selecting data sources and extracting their
+    content. These sources may be listed explicitly by a document (for instance, a
+    CSV file containing the filenames for all the images), or implicitly (for instance,
+    with all the dataset's images already stored in a specific folder). Sources may
+    be *stored on different devices* (local or remote), and it is also the task of
+    the extractor to list these different sources and extract their content. For example,
+    it is common in computer vision to have datasets so big that they have to be stored
+    on multiple hard drives. To train NNs in a supervised manner, we also need to
+    extract the annotations/ground truths along the images (for instance, class labels
+    contained in CSV files, and ground truth segmentation masks stored in another
+    folder).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The fetched data samples should then be *transformed*. One of the most common
+    transformations is the parsing of extracted data samples into a common format.
+    For instance, this means parsing the bytes read from image files into a matrix
+    representation (for instance, to decode JPEG or PNG bytes into image tensors).
+    Other heavy transformations can be applied in this step, such as *cropping/scaling*
+    images to the same dimensions, or *augmenting* them with various random operations.
+    Again, the same applies to annotations for supervised learning. They should also
+    be parsed, for instance, into tensors that could later be handed to loss functions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once ready, the data is *loaded* into the target structure. For the training
+    of machine learning methods, this means sending the batch samples into the device
+    in charge of running the model, such as the selected GPU(s). The processed dataset
+    can also be cached/saved somewhere for later use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This ETL process can already be observed, for instance, in the Jupyter notebook
+    setting up the *Cityscapes* input pipeline in [Chapter 6](c4bb2429-f9f5-424d-8462-e376fd81f5a4.xhtml),
+    *Enhancing and Segmenting Images*. The input pipeline was iterating over the input/ground
+    truth filenames provided, and parsing and augmenting their content, before passing
+    the results as batches to our training processes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: API interface
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '`tf.data.Dataset` is the central class provided by the `tf.data` API (refer
+    to the documentation at [https://www.tensorflow.org/api_docs/python/tf/data/Dataset](https://www.tensorflow.org/api_docs/python/tf/data/Dataset)).
+    Instances of this class (which are simply called **datasets**) represent data
+    sources, following the lazy list paradigm we just presented.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Datasets can be initialized in a multitude of ways, depending on how their
+    content is initially stored (in files, NumPy arrays, tensors, and others). For
+    example, a dataset can be based on a list of image files, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Datasets also have numerous methods they can apply to themselves in order to
+    provide a transformed dataset. For example, the following function returns a new
+    dataset instance with the file''s contents properly transformed (that is, parsed)
+    into homogeneously resized image tensors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The function passed to `.map()` will be applied to every sample in the dataset
+    when iterating. Indeed, once all the necessary transformations are applied, datasets
+    can be used as any lazy lists/generators, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'All the data samples are already returned as `Tensor`, and can easily be loaded
+    into the device(s) in charge of the training. To make things even more straightforward,
+    `tf.estimator.Estimator` and `tf.keras.Model` instances can directly receive a
+    `tf.data.Dataset` object as input for their training (for estimators, the dataset
+    operations have to be wrapped into a function returning the dataset) as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: With estimators and models tightly integrating the `tf.data` API, TensorFlow
+    2 has made data preprocessing and data loading both modular and clear.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setting up input pipelines
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Keeping in mind the ETL procedure, we will develop some of the most common and
+    important methods provided by `tf.data`, at least for computer vision applications.
+    For an exhaustive list, we invite our readers to refer to the documentation ([https://www.tensorflow.org/api_docs/python/tf/data](https://www.tensorflow.org/api_docs/python/tf/data)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Extracting (from tensors, text files, TFRecord files, and more)
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Datasets are usually built for specific needs (companies gathering images to
+    train smarter algorithms, researchers setting up benchmarks, and so on), so it
+    is rare to find two datasets with the same structure and format. Thankfully for
+    us, TensorFlow developers are well aware of this and have provided plenty of tools
+    to list and extract data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: From NumPy and TensorFlow data
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: First of all, if data samples were already somehow loaded by the program (for
+    instance, as NumPy or TensorFlow structures), they can be passed directly to `tf.data`
+    using the `.from_tensors()` or `.from_tensor_slices()` static methods.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Both accept nested array/tensor structures, but the latter will slice the data
+    into samples along the first axis as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: As we can observe, the second dataset, `d_sliced`, ends up containing four pairs
+    of samples, each containing only one value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: From files
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As seen in a previous example, datasets can iterate over files using the `.list_files()`
+    static method. This method creates a dataset of string tensors, each containing
+    the path of one of the listed files. Each file can then be opened using, for instance,
+    `tf.io.read_file()` (`tf.io` contains file-related operations).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `tf.data` API also provides some specific datasets to iterate over binary
+    or text files. `tf.data.TextLineDataset()` can be used to read documents line
+    by line (useful for some public datasets that are listing their image files and/or
+    labels in text files); `tf.data.experimental.CsvDataset()` can parse CSV files
+    and return their content line by line too.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`tf.data.experimental` does not ensure the same backward compatibility as other
+    modules. By the time this book reaches our readers, methods may have been moved
+    to `tf.data.Dataset` or simply removed (for methods that are temporary solutions
+    to some TensorFlow limitations). We invite our readers to check the documentation.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: From other inputs (generator, SQL database, range, and others)
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Although we will not list them all, it is good to keep in mind that `tf.data.Dataset`
+    can be defined from a wide range of input sources. For example, datasets simply
+    iterating over numbers can be initialized with the `.range()` static method. Datasets
+    can also be built upon Python generators with `.from_generator()`. Finally, even
+    if elements are stored in a SQL database, TensorFlow provides some (experimental)
+    tools to query it, including the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: For more specific dataset instantiators, we invite our readers to check the
+    `tf.data` documentation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transforming the samples (parsing, augmenting, and more)
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The second step of ETL pipelines is **transform**. Transformations can be split
+    into two types—those that affect data samples individually, and those that affect
+    a dataset as a whole. In the following paragraphs, we will cover the former transformations
+    and explain how our samples can be preprocessed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Parsing images and labels
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the `parse_fn()` method we wrote in the previous subsection for `dataset.map()`,
+    `tf.io.read_file()` was called to read the file corresponding to each filename
+    listed by the dataset, and then `tf.io.decode_png()` converted the bytes into
+    an image tensor.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**`tf.io`** also contains `decode_jpeg()`, `decode_gif()`, and more. It also
+    provides the more generic `decode_image()`, which can infer which image format
+    to use (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/io](https://www.tensorflow.org/api_docs/python/tf/io)).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Furthermore, numerous methods can be applied to parsing computer vision labels.
+    Obviously, if the labels are also images (for instance, for image segmentation
+    or edition), the methods we just listed can be reused all the same. If the labels
+    are stored in text files, `TextLineDataset` or `FixedLengthRecordDataset` (refer
+    to the documentation at [https://www.tensorflow.org/api_docs/python/tf/data](https://www.tensorflow.org/api_docs/python/tf/data))
+    can be used to iterate over them, and modules such as `tf.strings` can help parse
+    the lines/records. For example, let''s imagine we have a training dataset with
+    a text file listing the filename of an image and its class identifier on each
+    line, separated by a comma. Each pair of images/labels could be parsed this way:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: As we can observe, TensorFlow provides multiple helper functions to process
+    and convert strings, to read binary files, to decode PNG or JPEG bytes into images,
+    and so on. With these functions, pipelines to handle heterogeneous data can be
+    set up with minimal effort.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Parsing TFRecord files
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: While listing all the image files and then iterating to open and parse them
+    is a straightforward pipeline solution, it can be suboptimal. Loading and parsing
+    image files one by one is resource-consuming. Storing a large number of images
+    together into a binary file would make the read-from-disk operations (or streaming
+    operations for remote files) much more efficient. Therefore, TensorFlow users
+    are often advised to use the TFRecord file format, based on Google's Protocol
+    Buffers, a language-neutral, platform-neutral extensible mechanism for serializing
+    structured data (refer to the documentation at [https://developers.google.com/protocol-buffers](https://developers.google.com/protocol-buffers/)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'TFRecord files are binary files aggregating data samples (such as images, labels,
+    and metadata). A TFRecord file contains serialized `tf.train.Example` instances,
+    which are basically dictionaries naming each data element (called **features**
+    according to this API) composing the sample (for example, `{''img'': image_sample1,
+    ''label'': label_sample1, ...}`). Each element/feature that a sample contains
+    is an instance of `tf.train.Feature` or of its subclasses. These objects store
+    the data content as lists of bytes, of floats, or of integers (refer to the documentation
+    at [https://www.tensorflow.org//api_docs/python/tf/train](https://www.tensorflow.org//api_docs/python/tf/train)).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Because it was developed specifically for TensorFlow, this file format is very
+    well supported by `tf.data`. In order to use TFRecord files as data source for
+    input pipelines, TensorFlow users can pass the files to `tf.data.TFRecordDataset(filenames)`
+    (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/data/TFRecordDataset](https://www.tensorflow.org/api_docs/python/tf/data/TFRecordDataset)),
+    which can iterate over the serialized `tf.train.Example` elements they contain.
+    To parse their content, the following should be done:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`tf.io.FixedLenFeature(shape, dtype, default_value)` lets the pipeline know
+    what kind of data to expect out of the serialized sample, which can then be parsed
+    with a single command.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In one of the Jupyter notebooks, we cover TFRecord in more detail, explaining
+    step by step how data can be preprocessed and stored as TFRecord files, and how
+    these files can then be used as a data source for `tf.data` pipelines.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Editing samples
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The `.map()` method is central to `tf.data` pipelines. Besides parsing samples,
+    it is also applied to edit them further. For example, in computer vision, it is
+    common for some applications to crop/resize input images to the same dimensions
+    (for instance, applying `tf.image.resize()`) or to one-hot target labels (`tf.one_hot()`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we will detail later in this chapter, it is also recommended to wrap the
+    optional augmentations for training data into a function passed to `.map()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transforming the datasets (shuffling, zipping, parallelizing, and more)
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The API also provides numerous functions to transform one dataset into another,
+    to adapt its structure, or to merge it with other data sources.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Structuring datasets
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In data science and machine learning, operations such as filtering data, shuffling
+    samples, and stacking samples into batches are extremely common. The `tf.data`
+    API offers simple solutions to most of those (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/data/Dataset](https://www.tensorflow.org/api_docs/python/tf/data/Dataset)).
+    For example, some of the most frequently used datasets'' methods are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`.batch(batch_size, ...)`, which returns a new dataset, with the data samples
+    batched accordingly (`tf.data.experimental.unbatch()` does the opposite). Note
+    that if `.map()` is called after `.batch()`, the mapping function will therefore
+    receive batched data as input.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`.repeat(count=None)`, which repeats the data `count` times (infinitely if
+    `count = None`).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`.shuffle(buffer_size, seed, ...)`, which shuffles elements after filling a
+    buffer accordingly (for instance, if `buffer_size = 10`, the dataset will virtually
+    divide the dataset into subsets of 10 elements, and randomly permute the elements
+    in each, before returning them one by one). The larger the buffer size is, the
+    more stochastic the shuffling becomes, but also the heavier the process is.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`.filter(predicate)`, which keeps/removes elements depending on the Boolean
+    output of the `predicate` function provided. For example, if we wanted to filter
+    a dataset to remove elements stored online, we could use this method as follows:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`**.**take(count)`, which returns a dataset containing the first `count` elements
+    at most.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`**.**skip(count)`, which returns a dataset without the first `count` elements.
+    Both methods can be used to split a dataset, for instance, into training and validation
+    sets as follows:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Many other methods are available to structure data or to control its flow, usually
+    inspired by other data processing frameworks (such as `.unique()`, `.reduce()`,
+    and `.group_by_reducer()`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Merging datasets
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Some methods can also be used to merge datasets together. The two most straightforward
+    ones are `.concatenate(dataset)` and the static `.zip(datasets)` (refer to the
+    documentation at [https://www.tensorflow.org/api_docs/python/tf/data/Dataset](https://www.tensorflow.org/api_docs/python/tf/data/Dataset)).
+    The former *concatenates* the samples of the dataset provided with those of the
+    current one, while the latter *combines* the dataset''s elements into tuples (similar
+    to Python''s `zip()`) as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Another method often used to merge data from different sources is `.interleave(map_func,
+    cycle_length, block_length, ...)` (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/data/Dataset#interleave](https://www.tensorflow.org/api_docs/python/tf/data/Dataset#interleave)).
+    This applies the `map_func` function to the elements of the datasets and *interleaves*
+    the results. Let''s now go back to the example presented in the *Parsing images
+    and labels* section, with image files and classes listed in a text file. If we
+    have several such text files and want to combine all their images into a single
+    dataset, `.interleave()` could be applied as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `cycle_length` parameter fixes the number of elements processed concurrently.
+    In our preceding example, `cycle_length = 2` means that the function will concurrently
+    iterate over the lines of the first two files, before iterating over the lines
+    of the third and fourth files, and so on. The `block_length` parameter controls
+    the number of consecutive samples returned per element. Here, `block_length =
+    5` means that the method will yield a maximum of `5` consecutive lines from one
+    file before iterating over another.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With all these methods and much more available, complex pipelines for data extraction
+    and transformation can be set up with minimal effort, as already illustrated in
+    some previous notebooks (for instance, for the *CIFAR* and *Cityscapes* datasets).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Another advantage of `tf.data` is that all its operations are registered in
+    the TensorFlow operational graph, and the extracted and processed samples are
+    returned as `Tensor` instances. Therefore, we do not have much to do regarding
+    the final step of ETL, that is, the *loading*. As with any other TensorFlow operation
+    or tensor, the library will take care of loading them into the target devices—unless
+    we want to choose them ourselves (for instance, wrapping the creation of datasets
+    with `tf.device()`). When we start iterating over a `tf.data` dataset, generated
+    samples can be directly passed to the models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Optimizing and monitoring input pipelines
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: While this API simplifies the setting up of efficient input pipelines, some
+    best practices should be followed to fully harness its power. After sharing some
+    recommendations from TensorFlow creators, we will also present how to monitor
+    and reuse pipelines.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Following best practices for optimization
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The API provides several methods and options to optimize the data processing
+    and flow, which we will now cover in detail.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Parallelizing and prefetching
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: By default, most of the dataset methods are processing samples one by one, with
+    no parallelism. However, this behavior can be easily changed, for example, to
+    take advantage of multiple CPU cores. For instance, the `.interleave()` and `.map()`
+    methods both have a **`num_parallel_calls`** parameter to specify the number of
+    threads they can create (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/data/Dataset](https://www.tensorflow.org/api_docs/python/tf/data/Dataset)).
+    **Parallelizing** the extraction and transformation of images can greatly decrease
+    the time needed to generate training batches, so it is important to always properly
+    set `num_parallel_calls` (for instance, to the number of CPU cores the processing
+    machine has).
+  prefs: []
+  type: TYPE_NORMAL
+- en: TensorFlow also provides `tf.data.experimental.parallel_interleave()` (refer
+    to the documentation at [https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/parallel_interleave](https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/parallel_interleave)),
+    a parallelized version of `.interleave()` with some additional options. For instance,
+    it has a `sloppy` parameter, which, if set to `True`, allows each thread to return
+    its output as soon as it is ready. On the one hand, this means that the data will
+    no longer be returned in a deterministic order, but, on the other hand, this can
+    further improve the pipeline performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another performance-related feature of `tf.data` is the possibility to *prefetch*
+    data samples. When applied through the dataset's `.prefetch(buffer_size)` method,
+    this feature allows the input pipelines to start preparing the next samples while
+    the current ones are being consumed, instead of waiting for the next dataset call.
+    Concretely, this allows TensorFlow to start preparing the next training batch(es)
+    on the CPU(s), while the current batch is being used by the model running on the
+    GPU(s), for instance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Prefetching basically enables the *parallelization of the data preparation
+    and training operations* in a *producer-consumer* fashion. Enabling parallel calls
+    and prefetching can thus be done with minor changes, while greatly reducing the
+    training time, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Inspired by TensorFlow''s official guide ([https://www.tensorflow.org/guide/performance/datasets](https://www.tensorflow.org/guide/performance/datasets)),
+    *Figure 7-2* illustrates the performance gain these best practices can bring:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/2fb1ae26-bf70-4028-9b91-08c69ac59a8d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7-2: Visual representation of the performance gain obtained from parallelizing
+    and prefetching'
+  prefs: []
+  type: TYPE_NORMAL
+- en: By combining these different optimizations, CPU/GPU idle time can be reduced
+    further. The performance gain in terms of preprocessing time can become really
+    significant, as demonstrated in one of the Jupyter notebooks for this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fusing operations
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: It is also useful to know that `tf.data` offers functions that combine some
+    key operations for greater performance or more reliable results.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, `tf.data.experimental.shuffle_and_repeat(buffer_size, count, seed)`
+    fuses together the shuffling and repeating operations, making it easy to have
+    datasets shuffled differently at each epoch (refer to the documentation at [https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/shuffle_and_repeat](https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/shuffle_and_repeat)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Back to optimization matters, `tf.data.experimental.map_and_batch(map_func,
+    batch_size, num_parallel_batches, ...)` (refer to the documentation at [https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/map_and_batch](https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/map_and_batch))
+    applies the `map_func` function and then batches the results together. By fusing
+    these two operations, this solution prevents some computational overheads and
+    should thus be preferred.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`map_and_batch()` is meant to disappear, as TensorFlow 2 is implementing several
+    tools to automatically optimize the `tf.data` operations, for instance, grouping
+    multiple `.map()` calls together, vectorizing the `.map()` operations and fusing
+    them directly with `.batch()`, fusing `.map()` and `.filter()`, and more. Once
+    this automatic optimization has been fully implemented and validated by the TensorFlow
+    community, there will be no further need for `map_and_batch()` (once again, this
+    may already be the case by the time you reach this chapter).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Passing options to ensure global properties
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In TensorFlow 2, it is also possible to configure datasets by *setting global
+    options,* which will affect all their operations. `tf.data.Options` is a structure
+    that can be passed to datasets through their `.with_options(options)` method and
+    that has several attributes to parametrize the datasets (refer to the documentation
+    at [https://www.tensorflow.org/api_docs/python/tf/data/Options](https://www.tensorflow.org/api_docs/python/tf/data/Options)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: For instance, if the `.experimental_autotune` Boolean attribute is set to `True`,
+    TensorFlow will automatically tune the values of `num_parallel_calls` for all
+    the dataset's operations, according to the capacity of the target machine(s).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The attribute currently named `.experimental_optimization` contains a set of
+    *sub-options* related to the automatic optimization of the dataset''s operations
+    (refer to the previous information box). For example, its own `.map_and_batch_fusion`
+    attribute can be set to `True` to let TensorFlow automatically fuse the `.map()`
+    and `.batch()` calls; `.map_parallelization` can be set to `True` to let TensorFlow
+    automatically parallelize some of the mapping functions, and so on, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Plenty of other options are available (and more may come). We invite our readers
+    to have a look at the documentation, especially if the performance of their input
+    pipelines is a key matter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Monitoring and reusing datasets
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We presented multiple tools to optimize `tf.data` pipelines, but how can we
+    make sure they positively affect the performance? Are there other tools to figure
+    out which operations may be slowing down the data flow? In the following paragraphs,
+    we will answer these questions by demonstrating how input pipelines can be monitored,
+    as well as how they can be cached and restored for later use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Aggregating performance statistics
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: One of the novelties of TensorFlow 2 is the possibility to aggregate some statistics
+    regarding `tf.data` pipelines, such as their latency (for the whole process and/or
+    for each operation) or the number of bytes produced by each of their elements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TensorFlow can be notified to gather these metric values for a dataset *through
+    its global options* (refer to previous paragraphs). The `tf.data.Options` instances
+    have a `.experimental_stats` field from the `tf.data.experimental.StatsOption`
+    class (refer to the documentation at [https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/StatsOptions](https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/StatsOptions)).
+    This class defines several options related to the aforementioned dataset metrics
+    (for instance, setting `.latency_all_edges` to `True` to measure the latency).
+    It also has a `.aggregator` attribute, which can receive an instance of `tf.data.experimental.StatsAggregator`
+    (refer to the documentation at [https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/StatsAggregator](https://www.tensorflow.org/versions/r2.0/api_docs/python/tf/data/experimental/StatsAggregator)).
+    As its name implies, this object will be attached to the dataset and aggregate
+    the requested statistics, providing summaries that can be logged and visualized
+    in TensorBoard, as shown in the following code sample.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the time of writing this book, these features are still highly experimental
+    and are not fully implemented yet. For example, there is no easy way to log the
+    summaries containing the aggregated statistics. Given how important monitoring
+    tools are, we still covered these features, believing they should soon be fully
+    available.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Dataset statistics can, therefore, be aggregated and saved (for instance, for
+    TensorBoard) as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that it is possible to obtain statistics not only for the input pipeline
+    as a whole, but also for each of its inner operations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Caching and reusing datasets
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Finally, TensorFlow offers several functions to *cache* generated samples or
+    to save `tf.data` pipeline states.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Samples can be cached by calling the dataset''s `.cache(filename)` method.
+    If cached, data will not have to undergo the same transformations when iterated
+    over again (that is, for the next epochs). Note that the content of the cached
+    data will not be the same depending on when the method is applied. Take the following
+    example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: The first dataset will cache the samples returned by `TextLineDataset`, that
+    is, the text lines (the cached data is stored in the specified file, `cached_textlines.temp`).
+    The transformation done by `parse_fn` (for instance, opening and decoding the
+    corresponding image file for each text line) will have to be repeated for each
+    epoch. On the other hand, the second dataset is caching the samples returned by
+    `parse_fn`, that is, the images. While this may save precious computational time
+    for the next epochs, this also means caching all the resulting images, which may
+    be memory inefficient. Therefore, caching should be carefully thought through.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, it is also possible to *save the state of a dataset*, for instance,
+    so that if the training is somehow stopped, it can be resumed without re-iterating
+    over the precedent input batches. As mentioned in the documentation, this feature
+    can have a positive impact on models being trained on a small number of different
+    batches (and thus with a risk of overfitting). For estimators, one solution to
+    save the iterator state of a dataset is to set up the following hook—`tf.data.experimental.CheckpointInputPipelineHook`
+    (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/data/experimental/CheckpointInputPipelineHook](https://www.tensorflow.org/api_docs/python/tf/data/experimental/CheckpointInputPipelineHook)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Aware of how important a configurable and optimized data flow is to machine
+    learning applications, TensorFlow developers are continuously providing new features
+    to refine the `tf.data` API. As covered in this past section and illustrated in
+    the related Jupyter Notebook, taking advantage of these features—even the experimental
+    ones—can greatly reduce implementation overheads and training time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to deal with data scarcity
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Being able to efficiently extract and transform data for the training of complex
+    applications is primordial, but this is assuming that *enough data* is available
+    for such tasks in the first place. After all, NNs are *data-hungry* methods and
+    even though we are in the big data era, large enough datasets are still tenuous
+    to gather and even more difficult to annotate. It can take several minutes to
+    annotate a single image (for instance, to create the ground truth label map for
+    semantic segmentation models), and some annotations may have to be validated/corrected
+    by experts (for instance, when labeling medical pictures). In some cases, images
+    themselves may not be easily available. For instance, it would be too time- and
+    money-consuming to take pictures of every manufactured object and their components
+    when building automation models for industrial plants.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Data scarcity** is, therefore, a common problem in computer vision, and much
+    effort has been expended trying to train robust models despite the lack of training
+    images or rigorous annotations. In this section, we will cover several solutions
+    proposed over the years, and we will demonstrate their benefits and limitations
+    in relation to various tasks.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Augmenting datasets
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We have been mentioning this first approach since [Chapter 4](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml),
+    *Influential Classification Tools*, and we have already put it into use for some
+    applications in previous notebooks. This is finally the opportunity for us to
+    properly present what **data augmentation** is and how to apply it with TensorFlow
+    2.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Overview
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As indicated before, *augmenting* datasets means applying random transformations
+    to their content in order to obtain different-looking versions for each. We will
+    present the benefits of this procedure, as well as some related best practices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why augment datasets?
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Data augmentation is probably the most common and simple method to deal with
+    overly small training sets. It can virtually multiply their number of images by
+    providing different looking versions of each. These various versions are obtained
+    by applying a combination of random transformations, such as scale jittering,
+    random flipping, rotation, and color shift. Data augmentation can incidentally
+    help *prevent overfitting*, which would usually happen when training a large model
+    on a small set of images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'But even when enough training images are available, this procedure should still
+    be considered. Indeed, data augmentation has other benefits. Even large datasets
+    can suffer from *biases*, and data augmentation can compensate for some of them.
+    We will illustrate this concept with an example. Let''s imagine we want to build
+    a classifier for brush versus pen pictures. However, the pictures for each class
+    were gathered by two different teams that did not agree on a precise acquisition
+    protocol beforehand (for instance, which camera model or lighting conditions to
+    opt for). As a result, the *brush* training images are clearly darker and noisier
+    than the *pen* ones. Since NNs are trained to use any visual cues to predict correctly,
+    the models learning on such a dataset may end up relying on these obvious lighting/noise
+    differences to classify the objects, instead of purely focusing on the object
+    representations (such as their shape and texture). Once in production, these models
+    will fare poorly, no longer being able to rely on these biases. This example is
+    illustrated in *Figure 7-3*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0cb9e43e-e94d-4a5e-ac61-911dcd808178.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7-3: Example of a classifier trained on a biased dataset, unable to
+    apply its knowledge to the target data'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Randomly adding some noise to the pictures or randomly adjusting their brightness
+    would prevent the networks from relying on these cues. These augmentations would
+    thus partially compensate for the dataset's biases, and make these visual differences
+    too unpredictable to be used by the networks (that is, preventing models from
+    overfitting biased datasets).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Augmentations can also be used to improve the dataset's coverage. Training datasets
+    cannot cover all image variations (otherwise we would not have to build machine
+    learning models to deal with new different images). If, for example, all the images
+    of a dataset were shot under the same light, then the recognition models trained
+    on them would fare really poorly with images taken under different lighting conditions.
+    These models were basically not taught that *lighting conditions is a thing* and
+    that they should learn to ignore it and focus on the actual image content. Therefore,
+    randomly editing the brightness of the training images before passing them to
+    the networks would educate them on this visual property. By better preparing them
+    for the variability of target images, data augmentation helps us to train more
+    robust solutions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Considerations
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Data augmentation can take multiple forms, and several options should be considered
+    when performing this procedure. First of all, data augmentation can be done either
+    offline or online. Offline augmentation means transforming all the images before
+    the training even starts, and saving the various versions for later use. Online
+    means applying the transformations when generating each new batch inside the training
+    input pipelines.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since augmentation operations can be computationally heavy, applying them beforehand
+    and storing the results can be advantageous in terms of latency for the input
+    pipelines. However, this implies having enough memory space to store the augmented
+    dataset, often limiting the number of different versions generated. By randomly
+    transforming the images on the fly, online solutions can provide different looking
+    versions for every epoch. While computationally more expensive, this means presenting
+    more variation to the networks. The choice between offline and online augmentation
+    is thus conditioned by the memory/processing capacity of the available devices,
+    and by the desired variability.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The variability is itself conditioned by the choice of transformations to be
+    applied. For example, if only random horizontal and vertical flipping operations
+    are applied, then this means a maximum of four different versions per image. Depending
+    on the size of the original dataset, you could consider applying the transformations
+    offline and storing the four-times-larger dataset. On the other hand, if operations
+    such as random cropping and random color shift are considered, then the number
+    of possible variations can become almost infinite.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When setting up data augmentation, the first thing to do, therefore, is to shortlist
+    the relevant transformations (and their parameters when applicable). The list
+    of possible operations is huge, but not all make sense with regard to the target
+    data and use cases. For instance, vertical flipping should only be considered
+    if the content of images can be naturally found upside down (such as close-up
+    images of larger systems or birdview/satellite images). Vertically flipping images
+    of urban scenes (such as the *Cityscapes* images) would not help the models at
+    all, since they would (hopefully) never be confronted with such upside down images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similarly, you should be careful to properly parameterize some transformations
+    such as cropping or brightness adjustment. If an image becomes so dark/bright
+    that its content cannot be identified anymore, or if the key elements are cropped
+    out, then the models won't learn anything from training on this edited picture
+    (it may even confuse them if too many images are inappropriately augmented). Therefore,
+    it is important to shortlist and parametrize transformations that add meaningful
+    variations to the dataset (with respect to the target use cases) while preserving
+    its semantic content.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 7-4* provides some examples of what invalid and valid augmentations
+    can be for an autonomous driving application:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/78a99a2c-eca2-41e8-b965-002b99c13e19.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7-4: Valid/invalid augmentations for an autonomous driving application'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is also important to keep in mind that data augmentation cannot fully compensate
+    for data scarcity. If we want a model to be able to recognize cats, but only have
+    training images of Persian cats, no straightforward image transformations will
+    help our model identify other cat breeds (for instance, Sphynx cats).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Some advanced data augmentation solutions include applying computer graphics
+    or encoder-decoder methods to alter images. For example, computer graphics algorithms
+    could be used to add fake sun blares or motion blur, and CNNs could be trained
+    to transform daytime images into nighttime ones. We will develop some of these
+    techniques later in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, you should not forget to transform the labels accordingly, when applicable.
+    This especially concerns detection and segmentation labels, when geometrical transformations
+    are performed. If an image is resized or rotated, its related label map or bounding
+    boxes should undergo the same operation(s) to stay aligned (refer to the *Cityscapes*
+    experiments in [Chapter 6](c4bb2429-f9f5-424d-8462-e376fd81f5a4.xhtml), *Enhancing
+    and Segmenting Images*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Augmenting images with TensorFlow
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Having clarified *why* and *when* images should be augmented, it is time to
+    properly explain *how*. We will introduce some useful tools provided by TensorFlow
+    to transform images, sharing a number of concrete examples.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TensorFlow Image module
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Python offers a huge variety of frameworks to manipulate and transform images.
+    Besides the generic ones such as *OpenCV* ([https://opencv.org](https://opencv.org))
+    and *Python Imaging Library* (PIL—[http://effbot.org/zone/pil-index.htm](http://effbot.org/zone/pil-index.htm)),
+    some packages specialize in providing data augmentation methods for machine learning
+    systems. Among those, `imgaug` by Alexander Jung ([https://github.com/aleju/imgaug](https://github.com/aleju/imgaug))
+    and `Augmentor` by Marcus D. Bloice ([https://github.com/mdbloice/Augmentor](https://github.com/mdbloice/Augmentor))
+    are probably the most widely used, both offering a wide range of operations and
+    a neat interface. Even Keras provides functions to preprocess and augment image
+    datasets. `ImageDataGenerator` ([https://keras.io/preprocessing/image](https://keras.io/preprocessing/image))
+    can be used to instantiate an image batch generator covering data augmentation
+    (such as image rotation, zoom, or channel shifting).
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, TensorFlow has its own module for image processing that can seamlessly
+    integrate `tf.data` pipelines—`tf.image` (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/image](https://www.tensorflow.org/api_docs/python/tf/image)).
+    This module contains all sorts of functions. Some of them implement common image-related
+    metrics (for instance, `tf.image.psnr()` and `tf.image.ssim()`), and others can
+    be used to convert images from one format to another (for instance, `tf.image.rgb_to_grayscale()`).
+    But before all else, `tf.image` implements multiple image transformations. Most
+    of these functions come in pairs—one function implementing a fixed version of
+    the operation (such as `tf.image.central_crop()`, `tf.image.flip_left_right()`
+    and `tf.image.adjust_jpeg_quality()`) and the other a randomized version (such
+    as `tf.image.random_crop()`, `tf.image.random_flip_left_right()`, and `tf.image.random_jpeg_quality()`).
+    The randomized functions usually take for arguments a range of values from which
+    the attributes of the transformation are randomly sampled (such as `min_jpeg_quality`
+    and `max_jpeg_quality` for `tf.image.random_jpeg_quality()` parameters).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Directly applicable to image tensors (single or batched), the `tf.image` functions
+    are recommended within `tf.data` pipelines for online augmentation (grouping the
+    operations into a function passed to `.map()`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Example – augmenting images for our autonomous driving application
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous chapter, we introduced some state-of-the-art models for semantic
+    segmentation and applied them to urban scenes in order to guide self-driving cars.
+    In the related Jupyter notebooks, we provided an `_augmentation_fn(img, gt_img)`
+    function passed to `dataset.map()` to augment the pictures and their ground truth
+    label maps. Though we did not provide detailed explanations back then, this augmentation
+    function illustrates well how `tf.image` can augment complex data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, it offers a simple solution to the problem of transforming both
+    the input images and their dense labels. Imagine we want some of the samples to
+    be randomly horizontally flipped. If we call `tf.image.random_flip_left_right()`
+    once for the input image and once for the ground truth label map, there is only
+    a half chance that both images will undergo the same transformation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One solution to ensure that the same set of geometrical transformations are
+    applied to  the image pairs is the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: Since most `tf.image` geometrical functions do not have any limitations regarding
+    the number of channels the images can have, concatenating images along the channel
+    axis beforehand is a simple trick to ensure that they undergo the same geometrical
+    operations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The preceding example also illustrates how some operations can be further randomized
+    by sampling some parameters from random distributions. `tf.image.random_crop(images,
+    size)` returns crops of a fixed size, extracted from random positions in the images.
+    Picking a size factor with `tf.random.uniform()`, we obtain crops that are not
+    only randomly positioned in the original images, but also randomly dimensioned.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, this example is also a reminder that *not* all transformations should
+    be applied to both the input images and their label maps. Trying to adjust the
+    brightness or saturation of label maps would not make sense (and would, in some
+    cases, raise an exception).
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will conclude this subsection on data augmentation by emphasizing that this
+    procedure should always be considered. Even when training on large datasets, augmenting
+    their images can only make the models more robust—as long as the random transformations
+    are selected and applied with care.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Rendering synthetic datasets
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: However, what if we have no images to train on, at all? A common solution in
+    computer vision is the use of *synthetic datasets*. In the following subsection,
+    we will explain what synthetic images are, how they can be generated, and what
+    their limitations are.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Overview
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Let's first clarify what is meant by *synthetic images*, and why they are so
+    often used in computer vision.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Rise of 3D databases
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As mentioned in the introduction of this section on data scarcity, the complete
+    lack of training images is not that uncommon a situation, especially in industry.
+    Gathering hundreds of images for each new element to recognize is costly, and
+    sometimes completely impractical (for instance, when the target objects are not
+    produced yet or are only available at some remote location).
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, for industrial applications and others, it is increasingly common to
+    have access to 3D models of the target objects or scenes (such as 3D **computer-aided
+    design** (**CAD**) blueprints or 3D scenes captured with depth sensors). Large
+    datasets of 3D models have even multiplied on the web. With the coincidental development
+    of computer graphics, this led more and more experts to use such 3D databases
+    to *render* synthetic images on which to train their recognition models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Benefits of synthetic data
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Synthetic images** are thus images generated by computer graphics libraries
+    from 3D models. Thanks to the lucrative entertainment industry, computer graphics
+    have indeed come a long way, and rendering engines can nowadays generate highly
+    realistic images from 3D models (such as for video games, 3D animated movies,
+    and special effects). It did not take long for scientists to see the potential
+    for computer vision.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Given some detailed 3D models of the target objects/scenes, it is possible with
+    modern 3D engines to render huge datasets of pseudo-realistic images. With proper
+    scripting, you can, for instance, render images of target objects from every angle,
+    at various distances, with different lighting conditions or backgrounds, and so
+    on. Using various rendering methods, it is even possible to simulate different
+    types of cameras and sensors (for instance, depth sensors such as the *Microsoft
+    Kinect* or *Occipital Structure* sensors).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Having full control over the scene/image content, you can also easily obtain
+    all kinds of ground truth labels for each synthetic image (such as precise 3D
+    positions of the rendered models or object masks). For example, targeting driving
+    scenarios, a team of researchers from the Universitat Autònoma de Barcelona built
+    virtual replicas of city environments and used them to render multiple datasets
+    of urban scenes, named *SYNTHIA* ([http://synthia-dataset.net](http://synthia-dataset.net)).
+    This dataset is similar to *Cityscapes* ([https://www.cityscapes-dataset.com](https://www.cityscapes-dataset.com)),
+    though larger.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another team from the Technical University of Darmstadt and Intel Labs successfully
+    demonstrated self-driving models trained on images taken from the realistic looking
+    video game *Grand Theft Auto V (GTA 5)* ([https://download.visinf.tu-darmstadt.de/data/from_games](https://download.visinf.tu-darmstadt.de/data/from_games)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'These three datasets are presented in *Figure 7-5*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6d823e2d-4485-48f1-8f92-16b2bd8eab75.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7-5: Samples from the *Cityscapes*, *SYNTHIA*, and *Playing for Data*
+    datasets (links to the datasets are provided in the section). Images and their
+    class labels are superposed'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Besides the generation of static datasets, 3D models and game engines can also
+    be used to create *interactive simulation environments*. After all, *simulation-based
+    learning* is commonly used to teach humans complex skills, for instance, when
+    it would be too dangerous or complicated to learn in real conditions (for instance,
+    simulating zero gravity environments to teach astronauts how to perform some tasks
+    once in space, and building game-based platforms to help surgeons learning on
+    virtual patients). If it works for humans, why not machines? Companies and research
+    labs have been developing a multitude of simulation frameworks covering various
+    applications (robotics, autonomous driving, surveillance, and so on).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In these virtual environments, people can train and test their models. At each
+    time step, the models receive some visual inputs from the environments, which
+    they can use to take further action, affecting the simulation, and so on (this
+    kind of interactive training is actually central to *reinforcement learning* as
+    mentioned in [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml), *Computer
+    Vision and Neural Networks*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Synthetic datasets and virtual environments are used to compensate for the lack
+    of real training data or to avoid the consequences of directly applying immature
+    solutions to complex or dangerous situations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating synthetic images from 3D models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Computer graphics** is a vast and fascinating domain by itself. In the following
+    paragraphs, we will simply point out some useful tools and ready-to-use frameworks
+    for those in need of rendering data for their applications.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Rendering from 3D models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Generating images from 3D models is a complex, multi-step process. Most 3D
+    models are represented by a *mesh*, a set of small *faces* (usually triangles)
+    delimited by *vertices* (that is, points in the 3D space) representing the model''s
+    surface. Some models also contain some *texture or color information*, indicating
+    which color each vertex or small surface should be. Finally, models can be placed
+    into a larger 3D scene (translated/rotated). Given a virtual camera defined by
+    its **intrinsic parameters** (such as its focal length and principal point) and
+    its own pose in the 3D scene, the task is to render what the camera sees of the
+    scene. This procedure is presented in a simplified manner in the following *Figure
+    7-6*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/68241f0c-18fb-4cf0-8240-9c05f503c504.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7-6: Simplistic representation of a 3D rendering pipeline (3D models
+    are from the LineMOD dataset—http://campar.in.tum.de/Main/StefanHinterstoisser)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Converting a 3D scene into a 2D image thus implies multiple transformations,
+    projecting the faces of each model from 3D coordinates relative to the object
+    to coordinates relative to the whole scene (world coordinates), then, relative
+    to the camera (camera coordinates), and finally to 2D coordinates relative to
+    the image space (image coordinates). All these projections can be expressed as
+    direct *matrix multiplications*, but constitute (alas) only a small part of the
+    rendering process. Surface colors should also be properly interpolated, *visibility*
+    should be respected (elements occluded by others should not be drawn), realistic
+    light effects should be applied (for instance, illumination, reflection, and refraction),
+    and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Operations are numerous and computationally heavy. Thankfully for us, GPUs were
+    originally built to efficiently perform them, and frameworks such as *OpenGL*
+    ([https://www.opengl.org](https://www.opengl.org)) have been developed to help
+    interface with the GPUs for computer graphics (for instance, to load vertices/faces
+    in the GPUs as *buffers*, or to define programs named *shaders* to specify how
+    to project and color scenes) and streamline some of the process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Most of the modern computer languages offer libraries built on top of *OpenGL*,
+    such as `PyOpenGL` ([http://pyopengl.sourceforge.net](http://pyopengl.sourceforge.net))
+    or the object-oriented `vispy` ([http://vispy.org](http://vispy.org)) for Python.
+    Applications such as *Blender* ([https://www.blender.org](https://www.blender.org))
+    provide graphical interfaces to also build and render 3D scenes. While it requires
+    some effort to master all these tools, they are extremely versatile and can be
+    immensely helpful to render any kind of synthetic data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, it is good to keep in mind that, as we previously mentioned, labs
+    and companies have been sharing many higher-level frameworks to render synthetic
+    datasets specifically for machine learning applications. For example, Michael
+    Gschwandtner and Roland Kwitt from the University of Salzburg developed *BlenSor*
+    ([https://www.blensor.org](https://www.blensor.org)), a Blender-based application
+    to simulate all kinds of sensors (*BlenSor: blender sensor simulation toolbox*,
+    Springer, 2011); more recently, Simon Brodeur and a group of researchers from
+    various backgrounds shared the *HoME-Platform*, simulating a variety of indoor
+    environments for intelligent systems (*HoME: A household multimodal environment*,
+    ArXiv, 2017).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: When manually setting up a complete rendering pipeline or using a specific simulation
+    system, in both cases, the end goal is to render a large amount of training data
+    with ground truths and enough variation (viewpoints, lighting conditions, textures,
+    and more).
+  prefs: []
+  type: TYPE_NORMAL
+- en: To better illustrate these notions, a complete notebook is dedicated to rendering
+    synthetic datasets from 3D models, briefly covering concepts such as *3D meshes*,
+    *shaders*, and *view matrices*. A simple renderer is implemented using `vispy`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Post-processing synthetic images
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: While 3D models of target objects are often available in industrial contexts,
+    it is rare to have a 3D representation of the environments they will be found
+    in (for instance, a 3D model of the industrial plant). The 3D objects/scenes then
+    appear isolated, with no proper background. But, like any other visual content,
+    if models are not trained to deal with background/clutter, they won't be able
+    to perform properly once confronted with real images. Therefore, it is common
+    for researchers to post-process synthetic images, for instance, to merge them
+    with relevant background pictures (replacing the blank background with pixel values
+    from images of related environments).
+  prefs: []
+  type: TYPE_NORMAL
+- en: While some augmentation operations could be taken care of by the rendering pipeline
+    (such as brightness changes or motion blur), other 2D transformations are still
+    commonly applied to synthetic data during training. This additional post-processing
+    is once again done to reduce the risk of overfitting and to increase the robustness
+    of the models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In May 2019, **TensorFlow Graphics** was released. This module provides a computer
+    graphics pipeline to generate images from 3D models. Because this rendering pipeline
+    is composed of novel differentiable operations, it can be tightly combined with—or
+    integrated into—NNs (these graphics operations are differentiable, so the training
+    loss can be backpropagated through them, like any other NN layer). With more and
+    more features being added to TensorFlow Graphics (such as 3D visualization add-ons
+    for TensorBoard and additional rendering options), it will certainly become a
+    central component of solutions dealing with 3D applications or applications relying
+    on synthetic training data. More information, as well as detailed tutorials, can
+    be found in the related GitHub repository ([https://github.com/tensorflow/graphics](https://github.com/tensorflow/graphics)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Problem – realism gap
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Though rendering synthetic images has enabled a variety of computer vision applications,
+    it is, however, not the perfect remedy for data scarcity (or at least not yet).
+    While computer graphics frameworks can nowadays render hyper-realistic images,
+    they *need detailed 3D models* for that (with precise surfaces and high-quality
+    texture information). Gathering the data to build such models is as *expensive*
+    as—if not more than—directly building a dataset of real images for the target
+    objects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because 3D models sometimes have simplified geometries or lack texture-related
+    information, realistic synthetic datasets are not that common. This **realism
+    gap** between the rendered training data and the real target images *harms the
+    performance* of the models. The visual cues they have learned to rely on while
+    training on synthetic data may not appear in real images (which may have differently
+    saturated colors, more complex textures or surfaces, and so on).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Even when the 3D models are properly depicting the original objects, it often
+    happens that the appearance of these objects changes over time (for instance,
+    from wear and tear).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Currently, a lot of effort is being devoted to tackling the realism gap for
+    computer vision. While some experts are working on building more realistic 3D
+    databases or developing more advanced simulation tools, others are coming up with
+    new machine learning models that are able to transfer the knowledge they acquired
+    from synthetic environments to real situations. The latter approach will be the
+    topic of this chapter's final subsection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Leveraging domain adaptation and generative models (VAEs and GANs)
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Domain adaptation** methods were briefly mentioned in [Chapter 4](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml),
+    *Influential Classification Tools*, among transfer learning strategies. Their
+    goal is to transpose the knowledge acquired by models from one *source domain*
+    (that is, one data distribution) to another *target domain*. Resulting models
+    should be able to properly recognize samples from the new distribution, even if
+    they were not directly trained on it. This fits scenarios when training samples
+    from the target domain are unavailable, but other related datasets are considered
+    as training substitutes.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Suppose we want to train a model to classify household tools in real scenes,
+    but we only have access to uncluttered product pictures provided by the manufacturers.
+    Without domain adaptation, models trained on these advertising pictures will not
+    perform properly on target images with actual clutter, poor lighting, and other
+    discrepancies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training recognition models on synthetic data so that they can be applied to
+    real images has also become a common application for domain adaptation methods.
+    Indeed, synthetic images and real pictures of the same semantic content can be
+    considered as two different data distributions, that is, two domains with different
+    levels of detail, noise, and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this section, we will consider the following two different flavors of approaches:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Domain adaptation methods that aim to train models so that they perform indifferently
+    on the source and target domains
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Methods for adapting the training images to make them more similar to the target
+    images
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Training models to be robust to domain changes
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: A first approach to domain adaptation is to encourage the models to focus on
+    robust features, which can be found in both the source and target domains. Multiple
+    solutions following this approach have been proposed, contingent on the availability
+    of target data during training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Supervised domain adaptation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Sometimes, you may be lucky enough to have access to some pictures from the
+    target domain and relevant annotations, besides a larger source dataset (for instance,
+    of synthetic images). This is typically the case in industry, where companies
+    have to find a compromise between the high cost of gathering enough target images
+    to train recognition models, and the performance drop they would experience if
+    models are taught on synthetic data only.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Thankfully, multiple studies have demonstrated that adding even a small number
+    of target samples to training sets can boost the final performance of the algorithms.
+    The following two main reasons are usually put forward:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Even if scarce, this provides the models with some information on the target
+    domain. To minimize their training loss over all samples, the networks will have
+    to learn how to process this handful of added images (this can even be accentuated
+    by weighing the loss more for these images).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Since source and target distributions are, by definition, different, mixed datasets
+    display *greater visual variability*. As previously explained, models will have
+    to learn more robust features, which can be beneficial once applied to target
+    images only (for example, models become better prepared to deal with varied data,
+    and thus better prepared for whatever the target image distribution is).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A direct parallel can also be made with the transfer learning methods we explored
+    in [Chapter 4](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml), *Influential Classification
+    Tools* (training models first on a large source dataset, and then fine-tuning
+    them on the smaller target training set). As mentioned then, the closer the source
+    data is to the target domain, the more efficient such a training scheme becomes—and
+    the other way around (in a Jupyter Notebook, we highlight these limitations, training
+    our segmentation model for self-driving cars on synthetic images too far removed
+    from the target distribution).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unsupervised domain adaptation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: When preparing training datasets, gathering images is often not the main problem.
+    But properly annotating these images is, as it is a tedious and therefore costly
+    procedure. Plenty of domain adaptation methods are thus targeting these scenarios
+    when only source images, their corresponding annotations, and target images are
+    available. With no ground truth, these target samples cannot be directly used
+    to train the models in the usual *supervised* manner. Instead, researchers have
+    been exploring *unsupervised* schemes to take advantage of the visual information
+    these images still provide of the target domain.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, works such as *Learning Transferable Features with Deep Adaptation
+    Networks*, by Mingsheng Long et al. (from Tsinghua University, China) are adding
+    constraints to some layers of the models, so that the feature maps they generate
+    have the same distribution, whichever domain the input images belong to. The training
+    scheme proposed by this flavor of approach can be oversimplified as the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For several iterations, train the model on source batches in a supervised manner.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Once in a while, feed the training set to the model and compute the distribution
+    (for instance, mean and variance) of the feature maps generated by the layers
+    we want to adapt.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Similarly, feed the set of target images to the model and compute the distribution
+    of the resulting feature maps.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Optimize each layer to reduce the distance between the two distributions.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Repeat the whole process until you achieve convergence.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Without the need for target labels, these solutions force the networks to learn
+    features that can transfer to both domains while the networks are trained on the
+    source data (the constraints are usually added to the last convolutional layers
+    in charge of feature extraction, as the first ones are often generic enough already).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Other methods are taking into account an implicit label always available in
+    these training scenarios—the domain each image belongs to (that is, *source* or
+    *target*). This information can be used to train a supervised binary classifier—given
+    an image or feature volume, its task is to predict whether it comes from the source
+    or target domain. This secondary model can be trained along with the main one,
+    to guide it toward extracting features that could belong to any of the two domains.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, in their **Domain-Adversarial Neural Networks** (**DANN**) paper
+    (published in JMLR, 2016), Hana Ajakan, Yaroslav Ganin, et al. (from Skoltech)
+    proposed adding a secondary head to the models to train (right after their feature
+    extraction layers) whose task is to identify the domain of the input data (binary
+    classification). The training then proceeds as follows (once again, we simplify):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generate a batch of source images and their task-related ground truths to train
+    the main network on it (normal feed-forwarding and backpropagation through the
+    main branch).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Generate a batch mixing source and target images with their domain labels and
+    feed it forward through the feature extractor and the secondary branch, which
+    tries to predict the correct domain for each input *(source* or *target*).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Backpropagate the domain classification loss normally through the layers of
+    the secondary branch, but then *reverse the gradient* before backpropagating through
+    the feature extractor.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Repeat the whole process until convergence, that is, until the main network
+    can perform its task as expected, whereas the domain classification branch can
+    no longer properly predict the domains.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'This training procedure is illustrated in *Figure 7-7*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b1deb4e7-a851-4237-9cfa-93e3a30535c8.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7-7: DANN concept applied to the training of a classifier'
+  prefs: []
+  type: TYPE_NORMAL
+- en: With proper control of the data flow or weighting of the main loss, the three
+    steps can be executed at once in a single iteration. This is demonstrated in the
+    Jupyter Notebook we dedicate to this method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This scheme got a lot of attention for its cleverness. By *reversing* the gradient
+    from the domain classification loss (that is, multiplying it by *-1*) before propagating
+    it through the feature extractor, its layers will *learn to maximize this loss*,
+    not to *minimize* it. This method is called **adversarial** because the secondary
+    head will keep trying to properly predict the domains, while the upstream feature
+    extractor will learn to *confuse* it. Concretely, this leads the feature extractor
+    to learn features that *cannot* be used to *discriminate* the domains of the input
+    images but are useful to the network's main task (since the normal training of
+    the main head is done in parallel). After training, the domain classification
+    head can simply be discarded.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note that with TensorFlow 2, it is quite straightforward to manipulate the
+    gradients of specific operations. This can be done by applying the `@tf.custom_gradient`
+    decorator (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/custom_gradient](https://www.tensorflow.org/api_docs/python/tf/custom_gradient))
+    to functions and by providing the custom gradient operations. Doing so, we can
+    implement the following operation for *DANN*, to be called after the feature extractor
+    and before the domain classification layers in order to reverse the gradient at
+    that point during backpropagation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: Since *DANN*, a multitude of other domain adaptation methods have been released
+    (for instance, *ADDA* and *CyCaDa*), following similar adversarial schemes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In some cases, annotations for the target images are available, but not with
+    the desired *density* (for instance, with only image-level class labels when the
+    target task is pixel-level semantic segmentation). **Auto-labeling methods** have
+    been proposed for such scenarios. For example, guided by the sparse labels, the
+    models trained on source data are used to predict the denser labels of the target
+    training images. Then, these source labels are added to the training set to refine
+    the models. This process is repeated iteratively until the target labels look
+    correct enough and the models trained on the mixed data have converged.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Domain randomization
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Finally, it may happen that *no target data is available* at all for training
+    (no image, no annotation). The performance of the models then relies entirely
+    on the relevance of the source dataset (for instance, how realistic looking and
+    relevant to the task the rendered synthetic images are).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pushing the concept of data augmentation for synthetic images to the extreme,
+    *domain randomization* can also be considered. Mostly explored by industrial experts,
+    the idea is to train models on large data variations (as described in *Domain
+    randomization for transferring deep neural networks from simulation to the real
+    world*, IEEE, 2017). For example, if we only have access to 3D models of the objects
+    we want the networks to recognize, but we do not know in what kind of scenes these
+    objects may appear, we could use a 3D simulation engine to generate images with
+    a significant number of *random* backgrounds, lights, scene layouts, and so on.
+    The claim is that with enough variability in the simulation, real data may appear
+    just as another variation to the models. As long as the target domain somehow
+    overlaps the randomized training one, the networks would not be completely clueless
+    after training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Obviously, we cannot expect such NNs to perform as well as any trained on target
+    samples, but domain randomization is a fair solution to desperate situations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating larger or more realistic datasets with VAEs and GANs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The second main type of domain adaptation methods we will cover in this chapter
+    will give us the opportunity to introduce what many call the most interesting
+    development in machine learning these past years—generative models, and, more
+    precisely *VAEs* and *GANs*. Highly popular since they were proposed, these models
+    have been incorporated into a large variety of solutions. Therefore, we will confine
+    ourselves here to a generic introduction, before presenting how these models are
+    applied to dataset generation and domain adaptation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Discriminative versus generative models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, most of the models we have been studying are **discriminative**. Given
+    an input, *x*, they learn the proper parameters, *W*, in order to return/discriminate
+    the correct label, *y*, out of those considered (for instance, *x* may be an input
+    image and *y* may be the image class label). A discriminative model can be interpreted
+    as a *function f(x ; W) = y*. They can also be interpreted as models trying to
+    learn the *conditional probability distribution,* *p*(*y*|*x*) (meaning *the probability
+    of y given x*; for instance*,* given a specific picture *x*, what is the probability
+    that its label is *y* = "*cat picture*"?).
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is a second category of models we have yet to introduce—*generative* models.
+    Given some samples, *x*, drawn from an unknown probability distribution, *p*(*x*),
+    generative models are trying to *model this distribution*. For example, given
+    some images, *x*, representing cats, a generative model will attempt to infer
+    the data distribution (what makes these cat pictures, out of all possible pixel
+    combinations) in order to generate new cat images that could belong to the same
+    set as *x*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In other words, a discriminative model learns to recognize a picture based on
+    specific features (for instance, it is probably a cat picture because it depicts
+    something with whiskers, paws, and a tail). A generative model learns to sample
+    new images from the input domain, reproducing its typical features (for instance,
+    here is a plausible new cat picture, obtained by generating and combining typical
+    cat features).
+  prefs: []
+  type: TYPE_NORMAL
+- en: As functions, generative CNNs need an input they can process into a new picture.
+    Oftentimes, they are *conditioned by a noise vector*, that is, a tensor, *z*,
+    sampled from a random distribution (such as ![](img/7a246ff9-7a7c-4048-9ee3-e3b1c3f6d26a.png),
+    meaning *z* is randomly sampled from a normal distribution of mean ![](img/c9fb8172-71ed-4c36-a993-f3cd685595fe.png)
+    and standard deviation ![](img/32ef4265-9515-4bbb-9313-e7620826e376.png)). For
+    each random input they receive, the models provide a new image from the distribution
+    they learned to model. When available, generative networks can also be conditioned
+    by the labels, *y*. In such cases, they have to model the conditional distribution,
+    *p*(*x*|*y*) (for instance, considering the label *y* = "*cat*", what is the probability
+    of sampling the specific image *x*)?
+  prefs: []
+  type: TYPE_NORMAL
+- en: According to the majority of experts, generative models hold the key to the
+    next stage of machine learning. To be able to generate a large and varied amount
+    of new data despite their limited number of parameters, networks have to distill
+    the dataset to uncover its structure and key features. They have to *understand*
+    the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: VAEs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: While auto-encoders can also learn some aspects of a data distribution, their
+    goal is only to reconstruct encoded samples, that is, to *discriminate* the original
+    image out of all possible pixel combinations, based on the encoded features. Standard
+    auto-encoders are not meant to *generate* new samples. If we randomly sample a
+    *code* vector from their latent space, chances are high that we will obtain a
+    gibberish image out of their decoder. This is because their latent space is unconstrained
+    and typically *not continuous* (that is, there are usually large regions in the
+    latent space that are not corresponding to any valid image).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Variational auto-encoders** (**VAEs**) are particular auto-encoders designed
+    to have continuous latent space, and they are therefore used as generative models.
+    Instead of directly extracting the code corresponding to an image, *x*, the encoder
+    of a VAE is tasked to provide a simplified estimation of the distribution in the
+    latent space that the image belongs to.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Typically, the encoder is built to return two vectors, respectively representing
+    the mean, ![](img/accc4133-bc87-4d2f-beb6-a330201bdb97.png), and the standard
+    deviation, ![](img/9d724ce2-f5ff-4e06-af6b-d6f96bd95f60.png), of a multivariate
+    normal distribution (for an *n*-dimensional latent space). Figuratively speaking,
+    the mean represents the *most likely* position of the image in the latent space,
+    and the standard deviation controls the size of the circular area, around that
+    position, where the image *could also be*. From this distribution defined by the
+    encoder, a random code, *z*, is picked and passed to the decoder. The decoder's
+    task is then to recover image *x* based on *z*. Since *z* can slightly vary for
+    the same image, the decoder has to learn to deal with these variations to return
+    the input image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To illustrate the differences between them, auto-encoders and VAEs are depicted
+    side by side in *Figure 7-8*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f4a7a545-0b37-4b43-bfae-9891708b12a4.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7-8: Comparison of standard auto-encoders and variational ones'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Gradients cannot flow back through random sampling operations. To be able to
+    backpropagate the loss through the encoder despite the sampling of *z*, a **reparameterization
+    trick** is used. Instead of directly sampling ![](img/7beb4539-c3b2-466a-90c7-4688a35e79f4.png),
+    this operation is approximated by ![](img/5af5992a-0698-4e75-be89-cd9e7f50832d.png),
+    with ![](img/cc41dbfb-9fb3-4e08-bbd5-8840150e7c3d.png). This way, *z* can be obtained
+    through a derivable operation, considering ![](img/f54a9975-144a-4880-a099-4cb1a2a96e7a.png)
+    as a random vector passed as an additional input to the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'During training, a loss—usually the **mean-squared error** (**MSE**)—measures
+    how similar the output image is to the input one, as we do for standard auto-encoders.
+    However, another loss is added to VAE models, to make sure the distribution estimated
+    by their encoder is well-defined. Without this constraint, the VAEs could otherwise
+    end up behaving like normal auto-encoders, returning ![](img/f91213f6-448c-4269-a794-3bfc73c58928.png)
+    null and ![](img/5a0c2520-c3d2-44ad-9a50-a6fbd79e38b9.png) as the images'' code.
+    This second loss is based on the **Kullback–Leibler divergence** (named after
+    its creators and usually contracted to *KL divergence*). The KL divergence measures
+    the difference between two probability distributions. It is adapted into a loss,
+    to ensure that the distributions defined by the encoder are close enough to the
+    standard normal distribution, ![](img/626ed271-78e9-497e-b49f-80420808668a.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6b4bceea-891d-4683-a149-7237c8cb8180.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'With this reparameterization trick and KL divergence, auto-encoders become
+    powerful generative models. Once the models are trained, their encoders can be
+    discarded, and their decoders can be directly used to generate new images, given
+    random vectors, ![](img/1e481d38-a9c2-48fb-978f-aa41debe27a4.png), as inputs.
+    For example, *Figure 7-9* shows a grid of results for a simple convolutional VAE
+    with a latent space of dimension *n = 2*, trained to generate MNIST-like images
+    (additional details and source code are available as a Jupyter Notebook):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/fe38d124-f850-4285-9f97-7a16fdc2aa1a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7-9: Grid of images generated by a simple VAE trained to create MNIST-like
+    results'
+  prefs: []
+  type: TYPE_NORMAL
+- en: To generate this grid, the different vectors, *z*, are not randomly picked,
+    but are sampled to homogeneously cover part of the 2D latent space, hence the
+    grid figure that shows the output images for *z* varying from (*-1.5, -1.5*) to
+    (*1.5, 1.5*). We can thus observe the continuity of the latent space, with the
+    content of the resulting images varying from one digit to another.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GANs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: First proposed in 2014 by Ian Goodfellow et al. from the University of Montreal,
+    GANs are certainly the most popular solution for generative tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As their name indicates, GANs use an adversarial scheme so they can be trained
+    in an unsupervised manner (this scheme inspired the *DANN* method introduced earlier
+    in this chapter). Having only a number of images, *x*, we want to train a *generator*
+    network to model *p*(*x*), that is, to create new valid images. We thus have no
+    proper ground truth data to directly compare the new images with (since they are
+    *new*). Not able to use a typical loss function, we pit the generator against
+    another network—the **discriminator**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The discriminator's task is to evaluate whether an image comes from the original
+    dataset (*real* image) or if it was generated by the other network (*fake* image).
+    Like the domain discriminating head in *DANN*, the discriminator is trained in
+    a supervised manner as a binary classifier using the implicit image labels (*real*
+    versus *fake*). Playing against the discriminator, the generator tries to fool
+    it, generating new images conditioned by noise vectors, *z*, so the discriminator
+    believes they are *real* images (that is, sampled from *p(x)*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When the discriminator predicts the binary class of generated images, its results
+    are backpropagated all the way into the generator. The generator thus learns purely
+    from the *discriminator''s feedback*. For example, if the discriminator learns
+    to check whether an image contains whiskers to label it as *real* (if we want
+    to create cat images), then the generator will receive this feedback from backpropagation
+    and learn to draw whiskers (even though only the discriminator was fed with actual
+    cat images!). *Figure 7-10* illustrates the concept of GANs with the generation
+    of handwritten digit images:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6bd33ea0-a99a-497f-bb34-9dfbcb576cc3.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7-10: GAN representation'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'GANs were inspired by *game theory*, and their training can be interpreted
+    as a *two-player zero-sum minimax game*. Each phase of the game (that is, each
+    training iteration) takes place as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The generator, *G*, receives *N* noise vectors, *z,* and outputs as many images,
+    *x[G]*[.]
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: These 𝑁 *fake* images are mixed with *N* *real* images, *x,* picked from the
+    training set.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The discriminator, *D,* is trained on this mixed batch, trying to estimate which
+    images are *real* and which are *fake*.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The generator, *G,* is trained on another batch of *N* noise vectors, trying
+    to generate images so that *D* assumes they are real.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Therefore, at each iteration, the discriminator, *D* (parameterized by *P*[*D*]),
+    tries to maximize the game reward, *V*(*G*, *D*), while the generator, *G* (parameterized
+    by *P*[*G*]), tries to minimize it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/79233327-5b4e-4320-94aa-b844811db30d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Note that this equation assumes that the label *real* is 1 and the label *fake*
+    is 0\. The first term of *V(G, D*) represents the averaged log probability estimated
+    by the discriminator, *D,* that the images, *x,* are *real* (*D* should return
+    1 for each). Its second term represents the averaged log probability estimated
+    by *D* that the generator's outputs are *fake* (*D* should return 0 for each).
+    Therefore, this reward, *V(G, D*), is used to train the discriminator, *D,* as
+    a classification metric that *D* has to maximize (although in practice, people
+    rather train the network to minimize -*V(G, D*), out of habit for decreasing losses).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Theoretically, *V(G, D*) should also be used to train the generator, *G*, as
+    a value to minimize this time. However, the gradient of its second term would
+    *vanish* toward 0 if *D* becomes too confident (and the derivative of the first
+    term with respect to *P*[*G*] is always null, since *P*[*G*] does not play any
+    role in it). This vanishing gradient can be avoided with a small mathematical
+    change, using instead the following loss to train *G*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/10e48567-7e5d-4dcd-8524-507b3d6405f7.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: According to game theory, the outcome of this *mini**max* *game* is an *equilibrium*
+    between *G* and *D* (called **Nash equilibrium**, after the mathematician John
+    Forbes Nash Jr, who defined it). Though hard to achieve in practice with GANs,
+    the training should end with *D* unable to differentiate *real* from *fake* (that
+    is, *D*(*x*) = ¹/[2] and *D(G(z))* = ¹/[2] for all samples) and with *G* modeling
+    the target distribution, *p(x).*
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Though difficult to train, GANs can lead to highly realistic results and are
+    therefore commonly used to generate new data samples (GANs can be applied to any
+    data modality: image, video, speech, text, and more.)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: While VAEs are easier to train, GANs usually return crisper results. Using the
+    MSE to evaluate the generated images, VAE results can be slightly blurry, as the
+    models tend to return averaged images to minimize this loss. Generators in GANs
+    cannot cheat this way, as the discriminators would easily spot blurry images as
+    *fake*. Both VAEs and GANs can be used to generate larger training datasets for
+    image-level recognition (for instance, preparing one GAN to create new *dog* images
+    and another to create new *cat* images, to train a *dog* versus *cat* classifier
+    on a larger dataset).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Both VAEs and GANs are implemented in the Jupyter Notebooks provided.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Augmenting datasets with conditional GANs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Another great advantage GANs have is that they can be conditioned by any kind
+    of data. **Conditional GANs** (**cGANs**) can be trained to model the *conditional
+    distribution, p(x|y),* that is, to generate images conditioned by a set of input
+    values, *y* (refer to the introduction to generative models). The conditional
+    input, *y,* can be an image, a categorical or continuous label, a noise vector,
+    and more, or any combination of those.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In conditional GANs, the discriminator is edited to receive both an image, *x*
+    (real or fake), and its corresponding conditional variable, *y,* as a paired input
+    (that is, *D*(*x*, *y*)). Though its output is still a value between *0* and *1*
+    measuring how *real* the input seems, its task is slightly changed. To be considered
+    as *real*, an image should not only look as if drawn from the training dataset;
+    it should also correspond to its paired variable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Imagine, for instance, that we want to train a generator, *G,* to create images
+    of handwritten digits. Such a generator would be much more useful if, instead
+    of outputting images of random digits, it could be conditioned to output images
+    of requested ones (that is, *draw an image whose* *y* *= 3*, with *y* the categorical
+    digit label). If the discriminator is not given *y*, the generator would learn
+    to generate realistic images, but with no certainty that these images would be
+    depicting the desired digits (for instance, we could receive from *G* a realistic
+    image of a *5* instead of a *3*). Giving the conditioning information to *D*,
+    this network would immediately spot a fake image that does not correspond to its
+    *y*, forcing *G* to effectively model *p(x|y).*
+  prefs: []
+  type: TYPE_NORMAL
+- en: The *Pix2Pix* model by Phillip Isola and others from Berkeley AI Research is
+    a famous image-to-image conditional GAN (that is, with *y* being an image), demonstrated
+    on several tasks, such as converting hand-drawn sketches into pictures, semantic
+    labels into actual pictures, and more (*Image-to-image translation with conditional
+    adversarial networks*, IEEE, 2017). While *Pix2Pix* works best in supervised contexts,
+    when the target images were made available to add an MSE loss to the GAN objective,
+    more recent solutions removed this constraint. This is, for instance, the case
+    of *CycleGAN*, by Jun-Yan Zhu et al. from Berkeley AI Research (published by IEEE
+    in 2017, in collaboration with the *Pix2Pix* authors) or *PixelDA* by Konstantinos
+    Bousmalis and colleagues from Google Brain (*Unsupervised pixel-level domain adaptation
+    with generative adversarial networks*, IEEE, 2017).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Like other recent conditional GANs, *PixelDA* can be used as a domain adaptation
+    method, to map training images from the source domain to the target domain. For
+    example, the *PixelDA* generator can be applied to generating realistic-looking
+    versions of synthetic images, learning from a small set of unlabeled real images.
+    It can thus be used to augment synthetic datasets so that the models trained on
+    them do not suffer as much from the realism gap.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Though mostly known for their artistic applications (GAN-generated portraits
+    are already being exhibited in many art galleries), generative models are powerful
+    tools that, in the long term, could become central to the understanding of complex
+    datasets. But nowadays, they are already being used by companies to train more
+    robust recognition models despite scarce training data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Although the exponential increase in computational power and the availability
+    of larger datasets have led to the deep learning era, this certainly does not
+    mean that best practices in data science should be ignored or that relevant datasets
+    will be easily available for all applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we took a deep dive into the `tf.data` API, learning how to
+    optimize the data flow. We then covered different, yet compatible, solutions to
+    tackle the problem of data scarcity: data augmentation, synthetic data generation,
+    and domain adaptation. The latter solution gave us the opportunity to present
+    VAEs and GANs, which are powerful generative models.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The importance of well-defined input pipelines will be highlighted in the next
+    chapter, as we will apply NNs to data of higher dimensionality: image sequences
+    and videos.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Given a tensor, `a = [1, 2, 3]`, and another tensor, `b = [4, 5, 6]`, how do
+    you build a `tf.data` pipeline that would output each value separately, from `1`
+    to `6`?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: According to the documentation of `tf.data.Options`, how do you make sure that
+    a dataset always returns samples in the same order, run after run?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which domain adaptation methods that we introduced can be used when no target
+    annotations are available for training?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What role does the discriminator play in GANs?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '*Learn OpenGL* ([https://www.packtpub.com/game-development/learn-opengl](https://www.packtpub.com/game-development/learn-opengl)),
+    by Frahaan Hussain: For readers interested in computer graphics and eager to learn
+    how to use OpenCV, this book is a nice place to start.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Hands-On Artificial Intelligence for Beginners* ([https://www.packtpub.com/big-data-and-business-intelligence/hands-artificial-intelligence-beginners](https://www.packtpub.com/big-data-and-business-intelligence/hands-artificial-intelligence-beginners)),
+    by Patrick D. Smith: Though written for TensorFlow 1, this book dedicates a complete
+    chapter to generative networks.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

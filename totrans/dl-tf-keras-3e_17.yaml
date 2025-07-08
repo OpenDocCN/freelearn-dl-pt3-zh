@@ -1,0 +1,1215 @@
+- en: '17'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Graph Neural Networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we will look at a relatively new class of neural networks,
+    the **Graph Neural Network** (**GNN**), which is ideally suited for processing
+    graph data. Many real-life problems in areas such as social media, biochemistry,
+    academic literature, and many others are inherently “graph-shaped,” meaning that
+    their inputs are composed of data that can best be represented as graphs. We will
+    cover what graphs are from a mathematical point of view, then explain the intuition
+    behind “graph convolutions,” the main idea behind GNNs. We will then describe
+    a few popular GNN layers that are based on variations of the basic graph convolution
+    technique. We will describe three major applications of GNNs, covering node classification,
+    graph classification, and edge prediction, with examples using TensorFlow and
+    the **Deep Graph Library** (**DGL**). DGL provides the GNN layers we have just
+    mentioned plus many more. In addition, it also provides some standard graph datasets,
+    which we will use in the examples. Following on, we will show how you could build
+    a DGL-compatible dataset from your own data, as well as your own layer using DGL’s
+    low-level message-passing API. Finally, we will look at some extensions of graphs,
+    such as heterogeneous graphs and temporal graphs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will cover the following topics in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Graph basics
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Graph machine learning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Graph convolutions
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Common graph layers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Common graph applications
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Graph customizations
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Future directions
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: All the code files for this chapter can be found at https://packt.link/dltfchp17
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s begin with the basics.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Graph basics
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Mathematically speaking, a graph *G* is a data structure consisting of a set
+    of vertices (also called nodes) *V*, connected to each other by a set of edges
+    *E*, i.e:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_17_001.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: A graph can be equivalently represented as an adjacency matrix *A* of size (*n*,
+    *n*) where *n* is the number of vertices in the set *V*. The element *A[I, j]*
+    of this adjacency matrix represents the edge between vertex *i* and vertex *j*.
+    Thus the element *A[I, j] = 1* if there is an edge between vertex *i* and vertex
+    *j*, and 0 otherwise. In the case of weighted graphs, the edges might have their
+    own weights, and the adjacency matrix will reflect that by setting the edge weight
+    to the element *A[i, j]*. Edges may be directed or undirected. For example, an
+    edge representing the friendship between a pair of nodes *x* and *y* is undirected,
+    since *x* is friends with *y* implies that *y* is friends with *x*. Conversely,
+    a directed edge can be one in a follower network (social media), where *x* following
+    *y* does not imply that *y* follows *x*. For undirected graphs, *A[I, j] = A[j,
+    i]*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another interesting property of the adjacency matrix *A* is that *A*^n, i.e.,
+    the product of *A* taken *n* times, exposes *n*-hop connections between nodes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The graph-to-matrix equivalence is bi-directional, meaning the adjacency matrix
+    can be converted back to the graph representation without any loss of information.
+    Since **Machine Learning** (**ML**) methods, including **Deep Learning** (**DL**)
+    methods, consume input data in the form of tensors, this equivalence means that
+    graphs can be efficiently represented as inputs to all kinds of machine learning
+    algorithms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each node can also be associated with its own feature vector, much like records
+    in tabular input. Assuming a feature vector of size *f*, the set of nodes *X*
+    can be represented as *(n, f)*. It is also possible for edges to have their own
+    feature vectors. Because of the equivalence between graphs and matrices, graphs
+    are usually represented by libraries as efficient tensor-based structures. We
+    will examine this in more detail later in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Graph machine learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The goal of any ML exercise is to learn a mapping *F* from an input space *X*
+    to an output space *y*. Early machine learning methods required feature engineering
+    to define the appropriate features, whereas DL methods can infer the features
+    from the training data itself. DL works by hypothesizing a model *M* with random
+    weights ![](img/B18331_17_002.png), formulating the task as an optimization problem
+    over the parameters ![](img/B18331_17_003.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_17_004.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'and using gradient descent to update the model weights over multiple iterations
+    until the parameters converge:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_17_005.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Not surprisingly, GNNs follow this basic model as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, as you have seen in previous chapters, ML and DL are often optimized
+    for specific structures. For example, you might instinctively choose a simple
+    **FeedForward Network** (**FFN**) or “dense” network when working with tabular
+    data, a **Convolutional Neural Network** (**CNN**) when dealing with image data,
+    and a **Recurrent Neural Network** (**RNN**) when dealing with sequence data like
+    text or time series. Some inputs may reduce to simpler structures such as pixel
+    lattices or token sequences, but not necessarily so. In their natural form, graphs
+    are topologically complex structures of indeterminate size and are not permutation
+    invariant (i.e., instances are not independent of each other).
+  prefs: []
+  type: TYPE_NORMAL
+- en: For these reasons, we need special tooling to deal with graph data. We will
+    introduce in this chapter the DGL, a cross-platform graph library that supports
+    users of MX-Net, PyTorch, and TensorFlow through the use of a configurable backend
+    and is widely considered one of the most powerful and easy-to-use graph libraries
+    available.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Graph convolutions – the intuition behind GNNs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The convolution operator, which effectively allows values of neighboring pixels
+    on a 2D plane to be aggregated in a specific way, has been successful in deep
+    neural networks for computer vision. The 1-dimensional variant has seen similar
+    success in natural language processing and audio processing as well. As you will
+    recall from *Chapter 3*, *Convolutional Neural Networks*, a network applies convolution
+    and pooling operations across successive layers and manages to learn enough global
+    features across a sufficiently large number of input pixels to succeed at the
+    task it is trained for.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Examining the analogy from the other end, an image (or each channel of an image)
+    can be thought of as a lattice-shaped graph where neighboring pixels link to each
+    other in a specific way. Similarly, a sequence of words or audio signals can be
+    thought of as another linear graph where neighboring tokens are linked to each
+    other. In both cases, the deep learning architecture progressively applies convolutions
+    and pooling operations across neighboring vertices of the input graph until it
+    learns to perform the task, which is generally classification. Each convolution
+    step encompasses an additional level of neighbors. For example, the first convolution
+    merges signals from distance 1 (immediate) neighbors of a node, the second merges
+    signals from distance 2 neighbors, and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 17.1* shows the equivalence between a 3 x 3 convolution in a CNN and
+    the corresponding “graph convolution” operation. The convolution operator applies
+    the filter, essentially a set of nine learnable model parameters, to the input
+    and combines them via a weighted sum. You can achieve the same effect by treating
+    the pixel neighborhood as a graph of nine nodes centered around the middle pixel.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A graph convolution on such a structure would just be a weighted sum of the
+    node features, the same as the convolution operator in the CNN:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated](img/B18331_17_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 17.1: Parallels between convolutions in images and convolutions in graphs.
+    Image source: CS-224W machine learning with Graphs, Stanford Univ.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The corresponding equations for the convolution operation on the CNN and the
+    graph convolution are shown below. As you can see, on CNN, the convolution can
+    be considered as a weighted linear combination of the input pixel and each of
+    its neighbors. Each pixel brings its own weight in the form of the filter being
+    applied. On the other hand, the graph convolution is also a weighted linear combination
+    of the input pixel and an aggregate of all its neighbors. The aggregate effect
+    of all neighbors is averaged into the convolution output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_17_006.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B18331_17_007.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Graph convolutions are thus a variation of convolutions that we are already
+    familiar with. In the following section, we will see how these convolutions can
+    be composed to build different kinds of GCN layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Common graph layers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: All the graph layers that we discuss in this section use some variation of the
+    graph convolution operation described above. Contributors to graph libraries such
+    as DGL provide prebuilt versions of many of these layers within a short time of
+    it being proposed in an academic paper, so you will realistically never have to
+    implement one of these. The information here is mainly for understanding how things
+    work under the hood.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Graph convolution network
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The **Graph Convolution Network** (**GCN**) is the graph convolution layer proposed
+    by Kipf and Welling [1]. It was originally presented as a scalable approach for
+    semi-supervised learning on graph-structured data. They describe the GCN as an
+    operation over the node feature vectors *X* and the adjacency matrix *A* of the
+    underlying graph and point out that this can be exceptionally powerful when the
+    information in *A* is not present in the data *X*, such as citation links between
+    documents in a citation network, or relations in a knowledge graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'GCNs combine the value of each node’s feature vector with those of its neighbors
+    using some weights (initialized to random values). Thus, for every node, the sum
+    of the neighboring node’s features is added. This operation can be represented
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_17_008.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here the *update* and *aggregate* are different kinds of summation functions.
+    This sort of projection on node features is called a message-passing mechanism.
+    A single iteration of this message passing is equivalent to a graph convolution
+    over each node’s immediate neighbors. If we wish to incorporate information from
+    more distant nodes, we can repeat this operation several times.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following equation describes the output of the GCN at layer *(l+1)* at
+    node *i*. Here, *N(i)* is the set of neighbors of node *I* (including itself),
+    *c*[ij] is the product of the square root of node degrees, and sigma is an activation
+    function. The *b(l)* term is an optional bias term:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_17_009.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Next up, we will look at the graph attention network, a variant of the GCN where
+    the coefficients are learned via an attentional mechanism instead of being explicitly
+    defined.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Graph attention network
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The **Graph Attention Network** (**GAT**) layer was proposed by Velickovic,
+    et al. [2]. Like the GCN, the GAT performs local averaging of its neighbors’ features.
+    The difference is instead of explicitly specifying the normalization term *c*[ij],
+    the GAT allows it to be learned using self-attention over the node features to
+    do so. The corresponding normalization term is written as ![](img/B18331_11_021.png)
+    for the GAT, which is computed based on the hidden features of the neighboring
+    nodes and the learned attention vector. Essentially, the idea behind the GAT is
+    to prioritize feature signals from similar neighbor nodes compared to dissimilar
+    ones.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Every neighbor ![](img/B18331_17_011.png) neighborhood *N*(*i*) of node *i*
+    sends its own vector of attentional coefficients ![](img/B18331_17_012.png). The
+    following set of equations describes the output of the GAT at layer (*i+1*) for
+    node *i*. The attention ![](img/B18331_11_021.png) is computed using Bahdanau’s
+    attention model using a feedforward network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_17_014.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B18331_17_015.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B18331_17_016.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: GCN and GAT architectures are suitable for small to medium-sized networks. The
+    GraphSAGE architecture, described in the next section, is more suitable for larger
+    networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GraphSAGE (sample and aggregate)
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: So far, the convolutions we have considered require that all nodes in the graph
+    be present during the training, and are therefore transductive and do not naturally
+    generalize to unseen nodes. Hamilton, Ying, and Leskovec [3] proposed GraphSAGE,
+    a general, inductive framework that can generate embeddings for previously unseen
+    nodes. It does so by sampling and aggregating from a node’s local neighborhood.
+    GraphSAGE has proved successful at node classification on temporally evolving
+    networks such as citation graphs and Reddit post data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GraphSAGE samples a subset of neighbors instead of using them all. It can define
+    a node neighborhood using random walks and sum up importance scores to determine
+    the optimum sample. An aggregate function can be one of MEAN, GCN, POOL, and LSTM.
+    Mean aggregation simply takes the element-wise mean of the neighbor vectors. The
+    LSTM aggregation is more expressive but is inherently sequential and not symmetric;
+    it is applied on an unordered set derived from a random permutation of the node’s
+    neighbors. The POOL aggregation is both symmetric and trainable; here, each neighbor
+    vector is independently fed through a fully connected neural network and max pooling
+    is applied across the aggregate information across the neighbor set.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This set of equations shows how the output for node *i* at layer *(l+1)* is
+    generated from node *i* and its neighbors *N(i)* at layer *l*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_17_017.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B18331_17_018.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B18331_17_019.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Now that we have seen strategies for handling large networks using GNNs, we
+    will look at strategies for maximizing the representational (and therefore the
+    discriminative) power of GNNs, using the graph isomorphism network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Graph isomorphism network
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Xu, et al. [4] proposed the **Graph Isomorphism Network** (**GIN**) as a graph
+    layer with more expressive power compared to the ones available. Graph layers
+    with high expressive power should be able to distinguish between a pair of graphs
+    that are topologically similar but not identical. They showed that GCNs and GraphSAGE
+    are unable to distinguish certain graph structures. They also showed that SUM
+    aggregation is better than MEAN and MAX aggregation in terms of distinguishing
+    graph structures. The GIN layer thus provides a better way to represent neighbor’s
+    aggregation compared to GCNs and GraphSAGE.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following equation shows the output at node *i* and layer *(l+1)*. Here,
+    the function *f*[θ] is a callable activation function, *aggregate* is an aggregation
+    function such as SUM, MAX, or MEAN, and ![](img/B18331_10_003.png) is a learnable
+    parameter that will be learned over the course of the training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_17_021.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Having been introduced to several popular GNN architectures, let us now direct
+    our attention to the kind of tasks we can do with GNNs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Common graph applications
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We will now look at some common applications of GNNs. Typically, applications
+    fall into one of the three major classes listed below. In this section, we will
+    see code examples on how to build and train GNNs for each of these tasks, using
+    TensorFlow and DGL:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Node classification
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Graph classification
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Edge classification (or link prediction)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: There are other applications of GNNs as well, such as graph clustering or generative
+    graph models, but they are less common and we will not consider them here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Node classification
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Node classification is a popular task on graph data. Here, a model is trained
+    to predict the node category. Non-graph classification methods can use the node
+    feature vectors alone to do so, and some pre-GNN methods such as DeepWalk and
+    node2vec can use the adjacency matrix alone, but GNNs are the first class of techniques
+    that can use both the node feature vectors and the connectivity information together
+    to do node classification.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Essentially, the idea is to apply one or more graph convolutions (as described
+    in the previous section) to all nodes of a graph, to project the feature vector
+    of the node to a corresponding output category vector that can be used to predict
+    the node category. Our node classification example will use the CORA dataset,
+    a collection of 2,708 scientific papers classified into one of seven categories.
+    The papers are organized into a citation network, which contains 5,429 links.
+    Each paper is described by a word vector of size 1,433.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We first set up our imports. If you have not already done so, you will need
+    to install the DGL library into your environment with `pip install dgl`. You will
+    also need to set the environment variable `DGLBACKEND` to TensorFlow. On the command
+    line, this is achieved by the command `export DGLBACKEND=tensorflow`, and in a
+    notebook environment, you can try using the magic `%env DGLBACKEND=tensorflow`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The CORA dataset is pre-packaged as a DGL dataset, so we load the dataset into
+    memory using the following call:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The first time this is called, it will log that it is downloading and extracting
+    to a local file. Once done, it will print out some useful statistics about the
+    CORA dataset. As you can see, there are 2,708 nodes and 10,566 edges in the graph.
+    Each node has a feature vector of size 1,433 and a node is categorized as being
+    in one of seven classes. In addition, we see that it has 140 training samples,
+    500 validation samples, and 1,000 test samples:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Since this is a graph dataset, it is expected to contain data pertaining to
+    a set of graphs. However, CORA is a single citation graph. You can verify this
+    by `len(dataset)`, which will give you `1`. This also means that downstream code
+    will work on the graph given by `dataset[0]` rather than on the complete dataset.
+    The node features will be contained in the dictionary `dataset[0].ndata` as key-value
+    pairs, and the edge features in `dataset[0].edata`. The `ndata` contains the keys
+    `train_mask`, `val_mask`, and `test_mask`, which are Boolean masks signifying
+    which nodes are part of the train, validation, and test splits, respectively,
+    and a `feat` key, which contains the feature vector for each node in the graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will build a `NodeClassifier` network with two `GraphConv` layers. Each layer
+    will compute a new node representation by aggregating neighbor information. `GraphConv`
+    layers are just simple `tf.keras.layers.Layer` objects and can therefore be stacked.
+    The first `GraphConv` layer projects the incoming feature size (1,433) to a hidden
+    feature vector of size 16, and the second `GraphConv` layer projects the hidden
+    feature vector to an output category vector of size 2, from which the category
+    is read.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note that `GraphConv` is just one of many graph layers that we can drop into
+    the `NodeClassifier` model. DGL makes available a variety of graph convolution
+    layers that can be used to replace `GraphConv` if needed:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will train this model with the CORA dataset using the code shown below. We
+    will use the `AdamW` optimizer (a variation of the more popular `Adam` optimizer
+    that results in models with better generalization capabilities), with a learning
+    rate of *1e-2* and weight decay of *5e-4*. We will train for 200 epochs. Let us
+    also detect if we have a GPU available, and if so, assign the graph to the GPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'TensorFlow will automatically move the model to the GPU if the GPU is detected:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We also define a `do_eval()` method that computes the accuracy given the features
+    and the Boolean mask for the split being evaluated:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we are ready to set up and run our training loop as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output of the training run shows the training loss decreasing from `1.9`
+    to `0.02` and the validation accuracy increasing from `0.13` to `0.78`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can now evaluate our trained node classifier against the hold-out test split:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This prints out the overall accuracy of the model against the hold-out test
+    split:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Graph classification
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Graph classification is done by predicting some attribute of the entire graph
+    by aggregating all node features and applying one or more graph convolutions to
+    it. This could be useful, for example, when trying to classify molecules during
+    drug discovery as having a particular therapeutic property. In this section, we
+    will showcase graph classification using an example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In order to run the example, please make sure DGL is installed and set to use
+    the TensorFlow backend; refer to the previous section on node classification for
+    information on how to do this. To begin the example, let us import the necessary
+    libraries:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will use the protein dataset from DGL. The dataset is a set of graphs, each
+    with node features and a single label. Each graph represents a protein molecule
+    and each node in the graph represents an atom in the molecule. Node features list
+    the chemical properties of the atom. The label indicates if the protein molecule
+    is an enzyme:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The call above downloads the protein dataset locally and prints out some information
+    about the dataset. As you can see, each node has a feature vector of size `3`,
+    the number of graph categories is `2` (enzyme or not), and the number of graphs
+    in the dataset is `1113`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will first split the dataset into training, validation, and test. We will
+    use the training dataset to train our GNN, validate using the validation dataset,
+    and publish the results of our final model against the test dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: This splits the dataset into a training, validation, and test split of 801,
+    89, and 223 graphs, respectively. Since our datasets are large, we need to train
+    our network using mini-batches so as not to overwhelm GPU memory. So, this example
+    will also demonstrate mini-batch processing using our data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we define our GNN for graph classification. This consists of two `GraphConv`
+    layers stacked together that will encode the nodes into their hidden representations.
+    Since the objective is to predict a single category for each graph, we need to
+    aggregate all the node representations into a graph-level representation, which
+    we do by averaging the node representations using `dgl.mean_nodes()`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For the training, we set the training parameters and the `do_eval()` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we define and run our training loop to train our `GraphClassifier`
+    model. We use the `Adam` optimizer with a learning rate of `1e-2` and the `SparseCategoricalCrossentropy`
+    as the loss function, training, or `20` epochs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output shows that the loss decreases and validation accuracy increases
+    as the `GraphClassifier` model is trained over 20 epochs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we evaluate the trained model against our hold-out test dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This prints out the accuracy of the trained `GraphClassifier` model against
+    the held-out test split:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: The accuracy shows that the model can successfully identify a molecule as an
+    enzyme or non-enzyme slightly less than 70% of the time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Link prediction
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Link prediction is a type of edge classification problem, where the task is
+    to predict if an edge exists between two given nodes in the graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Many applications, such as social recommendation, knowledge graph completion,
+    etc., can be formulated as link prediction, which predicts whether an edge exists
+    between a pair of nodes. In this example, we will predict if a citation relationship,
+    either citing or cited, exists between two papers in a citation network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The general approach would be to treat all edges in the graph as positive examples
+    and sample a number of non-existent edges as negative examples and train the link
+    prediction classifier for binary classification (edge exists or not) on these
+    positive and negative examples.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Before running the example, please make sure DGL is installed and set to use
+    the TensorFlow backend; refer to the *Node classification* section for information
+    on how to do this. Let us start by importing the necessary libraries:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For our data, we will reuse the CORA citation graph from the DGL datasets that
+    we had used for our node classification example earlier. We already know what
+    the dataset looks like, so we won’t dissect it again here. If you would like to
+    refresh your memory, please refer to the node classification example for the relevant
+    details:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, let us prepare our data. For training our link prediction model, we need
+    a set of positive edges and a set of negative edges. Positive edges are one of
+    the 10,556 edges that already exist in the CORA citation graph, and negative edges
+    are going to be 10,556 node pairs without connecting edges sampled from the rest
+    of the graph. In addition, we need to split both the positive and negative edges
+    into training, validation, and test splits:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We now construct a GNN that will compute the node representation using two
+    `GraphSAGE` layers, each layer computing the node representation by averaging
+    its neighbor information:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'However, link prediction requires us to compute representations of pairs of
+    nodes, DGL recommends that you treat the pairs of nodes as another graph since
+    you can define a pair of nodes as an edge. For link prediction, we will have a
+    positive graph containing all the positive examples as edges, and a negative graph
+    containing all the negative examples as edges. Both positive and negative graphs
+    contain the same set of nodes as the original graph:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we will define a predictor class that will take the set of node representations
+    from the `LinkPredictor` class and use the `DGLGraph.apply_edges` method to compute
+    edge feature scores, which are the dot product of the source node features and
+    the destination node features (both output together from the `LinkPredictor` in
+    this case):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'You can also build a custom predictor such as a multi-layer perceptron with
+    two dense layers, as the following code shows. Note that the `apply_edges` method
+    describes how the edge score is calculated:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We instantiate the `LinkPredictor` model we defined earlier, select the `Adam`
+    optimizer, and declare our loss function to be `BinaryCrossEntropy` (since our
+    task is binary classification). The predictor head that we will use in our example
+    is the `DotProductPredictor`. However, the `MLPPredictor` can be used as a drop-in
+    replacement instead; just replace the `pred` variable below to point to the `MLPPredictor`
+    instead of the `DotProductPredictor`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We also define a couple of convenience functions for our training loop. The
+    first one computes the loss between the scores returned from the positive graph
+    and the negative graphs, and the second computes the **Area Under the Curve**
+    (**AUC**) from the two scores. AUC is a popular metric to evaluate binary classification
+    models:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We now train our `LinkPredictor` GNN for 100 epochs of training, using the
+    following training loop:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This returns the following training logs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can now evaluate the trained model against the hold-out test set:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This returns the following test AUC for our `LinkPredictor` GNN:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is quite impressive as it implies that the link predictor can correctly
+    predict 82% of the links presented as ground truths in the test set.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Graph customizations
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We have seen how to build and train GNNs for common graph ML tasks. However,
+    for convenience, we have chosen to use prebuilt DGL graph convolution layers in
+    our models. While unlikely, it is possible that you might need a layer that is
+    not provided with the DGL package. DGL provides a message passing API to allow
+    you to build custom graph layers easily. In the first part of this section, we
+    will look at an example where we use the message-passing API to build a custom
+    graph convolution layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have also loaded datasets from the DGL data package for our examples. It
+    is far more likely that we will need to use our own data instead. So, in the second
+    part of this section, we will see how to convert our own data into a DGL dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Custom layers and message passing
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Although DGL provides many graph layers out of the box, there may be cases where
+    the ones provided don’t meet our needs exactly and we need to build your own.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Fortunately, all these graph layers are based on a common underlying concept
+    of message passing between nodes in the graph. So, in order to build a custom
+    GNN layer, you need to understand how the message-passing paradigm works. This
+    paradigm is also known as the **Message Passing Neural Network** (**MPNN**) framework
+    [5]:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_17_022.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B18331_17_023.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B18331_17_024.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Each node *u* in the graph has a hidden state (initially its feature vector)
+    represented by *h*[u]. For each node *u* and *v*, where nodes *u* and *v* are
+    neighbors, i.e., connected by an edge *e*[u->v], we apply some function *M* called
+    the *message function*. The message function *M* is applied to every node on the
+    graph. We then aggregate the output of *M* for all nodes with the output of all
+    their neighboring nodes to produce the message *m*. Here ![](img/B18331_07_002.png)
+    is called the *reduce function*. Note that even though we represent the reduce
+    function by the summation symbol ![](img/B18331_07_002.png), it can be any aggregation
+    function. Finally, we update the hidden state of node *v* using the obtained message
+    and the previous state of the node. The function *U* applied at this step is called
+    the *update function*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The message-passing algorithm is repeated a specific number of times. After
+    that, we reach the *readout phase* where we extract the feature vector from each
+    node that represents the entire graph. For example, the final feature vector for
+    a node might represent the node category in the case of node classification.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this section, we will use the MPNN framework to implement a GraphSAGE layer.
+    Even though DGL provides the `dgl.nn.SAGEConv`, which implements this already,
+    this is an example to illustrate the creation of custom graph layers using MPNN.
+    The message-passing steps of a GraphSAGE layer are given by:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_17_027.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B18331_17_028.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The code to implement our custom GraphSAGE layer using MPNN is shown below.
+    The DGL function `update_all` call allows you to specify a `message_fn` and a
+    `reduce_fn`, which are also DGL built-in functions, and the `tf.concat` and `Dense`
+    layers represent the final update function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we see that the `update_all` function specifies a `message_func`, which
+    just copies the node’s current feature vector to a message vector *m*, and then
+    averages all the message vectors in the neighborhood of each node. As you can
+    see, this faithfully follows the first GraphSAGE equation above. DGL provides
+    many such built-in functions ([https://docs.dgl.ai/api/python/dgl.function.xhtml](https://docs.dgl.ai/api/python/dgl.function.xhtml)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once the neighborhood vector *h_N* is computed in the first step, it is concatenated
+    with the input feature vector *h*, and then passed through a `Dense` layer with
+    a ReLU activation, as described by the second equation for GraphSAGE above. We
+    have thus implemented the GraphSAGE layer with our `CustomGraphSAGE` object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The next step is to put it into a GNN to see how it works. The following code
+    shows a `CustomGNN` model that uses two layers of our custom `SAGEConv` implementation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will run it to do node classification against the CORA dataset, details of
+    which should be familiar from previous examples.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The above code assumes an unweighted graph, i.e., edges between nodes have the
+    same weight. This condition is true for the CORA dataset, where each edge represents
+    a citation from one paper to another.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, we can imagine scenarios where edges may be weighted based on how many
+    times some edge has been invoked, for example, an edge that connects a product
+    and a user for user recommendations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The only change we need to make to handle weighted edges is to allow the weight
+    to play a part in our message function. That is, if an edge between our node `u`
+    and a neighbor node `v` occurs `k` times, we should consider that edge `k` times.
+    The code below shows our custom GraphSAGE layer with the ability to handle weighted
+    edges:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This code expects an additional edge property *w*, which contains the edge
+    weights, which you can simulate on the CORA dataset by:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `message_func` in `CustomWeightedGraphSAGE` has changed from simply copying
+    the feature vector *h* to the message vector *m*, to multiplying *h* and *w* to
+    produce the message vector *m*. Everything else is the same as in `CustomGraphSAGE`.
+    The new `CustomWeightedGraphSAGE` layer can now be simply dropped into the calling
+    class `CustomGNN` where `CustomGraphSAGE` was originally being called.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Custom graph dataset
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A more common use case that you are likely to face is to use your own data to
+    train a GNN model. Obviously, in such cases, you cannot use a DGL-provided dataset
+    (as we have been using in all our examples so far) and you must wrap your data
+    into a custom graph dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Your custom graph dataset should inherit from the `dgl.data.DGLDataset` object
+    provided by DGL and implement the following methods:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`__getitem__(self, i)` – retrieve the `i`-th example from the dataset. The
+    retrieved example contains a single DGL graph and its label if applicable.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`__len__(self)` – the number of examples in the dataset.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`process(self)` – defines how to load and process raw data from the disk.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: As we have seen before, node classification and link prediction operate on a
+    single graph, and graph classification operates on a set of graphs. While the
+    approach is largely identical for both cases, there are some concerns specific
+    to either case, so we will provide an example to do each of these below.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Single graphs in datasets
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'For our example, we will choose Zachary’s Karate Club graph, which represents
+    the members of a Karate Club observed over three years. Over time, there was a
+    disagreement between an administrator (Officer) and the instructor (Mr. Hi), and
+    the club members split and reformed under the Officer and Mr. Hi (shown below
+    as blue and red nodes, respectively). The Zachary Karate Club network is available
+    for download from the NetworkX library:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing plant, red  Description automatically generated](img/B18331_17_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 17.2: Graph representation of the Karate Club Network'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The graph contains 34 nodes labeled with one of “Officer” or “Mr. Hi” depending
+    on which group they ended up in after the split. It contains 78 edges, which are
+    undirected and unweighted. An edge between a pair of members indicates that they
+    interact with each other outside the club. To make this dataset more realistic
+    for GNN usage, we will attach a 10-dimensional random feature vector to each node,
+    and an edge weight as an edge feature. Here is the code to convert the Karate
+    Club graph into a DGL dataset that you can then use for downstream node or edge
+    classification tasks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: Most of the logic is in the `process` method. We call the NetworkX method to
+    get the Karate Club as a NetworkX graph, then convert it to a DGL graph object
+    with node features and labels. Even though the Karate Club graph does not have
+    node and edge features defined, we manufacture some random numbers and set them
+    to these properties. Note that this is only for purposes of this example, to show
+    where these features would need to be updated if your graph had node and edge
+    features. Note that the dataset contains a single graph.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In addition, we also want to split the graph into training, validation, and
+    test splits for node classification purposes. For that, we assign masks indicating
+    whether a node belongs to one of these splits. We do this rather simply by splitting
+    the nodes in the graph 60/20/20 and assigning Boolean masks for each split.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In order to instantiate this dataset from our code, we can say:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This will give us the following output (reformatted a little for readability).
+    The two main structures are the `ndata_schemas` and `edata_schemas`, accessible
+    as `g.ndata` and `g.edata`, respectively. Within `ndata_schemas`, we have keys
+    that point to the node features (`feats`), node labels (`label`), and the masks
+    to indicate the training, validation, and test splits (`train_mask`, `val_mask`,
+    and `test_mask`), respectively. Under `edata_schemas`, there is the `weight` attribute
+    that indicates the edge weights:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: Please refer to the examples on node classification and link prediction for
+    information on how to use this kind of custom dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Set of multiple graphs in datasets
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Datasets that support the graph classification task will contain multiple graphs
+    and their associated labels, one per graph. For our example, we will consider
+    a hypothetical dataset of molecules represented as graphs, and the task would
+    be to predict if the molecule is toxic or not (a binary prediction).
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will use the NetworkX method `random_regular_graph()` to generate synthetic
+    graphs with a random number of nodes and node degree. To each node of each graph,
+    we will attach a random 10-dimensional feature vector. Each node will have a label
+    (0 or 1) indicating if the graph is toxic. Note that this is just a simulation
+    of what real data might look like. With real data, the structure of each graph
+    and the values of the node vectors, which are random in our case, will have a
+    real impact on the target variable, i.e., the toxicity of the molecule.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The figure below shows some examples of what the synthetic “molecules” might
+    look like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Chart, radar chart  Description automatically generated](img/B18331_17_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 17.3: Some examples of random regular graphs generated using NetworkX'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is the code to convert a set of random NetworkX graphs into a DGL graph
+    dataset for graph classification. We will generate 100 such graphs and store them
+    in a list in the form of a DGL dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once created, we can then call it from our code as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This produces the following output for the first graph in the DGL dataset (reformatted
+    slightly for readability). As you can see, the first graph in the dataset has
+    `6` nodes and `15` edges and contains a feature vector (accessible using the `feats`
+    key) of size `10`. The label is a `0`-dimensional tensor (i.e., a scalar) of type
+    long (`int64`):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: As before, in order to see how you would use this custom dataset for some task
+    such as graph classification, please refer to the example on graph classification
+    earlier in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Future directions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Graph neural networks are a rapidly evolving discipline. We have covered working
+    with static homogeneous graphs on various popular graph tasks so far, which covers
+    many real-world use cases. However, it is likely that some graphs are neither
+    homogeneous nor static, and neither can they be easily reduced to this form. In
+    this section, we will look at our options for dealing with heterogenous and temporal
+    graphs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Heterogeneous graphs
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Heterogeneous graphs [7], also called heterographs, differ from the graphs we
+    have seen so far in that they may contain different kinds of nodes and edges.
+    These different types of nodes and edges might also contain different types of
+    attributes, including possible representations with different dimensions. Popular
+    examples of heterogeneous graphs are citation graphs that contain authors and
+    papers, recommendation graphs that contain users and products, and knowledge graphs
+    that can contain many different types of entities.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can use the MPNN framework on heterogeneous graphs by manually implementing
+    message and update functions individually for each edge type. Each edge type is
+    defined by the triple (source node type, edge type, and destination node type).
+    However, DGL provides support for heterogeneous graphs using the `dgl.heterograph()`
+    API, where a graph is specified as a series of graphs, one per edge type.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Typical learning tasks associated with heterogeneous graphs are similar to their
+    homogeneous counterparts, namely node classification and regression, graph classification,
+    and edge classification/link prediction. A popular graph layer for working with
+    heterogeneous graphs is the **Relational GCN** or **R-GCN**, available as a built-in
+    layer in DGL.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Temporal Graphs
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Temporal Graphs [8] is a framework developed at Twitter to handle dynamic graphs
+    that change over time. While GNN models have primarily focused on static graphs
+    that do not change over time, adding the time dimension allows us to model many
+    interesting phenomena in social networks, financial transactions, and recommender
+    systems, all of which are inherently dynamic. In such systems, it is the dynamic
+    behavior that conveys the important insights.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A dynamic graph can be represented as a stream of timed events, such as additions
+    and deletions of nodes and edges. This stream of events is fed into an encoder
+    network that learns a time-dependent encoding for each node in the graph. A decoder
+    is trained on this encoding to support some specific task such as link prediction
+    at a future point in time. There is currently no support in the DGL library for
+    Temporal Graphs, mainly because it is a very rapidly evolving research area.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At a high level, a **Temporal Graph Network** (**TGN**) encoder works by creating
+    a compressed representation of the nodes based on their interaction and updates
+    over time. The current state of each node is stored in TGN memory and acts as
+    the hidden state *s*[t] of an RNN; however, we have a separate state vector *s*[t]*(t)*
+    for each node *i* and time point *t*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A message function similar to what we have seen in the MPNN framework computes
+    two messages *m*[i] and *m*[j] for a pair of nodes *i* and *j* using the state
+    vectors and their interaction as input. The message and state vectors are then
+    combined using a memory updater, which is usually implemented as an RNN. TGNs
+    have been found to outperform their static counterparts on the tasks of future
+    edge prediction and dynamic node classification both in terms of accuracy and
+    speed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we have covered graph neural networks, an exciting set of techniques
+    to learn not only from node features but also from the interaction between nodes.
+    We have covered the intuition behind why graph convolutions work and the parallels
+    between them and convolutions in computer vision. We have described some common
+    graph convolutions, which are provided as layers by DGL. We have demonstrated
+    how to use the DGL for popular graph tasks of node classification, graph classification,
+    and link prediction. In addition, in the unlikely event that our needs are not
+    met by standard DGL graph layers, we have learned how to implement our own graph
+    convolution layer using DGL’s message-passing framework. We have also seen how
+    to build DGL datasets for our own graph data. Finally, we look at some emerging
+    directions of graph neural networks, namely heterogeneous graphs and temporal
+    graphs. This should equip you with skills to use GNNs to solve interesting problems
+    in this area.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will turn our attention to learning about some best
+    ML practices associated with deep learning projects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Kipf, T. and Welling, M. (2017). *Semi-supervised Classification with Graph
+    Convolutional Networks*. Arxiv Preprint, arXiv: 1609.02907 [cs.LG]. Retrieved
+    from [https://arxiv.org/abs/1609.02907](https://arxiv.org/abs/1609.02907)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Velickovic, P., et al. (2018). *Graph Attention Networks*. Arxiv Preprint, arXiv
+    1710.10903 [stat.ML]. Retrieved from [https://arxiv.org/abs/1710.10903](https://arxiv.org/abs/1710.10903)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Hamilton, W. L., Ying, R., and Leskovec, J. (2017). *Inductive Representation
+    Learning on Large Graphs*. Arxiv Preprint, arXiv: 1706.02216 [cs.SI]. Retrieved
+    from [https://arxiv.org/abs/1706.02216](https://arxiv.org/abs/1706.02216)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Xu, K., et al. (2018). *How Powerful are Graph Neural Networks?*. Arxiv Preprint,
+    arXiv: 1810.00826 [cs.LG]. Retrieved from [https://arxiv.org/abs/1810.00826](https://arxiv.org/abs/1810.00826)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Gilmer, J., et al. (2017). *Neural Message Passing for Quantum Chemistry*.
+    Arxiv Preprint, arXiv: 1704.01212 [cs.LG]. Retrieved from [https://arxiv.org/abs/1704.01212](https://arxiv.org/abs/1704.01212)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Zachary, W. W. (1977). *An Information Flow Model for Conflict and Fission in
+    Small Groups*. Journal of Anthropological Research. Retrieved from [https://www.journals.uchicago.edu/doi/abs/10.1086/jar.33.4.3629752](https://www.journals.uchicago.edu/doi/abs/10.1086/jar.33.4.3629752)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Pengfei, W. (2020). *Working with Heterogeneous Graphs in DGL*. Blog post. Retrieved
+    from [https://www.jianshu.com/p/767950b560c4](https://www.jianshu.com/p/767950b560c4)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Bronstein, M. (2020). *Temporal Graph Networks*. Blog post. Retrieved from [https://towardsdatascience.com/temporal-graph-networks-ab8f327f2efe](https://towardsdatascience.com/temporal-graph-networks-ab8f327f2efe)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Join our book’s Discord space
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Join our Discord community to meet like-minded people and learn alongside more
+    than 2000 members at: [https://packt.link/keras](https://packt.link/keras)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/QR_Code1831217224278819687.png)'
+  prefs: []
+  type: TYPE_IMG

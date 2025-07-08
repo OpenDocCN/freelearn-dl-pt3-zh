@@ -1,0 +1,2257 @@
+- en: Sequence-to-Sequence Models and Attention
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In [Chapter 7](379a4f7b-48da-40f2-99d6-ee57a7a5dcca.xhtml), *Understanding Recurrent
+    Networks, *we outlined several types of recurrent models, depending on the input-output
+    combinations. One of them is **indirect many-to-many** or **sequence-to-sequence** (**seq2seq**), where
+    an input sequence is transformed into another, different output sequence, not
+    necessarily with the same length as the input. Machine translation is the most
+    popular type of seq2seq task. The input sequences are the words of a sentence
+    in one language and the output sequences are the words of the same sentence translated
+    into another language. For example, we can translate the English sequence **tourist
+    attraction** to the German **touristenattraktion**. Not only is the output sentence
+    a different length, but there is no direct correspondence between the elements
+    of the input and output sequences. In particular, one output element corresponds
+    to a combination of two input elements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Machine translation that's implemented with a single neural network is called **neural
+    machine translation** (**NMT**). Other types of indirect many-to-many tasks include speech
+    recognition, where we take different time frames of an audio input and convert
+    them into a text transcript, question-answering chatbots, where the input sequences
+    are the words of a textual question and the output sequence is the answer to that
+    question, and text summarization, where the input is a text document and the output
+    is a short summary of the text's contents.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we'll introduce the attention mechanism—a new type of algorithm
+    for seq2seq tasks. It allows direct access to any element of the input sequence.
+    This is unlike a **recurrent neural network** (**RNN**), which summarizes the
+    whole sequence in a single hidden state vector and prioritizes recent sequence
+    elements over older ones.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This chapter will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing seq2seq models
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Seq2seq with attention
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding transformers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Transformer language models:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Bidirectional encoder representations from transformers
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Transformer-XL
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: XLNet
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Introducing seq2seq models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Seq2seq, or encoder-decoder (see *Sequence to Sequence Learning with Neural
+    Networks* at [https://arxiv.org/abs/1409.3215](https://arxiv.org/abs/1409.3215)),
+    models use RNNs in a way that''s especially suited for solving tasks with indirect
+    many-to-many relationships between the input and the output. A similar model was
+    also proposed in another pioneering paper, *Learning Phrase Representations using
+    RNN Encoder-Decoder for Statistical Machine Translation* (go to [https://arxiv.org/abs/1406.1078](https://arxiv.org/abs/1406.1078)
+    for more information). The following is a diagram of the seq2seq model. The input
+    sequence [**A**, **B**, **C**, **<EOS>**] is decoded into the output sequence
+    [**W**, **X**, **Y**, **Z**, **<EOS>**]:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/9541434b-efa7-46c2-8efb-1b06cafc3664.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: A seq2seq model case by https://arxiv.org/abs/1409.3215
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The model consists of two parts: an encoder and a decoder. Here''s how the
+    inference part works:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The encoder is an RNN. The original paper uses LSTM, but GRU or other types
+    would also work. Taken by itself, the encoder works in the usual way—it reads
+    the input sequence, one step at a time, and updates its internal state after each
+    step. The encoder will stop reading the input sequence once a special **<EOS>**—end
+    of sequence—symbol is reached. If we assume that we use a textual sequence, we'll
+    use word-embedding vectors as the encoder input at each step, and the **<EOS>**
+    symbol signals the end of a sentence. The encoder output is discarded and has
+    no role in the seq2seq model, as we're only interested in the hidden encoder state.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Once the encoder is finished, we'll signal the decoder so that it can start
+    generating the output sequence with a special **<GO>** input signal. The encoder
+    is also an RNN (LSTM or GRU). The link between the encoder and the decoder is
+    the most recent encoder internal state vector **h***[t ]*(also known as the **thought
+    vector**), which is fed as the recurrence relation at the first decoder step.
+    The decoder output *y[t+1]* at step *t+1* is one element of the output sequence.
+    We'll use it as an input at step *t+2*, then we'll generate new output, and so
+    on (this type of model is called **autoregressive**). In the case of textual sequences,
+    the decoder output is a softmax over all the words in the vocabulary. At each
+    step, we take the word with the highest probability and we feed it as input to
+    the next step. Once **<EOS>** becomes the most probable symbol, the decoding is
+    finished.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The training of the model is supervised, and the model needs to know both the
+    input sequence and its corresponding target output sequence (for example, the
+    same text in multiple languages). We feed the input sequence to the decoder, generate
+    the thought vector *h*[*t*], and use it to initiate the output sequence generation
+    from the decoder. However, the decoder uses a process called **teacher forcing**—the
+    decoder input at step *t* is not the decoder output of step *t-1*. Instead, the
+    input at step *t* is always the correct character from the target sequence at
+    step *t-1*. For example, let''s say that the correct target sequence until step
+    *t* is [**W**, **X**, **Y**], but the current decoder-generated output sequence
+    is [**W**, **X**, **Z**]. With teacher forcing, the decoder input at step *t+1*
+    will be **Y** instead of **Z**. In other words, the decoder learns to generate
+    target values [t+1, ...] given target values [..., t]. We can think of this in
+    the following way: the decoder input is the target sequence, while its output
+    (target values) is the same sequence, but shifted one position to the right.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To summarize, the seq2seq model solves the problem of varying input/output
+    sequence lengths by encoding the input sequence in a fixed-length state vector
+    and then using this vector as a base to generate the output sequence. We can formalize
+    this by saying that it tries to maximize the following probability:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/5570a5ca-5687-4458-bbb3-9677b184229b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This is equivalent to the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3fe60f77-417e-41e6-99bc-352fcf22bcbe.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Let''s look at the elements of this formula in more detail:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d7e7a462-5bf5-461e-ad23-3381b31c85e3.png)is the conditional probability
+    where ![](img/c8b1de2d-651e-47df-8338-35ba46c96a00.png) is the input sequence
+    with length *T* and ![](img/ae11b1ef-58db-42da-9d92-6b94eccdf07f.png) is the output
+    sequence with length *T''.*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The element *v *is the fixed-length encoding of the input sequence (the thought
+    vector).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/8dc7f5de-0839-409a-874f-846a787889bb.png)is the probability of an output
+    word *y[T'']* given prior words *y*, as well as the vector *v.*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The original seq2seq paper introduces a few tricks to enhance the training
+    and performance of the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The encoder and decoder are two separate LSTMs. In the case of NMTs, this makes
+    it possible to train different decoders with the same encoder.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The experiments of the authors of the paper demonstrated that stacked LSTMs
+    perform better than the ones with a single layer.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The input sequence is fed to the decoder in reverse. For example, **ABC** ->
+    **WXYZ** would become **CBA** -> **WXYZ**. There is no clear explanation of why
+    this works, but the authors have shared their intuition: since this is a step-by-step
+    model, if the sequences were in normal order, each source word in the source sentence
+    would be far from its corresponding word in the output sentence. If we reverse
+    the input sequence, the average distance between input/output words won''t change,
+    but the first input words will be very close to the first output words. This will
+    help the model to establish better *communication* between the input and output
+    sequences.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Besides **<EOS>** and **<GO>**, the model also uses the following two special
+    symbols (we''ve already encountered them in the *Implementing text classification*
+    section of [Chapter 7](379a4f7b-48da-40f2-99d6-ee57a7a5dcca.xhtml), *Understanding
+    Recurrent Networks*):'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**<UNK>**—**unknown**: This is used to replace rare words so that the vocabulary
+    size doesn''t grow too large.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**<PAD>**: For performance reasons, we have to train the model with sequences
+    of a fixed length. However, this contradicts the real-world training data, where
+    the sequences can have arbitrary lengths. To solve this, shorter sequences are
+    filled with the special <PAD> symbol.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Now that we've introduced the base seq2seq model architecture, we'll learn how
+    to extend it with the attention mechanism.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Seq2seq with attention
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The decoder has to generate the entire output sequence based solely on the thought
+    vector. For this to work, the thought vector has to encode all of the information
+    of the input sequence; however, the encoder is an RNN, and we can expect that
+    its hidden state will carry more information about the latest sequence elements
+    than the earliest. Using LSTM cells and reversing the input helps, but cannot
+    prevent it entirely. Because of this, the thought vector becomes something of
+    a bottleneck. As a result, the seq2seq model works well for short sentences, but
+    the performance deteriorates for longer ones.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Bahdanau attention
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We can solve this problem with the help of the **attention mechanism** (see *Neural
+    Machine Translation by Jointly Learning to Align and Translate* at [https://arxiv.org/abs/1409.0473](https://arxiv.org/abs/1409.0473)),
+    an extension of the seq2seq model, that provides a way for the decoder to work
+    with all encoder hidden states, not just the last one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The type of attention mechanism in this section is called Bahdanau attention,
+    after the author of the original paper.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Besides solving the bottleneck problem, the attention mechanism has some other
+    advantages. For one, the immediate access to all previous states helps to prevent
+    the vanishing gradients problem. It also allows for some interpretability of the
+    results because we can see what parts of the input the decoder was focusing on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following diagram shows how attention works:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/9b2651a9-4318-4b95-bcac-ed0e55d74bdc.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Attention mechanism
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Don''t worry—it looks scarier than it actually is. We''ll go through this diagram
+    from top to bottom: the attention mechanism works by plugging an additional **context
+    vector** **c***[t]* between the encoder and the decoder. The hidden decoder state **s***[t]* at
+    time *t* is now a function not only of the hidden state and decoder output at
+    step *t-1*, but also of the context vector **c***[t]*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6ea7c879-71db-4d71-b835-5f96b75842cb.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Each decoder step has a unique context vector, and the context vector for one
+    decoder step is just **a weighted sum of all encoder hidden states**. In this
+    way, the encoder has access to all input sequence states at each output step *t*,
+    which removes the necessity to encode all information of the source sequence into
+    a fixed-length vector, as the regular seq2seq model does:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/eaeedfcf-489c-46b3-a647-835ea61754ec.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Let''s discuss this formula in more detail:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**c***[t]* is the context vector for a decoder output step *t* out of *T''*, the
+    total output.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**h***[i]* is the hidden state of encoder step *i* out of *T* total input steps.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*α[t,i]* is the scalar weight associated with *h[i]* in the context of the
+    current decoder step *t*.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Note that *α[t,i]* is unique for both the encoder and decoder steps—that is, the
+    input sequence states will have different weights depending on the current output
+    step. For example, if the input and output sequences have lengths of 10, then
+    the weights will be represented by a 10 × 10 matrix for a total of 100 weights.
+    This means that the attention mechanism will focus the attention (get it?) of
+    the decoder on different parts of the input sequence, depending on the current
+    state of the output sequence. If *α**[t,i]* is large, then the decoder will pay
+    a lot of attention to **h***[i]* at step *t.*
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'But how do we compute the weights *α**[t,i]*? First, we should mention that
+    the sum of all *α**[t,i]* for a decoder at step *t* is 1\. We can implement this
+    with a softmax operation on top of the attention mechanism:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e30f5a17-9dc2-4066-a71d-54d47e36b21b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, *e[t,k]* is an alignment model, which indicates how well the input sequence
+    elements around position *k* match (or align with) the output at position *t*.
+    This score (represented by the weight *α**[t,i]*) is based on the previous decoder
+    state **s***[t-1]* (we use **s***[t-1]* because we have not computed **s***[t]* yet),
+    as well as the encoder state **h***[i]*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3ba517d8-c552-4d8e-b078-a8bfc6c728de.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, *a* (and not alpha) is a differentiable function, which is trained with
+    backpropagation together with the rest of the system. Different functions satisfy
+    these requirements, but the authors of the paper chose the so-called **additive
+    attention**, which combines **s***[t-1]* and **h***[i]* with the help of addition.
+    It exists in two flavors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/10f7fde3-06d9-4d0a-afb9-4140c7d0aa12.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In the first formula, **W** is a weight matrix, applied over the concatenated
+    vectors **s***[t-1]* and **h**[*i*], and **v** is a weight vector. The second
+    formula is similar, but this time we have separate fully connected layers (the
+    weight matrices **W***[1]* and **W***[2]*) and we sum **s***[t-1]* and **h***[i]*.
+    In both cases, the alignment model can be represented as a simple feed-forward
+    network with one hidden layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we know the formulas for **c***[t]* and *α**[t,i]*, let''s replace
+    the latter in the former:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/57362bc4-26be-4976-9bf4-4e5af81241f7.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'As a conclusion, let''s summarize the attention algorithm in a step-by-step
+    manner as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feed the encoder with the input sequence and compute the set of hidden states
+    [![](img/36ae53cd-e2be-4faf-aa02-08d992c75345.png)].
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the alignment scores [![](img/61cc9e65-e8ca-42d7-a2b4-d31ee99edd10.png)],
+    which use the decoder state from the preceding step **s***[t-1]*. If *t = 1*,
+    we'll use the last encoder state **h***[T]* as the initial hidden state.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the weights [![](img/42518a65-1b9e-40f0-b9fc-afca0e8d184d.png)].
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the context vector [![](img/50970d59-6f4e-4aed-b40b-a8b4d038d0c6.png)].
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the hidden state [![](img/ebac8f8c-6818-4c34-aa52-b1d048a40d5d.png)],
+    based on the concatenated vectors **s***[t-1]* and **c***[t]* and the previous
+    decoder output *y[t-1]*. At this point, we can compute the final output *y[t]*.
+    In the case where we need to classify the next word, we'll use the softmax output [![](img/df54b439-ccf4-4204-8fcc-2610d646d756.png)],
+    where **W***[y]* is a weight matrix.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Repeat steps 2–6 until the end of the sequence.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Next, we'll introduce a slightly improved attention mechanism called Luong attention.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Luong attention
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Luong attention** (see *Effective Approaches to Attention-based Neural Machine
+    Translation* at [https://arxiv.org/abs/1508.04025](https://arxiv.org/abs/1508.04025))
+    introduces several improvements over Bahdanau attention. Most notably, the alignment
+    scores *e[t]* depend on the decoder hidden state *s[t]*, as opposed to *s[t-1]*
+    in Bahdanau attention. To better understand this, let''s compare the two algorithms:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/817dea7b-4a83-4aa9-8bdc-fcbdc90f1d31.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Left: Bahdanau attention; right: Luong attention
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s go through a step-by-step execution of Luong attention:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feed the encoder with the input sequence and compute the set of encoder hidden
+    states [![](img/e077b276-6efe-457f-9515-1137e39fe84a.png)].
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the decoder hidden state [![](img/15429df0-ec77-4db3-a7b0-fdba1e708867.png)] based
+    on the previous decoder hidden state **s***[t-1]* and the previous decoder output *y[t-1 ]*(not
+    the context vector, though).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Compute the alignment scores [![](img/13b6047a-f0ae-48be-8286-48c486aa6214.png)],
+    which use the decoder state from the current step **s***[t]*. Besides additive
+    attention, the Luong attention paper also proposes two types of **multiplicative
+    attention**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[![](img/da9a4ee6-5e97-4197-8d1a-b4889312b65f.png)]: The basic dot product
+    without any parameters. In this case, the vectors **s** and **h** need to have
+    the same sizes.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[![](img/00643d6d-4cb3-4a6f-a4d6-44ca0b9b31a2.png)]: Here, **W***[m]* is a
+    trainable weight matrix of the attention layer.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The multiplication of the vectors as an alignment score measurement has an intuitive
+    explanation—as we mentioned in [Chapter 1](b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml),
+    *The Nuts and Bolts of Neural Networks*, the dot product acts as a similarity
+    measure between vectors. Therefore, if the vectors are similar (that is, aligned),
+    the result of the multiplication will be a large value and the attention will
+    be focused on the current *t,i* relationship.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Compute the weights ![](img/8b5847aa-c2ed-484e-b48c-68230e89b406.png).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the context vector ![](img/52730a94-6d3f-4332-929e-966ca7ea7ccf.png).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the vector ![](img/d449d1ea-a54f-4e81-ac54-248fea0f30b8.png) based on
+    the concatenated vectors **c***[t]* and **s***[t]*. At this point, we can compute
+    the final output *y[t]*. In the case of classification, we'll use softmax ![](img/24925d51-6840-4e05-be25-d62447da0b5c.png),
+    where **W***[y]* is a weight matrix.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Repeat steps 2–7 until the end of the sequence.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Next, let's discuss some more attention variants. We'll start with **hard**
+    and **soft attention**, which relates to the way we compute the context vector
+    **c***[t]*. So far, we've described soft attention, where **c***[t]* is a weighted
+    sum of all hidden states of the input sequence. With hard attention, we still
+    compute the weights *α**[t,i]*, but we only take the hidden state **h***[imax]*
+    with the maximum associated weight *α**[t,imax]*. Then, the selected state **h***[imax]*
+    serves as the context vector. At first, hard attention seems a little counter-intuitive—after
+    all this effort to enable the decoder to have access to all input states, why
+    limit it to a single state again? However, hard attention was first introduced
+    in the context of image-recognition tasks, where the input sequence represents
+    different regions of the same image. In such cases, it makes more sense to choose
+    between multiple regions or a single region. Unlike soft attention, hard attention
+    is a stochastic process, which is nondifferentiable. Therefore, the backward phase
+    uses some tricks to work (this goes beyond the scope of this book).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Local attention** represents a compromise between soft and hard attention.
+    Whereas these mechanisms take into account either all input hidden vectors (global)
+    or just a single input vector, local attention takes a window of vectors, surrounding
+    a given input sequence location, and then applies soft attention over this window
+    only. But how do we determine the center of the window *p[t]* (known as the **aligned
+    position**), based on the current output step *t*? The easiest way is to assume
+    that the source and target sequences are roughly monotonically aligned—that is, to
+    set *p[t] = t—*following the logic that the input and output sequence positions
+    relate to the same thing.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we'll summarize what we have learned so far by introducing a general form
+    of the attention mechanism.
+  prefs: []
+  type: TYPE_NORMAL
+- en: General attention
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Although we've discussed the attention mechanism in the context of NMT, it is
+    a general deep-learning technique that can be applied to any seq2seq task. Let's
+    assume that we are working with hard attention. In this case, we can think of
+    the vector **s***[t-1]* as a **query** executed against a database of key-value
+    pairs, where the **keys** are vectors and the hidden states **h***[i]* are the
+    **values. **These are often abbreviated as **Q**, **K**, and **V**, and you can
+    think of them as matrices of vectors. The keys **Q** and the values **V** of Luong
+    and Bahdanau attention are the same vector—that is, these attention models are
+    more like **Q**/**V**, rather than **Q**/**K**/**V**. The general attention mechanism
+    uses all three components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following diagram illustrates this new general attention:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/c2cf2330-9fe7-4553-b2db-b6a0e1cbb4df.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: General attention
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When we execute the query (**q** *=* **s***[t-1]*) against the database, we''ll
+    receive a single match—the key **k***[imax ]*with the maximum weight *α**[t,imax]*.
+    Hidden behind this key is the vector **v***[imax] = ***h***[imax]*, which is the
+    actual value we''re interested in. But what about soft attention, where all values
+    participate? We can think in the same query/key/value terms, but instead of a
+    single value, the query results are all values with different weights. We can
+    write a generalized attention formula (based on the context vector **c***[t]*
+    formula) using the new notation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/bc2289ef-df6d-4c70-a593-7b6c7637f45d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In this generic attention, the queries, keys, and vectors of the database are
+    not necessarily related in a sequential fashion. In other words, the database
+    doesn't have to consist of the hidden RNN states at different steps, but could
+    contain any kind of information instead. This concludes our introduction to the
+    theory behind seq2seq models. We'll use this knowledge in the following section,
+    where we'll implement a simple seq2seq NMT example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing seq2seq with attention
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we'll use PyTorch 1.3.1 to implement a simple NMT example with
+    the help of a seq2seq attention model. To clarify, we'll implement a seq2seq attention
+    model, like the one we introduced in the *Introducing* *seq2seq models* section, and
+    we'll extend it with Luong attention. The model encoder will take as input a text
+    sequence (sentence) in one language and the decoder will output the corresponding
+    sequence translated into another language.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We'll only show the most relevant parts of the code, but the full example is
+    available at [https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter08/nmt_rnn_attention](https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter08/nmt_rnn_attention). This
+    example is partially based on the PyTorch tutorial at [https://github.com/pytorch/tutorials/blob/master/intermediate_source/seq2seq_translation_tutorial.py](https://github.com/pytorch/tutorials/blob/master/intermediate_source/seq2seq_translation_tutorial.py).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's start with the training set. It consists of a large list of sentences
+    in both French and English, stored in a text file. The `NMTDataset `class (a subclass
+    of `torch.utils.data.Dataset`) implements the necessary data preprocessing. It
+    creates a vocabulary with integer indexes of all possible words in the dataset.
+    For the sake of simplicity, we won't use embedding vectors, and we'll feed the
+    words to the network with their numerical representation. Also, we won't split
+    the dataset into training and testing parts, as our goal is to demonstrate the
+    work of the seq2seq model. The `NMTDataset` class outputs source-target tuple
+    sentences, where each sentence is represented by a 1D tensor of indexes of the
+    words in that sentence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing the encoder
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Next, let's continue with implementing the encoder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll start with the constructor:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: The entry point is the `self.embedding` module. It will take the index of each
+    word and it will return its assigned embedding vector. We will not use pretrained
+    word vectors (such as GloVe), but nevertheless, the concept of embedding vectors
+    is the same—it's just that we'll initialize them with random values and we'll
+    train them along the way with the rest of the model. Then, we have the `torch.nn.GRU`
+    RNN cell itself.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, let''s implement the `EncoderRNN.forward` method (please bear in mind
+    the indentation):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: It represents the processing of a sequence element. First, we obtain the `embedded`
+    word vector and then we feed it to the RNN cell.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll also implement the `EncoderRNN.init_hidden` method, which creates an
+    empty tensor with the same size as the hidden RNN state. This tensor serves as
+    the first RNN hidden state at the beginning of the sequence (please bear in mind
+    the indentation):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now that we've implemented the encoder, let's continue with the decoder implementation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing the decoder
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s implement the `DecoderRNN` class—a basic decoder without attention.
+    Again, we''ll start with the constructor:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: It's similar to the encoder—we have the initial `self.embedding` word embedding
+    and the `self.gru` GRU cell. We also have the fully connected `self.out` layer
+    with `self.log_softmax` activation, which will output the predicted word in the
+    sequence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll continue with the `DecoderRNN.forward` method (please bear in mind the
+    indentation):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: It starts with the `embedded` vector, which serves as input to the RNN cell.
+    The module returns both its new `hidden` state and the `output` tensor, which
+    represents the predicted word. The method accepts the void argument `_`, so it
+    could match the interface of the attention decoder, which we'll implement in the
+    next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing the decoder with attention
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Next, we'll implement the `AttnDecoderRNN` decoder with Luong attention. This
+    also works in combination with `EncoderRNN`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll start with the `AttnDecoderRNN.__init__` method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As usual, we have `self.embedding`, but this time, we''ll also add `self.dropout`
+    to prevent overfitting. The fully connected `self.attn` and `self.w_c` layers relate
+    to the attention mechanism, and we''ll learn how to use them when we look at the `AttnDecoderRNN.forward`
+    method, which comes next. ` AttnDecoderRNN.forward` implements the Luong attention
+    algorithm we described in the *Seq2seq with attention* section. Let''s start with
+    the method declaration and parameter preprocessing:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we''ll compute the current hidden state (`hidden` = **s***[t]*). Please
+    bear in mind the indentation, as this code is still part of the `AttnDecoderRNN.forward` method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we''ll compute the alignment scores (`alignment_scores` = *e[t,i]*),
+    following the multiplicative attention formula. Here, `torch.mm` is the matrix
+    multiplication and `encoder_outputs` is the encoder outputs (surprise!):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we''ll compute softmax over the scores to produce the attention weights
+    (`attn_weights` = *a[t,i]*):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we''ll compute the context vector (`c_t` = **c***[t]*) following the
+    attention formula:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we''ll compute the modified state vector (`hidden_s_t` = ![](img/e679dcd7-79cf-4eed-abe6-a71dc56c242f.png)) by
+    concatenating the current hidden state and the context vector:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we''ll compute the next predicted word:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: We should note that `torch.nn.functional.log_softmax` applies the logarithm
+    after a regular softmax. This activation function works in combination with the
+    negative log-likelihood loss function `torch.nn.NLLLoss`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, the method returns `output`, `hidden`, and `attn_weights`. Later, we''ll
+    use `attn_weights` to visualize the attention between the input and output sentences
+    (the method `AttnDecoderRNN.forward` ends here):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, let's look at the training process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training and evaluation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Next, let's implement the `train` function. It's similar to other such functions
+    that we've implemented in previous chapters; however, it takes into account the
+    sequential nature of the input and the teacher forcing principle we described
+    in the *Seq2eq with attention* section. For the sake of simplicity, we'll only
+    train with a single sequence at a time (a mini batch of size 1).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we''ll initiate the iteration over the training set, set up initial
+    sequence tensors, and reset the gradients:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: The encoder and decoder parameters are instances of `EncoderRNN` and `AttnDecoderRNN`
+    (or `DecoderRNN`), `loss_function` represents the loss (in our case, `torch.nn.NLLLoss`), `encoder_optimizer`
+    and `decoder_optimizer` (the names speak for themselves) are instances of `torch.optim.Adam`,
+    and `data_loader` is a `torch.utils.data.DataLoader`, which wraps an instance
+    of `NMTDataset`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we''ll do the actual training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s discuss this in more detail:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We feed the full sequence to the encoder and save the hidden states in the `encoder_outputs`
+    list.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We initiate the decoder sequence with `GO_token` as input.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We use the decoder to generate new elements of the sequence. Following the teacher
+    forcing principle, the `decoder` input at each step comes from the real target
+    sequence `decoder_input = target_tensor[di]`.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We train the encoder and decoder with `encoder_optimizer.step()` and `decoder_optimizer.step()`,
+    respectively.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Similar to `train`, we have an `evaluate` function, which takes an input sequence
+    and returns its translated counterpart and its accompanying attention scores.
+    We won''t include the full implementation here, but we''ll focus on the encoder/decoder
+    part. Instead of teacher forcing, the `decoder` input at each step is the output
+    word of the previous step:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When we run the full program, it will display several example translations.
+    It will also display a map of the attention scores between the elements of the
+    input and output sequences, such as the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/57dbbe1f-33ff-4d26-878f-43736c8bbdbc.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Translation attention scores
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, we can see that the output word **she** focuses its attention to
+    the input word **elle** (*she* in French). If we didn't have the attention mechanism
+    and only relied on the last encoder hidden state to initiate the translation,
+    the output could have been **She's five years younger than me** just as easily.
+    Since the word **elle** is furthest away from the end of the sentence, it would
+    have been hard to encode it within the last encoder hidden state alone.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we'll leave the RNNs behind and we'll introduce the transformer—a
+    seq2seq model, based solely on the attention mechanism.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding transformers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We spent the better part of this chapter touting the advantages of the attention
+    mechanism. But we still use attention in the context of RNNs—in that sense, it
+    works as an addition on top of the core recurrent nature of these models. Since
+    attention is so good, is there a way to use it on its own without the RNN part?
+    It turns out that there is. The paper *Attention is all you need* ([https://arxiv.org/abs/1706.03762](https://arxiv.org/abs/1706.03762))
+    introduces a new architecture called **transformer** with encoder and decoder
+    that relies solely on the attention mechanism. First, we'll focus our attention
+    on the transformer attention (pun intended) mechanism.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The transformer attention
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Before focusing on the entire model, let''s take a look at how the transformer
+    attention is implemented:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/2b40b98c-6f83-42e5-b820-385222bc3d9e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Left: Scaled dot product (multiplicative) attention; right: Multihead attention; source: https://arxiv.org/abs/1706.03762'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The transformer uses dot product attention (the left-hand side diagram of the
+    preceding diagram), which follows the general attention procedure we introduced
+    in the *Seq2seq with attention* section (as we have already mentioned, it is not
+    restricted to RNN models). We can define it with the following formula:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/bd082d35-cc07-4e3a-990d-b8ae2c53ed87.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In practice, we''ll compute the attention function over a set of queries simultaneously,
+    packed in a matrix **Q**. In this scenario, the keys **K**, the values **V**,
+    and the result are also matrices. Let''s discuss the steps of the formula in more
+    detail:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Match the query **Q** and the database (keys **K**) with matrix multiplication
+    to produce the alignment scores ![](img/8e75d95c-8656-4199-8c56-132eba392711.png).
+    Let''s assume that we want to match *m* different queries to a database of *n*
+    values and the query-key vector length is *d[k]*. Then, we have the matrix ![](img/24eda6ec-aad0-4707-b605-6d259b18c5f0.png)with
+    one *d[k]*-dimensional query per row for *m* total rows. Similarly, we have the
+    matrix ![](img/8ae0030f-f2ea-4afd-9f1b-89a992250772.png) with one *d[k]*-dimensional
+    key per row for *n* total rows. Then, the output matrix will have ![](img/ddc8548b-714a-461f-baac-c51a1e44f9f1.png),
+    where one row contains the alignment scores of a single query over all keys of
+    the database:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/3be3cb9d-c46e-48d5-a46d-198ee13549ae.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In other words, we can match multiple queries against multiple database keys
+    in a single matrix-matrix multiplication. In the context of NMT, we can compute
+    the alignment scores of all words of the target sentence over all words of the
+    source sentence in the same way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Scale the alignment scores with ![](img/c494b8f8-a1fd-45e5-a1d6-affc6656a87a.png),
+    where *d[k]* is the vector size of the key vectors in the matrix **K**, which
+    is also equal to the size of the query vectors in **Q** (analogously, *d[v]* is
+    the vector size of the key vectors **V**). The authors of the paper suspect that
+    for large values of *d[k]*, the dot product grows large in magnitude and pushes
+    the softmax in regions with extremely small gradients, which leads to the infamous
+    vanishing gradients problem, hence the need to scale the results.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Compute the attention scores with the softmax operation along the rows of the
+    matrix (we''ll talk about the mask operation later):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/2a1a4321-f434-4fa4-8e63-5d7f839cd57d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Compute the final attention vector by multiplying the attention scores with the
+    values **V***:*
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/d5492e4a-d60b-49c0-8f3e-0b8736697dcb.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We can adapt this mechanism to work with both hard and soft attention.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The authors also propose **multihead attention **(see the right-hand side diagram
+    of the preceding diagram). Instead of a single attention function with *d[model]*-dimensional
+    keys, we linearly project the keys, queries, and values *h* times to produce *h*
+    different *d[k]-*, *d[k]-*, and *d[v]-*dimensional projections of these values.
+    Then, we apply separate parallel attention functions (or heads) over the newly
+    created vectors, which yield a single *d[v]*-dimensional output for each head.
+    Finally, we concatenate the head outputs to produce the final attention result.
+    Multihead attention allows each head to attend to different elements of the sequence.
+    At the same time, the model combines the outputs of the heads in a single cohesive
+    representation. More precisely, we can define this with the following formula:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/1e7fc963-7dde-4a07-92dc-79b54b4ac1af.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Let''s look at this in more detail, starting with the heads:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each head receives the linearly projected versions of the initial **Q**, **K**,
+    and **V**. The projections are computed with the learnable weight matrices **W***[i]^Q*, **W***[i]^K*,
+    and **W***[i]^V* respectively. Note that we have a separate set of weights for
+    each component (**Q**, **K**, **V**) and for each head *i*. To satisfy the transformation
+    from *d[model]* to and *d[k]* and *d[v]*, the dimensions of these matrices are
+    ![](img/3e533bd3-439d-473e-907b-9c257ed57d38.png),![](img/bf9a3dd8-8d40-4d35-b6bf-68434a50e2de.png),
+    and ![](img/4ef902f8-bfe6-4a4a-a979-fcdd6c51b215.png).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Once **Q**, **K**, and **V** are transformed, we can compute the attention of
+    each head using the regular attention model we described at the beginning of this
+    section.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The final attention result is the linear projection (the weight matrix **W***^O*
+    of learnable weights) over the concatenated head outputs head[i].
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'So far, we''ve demonstrated attention for different input and output sequences.
+    For example, we''ve seen that in NMT each word of the translated sentence relates
+    to the words of the source sentence. The transformer model also relies on **self-attention**
+    (or intra-attention), where the query **Q** belongs to the same dataset as the
+    keys **K** and vectors **V** of the query database. In other words, in self-attention,
+    the source and the target are the same sequence (in our case, the same sentence).
+    The benefit of self-attention is not immediately obvious, as there is no direct
+    task to apply it to. On an intuitive level, it allows us to see the relationship
+    between words of the same sequence. For example, the following diagram shows the
+    multihead self-attention of the verb *making* (different colors represent different
+    heads). Many of the attention heads attend to a distant dependency of *making*,
+    completing the phrase *making ... more difficult*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/21108f32-fd44-4c77-bcc4-45213f630e0b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: An example of multihead self-attention. Source: https://arxiv.org/abs/1706.03762
+  prefs: []
+  type: TYPE_NORMAL
+- en: The transformer model uses self-attention as a replacement of the encoder/decoder
+    RNNs, but more on that in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The transformer model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Now that we are familiar with multihead attention, let''s focus on the full
+    transformer model, starting with the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/362b20db-2833-4ecb-b33c-28711065b014.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The transformer model architecture. The left-hand side shows the encoder and
+    the right-hand side shows the decoder; source: https://arxiv.org/abs/1706.03762
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It looks scary, but fret not—it''s easier than it seems. We''ll start with
+    the encoder (the left-hand component of the preceding diagram):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It begins with an input sequence of one-hot-encoded words, which are transformed
+    into *d[model]*-dimensional embedding vectors. The embedding vectors are further
+    multiplied by ![](img/5ec0c397-cafb-43e7-92c8-0e5f2accc144.png).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The transformer doesn''t use RNNs, and therefore, it has to convey the positional
+    information of each sequence element in some other way. We can do this explicitly
+    by augmenting each embedding vector with positional encoding. In short, the positional
+    encoding is a vector with the same length *d[model ]*as the embedding vector.
+    The positional vector is added (elementwise) to the embedding vector and the result
+    is propagated further in the encoder. The authors of the paper introduce the following
+    function for each element *i* of the positional vector, when the current word
+    has the position *pos* in the sequence:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/f608ed47-8a47-4419-af06-cc22dbb6d3ff.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Each dimension of the positional encoding corresponds to a sinusoid. The wavelengths
+    form a geometric progression from 2π to 10000 · 2π. The authors hypothesize that
+    this function would allow the model to easily learn to attend by relative positions,
+    since, for any fixed offset *k*, *PE[pos+k]* can be represented as a linear function
+    of *PE[pos]*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The rest of the encoder is composed of a stack of *N = 6* identical blocks.
+    Each block has two sublayers:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A multihead self-attention mechanism, like the one we described in the section
+    titled *The transformer attention*. Since the self-attention mechanism works across
+    the whole input sequence, the encoder is **bidirectional** by design. Some algorithms
+    use only the encoder transformer part and are referred to as **transformer encoder**.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'A simple, fully connected, feed-forward network, which is defined by the following
+    formula:'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/b6c24f77-e176-47d3-ac92-12e1e910c157.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The network is applied to each sequence element *x* separately. It uses the
+    same set of parameters (**W***[1]*, **W***[2]*, *b[1]*, and *b[2]*) across different
+    positions, but different parameters across the different encoder blocks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Each sublayer (both the multihead attention and feed-forward network) has a
+    residual connection around itself and ends with normalization over the sum of
+    that connection and its own output and the residual connection. Therefore, the
+    output of each sublayer is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/59208993-0830-4b6b-b328-6a6198dff280.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The normalization technique is described in the paper *Layer Normalization*
+    ([https://arxiv.org/abs/1607.06450](https://arxiv.org/abs/1607.06450)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, let''s look at the decoder, which is somewhat similar to the encoder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The input at step *t* is the decoder's own predicted output word at step *t-1*.
+    The input word uses the same embedding vectors and positional encoding as the
+    encoder.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The decoder continues with a stack of *N = 6* identical blocks, which are somewhat
+    similar to the encoder blocks. Each block consists of three sublayers and each
+    sublayer employs residual connections and normalization. The sublayers are:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'A multihead self-attention mechanism. The encoder self-attention can attend
+    to all elements of the sequence, regardless of whether they come before or after
+    the target element. But the decoder has only a partially generated target sequence.
+    Therefore, the self-attention here can only attend to the preceding sequence elements. This
+    is implemented by **masking out** (setting to −∞) all values in the input of the
+    softmax, which correspond to illegal connections:'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/537f17ea-f0a1-445f-ad32-d658dc974616.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The masking makes the decoder **unidirectional** (unlike the bidirectional encoder).
+    Algorithms that work with the decoder are referred to as **transformer decoder
+    algorithms**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A regular attention mechanism, where the queries come from the previous decoder
+    layer, and the keys and values come from the previous sublayer, which represents
+    the processed decoder output at step *t-1*. This allows every position in the
+    decoder to attend over all positions in the input sequence. This mimics the typical
+    encoder-decoder attention mechanisms, which we discussed in the *Seq2seq with
+    attention* section.
+  prefs:
+  - PREF_UL
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A feed-forward network, which is similar to the one in the encoder.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The decoder ends with a fully connected layer, followed by a softmax, which
+    produces the most probable next word of the sentence.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The transformer uses dropout as a regularization technique. It adds dropout
+    to the output of each sublayer before it is added to the sublayer input and normalized.
+    It also applies dropout to the sums of the embeddings and the positional encodings
+    in both the encoder and decoder stacks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, let's summarize the benefits of self-attention over the RNN attention
+    models we discussed in the *Seq2seq with attention* section. The key advantage
+    of the self-attention mechanism is the immediate access to all elements of the
+    input sequence, as opposed to the bottleneck thought vector of the RNN models.
+    Additionally—the following is a direct quote from the paper—a self-attention layer
+    connects all positions with a constant number of sequentially executed operations,
+    whereas a recurrent layer requires *O(n)* sequential operations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In terms of computational complexity, self-attention layers are faster than
+    recurrent layers when the sequence length *n* is smaller than the representation
+    dimensionality *d*, which is most often the case with sentence representations
+    used by state-of-the-art models in machine translations, such as word-piece (see *Google''s
+    Neural Machine Translation System: Bridging the Gap between Human and Machine
+    Translation* at [https://arxiv.org/abs/1609.08144](https://arxiv.org/abs/1609.08144))
+    and byte-pair (see *Neural Machine Translation of Rare Words with Subword Units*
+    at [https://arxiv.org/abs/1508.07909](https://arxiv.org/abs/1508.07909)) representations.
+    To improve computational performance for tasks involving very long sequences,
+    self-attention could be restricted to considering only a neighborhood of size
+    *r* in the input sequence centered around the respective output position.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes our theoretical description of transformers. In the next section,
+    we'll implement a transformer from scratch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing transformers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this section, we''ll implement the transformer model with the help of PyTorch
+    1.3.1\. As the example is relatively complex, we''ll simplify it by using a basic
+    training dataset: we''ll train the model to copy a randomly generated sequence
+    of integer values—that is, the source and the target sequence are the same and
+    the transformer will learn to replicate the input sequence as the output. We won''t
+    include the full source code, but you can find it at [https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter08/transformer.py](https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter08/transformer.py).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This example is based on [https://github.com/harvardnlp/annotated-transformer](https://github.com/harvardnlp/annotated-transformer).
+    Let's also note that PyTorch 1.2 has introduced native transformer modules (the
+    documentation is available at [https://pytorch.org/docs/master/nn.html#transformer-layers](https://pytorch.org/docs/master/nn.html#transformer-layers)).
+    Still, in this section we'll implement the transformer from scratch to understand
+    it better.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we''ll start with the utility function `clone`, which takes an instance
+    of `torch.nn.Module` and produces `n` identical deep copies of the same module
+    (excluding the original source instance):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: With this short introduction, let's continue with the implementation of multihead
+    attention.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Multihead attention
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this section, we''ll implement multihead attention by following the definitions
+    from the *The transformer attention* section. We''ll start with the implementation
+    of the regular scaled dot product attention:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: As a reminder, this function implements the formula [![](img/f1f24071-0946-4744-8b95-de6569c39aca.png)],
+    where **Q** = `query`, **K** = `key`, and **V** = `value`. If a `mask` is available,
+    it will also be applied.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we''ll implement the multihead attention mechanism as `torch.nn.Module`.
+    As a reminder, the implementation follows the following formula:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/46de1649-0510-4bba-9367-953964022efd.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We''ll start with the `__init__` method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that we use the `clones` function to create four identical, fully connected
+    `self.fc_layers`. We'll use three of them for the **Q**/**K**/**V** linear projections—
+    [![](img/6c2d3e70-f1e8-4854-a624-e9390c0427db.png)]. The fourth fully connected
+    layer is to merge the concatenated results of the outputs of the different heads
+    **W***^O*. We'll store the current attention results in the `self.attn` property.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, let''s implement the `MultiHeadedAttention.forward` method (please bear
+    in mind the indentation):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We iterate over the **Q**/**K**/**V** vectors and their reference projection
+    `self.fc_layers` and produce the **Q**/**K**/**V** `projections` with the following
+    snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: Then, we apply the regular attention over the projections using the `attention`
+    function we first defined, and finally, we concatenate the outputs of multiple
+    heads and return the results. Now that we've implemented multihead attention,
+    let's continue by implementing the encoder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Encoder
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this section, we''ll implement the encoder, which is composed of several
+    different subcomponents. Let''s start with the main definition and then dive into
+    more details:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'It is fairly straightforward: the encoder is composed of `self.blocks`: `N`
+    stacked instances of `EncoderBlock`, where each serves as input for the next.
+    They are followed by `LayerNorm` normalization `self.norm` (we discussed these
+    concepts in the *The transformer model* section). The `forward` method takes as
+    input the data tensor `x` and an instance of `mask`, which blocks some of the
+    input sequence elements. As we discussed in the *The transformer model* section,
+    the mask is only relevant to the decoder part of the model, where the future elements
+    of the sequence are not available yet. In the encoder, the mask exists only as
+    a placeholder.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll omit the definition of `LayerNorm` (it''s enough to know that it''s
+    a normalization at the end of the encoder) and we''ll focus on `EncoderBlock`
+    instead:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As a reminder, each encoder block consists of two sublayers (`self.sublayers`
+    instantiated with the familiar `clones` function): a multihead self-attention
+    `self_attn` (an instance of `MultiHeadedAttention`), followed by a simple fully
+    connected network `ffn` (an instance of `PositionwiseFFN`). Each sublayer is wrapped
+    by its residual connection, which is implemented with the `SublayerConnection`
+    class:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: The residual connection also includes normalization and dropout (according to
+    the definition). As a reminder, it follows the formula [![](img/56ef0b5c-6430-44ef-b14b-aadb5badca9f.png)],
+    but for code simplicity, the `self.norm` comes first rather than last. The `SublayerConnection.forward`
+    phrase takes as input the data tensor `x` and `sublayer`, which is an instance
+    of either `MultiHeadedAttention` or `PositionwiseFFN`. We can see this dynamic
+    in the `EncoderBlock.forward` method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The only component we haven''t defined yet is `PositionwiseFFN`, which implements
+    the formula [![](img/a255961a-4105-4c24-9971-41d393304341.png)]. Let''s add this
+    missing piece:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: We have now implemented the encoder and all its building blocks. In the next
+    section, we'll continue with the decoder definition.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Decoder
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this section, we''ll implement the decoder. It follows a pattern that is
+    very similar to the encoder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'It consists of `self.blocks`: `N` instances of `DecoderBlock`, where the output
+    of each block serves as input to the next. These are followed by the `self.norm`
+    normalization (an instance of `LayerNorm`). Finally, to produce the most probable
+    word, the decoder has an additional fully connected layer with softmax activation. Note
+    that the `Decoder.forward` method takes an additional parameter `encoder_states`,
+    which represents the attention vector of the encoder. The `encoder_states` are
+    then passed to the `DecoderBlock` instances.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, let''s implement the `DecoderBlock`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is similar to `EncoderBlock`, but with one substantial difference: whereas
+    `EncoderBlock` relies only on the self-attention mechanism, here we combine self-attention
+    with the regular attention coming from the encoder. This is reflected in the `encoder_attn` module
+    and later the `encoder_states` parameter of the `forward` method, as well as the
+    additional `SublayerConnection` for the encoder attention values. We can see the
+    combination of multiple attention mechanisms in the `DecoderBlock.forward` method.
+    Note that `self.self_attn` uses `x` for both query/key/value, while `self.encoder_attn`
+    uses `x` as a query and `encoder_states` for keys and values. In this way, the
+    regular attention establishes the link between the encoder and the decoder.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes the decoder implementation. We'll proceed with building the full
+    transformer model in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Putting it all together
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We''ll continue with the main `EncoderDecoder` class:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: It combines the `Encoder`, `Decoder`, and `source_embeddings/target_embeddings`
+    (we'll focus on the embeddings later in this section). The `EncoderDecoder.forward`
+    method takes the source sequence and feeds it to `self.encoder`. Then, `self.decoder` takes
+    its input from the preceding output step `x=self.target_embeddings(target)`, the
+    encoder states `encoder_states=encoder_output`, and the source and target masks.
+    With these inputs, it produces the predicted next element (word) of the sequence,
+    which is also the return value of the `forward` method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we''ll implement the `build_model` function, which combines everything
+    we''ve implemented so far into one coherent model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Besides the familiar `MultiHeadedAttention` and `PositionwiseFFN`, we also
+    create the `position` variable (an instance of the `PositionalEncoding` class).
+    This class implements the sinusoidal positional encoding we described in the *The*
+    *transformer model* section (we won''t include the full implementation here).
+    Now let''s focus on the `EncoderDecoder` instantiation: we are already familiar
+    with the encoder and the decoder, so there are no surprises there. But the embeddings
+    are a tad more interesting. The following code instantiates the source embeddings
+    (but this is also valid for the target ones):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can see that they are a sequential list of two components:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: An instance of the `Embeddings` class, which is simply a combination of `torch.nn.Embedding` further
+    multiplied by [![](img/139f1f87-f470-4ddd-bc21-128a4113a83a.png)] (we'll omit
+    the class definition here)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Positional encoding `c(position)`, which adds the positional sinusoidal data
+    to the embedding vector
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Once we have the input data preprocessed in this way, it can serve as input
+    to the core part of the encoder/decoder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes our implementation of the transformer. Our goal with this example
+    was to provide a supplement to the theoretical base of the sections called *The
+    transformer attention* and *The transformer model*. Therefore, we have focused
+    on the most relevant parts of the code and omitted a few *ordinary* code sections,
+    chief among them the `RandomDataset` data generator for random numerical sequences
+    and the `train_model` function, which implements the training. Nevertheless, I
+    would encourage the reader to run through the full example step by step so that
+    they can gain a better understanding of the way the transformer works.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we'll talk about some of the state-of-the-art language
+    models based on the attention mechanisms we have introduced so far.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transformer language models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In [Chapter 6](fe6a42c9-f18e-4c2b-9a82-99ec53e727ca.xhtml), *Language* *Modeling*,
+    we introduced several different language models (word2vec, GloVe, and fastText)
+    that use the context of a word (its surrounding words) to create word vectors
+    (embeddings). These models share some common properties:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: They are context-free (I know it contradicts the previous statement) because they
+    create a single global word vector of each word based on all its occurrences in
+    the training text. For example, *lead* can have completely different meanings
+    in the phrases *lead the way* and *lead atom*, yet the model will try to embed
+    both meanings in the same word vector.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: They are position-free because they don't take into account the order of the
+    contextual words when training for the embedding vectors.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In contrast, it's possible to create transformer-based language models, which
+    are both context- and position-dependent. These models will produce different
+    word vectors for each unique context of the word, taking into account both the
+    current context words and their positions. This leads to a conceptual difference
+    between the classic and transformer-based models. Since a model such as word2vec
+    creates static context- and position-free embedding vectors, we can discard the
+    model and only use the vectors in subsequent downstream tasks. But the transformer
+    model creates dynamic vectors based on the context, and therefore, we have to
+    include it as part of the task pipeline.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the following sections, we'll discuss some of the most recent transformer-based
+    models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Bidirectional encoder representations from transformers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The **bidirectional encoder representations from transformers** (**BERT**)
+    (see *BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding *at [https://arxiv.org/abs/1810.04805](https://arxiv.org/abs/1810.04805))
+    model has a very descriptive name. Let''s look at some of the elements that are
+    mentioned:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Encoder representations: This model uses only the output of the multilayer
+    encoder part of the transformer architecture we described in the *The transformer
+    model* section.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Bidirectional: The encoder has an inherent bidirectional nature.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'To gain some perspective, let''s denote the number of transformer blocks with *L*,
+    the hidden size with *H* (previously denoted with *d[model]*), and the number
+    of self-attention heads with *A*. The authors of the paper experimented with two
+    BERT configurations: BERT[BASE] (*L *= 12, *H *= 768, *A *= 12, total parameters
+    = 110M) and BERT[LARGE] (*L *= 24, *H *= 1024, *A *= 16, total parameters = 340M).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To better understand the BERT framework, we''ll start with the training, which
+    has two steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Pretraining**: The model is trained on unlabeled data over different pretraining
+    tasks.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Fine-tuning**: The model is initialized with the pretrained parameters and
+    then all parameters are fine-tuned over the labeled dataset of the specific downstream
+    task.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We can see the steps in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0600cac1-7eab-4671-b730-54e10104037c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Left: Pretraining; Right: Fine-tuning Source: https://arxiv.org/abs/1810.04805'
+  prefs: []
+  type: TYPE_NORMAL
+- en: These diagrams will serve as references through the next sections, so stay tuned
+    for more details. For now, it's enough for us to know that **Tok N** represents
+    the one-hot-encoded input tokens, *E* represents the token embeddings, and *T*
+    represents the model output vector.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have an overview of BERT, let's look at its components.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Input data representation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Before going into each training step, let''s discuss the input and output data
+    representations, which are shared by the two steps. Somewhat similar to fastText
+    (see [Chapter 6](fe6a42c9-f18e-4c2b-9a82-99ec53e727ca.xhtml), *Language Modeling*),
+    BERT uses a data-driven tokenization algorithm called WordPiece ([https://arxiv.org/abs/1609.08144](https://arxiv.org/abs/1609.08144)).
+    This means that, instead of a vocabulary of full words, it creates a vocabulary
+    of subword tokens in an iterative process until that vocabulary reaches a predetermined
+    size (in the case of BERT, the size is 30,000 tokens). This approach has two main
+    advantages:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It allows us to control the size of the dictionary.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It handles unknown words by assigning them to the closest existing dictionary
+    subword token.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'BERT can handle a variety of downstream tasks. To do so, the authors introduced
+    a special-input data representation, which can unambiguously represent the following
+    as a single-input sequence of tokens:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A single sentence (for example, in classification tasks, such as sentiment analysis)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A pair of sentences (for example, in question-answering problems)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Here, *sentence* not only refers to a linguistic sentence, but can mean any
+    contiguous text of arbitrary length.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The model uses two special tokens:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first token of every sequence is always a special classification token (`[CLS]`).
+    The hidden state corresponding to this token is used as the aggregate sequence
+    representation for classification tasks. For example, if we want to apply sentiment
+    analysis over the sequence, the output corresponding to the `[CLS]` input token
+    will represent the sentiment (positive/negative) output of the model.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Sentence pairs are packed together into a single sequence. The second special
+    token (`[SEP]`) marks the boundary between the two input sentences (in the case
+    that we have two). We further differentiate the sentences with the help of an
+    additional learned segmentation embedding for every token indicating whether it
+    belongs to sentence A or sentence B. Therefore, the input embeddings are the sum
+    of the token embeddings, the segmentation embeddings, and the position embeddings.
+    Here, the token and position embeddings serve the same purpose as they do in the
+    regular transformer.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The following diagram displays the special tokens, as well as the input embeddings:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/1cafb5c9-2644-4b5a-b454-de3021a73aec.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: BERT input representation; the input embeddings are the sum of the token embeddings,
+    the segmentation embeddings, and the position embeddings. Source: https://arxiv.org/abs/1810.04805
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we know how the input is processed, let's look at the pretraining step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pretraining
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The pretraining step is illustrated on the left-hand side of the diagram in
+    the *Bidirectional encoder representations from transformers* section. The authors
+    of the paper trained the BERT model using two unsupervised training tasks: **masked
+    language modeling** (**MLM**) and **next sentence prediction** (**NSP**).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll start with MLM, where the model is presented with an input sequence
+    and its goal is to predict a missing word in that sequence. In this case, BERT
+    acts as a **denoising autoencoder** in the sense that it tries to reconstruct
+    its intentionally corrupted input. MLM is similar in nature to the CBOW objective
+    of the word2vec model (see [Chapter 6](fe6a42c9-f18e-4c2b-9a82-99ec53e727ca.xhtml), *Language
+    Modeling*). To solve this task, the BERT encoder output is extended with a fully
+    connected layer with softmax activation to produce the most probable word, given
+    the input sequence. Each input sequence is modified by randomly masking 15% (according
+    to the paper) of the WordPiece tokens. To better understand this, we''ll use an
+    example from the paper itself: assuming that the unlabeled sentence is *my dog
+    is hairy*, and that, during the random masking procedure, we chose the fourth
+    token (which corresponds to `hairy`), our masking procedure can be further illustrated
+    by the following points:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**80% of the time**: Replace the word with the `[MASK]` token—for example, *my
+    dog is hairy* → *my dog is* `[MASK]`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**10% of the time**: Replace the word with a random word—for example, *my dog
+    is hairy* → *my dog is apple*.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**10% of the time**: Keep the word unchanged *my dog is hairy* → *my dog is
+    hairy*. The purpose of this is to bias the representation toward the actual observed
+    word.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Because the model is bidirectional, the `[MASK]` token can appear at any position
+    in the input sequence. At the same time, the model will use the full sequence
+    to predict the missing word. This is opposed to unidirectional autoregressive
+    models (we'll discuss these in the following sections), which always try to predict
+    the next word from all preceding words, thereby avoiding the need to have `[MASK]`
+    tokens.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are two main reasons why we need this 80/10/10 distribution:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `[MASK]` token creates a mismatch between pretraining and fine-tuning (we'll
+    discuss this in the next section), since it only appears in the former but not
+    in the latter—that is, the fine-tuning task will present the model with input
+    sequences without the `[MASK]` token. Yet, the model was pretrained to expect
+    sequences with `[MASK],` which might lead to undefined behavior.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: BERT assumes that the predicted tokens are independent of each other. To understand
+    this, let's imagine that the model tries to reconstruct the input sequence *I
+    went* `[MASK]` *with my* `[MASK]`. BERT can predict the sentence *I went cycling
+    with my bicycle*, which is a valid sentence. But because the model does not relate
+    the two masked words, nothing prevents it from predicting *I went swimming with
+    my bicycle*, which is not valid.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: With the 80/10/10 distribution, the `transformer` encoder does not know which
+    words it will be asked to predict or which have been replaced by random words,
+    so it is forced to keep a distributional contextual representation of every input
+    token. Additionally, because random replacement only occurs for 1.5% of all tokens
+    (that is, 10% of 15%), this does not seem to harm the model's language-understanding
+    ability.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One disadvantage of MLM is that, because the model only predicts 15% of the
+    words in each batch, it might converge more slowly than pretraining models that use
+    all words.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, let's continue with NSP. The authors argue that many important downstream
+    tasks, such as **question answering** (**QA**) and **natural language inference**
+    (**NLI**), are based on understanding the relationship between two sentences,
+    which is not directly captured by language modeling.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Natural language inference determines whether a sentence, which represents
+    a **hypothesis**, is either true (entailment), false (contradiction), or undetermined
+    (neutral) given another sentence, called a **premise**. The following table shows
+    some examples:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Premise** | **Hypothesis** | **Label** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| I am running | I am sleeping | contradiction |'
+  prefs: []
+  type: TYPE_TB
+- en: '| I am running | I am listening to music | neutral |'
+  prefs: []
+  type: TYPE_TB
+- en: '| I am running | I am training | entailment |'
+  prefs: []
+  type: TYPE_TB
+- en: In order to train a model that understands sentence relationships, we pretrain
+    for a next-sentence prediction task that can be trivially generated from any monolingual
+    corpus. Specifically, each input sequence consists of a starting `[CLS]` token,
+    followed by two concatenated sentences, A and B, which are separated by the `[SEP]`
+    token (see the diagram in the *Bidirectional encoder representations from transformers*
+    section). When choosing the sentences A and B for each pretraining example, 50%
+    of the time, B is the actual next sentence that follows A (labeled as `IsNext`),
+    and 50% of the time, it is a random sentence from the corpus (labeled as `NotNext`).
+    As we mentioned, the model outputs the `IsNext`/`NotNext` labels on the `[CLS]`
+    corresponding input.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The NSP task is illustrated using the following example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`[CLS]` *the man went to* `[MASK]` *store* `[SEP]` *he bought a gallon* `[MASK]`
+    *milk [SEP]* with the label `IsNext`.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`[CLS]` *the man* `[MASK]` *to the store* `[SEP]` *penguins* `[MASK]` *are
+    flight ##less birds* `[SEP]` with the label `NotNext`. Note the use of the *##less*
+    token, which is the result of the WordPiece tokenization algorithm.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Next, let's look at the fine-tuning step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fine-tuning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The fine-tuning task follows the pretraining task, and apart from the input
+    preprocessing, the two steps are very similar. Instead of creating a masked sequence,
+    we simply feed the BERT model with the task-specific unmodified input and output
+    and fine-tune all the parameters in an end-to-end fashion. Therefore, the model
+    that we use in the fine-tuning phase is the same model that we'll use in the actual
+    production environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following diagram shows how to solve several different types of task with
+    BERT:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4ba45881-2a02-4dba-9f4f-c22fb3da7ffe.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: BERT applications for different tasks; source: https://arxiv.org/abs/1810.04805
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s discuss them:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The top-left scenario illustrates how to use **BERT** for sentence-pair classification
+    tasks, such as NLI. In short, we feed the model with two concatenated sentences
+    and only look at the `[CLS]` token output classification, which will output the
+    model result. For example, in an NLI task, the goal is to predict whether the
+    second sentence is an entailment, a contradiction, or neutral with respect to
+    the first one.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The top-right scenario illustrates how to use **BERT** for single-sentence classification
+    tasks, such as sentiment analysis. This is very similar to the sentence-pair classification.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The bottom-left scenario illustrates how to use **BERT** on the **Stanford
+    Question Answering Dataset** (**SQuAD** v1.1, [https://rajpurkar.github.io/SQuAD-explorer/explore/1.1/dev/](https://rajpurkar.github.io/SQuAD-explorer/explore/1.1/dev/)).
+    Given that sequence A is a question and sequence B is a passage from Wikipedia,
+    which contains the answer, the goal is to predict the text span (start and end)
+    of the answer within this passage. We introduce two new vectors: a start vector
+    ![](img/920325e6-3871-4031-844c-3196fe8d17b6.png) and an end vector ![](img/d37a6783-26fe-4ba4-84d0-504cab4d82c2.png),
+    where *H* is the hidden size of the model. The probability of each word *i* as
+    being the start (or end) of the answer span is computed as a dot product between
+    its output vector *T[i]* and *S* (or *E*), followed by a softmax over all the
+    words of the sequence *B*: ![](img/2b598dd9-c691-4be3-87aa-16a2a2153ce3.png).
+    The score of a candidate span starting from position *i* and spanning to *j* is
+    computed as ![](img/911c7f71-5ac0-4cc0-af14-3b5662add47f.png). The output candidate
+    is the one with the maximum score, where ![](img/7caa20c6-d192-4825-9a7b-e444a051d85f.png).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The bottom-right scenario illustrates how to use **BERT** for **named entity
+    recognition** (**NER**), where each input token is classified as some type of
+    entity.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: This concludes our section dedicated to the BERT model. As a reminder, it is
+    based on the transformer encoder. In the next section, we'll discuss transformer
+    decoder models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transformer-XL
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this section, we''ll talk about an improvement over the vanilla transformer,
+    called transformer-XL, where XL stands for extra long (see *Transformer-X**L:
+    Attentive Language Models Beyond a Fixed-Length Context *at [https://arxiv.org/abs/1901.02860](https://arxiv.org/abs/1901.02860)).
+    To understand the need to improve the regular transformer, let''s discuss some
+    of its limitations, one of which comes from the nature of the transformer itself.
+    An RNN-based model has the (at least theoretical) ability to convey information
+    about sequences of arbitrary length, because the internal RNN state is adjusted
+    based on all previous inputs. But the transformer''s self-attention doesn''t have
+    such a recurrent component, and is restricted entirely within the bounds of the
+    current input sequence. If we had infinite memory and computation, a simple solution
+    would be to process the entire context sequence. But in practice, we have limited
+    resources, and so we split the entire text into smaller segments and train the
+    model only within each segment, as image **(a)** in the following diagram shows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/2acf4b82-935f-4f9e-a94a-b0a3b4e615ef.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Illustration of the training (a) and evaluation (b) of a regular transformer
+    with an input sequence of length 4; note the use of the unidirectional transformer
+    decoder. Source: https://arxiv.org/abs/1901.02860
+  prefs: []
+  type: TYPE_NORMAL
+- en: The horizontal axis represents the input sequence [*x[1],..., x[4]*] and the
+    vertical axis represents the stacked decoder blocks. Note that element *x[i]*
+    can only attend to the elements ![](img/6625a637-0e08-4d99-b338-aed9728d4b6c.png).
+    That's because transformer-XL is based on the transformer decoder (and doesn't
+    include the encoder), unlike BERT, which is based on the encoder. Therefore, the
+    transformer-XL decoder is not the same as the decoder in the *full* encoder-decoder
+    transformer, because it doesn't have access to the encoder state, as the regular
+    decoder does. In that sense, the transformer-XL decoder is very similar to a general
+    transformer encoder, with the exception that it's unidirectional, because of the
+    input sequence mask. Transformer-XL is an example of an **autoregressive model**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As the preceding diagram demonstrates, the largest possible dependency length
+    is upper-bounded by the segment length, and although the attention mechanism helps
+    prevent vanishing gradients by allowing immediate access to all elements of the
+    sequence, the transformer cannot fully exploit this advantage, because of the
+    limited input segment. Furthermore, the text is usually split by selecting a consecutive
+    chunk of symbols without respecting the sentence or any other semantic boundary,
+    which the authors of the paper refer to as context fragmentation. To quote the
+    paper itself, the model lacks the contextual information needed to well predict
+    the first few symbols, leading to inefficient optimization and inferior performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another issue of the vanilla transformer is manifested during evaluation, as
+    shown on the right-hand side of the preceding diagram. At each step, the model
+    takes the full sequence as input, but only makes a single prediction. To predict
+    the next output, the transformer is shifted right with a single position, yet
+    the new segment (which is the same as the last segment, except for the last value)
+    has to be processed from scratch over the full input sequence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we've identified some problems with the transformer model, let's look
+    at how to solve them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Segment-level recurrence with state reuse
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Transformer-XL introduces a recurrence relationship in the transformer model.
+    During training, the model caches its state for the current segment, and when
+    it processes the next segment, it has access to that cached (but fixed) value,
+    as we can see in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/78c7fc5c-275f-4ccc-975d-d483648c44ac.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Illustration of the training (a) and evaluation (b) of transformer-XL with an
+    input sequence length of 4. Source: https://arxiv.org/abs/1901.02860
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'During training, the gradient is not propagated through the cached segment.
+    Let''s formalize this concept (we''ll use the notation from the paper, which might
+    differ slightly from the previous notations in this chapter). We''ll denote two
+    consecutive segments of length *L* with ![](img/003a82a2-0d66-4b95-80cc-9cb61ceba9e2.png) and
+    ![](img/3886154f-f4ae-43c9-bb52-0fa177d943bc.png) and the *n*th block hidden state
+    of the *τ*th segment with ![](img/daf9b9a2-2b97-4d63-8cfe-f485f3c9b0a8.png), where
+    *d* is the hidden dimension (equivalent to *d[model]*). To clarify, ![](img/58e25d25-edae-43f1-a5f7-2e996e7e1ea8.png) is
+    a matrix with *L* rows, where each row contains the *d*-dimensional self-attention vector
+    of each element of the input sequence. Then, the *n*th layer hidden state of the *τ+1*th
+    segment is produced by going through the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/65d7d9bf-1a70-4dda-8f8d-aabd242822fe.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/e009eb26-3070-427c-ae4c-13af2a325006.png) refers to the stop gradient,
+    **W[*]** refers to the model parameters (previously denoted with **W^***), and
+    ![](img/03843f17-dd65-4127-bcbd-feeabc108c61.png) refers to the concatenation
+    of the two hidden sequences along the length dimension. To clarify, the concatenated
+    hidden sequences is a matrix with *2L* rows, where each row contains the *d*-dimensional self-attention vector
+    of one element of the combined input sequences τ and τ+1\. The paper does a great
+    job of explaining the intricacies of the preceding formulas, so the following
+    explanation contains some direct quotes. Compared to the standard transformer,
+    the critical difference lies in that the key ![](img/2ca40428-2d70-45a3-a648-aa3985b7e98b.png) and
+    value ![](img/20bc5956-58c1-45ca-9d59-71039a1c984a.png) are conditioned on the
+    extended context ![](img/30c22b63-cdf9-46c8-99c3-3aa9814c8edd.png), and so ![](img/f357cf76-93ea-47cc-85dd-6e7ddc6f9047.png)
+    is cached from the previous segment (shown with the green paths in the preceding
+    diagram). With this recurrence mechanism applied to every two consecutive segments
+    of a corpus, it essentially creates a segment-level recurrence in the hidden states.
+    As a result, the effective context that is utilized can go way beyond just two
+    segments. However, note that the recurrent dependency between ![](img/c6363dc1-ba34-4cde-bda6-d93e1538e439.png) and
+    ![](img/fa984b5b-8e02-45f4-93b0-d88ed5e5c12c.png) shifts one layer downward per
+    segment. Consequently, the largest possible dependency length grows linearly with
+    respect to the number of layers as well as the segment length—that is, *O*(*N*
+    × *L*), as visualized by the shaded area of the preceding diagram.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Besides achieving extra-long context and resolving fragmentation, another benefit
+    that comes with the recurrence scheme is significantly faster evaluation. Specifically,
+    during evaluation, the representations from the previous segments can be reused
+    instead of being computed from scratch, as in the case of the vanilla model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, note that the recurrence scheme does not need to be restricted to only
+    the previous segment. In theory, we can cache as many previous segments as the
+    GPU memory allows and reuse all of them as the extra context when processing the
+    current segment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The recurrence scheme will require a new way to encode the positions of the
+    sequence elements. Let's look at this topic next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Relative positional encodings
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The vanilla transformer input is augmented with sinusoidal positional encodings
+    (see the *The transformer model* section), which are relevant only within the
+    current segment. The following formula shows how to schematically compute the
+    states ![](img/8351dc62-260f-4636-934e-bab20e8af900.png) and ![](img/6ebf6a61-eff6-4c68-9cc9-7d92b83d1d0c.png) with
+    the current positional encodings:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8fbe4d9a-d78a-48ba-8dcb-d0dc5e377eff.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/a8944859-bec6-40db-90f6-2b25713b139c.png) is the word-embedding
+    sequence of *s[τ]*, and *f* is the transformation function. We can see that we
+    use the same positional encoding ![](img/6b6471ad-550b-4c79-8b34-42141e5f1c36.png)
+    for both ![](img/1664f782-bb9f-4a20-b780-ccd4107ae4b3.png) and ![](img/34dcfc74-e58d-493a-8cf2-08e627b08b38.png).
+    Because of this, the model cannot distinguish between the positions of two elements
+    of the same position within the different sequences ![](img/a7aeb32f-02b8-470d-8d9d-0475875c6a1f.png) and
+    ![](img/4ae0fb1b-6338-42b2-8568-32bab59a85b1.png). To avoid this, the authors
+    of the paper propose a new type of **relative** positional encoding scheme. They
+    made the observation that when a query vector (or matrix of queries) ![](img/59cab96e-f966-4809-92da-5595bd43f68b.png) attends
+    to key vectors ![](img/fc82f157-e241-443c-a3ae-fcfeef222bd3.png), it does not
+    need to know the absolute position of each key vector to identify the temporal
+    order of the segment. Instead, it is enough to know the relative distance between
+    each key vector ![](img/95f61cdd-49ac-49f6-a8e4-21e00433e065.png) and itself ![](img/50ee0566-d28e-41d5-952e-a995dcb752f3.png)—that
+    is *i−j*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The proposed solution is to create a set of relative positional encodings ![](img/ecdc4134-f80d-4b20-a418-57dcff1d65fd.png),
+    where each cell of the *i*th row indicates the relative distance between the *i*th
+    element and the rest of the elements of the sequence. **R** uses the same sinusoidal
+    formula as before, but this time, with relative instead of absolute positions.
+    This relative distance is injected dynamically (as opposed to being part of the
+    input preprocessing), which makes it possible for the query vector to distinguish
+    between the positions of ![](img/a7aeb32f-02b8-470d-8d9d-0475875c6a1f.png) and ![](img/4ae0fb1b-6338-42b2-8568-32bab59a85b1.png).
+    To understand this, let''s start with the product absolute position attention
+    formula from the *The transformer attention* section, which can be decomposed
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d2cea46c-2833-4f4e-a1c6-1ec5b577e235.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Let''s discuss the components of this formula:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Indicates how much word *i* attends to word *j*, regardless of their current
+    position (content-based addressing)—for example, how much the word *tire* relates
+    to the word *car*.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Reflects how much word *i* attends to the word in position *j*, regardless of
+    what that word is (content-dependent positional bias)—for example, if the word *i*
+    is *cream*, we may want to check the probability that word *j = i - 1* is *ice*.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: This step is the opposite of step 2.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Indicates how much a word in position *i* should attend to a word in position
+    *j*, regardless of what the two words are (global-positioning bias)—for example,
+    this value could be low for positions that are far apart.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'In transformer-XL, this formula is modified to include the relative positional
+    embeddings:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3fffcb4d-ad6d-430d-a538-58aa25e8f47d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Let''s outline the changes with respect to the absolute position formula:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Replace all appearances of the absolute positional embedding *U[j]* for computing
+    key vectors in terms (2) and (4) with its relative counterpart *R[i−j]*.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Replace the query ![](img/f2b094b1-2640-4acd-93fe-8c489139064b.png) in term
+    (3) with a trainable parameter ![](img/763e3944-4c5c-481c-9578-3f64d6a4dfc7.png).
+    The reasoning behind this is that the query vector is the same for all query positions;
+    therefore, the attentive bias toward different words should remain the same regardless
+    of the query position. Similarly, a trainable parameter ![](img/b913a4dc-a09e-4ef8-8f5b-ae5b247722b5.png) substitutes
+    ![](img/327fa6b0-167d-434f-bad7-6835c4303d18.png) in term (4).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Separate **W***[K]* into two weight matrices **W***[K,E]* and **W***[K,R]* to
+    produce separate content-based and position-based key vectors.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: To recap, the segment-level recurrence and relative positional encodings are the
+    main improvements of transformer-XL over the vanilla transformer. In the next
+    section, we'll look at yet another improvement of transformer-XL.
+  prefs: []
+  type: TYPE_NORMAL
+- en: XLNet
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The authors note that bidirectional models with denoising autoencoding pretraining (such
+    as BERT) achieve better performance compared to unidirectional autoregressive
+    models (such as transformer-XL). But as we mentioned in the *Pretraining* subsection
+    of the *Bidirectional encoder representations from transformers* section, the
+    `[MASK]` token introduces a discrepancy between the pretraining and fine-tuning
+    steps. To overcome these limitations, the authors of transformer-XL propose XLNet (see *XLNet:
+    Generalized Autoregressive Pretraining for Language Understanding *at [https://arxiv.org/abs/1906.08237](https://arxiv.org/abs/1906.08237)):
+    a generalized **autoregressive** pretraining mechanism that enables learning bidirectional
+    contexts by maximizing the expected likelihood over all permutations of the factorization
+    order. To clarify, XLNet builds upon the transformer decoder model of transformer-XL
+    and introduces a smart permutation-based mechanism for bidirectional context flow
+    within the autoregressive pretraining step.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following diagram illustrates how the model processes the same input sequence
+    with different factorization orders. Specifically, it shows a transformer decoder
+    with two stacked blocks and segment-level recurrence (the **mem** fields):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/9bd20c60-51c4-4d3d-aebc-427ac09eed57.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Predicting *x[3]* over the same input sequence with four different factorization
+    orders. Source: https://arxiv.org/abs/1906.08237
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are *T*! different orders to perform a valid autoregressive factorization
+    over a sequence of length *T*. Let's assume that we have an input sequence of
+    [*x[1], x[2], x[3], x[4]*] with length 4\. The diagram shows four of the possible
+    4! = 24 factorization orders of that sequence (starting clockwise from the top-left
+    corner): [*x[3], x[2], x[4], x[1]*], [*x[2], x[4], x[3], x[1]*], [*x[4], x[3],
+    x[1], x[2]*], and [*x[1], x[4], x[2], x[3]*]. Remember that the autoregressive
+    model allows the current element to attend only to the preceding elements of the
+    sequence. Therefore, under normal circumstances, *x[3]* would be able to attend
+    only to *x[1]* and *x[2]*. But the XLNet algorithm trains the model not only with
+    the regular sequence, but also with different factorization orders of that sequence.
+    Therefore, the model will *see* all four factorization orders as well as the original
+    input. For example, with [*x[3], x[2], x[4], x[1]*], *x[3]* will not be able to
+    attend to any of the other elements, because it's the first one. Alternatively,
+    with [*x[2], x[4], x[3], x[1]*], *x[3]* will be able to attend to *x[2]* and *x[4]*.
+    Under the previous circumstances, *x[4]* would have been inaccessible. The black
+    arrows in the diagram indicate the elements that *x[3]* can attend to, depending
+    on the factorization order (the unavailable elements have no arrows).
+  prefs: []
+  type: TYPE_NORMAL
+- en: But how can this work, and what is the point of the training when the sequence
+    will lose its meaning if it's not in its natural order? To answer this, let's
+    remember that the transformer has no implicit recurrent mechanism, and instead,
+    we convey the position of the elements with the explicit positional encodings.
+    Let's also remember that in the regular transformer decoder, we use the self-attention
+    mask to limit the access to the sequence elements following the current one. When
+    we feed a sequence with another factorization order, say [*x[2], x[4], x[3], x[1]*],
+    the elements of the sequence will maintain their original positional encoding
+    and the transformer will not lose their correct order. In fact, the input is still
+    the original sequence [*x[1], x[2], x[3], x[4]*], but with an **altered attention
+    mask** to provide access only to elements *x[2]* and *x[4]*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To formalize this concept, let''s introduce some notations: ![](img/3a1b5515-8dcb-4562-a081-af1fa4ceadf2.png) is
+    the set of all possible permutations of the length-*T* index sequence [1, 2, .
+    . . , *T*]; ![](img/8a903d12-8bac-423c-a8e6-3df5d4cee11e.png) is one permutation
+    of ![](img/3e93fec1-aaa9-44e0-9a1b-1011ba46b66f.png); ![](img/26099f4b-c07a-4e06-a6ba-6ab9a2bbe328.png) is
+    the *t*th element of that permutation; ![](img/40c6c4da-6249-46ba-b758-3c5904d09767.png) are
+    the first *t-1* elements of that permutation, and ![](img/2abdc5f8-5de3-429e-af1a-b29d5266370c.png) is
+    the probability distribution of the next word ![](img/9b448615-aa0e-4e5e-9684-593bb672c733.png),
+    given the current permutation ![](img/3b46504a-f316-4cf4-b448-dcd9ca95e065.png) (the
+    autoregressive task, which is the output of the model), where θ are the model
+    parameters. Then, the permutation language modeling objective is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/68a26555-aaca-4e73-bdad-7aaad53dd649.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: It samples different factorization orders of the input sequence one at a time
+    and attempts to maximize the probability ![](img/715f3a1e-4047-41f6-9dd9-23af7a3786bb.png)—that
+    is, to increase the chance of the model to predict the correct word. The parameters θ
+    are shared across all factorization orders; therefore, the model will be able
+    to see every possible element ![](img/585d38cf-1b5b-4953-872f-6e839aec3abc.png),
+    thereby emulating bidirectional context. At the same time, this is still an autoregressive
+    function, which doesn't need `[MASK]` tokens.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We need one more piece to fully utilize the permutation-based pretraining.
+    We''ll start by defining the probability distribution of the next word ![](img/5799d957-0303-4627-be58-7984f859a9c5.png),
+    given the current permutation ![](img/0a1a99a8-7bb7-41f7-ae26-dc6b87be0247.png) (the
+    autoregressive task, which is the output of the model) ![](img/1abef19f-67ad-4069-8b73-379d19a45b19.png),
+    which is simply the softmax output of the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ba32b664-9c7b-4447-837c-8d61e7de2889.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/b9123cb8-acb5-4793-b2a8-5b424dadacb3.png) acts as the query and ![](img/5e4e171d-48b8-4143-9a62-9938cd9309f9.png) is
+    the hidden representation produced by the transformer after the proper masking,
+    which acts as the key-value database.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, let''s assume that we have two factorization orders ![](img/a1d6ae4d-fc14-4d73-abb8-22182e3e58da.png) and
+    ![](img/cee30934-7d1d-4415-97e9-76e18ed54cc8.png), where the first two elements
+    are the same and the second two are swapped. Let''s also assume that *t = 3—*that
+    is, the model has to predict the third element of the sequence. Since ![](img/177c0cfc-ffe1-497b-ad7c-39b542595b68.png), we
+    can see that ![](img/651f9b80-ff5e-498d-b921-9c3a06ce647d.png) will be the same
+    in both cases. Therefore, ![](img/9aac910e-9bcd-425f-ab54-708546ddc45c.png). But
+    this is not a valid result, because in the first case, the model should predict
+    *x[4]* and in the second, *x[1]*. Let''s remember that although we predict *x[1]*
+    and *x[4]* in position 3, they still maintain their original positional encodings.
+    Therefore, we can alter the current formula to include the positional information
+    for the predicted element (which will be different for *x[1]* and *x[4]*), but
+    exclude the actual word. In other words, we can modify the task of the model from
+    *predict the next word* to *predict the next word, given that we know its position*.
+    In this way, the formula for the two-sample factorization orders will be different.
+    The modified formula is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6dd9628b-fd10-48df-b4f6-8556ead937ac.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, ![](img/9996236e-51b9-4e90-8f7c-b15b9f2e8da6.png) is the new transformer
+    function, which also includes the positional information ![](img/c4e80685-bb95-4c5f-9758-0bd6a64a85b6.png). The
+    authors of the paper propose a special mechanism called two-stream self-attention
+    to solve this. As the name suggests, it consists of two combined attention mechanisms:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Content representation [![](img/ceef0807-aa8b-47c3-b1bf-fd581358f7e6.png)],
+    which is the attention mechanism we are already familiar with. This representation
+    encodes both the context and the content [![](img/c8cd3e08-f801-4f64-b2d5-cde6db23b1dd.png)] itself.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Query representation ![](img/e6387d63-4dbd-4c88-b999-b2ee6b4794d7.png), which
+    only has access to the contextual information ![](img/550a6616-0477-4b3a-99e6-30a58743f86a.png) and
+    the position ![](img/bbe2dc8d-31f8-46e5-91e4-b026d1092c31.png), but not the content
+    [![](img/ba4e9b81-5a07-44f2-8011-1451697da9ea.png)], as we mentioned previously.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: I would encourage you to check the original paper for more details. In the next
+    section, we'll implement a basic example of a transformer language model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating text with a transformer language model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this section, we''ll implement a basic text-generation example with the
+    help of the `transformers` 2.1.1 library ([https://huggingface.co/transformers/](https://huggingface.co/transformers/)),
+    released by Hugging Face. This is a well-maintained and popular open source package
+    that implements different transformer language models, including BERT, transformer-XL,
+    XLNet, OpenAI GPT, GPT-2, and others. We''ll use a pretrained transformer-XL model
+    to generate new text based on an initial input sequence. The goal is to give you
+    a brief taste of the library:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s start with the imports:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `TransfoXLLMHeadModel` and `TransfoXLTokenizer` phrases are the implementations
+    of the transformer-XL language model and its corresponding tokenizer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we''ll initialize the device and instantiate the `model` and the `tokenizer`.
+    Note that we''ll use the `transfo-xl-wt103` pretrained set of parameters, available
+    in the library:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we''ll specify the initial sequence, tokenize it, and turn it into a model-compatible
+    input `tokens_tensor`, which contains a list of tokens:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we''ll use this token to initiate a loop, where the model will generate
+    new tokens of the sequence:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: We start the loop with the initial sequence of tokens `tokens_tensor`. The model
+    uses this to generate the `predictions` (a softmax over all tokens of the vocabulary)
+    and `mems` (a variable that stores the previous hidden decoder state for the recurrence
+    relation). We extract the index of the most probable word `predicted_index` and
+    we convert it to a vocabulary token `predicted_token`. Then, we append it to the
+    existing `tokens_tensor` and initiate the loop again with the new sequence. The
+    loop ends either after 50 tokens or when the special `[EOS]` token is reached.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we''ll display the result:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output of the program is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: With this example, we conclude a long chapter about attention models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we focused on seq2seq models and the attention mechanism. First,
+    we discussed and implemented a regular recurrent encoder-decoder seq2seq model
+    and learned how to complement it with the attention mechanism. Then, we talked
+    about and implemented a purely attention-based type of model called a **transformer**. We
+    also defined multihead attention in their context. Next, we discussed transformer
+    language models (such as BERT, transformerXL, and XLNet). Finally, we implemented
+    a simple text-generation example using the `transformers` library.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter concludes our series of chapters with a focus on natural language
+    processing. In the next chapter, we'll talk about some new trends in deep learning
+    that aren't fully matured yet but hold great potential for the future.
+  prefs: []
+  type: TYPE_NORMAL

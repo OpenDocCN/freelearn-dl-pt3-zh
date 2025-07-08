@@ -1,0 +1,826 @@
+- en: Developing the ESBAS Algorithm
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: By now, you are capable of approaching RL problems in a systematic and concise
+    way. You are able to design and develop RL algorithms specifically for the problem
+    at hand and get the most from the environment. Moreover, in the previous two chapters,
+    you learned about algorithms that go beyond RL, but that can be used to solve
+    the same set of tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the beginning of this chapter, we'll present a dilemma that we have already
+    encountered in many of the previous chapters; namely, the exploration-exploitation
+    dilemma. We have already presented potential solutions for the dilemma throughout
+    the book (such as the ![](img/9474f864-505d-4f4e-bab5-674b452546f7.png)-greedy
+    strategy), but we want to give you a more comprehensive outlook on the problem,
+    and a more concise view of the algorithms that solve it. Many of them, such as
+    the **upper confidence bound** (**UCB**) algorithm, are more sophisticated and
+    better than the simple heuristics that we have used so far, such as the ![](img/9474f864-505d-4f4e-bab5-674b452546f7.png)-greedy
+    strategy. We'll illustrate these strategies on a classic problem, known as multi-armed
+    bandit. Despite being a simple tabular game, we'll use it as a starting point
+    to then illustrate how these strategies can also be employed on non-tabular and
+    more complex tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This introduction to the exploration-exploitation dilemma offers a general overview
+    of the main methods that many recent RL algorithms employ in order to solve very
+    hard exploration environments. We'll also provide a broader view of the applicability
+    of this dilemma when solving other kinds of problems. As proof of that, we'll
+    develop a meta-algorithm called **epochal stochastic bandit algorithm selection**,
+    or **ESBAS**, which tackles the problem of online algorithm selection in the context
+    of RL. ESBAS does this by using the ideas and strategies that emerged from the
+    multi-armed bandit problem to select the best RL algorithm that maximizes the
+    expected return on each episode.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following topics will be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exploration versus exploitation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Approaches to exploration
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Epochal stochastic bandit algorithm selection
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Exploration versus exploitation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The exploration-exploitation trade-off dilemma, or exploration-exploitation
+    problem, affects many important domains. Indeed, it's not only restricted to the
+    RL context, but applies to everyday life. The idea behind this dilemma is to establish
+    whether it is better to take the optimal solution that is known so far, or if
+    it's worth trying something new. Let's say you are buying a new book. You could
+    either choose a title from your favorite author, or buy a book of the same genre
+    that Amazon is suggesting to you. In the first case, you are confident about what
+    you're getting, but by selecting the second option, you don't know what to expect.
+    However, in the latter case, you could be incredibly pleased, and end up reading
+    a very good book that is indeed better than the one written by your favorite author.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This conflict between exploiting what you have already learned and taking advantage
+    of it or exploring new options and taking some risks, is very common in reinforcement
+    learning as well. The agent may have to sacrifice a short-term reward, and explore
+    a new space, in order to achieve a higher long-term reward in the future.
+  prefs: []
+  type: TYPE_NORMAL
+- en: All this may not sound new to you. In fact, we started dealing with this problem
+    when we developed the first RL algorithm. Up until now, we have primarily adopted
+    simple heuristics, such as the ![](img/bf16d037-d581-41c2-8913-ed505eb3422e.png)-greedy
+    strategy, or followed a stochastic policy to decide whether to explore or exploit.
+    Empirically, these strategies work very well, but there are some other techniques
+    that can achieve theoretical optimal performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we'll start with an explanation of the exploration-exploitation
+    dilemma from the ground up, and introduce some exploration algorithms that achieve
+    nearly-optimal performance on tabular problems. We'll also show how the same strategies
+    can be adapted to non-tabular and more complex tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For an RL algorithm, one of the most challenging Atari games to solve is Montezuma''s
+    Revenge, rendered in the following screenshot. The objective of the game is to
+    score points by gathering jewels and killing enemies. The main character has to
+    find all the keys in order to navigate the rooms in the labyrinth, and gather
+    the tools that are needed to move around, while avoiding obstacles. The sparse
+    reward, the long-term horizon, and the partial rewards, which are not correlated
+    with the end goal, make the game very challenging for every RL algorithm. Indeed,
+    these four characteristics make Montezuma''s Revenge one of the best environments
+    for testing exploration algorithms:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e18a14e6-d25a-4dea-9db9-b5c8f31a1116.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Screenshot of Montezuma's Revenge
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's start from the ground up, in order to give a complete overview of this
+    area.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Multi-armed bandit
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The multi-armed bandit problem is the classic RL problem that is used to illustrate
+    the exploration-exploitation trade-off dilemma. In the dilemma, an agent has to
+    choose from a fixed set of resources, in order to maximize the expected reward.
+    The name multi-armed bandit comes from a gambler that is playing multiple slot
+    machines, each with a stochastic reward from a different probability distribution.
+    The gambler has to learn the best strategy in order to achieve the highest long-term
+    reward.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This situation is illustrated in the following diagram. In this particular
+    example, the gambler (the ghost) has to choose one of the five slot machines,
+    all with different and unknown reward probabilities, in order to win the highest
+    amount of money:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/83901340-859b-4b80-987d-3940058a9ae5.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Example of a five-armed bandit problem
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you are questioning how the multi-armed bandit problem relates to more interesting
+    tasks such as Montezuma's Revenge, the answer is that they are all about deciding
+    whether, in the long run, the highest reward is yielded when new behaviors are
+    attempted (pulling a new arm), or when continuing to do the best thing done so
+    far (pulling the best-known arm). However, the main difference between the multi-armed
+    bandit and Montezuma's Revenge is that, in the latter, the state of the agent
+    changes every time. In the multi-armed bandit problem, there's only one state,
+    and there's no sequential structure, meaning that past actions will not influence
+    the future.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So, how can we find the right balance between exploration and exploitation in
+    the multi-armed bandit problem?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Approaches to exploration
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Put simply, the multi-armed bandit problem, and in general every exploration
+    problem, can be solved either through random strategies, or through smarter techniques.
+    The most notorious algorithm that belongs to the first category, is called ![](img/d0a4ebbd-c39f-438a-957b-fa97d7c0799e.png)-greedy;
+    whereas optimistic exploration, such as UCB, and posterior exploration, such as
+    Thompson sampling, belong to the second category. In this section, we'll take
+    a look particularly at the ![](img/d0a4ebbd-c39f-438a-957b-fa97d7c0799e.png)-greedy
+    and UCB strategies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It''s all about balancing the risk and the reward. But, how can we measure
+    the quality of an exploration algorithm? Through *regret*. Regret is defined as
+    the opportunity lost in one step that is, the regret, ![](img/05ad64e7-c41b-4736-96b5-3e17d5266074.png), at
+    time, ![](img/cdaec17b-6d89-475d-92b1-afe09f9a3159.png), is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0c3a8dae-8113-4f37-a2bd-50eb09ed9d16.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/c95e2c63-0f9c-436d-891c-0c33d1cbe73d.png) denotes the optimal
+    value, and ![](img/9df02363-3999-4be9-a9e4-32dac4ba1ba6.png) the action-value
+    of ![](img/eda7adef-c75c-41fe-bf05-e3a71d475361.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Thus, the goal is to find a trade-off between exploration and exploitation,
+    by minimizing the total regret over all the actions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/c7159b28-8e5e-4a4b-a0c8-67f57c2d6bd6.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Note that the minimization of the total regret is equivalent to the maximization
+    of the cumulative reward. We'll use this idea of regret to show how exploration
+    algorithms perform.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The ∈-greedy strategy
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We have already expanded the ideas behind the ![](img/3fd4eed5-f797-441a-a7c3-820e65fd322d.png)-greedy
+    strategy and implemented it to help our exploration in algorithms such as Q-learning
+    and DQN. It is a very simple approach, and yet it achieves very high performance
+    in non-trivial jobs as well. This is the main reason behind its widespread use
+    in many deep learning algorithms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To refresh your memory, ![](img/5a4a8e7f-73b0-4c20-95dc-af5b4c0f9421.png)-greedy
+    takes the best action most of the time, but from time to time, it selects a random
+    action. The probability of choosing a random action is dictated by the ![](img/c59c569b-ad2e-41a2-9748-8105e758d504.png)
+    value, which ranges from 0 to 1\. That is, with ![](img/472e4698-ff84-43e0-a3b7-4e017b959cb3.png)
+    probability, the algorithm will exploit the best action, and with ![](img/389c51f4-4d79-4edd-8b85-b668df73d57a.png)
+    probability, it will explore the alternatives with a random selection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the multi-armed bandit problem, the action values are estimated based on
+    past experiences, by averaging the reward obtained by taking those actions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/57550883-a938-4c7e-95b9-8c405d2ea421.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In the preceding equation, ![](img/ebaad13b-1a8f-4e8f-ab4d-ecb67a4671c8.png) is
+    the number of times that the ![](img/604173e8-d30e-4512-95ed-ae8975292239.png)
+    action has been picked, and ![](img/f359ceae-5338-46da-b55b-676926e84c5a.png) is
+    a Boolean that indicates whether at time ![](img/8f99004d-90c0-4b56-9d58-9a9dfa0e0b67.png), action ![](img/e5f44a63-e1ec-4d04-86bd-7c0db688d83b.png) has
+    been chosen. The bandit will then act according to the ![](img/ffa9e069-89e1-4464-af51-35562be61862.png)-greedy
+    algorithm, and explore by choosing a random action, or exploit by picking the
+    ![](img/d13df1cf-782c-41fb-aaf3-b89060846cd0.png) action with the higher ![](img/b2bdeff5-087e-4a20-ae71-bbda48c6c1e5.png) value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A drawback of ![](img/1d841b84-44bc-4b44-9395-7ef1e1147a78.png)-greedy, is that
+    it has an expected linear regret. But, for the law of large numbers, the optimal
+    expected total regret should be logarithmic to the number of timesteps. This means
+    that the ![](img/1d841b84-44bc-4b44-9395-7ef1e1147a78.png)-greedy strategy isn't
+    optimal.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A simple way to reach optimality involves the use of an ![](img/a4e357f5-9d4d-4712-ad9b-914fc01d6f05.png) value that
+    decays as time goes by. By doing this, the overall weight of the exploration will
+    vanish, until only greedy actions will be chosen. Indeed, in deep RL algorithms ![](img/5adc8777-a769-4ad0-81e6-94bc007ba882.png)-greedy
+    is almost always combined with a linear, or exponential decay of ![](img/ef61d4c1-93b8-4dd2-9de5-5691ffe5ed98.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: That being said, ![](img/83a790d4-315e-44cc-b1ce-ee6317e811ff.png) and its decay
+    rate is difficult to choose, and there are other strategies that solve the multi-armed
+    bandit problem optimally.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The UCB algorithm
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The UCB algorithm is related to a principle known as optimism in the face of
+    uncertainty, a statistics-based principle based on the law of large numbers. UCB
+    constructs an optimistic guess, based on the sample mean of the rewards, and on
+    the estimation of the upper confidence bound of the reward. The optimistic guess
+    determines the expected pay-off of each action, also taking into consideration
+    the uncertainty of the actions. Thus, UCB is always able to pick the action with
+    the higher potential reward, by balancing the risk and the reward. Then, the algorithm
+    switches to another one when the optimistic estimate of the current action is
+    lower than the others.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Specifically, UCB keeps track of the average reward of each action with ![](img/3eeee2ef-bd6a-43a8-b596-2bd8f67e44f9.png),
+    and the ![](img/f5fed32f-f7ac-4f64-b5db-5609545a3077.png) UCB (hence the name) for
+    each action. Then, the algorithm picks the arm which maximizes the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a0da43c2-5a19-4a3f-af6d-2ea26cbce366.png) (12.1)'
+  prefs: []
+  type: TYPE_IMG
+- en: In this formula, the role of ![](img/523327c1-114e-4bfe-9b93-e5ddb595f6dd.png)
+    is to provide an additional argument to the average reward that accounts for the
+    uncertainty of the action.
+  prefs: []
+  type: TYPE_NORMAL
+- en: UCB1
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: UCB1 belongs to the UCB family, and its contribution is in the selection of ![](img/e065e9bf-7e8a-4c32-8e4c-07fe6eed0d99.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In UCB1, the ![](img/a2a16bcb-d54c-4a0b-9837-19a8abaa3077.png) UCB is computed
+    by keeping track of the number of times an action, (![](img/a992c126-793e-4465-a30a-bdc48682554d.png)),
+    has been selected, along with ![](img/fc8c5d8c-c204-4688-9f0e-f780d7494478.png),
+    and the total number of actions that are selected with ![](img/c796f72d-4a04-4337-9a37-acc696f7db3d.png),
+    as represented in the following formula:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b920c393-fb72-4f8c-b8e1-1b600b2eae41.png) (12.2)'
+  prefs: []
+  type: TYPE_IMG
+- en: The uncertainty of an action, is thus related to the number of times it has
+    been selected. If you think about it, this makes sense as, according to the law
+    of large numbers, with an infinite number of trials, you'd be sure about the expected
+    value. On the contrary, if you tried an action only a few times, you'd be uncertain
+    about the expected reward, and only with more experience, would you be able to
+    say whether it is a good or a bad action. Therefore, we'll incentivize the exploration
+    of actions that have been chosen only few times, and that therefore have a high
+    uncertainty. The main takeaway is that if ![](img/3a2286d0-a84a-43ef-8f10-e66246cbbf08.png)
+    is small, meaning that the action has been experienced only occasionally, then ![](img/cea73fe8-9af9-4380-846a-0657e093e516.png) will
+    be large, with an overall high uncertain estimate. However, if ![](img/1da62787-139b-4dfa-80f9-8e79a925418e.png)
+    is large, then ![](img/cea73fe8-9af9-4380-846a-0657e093e516.png) will be small,
+    and the estimate will be accurate. We'll then follow ![](img/e808426c-badf-410c-9246-9bbc961c22ca.png) only
+    if it has a high mean reward.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The main advantage of UCB compared to ![](img/db396bc1-261d-4231-9b85-6d4fa469c491.png)-greedy,
+    is actually due to the counting of the actions. Indeed, the multi-armed bandit
+    problem can be easily solved with this method, by keeping a counter for each action
+    that is taken, and its average reward. These two pieces of information can be
+    integrated into formula (12.1) and formula (12.2), in order to get the best action
+    to take at time (![](img/367c449a-fa0e-4781-9557-c694ed252114.png)); that is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/98fd9d22-427c-4e19-a048-41faf9767872.png) (12.3)'
+  prefs: []
+  type: TYPE_IMG
+- en: UCB is a very powerful method for exploration, and it achieves a logarithmic
+    expected total regret on the multi-armed bandit problem, therefore reaching an
+    optimal trend. It is worth noting that ![](img/e76d68d1-7fee-4a84-8f04-c37407e6900b.png)-greedy
+    exploration could also obtain a logarithmic regret, but it would require careful
+    design, together with a finely-tuned exponential decay, and thus it would be harder
+    to balance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are additional variations of UCB, such as UCB2, UCB-Tuned, and KL-UCB.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exploration complexity
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We saw how UCB, and in particular UCB1, can reduce the overall regret and accomplish
+    an optimal convergence on the multi-armed bandit problem with a relatively easy
+    algorithm. However, this is a simple stateless task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So, how will UCB perform on more complex tasks? To answer this question, we
+    can oversimplify the division and group all of the problems in these three main
+    categories:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Stateless problems**: An instance of these problems is the multi-armed bandit.
+    The exploration in such cases can be handled with a more sophisticated algorithm,
+    such as UCB1.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Small-to-medium tabular problems**: As a basic rule, exploration can still
+    be approached with more advanced mechanisms, but in some cases, the overall benefit
+    is small, and is not worth the additional complexity.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Large non-tabular problems**: We are now in more complex environments. In
+    these settings, the outlook isn''t yet well defined, and researchers are still actively
+    working to find the best exploration strategy. The reason for this is that as
+    the complexity increases, optimal methods such as UCB are intractable. For example,
+    UCB cannot deal with problems with continuous states. However, we don''t have
+    to throw everything away, and we can use the exploration algorithms that were
+    studied in the multi-armed bandit context as inspiration. That said, there are
+    many approaches that approximate optimal exploration methods, and that work well
+    in continuous environments, as well. For example, counting-based approaches, such
+    as UCB, have been adapted with infinite state problems, by providing similar counts
+    for similar states. An algorithm of these has also been capable of achieving significant
+    improvement in very difficult environments, such as Montezuma''s Revenge. Still,
+    in the majority of RL contexts, the additional complexity that these more complex
+    approaches involve is not worth it, and simpler random strategies such as ![](img/39b9d07d-70b6-4ce6-87b6-e91698651dfd.png)-greedy
+    work just fine.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It's also worth noting that, despite the fact that we outlined only a count-based
+    approach to exploration such as UCB1, there are two other sophisticated ways in
+    which to deal with exploration, which achieve optimal value in regret. The first
+    is called posterior sampling (an example of this is Thompson sampling), and is
+    based on a posterior distribution, and the second is called information gain,
+    and relies upon an internal measurement of the uncertainty through the estimation
+    of entropy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Epochal stochastic bandit algorithm selection
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The main use of exploration strategies in reinforcement learning is to help
+    the agent in the exploration of the environment. We saw this use case in DQN with
+    ![](img/1e16a747-c424-435e-b1e2-db30ddda9c2d.png)-greedy, and in other algorithms
+    with the injection of additional noise into the policy. However, there are other
+    ways of using exploration strategies. So, to better grasp the exploration concepts
+    that have been presented so far, and to introduce an alternative use case of these
+    algorithms, we will present and develop an algorithm called ESBAS. This algorithm
+    was introduced in the paper, *Reinforcement Learning Algorithm Selection*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: ESBAS is a meta-algorithm for online **algorithm selection** (**AS**) in the
+    context of reinforcement learning. It uses exploration methods in order to choose
+    the best algorithm to employ during a trajectory, so as to maximize the expected
+    reward.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In order to better explain ESBAS, we'll first explain what algorithm selection
+    is and how it can be used in machine learning and reinforcement learning. Then,
+    we'll focus on ESBAS, and give a detailed description of its inner workings, while
+    also providing its pseudocode. Finally, we'll implement ESBAS and test it on an
+    environment called Acrobot.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unboxing algorithm selection
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To better understand what ESBAS does, let's first focus on what algorithm selection
+    (AS) is. In normal settings, a specific and fixed algorithm is developed and trained
+    for a given task. The problem is that if the dataset changes over time, the dataset
+    overfits, or another algorithm works better in some restricted contexts, there's
+    no way of changing it. The chosen algorithm will remain the same forever. The
+    task of algorithm selection overcomes this problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: AS is an open problem in machine learning. It is about designing an algorithm
+    called a meta-algorithm that always chooses the best algorithm from a pool of
+    different options, called a portfolio, which is based on current needs. A representation
+    of this is shown in the following diagram. AS is based on the assumption that
+    different algorithms in the portfolio will outperform the others in different
+    parts of the problem space. Thus, it is important to have algorithms with complementary
+    capabilities.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, in the following diagram, the meta-algorithm chooses which algorithm
+    (or agent) among those available in the portfolio (such as PPO and TD3) will act
+    on the environment at a given moment. These algorithms are not complementary to
+    each other, but each one provides different strengths that the meta-algorithm
+    can choose in order to better perform in a specific situation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/1b763684-8acb-465e-95bf-828348ec507a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Representation of an algorithm selection method for RL
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, if the task involves designing a self-driving car that drives on
+    all kinds of terrains, then it may be useful to train one algorithm that is capable
+    of amazing performance on the road, in the desert, and on ice. Then, AS could
+    intelligently choose which one of these three versions to employ in each situation.
+    For instance, AS may find that on rainy days, the policy that has been trained
+    on ice works better than the others.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In RL, the policy changes with a very high frequency, and the dataset increases
+    continuously over time. This means that there can be big differences in the optimal
+    neural network size and the learning rate between the starting point, when the
+    agent is in an embryonic state, compared to the agent in an advanced state. For
+    example, an agent may start learning with a high learning rate, and decrease it
+    as more experience is accumulated. This highlights how RL is a very interesting
+    playground for algorithm selection. For this reason, that's exactly where we'll
+    test our AS.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Under the hood of ESBAS
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The paper that proposes ESBAS, tests the algorithm on batch and online settings.
+    However, in the remainder of the chapter, we'll focus primarily on the former.
+    The two algorithms are very similar, and if you are interested in the pure online
+    version, you can find a further explanation of it in the paper. The AS in true
+    online settings is renamed as **sliding stochastic bandit AS** (**SSBAS**), as
+    it learns from a sliding window of the most recent selections. But let's start
+    from the foundations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first thing to say about ESBAS, is that it is based on the UCB1 strategy,
+    and that it uses this bandit-style selection for choosing an off-policy algorithm
+    from the fixed portfolio. In particular, ESBAS can be broken down into three main
+    parts that work as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It cycles across many epochs of exponential size. Inside each epoch, the first
+    thing that it does is update all of the off-policy algorithms that are available
+    in the portfolio. It does this using the data that has been collected until that
+    point in time (at the first epoch the dataset will be empty). The other thing
+    that it does, is reset the meta-algorithm.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Then, during the epoch, the meta-algorithm computes the optimistic guess, following
+    the formula (12.3), in order to choose the off-policy algorithm (among those in
+    the portfolio) that will control the next trajectory, so as to minimize the total
+    regret. The trajectory is then run with that algorithm. Meanwhile, all the transitions
+    of the trajectory are collected and added to the dataset that will be later used
+    by the off-policy algorithms to train the policies.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: When a trajectory has come to an end, the meta-algorithm updates the mean reward
+    of that particular off-policy algorithm with the RL return that is obtained from
+    the environment, and increases the number of occurrences. The average reward,
+    and the number of occurrences, will be used by UCB1 to compute the UCB, as from
+    formula (12.2). These values are used to choose the next off-policy algorithm
+    that will roll out the next trajectory.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'To give you a better view of the algorithm, we also provided the pseudocode
+    of ESBAS in the code block, here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, ![](img/d94da654-c2e9-4cb4-9b62-c1250b1b0df5.png) is a hyperparameter, ![](img/a13c0281-321e-4f8a-9fa1-8100853436ce.png) is
+    the RL return obtained during the ![](img/832ecce0-4106-40e3-878f-114347cd69a6.png)
+    trajectory, ![](img/1c4593cf-9daf-400b-b76b-c83821a22498.png) is the counter of
+    algorithm ![](img/9859b9d2-396a-4d17-b3ea-2d5742f00a81.png), and ![](img/eeb52e17-7842-4111-a50f-6224ed1b0cc0.png) is
+    its mean return.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As explained in the paper, online AS addresses four practical problems that
+    are inherited from RL algorithms:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Sample efficiency**: The diversification of the policies provides an additional
+    source of information that makes ESBAS sample efficient. Moreover, it combines
+    properties from curriculum learning and ensemble learning.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Robustness**: The diversification of the portfolio provides robustness against
+    bad algorithms.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Convergence**: ESBAS guarantees the minimization of the regret.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Curriculum learning**: AS is able to provide a sort of curriculum strategy,
+    for example, by choosing easier, shallow models at the beginning, and deep models
+    toward the end.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Implementation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The implementation of ESBAS is easy, as it involves the addition of only a few
+    components. The most substantial part is in the definition and the optimization
+    of the off-policy algorithms of the portfolio. Regarding these, ESBAS does not
+    bind the choice of the algorithms. In the paper, both Q-learning and DQN are used.
+    We have decided to use DQN, so as to provide an algorithm that is capable of dealing
+    with more complex tasks that can be used with environments with the RGB state
+    space. We went through DQN in great detail in [Chapter 5](b2fa8158-6d3c-469a-964d-a800942472ca.xhtml),
+    *Deep Q-Network*, and for ESBAS, we'll use the same implementation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The last thing that we need to specify before going through the implementation
+    is the portfolio's composition. We created a diversified portfolio, as regards
+    the neural network architecture, but you can try with other combinations. For
+    example, you could compose the portfolio with DQN algorithms of different learning
+    rates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The implementation is divided as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `DQN_optimization` class builds the computational graph, and optimizes a
+    policy with DQN.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `UCB1` class defines the UCB1 algorithm.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The `ESBAS` function implements the main pipeline for ESBAS.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'We''ll provide the implementation of the last two bullet points, but you can
+    find the full implementation on the GitHub repository of the book: [https://github.com/PacktPublishing/Reinforcement-Learning-Algorithms-with-Python](https://github.com/PacktPublishing/Reinforcement-Learning-Algorithms-with-Python)[.](https://github.com/PacktPublishing/Hands-On-Reinforcement-Learning-Algorithms-with-Python)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's start by going through `ESBAS(..)`. Besides the hyperparameters of DQN,
+    there's only an additional `xi` argument that represents the ![](img/1f645c1c-9092-470b-9d46-c713a52cc18d.png)
+    hyperparameter. The main outline of the `ESBAS` function is the same as the pseudocode
+    that was given previously, so we can quickly go through it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After having defined the function with all the arguments, we can reset the
+    default graph of TensorFlow, and create two Gym environments (one for training,
+    and one for testing). We can then create the portfolio, by instantiating a `DQN_optimization`
+    object for each of the neural network sizes, and appending them on a list:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we define an inner function, `DQNs_update`, that trains the policies in
+    the portfolio in a DQN way. Take into consideration that all the algortihms in
+    the portfolio are DQN, and that the only difference is in their neural network
+    size. The optimization is done by the `optimize` and `update_target_network` methods
+    of the `DQN_optimization` class:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As always, we need to initialize some (self-explanatory) variables: resetting
+    the environment, instantiating an object of `ExperienceBuffer` (using the same
+    classes that we used in others chapters), and setting up the exploration decay:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can finally start the loop that iterates across the epochs. As for the preceding
+    pseudocode, during each epoch, the following things occur:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The policies are trained on the experience buffer
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The trajectories are run by the policy that is chosen by UCB1
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The first step is done by invoking `DQNs_update`, which we defined earlier,
+    for the entire length of the epoch (which has an exponential length):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'With regard to the second step, just before the trajectories are run, a new
+    object of the `UCB1` class is instantiated and initialized. Then, a `while` loop
+    iterates over the episodes of exponential size, inside of which, the `UCB1` object
+    chooses which algorithm will run the next trajectory. During the trajectory, the
+    actions are selected by `dqns[best_dqn]`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After each rollout, `ucb1` is updated with the RL return that was obtained
+    in the last trajectory. Moreover, the environment is reset, and the reward of
+    the current trajectory is appended to a list in order to keep track of all the
+    rewards:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: That's all for the `ESBAS` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`UCB1` is made up of a constructor that initializes the attributes that are
+    needed for computing (12.3); a `choose_algorithm()` method that returns the current
+    best algorithm among the ones in the portfolio, as in (12.3); and `update(idx_algo,
+    traj_return)` , which updates the average reward of the `idx_algo` algorithm with
+    the last reward that was obtained, as understood from (12.4). The code is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: With the code at hand, we can now test it on an environment and see how it performs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Solving Acrobot
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We''ll test ESBAS on yet another Gym environment—`Acrobot-v1`. As described
+    in the OpenAI Gym documentation, *t**he Acrobot system includes two joints and
+    two links, where the joint between the two links is actuated. Initially, the links
+    are hanging downward, and the goal is to swing the end of the lower link up to
+    a given height*. The following diagram shows the movement of the acrobot in a
+    brief sequence of timesteps, from the start to an end position:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/7ecd2d52-3dc8-4336-9506-0e369fa99e02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Sequence of the acrobot's movement
+  prefs: []
+  type: TYPE_NORMAL
+- en: The portfolio comprises three deep neural networks of different sizes. One small
+    neural network with only one hidden layer of size 64, one medium neural network
+    with two hidden layers of size 16, and a large neural network with two hidden
+    layers of size 64\. Furthermore, we set the hyperparameter of ![](img/d1f6a65b-3014-4152-b0e0-72b2a639c0d1.png)
+    (the same value that is used in the paper).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Results
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The following diagram shows the results. This plot presents both the learning
+    curve of ESBAS: the complete portfolio (comprising the three neural networks that
+    were listed previously) in the darker shade; and the learning curve of ESBAS,
+    with only one best performing neural network (a deep neural network with two hidden
+    layers of size 64) in *orange*. We know that ESBAS with only one algorithm in
+    the portfolio will not really leverage the potential of the meta-algorithm, but
+    we introduced it in order to have a baseline with which to compare the results.
+    The plot speaks for itself, showing the *blue* line always above the *orange, *thus
+    proving that ESBAS actually chooses the best available option. The unusual shape
+    is due to the fact that we are training the DQN algorithms offline:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/05e199cc-9517-4fb9-90bd-ace66f746543.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The performance of ESBAS with a portfolio of three algorithms in a dark shade,
+    and with only one algorithm in a lighter shade
+  prefs: []
+  type: TYPE_NORMAL
+- en: For all the color references mentioned in the chapter, please refer to the color
+    images bundle at [http://www.packtpub.com/sites/default/files/downloads/9781789131116_ColorImages.pdf](http://www.packtpub.com/sites/default/files/downloads/9781789131116_ColorImages.pdf).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Also, the spikes that you see at the start of the training, and then at around
+    steps, 20K, 65K, and, 131K, are the points at which the policies are trained,
+    and the meta-algorithm is reset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can now ask ourselves at which point in time ESBAS prefers one algorithm,
+    compared to the others. The answer is shown in the plot of the following diagram.
+    In this plot, the small neural network is characterized by the value 0, the medium
+    one by the value 1, and the large by the value 2\. The dots show the algorithms
+    that are chosen on each trajectory. We can see that, right at the beginning, the
+    larger neural network is preferred, but that this immediately changes toward the
+    medium, and then to the smaller one. After about 64K steps, the meta-algorithm
+    switches back to the larger neural network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ee253c6f-e3bf-448f-9b96-bee234b106ce.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The plot shows the preferences of the meta-algorithm
+  prefs: []
+  type: TYPE_NORMAL
+- en: From the preceding plot, we can also see that both of the ESBAS versions converge
+    to the same values, but with very different speeds. Indeed, the version of ESBAS
+    that leverages the true potential of AS (that is, the one with three algorithms
+    in the portfolio) converges much faster. Both converge to the same values because,
+    in the long run, the best neural network is the one that is used in the ESBAS
+    version with the single option (the deep neural network with two hidden layers
+    of size 64).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we addressed the exploration-exploitation dilemma. This problem
+    has already been tackled in previous chapters, but only in a light way, by employing
+    simple strategies. In this chapter, we studied this dilemma in more depth, starting
+    from the notorious multi-armed bandit problem. We saw how more sophisticated counter-based
+    algorithms, such as UCB, can actually reach optimal performance, and with the
+    expected logarithmic regret.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We then used exploration algorithms for AS. AS is an interesting application
+    of exploratory algorithms, because the meta-algorithm has to choose the algorithm
+    that best performs the task at hand. AS also has an outlet in reinforcement learning.
+    For example, AS can be used to pick the best policy that has been trained with
+    different algorithms from the portfolio, in order to run the next trajectory.
+    That's also what ESBAS does. It tackles the problem of the online selection of
+    off-policy RL algorithms by adopting UCB1\. We studied and implemented ESBAS in
+    depth.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, you know everything that is needed to design and develop highly performant
+    RL algorithms that are capable of balancing between exploration and exploitation.
+    Moreover, in the previous chapters, you have acquired the skills that are needed
+    in order to understand which algorithm to employ in many different landscapes.
+    However, until now, we have overlooked some more advanced RL topics and issues.
+    In the next and final chapter, we'll fill these gaps, and talk about unsupervised
+    learning, intrinsic motivation, RL challenges, and how to improve the robustness
+    of algorithms. We will also see how it's possible to use transfer learning to
+    switch from simulations to reality. Furthermore, we'll give some additional tips
+    and best practices for training and debugging deep reinforcement learning algorithms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: What's the exploration-exploitation dilemma?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What are two exploration strategies that we have already used in previous RL
+    algorithms?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What's UCB?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which problem is more difficult to solve: Montezuma's Revenge or the multi-armed
+    bandit problem?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How does ESBAS tackle the problem of online RL algorithm selection?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: For a more comprehensive survey about the multi-armed bandit problem, read *A
+    Survey of Online Experiment Design with Stochastic Multi-Armed Bandit*: [https://arxiv.org/pdf/1510.00757.pdf.](https://arxiv.org/pdf/1510.00757.pdf)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For reading the paper that leverages intrinsic motivation for playing Montezuma's
+    Revenge, refer to *Unifying Count-Based Exploration and Intrinsic Motivation*: [https://arxiv.org/pdf/1606.01868.pdf.](https://arxiv.org/pdf/1606.01868.pdf)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For the original ESBAS paper, follow this link: [https://arxiv.org/pdf/1701.08810.pdf](https://arxiv.org/pdf/1701.08810.pdf).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

@@ -1,0 +1,1293 @@
+- en: Enhancing and Segmenting Images
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We have just learned how to create neural networks that output predictions that
+    are more complex than just a single class. In this chapter, we will push this
+    concept further and introduce **encoders-decoders**, which are models used to
+    edit or generate full images. We will present how encoder-decoder networks can
+    be applied to a wide range of applications, from image denoising to object and
+    instance segmentation. This chapter comes with several concrete examples, such
+    as the application of encoders-decoders to semantic segmentation for self-driving
+    cars.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following topics will be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What encoders-decoders are, and how they are trained for pixel-level prediction
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Which novel layers they use to output high-dimensional data (unpooling, transposed,
+    and atrous convolutions)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How the FCN and U-Net architectures are tackling semantic segmentation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How the models we have covered so far can be extended to deal with instance
+    segmentation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Jupyter notebooks illustrating the concepts presented in this chapter can be
+    found in the following Git folder: [github.com/PacktPublishing/Hands-On-Computer-Vision-with-TensorFlow-2/tree/master/Chapter06](https://github.com/PacktPublishing/Hands-On-Computer-Vision-with-TensorFlow-2/tree/master/Chapter06)[.](https://github.com/PacktPublishing/Hands-On-Computer-Vision-with-Tensorflow/tree/master/ch3)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Later in this chapter, we introduce the `pydensecrf` library to improve segmentation
+    results. As detailed on its GitHub page (refer to the documentation at [https://github.com/lucasb-eyer/pydensecrf#installation](https://github.com/lucasb-eyer/pydensecrf#installation)),
+    this Python module can be installed through `pip` (`pip install git+https://github.com/lucasb-eyer/pydensecrf.git`)
+    and requires a recent version of Cython (`pip install -U cython`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transforming images with encoders-decoders
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As presented in [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml), *Computer
+    Vision and Neural Networks*, multiple typical tasks in computer vision require
+    pixel-level results. For example, semantic segmentation methods classify each
+    pixel of an image, and smart editing tools return images with some pixels altered
+    (for example, to remove unwanted elements). In this section, we will present encoders-decoders,
+    and how **convolutional neural networks** (**CNNs**) following this paradigm can
+    be applied to such applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introduction to encoders-decoders
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Before tackling complex applications, let's first introduce what encoders-decoders
+    are and what purpose they fulfill.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Encoding and decoding
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The encoder-decoder architecture is a very generic framework, with applications
+    in communications, cryptography, electronics, and beyond. According to this framework,
+    the **encoder** is a function that maps input samples into a **latent space**,
+    that is, a hidden structured set of values defined by the encoder. The **decoder**
+    is the complementary function that maps elements from this latent space into a
+    predefined target domain. For example, an encoder can be built to parse media
+    files (with their content represented as elements in its latent space), and it
+    can be paired with a decoder defined, for instance, to output the media contents
+    in a different file format. Well-known examples are the image and audio compression
+    formats we commonly use nowadays. JPEG tools encode our media, compressing them
+    into lighter binary files; they then decode them to recover the pixel values at
+    display time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In machine learning, encoder-decoder networks have been used for a long time
+    now (for instance, for text translation). An encoder network would take sentences
+    from the source language as input (for instance, French sentences) and learn to
+    project them into a latent space where the meaning of the sentence would be encoded
+    as a feature vector. A decoder network would be trained alongside the encoder
+    to convert the encoded vectors into sentences in the target language (for instance,
+    English).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Vectors from the latent space in encoder-decoder models are commonly called
+    **codes**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note that a common property of encoders-decoders is for their latent space
+    to be smaller than the input and target latent spaces, as shown in *Figure 6-1*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/2500985a-3cd3-4bc5-8ef6-0a0fd5799262.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6-1: Example of an auto-encoder trained on the MNIST dataset (copyright
+    owned by Yann LeCun and Corinna Cortes)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In *Figure 6-1*, the encoder is trained to convert the *28* × *28* images into
+    vectors (codes) of *32* values here, and the decoder is trained to recover the
+    images. These codes can be plotted with their class labels to highlight similarities/structures
+    in the dataset (the *32*-dimensional vectors are projected on a 2D plane using
+    **t-SNE**, a method developed by Laurens van der Maatens and Geoffrey Hinton and
+    detailed in the notebooks).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Encoders are designed or trained to extract/compress the semantic information
+    contained in the samples (for example, the meaning of a French sentence, without
+    the grammatical particularities of this language). Then, decoders apply their
+    knowledge of the target domain to decompress/complete the information accordingly
+    (for instance, converting the encoded information into a proper English sentence).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Auto-encoding
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Auto-encoders** (**AEs**) are a special type of encoders-decoders. As shown
+    in *Figure 6-1*, their input and target domains are the same, so their goal is
+    to properly encode and then decode images without impacting their quality, despite
+    their *bottleneck* (their latent space of lower dimensionality). The inputs are
+    reduced to a compressed representation (as feature vectors). If an original input
+    is requested later on, it can be reconstructed from its compressed representation
+    by the decoder.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: JPEG tools can thus be called AEs, as their goal is to encode images and then
+    decode them back without losing too much of their quality. The distance between
+    the input and output data is the typical loss to minimize for auto-encoding algorithms.
+    For images, this distance can simply be computed as the cross-entropy loss, or
+    as the L1/L2 loss (Manhattan and Euclidean distances, respectively) between the
+    input images and resulting images (as illustrated in [Chapter 3](dd1d3406-d506-4690-bf13-e5e0584ea9d1.xhtml),
+    *Modern Neural Networks*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In machine learning, auto-encoding networks are really convenient to train,
+    not only because their loss is straightforward to express, as we just described,
+    but also because their training does not require any labels. The input images
+    are the targets used to compute the loss.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is a schism among machine learning experts regarding AEs. Some claim that
+    these models are **unsupervised** since they do not require any additional labels
+    for their training. Others affirm that, unlike purely unsupervised methods (which
+    typically use complex loss functions to discover patterns in unlabeled datasets),
+    AEs have clearly defined targets (that is, their input images). Therefore, it
+    is also common for these models to be called **self-supervised** (that is, their
+    targets can be directly derived from their inputs).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Given the smaller latent space of AEs, their encoding sub-network must learn
+    to properly compress the data, whereas the decoder must learn a proper mapping
+    to decompress it back.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Without the bottleneck condition, this identity mapping would be straightforward
+    for networks with shortcut paths, such as ResNet (refer to [Chapter 4](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml),
+    *Influential Classification Tools*)*.* They could simply forward the complete
+    input information from encoder to decoder. With a lower-dimensional latent space
+    (bottleneck), they are forced to learn a properly compressed representation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Purpose
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Regarding the more generic encoders-decoders, their applications are numerous.
+    They are used to convert images, to map them from one domain or modality to another.
+    For example, such models are often applied to **depth regression**, that is, the
+    estimation of the distance between the camera and the image content (the depth)
+    for each pixel. This is an important operation for augmented-reality applications,
+    for example, since it allows them to build a 3D representation of the surroundings,
+    and thus to better interact with the environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Similarly, encoders-decoders are commonly used for **semantic segmentation**
+    (refer to [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml), *Computer Vision
+    and Neural Networks*, for its definition). In this case, the networks are trained
+    not to return the depth, but the estimated class for each pixel (refer to *Figure
+    6-2-c*). This important application will be detailed in the second part of this
+    chapter. Finally, encoders-decoders are also famous for their more *artistic use
+    cases*, such as transforming doodle art into pseudo-realistic images or estimating
+    the daytime equivalent of pictures taken at night:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/dad5686d-2a67-4c74-97fd-dc41265ac87e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6-2: Examples of applications for encoders-decoders. These three applications
+    are covered in the Jupyter notebooks for this chapter, with additional explanations
+    and implementation details'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The urban scene images and their labels for semantic segmentation in *Figure
+    6-2*, *Figure 6-10*, and *Figure 6-11* come from the *Cityscapes* dataset ([https://www.cityscapes-dataset.com](https://www.cityscapes-dataset.com)).
+    *Cityscapes* is an awesome dataset and a benchmark for recognition algorithms
+    applied to autonomous driving. Marius Cordts et al., the researchers behind this
+    dataset, kindly gave us the authorization to use some of their images to illustrate
+    this book and to demonstrate some algorithms presented later in this chapter (refer
+    to Jupyter notebooks).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's now consider AEs. Why should a network be trained to return its input
+    images? The answer lies once again in the bottleneck property of AEs. While the
+    encoding and decoding components are trained as a whole, they are applied separately
+    depending on the use cases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because of the bottleneck, the encoder has to compress the data while preserving
+    as much information as possible. Therefore, in case the training dataset has recurring
+    patterns, the network will try to uncover these correlations to improve the encoding.
+    The encoder part of an AE can thus be used to obtain low-dimensional representations
+    of images from the domain it was trained for. The low-dimensional representations
+    they provide are often good at preserving the content similarity between images,
+    for instance. Therefore, they are sometimes used for dataset visualization, to
+    highlight clusters and patterns (refer to *Figure 6-1*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: AEs are not as good as algorithms, such as JPEG for generic image compression.
+    Indeed, AEs are *data-specific*; that is, they can only efficiently compress images
+    from the domain they know (for example, an AE trained on images of natural landscapes
+    would work poorly on portraits since the visual features would be too different).
+    However, unlike traditional compression methods, AEs have a better understanding
+    of the images they were trained for, their recurring features, semantic information,
+    and more).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In some cases, AEs are trained for their decoders, which can be used for **generative
+    tasks**. Indeed, if the latent space has been appropriately structured during
+    training, then any vector randomly picked from this space can be turned into a
+    picture by the decoder! As we will briefly explain later in this chapter and in
+    [Chapter 7](337ec077-c215-4782-b56c-beae4d94d718.xhtml), *Training on Complex
+    and Scarce Datasets*, training a decoder for the generation of new images is actually
+    not that easy, and requires some careful engineering for the resulting images
+    to be realistic (this is especially true for the training of **generative adversarial
+    networks** (**GANs**), as explained in the next chapter).
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, **denoising AEs** are the most common AE instances found in practice.
+    These models have the particularity that their input images undergo a lossy transformation
+    before being passed to the networks. Since these models are still trained to return
+    the original images (before transformation), they will learn to cancel the lossy
+    operation and recover some of the missing information (refer to *Figure 6-2-a*).
+    Typical models are trained to cancel white or Gaussian noise, or to recover missing
+    content (such as occluded/removed image patches). Such AEs are also used for **smart
+    image upscaling**, also called **image super-resolution**. Indeed, these networks
+    can learn to partially remove the artifacts (that is, noise) caused by traditional
+    upscaling algorithms such as bilinear interpolation (refer to *Figure 6-2-b*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Basic example – image denoising
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We will illustrate the usefulness of AEs on a simple example—the denoising of
+    corrupted MNIST images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Simplistic fully connected AE
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'To demonstrate how simple, yet efficient, these models can be, we will opt
+    for a shallow, fully connected architecture, which we will implement with Keras:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: We have highlighted here the usual symmetrical architecture of encoders-decoders,
+    with their lower-dimensional bottleneck. To train our AE, we use the images (`x_train`)
+    both as inputs and as targets. Once trained, this simple model can be used to
+    embed datasets, as shown in *Figure 6-1*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We opted for *sigmoid* as the last activation function, in order to get output
+    values between 0 and 1, like the input values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Application to image denoising
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Training our previous model for image denoising is as simple as creating a
+    noisy copy of the training images and passing it as input to our network instead:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: The first two notebooks dedicated to this chapter detail the training process,
+    providing illustrations and additional tips (for instance, to visualize the images
+    predicted during training).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Convolutional encoders-decoders
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Like other **neural network** (**NN**)-based systems, encoders-decoders benefited
+    a lot from the introduction of convolutional and pooling layers. **Deep auto-encoders**
+    (**DAEs**) and other architectures soon became widely used for increasingly complex
+    tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will first introduce new layers developed for convolutional
+    encoders-decoders. We will then present some significant architectures based on
+    these operations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unpooling, transposing, and dilating
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As we saw in previous chapters, such as [Chapter 3](dd1d3406-d506-4690-bf13-e5e0584ea9d1.xhtml),
+    *Modern Neural Networks*, and [Chapter 4](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml),
+    *Influential Classification Tools*, CNNs are great *feature extractors*. Their
+    convolutional layers convert their input tensors into more and more high-level
+    feature maps, while their pooling layers gradually down-sample the data, leading
+    to compact and semantically rich features. Therefore, CNNs make for performant
+    encoders.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, how could this process be reversed to decode these low-dimensional
+    features into full images? As we will present in the following paragraphs, the
+    same way convolutions and pooling operations replaced dense layers for the encoding
+    of images, reverse operations—such as **transposed convolution** (also known as **deconvolutions**),
+    **dilated convolutions**, and **unpooling**—were developed to better decode features.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transposed convolution (deconvolution)
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Back in [Chapter 3](dd1d3406-d506-4690-bf13-e5e0584ea9d1.xhtml), *Modern Neural
+    Networks*, we introduced convolutional layers, the operations they perform, and
+    how their hyperparameters (kernel size *k*, input depth *D*, number of kernels
+    *N*, padding *p*, and stride *s*) affect the dimensions of their output (*Figure
+    6-3* serves as a reminder). For an input tensor of shape (*H*, *W*, *D*), we presented
+    the following equations to evaluate the output shape (*H[o]*, *W[o]*, *N*):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f8aa2ec8-6584-443a-b480-9c97145b58f0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Now, let''s assume that we want to develop a layer to reverse the spatial transformation
+    of convolutions. In other words, given a feature map of shape (*H[o]*, *W[o]*,
+    *N*) and the same hyperparameters, *k*, *D*, *N*, *p*, and *s*, we would like
+    a *convolution-like* operation to recover a tensor of shape (*H*, *W*, *D*). Isolating *H*
+    and *W* in the previous equations, we thus want an operation upholding the following
+    properties:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/1d436c0a-3be4-40bf-ad90-52ef801a8561.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This is how **transposed convolutions** were defined. As we briefly mentioned
+    in [Chapter 4](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml), *Influential Classification
+    Tools*, this new type of layer was proposed by Zeiler and Fergus, the researchers
+    behind ZFNet, the winning methods at ILSVRC 2013 (*Visualizing and understanding
+    convolutional networks*, *Springer, 2014*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: With a *k* × *k* × *D* × *N* stack of kernels, these layers convolve an *H[o]*
+    × *W[o]* × *N* tensor into an *H* × *W* × *D* map. To achieve this, the input
+    tensor first undergoes **dilation**. The dilation operation, defined by a rate, *d*,
+    consists of inserting *d* – 1 zeroed rows and columns between each couple of rows
+    and columns (respectively) of the input tensor, as shown in *Figure 6-4*. In a
+    transposed convolution, the dilation rate is set to *s* (the stride used for the
+    standard convolution it is reversing). After this resampling, the tensor is then
+    padded by *p*' = *k* – *p* – 1\. Both the dilation and padding parameters are
+    defined in this way in order to recover the original shape, (*H*, *W*, *D*). The
+    tensor is then finally convolved with the layer's filters using a stride of *s*'
+    = 1, finally resulting in an *H* × *W* × *D* map. Normal and transposed convolutions
+    are compared in *Figures 6-3* and *6-4*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following is a normal convolution:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/c33cac43-87ea-4a18-8a78-d962bc44b7c3.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6-3: Reminder of the operations performed by a convolutional layer (defined
+    here by a 3 × 3 kernel w, padding p = 1, and stride s = 2)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that in *Figure 6-3*, the mathematical operation between the patches and
+    the kernel is actually a cross-correlation (refer to [Chapter 3](dd1d3406-d506-4690-bf13-e5e0584ea9d1.xhtml),
+    *Modern Neural Networks*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following is a transposed convolution:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/849cef3b-5538-4a9e-befe-17b6f6e7b6ed.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6-4: Operations performed by a transposed convolution layer to reverse
+    the spatial transformation of a standard convolution (defined here by a 3 × 3
+    kernel *w*, padding *p* = 1, and dilation *d* = 2, as in Figure 6-3)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that this time, in *Figure 6-4*, the operation between the patches and
+    the kernel is mathematical convolution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If this process seems a bit abstract, it is enough to remember that transposed
+    convolutional layers are commonly used to mirror standard convolutions in order
+    to increase the spatial dimensionality of feature maps while convolving their
+    content with trainable filters. This makes these layers quite suitable for decoder
+    architectures. They can be instantiated using `tf.layers.conv2d_transpose()` (refer
+    to the documentation at [https://www.tensorflow.org/api_docs/python/tf/layers/conv2d_transpose](https://www.tensorflow.org/api_docs/python/tf/layers/conv2d_transpose))
+    and `tf.keras.layers.Conv2DTranspose()` (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/keras/layers/Conv2DTranspose](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Conv2DTranspose)),
+    which have the same signatures as the standard `conv2d` ones.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is another subtle difference between standard convolutions and transposed
+    ones, which does not have any real impact in practice, but which is still good
+    to know. Going back to [Chapter 3](dd1d3406-d506-4690-bf13-e5e0584ea9d1.xhtml),
+    *Modern Neural Networks*, we mentioned that convolutional layers in CNNs actually
+    perform cross-correlation. As shown in *Figure 6-4*, transposed convolutional
+    layers actually use mathematical convolution, flipping the indices of the kernels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transposed convolutions are also popularly, yet wrongly, called **deconvolutions**.
+    While there is a mathematical operation named *deconvolution*, it performs differently
+    than transposed convolution. Deconvolutions actually fully revert convolutions,
+    returning the original tensors. Transposed convolutions only approximate this
+    process and return tensors with the original shapes. As we can see in *Figures
+    6-3* and *6-4*, the shapes of the original and final tensors match, but not their
+    values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transposed convolutions are also sometimes called **fractionally strided convolutions**.
+    Indeed, the dilation of the input tensors can somehow be seen as the equivalent
+    of using a *fractional* stride for the convolution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unpooling
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Although strided convolutions are often used in CNN architectures, average-pooling
+    and max-pooling are the most common operations when it comes to reducing the spatial
+    dimensions of images. Therefore, Zeiler and Fergus also proposed a **max-unpooling**
+    operation (often simply referred to as **unpooling**) to pseudo-reverse max-pooling.
+    They used this operation within a network they called a **deconvnet**, to decode
+    and visualize the features of their *convnet* (that is, a CNN). In the paper describing
+    their solution after winning ILSVRC 2013 (in *Visualizing and understanding convolutional
+    networks*, *Springer, 2014*), they explain that, even though max-pooling is not
+    invertible (that is, we cannot mathematically recover all the non-maximum values
+    the operation discards), it is possible to define an operation approximating its
+    inversion, at least in terms of spatial sampling.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To implement this pseudo-inverse operation, they first modified each max-pooling
+    layer so that it outputs the pooling mask along with the resulting tensor. In
+    other words, this mask indicates the original positions of the selected maxima.
+    The max-unpooling operation takes for inputs the pooled tensor (which may have
+    undergone other shape-preserving operations in-between the operation) and the
+    pooling mask. It uses the latter to scatter the input values into a tensor upscaled
+    to its pre-pooling shape. A picture is worth a thousand words, so *Figure 6-5*
+    may help you to understand the operation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/7dbfd6f3-6a7f-4ccc-aa49-df760cfec394.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6-5: Example of a max-unpooling operation, following a max-pooling layer
+    edited to also output its pooling mask'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that, like pooling layers, unpooling operations are fixed/untrainable operations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Upsampling and resizing
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Similarly, an **average-unpooling** operation was developed to mirror average-pooling.
+    The latter operation takes a pooling region of *k* × *k* elements and averages
+    them into a single value. Therefore, an average-unpooling layer takes each value
+    of a tensor and duplicates it into a *k* × *k* region, as illustrated in *Figure
+    6-6*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/fffece53-111c-4993-b031-1220992eb61e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6-6: Example of an average-unpooling operation (also known as upsampling)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This operation is nowadays used more often than max-unpooling, and is more commonly
+    known as **upsampling**. For instance, this operation can be instantiated through
+    `tf.keras.layers.UpSampling2D()` (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/keras/layers/UpSampling2D](https://www.tensorflow.org/api_docs/python/tf/keras/layers/UpSampling2D)).
+    This method is itself nothing more than a wrapper for `tf.image.resize()` (refer
+    to the documentation at [https://www.tensorflow.org/api_docs/python/tf/image/resize](https://www.tensorflow.org/api_docs/python/tf/image/resize))
+    when called with the `method=tf.image.ResizeMethod.NEAREST_NEIGHBOR` argument,
+    used to resize images using nearest-neighbor interpolation (as its name implies).
+    Finally, note that bilinear interpolation is also sometimes used to upscale feature
+    maps without adding any parameters to train, for example, by instantiating `tf.keras.layers.UpSampling2D()`
+    with the `interpolation="bilinear"` argument (instead of the default `"nearest"` value),
+    which is equivalent to calling `tf.image.resize()` with the default `method=tf.image.ResizeMethod.BILINEAR` attribute.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In decoder architecture, each nearest-neighbor or bilinear upscaling is commonly
+    followed by a convolution with stride *s* = 1 and padding `"SAME"` (to preserve
+    the new shape). These combinations of predefined upscaling and convolutional operations
+    mirror the convolutional and pooling layers composing encoders, and allow the
+    decoder to learn its own features to better recover the target signals.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Some researchers, such as Augustus Odena, favor these operations over transposed
+    convolutions, especially for tasks such as image super-resolution. Indeed, transposed
+    convolutions tend to cause some checkerboard artifacts (due to feature overlapping
+    when the kernel size is not a multiple of the stride), impacting the output quality
+    (*Deconvolution and Checkerboard artifacts, Distill, 2016*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dilated/atrous convolution
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The last operation we will introduce in this chapter is a bit different from
+    the previous ones, as it is not meant to upsample a feature map provided. Instead,
+    it was proposed to artificially increase the receptive field of convolutions without
+    further sacrificing the spatial dimensionality of the data. To achieve this, **dilation**
+    is applied here too (refer to the *Transposed convolutions (deconvolution)* section),
+    though quite differently.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Indeed, **dilated convolutions** are similar to standard convolutions, with
+    an additional hyperparameter, *d*, defining the dilation applied to their kernels.
+    *Figure 6-7* illustrates how this process does artificially increase the layer''s
+    receptive field:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6d123b71-98b4-41cd-83c9-a11928744340.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6-7: Operations performed by a dilated-convolutional layer (defined
+    here by a 2 × 2 kernel w, padding p = 1, stride s = 1, and dilation d = 2)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: These layers are also called **atrous convolutions**, from the French expression
+    *à trous* (*with holes*). Indeed, while the kernel dilation increases the receptive
+    field, it does so by carving holes in it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With such properties, this operation is frequently used in modern encoders-decoders,
+    to map images from one domain to another. In TensorFlow and Keras, instantiating
+    dilated convolutions is just a matter of providing a value above the default 1
+    for the `dilation_rate` parameter of `tf.layers.conv2d()` and `tf.keras.layers.Conv2D()`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: These various operations developed to preserve or increase the spatiality of
+    feature maps led to multiple CNN architectures for pixel-wise dense prediction and
+    data generation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Example architectures – FCN and U-Net
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Most convolutional encoders-decoders follow the same template as their fully
+    connected counterparts, but leverage the spatial properties of their locally connected
+    layers for higher-quality results. A typical convolutional AE is presented in
+    one of the Jupyter notebooks. In this subsection, we will cover two more advanced
+    architectures derived from this basic template. Both released in 2015, the FCN
+    and U-Net models are still popular, and are commonly used as components for more
+    complex systems (in semantic segmentation, domain adaptation, and others).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fully convolutional networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'As briefly presented in [Chapter 4](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml),
+    *Influential Classification Tools*, **fully convolutional networks** (**FCNs**)
+    are based on the VGG-16 architecture, with the final dense layers replaced by
+    *1 *× *1* convolutions. What we did not mention was that these networks are commonly
+    extended with upsampling blocks and used as encoders-decoders. Proposed by Jonathan
+    Long, Evan Shelhamer, and Trevor Darrell from the University of California, Berkeley,
+    the FCN architecture perfectly illustrates the notions developed in the previous
+    subsection:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How CNNs for feature extraction can be used as efficient encoders
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How their feature maps can then be effectively upsampled and decoded by the
+    operations we just introduced
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Indeed, Jonathan Long et al. suggested reusing a pretrained VGG-16 as a feature
+    extractor (refer to [Chapter 4](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml), *Influential
+    Classification Tools*). With its five convolutional blocks, VGG-16 efficiently
+    transforms images into feature maps, albeit dividing their spatial dimensions
+    by two after each block. To decode the feature maps from the last block (for instance,
+    into semantic masks), the fully connected layers used for classification are replaced
+    by convolutional ones. The final layer is then applied – a transposed convolution
+    to upsample the data back to the input shape (that is, with a stride of *s* =
+    32, since the spatial dimensions are divided by 32 through VGG).
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, Long et al. quickly noticed that this architecture, named **FCN-32s**,
+    was yielding overly *coarse* results. As explained in their paper (*Fully convolutional
+    networks for semantic segmentation*, *Proceedings of the IEEE CVPR conference*,
+    *2015*), the large stride at the final layer indeed limits the scale of detail.
+    Though the features from the last VGG block contain rich contextual information,
+    too much of their spatial definition is already lost. Therefore, the authors had
+    the idea to fuse the feature maps from the last block with those larger ones from
+    previous blocks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In FCN-16s, the last layer of FCN-32s is thus replaced by a transposed layer
+    with a stride of *s* = 2 only, so the resulting tensor has the same dimensions
+    as the feature map from the fourth block. Using a skip connection, features from
+    both tensors are merged together (element-wise addition). The result is finally
+    scaled back to the input shape with another transposed convolution with *s* =
+    16\. In FCN-8s, the same procedure is repeated instead with features from the
+    third block, before the final transposed convolution with *s* = 8\. For clarity,
+    the complete architecture is presented in *Figure 6-8*, and a Keras implementation
+    is provided in the next example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6bf5d945-e3fe-4a50-831b-85475c77e8f6.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6-8: FCN-8s architecture. The data dimensions are shown after each block,
+    supposing an *H* × *W* input. *D*[o] represents the desired number of output channels'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 6-8* illustrates how VGG-16 serves as a feature extractor/encoder,
+    and how the transposed convolutions are used for decoding. The figure also highlights
+    that FCN-32s and FCN-16s are simpler, lighter architectures, with only one skip
+    connection, or none at all.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: With its use of transfer learning and its fusion of multi-scale feature maps,
+    FCN-8s can output images with fine details. Furthermore, because of its fully
+    convolutional nature, it can be applied to encode/decode images of different sizes.
+    Performant and versatile, FCN-8s is still commonly used in many applications,
+    while inspiring multiple other architectures.
+  prefs: []
+  type: TYPE_NORMAL
+- en: U-Net
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Among the solutions inspired by FCNs, the U-Net architecture is not only one
+    of the first; it is probably the most popular (proposed by Olaf Ronneberger, Philipp
+    Fischer, and Thomas Brox in a paper entitled *U-Net: Convolutional networks for
+    biomedical image segmentation*, published by Springer).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Also developed for semantic segmentation (applied to medical imaging), it shares
+    multiple properties with FCNs. It is also composed of a multi-block contractive
+    encoder that increases the features' depth while reducing their spatial dimensions,
+    and of an expansive decoder that recovers the image resolution. Moreover, like
+    in FCNs, skip connections are used to connect encoding blocks to their decoding
+    counterparts. The decoding blocks are thus provided with both the contextual information
+    from the preceding block and the location information from the encoding path.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'U-Net also differs from FCN in two main ways. Unlike FCN-8s, U-Net is **symmetrical**,
+    going back to the traditional U-shaped encoder-decoder structure (hence the name).
+    Furthermore, the merging with the feature maps from the skip connection is done
+    through **concatenation** (along the channel axis) instead of addition. The U-Net
+    architecture is depicted in *Figure 6-9*. As for the FCN, a Jupyter Notebook is
+    dedicated to its implementation from scratch:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ca653a8b-5c09-41be-972e-3245084e067d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6-9: U-Net architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note also that while the original decoding blocks have transposed convolutions
+    with *s = 2* for upsampling, it is common to find implementations using nearest-neighbor
+    scaling instead (refer to the discussion in the previous subsection). Given its
+    popularity, U-Net has known many variations and still inspires numerous architectures
+    (for example, replacing its blocks with residual ones, and densifying the intra-block
+    and extra-block connectivity).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Intermediary example – image super-resolution
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Let's briefly apply one of these models to a new problem – image super-resolution
+    (complete implementation and additional tips are found in the related notebook).
+  prefs: []
+  type: TYPE_NORMAL
+- en: FCN implementation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Remembering the architecture we just presented, a simplified version of FCN-8s
+    can be implemented as follows (note that the real model has additional convolutions
+    before each transposed one):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Reusing the Keras implementation of VGG and the Functional API, an FCN-8s model
+    can be created with minimal effort.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Application to upscaling images
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'A simple trick to train a network for super-resolution is to use a traditional
+    upscaling method (such as bilinear interpolation) to scale the images to the target
+    dimensions, before feeding them to the model. This way, the network can be trained
+    as a denoising AE, whose task is to clear the upsampling artifacts and to recover
+    lost details:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Proper code and complete demonstration on images can be found in the notebooks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As mentioned earlier, the architectures we just covered are commonly applied
+    to a wide range of tasks, such as depth estimation from color images, next-frame
+    prediction (that is, predicting what the content of the next image could be, taking
+    for input a series of video frames), and image segmentation. In the second part
+    of this chapter, we will develop the latter task, which is essential in many real-life
+    applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding semantic segmentation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Semantic segmentation** is a more generic term for the task of segmenting
+    images into meaningful parts. It covers both object segmentation and instance
+    segmentation, which were introduced in [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml),
+    *Computer Vision and Neural Networks*. Unlike image classification and object
+    detection, covered in the previous chapters, segmentation tasks require the methods
+    to return pixel-level dense predictions, that is, to assign a label to each pixel
+    in the input images.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: After explaining in more detail why encoders-decoders are thus great at object
+    segmentation, and how their results can be further refined, we will present some
+    solutions for the more complicated task of instance segmentation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Object segmentation with encoders-decoders
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As we saw in the first part of this chapter, encoding-decoding networks are
+    trained to map data samples from one domain to another (for example, from noisy
+    to noiseless, or from color to depth). Object segmentation can be seen as one
+    such operation – the mapping of images from the color domain to the class domain.
+    Given its value and context, we want to assign one of the target classes to each
+    pixel of a picture, returning a **label map** with the same height and width.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Teaching encoders-decoders to take an image and return a label map still requires
+    some consideration, which we will now discuss.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Overview
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the following paragraphs, we will present how networks such as U-Net are
+    used for object segmentation, and how their outputs can be further processed into
+    refined label maps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Decoding as label maps
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Building encoders-decoders to directly output label maps—where each pixel value
+    represents a class (for instance, `1` for *dog*, and `2` for *cat*)—would yield
+    poor results. As with classifiers, we need a better way to output categorical
+    values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To classify images among *N* categories, we learned to build networks with
+    the final layers outputting *N* logits, representing the predicted per-class scores.
+    We also learned how to convert these scores into probabilities using the **softmax**operation,
+    and how to return the most probable class(es) by picking the highest values (for
+    instance, using **argmax**). The same mechanism can be applied to semantic segmentation,
+    at the pixel level instead of the image level. Instead of outputting a column
+    vector of *N* logits containing the per-class scores for each full image, our
+    network is built to return an *H* × *W* × *N* tensor with scores for each pixel
+    (refer to *Figure 6-10*):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/041ed823-c5b3-47b2-850f-645a0916f564.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6-10: Given an input image of dimensions *H* × *W*, the network returns
+    an *H* × *W* × *N* probability map, with *N* being the number of classes. Using
+    argmax, the predicted label map can then be obtained'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For the architectures we presented in this chapter, obtaining such an output
+    tensor is simply a matter of setting *D**[o]* = *N*, that is, setting the number
+    of output channels equal to the number of classes when building the models (refer
+    to *Figures 6-8* and *6-9*). They can then be trained as classifiers. The **cross-entropy
+    loss** is used to compare the softmax values with the one-hot-encoded ground truth
+    label maps (the fact that the compared tensors have more dimensions for classification
+    that do not impact the calculations). Also, the *H* × *W* × *N* predictions can
+    be similarly transformed into per-pixel labels by selecting the indices of the
+    highest values along the channel axis (that is, `argmax` over the channel axis).
+    For instance, the FCN-8s code presented earlier can be adapted to train a model
+    for object segmentation, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: The Git repository contains a complete example of an FCN-8s model built and
+    trained for semantic segmentation, as well as a U-Net model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training with segmentation losses and metrics
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The use of state-of-the-art architectures, such as FCN-8s and U-Net, is key
+    to building performant systems for semantic segmentation. However, the most advanced
+    models still need a proper loss to converge optimally. While cross-entropy is
+    the default loss to train models both for coarse and dense classification, precautions
+    should be taken for the latter cases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For image-level and pixel-level classification tasks, **class imbalance** is
+    a common problem. Imagine training models over a dataset of 990 catpictures and
+    10 dogpictures. A model that would learn to always output cat would achieve 99%
+    training accuracy, but would not be really useful in practice. For image classification,
+    this can be avoided by adding or removing pictures so that all classes appear
+    in the same proportions. The problem is trickier for pixel-level classification.
+    Some classes may appear in every image but span only a handful of pixels, while
+    other classes may cover most of the images (such as *traffic sign* versus *road *classes
+    for our self-driving car application). The dataset cannot be edited to compensate
+    for such an imbalance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To prevent the segmentation models from developing a bias toward larger classes,
+    their loss functions should instead be adapted. For instance, it is common practice
+    to weigh the contribution of each class to the cross-entropy loss. As presented
+    in our notebook on semantic segmentation for self-driving cars and in *Figure
+    6-11*, the less a class appears in training images, the more it should weigh on
+    the loss. This way, the network would be heavily penalized if it starts ignoring
+    smaller classes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/578eba97-9363-4de3-b9d0-5a32c60dd13d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6-11: Examples of pixel weighing strategies for semantic segmentation
+    (the lighter the pixels, the greater their weight on the loss)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The weight maps are usually computed from the ground truth label maps. It should
+    be noted that, as shown in *Figure 6-11*, the weight applied to each pixel can
+    be set not only according to the class, but also according to the pixel's position
+    relative to other elements, and more.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another solution is to replace the cross-entropy with another cost function
+    that's not affected by the class proportions. After all, cross-entropy is a surrogate
+    accuracy function, adopted because it is nicely differentiable. However, this
+    function does not really express the actual objective of our models—to properly
+    segment the different classes, whatever their areas. Therefore, several loss functions
+    and metrics that are specific to semantic segmentation have been proposed by researchers
+    to more explicitly capture this objective.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Intersection-over-Union** (**IoU**), presented in [Chapter 5](593ada62-2ff4-4085-a15e-44f8f5e3d071.xhtml),
+    *Object Detection Models*, is one of these common metrics. The **Sørensen–Dice
+    coefficient** (often simply named the **Dice coefficient**) is another. Like IoU,
+    it measures how well two sets overlap:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b7d499fd-2d60-4663-9f4e-a6af1a01abd8.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, *|**A|* and *|B|* represent the cardinality of each set (refer to the explanations
+    in the previous chapter), and ![](img/72c18afa-cb39-4f19-b2ee-9b7f0743feca.png)
+    represents the number of elements they have in common (cardinality of their intersection). IoU
+    and Dice share several properties, and one can actually help calculate the other:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6c5e9c55-7c4d-4de2-980e-e15be36d1799.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In semantic segmentation, *Dice* is, therefore, used to measure how well the
+    predicted mask for each class overlaps the ground truth mask. For one class, the
+    numerator then represents the number of correctly classified pixels, and the denominator
+    represents the total number of pixels belonging to this class in both the predicted
+    and ground truth masks. As a metric, the *Dice* coefficient thus does not depend
+    on the relative number of pixels one class takes in images. For multi-class tasks,
+    scientists usually compute the *Dice* coefficient for each class (comparing each
+    pair of predicted and ground truth masks), and then average the results.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'From the equation, we can see the *Dice* coefficient is defined between 0 and
+    1—its value reaches 0 if *A* and *B* do not overlap at all, and it reaches 1 if
+    they do perfectly. Therefore, to use it as a loss function that a network should
+    minimize, we need to reverse this scoring. All in all, for semantic segmentation
+    applied to *N* classes, the *Dice* loss is commonly defined as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3920f224-4661-4428-9ce8-ec9610b4bbe3.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Let's clarify this equation a bit. If *a* and *b* are two one-hot tensors, then
+    the *Dice* numerator (that is, their intersection) can be approximated by applying
+    the element-wise multiplication between them (refer to [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml),
+    *Computer Vision and Neural Networks*), then by summing together all the values
+    in the resulting tensor. The denominator is obtained by summing all the elements, *a*
+    and *b*. Finally, a small value, ![](img/11068ff7-140a-42e3-a3f0-c49ed876d062.png)
+    (for instance, below *1e-6*), is usually added to the denominator to avoid dividing
+    by zero if the tensors contain nothing, and added to the numerator to smooth the
+    result.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that, in practice, unlike the ground truth one-hot tensors, the predictions
+    do not contain binary values. They are composed of the softmax probabilities ranging
+    continuously from 0 to 1\. This loss is therefore often named **soft Dice**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In TensorFlow, this loss can be implemented as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: Both *Dice* and *IoU* are important tools for segmentation tasks, and their
+    usefulness is further demonstrated in the related Jupyter notebook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Post-processing with conditional random fields
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Labeling every pixel properly is a complex task, and it is common to obtain
+    predicted label maps with poor contours and small incorrect areas. Thankfully,
+    there are some methods that post-process the results, correcting some obvious
+    defects. Among these methods, the **conditional random fields** (**CRFs**) methods
+    are the most popular because of their overall efficiency.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The theory behind this is beyond the scope of this book, but CRFs are able to
+    improve pixel-level predictions by taking into account the context of each pixel
+    back in the original image. If the color gradient between two neighboring pixels
+    is small (that is, no abrupt change of color), chances are that they belong to
+    the same class. Taking into account this spatial and color-based model, as well
+    as the probability maps provided by the predictors (in our case, the softmax tensors
+    from CNNs), CRF methods return refined label maps, which are better with respect
+    to visual contours.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Several ready-to-use implementations are available, such as `pydensecrf` by
+    Lucas Beyer ([https://github.com/lucasb-eyer/pydensecrf](https://github.com/lucasb-eyer/pydensecrf)),
+    a Python wrapper for dense CRFs with Gaussian edge potentials proposed by Philipp
+    Krähenbühl and Vladlen Koltun (refer to *Efficient inference in fully connected
+    CRFs with gaussian edge potentials*, *Advances in neural information processing
+    systems*, *2011*). In the last notebook for this chapter, we explain how to use
+    this framework.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Advanced example – image segmentation for self-driving cars
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As suggested at the beginning of this chapter, we will apply this new knowledge
+    to a complex real-life use case—the segmentation of traffic images for self-driving
+    cars.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Task presentation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Like human drivers, self-driving cars need to understand their environment and
+    be aware of the elements around them. Applying semantic segmentation to the video
+    images from a front camera would allow the system to know whether other cars are
+    around, to know whether pedestrians or bikes are crossing the road, to follow
+    traffic lines and signs, and more.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is, therefore, a critical process, and researchers are putting in lots
+    of effort into refining the models. For that reason, multiple related datasets
+    and benchmarks are available. The *Cityscapes* dataset ([https://www.cityscapes-dataset.com](https://www.cityscapes-dataset.com))
+    we chose for our demonstration is one of the most famous. Shared by Marius Cordts
+    et al. (refer to *The Cityscapes Dataset for Semantic Urban Scene Understanding*,
+    *Proceedings of the IEEE CVPR Conference*), it contains video sequences from multiple
+    cities, with semantic labels for more than 19 classes *(*road, car, plant, and
+    so on). A notebook is specifically dedicated to getting started with this benchmark.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exemplary solution
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the two final Jupyter notebooks for this chapter, FCN and U-Net models are
+    trained to tackle this task, using several of the tricks presented in this section.
+    We demonstrate how to properly weigh each class when computing the loss, we present
+    how to post-process the label maps, and more besides.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As the whole solution is quite long and notebooks are better suited to the present
+    code, we invite you to pursue the reading there, if you're interested in this
+    use case. This way, we can dedicate the rest of this chapter to another fascinating
+    problem—instance segmentation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The more difficult case of instance segmentation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: With models trained for object segmentation, the *softmax* output represents
+    for each pixel the probability that it belongs to one of *N* classes. However,
+    it does not express whether two pixels or blobs of pixels belong to the same instance
+    of a class. For example, given the predicted label map shown in *Figure 6-10*,
+    we have no way of counting the number of *tree* or *building* instances.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the following subsection, we will present two different ways of achieving
+    instance segmentation by extending solutions for two related tasks that we've
+    tackled already—object segmentation and object detection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: From object segmentation to instance segmentation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: First, we will present some tools that we can use to obtain instance masks from
+    the segmentation models we just covered. The U-Net authors popularized the idea
+    of tuning encoders-decoders so that their output can be used for instance segmentation.
+    This idea was pushed further by Alexander Buslaev, Victor Durnov, and Selim Seferbekov,
+    who famously won Kaggle's 2018 Data Science Bowl ([https://www.kaggle.com/c/data-science-bowl-2018](https://www.kaggle.com/c/data-science-bowl-2018)),
+    a sponsored competition to advance instance segmentation for medical applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Respecting boundaries
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: If elements captured by a semantic mask are well-separated/non-overlapping,
+    splitting the masks to distinguish each instance is not too complicated a task.
+    Plenty of algorithms are available to estimate the contours of distinct blobs
+    in binary matrices and/or to provide a separate mask for each blob. For multi-class
+    instance segmentation, this process can just be repeated for each class mask returned
+    by object segmentation methods, splitting them further into instances.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But precise semantic masks should first be obtained, or elements too close to
+    each other may be returned as a single blob. So, how can we ensure that segmentation
+    models put enough attention into generating masks with precise contours, at least
+    for non-overlapping elements? We know the answer already—the only way to teach
+    networks to do something specific is to adapt their training loss accordingly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: U-Net was developed for biomedical applications, to segment neuronal structures
+    in microscope images. To teach their network to separate nearby cells properly,
+    the authors decided to weight their loss function to more heavily penalize misclassified
+    pixels at the boundaries of several instances. Also illustrated in *Figure 6-11*,
+    this strategy is quite similar to the per-class loss weighting we presented in
+    the previous subsection, although here, the weighting is specifically computed
+    for each pixel. The U-Net authors present a formula to compute these weight maps
+    based on the ground truth class mask. For each pixel and for each class, this
+    formula takes into account the pixel's distance to the two nearest class instances.
+    The smaller the two distances, the higher the weight. The weight maps can be precomputed
+    and stored along the ground truth masks to be used together during training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that this per-pixel weighting can be combined with the per-class weighting in
+    multi-class scenarios. The idea to penalize the networks more heavily for certain
+    regions of the images can also be adapted to other applications (for example,
+    to better segment critical parts of manufactured objects).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We mentioned the winners of Kaggle''s 2018 Data Science Bowl, who put a noteworthy
+    spin on this idea. For each class, their custom U-Net was outputting two masks:
+    the usual mask predicting the per-pixel class probability, and a second mask capturing
+    the class boundaries. The ground truth boundary masks were precomputed based on
+    the class masks. After proper training, the information from the two predicted
+    masks can be used to obtain well-separated elements for each class.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Post-processing into instance masks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As discussed earlier in the previous section, once precise masks are obtained,
+    non-overlapping instances can be identified from them by applying proper algorithms.
+    This post-processing is usually done using **morphological functions**, such as
+    **mask** **erosion** and **dilation**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Watershed transforms** are another common family of algorithms that further
+    segment the class masks into instances. These algorithms take a one-channel tensor
+    and consider it as a topographic surface, where each value represents an elevation.
+    Using various methods that we won''t go into, they then extract the ridges'' tops,
+    representing the instance boundaries. Several implementations of these transforms
+    are available, some of which are CNN-based, such as the *Deep watershed transform
+    for instance segmentation* (*Proceedings of the IEEE CVPR conference*, *2017*),
+    by Min Bai and Raquel Urtasun from the University of Toronto. Inspired by the
+    FCN architecture, their network takes for input both the predicted semantic mask
+    and the original RGB image, and returns an energy map that can be used to identify
+    the ridges. Thanks to the RGB information, this solution can even separate overlapping
+    instances with good accuracy.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: From object detection to instance segmentation – Mask R-CNN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: A second way of addressing instance segmentation is from the angle of object
+    detection. In [Chapter 5](593ada62-2ff4-4085-a15e-44f8f5e3d071.xhtml), *Object
+    Detection Models*, we presented solutions to return the bounding boxes for object
+    instances appearing in images. In the following paragraphs, we will demonstrate
+    how these results can be turned into more refined instance masks. More precisely,
+    we will present **Mask R-CNN**, a network extending **Faster R-CNN**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Applying semantic segmentation to bounding boxes
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'When we introduced object detection in [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml),
+    *Computer Vision and Neural Networks*, we explained that this process is often
+    used as a preliminary step, providing image patches containing a single instance
+    for further analysis. With this in mind, instance segmentation becomes a matter
+    of two steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using an object detection model to return bounding boxes for each instance of
+    target classes
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Feeding each patch to a semantic segmentation model to obtain the instance mask
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: If the predicted bounding boxes are accurate (each capturing a whole, single
+    element), then the task of the segmentation network is straightforward—to classify
+    which pixels in the corresponding patch belong to the captured class, and which
+    pixels are part of the background/belong to another class.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This way of solving instance segmentation is advantageous, as we already have
+    all the necessary tools to implement it (object detection and semantic segmentation
+    models)!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building an instance segmentation model with Faster-RCNN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: While we could simply use a pretrained detection network followed by a pretrained
+    segmentation network, the whole pipeline would certainly work better if the two
+    networks were stitched together and trained in an end-to-end manner. Backpropagating
+    the segmentation loss through the common layers would better ensure that the features
+    extracted are meaningful both for the detection and the segmentation tasks. This
+    is pretty much the original idea behind *Mask R-CNN* by Kaiming He et al. from
+    **Facebook AI Research** (**FAIR**) in 2017 (*Mask R-CNN*, *Proceedings of the
+    IEEE CVPR conference*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: If the name rings a bell, Kaiming He was also among the main authors of ResNet
+    and Faster R-CNN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Mask R-CNN is mostly based on Faster R-CNN. Like Faster R-CNN, Mask R-CNN is
+    composed of a region-proposal network, followed by two branches predicting the
+    class and the box offset for each proposed region (refer to [Chapter 5](593ada62-2ff4-4085-a15e-44f8f5e3d071.xhtml),
+    *Object Detection Models*). However, the authors extended this model with a *third
+    parallel branch*, outputting a binary mask for the element in each region (as
+    shown in *Figure 6-12*). Note that this additional branch is only composed of
+    a couple of standard and transposed convolutions. As the authors highlighted in
+    their paper, this parallel processing follows the spirit of Faster R-CNN, and
+    contrasts with other instance segmentation methods, which are usually sequential:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f5c8d229-30e0-4f17-8de2-bb52d744aefc.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6-12: Mask R-CNN architecture, based on Faster R-CNN'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thanks to this parallelism, He et al. could decouple the classification and
+    segmentation. While the segmentation branch is defined to output *N* binary masks
+    (one for each class, like any usual semantic segmentation model), only the mask
+    corresponding to the class predicted by the other branch will be considered for
+    the final prediction and for the training loss. In other words, only the mask
+    of the instance class contributes to the cross-entropy loss applied to the segmentation
+    branch. As explained by the authors, this lets the segmentation branch predict
+    label maps without competition among the classes, thereby simplifying its task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another famous contribution of the Mask R-CNN authors is the **RoI** **a****lign**
+    **layer**, replacing the **RoI pooling** of Faster R-CNN. The difference between
+    the two is actually quite subtle, but provides a non-negligible accuracy boost.
+    RoI pooling causes quantization, for instance, by discretizing the coordinates
+    of the subwindow cells (refer to [Chapter 5](593ada62-2ff4-4085-a15e-44f8f5e3d071.xhtml),
+    *Object Detection Models,* and *Figure 5-13*). While this does not really impact
+    the predictions of the classification branch (it's robust to such small misalignments),
+    this would affect the quality of the pixel-level prediction of the segmentation
+    branch. To avoid this, He et al. simply *removed the discretization* and *used
+    bilinear interpolation* instead to obtain the cells' content.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Mask R-CNN distinguished itself at the COCO 2017 challenges, and is widely used
+    nowadays. Multiple implementations can be found online, for instance, in the folder
+    of the `tensorflow/models` repository dedicated to object detection and instance
+    segmentation ([https://github.com/tensorflow/models/tree/master/research/object_detection](https://github.com/tensorflow/models/tree/master/research/object_detection)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we covered several paradigms for pixel-precise applications.
+    We introduced encoders-decoders and some specific architectures and applied them
+    to multiple tasks from image denoising to semantic segmentation. We also demonstrated
+    how different solutions can be combined to tackle more advanced problems, such
+    as instance segmentation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we tackle more and more complex tasks, new challenges arise. For example,
+    in semantic segmentation, precisely annotating images to train models is a time-consuming
+    task. Available datasets are thus usually scarce, and specific measures should
+    be taken to avoid overfitting. Furthermore, because the training images and their
+    ground truths are heavier, well-engineered data pipelines are needed for efficient
+    training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the following chapter, we will, therefore, provide in-depth details of how
+    TensorFlow can be used to effectively augment and serve training batches.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: What is the particularity of AEs?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Which classification architecture are FCNs based on?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How can a semantic segmentation model be trained so that it does not ignore
+    small classes?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '*Mask R-CNN* ([http://openaccess.thecvf.com/content_iccv_2017/html/He_Mask_R-CNN_ICCV_2017_paper.html](http://openaccess.thecvf.com/content_iccv_2017/html/He_Mask_R-CNN_ICCV_2017_paper.html))
+    by Kaiming He, Georgia Gkioxari, Piotr Dollar, and Ross Girshick: This nicely
+    written conference paper mentioned in the chapter presents Mask R-CNN, providing
+    additional illustrations and details that may help you to understand this model.'
+  prefs: []
+  type: TYPE_NORMAL

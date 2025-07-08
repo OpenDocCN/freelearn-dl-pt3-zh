@@ -1,0 +1,1626 @@
+- en: Object Detection Models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: From self-driving cars to content moderation, detecting objects and their position
+    in an image is a canonical task in computer vision. In this chapter, we will introduce
+    techniques used for **object detection**. We will detail the architecture of two
+    of the most prevalent models among the current state of the art—**You Only Look
+    Once** (**YOLO**) and **Regions with Convolutional Neural Networks** (**R-CNN**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following topics will be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The history of object detection techniques
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The main object detection approaches
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Implementing fast object detection using YOLO architecture
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Improving object detection using Faster R-CNN architecture
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using Faster R-CNN with the TensorFlow Object Detection API
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The code for this chapter is available in the form of notebooks at [https://github.com/PacktPublishing/Hands-On-Computer-Vision-with-TensorFlow-2/tree/master/Chapter05](https://github.com/PacktPublishing/Hands-On-Computer-Vision-with-TensorFlow-2/tree/master/Chapter05).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing object detection
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Object detection was briefly introduced in [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml),
+    *Computer Vision and Neural Networks*. In this section, we will cover its history,
+    as well as the core technical concepts.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Background
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Object detection, also called **object localization**, is the process of detecting
+    objects and their **bounding boxes** in an image. A bounding box is the smallest
+    rectangle of an image that fully contains an object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A common input for an object detection algorithm is an image. A common output
+    is a list of bounding boxes and object classes. For each bounding box, the model
+    outputs the corresponding predicted class and its confidence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Applications
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The applications of object detection are numerous and cover many industries.
+    For instance, object detection can be used for the following purposes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In self-driving cars, to locate other vehicles and pedestrians
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For content moderation, to locate forbidden objects and their respective size
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In health, to locate tumors or dangerous tissue using radiographs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In manufacturing, for assembly robots to put together or repair products
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In the security industry, to detect threats or count people
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In wildlife conservation, to monitor an animal population
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: These are just a few examples—more and more applications are being discovered
+    every day as object localization becomes more powerful.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Brief history
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Historically, object detection relied on a classical computer vision technique: **image
+    descriptors**. To detect an object, for instance, a bike, you would start with
+    several pictures of this object. Descriptors corresponding to the bike would be
+    extracted from the image. Those descriptors would represent specific parts of
+    the bike. When looking for this object, the algorithm would attempt to find the
+    descriptors again in the target images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To locate the bike in the image, the most commonly used technique was the **floating
+    window**. Small rectangular areas of the images are examined, one after the other.
+    The part with the most matching descriptors would be considered to be the one
+    containing the object. Over time, many variations were used.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This technique presented a few advantages: it was robust to rotation and color
+    changes, it did not require a lot of training data, and it worked with most objects.
+    However, the level of accuracy was not satisfactory.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: While neural networks were already in use in the early 1990s (for detecting
+    faces, hands, or text in images), they started outperforming the descriptor technique on
+    the ImageNet challenge by a very large margin in the early 2010s.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since then, performance has been improving steadily. Performance refers to
+    how good the algorithm is at the following things:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Bounding box precision**: Providing the correct bounding box (not too large
+    or too narrow)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Recall**: Finding all the objects (not missing any objects)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Class precision**: Outputting the correct class for each object (not mistaking
+    a cat for a dog)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Performance improvement also means that the models are getting faster and faster
+    at computing results (for a specific input image size and at a specific computing
+    power). While early models took considerable time (more than a few seconds) to
+    detect objects, they can now be used in real time. In the context of computer
+    vision, real time usually means more than five detections per second.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Evaluating the performance of a model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To compare different object detection models, we need common evaluation metrics.
+    For a given test set, we run each model and gather its predictions. We use the
+    predictions and the ground truth to compute an evaluation metric. In this section,
+    we will have a look at the metrics used to evaluate object detection models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Precision and recall
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: While they are usually not used to evaluate object detection models, **precision**
+    and **recall** serve as a basis to compute other metrics. A good understanding
+    of precision and recall is, therefore, essential.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To measure precision and recall, we first need to compute the following for
+    each image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**The number of** **true positives**: **True positives** (**TP**) determine
+    how many predictions match with a ground truth box of the same class.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**The number of false positives**: **False positives** (**FP**) determine how
+    many predictions do not match with a ground truth box of the same class.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**The number of** **false negatives**: **False negatives** (**FN**) determine
+    how many ground truths do not have a matching prediction.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Then, precision and recall are defined as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/5464f034-f644-497d-a77f-ab28ca5437ae.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Notice that if the predictions exactly match all the ground truths, there will
+    not be any false positives or false negatives. Therefore, precision and recall
+    will be equal to 1, a perfect score. If a model too often predicts the presence
+    of an object based on non-robust features, precision will deteriorate because
+    there will be many false positives. On the contrary, if a model is too strict
+    and considers an object detected only when precise conditions are met, recall
+    will suffer because there will be many false negatives.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Precision-recall curve
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Precision-recall curve** is used in many machine learning problems. The general
+    idea is to visualize the precision and the recall of the model at each **threshold
+    of confidence**. With every bounding box, our model will output a confidence—a
+    number between 0 and 1 characterizing how confident the model is that a prediction
+    is correct.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because we do not want to keep the less confident predictions, we usually remove
+    those below a certain threshold, 𝑇. For instance, if 𝑇 = 0.4, we will not consider
+    any prediction with a confidence below this number.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Moving the threshold has an impact on precision and on recall:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**If T is close to 1**: Precision will be high, but the recall will be low.
+    As we filter out many objects, we miss a lot of them—recall shrinks. As we only
+    keep confident predictions, we do not have many false positives—precision rises.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**If T is close to 0**: Precision will be low, but the recall will be high.
+    As we keep most predictions, we will not have any false negatives—recall rises.
+    As our model is less confident in its predictions, we will have many false positives—precision
+    shrinks.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'By computing the precision and the recall at each threshold value between 0
+    and 1, we can obtain a precision-recall curve, as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/2a65d1ce-2626-4dfb-b798-106009cd4eaf.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.1: Precision-Recall curve
+  prefs: []
+  type: TYPE_NORMAL
+- en: Choosing a threshold is a trade-off between accuracy and recall. If a model
+    is detecting pedestrians, we will pick a high recall in order not to miss any
+    passers-by, even if it means stopping the car for no valid reason from time to
+    time. If a model is detecting investment opportunities, we will pick a high precision
+    to avoid choosing the wrong opportunities, even if it means missing some.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Average precision and mean average precision
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: While the precision-recall curve can tell us a lot about the model, it is often
+    more convenient to have a single number. **Average precision** (**AP**) corresponds
+    to the area under the curve. Since it is always contained in a one-by-one rectangle,
+    AP is always between 0 and 1.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Average precision gives information about the performance of a model for a single
+    class. To get a global score, we use **mean Average Precision** (**mAP**). This
+    corresponds to the mean of the average precision for each class. If the dataset
+    has 10 classes, we will compute the average precision for each class and take
+    the average of those numbers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Mean average precision is used in at least two object detection challenges—**PASCAL
+    Visual Object Classes** (usually referred to as **Pascal VOC**), and **Common
+    Objects in Context** (usually referred to as **COCO**). The latter is larger and
+    contains more classes; therefore, the scores obtained are usually lower than for
+    the former.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Average precision threshold
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We mentioned earlier that true and false positives were defined by the number
+    of predictions matching or not matching the ground truth boxes. However, how do
+    you decide when a prediction and the ground truth are matching? A common metric
+    is the **Jaccard index**, which measures how well two sets overlap (in our case,
+    the sets of pixels represented by the boxes). Also known as **Intersection over
+    Union** (**IoU**), it is defined as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/7c274090-cac1-480c-b08a-93c2adb684e7.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '|𝐴| and |𝐵| are the **cardinality** of each set; that is, the number of elements
+    they each contain. 𝐴 ⋂ 𝐵 is the intersection of the two sets, and therefore the
+    numerator |𝐴 ⋂ 𝐵| represents the number of elements they have in common. Similarly,
+    𝐴 ⋃ 𝐵 is the union of the sets (as seen in the following diagram), and therefore
+    the denominator |𝐴 ⋃ 𝐵| represents the total number of elements the two sets cover
+    together:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d55b879f-d640-4d10-a5eb-5af732559f3a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.2: Intersection and union of boxes illustrated
+  prefs: []
+  type: TYPE_NORMAL
+- en: Why compute such a fraction and not just use the intersection? While the intersection
+    would provide a good indicator of how much two sets/boxes overlap, this value
+    is absolute and not relative. Therefore, two big boxes would probably overlap
+    by many more pixels than two small boxes. This is why this ratio is used—it will
+    always be between 0 (if the two boxes do not overlap) and 1 (if two boxes overlap
+    completely).
+  prefs: []
+  type: TYPE_NORMAL
+- en: When computing the average precision, we say that two boxes overlap if their
+    IoU is above a certain threshold. The threshold usually chosen is *0.5*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For the Pascal VOC challenge, 0.5 is also used—we say that we use mAP@0.5 (pronounced
+    *mAP* *at 0.5*). For the COCO challenge, a slightly different metric is used—mAP@[0.5:0.95].
+    This means that we compute mAP@0.5, mAP@0.55, ..., *mAP*@0.95, and take the average.
+    Averaging over IoUs rewards models with better localization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A fast object detection algorithm – YOLO
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: While the acronym may make you smile, YOLO is one of the fastest object detection
+    algorithms available. The latest version, YOLOv3, can run at more than 170 **frames
+    per second** (**FPS**) on a modern GPU for an image size of *256 *× *256*. In
+    this section, we will introduce the theoretical concept behind its architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing YOLO
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'First released in 2015, YOLO outperformed almost all other object detection
+    architectures, both in terms of speed and accuracy. Since then, the architecture
+    has been improved several times. In this chapter, we will draw our knowledge from
+    the following three papers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*You Only Look Once: Unified, real-time object detection (2015)*, Joseph Redmon,
+    Santosh Divvala, Ross Girshick, and Ali Farhadi'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*YOLO9000: Better, Faster, Stronger (2016)*, Joseph Redmon and Ali Farhadi'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*YOLOv3: An Incremental Improvement (2018)*, Joseph Redmon and Ali Farhadi'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For the sake of clarity and simplicity, we will not describe all the small details
+    that allow YOLO to reach its maximum performance. Instead, we will focus on the
+    general architecture of the network. We'll provide an implementation of YOLO so
+    that you can compare our architecture with code. It is available in the chapter's
+    repository.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This implementation has been designed to be easy to read and understand. We
+    invite those readers who wish to acquire a deep understanding of the architecture
+    to first read this chapter and then refer to the original papers and the implementation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The main author of the YOLO paper maintains a deep learning framework called
+    **Darknet** ([https://github.com/pjreddie/darknet](https://github.com/pjreddie/darknet)).
+    This hosts the official implementation of YOLO and can be used to reproduce the
+    paper's results. It is coded in C++ and is not based on TensorFlow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Strengths and limitations of YOLO
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: YOLO is known for its speed. However, it has been recently outperformed in terms
+    of accuracy by **Faster R-CNN** (covered later in this chapter). Moreover, due
+    to the way it detects objects, YOLO struggles with smaller objects. For instance,
+    it would have trouble detecting single birds from a flock. As with most deep learning
+    models, it also struggles to properly detect objects that deviate too much from
+    the training set (unusual aspect ratios or appearance). Nevertheless, the architecture
+    is constantly evolving, and those issues are being worked on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: YOLO's main concepts
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The core idea of YOLO is this: **reframing object detection as a single regression
+    problem**. What does this mean? Instead of using a sliding window or another complex
+    technique, we will divide the input into a *w × h* grid, as represented in this
+    diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/266bcb07-9913-4888-a3d2-8a2bfcab7b6c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.3: An example involving a plane taking off. Here, w = 5, h = 5, and
+    B = 2, meaning, in total, 5 × 5 × 2 = 50 potential boxes, but only 2 are shown
+    in the image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For each part of the grid, we will define *B* bounding boxes. Then, our only
+    task will be to predict the following for each bounding box:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The center of the box
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The width and height of the box
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The probability that this box contains an object
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The class of said object
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Since all those predictions are numbers, we have therefore transformed the object
+    detection problem into a regression problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is important to make a distinction between the grid cells that divide the
+    pictures into equal parts (*w* × *h* parts to be precise) and the bounding boxes
+    that will locate the objects. Each grid cell contains *B* bounding boxes. Therefore,
+    there will be *w* × *h* × *B* possible bounding boxes in the end.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In practice, the concepts used by YOLO are a bit more complex than this. What
+    if there are several objects in one part of the grid? What if an object overlaps
+    several parts of the grid? More importantly, how do we choose a loss to train
+    our model? We will now have a deeper look at YOLO architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Inferring with YOLO
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Because the architecture of the model can be quite hard to understand in one
+    go, we will split the model into two parts—inference and training. **Inference**
+    is the process of taking an image input and computing results. **Training** is
+    the process of learning the weights of the model. When implementing a model from
+    scratch, inference cannot be used before the model is trained. But, for the sake
+    of simplicity, we are going to start with inference.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The YOLO backbone
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Like most image detection models, YOLO is based on a **backbone model**. The
+    role of this model is to extract meaningful features from the image that will
+    be used by the final layers. This is why the backbone is also called the **feature
+    extractor**, a concept introduced in [Chapter 4](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml),
+    *Influential Classification Tools*. The general YOLO architecture is depicted
+    here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/18e34cb2-6234-4212-8ca4-d06843d049df.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.4: YOLO architecture summarized. Note that the backbone is exchangeable
+    and that its architecture may vary
+  prefs: []
+  type: TYPE_NORMAL
+- en: While any architecture can be chosen as a feature extractor, the YOLO paper
+    employs a custom architecture. The performance of the final model depends heavily
+    on the choice of the feature extractor's architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The final layer of the backbone outputs a feature volume of size *w* × *h* ×
+    *D*, where *w* × *h* is the size of the grid and *D* is the depth of the feature
+    volume. For instance, for VGG-16, *D = 512*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The size of the grid, *w* × *h*, depends on two factors:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**The stride of the complete feature extractor**: For VGG-16, the stride is
+    16, meaning that the feature volume output will be 16 times smaller than the input
+    image.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**The size of the input image:** Since the feature volume''s size is proportional
+    to the size of the image, the smaller the input, the smaller the grid.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: YOLO's final layer accepts the feature volume as an input. It is composed of
+    convolutional filters of size *1* × *1*. As seen in [Chapter 4](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml),
+    *Influential Classification Tools*, a convolutional layer of size *1* × *1* can
+    be used to change the depth of the feature volume without affecting its spatial
+    structure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: YOLO's layers output
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'YOLO''s final output is a *w* × *h* × *M* matrix, where *w* × *h* is the size
+    of the grid, and *M* corresponds to the formula *B* × *(C + 5)*, where the following
+    applies:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*B* is the number of bounding boxes per grid cell.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*C* is the number of classes (in our example, we will use 20 classes).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Notice that we add *5* to the number of classes. This is because, for each
+    bounding box, we need to predict *(C + 5)* numbers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*t[x]* and *t[y]* will be used to compute the coordinates of the center of
+    the bounding box.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*t[w]* and *t[h]* will be used to compute the width and height of the bounding
+    box.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*c* is the confidence that an object is in the bounding box.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*p1*, *p2*, ..., and *pC* are the probability that the bounding box contains
+    an object of class *1*, *2*, ..., *C* (where *C = 20* in our example).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'This diagram summarizes how the output matrix appears:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6eb909f6-a8e5-40ef-b202-9763d8637aec.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.5: Final matrix output of YOLO. In this example, *B = 5*, *C = 20*,
+    *w = 13,* and *h = 13*. The size is 13 × 13 × 125'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before we explain how to use this matrix to compute the final bounding boxes,
+    we need to introduce an important concept—**anchor boxes**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing anchor boxes
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We mentioned that *t[x]*, *t[y]*, *t[w]*, and *t[h]* are used to compute the
+    bounding box coordinates. Why not ask the network to output the coordinates directly
+    (*x*, *y*, *w*, and *h*)? In fact, that is how it was done in YOLO v1\. Unfortunately,
+    this resulted in a lot of errors because objects vary in size.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Indeed, if most of the objects in the train dataset are big, the network will
+    tend to predict *w* and *h* as being very large. And when using the trained model
+    on small objects, it will often fail. To fix this problem, YOLO v2 introduced
+    **anchor boxes**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Anchor boxes (also called **priors**) are a set of bounding box sizes that
+    are decided upon before training the network. For instance, when training a neural
+    network to detect pedestrians, tall and narrow anchor boxes would be picked. An
+    example is shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/776b173e-60b2-45e3-8f90-1b96f67f2ae5.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.6: On the left are the three bounding box sizes picked to detect pedestrians.
+    On the right is how we adapt one of the bounding boxes to match a pedestrian
+  prefs: []
+  type: TYPE_NORMAL
+- en: A set of anchor boxes is usually small—from 3 to 25 different sizes in practice.
+    As those boxes cannot exactly match all the objects, the network is used to refine
+    the closest anchor box. In our example, we fit the pedestrian in the image with
+    the closest anchor box and use the neural network to correct the height of the
+    anchor box. This is what *t[x]*, *t[y]*, *t[w]*, and *t[h]* correspond to—**corrections
+    to the anchor box**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When they were first introduced in the literature, anchor boxes were picked
+    manually. Usually, nine box sizes were used:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Three squares (small, medium, and large)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Three horizontal rectangles (small, medium, and large)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Three vertical rectangles (small, medium, and large)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: However, in the YOLOv2 paper, the authors recognized that the sizes of anchor
+    boxes are different for each dataset. Therefore, before training the model, they
+    recommend analyzing the data to pick the size of the anchor boxes. To detect pedestrians,
+    as previously, vertical rectangles would be used. To detect apples, square anchor
+    boxes would be used.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How YOLO refines anchor boxes
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In practice, YOLOv2 computes each final bounding box''s coordinates using the
+    following formulas:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3043125d-8af4-4a95-b9df-5ffa624f1859.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The terms of the preceding equation can be explained as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*t[x] , t[y] , t[w] ,* and *t*[*h* ] are the outputs from the last layer.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*b[x] , b[y] , b[w] ,* and*  b[h]* are the position and size of the predicted
+    bounding box, respectively.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*p[w]* and *p[h]* represent the original size of the anchor box.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*c[x]* and *c*[*y*] are the coordinates of the current grid cell (they will
+    be (0,0) for the top-left box, (w - 1,0) for the top-right box, and (0, h - 1)
+    for the bottom-left box).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*exp* is the exponential function.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*sigmoid* is the sigmoid function, described in [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml),
+    *Computer Vision and Neural Networks*.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'While this formula may seem complex, this diagram may help to clarify matters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/37cbf53f-ae4f-4945-9b9f-d2ed447467de.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.7: How YOLO refines and positions anchor boxes
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding diagram, we see that on the left, the solid line is the anchor
+    box, and the dotted line is the refined bounding box. On the right, the dot is
+    the center of the bounding box.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The output of the neural network, a matrix with raw numbers, needs to be transformed
+    into a list of bounding boxes. A simplified version of the code would look like
+    this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: This code needs to be run for every inference in order to compute bounding boxes
+    for an image. Before we can display the boxes, we need one more post-processing
+    operation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Post-processing the boxes
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We end up with the coordinates and the size of the predicted bounding boxes,
+    as well as the confidence and the class probabilities. All we have to do now is
+    to multiply the confidence by the class probabilities and threshold them in order
+    to only keep high probabilities:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here is an example of this operation with a simple sample, with a threshold
+    of `0.3` and a box confidence (for this specific box) of `0.5`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **CLASS_LABELS** | *dog* | *airplane* | *bird* | *elephant* |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **classes_scores** | 0.7 | 0.8 | 0.001 | 0.1 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **final_scores** | 0.35 | 0.4 | 0.0005 | 0.05 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| **filtered_scores** | 0.35 | 0.4 | 0 | 0 |'
+  prefs: []
+  type: TYPE_TB
+- en: 'Then, if `filtered_scores` contains non-null values, this means we have at
+    least one class above the threshold. We keep the class with the highest score:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: In our example, `class_label` would be *airplane*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once we have applied this filtering to all of the bounding boxes in the grid,
+    we end up with all the information we need to draw the predictions. The following
+    photograph shows what we would obtain by doing so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/fe6e18ee-9cb9-4659-89cf-852764887aa2.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.8: Example of the raw bounding box output being drawn over the image
+  prefs: []
+  type: TYPE_NORMAL
+- en: Numerous bounding boxes are overlapping. As the plane is covering several grid
+    cells, it has been detected more than once. To correct this, we need one last
+    step in our post-processing pipeline—**non-maximum suppression** (**NMS**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: NMS
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The idea of NMS is to remove boxes that overlap the box with the highest probability.
+    We therefore remove boxes that are **non-maximum**. To do so, we sort all the
+    boxes by probability, taking the ones with the highest probability first. Then,
+    for each box, we compute the IoU with all the other boxes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After computing the IoU between a box and the other boxes, we remove the ones
+    with an IoU above a certain threshold (the threshold is usually around 0.5-0.9).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With pseudo-code, this is what NMS would look like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: In practice, TensorFlow provides its own implementation of NMS, `tf.image.non_max_suppression(boxes,
+    ...)` (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/image/non_max_suppression](https://www.tensorflow.org/api_docs/python/tf/image/non_max_suppression)),
+    which we recommend using (it is well optimized and offers useful options). Also
+    note that NMS is used in most object detection model post-processing pipelines.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After performing NMS, we obtain a much better result with a single bounding
+    box, as illustrated in the following photograph:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6d43a0d2-d97b-4cad-9353-09a301e13916.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.9: Example of the bounding boxes drawn over the image after NMS
+  prefs: []
+  type: TYPE_NORMAL
+- en: YOLO inference summarized
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Putting it all together, the YOLO inference comprises several smaller steps.
+    YOLO''s architecture is illustrated in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/dec87acc-3dd0-47e1-abf8-8c9f58fef318.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.10: YOLO's architecture. In this example, we use two bounding boxes
+    per grid cell
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The YOLO inference process can be summarized as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Accept an input image and compute a feature volume using a CNN backbone.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Use a convolutional layer to compute anchor box corrections, objectness scores,
+    and class probabilities.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Using this output, compute the coordinates of the bounding boxes.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Filter out the boxes with a low threshold, and post-process the remaining ones
+    using NMS.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: At the conclusion of this process, we end up with the final predictions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since the whole process is composed of convolutions and filtering operations,
+    the network can accept images of any size and any ratio. Hence, it is very flexible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training YOLO
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We have outlined the process of inference for YOLO. Using pretrained weights
+    provided online, it is possible to instantiate a model directly and generate predictions.
+    However, you might want to train a model on a specific dataset. In this section,
+    we will go through the training procedure of YOLO.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How the YOLO backbone is trained
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As we mentioned earlier, the YOLO model is composed of two main parts—the backbone
+    and the YOLO head. Many architectures can be used for the backbone. Before training
+    the full model, the backbone is trained on a traditional classification task with
+    the aid of ImageNet using the transfer learning technique detailed in [Chapter
+    4](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml), *Influential Classification Tools*.
+    While we could train YOLO from scratch, it would take much more time to do so.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Keras makes it very easy to use a pretrained backbone for our network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: In our implementation, we will employ the architecture presented in the YOLO
+    paper because it yields the best results. However, if you were to run your model
+    on a mobile, you might want to use a smaller model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: YOLO loss
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'As the output of the last layer is quite unusual, the corresponding loss will
+    also be. Actually, the YOLO loss is notoriously complex. To explain it, we will
+    break the loss into several parts, each corresponding to one kind of output returned
+    by the last layer. The network predicts multiple kinds of information:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The bounding box coordinates and size
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The confidence that an object is in the bounding box
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The scores for the classes
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The general idea of the loss is that we want it to be high when the error is
+    high. The loss will penalize the incorrect values. However, we only want to do
+    so when it makes sense—if a bounding box contains no objects, we do not want to
+    penalize its coordinates as they will not be used anyway.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The implementation details of neural networks are usually not available in the
+    source paper. Therefore, they will vary from one implementation to another. What
+    we are outlining here is an implementation suggestion, not an absolute reference.
+    We suggest reading the code from existing implementations to understand how the
+    loss is calculated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Bounding box loss
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The first part of the loss helps the network learn the weights to predict the
+    bounding box coordinates and size:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/db3d3535-c2a2-4c13-8121-b753b3c96264.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'While this equation may seem scary at first, this part is actually relatively
+    simple. Let''s break it down:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: λ (lambda) is the weighting of the loss—it reflects how much importance we want
+    to give to bounding box coordinates during training.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: ∑ (capital sigma) means that we sum what is right after them. In this case,
+    we sum for each part of the grid (from i = 0 to *i = S²*) and for each box in
+    this part of the grid (from 0 to B).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*1^(obj)* (*indicator function* for objects) is a function equal to 1 when
+    the i^(th) part of the grid and the j^(th) bounding box are **responsible** for
+    an object. We will explain what responsible means in the next paragraph.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*x[i]*, *y[i]*, *w[i]*, and *h[i]*  correspond to the bounding box size and
+    coordinates. We take the difference between the predicted value (the output of
+    the network) and the target value (also called the **ground truth**). Here, the
+    predicted value has a hat (`ˆ`).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We square the difference to make sure it is positive.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Notice that we take the square root of w[i] and h[i]. We do so to make sure
+    errors for small bounding boxes are penalized more heavily than errors for big
+    bounding boxes.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The key part of this loss is the **indicator function**. The coordinates will
+    be correct if, and only if, the box is responsible for detecting an object. For
+    each object in the image, the difficult part is determining which bounding box
+    is responsible for it. For YOLOv2, the anchor box with the highest IoU with the
+    detected object is deemed responsible. The rationale here is to make each anchor
+    box specialize in one type of object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Object confidence loss
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The second part of the loss teaches the network to learn the weights to predict
+    whether a bounding box contains an object:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/28a418fd-60cd-4562-a00a-79ebdddfff3f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We have already covered most of the symbols in this function. The remaining
+    ones are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**C[ij]**: The confidence that the box, *j*, in the part, *i*, of the grid
+    contains an object (of any kind)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**1^(noobj)  (indicator function for no object)**: A function equal to 1 when the
+    *i*^(th) part of the grid and the *j*^(th) bounding box are *not responsible*
+    for an object'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'A naive approach to compute *1^(noobj)*  is  *(1 - 1^(obj))*. However, if we
+    do so, it can cause some problems during training. Indeed, we have many bounding
+    boxes on our grid. When determining that one of them is responsible for a specific
+    object, there may have been other suitable candidates for this object. We do not
+    want to penalize the objectness score of those other good candidates that also
+    fit the object. Therefore, *1^(noobj)*  is defined as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3c2f6c72-c27f-4116-b1a0-dcf00b38d25c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In practice, for each bounding box at position (*i*, *j*), the IoU with regard
+    to each of the ground truth boxes is computed. If the IoU is over a certain threshold
+    (usually 0.6), 1^(noobj) is set to 0\. The rationale behind this idea is to avoid
+    punishing boxes that contain objects but are not responsible for said object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Classification loss
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The final part of the loss, the classification loss, ensures that the network
+    learns to predict the proper class for each bounding box:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4e8f99f7-0dac-45f7-9782-af77f2c0a604.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This loss is very similar to the one presented in [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml), *Computer
+    Vision and Neural Networks*. Note that while the loss presented in the YOLO paper
+    is the L2 loss, many implementations use cross-entropy. This part of the loss
+    ensures that correct object classes are predicted.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Full YOLO loss
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Full YOLO loss** is the sum of the three losses previously detailed. By combining
+    the three terms, the loss penalizes the error for bounding box coordinate refinement,
+    objectness scores, and class prediction. By backpropagating the error, we are
+    able to train the YOLO network to predict correct bounding boxes.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the book's GitHub repository, readers will find a simplified implementation
+    of the YOLO network. In particular, the implementation contains a heavily commented
+    loss function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training techniques
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Once the loss has been properly defined, YOLO can be trained using backpropagation.
+    However, to make sure the loss does not diverge and to obtain good performance,
+    we will detail a few training techniques:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Augmentation (explained in [Chapter 7](337ec077-c215-4782-b56c-beae4d94d718.xhtml),
+    *Training on Complex and Scarce Datasets*) and dropout (explained in [Chapter
+    3](dd1d3406-d506-4690-bf13-e5e0584ea9d1.xhtml), *Modern Neural Networks*) are
+    used. Without these two techniques, the network would overfit on the training
+    data and would not be able to generalize much.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Another technique is **multi-scale training**. Every *n* batches, the network's
+    input is changed to a different size. This forces the network to learn to predict
+    with accuracy across a variety of input dimensions.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Like most detection networks, YOLO is pretrained on an image classification
+    task.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: While not mentioned in the paper, the official YOLO implementation uses **burn-in**—the
+    learning rate is reduced at the beginning of training to avoid a loss explosion.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Faster R-CNN – a powerful object detection model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The main benefit of YOLO is its speed. While it can achieve very good results,
+    it is now outperformed by more complex networks. **Faster Region with Convolutional
+    Neural Networks** (**Faster R-CNN**) is considered state of the art at the time
+    of writing. It is also quite fast, reaching 4-5 FPS on a modern GPU. In this section,
+    we will explore its architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The Faster R-CNN architecture was engineered over several years of research.
+    More precisely, it was built incrementally from two architectures—R-CNN and Fast
+    R-CNN. In this section, we will focus on the latest architecture, Faster R-CNN:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Faster R-CNN: towards real-time object detection with region proposal networks
+    (2015)*, Shaoqing Ren, Kaiming He, Ross Girshick, and Jian Sun'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'This paper draws a lot of knowledge from the two previous designs. Therefore,
+    some of the architecture details can be found in the following papers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Rich feature hierarchies for accurate object detection and semantic segmentation
+    (2013)*, Ross Girshick, Jeff Donahue, Trevor Darrell, and Jitendra Mali'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Fast R-CNN (2015)*, Ross Girshick'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Just as with YOLO architecture, we recommend reading this chapter first and
+    then having a look at the papers to get a deeper understanding. In this chapter,
+    we will use the same notations as in the papers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Faster R-CNN's general architecture
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'YOLO is considered a single-shot detector—as its name implies, each pixel of
+    the image is analyzed once. This is the reason for its very high speed. To obtain
+    more accurate results, Faster R-CNN works in two stages:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first stage is to extract a **region of interest** (**RoI**, or RoIs in
+    the plural form). An RoI is an area of the input image that may contain an object.
+    For each image, the first step generates about 2,000 RoIs**.**
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The second stage is the **classification step** (sometimes referred to as the **detection
+    step**). We resize each of the 2,000 RoIs to a square to fit the input of a convolutional
+    network. We then use the CNN to classify the RoI.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In R-CNN and Fast R-CNN, regions of interest are generated using a technique
+    called **selective search**. This will not be covered here because it was removed
+    from the Faster R-CNN paper on account of its slowness. Moreover, selective search
+    does not involve any deep learning techniques.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As the two parts of Faster R-CNN are independent, we will cover each one separately.
+    We will then cover the training details of the full model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Stage 1 – Region proposals
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Regions of interest are generated using the **region proposal network** (**RPN**).
+    To generate RoIs, the RPN uses convolutional layers. Therefore, it can be implemented
+    on the GPU and is very fast.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The RPN architecture shares quite a lot of features with YOLO''s architecture:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It also uses anchor boxes—in the Faster R-CNN paper, nine anchor sizes are used
+    (three vertical rectangles, three horizontal rectangles, and three squares).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It can use any backbone to generate the feature volume.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It uses a grid, and the size of the grid depends on the size of the feature
+    volume.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Its last layer outputs numbers that allow the anchor box to be refined into
+    a proper bounding box fitting the object.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'However, the architecture is not completely identical to YOLO''s. The RPN accepts
+    an image as input and outputs regions of interest. Each region of interest consists
+    of a bounding box and an objectness probability. To generate those numbers, a
+    CNN is used to extract a feature volume. The feature volume is then used to generate
+    the regions, coordinates, and probabilities. The RPN architecture is illustrated
+    in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/2b7a4bb9-19a3-4de6-b361-a9e97eadd515.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.11: RPN architecture summary
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The step-by-step process represented in *Figure 5.11* is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The network accepts an image as input and applies several convolutional layers.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: It outputs a feature volume. A convolutional filter is applied over the feature
+    volume. Its size is *3* × *3* × *D*, where *D* is the depth of the feature volume
+    (*D = 512* in our example).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: At each position in the feature volume, the filter generates an intermediate
+    *1* × *D* vector.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Two sibling *1* × *1* convolutional layers compute the objectness scores and
+    the bounding box coordinates. There are two objectness scores for each of the
+    *k* bounding boxes. There are also four floats that will be used to refine the
+    coordinates of the anchor boxes.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: After post-processing, the final output is a list of RoIs. At this step, no
+    information about the class of the object is generated, only about its location.
+    During the next step, classification, we will classify the objects and refine
+    the bounding boxes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Stage 2 – Classification
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The second part of Faster R-CNN is **classification**. It outputs the final
+    bounding boxes and accepts two inputs—the list of RoIs from the previous step
+    (RPN), and a feature volume computed from the input image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since most of the classification stage architecture comes from the previous
+    paper, Fast R-CNN, it is sometimes referred to with the same name. Therefore,
+    Faster R-CNN can be regarded as a combination of RPN and Fast R-CNN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The classification part can work with any feature volume corresponding to the
+    input image. However, as feature maps have already been computed in the previous
+    region-proposal step, they are simply reused here. This technique has two benefits:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Sharing the weights**: If we were to use a different CNN, we would have to
+    store the weights for two backbones—one for the RPN, and one for the classification.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Sharing the computation**: For one input image, we only compute one feature
+    volume instead of two. As this operation is the most expensive of the whole network,
+    not having to run it twice allows for a consequent gain in computational performance.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Faster R-CNN architecture
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The second stage of Faster R-CNN accepts the feature maps from the first stage,
+    as well as the list of RoIs. For each RoI, convolutional layers are applied to
+    obtain class predictions and **bounding box refinement** information. The operations
+    are represented here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/aa0b02c5-788f-4935-9266-12fbee0b6000.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.12: Architecture summary of Faster R-CNN
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Step by step, the process is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Accept the feature maps and the RoIs from the RPN step. The RoIs generated in
+    the original image coordinate system are converted into the feature map coordinate
+    system. In our example, the stride of the CNN is 16\. Therefore, their coordinates
+    are divided by 16.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Resize each RoI to make it fit the input of the fully connected layers.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Apply the fully connected layer. It is very similar to the final layers of any
+    convolutional network. We obtain a feature vector.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Apply two different convolutional layers. One handles the classification (called
+    **cls**) and the other handles the refinement of the RoI (called **rgs**).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The final results are the class scores and bounding box refinement floats that
+    we will be able to post-process to generate the final output of the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The size of the feature volume depends on the size of the input and the architecture
+    of the CNN. For instance, for VGG-16, the size of the feature volume is *w* ×
+    *h* × *512*, where *w = input_width/16* and *h = input_height/16*. We say that
+    VGG-16 has a stride of 16 because one pixel in the feature map equals 16 pixels
+    in the input image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While convolutional networks can accept inputs of any size (as they use a sliding
+    window over the image), the final fully connected layer (between steps 2 and 3)
+    accepts a feature volume of a fixed size as an input. And since region proposals
+    are of different sizes (a vertical rectangle for a person, a square for an apple...),
+    this makes the final layer impossible to use as is.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To circumvent that, a technique was introduced in Fast R-CNN—**region of interest
+    pooling** (**RoI** **pooling**). This converts a variable-size area of the feature
+    map into a fixed-size area. The resized feature area can then be passed to the
+    final classification layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: RoI pooling
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The goal of the RoI pooling layer is simple—to take a part of the activation
+    map of variable size and convert it into a fixed size. The input activation map
+    sub-window is of size *h × w*. The target activation map is of size *H* × *W*.
+    RoI pooling works by dividing its input into a grid where each cell is of size
+    *h/H* × *w/W*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s use an example. If the input is of size *h* × *w = 5 *× *4*, and the
+    target activation map is of size *H* × *W = 2* × *2*, then each cell should be
+    of size *2.5* × *2*. Because we can only use integers, we will make some cells
+    of size *3* × *2* and others of size *2* × *2*. Then, we will take the maximum
+    of each cell:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/c10a0d84-1b1d-4139-9ef1-f9ffc8c49095.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.13: Example of RoI pooling with an RoI of size 5 × 4 (from B3 to E7)
+    and an output of size 2 × 2 (from J4 to K5)
+  prefs: []
+  type: TYPE_NORMAL
+- en: An RoI pooling layer is very similar to a max-pooling layer. The difference
+    is that RoI pooling works with inputs of variable size, while max-pooling works
+    with a fixed size only. RoI pooling is sometimes referred to as **RoI max-pooling**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the original R-CNN paper, RoI pooling had not yet been introduced. Therefore,
+    each RoI was extracted from the original image, resized, and directly passed to
+    the convolutional network. Since there were around 2,000 RoIs, it was extremely
+    slow. The *Fast* in Fast R-CNN comes from the huge speedup introduced by the RoI
+    pooling layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training Faster R-CNN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Before we explain how to train the network, let''s have a look at the full
+    architecture of Faster R-CNN:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/c4d852b4-bffc-49e3-9c77-0d5c54b0c056.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 5.14: Full architecture of Faster R-CNN. Note that it can work with any
+    input size
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because of its unique architecture, Faster R-CNN cannot be trained like a regular
+    CNN. If each of the two parts of the network were trained separately, the feature
+    extractors of each part would not share the same weights. In the next section,
+    we will explain the training of each section and how to make the two sections
+    share the convolutional weights.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training the RPN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The input of the RPN is an image, and the output is a list of RoIs. As we saw
+    previously, there are *H* × *W* × *k* proposals for each image (where *H* and
+    *W* represent the size of a feature map and *k* is the number of anchors). At
+    this step, the class of the object is not yet considered.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It would be difficult to train all the proposals at once—since images are mostly
+    made of background, most of the proposals would be trained to predict *background*.
+    As a consequence, the network would learn to always predict background. Instead,
+    a sampling technique is favored.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Mini-batches of 256 ground truth anchors are built; 128 of them are positive
+    (they contain an object), and the other 128 are negative (they only contain background).
+    If there are fewer than 128 positive samples in the image, all the positive samples
+    available are used and the batch is filled with negative samples.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The RPN loss
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The RPN loss is simpler than YOLO''s. It is composed of two terms:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/aed32ea7-fda1-442a-84b6-6b7f5b3f8862.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The terms in the preceding equation can be explained as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*i* is the index of an anchor in a training batch.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*p[i]* is the probability of the anchor being an object. *p[i]** is the ground
+    truth—it''s 1 if the anchor is "positive"; otherwise, it''s 0.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*t[i]* is the vector representing coordinate refinement; *t[i]** is the ground
+    truth.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*N[cls]* is the number of ground truth anchors in the training mini-batch.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*N[reg]* is the number of possible anchor locations.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*L[cls]* is the log loss over two classes (object and background).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*λ* is a balancing parameter to balance the two parts of the loss.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Finally, the loss is composed of *L[reg](t[i], t[i]*) = R(t[i] - t[i]*)*, where
+    R is the *smooth* L1 loss function, defined as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e47ce6d0-1db7-40fa-b1d2-f385079918e9.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The *smooth[L1]* function was introduced as a replacement for the L2 loss used
+    previously. When the error was too important, the L2 loss would become too large,
+    causing training instability.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Just as with YOLO, the regression loss is used only for anchor boxes that contain
+    an object thanks to the *p[i]** term. The two parts are divided by *N[cls]* and
+    *N[reg]*. Those two values are called **normalization terms**—if we were to change
+    the size of mini-batches, the loss would not lose its equilibrium.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, lambda is a balancing parameter. In the paper configuration, *N[cls]
+    ~= 256* and *N[reg] ~= 2,400*. The authors set *λ* to 10 so that the two terms
+    have the same total weight.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In summary, similar to YOLO, the loss penalizes the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The error in objectness classification with the first term
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The error in bounding box refinement with the second term
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: However, contrary to YOLO's loss, it does not deal with object classes bceause
+    the RPN only predicts RoIs. Apart from the loss and the way mini-batches are constructed,
+    the RPN is trained like any other network using backpropagation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fast R-CNN loss
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'As stated earlier, the second stage of Faster R-CNN is also referred to as
+    Fast R-CNN. Therefore, its loss is often referenced as the Fast R-CNN loss. While
+    the formulation of the Fast R-CNN loss is different to the RPN loss, it is very
+    similar in essence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4f9b7e1d-4c9c-4cdb-9b7a-985a6e11a49d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The terms in the preceding equation can be explained as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*L[cls](p,u)* is the log loss between the ground truth class, *u*, and the
+    class probabilities, *p*.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*L[loc](t^u, v)* is the same loss as L[reg] in the RPN loss.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*λ[u ≥ 1]* is equal to 1 when u ≥ 1 and 0 otherwise.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: During Fast R-CNN training, we always use a background class with *id = 0*.
+    Indeed, the RoIs may contain background regions, and it is important to classify
+    them as such. The term *λ[u ≥ 1]* avoids penalizing the bounding box error for
+    background boxes. For all the other classes, since *u* will be above *0*, we will
+    penalize the error.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training regimen
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'As described earlier, sharing the weights between the two parts of the network
+    allows the model to be faster (as the CNN is only applied once) and lighter. In
+    the Faster R-CNN paper, the recommended training procedure is called **4-step
+    alternating training**. A simplified version of this procedure goes like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Train the RPN so that it predicts acceptable RoIs.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Train the classification part using the output of the trained RPN. At the end
+    of the training, the RPN and the classification part have different convolutional
+    weights since they have been trained separately.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Replace the RPN's CNN with the classification's CNN so that they now share convolutional
+    weights. Freeze the shared CNN weights. Train the RPN's last layers again.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Train the classification's last layer using the output of the RPN again.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: At the end of this process, we obtain a trained network with the two parts sharing
+    the convolutional weights.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TensorFlow Object Detection API
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As Faster R-CNN is always improving, we do not provide a reference implementation
+    with this book. Instead, we recommend using the TensorFlow Object Detection API.
+    It offers an implementation of Faster R-CNN that's maintained by contributors
+    and by the TensorFlow team. It offers pretrained models and code to train your
+    own model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Object Detection API is not part of the core TensorFlow library, but is
+    available in a separate repository, which was introduced in [Chapter 4](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml),
+    *Influential Classification Tools*: [https://github.com/tensorflow/models/tree/master/research/object_detection](https://github.com/tensorflow/models/tree/master/research/object_detection).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using a pretrained model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The object detection API comes with several pretrained models trained on the
+    COCO dataset. The models vary in architecture—while they are all based on Faster
+    R-CNN, they use different parameters and backbones. This has an impact on inference
+    speed and performance. A rule of thumb is that the inference time grows with the
+    mean average precision.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training on a custom dataset
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: It is also possible to train a model to detect objects that are not in the COCO
+    dataset. To do so, a large amount of data is needed. In general, it is recommended
+    to have at least 1,000 samples per object class. To generate a training set, training
+    images need to be manually annotated by drawing the bounding boxes around them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using the Object Detection API does not involve writing Python code. Instead,
+    the architecture is defined using configuration files. We recommend starting from
+    an existing configuration and working from there to obtain good performance. A
+    walk-through is available in this chapter's repository.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We covered the architecture of two object detection models. The first one, YOLO,
+    is known for its inference speed. We went through the general architecture and
+    how inference works, as well as the training procedure. We also detailed the loss
+    used to train the model. The second one, Faster R-CNN, is known for its state-of-the-art
+    performance. We analyzed the two stages of the network and how to train them.
+    We also described how to use Faster R-CNN through the TensorFlow Object Detection
+    API.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will extend object detection further by learning how
+    to segment images into meaningful parts, as well as how to transform and enhance
+    them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: What is the difference between a bounding box, an anchor box, and a ground truth
+    box?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is the role of the feature extractor?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What model should be favored, YOLO or Faster R-CNN?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What does the use of anchor boxes entail?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '*Mastering OpenCV 4* ([https://www.packtpub.com/application-development/mastering-opencv-4-third-edition](https://www.packtpub.com/application-development/mastering-opencv-4-third-edition)),byRoy
+    Shilkrot and David Millán Escrivá, contains practical computer vision projects,
+    including advanced object detection techniques.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*OpenCV 4 Computer Vision Application Programming Cookbook* ([https://www.packtpub.com/application-development/opencv-4-computer-vision-application-programming-cookbook-fourth-edition](https://www.packtpub.com/application-development/opencv-4-computer-vision-application-programming-cookbook-fourth-edition)),
+    by David Millán Escrivá and Robert Laganiere, covers classical object descriptors
+    as well as object detection concepts.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

@@ -1,0 +1,1534 @@
+- en: Modern Neural Networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml), *Computer Vision
+    and Neural Networks*, we presented how recent neural networks, which are more
+    suitable for image processing, surpassed previous computer vision methods of the
+    past decade. However, limited by how much we can reimplement from scratch, we
+    only covered basic architectures. Now, with TensorFlow's powerful APIs at our
+    fingertips, it is time to discover what **convolutional neural networks** (**CNNs**)
+    are, and how these modern methods are trained to further improve their robustness.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following topics will be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: CNNs and their relevance to computer vision
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Implementing these modern networks with TensorFlow and Keras
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Advanced optimizers and how to train CNNs efficiently
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Regularization methods and how to avoid overfitting
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The main resources of this chapter are implemented with TensorFlow. The Matplotlib
+    package ([https://matplotlib.org](https://matplotlib.org)) and the scikit-image
+    package ([https://scikit-image.org](https://scikit-image.org)) are also used,
+    though only to display some results or to load example images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As in previous chapters, Jupyter notebooks illustrating the concepts covered
+    in this chapter can be found in the following GitHub folder: [github.com/PacktPublishing/Hands-On-Computer-Vision-with-TensorFlow-2/tree/master/Chapter03](https://github.com/PacktPublishing/Hands-On-Computer-Vision-with-TensorFlow-2/tree/master/Chapter03).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Discovering convolutional neural networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the first part of this chapter, we will present CNNs, also known as **ConvNets**,and
+    explain why they have become omnipresent in vision tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Neural networks for multidimensional data
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: CNNs were introduced to solve some of the shortcomings of the original neural
+    networks. In this section, we will address these issues and present how CNNs deal
+    with them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Problems with fully connected networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Through our introductory experiment in [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml),
+    *Computer Vision and Neural Networks*, and [Chapter 2](c7c49010-458f-47ef-a538-96118f9cd892.xhtml),
+    *TensorFlow Basics and Training a Model*, we have already highlighted the following
+    two main drawbacks of basic networks when dealing with images:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: An explosive number of parameters
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A lack of spatial reasoning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Let's discuss each of these here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: An explosive number of parameters
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Images are complex structures with a large number of values (that is, *H* × *W*
+    × *D* values with *H* indiacting the image's height, *W* its width, and *D* its
+    depth/number of channels, such as *D* = 3 for RGB images). Even the small, single-channel
+    images we used as examples in the first two chapters represent input vectors of
+    size *28 *× *28 *× *1 = 784* values each. For the first layer of the basic neural
+    network we implemented, this meant a weight matrix of shape (784, 64). This equates
+    to 50,176 (784 × 64) parameter values to optimize, just for this variable!
+  prefs: []
+  type: TYPE_NORMAL
+- en: This number of parameters simply explodes when we consider larger RGB images
+    or deeper networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A lack of spatial reasoning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Because their neurons receive all the values from the previous layer without
+    any distinction (they are *fully connected*), these neural networks do not have
+    a notion of *distance*/*spatiality*. Spatial relations in the data are lost. Multidimensional
+    data, such as images, could also be anything from column vectors to dense layers
+    because their operations do not take into account the data dimensionality nor
+    the positions of input values. More precisely, this means that the notion of proximity
+    between pixels is lost to **fully connected** (**FC**) layers, as all pixel values
+    are combined by the layers with no regard for their original positions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As it does not change the behavior of dense layers, to simplify their computations
+    and parameter representations, it is common practice to *flatten* multidimensional
+    inputs before passing them to these layers (that is, to reshape them into column
+    vectors).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Intuitively, neural layers would be much smarter if they could take into account
+    **spatial information**; that is, that some input values belong to the same pixel
+    (channel values) or to the same image region (neighbor pixels).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing CNNs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: CNNs offer simple solutions to these shortcomings. While they work the same
+    way as the networks we introduced previously (such as feed-forward and backpropagation),
+    some clever changes were brought to their architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First of all, CNNs can handle multidimensional data. For images, a CNN takes
+    as input three-dimensional data (height × width × depth) and has its own neurons
+    arranged in a similar volume (refer to *Figure 3.1*). This leads to the second
+    novelty of CNNs—unlike fully connected networks, where neurons are connected to
+    all elements from the previous layer, each neuron in CNNs only has access to some
+    elements in the neighboring region of the previous layer. This region (usually
+    square and spanning all channels) is called the **receptive field** of the neurons
+    (or the filter size):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/adc1e504-6290-43f6-b749-aa6409ffa9be.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 3.1: CNN representation, showing the *receptive fields* of the top-left
+    neurons from the first layer to the last (further explanations can be found in
+    the following subsections)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: By linking neurons only to their neighboring ones in the previous layer, CNNs
+    not only drastically reduce the number of parameters to train, but also preserve
+    the localization of image features.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CNN operations
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: With this architecture paradigm, several new types of layers were also introduced,
+    efficiently taking advantage of *multidimensionality* and *local connectivity*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Convolutional layers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: CNNs get their name from *convolutional layers*, which are at the core of their
+    architecture. In these layers, the number of parameters is further reduced by
+    sharing the same weights and bias among all neurons connected to the same output
+    channel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Concept
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'These specific neurons with shared weights and bias can also be thought of as
+    a single neuron sliding over the whole input matrix with *spatially limited connectivity*.
+    At each step, this neuron is only spatially connected to the local region in the
+    input volume (*H* × *W* × *D*) it is currently sliding over. Given this limited
+    input of dimensions, *k[H]* × *k[W]* × *D* for a neuron with a filter size (*k[H]*,
+    *k[W]*), the neuron still works like the ones modeled in our first chapter—it
+    linearly combines the input values (*k[H]* × *k[W]* × *D* values) before applying
+    an activation function to the sum (a linear or non-linear function). Mathematically,
+    the response, *z[i,j]*, of the neuron when presented with the input patch starting
+    at position *(i,* *j*) can be expressed as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/2928d949-f803-4a05-af2b-f58df1cee1b8.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/55a0a8c2-4a60-41e8-a9da-0c3bc0154704.png) is the neuron''s weights
+    (that is, a two-dimensional matrix of shape *k[H]* × *k[W]* × *D*), ![](img/895581ac-c2d3-4936-8811-a3f896e59e00.png) is the
+    neuron''s bias, and ![](img/4f85cb73-d794-47a7-a737-750799a3cc72.png) is the activation
+    function (for instance, *sigmoid*). Repeating this operation for each position
+    that the neuron can take over the input data, we obtain its complete response
+    matrix, 𝑧, of dimensions *H*[o] × *W*[o], with *H*[o] and *W*[o] being the number
+    of times the neuron can slide vertically and horizontally (respectively) over
+    the input tensor.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In practice, most of the time, square filters are used, meaning that they have
+    a size (*k,* *k*) with *k =* *k[H]* = *k[W]*. For the rest of this chapter, we
+    will only consider square filters to simplify the explanations, though it is good
+    to remember that their height and width may vary.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As a convolutional layer can still have *N* sets of different neurons (that
+    is, *N* sets of neurons with shared parameters), their response maps are stacked
+    together into an output tensor of shape *H*[o] × *W*[o] × *N*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the same way that we applied matrix multiplication to fully connected layers,
+    the **convolution operation** can be used here to compute all the response maps
+    at once (hence the name of these layers). Those familiar with this operation may
+    have recognized it as soon as we mentioned *sliding filters over the input matrix*.
+    For those who are unfamiliar with the operation, the results of a convolution
+    are indeed obtained by sliding a filter, *w*, over the input matrix, *x*, and
+    computing, at each position, the dot product of the filter and the patch of *x*
+    starting at the current position. This operation is illustrated in *Figure 3.2*
+    (an input tensor with a single channel is used to keep the diagram easy to understand):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6a7df36e-fb8c-46ea-91bc-ccbb59354477.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 3.2: A convolution illustrated'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In *Figure 3.2*, please note that the input, *x,* has been *padded* with zeros,
+    which is commonly done in convolutional layers; for instance, when we want the
+    output to be the same size as the original input (a size of 3 × 3 in this example).
+    The notion of padding is further developed later in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The proper mathematical term for this operation is actually *cross-correlation*,
+    though *convolution *is commonly used in the machine learning community. The cross-correlation
+    of a matrix, *x*, with a filter, *w*, is ![](img/bc0a22cf-8707-490f-9dcf-d6799fadb04f.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/7679d42b-e3ac-4046-b758-00bd8baab798.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Notice the correspondence with our equation for *z*. On the other hand, the
+    actual mathematical convolution of a matrix, *x*, with a filter, *w*, is for all
+    valid positions (*i*, *j*):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/cd2644fe-7b8b-45ee-b290-56ce8f40cbba.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: As we can see, both operations are quite similar in this setup, and convolution
+    results can be obtained from the cross-correlation operation by simply *flipping *the
+    filters before it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Properties
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: A convolutional layer with *N* sets of different neurons is thus defined by *N*
+    weight matrices (also called **filters** or **kernels**) of shape *D* × *k* ×
+    *k* (when the filters are square), and *N* bias values. Therefore, this layer
+    only has *N* × (*D**k*² + 1) values to train. A fully connected layer with similar
+    input and output dimensions would need (*H* × *W* × *D*) × (*H*[o] × *W*[o] ×
+    *N*) parameters instead. As we demonstrated previously, the number of parameters
+    for fully connected layers is influenced by the dimensionality of the data, whereas
+    this does not affect the parameter numbers for convolutional layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This property makes convolutional layers really powerful tools in computer vision
+    for two reasons. First, as implied in the previous paragraph, it means we can
+    train networks for larger input images without impacting the number of parameters
+    we would need to tune. Second, this also means that convolutional layers can be
+    applied to any images, irrespective of their dimensions! Unlike networks with
+    fully connected layers, purely convolutional ones do not need to be adapted and
+    retrained for inputs of different sizes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When applying a CNN to images of various sizes, you still need to be careful
+    when sampling the input batches. Indeed, a subset of images can be stacked together
+    into a normal batch tensor only if they all have the same dimensions. Therefore,
+    in practice, you should either sort the images before batching them (mostly done
+    during the training phase) or simply process each image separately (usually during
+    the testing phase). However, both to simplify data processing and the network's
+    task, people usually preprocess their images so they are all the same size (through
+    scaling and/or cropping).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Besides those computational optimizations, convolutional layers also have interesting
+    properties related to image processing. With training, the layer's filters become
+    really good at reacting to specific *local features* (a layer with *N* filters
+    means the possibility to react to *N* different features). Each kernel of the
+    first convolutional layer in a CNN would, for instance, learn to activate for
+    a specific low-level feature, such as a specific line orientation or color gradient.
+    Then, deeper layers would use these results to localize more abstract/advanced
+    features, such as the shape of a face, and the contours of a particular object.
+    Moreover, each filter (that is, each set of shared neurons) would respond to a
+    specific image feature, whatever its location(s) in the image. More formally,
+    convolutional layers are invariant to translation in the image coordinate space.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The response map of a filter over the input image can be described as a map
+    representing the locations where the filter responded to its target feature. For
+    this reason, those intermediary results in CNNs are commonly called **feature
+    maps**. A layer with *N* filters will, therefore, return *N* feature maps, each
+    corresponding to the detection of a particular feature in the input tensors. The
+    stack of *N* feature maps returned by a layer is commonly called a **feature volume**
+    (with a shape of *H*[o] × *W*[o] × *N*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hyperparameters
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: A convolutional layer is first defined by its number of filters, *N*, by its
+    input depth, *D* (that is, the number of input channels), and by its filter/kernel
+    size, (*k[H]*, *k[W]*). As square filters are commonly used, the size is usually
+    simply defined by *k* (though, as mentioned earlier, non-square filters are sometimes
+    considered).
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, as mentioned previously, convolutional layers actually differ from
+    the homonym mathematical operation. The operation between the input and their
+    filters can take several additional hyperparameters, affecting the way the filters
+    are *sliding* over the images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, we can apply different *strides* with which the filters are sliding.
+    The stride hyperparameter thus defines whether the dot product between the image
+    patches and the filters should be computed at every position when sliding (*stride
+    = 1*), or every *s* position (*stride = s*). The larger the stride, the sparser
+    the resulting feature maps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Images can also be *zero-padded* before convolution; that is, their sizes can
+    be synthetically increased by adding rows and columns of zeros around their original
+    content. As shown in *Figure 3.2*, this padding increases the number of positions
+    the filters can take over the images. We can thus specify the padding value to
+    be applied (that is, the number of empty rows and columns to be added on each
+    side of the inputs).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The letter *k* is commonly used for the filter/kernel size (*k* for *kernel*).
+    Similarly, *s* is commonly used for the stride, and *p* for the padding. Note
+    that, as with the filter size, the same values are usually used for the horizontal
+    and vertical strides *(s = s[H] = s[W]),* as well as for the horizontal and vertical
+    padding; though, for some specific use cases, they may have different values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'All these parameters (the number of kernels, *N;* kernel size, *k;* stride, *s;* and
+    padding, *p*) not only affect the layer''s operations, but also its output shape.
+    Until now, we defined this shape as (*H*[o], *W*[o], *N*), with *H*[o] and *W*[o]
+    the number of times the neuron can slide vertically and horizontally over the
+    inputs. So, what actually are *H*[o] and *W*[o]? Formally, they can be computed
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ea6641bb-f197-4660-bd66-92dec120b447.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: While we invite you to pick some concrete examples to better grasp these formulas,
+    we can intuitively understand the logic behind them. Filters of size 𝑘 can take
+    a maximum of *H - k + 1* different vertical positions and *W - k + 1* horizontal
+    ones in images of size *H* × *W*. Additionally, this number of positions increases
+    to *H - k + 2p + 1 *(with respect to *W - k + 2p + 1*) if these images are padded
+    by *p* on every side. Finally, increasing the stride, *s,* basically means considering
+    only one position out of *s*, explaining the division (note that it is an integer
+    division).
+  prefs: []
+  type: TYPE_NORMAL
+- en: With these hyperparameters, we can easily control the layer's output sizes.
+    This is particularly convenient for applications such as object segmentation;
+    that is, when we want the output segmentation mask to be the same size as the
+    input image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TensorFlow/Keras methods
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Available in the low-level API, `tf.nn.conv2d()` (refer to the documentation
+    at [https://www.tensorflow.org/api_docs/python/tf/nn/conv2d](https://www.tensorflow.org/api_docs/python/tf/nn/conv2d))
+    is the default choice for image convolution. Its main parameters are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`input`: The batch of input images, of shape *(B, H, W, D*), with *B *being
+    the batch size.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`filter`: The *N* filters stacked into a tensor of shape (*k[H], k[W], D, N*).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`strides`: A list of four integers representing the stride for each dimension
+    of the batched input. Typically, you would use *[1, s[H], s[W], 1*] (that is,
+    applying a custom stride only for the two spatial dimensions of the image).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`padding`: Either a list of *4 × 2* integers representing the padding before
+    and after each dimension of the batched input, or a string defining which predefined
+    padding case to use; that is, either `VALID` or `SAME` (explanations follow).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`name`: The name to identify this operation (useful for creating clear, readable
+    graphs).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Note that `tf.nn.conv2d()` accepts some other more advanced parameters, which
+    we will not cover yet (refer to the documentation). *Figures 3.3* and* 3.4* illustrate
+    the effects of two convolutional operations with different arguments:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8a9c4782-cf35-48eb-b204-c14d5a29ecb9.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 3.3: Example of a convolution performed on an image with TensorFlow.
+    The kernel here is a well-known one, commonly used to apply *Gaussian blur* to
+    images'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the following screenshot, a kernel that''s well known in computer vision
+    is applied:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0451566f-c965-4ee1-8b51-c38f95f12463.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 3.4: Example of another TensorFlow convolution, with a larger stride.
+    This specific kernel is commonly used to extract edges/contours in images'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Regarding padding, TensorFlow developers made the choice to provide two different
+    pre-implemented modes so that users do not have to figure out which value, *p,*
+    they need for usual cases. `VALID` means the images won't be padded (*p* = 0),
+    and the filters will slide only over the default *valid* positions. When opting
+    for `SAME`, TensorFlow will calculate the value, *p,* so that the convolution
+    outputs have the *same* height and width as the inputs for a stride of `1` (that
+    is, solving *H*[o] = *H*[o] and *W*[o] = *W* given the equations presented in
+    the previous section, temporarily setting *s* to 1).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sometimes, you may want to pad with something more complex than zeros. In those
+    cases, it is recommended to use the `tf.pad()` method (refer to the documentation
+    at [https://www.tensorflow.org/api_docs/python/tf/pad](https://www.tensorflow.org/api_docs/python/tf/pad))
+    instead, and then simply instantiate a convolution operation with `VALID` padding.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TensorFlow also offers several other low-level convolution methods, such as
+    `tf.nn.conv1d()` (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/nn/conv1d](https://www.tensorflow.org/api_docs/python/tf/nn/conv1d))
+    and `tf.nn.conv3d()` (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/nn/conv3d](https://www.tensorflow.org/api_docs/python/tf/nn/conv3d)), 
+    for one-dimensional and three-dimensional data, respectively, or `tf.nn.depthwise_conv2d()`
+    (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/nn/depthwise_conv2d](https://www.tensorflow.org/api_docs/python/tf/nn/depthwise_conv2d))
+    to convolve each channel of the images with different filters, and more.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So far, we have only presented convolutions with fixed filters. For CNNs, we
+    have to make the filters trainable. Convolutional layers also apply a learned
+    bias before passing the result to an activation function. This series of operations
+    can, therefore, be implemented as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This feed-forward function can further be wrapped into a `Layer` object, similar
+    to how the fully connected layer we implemented in [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml),
+    *Computer Vision and Neural Networks*, was built around the matrix operations.
+    Through the Keras API, TensorFlow 2 provides its own `tf.keras.layers.Layer` class,
+    which we can extend (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/keras/layers/Layer](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Layer)).
+    The following code block demonstrates how a simple convolution layer can be built
+    on this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: Most of TensorFlow's mathematical operations (for example, in `tf.math` and
+    `tf.nn`) already have their derivatives defined by the framework. Therefore, as
+    long as a layer is composed of such operations, we do not have to manually define
+    its backpropagation, saving quite some effort!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'While this implementation has the advantage of being explicit, the Keras API
+    also encapsulates the initialization of common layers (as presented in [Chapter
+    2](c7c49010-458f-47ef-a538-96118f9cd892.xhtml), *TensorFlow Basics and Training
+    a Model*), thereby speeding up development. With the `tf.keras.layers` module,
+    we can instantiate a similar convolutional layer in a single call, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`tf.keras.layers.Conv2D()` (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/keras/layers/Conv2D](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Conv2D))
+    has a long list of additional parameters, encapsulating several concepts, such
+    as weight regularization (presented later in this chapter). Therefore, it is recommended
+    to use this method when building advanced CNNs, instead of spending time reimplementing
+    such concepts.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pooling layers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Another commonly used category of layer introduced with CNNs is the *pooling*
+    type.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Concept and hyperparameters
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: These pooling layers are a bit peculiar because they do not have any trainable
+    parameters. Each neuron simply takes the values in its *window* (the receptive
+    field) and returns a single output, computed from a predefined function. The two
+    most common pooling methods are max-pooling and average-pooling. **Max-pooling**
+    layers return only the maximum value at each depth of the pooled area (refer to
+    *Figure 3.5*), and **average-pooling **layers compute the average at each depth
+    of the pooled area (refer to *Figure 3.6*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Pooling layers are commonly used with a *stride* value equal to the size of
+    their *window/kernel size*, in order to apply the pooling function over non-overlapping
+    patches. Their purpose is to *reduce the spatial dimensionality of the data*,
+    cutting down the total number of parameters needed in the network, as well as
+    its computation time. For instance, a pooling layer with a *2 × 2* window size
+    and stride of *2* (that is, *k* = 2 and *s* = 2) would take patches of four values
+    at each depth and return a single number. It would thus divide the height and
+    the width of the features by *2;* that is, dividing the number of computations
+    for the following layers by *2 × 2 = 4*. Finally, note that, as with convolutional
+    layers, you can pad the tensors before applying the operation (as shown in *Figure
+    3.5*):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0594d28a-0092-4675-ba9b-4d181ffa9ab2.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 3.5: Illustration of a max-pooling operation with a window size of 3
+    × 3, a padding of 1, and a stride of 2 on a single-channel input'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Through the padding and stride parameters, it is thus possible to control the
+    dimensions of the resulting tensors. *Figure 3.6* provides another example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/aad0f6e0-c963-4531-be17-a1276f82aabc.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 3.6: Illustration of an average-pooling operation with a window size
+    of 2 × 2, a padding of 0, and a stride of 2 on a single-channel input'
+  prefs: []
+  type: TYPE_NORMAL
+- en: With hyperparameters being similar to convolutional layers except for the absence
+    of trainable kernels, pooling layers are, therefore, easy to use and lightweight
+    solutions for controlling data dimensionality.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TensorFlow/Keras methods
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Also available from the `tf.nn` package, `tf.nn.max_pool()` (refer to the documentation
+    at [https://www.tensorflow.org/api_docs/python/tf/nn/max_pool](https://www.tensorflow.org/api_docs/python/tf/nn/max_pool))
+    and `tf.nn.avg_pool()` (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/nn/avg_pool](https://www.tensorflow.org/api_docs/python/tf/nn/avg_pool))
+    conveniently have a signature quite similar to `tf.nn.conv2d()`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`value`: The batch of input images of shape (*B*, *H*, *W*, *D*), with *B *being
+    the batch size'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`ksize`: A list of four integers representing the window size in each dimension;
+    commonly, *[1, k, k, 1*] is used'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`strides`: A list of four integers representing the stride for each dimension
+    of the batched input, similar to `tf.nn.conv2d()`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`padding`: A string defining which padding algorithm to use (`VALID` or `SAME`)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`name`: The name to identify this operation (useful for creating clear, readable
+    graphs)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Figure 3.7* illustrates an average-pooling operation applied to an image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/898a506c-2d09-4aa2-bc4d-6f5b4939fd16.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 3.7: Example of average-pooling performed on an image with TensorFlow'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In *Figure 3.8*, the max-pooling function is applied to the same image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/39987d76-b942-4691-92fb-031dd4c60dc0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 3.8: Example of another max-pooling operation, with an excessively large
+    window size compared to the stride (purely for demonstration purposes)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here, again, we can still use the higher-level API to make the instantiation
+    slightly more succinct:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Since pooling layers do not have trainable weights, there is no real distinction
+    between the pooling operation and the corresponding layer in TensorFlow. This
+    makes these operations not only lightweight, but easy to instantiate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fully connected layers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: It is worth mentioning that FC layers are also used in CNNs, the same way they
+    are in regular networks. We will present, in the following paragraphs, when they
+    should be considered, and how to include them in CNNs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Usage in CNNs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: While FC layers can be added to CNNs processing multidimensional data, this
+    implies, however, that the input tensors passed to these layers must first be
+    reshaped into a batched column vector—the way we did with the MNIST images for
+    our simple network in [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml),
+    *Computer Vision and Neural Networks*, and [Chapter 2](c7c49010-458f-47ef-a538-96118f9cd892.xhtml),
+    *TensorFlow Basics and Training a Model* (that is, *flattening* the height, width,
+    and depth dimensions into a single vector).
+  prefs: []
+  type: TYPE_NORMAL
+- en: FC layers are also often called **densely connected**, or simply **dense** (as
+    opposed to other CNN layers that have more limited connectivity).
+  prefs: []
+  type: TYPE_NORMAL
+- en: While it can be advantageous in some cases for neurons to have access to the
+    complete input map (for instance, to combine spatially distant features), fully
+    connected layers have several shortcomings, as mentioned at the beginning of this
+    chapter (for example, the loss of spatial information and the large number of
+    parameters). Moreover, unlike other CNN layers, dense ones are defined by their
+    input and output sizes. A specific dense layer will not work for inputs that have
+    a shape different from the one it was configured for. Therefore, using FC layers
+    in a neural network usually means losing the possibility to apply them to images
+    of heterogeneous sizes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Despite these shortcomings, these layers are still commonly used in CNNs. They
+    are usually found among the final layers of a network, for instance, to convert
+    the multidimensional features into a 1D classification vector.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TensorFlow/Keras methods
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Although we already used TensorFlow''s dense layers in the previous chapter,
+    we did not stop to focus on their parameters and properties. Once again, the signature
+    of `tf.keras.layers.Dense()` (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/keras/layers/Dense](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Dense))
+    is comparable to that of previously introduced layers, with the difference that
+    they do not accept any `strides` or `padding` for parameters, but instead use `units`
+    representing the number of neurons/output size, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: Remember that you should, however, take care of *flattening* the multidimensional
+    tensors before passing them to dense layers. `tf.keras.layers.Flatten()` (refer
+    to the documentation at [https://www.tensorflow.org/api_docs/python/tf/keras/layers/Flatten](https://www.tensorflow.org/api_docs/python/tf/keras/layers/Flatten))
+    can be used as an intermediate layer for that purpose.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Effective receptive field
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As we will detail in this section, the **effective receptive field** (**ERF**)
+    of a neural network is an important notion in deep learning, as it may affect
+    the ability of the network to cross-reference and combine distant elements in
+    the input images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Definitions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'While the receptive field represents the local region of the previous layer
+    that a neuron is connected to, the ERF defines *the region of the input image*
+    (and not just of the previous layer), which affects the activation of a neuron
+    for a given layer, as shown in *Figure 3.9*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0b54dcd5-94a2-42de-9d5a-6631a4214ad3.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 3.9: Illustration of the receptive field of a layer with a simple network
+    of two convolutional layers'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that it is common to find the term **receptive field **(**RF**) used in
+    place of ERF, because RF can simply be referred to as the filter size or the window
+    size of a layer. Some people also use RF or ERF to specifically define the input
+    regions affecting each unit of the output layer (and not just any intermediary
+    layer of a network).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Adding to the confusion, some researchers started calling ERFthe subset of the
+    input region that is actually affecting a neuron. This was introduced by Wenjie
+    Luo et al. in their paper, *Understanding the Effective Receptive Field in Deep
+    Convolutional Neural Networks, *published in *Advances in Neural Information Processing
+    Systems (2016)*. Their idea was that not all pixels *seen *by a neuron contribute
+    *equally* to its response. We can intuitively accept that, for instance, pixels
+    at the center of the RF will have more weight than peripheral ones. The information
+    held by these central pixels can be propagated along multiple paths in the intermediary
+    layers of the network to reach a given neuron, while pixels in the periphery of
+    the receptive field are connected to this neuron through a single path. Therefore,
+    the ERF, as defined by Luo et al., follows a pseudo-Gaussian distribution, unlike
+    the uniform distribution of a traditional ERF.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The authors make an interesting parallel between this representation of the
+    receptive field and the human **central fovea**, the region of the eye responsible
+    for our sharp central vision. This detailed part of the vision is at the basis
+    of many human activities. Half the optical nerves are linked to the fovea (despite
+    its relatively small size), in the same way that central pixels in effective receptive
+    fields are connected to a higher number of artificial neurons.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Formula
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'No matter what actual role its pixels are playing, the effective receptive
+    field (named *R[i]* here) of the *i*^(th) layer of a CNN can be recursively computed
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f651c9be-9751-49c1-875c-8f4e891fab2f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In this equation, *k[i]* is the filter size of the layer, and *s[i]* is its
+    stride (the last part of the equation thus represents the product of the strides
+    for all the previous layers). As an example, we can apply this formula to the
+    minimalist two-layer CNN presented in *Figure 3.9* to quantitatively evaluate
+    the ERF of the second layer as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/5395488d-6ad1-4058-9589-62aac19a931c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This formula confirms that the ERF of a network is directly affected by the
+    number of intermediary layers, their filter sizes, and the strides. Subsampling
+    layers, such as pooling layers or layers with larger strides, greatly increase
+    the ERF at the cost of lower feature resolution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because of the local connectivity of CNNs, you should keep in mind how layers
+    and their hyperparameters will affect the flow of visual information across the
+    networks when defining their architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CNNs with TensorFlow
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Most state-of-the-art computer vision algorithms are based on CNNs built with
+    the three different types of layers we just introduced (that is, convolutional,
+    pooling, and FC), with some tweaks and tricks that we will present in this book.
+    In this section, we will build our first CNN and apply it to our digit recognition
+    task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing our first CNN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'For our first convolutional neural network, we will implement *LeNet-5*. First
+    introduced by Yann Le Cun in 1995 (in *Learning algorithms for classification:
+    A comparison on handwritten digit recognition*, *World Scientific Singapore*)
+    and applied to the MNIST dataset, LeNet-5 may not be a recent network, but it
+    is still commonly used to introduce people to CNNs. Indeed, with its seven layers,
+    this network is straightforward to implement, while yielding interesting results.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: LeNet-5 architecture
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'As shown in *Figure 3.10*, LeNet-5 is first composed of two blocks, each containing
+    a convolutional layer (with the kernel size *k* = 5 and stride *s* = 1) followed
+    by a max-pooling layer (with *k* = 2 and *s* = 2). In the first block, the input
+    images are zero-padded by 2 on each side before convolution (that is, *p* = 2,
+    hence an actual input size of *32 × 32*), and the convolution layer has six different
+    filters (*N* = 6). There is no padding before the second convolution (*p* = 0),
+    and its number of filters is set to 16 (*N* = 16). After the two blocks, three
+    fully connected layers merge the features together and lead to the final class
+    estimation (the 10 digit classes). Before the first dense layer, the *5 × 5 ×
+    16* feature volume is flattened into a vector of 400 values. The complete architecture
+    is represented in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/92f819f4-53b5-4b32-90e9-512d872806a1.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 3.10: LeNet-5 architecture (rendered with the NN-SVG tool by Alexander
+    Lenail—http://alexlenail.me/NN-SVG)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the original implementation, each convolution layer and dense layer except
+    the last one uses *tanh* as an activation function. However, *ReLU* is nowadays
+    preferred to *tanh*, replacing it in most LeNet-5 implementations. For the last
+    layer, the *softmax* function is applied. This function takes a vector of *N*
+    values and returns a same-size vector, *y,* with its values normalized into a
+    probability distribution. In other words, *softmax* normalizes a vector so that
+    its values are all between 0 and 1, and their sum is exactly equal to 1\. Therefore,
+    this function is commonly used at the end of neural networks applied to classification
+    tasks in order to convert the network's predictions into per-class probability,
+    as mentioned in [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml), *Computer
+    Vision and Neural Networks* (that is, given an output tensor, *y* = [*y[0], ...,
+    y[i], ..., y[N]*], *y[i]* represents how likely it is that the sample belongs
+    to class *i* according to the network).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The network's raw predictions (that is, before normalization) are commonly named
+    **logits**. These unbounded values are usually converted into probabilities with
+    the *softmax* function. This normalization process makes the prediction more *readable*
+    (each value represents the confidence of the network for the corresponding class;
+    refer to the belief scores mentioned in [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml),
+    *Computer Vision and Neural Networks*) and simplifies the computation of the training
+    loss (that is, the categorical cross-entropy for classification tasks).
+  prefs: []
+  type: TYPE_NORMAL
+- en: TensorFlow and Keras implementations
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We have all the tools in hand to implement this network. We suggest that you
+    try them yourself, before checking the TensorFlow and Keras implementations provided.
+    Reusing the notations and variables from [Chapter 2](c7c49010-458f-47ef-a538-96118f9cd892.xhtml),
+    *TensorFlow Basics and Training a Model*, a LeNet-5 network using the Keras Sequential
+    API would be as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The model is created by instantiating and adding the layers one by one, *sequentially*.
+    As mentioned in [Chapter 2](c7c49010-458f-47ef-a538-96118f9cd892.xhtml), *TensorFlow
+    Basics and Training a Model*, Keras also provides the **functional API**. This
+    API makes it possible to define models in a more object-oriented approach (as
+    shown in the following code), though it is also possible to directly instantiate `tf.keras.Model`
+    with the layer operations (as illustrated in some of our Jupyter notebooks):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: Keras layers can indeed behave like functions that can be applied to input data
+    and chained until the desired output is obtained. The functional API allows you
+    to build more complex neural networks; for example, when one specific layer is
+    reused several times inside the networks, or when layers have multiple inputs
+    or outputs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For those who have already experimented with PyTorch ([https://pytorch.org](https://pytorch.org)),
+    another machine learning framework, this object-oriented approach to building
+    neural networks may seem familiar, as it is favored there.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Application to MNIST
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We can now compile and train our model for digit classification. Pursuing this
+    with the Keras API (and reusing the MNIST data variables prepared in the last
+    chapter), we instantiate the optimizer (a simple **stochastic gradient descent**
+    (**SGD**) optimizer) and define the loss (the categorical cross-entropy) before
+    launching the training, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note the use of `sparse_categorical_crossentropy`, instead of `categorical_crossentropy`,
+    to avoid one-hot encoding the labels. This loss was described in [Chapter 2](c7c49010-458f-47ef-a538-96118f9cd892.xhtml),
+    *TensorFlow Basics and Training a Model*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After ~60 epochs, we observe that our network's accuracy on the validation data
+    reaches above ~98.5%! Compared to our previous attempts with non-convolutional
+    networks, the relative error has been divided by *2* (from a ~3.0% to ~1.5% relative
+    error), which is a significant improvement (given the high accuracy already).
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the following chapters, we will fully appreciate the analytical power of
+    CNNs, applying them to increasingly complex visual tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Refining the training process
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Network architectures are not the only things to have improved over the years.
+    The way that networks are trained has also evolved, improving how reliably and
+    quickly they can converge. In this section, we will tackle some of the shortcomings
+    of the gradient descent algorithm we covered in [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml),
+    *Computer Vision and Neural Networks*, as well as some ways to avoid overfitting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Modern network optimizers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Optimizing multidimensional functions, such as neural networks, is a complex
+    task. The gradient descent solution we presented in the first chapter is an elegant
+    solution, though it has some limitations that we will highlight in the following
+    section. Thankfully, researchers have been developing new generations of optimization
+    algorithms, which we will also discuss.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Gradient descent challenges
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We previously presented how the parameters, *P*, of a neural network (that
+    is, all the weight and bias parameters of its layers) can be iteratively updated
+    during training to minimize the loss, *L*, backpropagating its gradient. If this
+    gradient descent process could be summarized in a single equation, it would be
+    the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d9fc0237-4e1b-4307-ac64-206590a62b1c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/182e2239-4dff-46d3-a9db-a5e364c47e81.png) is the learning rate hyperparameter,
+    which accentuates or attenuates how the network''s parameters are updated with
+    regard to the gradient of the loss at every training iteration. While we mentioned
+    that the learning rate value should be set with care, we did not explain how and
+    why. The reasons for caution in this setup are threefold.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training velocity and trade-off
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We partially covered this point earlier. While setting a high learning rate
+    may allow the trained network to converge faster (that is, in fewer iterations,
+    as the parameters undergo larger updates each iteration), it also may prevent
+    the network from finding a proper loss minimum. *Figure 3.11* is a famous illustration
+    representing this trade-off between optimization over-cautiousness and haste:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6ddc34df-90e3-460b-a9af-8b410dc910d2.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 3.11: Illustration of the learning rate trade-off'
+  prefs: []
+  type: TYPE_NORMAL
+- en: From *Figure 3.11*, we can observe that an excessively low learning rate will
+    slow down convergence (diagram A on the left), while an excessively high learning
+    rate may cause it to overshoot the local minima (diagram B on the right).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Intuitively, there should be a better solution than trial and error to find
+    the proper learning rate. For instance, a popular solution is to dynamically adjust
+    the learning rate during training, starting with a larger value (for faster exploration
+    of the loss domain at first) and decreasing it after every epoch (for more careful
+    updating when getting closer to the minimum). This process is named **learning
+    rate decay**. Manual decaying can still be found in many implementations, though,
+    nowadays, TensorFlow offers more advanced learning rate schedulers and optimizers
+    with adaptive learning rates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Suboptimal local minima
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'A common problem when optimizing complex (that is, *non-convex*) methods is
+    getting stuck in **suboptimal local minima**. Indeed, gradient descent may lead
+    us to a local minimum it cannot escape, even though a *better *minimum lies close
+    by, as shown in *Figure 3.12*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/919aee27-8fb7-4891-bdf7-7494adf55da1.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 3.12: Example of gradient descent ending up in a sub-optimal local minimum'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because of the random sampling of training samples (causing the gradients to
+    often differ from one mini-batch to another), the SGD presented in [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml),
+    *Computer Vision and Neural Networks*, is already able to *jump out *of shallow
+    local minima.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the gradient descent process cannot ensure the convergence to a **global
+    minimum** (that is, the convergence to the best set of parameters among all possible
+    combinations). This would imply scanning the complete loss domain, to make sure
+    that a given minimum is indeed the *best* (this would mean, for instance, computing
+    the loss for all possible combinations of the parameters). Given the complexity
+    of visual tasks and the large number of parameters needed to tackle them, data
+    scientists are usually glad to just find a satisfying local minimum.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A single hyperparameter for heterogeneous parameters
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Finally, in traditional gradient descent, the same learning rate is used to
+    update all the parameters of the network. However, not all these variables have
+    the same sensitivity to changes, nor do they all impact the loss at every iteration.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It may seem beneficial to have different learning rates (for instance, per subset
+    of parameters) to update crucial parameters more carefully, and to more boldly update
+    parameters that are not contributing often enough to the network's predictions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Advanced optimizers
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Some of the intuitions we presented in the previous paragraphs have been properly
+    studied and formalized by researchers, leading to new optimization algorithms
+    based on SGD. We will now list the most common of these optimizers, detailing
+    their contributions and how to use them with TensorFlow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Momentum algorithms
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'First suggested by Boris Polyak (in *Some methods of speeding up the convergence
+    of iteration methods*, Elsevier, 1964), the momentum algorithm is based on SGD
+    and inspired by the physics notion of **momentum**—as long as an object is moving
+    downhill, its speed will increase with each step. Applied to gradient descent,
+    the idea is to take previous parameter updates, *v[i-1]*, into account, adding
+    them to the new update terms, *v[i]*,as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/c055ee55-d604-4526-93ce-5678c5603373.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/fceb4a4e-5c66-4e5b-93ec-931110036eb0.png) (*mu*) is the momentum
+    weighing (the value between 0 and 1), defining the fraction of the previous updates
+    to apply. If the current and previous steps have the same direction, their magnitudes
+    will add up, accelerating the SGD in this relevant direction. If they have different
+    directions, the momentum will dampen these oscillations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In `tf.optimizers` (also accessible as `tf.keras.optimizers`), momentum is
+    defined as an optional parameter of SGD (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/SGD](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/SGD))
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: This optimizer accepts a `decay` parameter, fixing the learning rate decay over
+    each update (refer to the previous paragraphs).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This optimizer instance can then be directly passed as a parameter to `model.fit()`
+    when launching the training through the Keras API. For more complex training scenarios
+    (for instance, when training interdependent networks), the optimizer can also
+    be called, providing it with the loss gradients and the model''s trainable parameters.
+    The following is an example of a simple training step implemented manually:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`tf.optimizers.SGD` has one interesting Boolean parameter—to switch from the
+    common momentum method to Nesterov''s algorithm. Indeed, a major problem of the
+    former method is that by the time the network gets really close to its loss minimum,
+    the accumulated momentum will usually be quite high, which may cause the method
+    to miss or oscillate around the target minimum.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The **Nesterov accelerated gradient** (**NAG** or **Nesterov momentum**) offers
+    a solution to this problem (a related course is *Introductory Lectures on Convex
+    Programming Volume I: Basic course, *by Yurii Nesterov, *Springer Science and
+    Business Media*). Back in the 1980s, Yurii Nesterov''s idea was to give the optimizer
+    the possibility to have a look at the slope ahead so that it *knows *it should
+    slow down if the slope starts going up. More formally, Nesterov suggested directly
+    reusing the past term *v[i-1]* to estimate which values, *P[i+1]*, the parameters
+    would take if we keep following this direction. The gradient is then evaluated
+    with respect to those approximate future parameters, and it is used to finally
+    compute the actual update as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ae9b495d-7747-4cdb-bbc6-8fcb195b9509.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This version of the momentum optimizer (where the loss is derived with respect to
+    the parameters' values updated according to the previous steps) is more adaptable
+    to gradient changes, and can significantly speed up the gradient descent process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Ada family
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Adagrad**, **Adadelta**, and **Adam** are several iterations and variations
+    around the idea of adapting the learning rate depending on the sensitivity and/or
+    activation frequency of each neuron.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Developed first by John Duchi et al. (in *Adaptive Subgradient Methods for Online
+    Learning and Stochastic Optimization*, Journal of Machine Learning Research, 2011),
+    the *Adagrad* optimizer (for *adaptive gradients*) uses a neat formula (which
+    we won't expand on here, though we invite you to search for it) to automatically
+    decrease the learning rate more quickly for parameters linked to commonly found
+    features, and more slowly for infrequent ones. In other words, as presented in
+    the Keras documentation, *the more updates a parameter receives, the smaller the
+    updates *(refer to the documentation at [https://keras.io/optimizers/](https://keras.io/optimizers/)).
+    This optimization algorithm not only removes the need to manually adapt/decay
+    the learning rate, but it also makes the SGD process more stable, especially for
+    datasets with sparse representations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Introducing *Adadelta* in 2013, Matthew D. Zeiler et al. (in *ADADELTA: An
+    Adaptive Learning Rate Method*, *arXiv preprint*) offered a solution to one problem
+    inherent to *Adagrad.* As it keeps decaying the learning rate every iteration,
+    at some point, the learning rate becomes too small and the network just cannot
+    learn anymore (except maybe for infrequent parameters). *Adadelta* avoids this
+    problem by keeping in check the factors used to divide the learning rate for each
+    parameter.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**RMSprop** by Geoffrey Hinton is another well-known optimizer (introduced
+    in his Coursera course, <q>Lecture 6.5-rmsprop: Divide the gradient by a running
+    average of its recent magnitude</q>). Associated with, and quite similar to *Adadelta*,
+    *RMSprop* was also developed to correct *Adagrad*''s flaw.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Adam** (for **adaptive moment estimation**) is another iteration by Diederik
+    P. Kingma et al. (in *Adam: A method for stochastic optimization*, ICLR, 2015).
+    In addition to storing previous update terms, *v[i]*, to adapt the learning rate
+    for each parameter, *Adam* also keeps track of the past momentum values. It is,
+    therefore, often identified as a mix between *Adadelta* and *momentum*. Similarly,
+    **Nadam** is an optimizer inheriting from *Adadelta* and *NAG*.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: All these various optimizers are available in the `tf.optimizers` package (refer
+    to the documentation at [https://www.tensorflow.org/api_docs/python/tf/train/](https://www.tensorflow.org/api_docs/python/tf/train/)).
+    Note that there is no consensus regarding which of these optimizers may be the
+    best. *Adam* is, however, preferred by many computer vision professionals for
+    its effectiveness on scarce data. *RMSprop* is also often considered a good choice
+    for recurrent neural networks (introduced in [Chapter 8](97884989-bb57-4611-8c66-ebe8ab387965.xhtml),
+    *Video and Recurrent Neural Networks*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: A Jupyter notebook demonstrating how to use these various optimizers is provided
+    in the Git repository. Each optimizer is also applied to the training of our *LeNet-5*
+    for MNIST classification, in order to compare their convergence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Regularization methods
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Efficiently teaching neural networks so that they minimize the loss over training
+    data is, however, not enough. We also want these networks to perform well once
+    applied to new images. We do not want them to *overfit* the training set (as mentioned
+    in [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml), *Computer Vision and
+    Neural Networks*). For our networks to generalize well, we mentioned that rich
+    training sets (with enough variability to cover possible testing scenarios) and
+    well-defined architectures (neither too shallow to avoid underfitting, nor too
+    complex to prevent overfitting) are key. However, other methods have been developed
+    over the years for **regularization**; for example, the process of refining the
+    optimization phase to avoid overfitting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Early stopping
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Neural networks start overfitting when they iterate too many times over the
+    same small set of training samples. Therefore, a straightforward solution to prevent
+    this problem is to figure out the number of training epochs a model needs. The
+    number should be low enough to stop before the network starts overfitting, but
+    still high enough for the network to learn all it can from this training set.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Cross-validation** is the key here to evaluate when training should be stopped.
+    Providing a validation dataset to our optimizer, the latter can measure the performance
+    of the model on images the network has not been directly optimized for. By *validating*
+    the network, for instance, after each epoch, we can measure whether the training
+    should continue (that is, when the validation accuracy appears to be still increasing)
+    or be stopped (that is, when the validation accuracy stagnates or drops). The
+    latter is called **early stopping**.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In practice, we usually monitor and plot the validation loss and metrics as
+    a function of the training iterations, and we restore the saved weights at the
+    optima (hence the importance of regularly saving the network during training).
+    This monitoring, early stopping, and restoration of optimum weights can be automatically
+    covered by one of the optional Keras callbacks (`tf.keras.callbacks.EarlyStopping`),
+    as already showcased in our previous training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: L1 and L2 regularization
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Another way to prevent overfitting is to modify the loss in order to include
+    regularization as one of the training objectives. The L1 and L2 regularizers are
+    prime examples of this.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Principles
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In machine learning, a **regularization term**, *R(P)*, computed over the parameters,
+    *P*, of the method, *f*, to optimize (for instance, a neural network) can be added
+    to the loss function, *L*, before training, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/70fe393a-72e8-46d1-8fba-1b25c99d17ca.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/75a1c0fb-e5e8-42ef-8f01-90efa6fb04ad.png) is a factor controlling
+    the strength of the regularization (typically, to scale down the amplitude of
+    the regularization term compared to the main loss), and *y = f(x, P) *is the output
+    of the method, *f*, parametrized by *P* for the input data, *x*. By adding this
+    term, *R(P)*, to the loss, we force the network not only to optimize its task,
+    but to optimize it while *constraining* the values its parameters can take.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For L1 and L2 regularization, the respective terms are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d0e89b2e-ff40-46c1-904f-ae6fa01595d6.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '**L2 regularization** (also called **ridge regularization**) thus compels the
+    network to minimize the sum of its squared parameter values. While this regularization
+    leads to the decay of all parameter values over the optimization process, it more
+    strongly punishes large parameters due to the squared term. Therefore, L2 regularization
+    encourages the network *to keep its parameter values low and thus more homogeneously
+    distributed*. It prevents the network from developing a small set of parameters
+    with large values influencing its predictions (as it may prevent the network from
+    generalizing).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the other hand, the **L1 regularizer** (also called the **LASSO** (**least
+    absolute shrinkage and selection operator**)**regularizer**, first introduced
+    in *Linear Inversion of Band-Limited Reflection Seismograms, *by *Fadil Santosa
+    and William Symes, SIAM, 1986*) compels the network to minimize the sum of its
+    absolute parameter values. The difference between this and L2 regularization may
+    seem symbolic at first glance, but their properties are actually quite different.
+    As larger weights are not penalized by squaring, L1 regularization instead makes
+    the network shrink the parameters linked to less important features toward zero.
+    Therefore, it prevents overfitting by forcing the network to ignore less meaningful
+    features (for instance, tied to dataset noise). In other words, L1 regularization
+    forces the network to adopt sparse parameters; that is, to rely on a smaller set
+    of non-null parameters. This can be advantageous if the footprint of the network
+    should be minimized (for mobile applications, for example).
+  prefs: []
+  type: TYPE_NORMAL
+- en: TensorFlow and Keras implementations
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To implement those techniques, we should define the regularization loss and
+    attach this function to every target layer. At each training iteration, these
+    additional losses should be computed over the layers' parameters, and summed with
+    the main task-specific loss (for instance, the cross-entropy over the network's
+    predictions) so that they can all be backpropagated together by the optimizer.
+    Thankfully, TensorFlow 2 provides several tools to simplify this process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Additional losses can be attached to `tf.keras.layers.Layer` and `tf.keras.Model`
+    instances through their `.add_loss(losses, ...)` method, with the `losses` tensors
+    or zero-argument callables returning the loss values. Once properly added to a
+    layer (see the following code), these losses will be computed every time the layer/model
+    is called. All the losses attached to a `Layer` or `Model` instance, as well as
+    the losses attached to its sublayers, will be computed, and the list of loss values
+    will be returned when calling the `.losses` property. To better understand this
+    concept, we''ll extend the simple convolution layer implemented previously to
+    add optional regularization to its parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: Regularization losses should guide the models toward learning more robust features.
+    They should not take precedence over the main training loss, which is preparing
+    the model for its task. Therefore, we should be careful not to put too much weight
+    on the regularization losses. Their values are usually dampened by a coefficient
+    between 0 and 1 (refer to `coef` in our `l2_reg()` loss function). This weighing
+    is especially important, for instance, when the main loss is averaged (for example,
+    MSE and MAE). So that the regularization losses do not outweigh it, we should
+    either make sure that they are also averaged over the parameters' dimensions,
+    or we should decrease their coefficient further.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At each training iteration of a network composed of such layers, the regularization
+    losses can be computed, listed, and added to the main loss as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We introduced `.add_loss()`, as this method can greatly simplify the process
+    of adding layer-specific losses to custom networks. However, when it comes to
+    adding regularization losses, TensorFlow provides a more straightforward solution.
+    We can simply pass the regularization loss function as a parameter of the `.add_weight()` method
+    (also named `.add_variable()`) used to create and attach variables to a `Layer`
+    instance. For example, the kernels'' variable could be directly created with the
+    regularization loss as follows: `self.kernels = self.add_weight(..., regularizer=self.kernel_regularizer)`.
+    At each training iteration, the resulting regularization loss values can still
+    be obtained through the layer or model''s `.losses` property.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When using predefined Keras layers, we do not need to bother extending the
+    classes to add regularization terms. These layers can receive regularizers for
+    their variables as parameters. Keras even explicitly defines some regularizer
+    callables in its `tf.keras.regularizers` module. Finally, when using Keras training
+    operations (such as `model.fit(...)`), Keras automatically takes into account
+    additional `model.losses` (that is, the regularization terms and other possible
+    layer-specific losses), as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: Dropout
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, the regularization methods we have covered are affecting the way networks
+    are trained. Other solutions are affecting their architecture. **Dropout** is
+    one such method and one of the most popular regularization tricks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Definition
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Introduced in *Dropout: A Simple Way to Prevent Neural Networks from Overfitting *(*JMLR,
+    2014*) by Hinton and his team (who made numerous contributions to deep learning),
+    *dropout* consists of randomly disconnecting (*dropping out*) some neurons of
+    target layers at every training iteration. This method thus takes a hyperparameter
+    ratio, ![](img/9860fd1e-4b64-4956-b2f4-e190e386e1d9.png), which represents the
+    probability that neurons are being turned off at each training step (usually set
+    between 0.1 and 0.5). The concept is illustrated in *Figure 3.13*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3c40f227-304e-4293-a27c-15d56a959f64.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 3.13: Dropout represented on a simple neural network (note that dropped-out
+    neurons of layers are randomly chosen in each iteration)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: By artificially and randomly impairing the network, this method forces the learning
+    of robust and concurrent features. For instance, as dropout may deactivate the
+    neurons responsible for a key feature, the network has to figure out other significant
+    features in order to reach the same prediction. This has the effect of developing
+    redundant representations of data for prediction.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dropout is also often explained as a cheap solution to simultaneously train
+    a *multitude* of models (the randomly impaired versions of the original network).
+    During the testing phase, dropout is not applied to the network, so the network's
+    predictions can be seen as the combination of the results that the partial models
+    would have provided. Therefore, this information averaging prevents the network
+    from overfitting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TensorFlow and Keras methods
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Dropout can be called as a function through `tf.nn.dropout(x, rate, ...)` (refer
+    to the documentation at [https://www.tensorflow.org/api_docs/python/tf/nn/dropout](https://www.tensorflow.org/api_docs/python/tf/nn/dropout))
+    to directly obtain a tensor with values randomly dropped, or as a layer through
+    `tf.keras.layers.Dropout()` (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/layers/dropout](https://www.tensorflow.org/api_docs/python/tf/layers/dropout)),
+    which can be added to neural models. By default, `tf.keras.layers.Dropout()` is
+    only applied during training (when the layer/model is called with the `training=True`
+    parameter) and is deactivated otherwise (forwarding the values without any alteration).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Dropout layers should be added directly after layers we want to prevent from
+    overfitting (as dropout layers will randomly drop values returned by their preceding
+    layers, forcing them to adapt). For instance, you can apply dropout (for example,
+    with a ratio, ![](img/0d8d3c23-bc8e-4837-b207-6ab366cf4c6d.png)) to a fully connected
+    layer in Keras, as shown in the following code block:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Batch normalization
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Though our list is not exhaustive, we will introduce a final common regularization
+    method, which is also directly integrated into the networks' architectures.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Definition
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Like dropout, **batch normalization** (proposed by Sergey Ioffe and Christian
+    Szegedy in *Batch Normalization: Accelerating Deep Network Training by Reducing
+    Internal Covariate Shift*, *JMLR, 2015*) is an operation that can be inserted
+    into neural networks and affects their training. This operation takes the batched
+    results of the preceding layers and *normalizes* them; that is, it subtracts the
+    batch mean and divides it by the batch standard deviation.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since batches are randomly sampled in SGD (and thus are rarely the same twice),
+    this means that the data will almost never be normalized the same way. Therefore,
+    the network has to learn how to deal with these data fluctuations, making it more
+    robust and generic. Furthermore, this normalization step concomitantly improves
+    the way the gradients flow through the network, facilitating the SGD process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The behavior of batch normalization layers is actually a bit more complex than
+    what we have succinctly presented. These layers have a couple of trainable parameters
+    that are used in denormalization operations, so that the next layer does not just
+    try to learn how to undo the batch normalization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TensorFlow and Keras methods
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Similar to dropout, batch normalization is available in TensorFlow both as a
+    function, `tf.nn.batch_normalization()` (refer to the documentation at [https://www.tensorflow.org/api_docs/python/tf/nn/batch_normalization](https://www.tensorflow.org/api_docs/python/tf/nn/batch_normalization))
+    and as a layer, `tf.keras.layers.BatchNormalization()` (refer to the documentation
+    at [https://www.tensorflow.org/api_docs/python/tf/keras/layers/BatchNormalization](https://www.tensorflow.org/api_docs/python/tf/keras/layers/BatchNormalization)),
+    making it straightforward to include this regularization tool inside networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: All these various optimization techniques are precious tools for deep learning,
+    especially when training CNNs on imbalanced or scarce datasets, which is often
+    the case for custom applications (as elaborated on in [Chapter 7](337ec077-c215-4782-b56c-beae4d94d718.xhtml),
+    *Training on Complex and Scarce Datasets*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similar to the Jupyter notebook for the optimizers study, we provide another
+    notebook demonstrating how these regularization methods can be applied, and how
+    they affect the performance of our simple CNN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: With the help of TensorFlow and Keras, we caught up with years of research in
+    deep learning. As CNNs have become central to modern computer vision (and machine
+    learning in general), it is essential to understand how they perform, and what
+    kinds of layers they are composed of. As presented in this chapter, TensorFlow
+    and Keras provide clear interfaces to efficiently build such networks. They are
+    also implementing several advanced optimization and regularization techniques
+    (such as various optimizers, L1/L2 regularization, dropout, and batch normalization)
+    to improve the performance and robustness of trained models, which is important
+    to keep in mind for any application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We now have the tools to finally tackle more challenging computer vision tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will therefore present several CNN architectures applied
+    to the task of classifying large picture datasets.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Why does the output of a convolutional layer have a smaller width and height
+    than the input, unless it is padded?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What would be the output of a max-pooling layer with a receptive field of (2,
+    2) and stride of 2 on the input matrix in *Figure 3.6*?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How could LeNet-5 be implemented using the Keras functional API in a non-object-oriented
+    manner?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How does L1/L2 regularization affect networks?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '*On the importance of initialization and momentum in deep learning* ([http://proceedings.mlr.press/v28/sutskever13.pdf](http://proceedings.mlr.press/v28/sutskever13.pdf)),
+    by Ilya Sutskever et al. This often-referenced conference paper, published in
+    2013, presents and compares the momentum and NAG algorithms.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Dropout: A Simple Way to Prevent Neural Networks from Overfitting* ([http://www.jmlr.org/papers/volume15/srivastava14a/srivastava14a.pdf](http://www.jmlr.org/papers/volume15/srivastava14a/srivastava14a.pdf?utm_content=buffer79b43&utm_medium=social&utm_source=twitter.com&utm_campaign=buffer)),
+    by Nitish Srivastava et al. This other conference paper, published in 2014, introduced
+    dropout. It is a great read for those who want to know more about this method
+    and see it applied to several famous computer vision datasets.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

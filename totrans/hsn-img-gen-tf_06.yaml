@@ -1,0 +1,1251 @@
+- en: '*Chapter 4*: Image-to-Image Translation'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In part one of the book, we learned to generate photorealistic images with VAE
+    and GANs. The generative models can turn some simple random noise into high-dimensional
+    images with complex distribution! However, the generation processes are unconditional,
+    and we have fine control over the images to be generated. If we use MNIST as an
+    example, we will not know which digit will be generated; it is a bit of a lottery.
+    Wouldn't it be nice to be able to tell GAN what we want it to generate? This is
+    what we will learn in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will first learn to build a **conditional GAN** (**cGAN**) that allows us
+    to specify the class of images to generate. This lays the foundation for more
+    complex networks that follow. We will learn to build a GAN known as **pix2pix**
+    to perform **image-to-image translation**, or **image translation** for short.
+    This will enable a lot of cool applications such as converting sketches to real
+    images. After that, we will build **CycleGAN**, an upgrade from pix2pix that could
+    turn a horse into a zebra and then back to a horse! Finally, we will build **BicyleGAN**,
+    to translate not only high quality but also diversified images with different
+    styles. The following topics will be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Conditional GANs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Image translation with pix2pix
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Unpaired image translation with CycleGAN
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Diversifying translation with BicycleGAN
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The following topics will be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will reuse code and network blocks from [*Chapter 3*](B14538_03_Final_JM_ePub.xhtml#_idTextAnchor060),
+    *Generative Adversarial Network*, such as upsampling and downsampling blocks of
+    DCGAN. This will allow us to focus on higher-level architectures of new GANS and
+    to cover more GANs in this chapter. The latter three GANs were created in chronological
+    order and share many common blocks. Thus, you should read them in order, beginning
+    with pix2pix, followed by CycleGAN, and finishing with BicycleGAN, which will
+    make a lot more sense than jumping to BicycleGAN, which is the most complex model
+    in this book so far.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The Jupyter notebooks can be found at the following link:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://github.com/PacktPublishing/Hands-On-Image-Generation-with-TensorFlow-2.0/tree/master/Chapter04](https://github.com/PacktPublishing/Hands-On-Image-Generation-with-TensorFlow-2.0/tree/master/Chapter04).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The notebooks used in this chapter are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`ch4_cdcgan_mnist.ipynb`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`ch4_cdcgan_fashion_mnist.ipynb`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`ch4_pix2pix.ipynb`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`ch4_cyclegan_facade.ipynb`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`ch4_cyclegan_horse2zebra.ipynb`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`ch4_bicycle_gan.ipynb`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Conditional GANs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The first goal of a generative model is to be able to produce good quality images.
+    Then we would like to be able to have some control over the images that are to
+    be generated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In [*Chapter 1*](B14538_01_Final_JM_ePub.xhtml#_idTextAnchor017), *Getting Started
+    with Image Generation Using TensorFlow*, we learned about conditional probability
+    and generated faces with certain attributes using a simple conditional probabilistic
+    model. In that model, we generated a smiling face by forcing the model to only
+    sample from the images that had a smiling face. When we condition on something,
+    that thing will always be present and will no longer be a variable with random
+    probability. You can also see that the probability of having those conditions
+    is set to *1*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To enforce the condition on a neural network is simple. We simply need to show
+    the labels to the network during training and inference. For example, if we want
+    the generator to generate the digit 1, we will need to present the label of 1
+    in addition to the usual random noise as input to the generator. There are several
+    ways of implementing it. The following diagram shows one implementation as it
+    appeared in the *Conditional Generative Adversarial Nets* paper that first introduced
+    the idea of cGAN:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.1 – Condition by concatenating labels and inputs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(Redrawn from: M. Mirza, S. Osindero, 2014, Conditional Generative Adversarial
+    Nets – https://arxiv.org/abs/1411.1784)](img/B14538_04_01.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 4.1 – Condition by concatenating labels and inputs (Redrawn from: M.
+    Mirza, S. Osindero, 2014, Conditional Generative Adversarial Nets – https://arxiv.org/abs/1411.1784)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In unconditional GAN, the generator input is only the latent vector *z*. In
+    conditional GAN, the latent vector *z* joins with a one-hot encoded input label
+    *y* to form a longer vector, as shown in the preceding diagram. The following
+    table shows one-hot encoding using `tf.one_hot()`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.2 – Table showing one-hot encoding for classes of 10 in TensorFlow'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_04_02.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 4.2 – Table showing one-hot encoding for classes of 10 in TensorFlow
+  prefs: []
+  type: TYPE_NORMAL
+- en: One-hot encoding converts a label into a vector with dimensions equal to the
+    number of classes. The vectors have all zeros, apart from one unique position
+    that is filled with 1\. Some machine learning frameworks use a different order
+    of 1 in the vector; for example, class label `0` is encoded as `0000000001` where
+    the `1` is in the right-most position. The order doesn't matter as long as they
+    are consistently used in both training and inference. This is because one-hot
+    encoding is only used to represent categorical classes and does not have semantic
+    meaning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing a conditional DCGAN
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Now, let's implement a conditional DCGAN on MNIST. We have implemented a DCGAN
+    in [*Chapter 2*](B14538_02_Final_JM_ePub.xhtml#_idTextAnchor039), *Variational
+    Autoencoder*, and therefore we extend the network by adding the conditional bits.
+    The notebook for this exercise is `ch4_cdcgan_mnist.ipynb`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s first look at the generator:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first step is to one-hot encode the class label. As `tf.one_hot`([1], 10)
+    will create a shape of (1, 10), we''ll need to reshape it to a 1D vector of (10)
+    so that we can concatenate with the latent vector `z`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The next step is to join the vectors together by using the `Concatenate` layer.
+    By default, concatenation happens across the last dimension (axis=-1). Therefore,
+    concatenating latent variables with a shape of (`batch_size`, 100) with one-hot
+    labels of (`batch_size`, 10) will produce a tensor shape of (`batch_size`, 110).
+    The code is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'That is the only change required for the generator. As we have already covered
+    the details of DCGAN architecture, I won''t be repeating them in here. For a quick
+    recap, the input will go through a dense layer, followed by several upsampling
+    and convolutional layers to generate an image with a shape of (32, 32, 3), as
+    shown in the following model diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.3 – Generator model diagram of a conditional DCGAN'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_04_03.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 4.3 – Generator model diagram of a conditional DCGAN
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next step is to inject the label into the discriminator as it is not enough
+    that the discriminator is able to tell whether the image is real or fake, but
+    also to tell whether it is the correct image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The original cGAN uses only dense layers in the network. The input image is
+    flattened and concatenates with a one-hot encoded class label. However, this doesn't
+    work well with DCGAN as the first layer of the discriminator is a convolutional
+    layer that is expecting a 2D image as input. If we use the same approach, we will
+    end up with an input vector of 32×32×1 + 10 = 1,034, and that can't be reshaped
+    to a 2D image. We will need another way to project the one-hot vector into a tensor
+    of the correct shape.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One way to do this is to use a dense layer to project the one-hot vector into
+    the shape of an input image (32,32,1), and concatenate it to produce a shape of
+    (32, 32, 2). The first color channel will be our grayscale image, and the second
+    channel will be the projected one-hot labels. Again, the rest of the discriminator
+    network is unchanged, as shown in the following model summary:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.4 – Inputs to discriminator of a conditional DCGAN'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_04_04.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 4.4 – Inputs to discriminator of a conditional DCGAN
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As we have seen, the only change made to networks is by adding another path
+    that takes class labels as input. The last remaining bit to do before starting
+    the model training is to add the additional label class into the model''s input.
+    To create a model with multiple inputs, we pass a list of input layers as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Similarly, we pass a list of `images` and `labels` in the same order when performing
+    a forward pass:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'During training, we create random labels for the generator as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We use a DCGAN training pipeline and loss function. Here are samples of the
+    digits generated by conditioning on the input labels from 0 to 9:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.5 – Hand-written digits generated by a conditional DCGAN'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_04_05.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 4.5 – Hand-written digits generated by a conditional DCGAN
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can also train cDCGAN on Fashion-MNIST without any change. The result samples
+    are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.6 – Image generated by a conditional DCGAN'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_04_06.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 4.6 – Image generated by a conditional DCGAN
+  prefs: []
+  type: TYPE_NORMAL
+- en: Conditional GAN works really well on MNIST and Fashion-MNIST! Next, we will
+    look at different ways of applying the class conditions on GANs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Variants of cGAN
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We implemented conditional DCGAN by one-hot encoding the labels, passing it
+    through a dense layer (for discriminator), and concatenating the input layer.
+    The implementation is simple and gives good results. We will introduce a few other
+    popular methods of implementing conditional GANs and you are encouraged to implement
+    the code on your own to try them out.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using the embedding layer
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'One popular implementation is to replace one-hot encoding and the dense layer
+    with the `embedding` layer. The embedding layer takes categorical values as input,
+    and the output is a vector, such as a dense layer. In other words, it has the
+    same input and output shapes as the `label->one-hot-encoding->dense` block. The
+    code snippet is shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: Both methods produce similar results, albeit the `embedding` layer is more computationally
+    efficient as the size of the one-hot vector can grow quickly for large numbers
+    of classes. Embedding is used extensively to encode words due to a large number
+    of vocabularies. For small classes such as MNIST, the computational advantage
+    is negligible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Element-wise multiplication
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Concatenating a latent vector with an input image increases the dimensions
+    and the first layer of the network. Instead of concatenating, we could also perform
+    element-wise multiplication of the label embedding with the original network input
+    and keep the original input shape. The origin of this approach is unclear. However,
+    a few industry experts carried out experiments on **Natural Language Processing**
+    tasks and found this method to outperform that of one-hot encoding. The code snippet
+    to perform element-wise multiplication between an image and embedding is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Combining the preceding code with the embedding layer gives us the following
+    graph, as implemented in `ch4_cdcgan_fashion_mnist.ipynb`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.7 – Implementation of cDCGAN using embedding and element-wise multiplication'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_04_07.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 4.7 – Implementation of cDCGAN using embedding and element-wise multiplication
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we will see why inserting labels into the intermediate layer is popular.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Inserting labels in the intermediate layer
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Instead of inserting the label into the first layer of the network, we can choose
+    to do this in the intermediate layer. This approach is popular for generators
+    with encoder-decoder architectures, where the label is inserted into a layer that
+    is close to the end of the encoder with the smallest dimensions. Some insert the
+    label embedding toward the discriminator output, so the majority of the discriminator
+    can focus on deciding whether the images look real. The only part of the last
+    few layers' capacity is used in deciding whether the image matches the label.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will learn how to insert label embedding into intermediate and normalization
+    layers when we implement advanced models in [*Chapter 8*](B14538_08_Final_JM_ePub.xhtml#_idTextAnchor156)*,
+    Self-Attention for Image Generation*. We have now understood how to use class
+    labels conditioned to generate images. For the rest of the chapter, we will use
+    an image as a condition to perform image-to-image translation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Image translation with pix2pix
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The introduction of pix2pix in 2017 caused quite a stir, not only within the
+    research community, but also the wider population. This can be attributed in part
+    to the [https://affinelayer.com/pixsrv/](https://affinelayer.com/pixsrv/) website,
+    which puts the models online and allows people to translate their sketches into
+    cats, shoes, and bags. You should try it too! The following screenshot is taken
+    from their website to give you a glimpse of how it works:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.8 – Application of turning a sketch of a cat into a real image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(Source: https://affinelayer.com/pixsrv/)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_04_08.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 4.8 – Application of turning a sketch of a cat into a real image (Source:
+    https://affinelayer.com/pixsrv/)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Pix2pix came from a research paper entitled *Image-to-Image Translation with
+    Conditional Adversarial Networks*. From the paper title, we can tell that pix2pix
+    is a conditional GAN that performs image-to-image translation. The model can be
+    trained to perform general image translation, but we will need to have image pairs
+    in the dataset. In our pix2pix implementation, we will translate masks of building
+    façades into realistic-looking building façades, as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.9 – Mask and real image of a building façade'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_04_09.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 4.9 – Mask and real image of a building façade
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding screenshot, the picture on the left shows an example of the
+    semantic segmentation mask used as input of pix2pix where the building parts are
+    encoded in different colors. On the right is the target real image of a building
+    façade.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Discarding random noise
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In all the GANs we have learned so far, we always sample from random distribution
+    as input to the generator. We require that randomness, otherwise the generator
+    will produce deterministic outputs and fail to learn data distribution. Pix2pix
+    breaks away from that tradition by removing random noise from GANs. As the authors
+    pointed out in the *Image-to-Image Translation with Conditional Adversarial Networks*
+    paper, they could not get the conditional GAN to work with an image and noise
+    as input as the GAN would simply ignore the noise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As a result, the authors turned to the use of dropout in generator layers to
+    provide randomness. A side effect is that this is minor randomness; hence, little
+    variations are seen in the output and they tend to look similar in styles. This
+    problem is overcome with BicycleGAN, which we will learn about later.
+  prefs: []
+  type: TYPE_NORMAL
+- en: U-Net as a generator
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The notebook for this tutorial is `ch4_pix2pix.ipynb`. The architecture of
+    generators and discriminators is rather different from DCGAN and we will go through
+    each of them in detail. Without the use of random noise as input, all that is
+    left to the generator input is the input image that is used as the condition.
+    Thus, both the input and output are an image of the same shape, which is (256,
+    256, 3) in our examples. Pix2pix uses U-Net, which is an encoder-decoder-like
+    architecture similar to an autoencoder, but with skip connections between the
+    encoder and decoder. Following is the architecture diagram of the original U-Net:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.10 – Original U-Net architecture (Source: O. Ronneberger et al.,
+    2015, “U-Net: Convolutional Networks for Biomedical Image Segmentation” – https://arxiv.org/abs/1505.04597)](img/B14538_04_10.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.10 – Original U-Net architecture (Source: O. Ronneberger et al., 2015,
+    “U-Net: Convolutional Networks for Biomedical Image Segmentation” – https://arxiv.org/abs/1505.04597)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In [*Chapter 2*](B14538_02_Final_JM_ePub.xhtml#_idTextAnchor039)*, Variational
+    Autoencoder*, we saw how an autoencoder downsamples a high-dimension input image
+    into low-dimension latent variables before upsampling it back to the original
+    size. During the downsampling process, the high frequency content of images (the
+    texture details) is lost. As a result, the restored image can appear to be blurry.
+    By passing the high spatial resolution content from an encoder to a decoder via
+    the skip connections, the decoder could capture and generate those details to
+    make the images look sharper. As a matter of fact, U-Net was first used to translate
+    medical images into semantic segmentation masks, which is the reverse of what
+    we are trying to do in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To make the construction of the generator easier, we first write a function
+    to create a block for downsampling with a default stride of `2`. This consists
+    of convolution and optional normalization, `activation`, and `dropout` layers,
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `upsample` block is similar, but with an additional `UpSampling2D` before
+    `Conv2D` and has strides of `1`, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will first construct the downsampling path, where the feature map sizes
+    are halved after every downsampling block as follows. It is important to note
+    the output shapes as we will need to match those with the upsampling path for
+    skip connections as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the upsampling path, we concatenate the previous layer''s output with a
+    skip connection from the downsampling path to form input to the `upsample` block.
+    We use `dropout` in the first three layers as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: This last layer of the generator is Conv2D, with a channel size of 3 to match
+    the image channel numbers. Like DCGAN, we normalize the images to the range of
+    [-1, +1], using `tanh` as the activation function, and binary cross-entropy as
+    the loss function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loss functions
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Pix2pix uses standard GAN loss functions of binary cross-entropy for both the
+    generator and discriminator, just like DCGAN. Now that we have a target image
+    to generate, we can therefore add L1 reconstruction loss to the generator. In
+    the paper, the ratio of the reconstruction loss to binary cross-entropy is set
+    to 100:1\. The following code snippet shows how to compile combined generator-discriminator
+    with losses:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`bce` stands for `mae` stands for **mean absolute entropy loss**, or is more
+    commonly known as **L1 loss**.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing a PatchGAN discriminator
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Researchers found that L2 or L1 loss produces blurry results on image generation
+    problems. Although they fail to encourage high-frequency crispness, they can capture
+    low-frequency content well. We can see low-frequency information as content, such
+    as the building structures, while high-frequency information provides the style
+    information, such as the fine-detail textures and colors of building façades.
+    To capture high-frequency information, a new discriminator known as PatchGAN was
+    used. Don't be misled by its name; PatchGAN is not a GAN but a **Convolutional
+    Neural Network** (**CNN**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The conventional GAN discriminator looks at the entire image and judges whether
+    that entire image is real or fake. Instead of looking at the entire image, PatchGAN
+    looks at patches of images, hence the name. The receptive field of a convolutional
+    layer is the number of input points that are mapped to one output point or, in
+    other words, represents the size of the convolutional kernel. For a kernel size
+    of N×N, each output of the layer is mapped to N×N pixels of the input tensor.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we go deeper along the network, the next layer gets to see a larger patch
+    of input images and the effective receptive field of the output increases. The
+    default PatchGAN is designed to have an effective field of 70×70\. The original
+    PatchGAN has an output shape of 30×30 due to the careful padding, but we will
+    use only the 'same' padding to give the output shape of 29×29\. Each of the 29×29
+    patches looks at different and overlapping 70x70 patches of input images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In other words, the discriminator tries to predict whether each of the patches
+    is real or fake. By zooming into local patches, the discriminator is encouraged
+    to look at high-frequency information of the images. To summarize, we use L1 reconstruction
+    loss to capture the low-frequency content, and PatchGAN to encourage high-frequency-style
+    details.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'PatchGAN is simply a CNN and can be implemented using several downsampling
+    blocks as shown in the following code. We will use the notation A to refer to
+    the input (source) image, and B for the output (target) image. Like cGAN, the
+    discriminator requires two inputs – the condition, which is image A, and the output
+    image B, which can be a real one from the dataset or a fake one from the generator.
+    We concatenate the two images together at the beginning of the discriminator,
+    hence, PatchGAN looks at both image A (condition) and image B (output image or
+    fake image) together to decide whether it is real or fake. The code is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The discriminator model summary is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.11 – Discriminator model summary'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_04_11.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 4.11 – Discriminator model summary
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note that the output layer has the shape of (*29, 29, 1)*. Therefore, we will
+    create labels that match its output shape as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now we are ready to train pix2pix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training pix2pix
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: It was well known as a result of the invention of pix2pix that batch normalization
+    is bad for image generation as the statistics from the batch of images tend to
+    make the generated images look more similar and blurrier. The pix2pix authors
+    noticed that generated images look better when the batch size is set to `1`. When
+    the batch size is `1`, batch normalization becomes a special case of **instance
+    normalization**, but the latter can be applied for any batch size. To recap on
+    normalization, for an image batch with a shape of (N, H, W, C), batch normalization
+    uses statistics across (N, H, W), while instance normalization uses statistics
+    from individual images across dimensions (H,W). This prevents the statistics from
+    other images from creeping in.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Therefore, to get good results, we can either use batch normalization with
+    a batch size of `1`, or we replace it with instance normalization. Instance normalization
+    is not available as a standard Keras layer at the time of writing, perhaps this
+    hasn''t gained mainstream usage beyond image generation. However, instance normalization
+    is available from the `tensorflow_addons` module. After importing from the module,
+    it is a drop-in replacement for batch normalization:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We train pix2pix using a DCGAN pipeline and it is surprisingly easy to train
+    compared with DCGAN. This is because the probability distribution to cover an
+    input image is narrower than the one from random noise. The following images show
+    the image samples after 100 epochs of training. The image on the left is the segmentation
+    mask, the middle one is the ground truth, and the one on the right is generated:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.12 – Images generated by pix2pix after 100 epochs of training. Left:
+    Input mask. Middle: Ground truth. Right: Generated image ](img/B14538_04_12.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.12 – Images generated by pix2pix after 100 epochs of training. Left:
+    Input mask. Middle: Ground truth. Right: Generated image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Images generated by pix2pix capture the image content correctly due to the large
+    weight (lambda=100) of reconstruction loss. For example, the doors and windows
+    are almost always in the correct places and correct shapes. However, it lacks
+    variation in styles as the generated buildings have mostly the same color, as
+    are the styles of windows. This is due to the absence of random noise in the model
+    as mentioned earlier and acknowledged by the authors. Nevertheless, pix2pix opens
+    the floodgates for image-to-image translation using GAN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unpaired image translation with CycleGAN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: CycleGAN was created by the same research group who invented pix2pix. CycleGAN
+    could train with unpaired images using two generators and two discriminators.
+    However, by using pix2pix as a foundation, CycleGAN is actually quite simple to
+    implement once you understand how the cycle consistency loss works. Before this,
+    let's try to understand the advantage of CycleGAN over pix2pix in the following
+    sections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unpaired dataset
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: One drawback of pix2pix is that it requires a paired training dataset. For some
+    applications, we can create a dataset rather easily. A grayscale-to-color images
+    dataset and vice-versa is probably the simplest to create using any image processing
+    software libraries such as OpenCV or Pillow. Similarly, we could also easily create
+    sketches from real images using edge detection techniques. For a photo-to-artistic-painting
+    dataset, we can use neural style transfer (we'll cover this in [*Chapter 5*](B14538_05_Final_JM_ePub.xhtml#_idTextAnchor104),
+    *Style Transfer*) to create artistic painting from real images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, there are some datasets that cannot be automated, such as day-to-night
+    scenes. Some have to be labeled manually, which can be expensive to do, such as
+    the segmentation masks for building façades. Then, some image pairs are simply
+    impossible to collect or create, such as a horse-to-zebra image translation. This
+    is where CycleGAN excels as it does not require paired data. CycleGAN could train
+    on unpaired datasets and then translate images in either direction!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Cycle consistency loss
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In a generative model, the generator translates from domain A (source) to domain
+    B (target), for example, from orange to apple. By conditioning on the image from
+    A (orange), the generator creates images with pixel distributions of B (apple).
+    However, this does not guarantee that those images are paired in a meaningful
+    way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will use language translation as an analogy. Let's assume you are tourist
+    in a foreign country and you ask a local to help translate an English sentence
+    into the local language and she replies with a beautifully sounding sentence.
+    OK, it does sound real, but is the translation correct? You walk down the street
+    and ask another person to explain that sentence into English. If that translation
+    matches your original English sentence, then we know the translation was correct.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using the same concept, CycleGAN adopts a translation cycle to ensure that
+    the mapping is correct in both directions. The following diagram shows the architecture
+    of CycleGAN that forms a cycle between two generators:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.13 – Architecture of CycleGAN. (The solid arrows show the flow of
+    the forward cycle, while the dashed arrow path is not used in the forward cycle
+    but is drawn to show the overall connections between blocks.)](img/B14538_04_13.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 4.13 – Architecture of CycleGAN. (The solid arrows show the flow of the
+    forward cycle, while the dashed arrow path is not used in the forward cycle but
+    is drawn to show the overall connections between blocks.)
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the preceding diagram, we have image domain **A** on the left and domain
+    **B** on the right. The procedure that is followed is listed here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**GAB** is a generator that translates from **A** to fake **B**; the generated
+    image then goes to the discriminator **DB**. This is the standard GAN data path.
+    Next, the fake image **B** is translated back into domain **A** via **GBA** and
+    that completes the forward path. At this point, we have a reconstructed image,
+    **A**. If the translations went perfectly, then it should look identical to the
+    source image **A**.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We also come across **cycle consistency loss**, which is an L1 loss between
+    the source image and the reconstructed image. Similarly, for the backward path,
+    we start the cycle by translating from domain **B** to **A**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In training, we show CycleGAN with two images from domains `ch4_cyclegan_facade.ipynb`
+    notebook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CycleGAN also uses what is known as **identity loss**, which is equivalent to
+    the reconstruction loss of pix2pix. **GAB** translates image **A** into the fake
+    **B**, while the forward identity loss is the L1 distance between the fake **B**
+    and the real **B**. Similarly, there is also a backward identity loss in the reverse
+    direction. With façade datasets, the weight of identity loss should be set to
+    low. This is because some of the real images in this dataset have parts of their
+    images blacked out. This dataset was meant to let a machine learning algorithm
+    guess the missing pixels. Thus, we use a low weight to discourage the network
+    from translating the blackout.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building CycleGAN models
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We will now build the discriminators and generators of CycleGAN. The discriminator
+    is PatchGAN, like pix2pix, with two changes. First, the discriminator only sees
+    the images from its domain and thus, only one image inputs into discriminators
+    rather than both images from A and B. In other words, the discriminators only
+    need to judge whether the images are real or fake in their own domain.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Second, sigmoid is removed from the output layer. This is because CycleGAN
+    uses a different adversarial loss function called **least-squares loss**. We haven''t
+    covered LSGAN in this book, but it is sufficient to know that this loss is more
+    stable than **log-loss**, and we can implement it using the Keras **mean squared
+    loss** (**MSE**) function. We train discriminators with the usual training step
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: For the generator, the original CycleGAN uses a residual block for improved
+    performance, but we will reuse U-Net from pix2pix, so we can focus more on CycleGAN's
+    high-level architecture and training steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let''s instantiate two pairs of generators and discriminators:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here comes the core of CycleGAN, which is to implement the combined model to
+    train generators. All we need to do is to follow the arrows in the architecture
+    diagram to feed input into the generator to generate a fake image that goes to
+    the discriminator and cycles back as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The final step is to create a model with those inputs and outputs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we need to assign correct losses and weights to them. As mentioned earlier,
+    we use `mae` (L1 loss) for cycle consistency loss and `mse` (mean squared error)
+    for adversarial loss, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In each training step, we first train both discriminators in both directions,
+    from A to B and from B to A. The `train_discriminator()` function includes training
+    with fake and real images as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is followed by training generators. The inputs are real images A and B.
+    With regard to the labels, the first pair is real/fake labels, the second pair
+    is the cycle reconstructed images, and the last pair is for identity loss:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: Then we can start training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Analysis of CycleGAN
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The following are some of the building façades generated by CycleGAN:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.14 – Building façades generated by CycleGAN'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_04_14.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 4.14 – Building façades generated by CycleGAN
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Although they look good, they are not necessarily better than pix2pix. The
+    strength of CycleGAN compared to pix2pix lies in its ability to train on unpaired
+    data. In order to test this, I have created `ch4_cyclegan_horse2zebra.ipynb` to
+    train it on unpaired horse and zebra images. Just so you know, training on unpaired
+    images is a lot harder. Therefore, have fun trying! The following images show
+    image-to-image translation between horses and zebras:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.15 – Translation between horse and zebra'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(Source: J-Y. Zhu et al., “Unpaired Image-to-Image Translation Using Cycle-Consistent
+    Adversarial Networks” – https://arxiv.org/abs/1703.10593)](img/B14538_04_15.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 4.15 – Translation between horse and zebra (Source: J-Y. Zhu et al.,
+    “Unpaired Image-to-Image Translation Using Cycle-Consistent Adversarial Networks”
+    – https://arxiv.org/abs/1703.10593)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pix2pix and CycleGAN are popular GANs that are used by many. However, they both
+    have one shortcoming; that is the image outputs almost always look identical.
+    For example, if we were to perform zebra-to-horse translation, the horse will
+    always have the same skin color. This is due to the inherent nature of GANs that
+    learns to reject the randomness of noise. In the next section, we will look at
+    how BicycleGAN solves this problem to generate richer variations of images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Diversifying translation with BicyleGAN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Both Pix2pix and CycleGAN came from the **Berkeley AI Research** (**BAIR**)
+    laboratory at UC Berkeley. They are popular and have a number of tutorials and
+    blogs about them online, including on the official TensorFlow site. BicycleGAN
+    is what I see as the last of the image-to-image translation trilogy from that
+    research group. However, you don't find a lot of example code online, perhaps
+    due to its complexity.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In order to build the most advanced network in this book up to this point, we
+    will throw in all the knowledge you have acquired in this chapter, plus the last
+    two chapters. Maybe that is why it is regarded as advanced by many. Don't worry;
+    you already have all the prerequisite knowledge. Let's jump in!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding architecture
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Before jumping straight into implementation, let me give you an overview of
+    BicycleGAN. From the name, you may naturally think that BicycleGAN is an upgrade
+    of CycleGAN by adding another cycle (from unicycle to bicycle). No, it is not!
+    It has nothing to do with CycleGAN; it is rather an improvement to pix2pix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As mentioned earlier, pix2pix is a one-to-one mapping where the output is always
+    the same for a given input. The authors tried to add noise to the generator input,
+    but it simply ignores the noise and fails to create variations in the output image.
+    Therefore, they searched for a method where the generator does not ignore the
+    noise, but instead uses the noise to generate diversified images, hence, one-to-many
+    mapping.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the following screenshot, we can see different models and configurations
+    related to BicycleGAN. Diagram *(a)* is the configuration for inference where
+    image **A** is combined with input noise to generate image **B**. This is essentially
+    the cGAN at the beginning of the chapter, except for the role reversal between
+    image **A** and noise. In cGAN, noise plays the leading role, with 100 dimensions
+    and a condition of 10 class labels. In BicyleGAN, image **A** with a shape of
+    (256, 256, 3) is the condition, while the noise sampled from latent *z* has a
+    dimension of 8\. *Figure (b)* is the training configuration for *pix2pix + noise*.
+    The two configurations at the bottom of the diagram are used by BicycleGAN, and
+    we will look at these shortly:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.16 – Models within BicycleGAN'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(Source: J-Y. Zhu, “Toward Multimodal Image-to-Image Translation” – https://arxiv.org/abs/1711.11586)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_04_16.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 4.16 – Models within BicycleGAN (Source: J-Y. Zhu, “Toward Multimodal
+    Image-to-Image Translation” – https://arxiv.org/abs/1711.11586)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The main concept of BicycleGAN is to find a relation between the latent code
+    *z* and the target image **B**, so the generator can learn to generate a different
+    image **B** when given a different *z*. BicycleGAN does it by combining the two
+    methods, **cVAE-GAN** and **cLR-GAN**, as shown in the preceding diagram.
+  prefs: []
+  type: TYPE_NORMAL
+- en: cVAE-GAN
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Let''s go over some background to **VAE-GAN**. The authors of VAE-GAN argue
+    that L1 loss is not a good metric for measuring the visual perception of an image.
+    If the image moves a few pixels to the right, it may look no different to the
+    human eye, but can result in a large L1 loss. Why not let a network learn what
+    is the appropriate objective function to use? Indeed, they use GAN''s discriminator
+    to learn the objective function to tell whether the fake image looks real and
+    use VAE as a generator. As a result, the generated images appear sharper. If we
+    look at *Figure (c)* from the preceding diagram and ignore image **A**, that is
+    a VAE-GAN. With **A** as a condition, it becomes a conditional cVAE-GAN. The training
+    steps are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The VAE encodes the real image **B** into latent code of a multivariate Gaussian
+    mean and log variance, and then samples from them to create noise input. This
+    flow is the standard VAE workflow. Please refer to [*Chapter 2*](B14538_02_Final_JM_ePub.xhtml#_idTextAnchor039),
+    *Variational Autoencoder*, for a refresher.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Now with the condition **A**, the noise sampled from the latent vector *z* is
+    used to generate a fake image **B**.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The information flow is ![](img/Formula_04_001.png) (the solid lined arrow
+    in *Figure (c)*). There are three loses:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/Formula_04_002.png): Adversarial loss'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/Formula_04_003.png): L1 reconstruction loss'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/Formula_04_004.png): KL divergence loss'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: cLR-GAN
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The theory behind Conditional Latent Regressor GAN is beyond the scope of this
+    book. However, we will focus on how this is applied in BicycleGAN. In cVAE-GAN,
+    we encode a real image *B* to provide the ground truth of a latent vector and
+    sample from it. However, cLR-GAN does things differently by first letting the
+    generator generate a fake image *B* from random noise, and then encoding the fake
+    image *B* and seeing how it deviates from the input random noise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The forward steps are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Like cGAN, we randomly generate some noise, and then concatenate with image
+    *A* to generate a fake image *B*.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Then we use the same encoder from VAE-GAN to encode the fake image *B* into
+    latent vectors.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We then sample *z* from encoded latent vectors, and compute the point loss with
+    the input noise *z*.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The flow is ![](img/Formula_04_005.png) (solid lined arrow in *Figure (d)*).
+    There are two losses as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/Formula_04_006.png): Adversarial loss'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/Formula_04_007.png): L1 loss between noise *N(z)* and the encoded mean'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'By combining these two flows, we got a bijection cycle between the output and
+    the latent space. The *bi* in BicycleGAN comes from *bijection*, which is a mathematical
+    term that roughly means one-to-one mapping and is reversible. In this case, BicycleGAN
+    maps the output to a latent space, and similarly from the latent space to the
+    output. The total loss is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/Formula_04_008.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Where *λ=10*, *λ*latent *= 0.5*, and *λ*latent*=0.01* are used in the default
+    configuration.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we understand the BicycleGAN architecture and loss functions, we can
+    now go on to implement them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing BicycleGAN
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We will use the `ch4_bicycle_gan.ipynb` notebook here. There are three types
+    of networks in BicycleGAN – the generator, discriminator, and encoder. We will
+    reuse the discriminator (PatchGAN) from pix2pix and the encoder from VAE from
+    [*Chapter 2*](B14538_02_Final_JM_ePub.xhtml#_idTextAnchor039), *Variational Autoencoder*.
+    The encoder is bulked up with more filters and deeper layers as the input image
+    size is larger. The code can look slightly different, but essentially the concept
+    is the same as before. The original BicycleGAN uses two PatchGANs with effective
+    receptive fields of 70x70 and 140x140\.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For simplicity, we'll use only one 70x70 PatchGAN. Using a separate discriminator
+    for cVAE-GAN and cLR-GAN improves image quality, meaning we have four networks
+    in total – the generator, encoder, and two discriminators.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Inserting latent code into the generator
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The authors tried two methods of inserting latent code into the generator,
+    one involving concatenating with the input image, and the other involving inserting
+    it into other layers in the downsampling path of the generator, as shown in the
+    following diagram. It was found that the former works well. Let''s implement this
+    simple method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.17 – Different ways of injecting z into the generator (Redrawn from:
+    J-Y. Zhu, “Toward Multimodal Image-to-Image Translation” – https://arxiv.org/abs/1711.11586)](img/B14538_04_17.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.17 – Different ways of injecting z into the generator (Redrawn from:
+    J-Y. Zhu, “Toward Multimodal Image-to-Image Translation” – https://arxiv.org/abs/1711.11586)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we have learned at the beginning of this chapter, there are several ways
+    to join the input and conditions of different shapes. BicycleGAN's method is to
+    repeat the latent code multiple times and concatenate with the input image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s use a concrete example. In BicycleGAN, the latent code length is 8\.
+    We draw 8 samples from noise distribution, and each sample is repeated H×W times
+    to form a tensor with the shape of (H,W,8). In other words, in each of the 8 channels,
+    its (H, W) feature map is made up of the same repeated number from that channel.
+    The following is the code snippet of `build_generator()`, which shows the tiling
+    and concatenation of latent code. The remainder of the code is the same as the
+    pix2pix generator:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: The next step is to create two models, cVAE-GAN and cLR-GAN, to incorporate
+    the networks and create the forward path flow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: cVAE-GAN
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Here is the code to create a model for cVAE-GAN. This is the implementation
+    of the forward pass, as mentioned earlier:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: We include the KL divergence loss in the model as opposed to that in the custom
+    loss function. This is simpler and more efficient as `kl_loss` can be calculated
+    directly from the mean and log variance without needing external labels to be
+    passed in from a training step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: cLR-GAN
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Here is the implementation of cLR-GAN. One thing to note is that this has different
+    inputs to images A and B that are separate from cVAE-GAN:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: Alright, we now have the models defined. The next step is to implement the training
+    step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training step
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Both models train together in one step, but with different image pairs. Therefore,
+    in each training step, we fetch the data twice, once for each model. Some do it
+    by creating data pipelines that load the batch size twice and then split them
+    into two halves, as shown in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: Previously, we used two different methods to perform the training step. One
+    is to define and compile a Keras model with an optimizer and loss function, and
+    then call `train_on_batch()` to perform the training step. This is simple and
+    works well on well-defined models. Alternatively, we can also use `tf.GradientTape`
+    to allow finer control of the gradients and update. We have been using both of
+    them in our models, where we use `train_on_batch()` for the generator and `tf.GradientTape`
+    for the discriminator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The purpose was to familiarize ourselves with both methods so that if we need
+    to implement complex training steps with low-level code, we know how to do it,
+    and now is the time. BicycleGAN has two models that share a generator and encoder,
+    but we update them using different combinations of loss functions, which make
+    the `train_on_batch` method unfeasible without modifying the original settings.
+    Therefore, we will combine both the generator and discriminator of both models
+    into a single training step using `tf.GradientTape` as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first step is to perform a forward pass and collect the outputs from both
+    models:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, we backpropagate and update the discriminators:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Then we calculate the losses from the models'' outputs. Similar to CycleGAN,
+    BicycleGAN also uses the LSGAN loss function, which is the mean squared error:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, there is the update to the generator''s and encoder''s weights. The
+    L1 latent code loss is only used to update the generator, and not the encoder.
+    It was found that optimizing them simultaneously for the loss would encourage
+    them to hide information relating to the latent code and not learn meaningful
+    modes. Therefore, we calculate separate losses for the generator and encoder and
+    update the weights accordingly:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'There you go. You can now train your BicycleGAN. There are two datasets you
+    can choose from in the notebook – building façades or edges to shoes. The shoe
+    dataset has simpler images and therefore is easier to train. The following images
+    are examples from the original BicycleGAN paper. The first real image on the left
+    is the ground truth and the four images on the right are generated ones:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 4.18 – Examples of transforming sketches to images with a variety
+    of styles. Source: J-Y. Zhu, “Toward Multimodal Image-to-Image Translation”](img/B14538_04_18.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.18 – Examples of transforming sketches to images with a variety of
+    styles. Source: J-Y. Zhu, “Toward Multimodal Image-to-Image Translation”'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You may struggle to notice the difference between them on this grayscale page
+    because their differences are mainly in color. It captures the structure of the
+    shoes and bags almost perfectly, but not so much in terms of the fine details.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We began this chapter by learning how the basic cGAN enforces the class label
+    as a condition to generate MNIST. We implemented two different ways of injecting
+    the condition, one being to one-hot encode the class labels to a dense layer,
+    reshape them to match the channel dimensions of the input noise, and then concatenate
+    them together. The other way is to use the `embedding` layer and element-wise
+    multiplication.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we learned to implement pix2pix, a special type of condition GAN for image-to-image
+    translation. It uses PatchGAN as a discriminator, which looks at patches of images
+    to encourage fine details or high-frequency components in the generated image.
+    We also learned about a popular network architecture, U-Net, that has been used
+    for various applications. Although pix2pix can generate high-quality image translation,
+    the image is one-to-one mapping without diversification of the output. This is
+    due to the removal of input noise. This was overcome by BicycleGAN, which learned
+    the mapping between the latent code and the output image so that the generator
+    doesn't ignore the input noise. With that, we are one step closer toward multimodal
+    image translation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the timeline between pix2pix and BicycleGAN, CycleGAN was invented. Its two
+    generators and two discriminators use the cycle consistency loss to allow training
+    with unpaired data. In total, we have implemented four GANs in this chapter and
+    they are not easy ones. Well done! In the next chapter, we will look at style
+    transfer, which entangles an image into content code and style code. This has
+    had a profound influence on the development of new GANs.
+  prefs: []
+  type: TYPE_NORMAL

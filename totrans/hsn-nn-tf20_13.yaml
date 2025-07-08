@@ -1,0 +1,1149 @@
+- en: Bringing a Model to Production
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, the ultimate goal of any real-life machine learning application
+    will be presented—the deployment and inference of a trained model. As we saw in
+    the previous chapters, TensorFlow allows us to train models and save their parameters
+    in checkpoint files, making it possible to restore the model's status and continue
+    with the training process, while also running the inference from Python.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The checkpoint files, however, are not in the right file format when the goal
+    is to use a trained machine learning model with low latency and a low memory footprint.
+    In fact, the checkpoint files only contain the models' parameters value, without
+    any description of the computation; this forces the program to define the model
+    structure first and then restore the model parameters. Moreover, the checkpoint
+    files contain variable values that are only useful during the training process.
+    However, they are a complete waste of resources during inference (for instance,
+    all the variables created by the optimizers). The correct representation to use
+    is the SavedModel serialization format, which is described in the next section.
+    After analyzing the SavedModel serialization format, and seeing how a `tf.function`
+    decorated function can be graph-converted and serialized, we will deep dive into
+    the TensorFlow deployment ecosystem to see how TensorFlow 2.0 speeds up the deployment
+    of a graph on a wide number of platforms and how it is designed for serving at
+    scale.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The SavedModel serialization format
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Python deployment
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Supported deployment platforms
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The SavedModel serialization format
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As we explained in [Chapter 3](f62be9d4-c8e0-4590-8299-2fdad139830f.xhtml),* TensorFlow
+    Graph Architecture*, representing computations using DataFlow graphs has several
+    advantages in terms of model portability since a graph is a language-agnostic
+    representation of the computation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: SavedModel is a universal serialization format for TensorFlow models that extends
+    the TensorFlow standard graph representation by creating a language-agnostic representation
+    for the computation that is recoverable and hermetic. This representation has
+    been designed not only to carry the graph description and values (like the standard
+    graph) but also to offer additional features that were designed to simplify the
+    usage of the trained models in heterogeneous production environments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'TensorFlow 2.0 has been designed with simplicity in mind. This design choice
+    is visible in the following diagram, where it is possible to appreciate how the
+    SavedModel format is the only bridge between the research and development phases
+    (on the left) and the deployment phase (on the right):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/74244cce-6674-4e44-9fa0-a47aee4adaf9.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The TensorFlow 2.0 training and deployment ecosystem. Image source: [https://medium.com/tensorflow/whats-coming-in-tensorflow-2-0-d3663832e9b8](https://medium.com/tensorflow/whats-coming-in-tensorflow-2-0-d3663832e9b8)—the
+    TensorFlow Team
+  prefs: []
+  type: TYPE_NORMAL
+- en: Being the bridge between the model's training and its deployment, the SavedModel
+    format must offer a broad set of features to satisfy the wide spectrum of deployment
+    platforms available, thereby providing excellent support for different software
+    and hardware platforms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Features
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: A SavedModel contains a complete computational graph, including model parameters
+    and everything else that's specified during its creation. SavedModel objects that
+    are created using the TensorFlow 1.x API only contain a flat graph representation
+    of the computation; in TensorFlow 2.0, a SavedModel contains a serialized representation
+    of `tf.function` objects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Creating a SavedModel is straightforward when you''re using the TensorFlow
+    Python API (as shown in the next section), but its configuration requires that
+    you understand its main features, which are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Graph tagging**: In a production environment, you often need to put a model
+    into production, while at the same time continuing the development of the same
+    model after getting new data. Another possible scenario is the parallel training
+    of two or more identical models, trained with different techniques or with different
+    data, with the desire to put them all in production to test which performs better.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The SavedModel format allows you to have multiple graphs that share the same
+    set of variables and assets in the same file. Each graph is associated with one
+    or more tags (user-defined strings) that allow us to identify it during the load
+    operation.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '**SignatureDefs**: When defining a computational graph, we are aware of the
+    model''s inputs and outputs; this is called a **Model Signature**. The SavedModel
+    serialization format uses `SignatureDefs` to allow generic support for signatures
+    that may need to be saved within `graph.SignatureDefs` are nothing but a set of
+    namedModel Signatures that defines from which nodes the model can be called and
+    which is the output node, given a certain input.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Assets**: To allow the models to rely upon external files for initialization,
+    SavedModel supports the concept of assets. The assets are copied to the SavedModel
+    location during its creation, and they can be read by the model initialization
+    procedure safely.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Device cleanup**: The computational graph, which we looked at in [Chapter
+    3](f62be9d4-c8e0-4590-8299-2fdad139830f.xhtml), *TensorFlow Graph Architecture*,
+    contains the device name of where the computation must be executed. To generate
+    generic graphs that can run on any hardware platform, SavedModel supports clearing
+    devices before its generation.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: These features allow you to create hardware that's independent and self-contained
+    objects that specify how the model should be called, the output nodes, given a
+    specific input, and which particular model to use among the ones available (via
+    tags).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a SavedModel from a Keras model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In TensorFlow 1.x, creating a SavedModel requires that we know what the input
+    nodes are, what the output nodes are, and that we have successfully loaded the
+    graph representation of the model we want to save inside a `tf.Session` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'TensorFlow 2.0 simplified the way of creating a SavedModel a lot. Since Keras
+    is the only way of defining models, and there are no more sessions, the process
+    of creation of SavedModel consists of a single line of code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `path` variable follows a good practice that consists of adding a version
+    number to the model directly in the export path (`/1`). The only tag associated
+    with the model is the default `tag: "serve"`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `tf.saved_model.save` call creates the following directory structure in
+    the specified `path `variable
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The directory contains the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`assets` contains auxiliary files. These files were described in the previous
+    section.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`variables` contains the model variables. These variables are created from
+    a TensorFlow Saver object in the same way they are created for the checkpoint
+    files.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`saved_model.pb` is the compiled Protobuf. This is a binary representation
+    of the computation the Keras model describes.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The Keras model already specifies what the model input and outputs are; therefore,
+    there is no need to worry about which is which. The SignatureDef that's exported
+    by a Keras model (it is worth recalling from the previous section that they are
+    just named functions that describe how to call the model) is the invocation of
+    the `call` method of the Keras model (its forward pass), and it is exported under
+    the `serving_default` signature key.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a SavedModel from a Keras model is straightforward since the description
+    of the forward pass is contained in its `call` method. This function is then automatically
+    converted by TensorFlow into its graph equivalent using AutoGraph. The input parameters
+    of the `call` method become the input signature of the graph and the outputs of
+    the Keras model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, we may not be interested in exporting a Keras model. What if we just
+    want to deploy and serve a generic computational graph?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Converting a SavedModel from a generic function
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In TensorFlow 1.x, there is no difference between exporting a generic graph
+    and a model: select the input and output nodes, create a session, define the signature,
+    and save it.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In TensorFlow 2.0, since graphs are hidden, the conversion of a generic TensorFlow
+    computation to a SavedModel (graph) requires some additional attention.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The description of the first parameter of the `tf.saved_model.save(obj, export_dir,
+    signatures=None)` function clearly states that `obj` must be a trackable *object*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A trackable object is an object derived from the `TrackableBase` class (private,
+    which means it's not visible in the `tensorflow` package)—almost every object
+    in TensorFlow 2.0 derives from this class. These objects are the objects that
+    can be stored inside a checkpoint file, and among them, we find the Keras models,
+    the optimizers, and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For this reason, it is not possible to export a function like the following
+    one without creating an object that inherits from a `TrackableBase` object:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The most generic class in the TensorFlow API that, once instantiated, creates
+    a trackable object is the `tf.Module` class. A module is a named container for `tf.Variable`
+    objects, other modules, and functions that apply to user input. Subclassing `tf.Module`
+    is a straightforward way to create a trackable object and satisfying the requirement
+    of the `tf.saved_model.save` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Not being a Keras model, `tf.saved_model.save` doesn''t know which one of the `Wrapper`
+    class methods applies to graph conversion. There are two different ways of instructing
+    the `save` function to convert only the methods we are interested in. They are
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Specify the signature**: The third parameter of the `save` function optionally
+    accepts a dictionary. The dictionary must contain the name of the method to export
+    and the input description. It does so by using the `tf.TensorSpec` object.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Use** `tf.function`: The `save` mode, when the `signature` parameter is omitted,
+    searches inside the `obj` for a `@tf.function` decorated method. If exactly one
+    method is found, that method will be used as the default signature for the SavedModel.
+    Also, in this case, we have to describe the input type and shape by using `tf.TensorSpec`
+    objects that are manually passed to the `tf.function` `input_signature` parameter.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The second method is the handiest, and it also brings the advantage of having
+    defined and converted to graph the current Python program. When used, this could
+    speed up computation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: Therefore, the way of exporting a generic function to its SavedModel representation
+    is to wrap the function into a trackable object, decorate the method with `tf.function`,
+    and specify the input signature to use during the conversion.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is all we need to do to export a generic function, that is, a generic computational
+    graph, or a Keras model to its self-contained and language-agnostic representation,
+    so that it's ready to use in every programming language.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The easiest way to use a SavedModel object is to use the TensorFlow Python API,
+    since it's the more complete high-level API for TensorFlow and offers convenient
+    methods to load and use a SavedModel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Python deployment
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Using Python, it is straightforward to load the computational graphs stored
+    inside a SavedModel and use them as native Python functions. This is all thanks
+    to the TensorFlow Python API. The `tf.saved_model.load(path)` method deserializes
+    the SavedModel located in `path` and returns a trackable object with a `signatures`
+    attribute that contains the mapping from the signature keys to Python functions
+    that are ready to be used.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `load` method is capable of deserializing the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generic computational graphs, such as the ones we created in the previous section
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Keras models
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: SavedModel created using TensorFlow 1.x or the Estimator API
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Generic computational graph
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s say we are interested in loading the computational graph of the `pow` function
+    we created in the previous section and using it inside a Python program. Doing
+    this is straightforward in TensorFlow 2.0\. Follow these steps to do so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Import the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `imported` object has a `signatures` attribute we can inspect to see the
+    available functions. In this case, since we didn''t specify a signature when we
+    exported the model, we expect to find only the default signature, `"serving_default"`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: The computational graph of the power function can be made available by accessing
+    `imported.signatures["serving_default"]`. Then, it is ready to be used.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using the imported computational graphs requires you to have good understanding
+    of the TensorFlow graph structure, as explained in [Chapter 3](https://cdp.packtpub.com/hands_on_applied_neural_networks_with_tensorflow_2_x/wp-admin/post.php?post=308&action=edit#post_26), *TensorFlow
+    Graph Architecture*. In fact, the `imported.signatures["serving_default"]` function
+    is a static graph, and as such, it requires some additional attention to be used.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Calling the graph but passing a wrong input type will make it raise an exception
+    since the static graph is strictly statically typed. Moreover, the object returned
+    by the `tf.saved_model.load` function forces the usage of named parameters only,
+    and not positional ones (which is different to the `pow` function''s original
+    definition, which used only positional arguments). Thus, once the inputs with
+    the correct shape and input type are defined, it is possible to invoke the function
+    easily:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `result` variable, as opposed to what you might expect, does not contain
+    a `tf.Tensor` object with a value of `32.0`; it is a dictionary. Using a dictionary
+    to return the result of a computation is a good design choice. In fact, this forces
+    the caller (the Python program using the imported computational graph) to explicitly
+    access a key that indicates the desired return value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the case of the `pow` function, where the return value is a `tf.Tensor`
+    and not a Python dictionary, the returned dictionary has keys that follow a naming
+    convention—the key name is always the`"output_"` string, followed by the position
+    (starting from zero) of the returned argument. The following code snippet clarifies
+    this concept:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If the `pow` function is updated as follows, the dictionary keys will be `"output_0",
+    "output_1"`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Of course, falling back on the default naming convention is not a good or maintainable
+    solution (what does `output_0` represent?). Therefore, when designing functions
+    that will be exported in a SavedModel, it''s good practice to make the function
+    return a dictionary so that the exported SavedModel will use the same dictionary
+    as the return value when invoked. Thus, a better design of the `pow` function
+    could be as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once imported and executed, the following code will produce a dictionary with
+    meaningful names:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The resultant output is the following dictionary:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: The TensorFlow Python API simplifies not only the loading of a generic computational
+    graph, but also the usage of a trained Keras model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Keras models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Being the official TensorFlow 2.0 way of defining machine learning models,
+    the Keras models, when serialized, contain more than just the serialized `call`
+    method. The object returned by the `load` function is similar to the object that''s
+    returned when you''re restoring a generic computational graph, but with more attributes
+    and peculiarities:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `.variables` attribute: The non-trainable variables attached to the original
+    Keras model have been serialized and stored inside the SavedModel.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The `.trainable_variables` attribute: In the same manner as the `.variables`
+    attribute, the trainable variables of the model have also been serialized and
+    stored inside the SavedModel.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The `__call__` method: Instead of exposing a `signatures` attribute with a
+    single key, `"serving_default"`, the returned object exposes a `__call__` method
+    that accepts inputs just like the original Keras model.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'All of these features allow not only the use of the SavedModel as a standalone
+    computational graph, as shown in the following code snippet, but they also allow
+    you to completely restore the Keras model and continue to train it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As we mentioned previously, all these additional features (variables that are
+    trainable and not trainable, plus the serialized representation of the computation)
+    allow for a complete restore of a Keras model object from a SavedModel, making
+    it possible to use them as checkpoint files. The Python API offers the `tf.keras.models.load_model`
+    function to do that, and, as usual, in TensorFlow 2.0, it is really handy:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, `path` is the path of the SavedModel, or the `h5py` file. The `h5py` serialization
+    format is not considered in this book since it is a Keras representation and has
+    no additional advantages with respect to the SavedModel serialization format.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Python API is also backward-compatible with the TensorFlow 1.x SavedModel
+    format, and so you can restore flat graphs instead of `tf.function` objects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Flat graphs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The SavedModel objects created by the `tf.estimator` API or using the SavedModel
+    1.x API contain a rawer representation of the computation. This representation
+    is known as **flat graph**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this representation, the flat graph inherits no signatures from a `tf.function`
+    object in order to simplify the restoration process. It only takes the computational
+    graph as is, along with its node names and variables (see [Chapter 3](https://cdp.packtpub.com/hands_on_applied_neural_networks_with_tensorflow_2_x/wp-admin/post.php?post=308&action=edit#post_26), *TensorFlow
+    Graph Architecture*, for details).
+  prefs: []
+  type: TYPE_NORMAL
+- en: These SavedModels have functions that correspond to their signatures (defined
+    manually before the serialization process) in the `.signatures` attribute, but
+    more importantly, the restored SavedModel that uses the new TensorFlow 2.0 API
+    has a `.prune` method that allows you to extract functions from arbitrary subgraphs
+    just by knowing the input and output node names.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using the `.prune` method is the equivalent of restoring the SavedModel in the
+    default graph and putting it in a TensorFlow 1.x Session; then, the input and
+    output nodes can be accessed by using the `tf.Graph.get_tensor_by_name` method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'TensorFlow 2.0, through the `.prune` method, simplified this process, making
+    it just as easy, as shown in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, `input_` is a placeholder of any possible input node, and `"cnn/out/identity:0"`
+    is the output node.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After the SavedModel has been loaded inside the Python program, it is possible
+    to use the trained model (or the generic computational graph) as a building block
+    for any standard Python application. For instance, once you've trained a face
+    detection model, it is straightforward to use OpenCV (the most famous open source
+    computer vision library) to open the webcam stream and feed it to the face detection
+    model. The applications of trained models are countless and you can develop your
+    own Python application that uses a trained machine learning model as a building
+    block.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although Python is the language of data science, it isn't the perfect candidate
+    for the deployment of machine learning models on different platforms. There are
+    programming languages that are the de facto standard for certain tasks or environments;
+    for example, Javascript for client-side web development, C++ and Go for data centers
+    and cloud services, and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Being a language-agnostic representation, it is, in theory, possible to load
+    and execute (deploy) a SavedModel using every programming language; this is a
+    huge advantage since there are cases in which Python is not usable, or it is not
+    the best choice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'TensorFlow supports many different deployment platforms: it offers tools and
+    frameworks in many different languages in order to satisfy a wide range of use
+    cases.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Supported deployment platforms
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'As shown in the diagram at the beginning of this chapter, SavedModel is the
+    input for a vast ecosystem of deployment platforms, with each one being created
+    to satisfy a different range of use cases:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**TensorFlow Serving**: This is the official Google solution for serving machine
+    learning models. It supports model versioning, multiple models can be deployed
+    in parallel, and it ensures that concurrent models achieve high throughput with
+    low latency thanks to its complete support for hardware accelerators (GPUs and
+    TPUs). TensorFlow Serving is not merely a deployment platform, but an entire ecosystem
+    built around TensorFlow and written in highly efficient C++ code. Currently, this
+    is the solution Google itself uses to run tens of millions of inferences per second
+    on Google Cloud''s ML platform.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**TensorFlow Lite**:Thisis the deployment platform of choice for running machine
+    learning models on mobile and embedded devices. TensorFlow Lite is a whole new
+    ecosystem and has its own training and deployment tools. It is designed to optimize
+    the trained models for size, thereby creating a small binary representation of
+    the original model that''s optimized for fast inference and low power consumption.
+    Moreover, the TensorFlow Lite framework also offers the tools to build a new model
+    and retrain an existing one (thus it allows you to do transfer learning/fine-tuning)
+    directly from the embedded device or smartphone.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: TensorFlow Lite comes with a Python toolchain that's used to convert the SavedModel
+    into its optimized representation, the `.tflite` file.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '**TensorFlow.js**: This is a framework similar to TensorFlow Lite but designed
+    to train and deploy TensorFlow models in the browser and Node.js. Like TensorFlow
+    Lite, the framework comes with a Python toolchain that can be used to convert
+    a SavedModel into a JSON readable format by the TensorFlow Javascript library.
+    TensorFlow.js can be used to fine-tune or train models from scratch, which it
+    does by using sensor data coming from the browser or any other client-side data.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Other language bindings**: TensorFlow Core is written in C++, and there are
+    bindings for many different programming languages, most of which are automatically
+    generated. The structure of the binding is often very low-level and similar to
+    the TensorFlow Graph structure used in the TensorFlow 1.x Python API and under
+    the hood of the TensorFlow C++ API.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Supporting many different deployment platforms, TensorFlow is ready to deploy
+    on a broad range of platforms and devices. In the following sections, you will
+    learn how to deploy a trained model on a browser using TensorFlow.js and how to
+    run inferences using the Go programming language.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TensorFlow.js
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: TensorFlow.js ([https://www.tensorflow.org/js/](https://www.tensorflow.org/js/))
+    is a library that's used for developing and training machine learning models on
+    JavaScript and deploying them in browsers or in Node.js.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To be used inside TensorFlow.js, a trained model must be converted into a format
+    TensorFlow.js can load. The target format is a directory containing a `model.json`
+    file and a set of binary files containing the model parameters. The `model.json`
+    file contains the graph description and information about the binary files, to
+    make it possible to restore the trained model successfully.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Although it is fully compatible with TensorFlow 2.0, it is good practice to
+    create an isolated environment for TensorFlow.js, as explained in the *Environment
+    setup* section of [Chapter 3](https://cdp.packtpub.com/hands_on_applied_neural_networks_with_tensorflow_2_x/wp-admin/post.php?post=308&action=edit#post_26), *TensorFlow
+    Graph Architecture*. The TensorFlow.js dedicated environment is, from now on,
+    displayed using the `(tfjs)` notation, before the code snippets.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first step in developing a TensorFlow.js application is to install TensorFlow.js
+    inside the isolated environment. You need to do this so that you can use all the
+    provided command-line tools and the library itself via Python:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tfjs)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: TensorFlow.js has tight integration with TensorFlow 2.0\. In fact, it is possible
+    to convert a Keras model into a TensorFlow.js representation directly using Python.
+    Moreover, it offers a command-line interface for converting a generic SavedModel
+    that could contain any computational graph into its supported representation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Converting a SavedModel into model.json format
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Since it is not possible to use a SavedModel directly from TensorFlow.js, we
+    need to convert it into a compatible version and then load it in the TensorFlow.js
+    runtime. The `tensorflowjs_converter` command-line application makes the conversion
+    process straightforward. This tool not only performs the conversion between the
+    SavedModel and the TensorFlow.js representation but also automatically quantizes
+    the model, thereby reducing its dimensions when necessary.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s say we are interested in converting the SavedModel of the computational
+    graph we exported in the previous section into TensorFlow format via the serialized `pow`
+    function. Using `tensorflowjs_converter`, we only need to specify the input and
+    output file formats (in this case, the input is a SavedModel, and the output is
+    a TensorFlow.js graph model) and location, and then we are ready to go:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tfjs)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: The preceding command reads the SavedModel present in `/tmp/pow/1` and places
+    the result of the conversion in the current directory, `exported_js` (creating
+    it if it doesn't exist). Since the SavedModel has no parameters, in the `exported_js`
+    folder, we only find the `model.json` file that contains the description of the
+    computation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We are now ready to go – we can define a simple web page or a simple Node.js
+    application that imports the TensorFlow.js runtime and then successfully import
+    and use the converted SavedModel. The following code creates a one-page application
+    with a form inside it; by using the click event of the **pow** button, the exported
+    graph is loaded, and the computation is executed:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'TensorFlow.js follows different conventions in regards to how to use a loaded
+    SavedModel. As we can see in the preceding code snippet, the signature defined
+    inside the SavedModel has been preserved, and the function is being invoked by
+    passing the named parameters `"x"` and `"y"`. Instead, the return value format
+    has been changed: the `pow_x_y` and `pow_y_x` keys have been discarded, and the
+    return values are now positional; in the first position (`results[0]`), we found
+    the value of the `pow_x_y` key, and in the second position, the value of the `pow_y_x` key.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Moreover, with JavaScript being a language with strong support for asynchronous
+    operations, the TensorFlow.js API uses it a lot—the model loading is asynchronous
+    and defined inside an `async` function. Even fetching the results from the model
+    is asynchronous by default. But in this case, we forced the call to be synchronous
+    using the `dataSync` method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using Python, we can now launch a simple HTTP server and see the application
+    inside the browser:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tfjs)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'By visiting the `http://localhost:8000/` address using a web browser and opening
+    the HTML page containing the previously written code, we can see and use the deployed
+    graph, directly in the browser:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/5fd26d0a-d14f-4070-a6f5-c3bcd2e2f26c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The TensorFlow.js API, although similar to the Python one, is different and
+    follows different rules; a complete analysis of TensorFlow.js is beyond the scope
+    of this book, and so you should have a look at the official documentation to gain
+    a better understanding of the TensorFlow.js API.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Compared to the preceding procedure, which involves the usage of `tensorflowjs_converter`,
+    the deployment of a Keras model is simplified, and it is possible to integrate
+    the conversion from a Keras model to a `model.json` file directly in the TensorFlow
+    2.0 Python script that's used to train the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Converting a Keras Model into model.json format
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'As shown at the beginning of this chapter, a Keras model can be exported as
+    a SavedModel, and therefore, the procedure explained earlier to convert a SavedModel
+    into a `model.json` file can still be used. However, since the Keras models are
+    particular objects in the TensorFlow 2.0 framework, it is possible to directly
+    embed the deployment into TensorFlow.js at the end of the training pipeline:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tfjs)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: The conversion is straightforward since it only consists of a single line, `tfjs.converters.save_keras_model(model,
+    tfjs_target_dir)`. For this reason, the practical application is left as an exercise
+    to you (see the *Exercises* section for more information).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Among the available deployment platforms, there is a long list of programming
+    languages whose support to TensorFlow is given by bindings, which are usually
+    automatically generated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Supporting different programming languages is a great advantage since it allows
+    developers to embed machine learning models that have been developed and trained
+    using Python in their applications. If, for instance, we are Go developers and
+    we want to embed a machine learning model in our application, we can use the TensorFlow
+    Go bindings or a simplified interface built upon them called **tfgo**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Go Bindings and tfgo
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The TensorFlow bindings for the Go programming language are almost entirely
+    automatically generated from the C++ API, and as such, they implement only primitive
+    operations. There's no Keras models, no eager execution, nor any other TensorFlow
+    2.0 new features; in fact, almost no changes were made to the Python API. Moreover,
+    the Go API is not covered by the TensorFlow API satabilty guarantee, which means
+    that everything can change between minor releases. However, this API is particularly
+    useful for loading models that are created with Python and running them within
+    a Go application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Setup
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Setting up the environment is more complex compared to Python since it is necessary
+    to download and install the TensorFlow C library and clone the whole TensorFlow
+    repository to create the Go TensorFlow package at the correct version.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following `bash` script shows how to download, configure, and install the
+    TensorFlow Go API, with no GPU, at version 1.13:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: Once installed, it is possible to build and run an example program that only
+    uses the Go bindings.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Go bindings
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Refer to the example program available at [https://www.tensorflow.org/install/lang_go](https://www.tensorflow.org/install/lang_go)
+    for this section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you will see from the code, using TensorFlow in Go is very different compared
+    to Python or even JavaScript. In particular, the operations that are available
+    are really low-level and there is still the graph definition and session execution
+    pattern to follow. A detailed explanation of the TensorFlow Go API is beyond the
+    scope of this book; however, you can read the *Understanding TensorFlow using
+    GO* article ([https://pgaleone.eu/tensorflow/go/2017/05/29/understanding-tensorflow-using-go/](https://pgaleone.eu/tensorflow/go/2017/05/29/understanding-tensorflow-using-go/)),
+    which explains the basics of the Go API.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A `Go` package that simplifies the usage of Go bindings is `tfgo`. In the following
+    section, we are going to use it to restore and execute the computational graph
+    of the `pow` operation from the previously exported SavedModel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Working with tfgo
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Installing `tfgo` is straightforward; just use the following code after installing
+    the TensorFlow Go package:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: Since the goal is to use Go to deploy the SavedModel of the previously defined
+    `pow` function, we are going to use the `tfgo` `LoadModel` function, which was
+    created to load a SavedModel given the path and the desired tag.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TensorFlow 2.0 comes with the `saved_model_cli` tool, which can be used to inspect
+    a SavedModel file. This tool is fundamental to correctly using a SavedModel using
+    the Go bindings or `tfgo`. In fact, contrary to Python or TensorFlow.js, the Go
+    API requires the name of the operations of input and output, and not the high-level
+    names given during the SavedModel's creation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'By using `saved_model_cli show`, it is possible to have all the information
+    about the inspect SavedModel and thus be able to use them in Go:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This produces the following list of information:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The most important parts are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**The tag name**: `serve` is the only tag present in this SavedModel object.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**The SignatureDefs**: There are two different SignatureDefs in this SavedModel: `__saved_model_init_op`
+    which, in this case, does nothing; and `serving_default`, which contains all the
+    necessary information about the input and output nodes of the exported computational
+    graph.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**The inputs and outputs**: Every SignatureDef section contains a list of input
+    and outputs. As we can see, for every node, the dtype, shape, and name of the
+    operation that generates the output Tensor are available.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Since the Go bindings support the flat graph structure, we have to use the operation
+    names and not the names that were given during the SavedModel's creation to access
+    the input/output nodes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we have all this information, it is easy to use `tfgo` to load and
+    execute the model. The following code contains information about how the model
+    is loaded and its usage so that it only executes the output node that computes
+    [![](img/4e15f405-513a-440e-ba07-b2a5a1f12d53.png)]:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(go)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the following code snippet, you restore the model from the SavedModel tag, `"serve"`. Define
+    the input tensors, that is, *x=2*, *y=5*. Then, compute the result. The output
+    is the first node, `"PartitionedCall:0"`, which corresponds to *x_to_y*. The input
+    names are `"serving_default_{x,y}"` and correspond to `x` and `y`. The predictions
+    need to be converted back into the correct type, which is `float32` in this case:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: As expected, the program produces *32* as the output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The process of inspecting a SavedModel using `saved_model_cli` and using it
+    in a Go program or in any other supported deployment platform is always the same,
+    no matter what the content of the SavedModel is. This is one of the greatest advantages
+    of using the standardized SavedModel serialization format as the unique connection
+    point between the training/graph definition and the deployment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we looked at the SavedModel serialization format. This standardized
+    serialization format was designed with the goal of simplifying the deployment
+    of machine learning models on many different platforms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: SavedModel is a language-agnostic, self-contained representation of the computation,
+    and the whole TensorFlow ecosystem supports it. Deploying a trained machine learning
+    model on embedded devices, smartphones, browsers, or using many different languages
+    is possible thanks to the conversion tools based on the SavedModel format or the
+    native support offered by the TensorFlow bindings for other languages.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The easiest way to deploy a model is by using Python since the TensorFlow 2.0
+    API has complete support for the creation, restoration, and manipulation of SavedModel
+    objects. Moreover, the Python API offers additional features and integrations
+    between the Keras models and the SavedModel objects, making it possible to use
+    them as checkpoints.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We saw how all the other deployment platforms supported by the TensorFlow ecosystem
+    are based on the SavedModel file format or on some of its transformations. We
+    used TensorFlow.js to deploy a model in a browser and in Node.js. We learned that
+    we require an additional conversion step, but doing this is straightforward thanks
+    to the Python TensorFlow.js package and the native support for Keras models. The
+    automatically generated language bindings are close to the C++ API, and so they
+    are more low-level and difficult to use. We also learned about Go bindings and
+    `tfgo`, which is a simplified interface for the TensorFlow Go API. Together with
+    the command-line tools that are used to analyze a SavedModel object, you've seen
+    how to read the information contained inside a SavedModel and use it to deploy
+    a SavedModel in Go.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ve reached the end of this book. By looking back at the previous chapters,
+    we can see all the progress that we''ve made. Your journey into the world of neural
+    networks shouldn''t end here; in fact, this should be a starting point so that
+    you can create your own neural network applications in TensorFlow 2.0\. Throughout
+    this journey, we learned about the basics of machine learning and deep learning
+    while emphasizing the graph representation of the computation. In particular,
+    we learned about the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Machine learning basics, from the dataset's importance to the most common machine
+    learning algorithm families (supervised, unsupervised, and semi-supervised).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The most common neural network architectures, how to train a machine learning
+    model, and how to fight the overfitting problem through regularization.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The TensorFlow graph architecture that's explicitly used in TensorFlow 1.x and
+    still present in TensorFlow 2.0\. In this chapter, we started to write TensorFlow
+    1.x code, which we found to be extremely useful when working with `tf.function`.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The TensorFlow 2.0 architecture with its new way of programming, the TensorFlow
+    2.0 Keras implementation, eager execution, and many other new features, which
+    were also explained in previous chapters.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to create efficient data input pipelines and how to use the new **TensorFlow
+    datasets** (**tfds**) project to quickly get a common benchmark dataset. Moreover,
+    the Estimator API was presented, although it still uses the old graph representation.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to use TensorFlow Hub and Keras to fine-tune a pre-trained model or do transfer
+    learning. By doing this, we learned how to quickly prototype a classification
+    network, thereby speeding up the training time by reusing the work made by the
+    tech giant.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to define a simple classification and regression network, with the goal
+    of introducing the topic of object detection and showing how easy it is to train
+    a multi-headed network using TensorFlow eager execution.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: After object detection, we focused on the more difficult task (but easier to
+    implement) of performing semantic segmentation on images, and we developed our
+    own version of U-Net to solve it. Since a dataset of semantic segmentation is
+    not presented in TensorFlow datasets (tfds), we also learned how to add a custom
+    DatasetBuilder to add a new datset.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The **Generative Adversarial Networks** (**GANs**) theory and how to implement
+    the adversarial training loop using TensorFlow 2.0\. Moreover, by using the fashion-MNIST
+    dataset, we also learned how to define and train a conditional GAN.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Finally, in this chapter, we learned how to bring a trained model (or a generic
+    computational graph) to production by leveraging the SavedModel serialization
+    format and the TensorFlow 2.0 Serving ecosystem.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Although this is the last chapter, there are exercises to do and, as usual,
+    you shouldn't skip them!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercises
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The following exercises are programming challenges, combining the expressive
+    power of the TensorFlow Python API and the advantages brought by other programming
+    languages:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is a checkpoint file?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is a SavedModel file?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What are the differences between a checkpoint and a SavedModel?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is a SignatureDef?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Can a checkpoint have a SignatureDef?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Can a SavedModel have more than one SignatureDef?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Export a computational graph as a SavedModel that computes the batch matrix
+    multiplication; the returned dictionary must have a meaningful key value.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Convert the SavedModel defined in the previous exercise into its TensorFlow.js
+    representation.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Use the `model.json` file we created in the previous exercise to develop a simple
+    web page that computes the multiplication of matrices chosen by the user.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Restore the semantic segmentation model defined in [Chapter 8](51f4dcda-add6-4e58-a660-75f34a7e5593.xhtml), *Semantic
+    Segmentation and Custom Dataset Builder*, from its latest checkpoint and use `tfjs.converters.save_keras_model` to
+    convert it into a `model.json` file.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Use the semantic segmentation model we exported in the previous exercise to
+    develop a simple web page that, given an image, performs semantic segmentation.
+    Use the `tf.fromPixels` method to get the input model. A complete reference for
+    the TensorFlow.js API is available at [https://js.tensorflow.org/api/latest/](https://js.tensorflow.org/api/latest/).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Write a Go application using the TensorFlow Go bindings that computes the convolution
+    between one image and a 3 x 3 kernel.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Rewrite the Go application that you wrote in the previous exercise using tfgo.
+    Use the "image" package. Read the documentation at [https://github.com/galeone/tfgo](https://github.com/galeone/tfgo) for
+    more information.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Restore the semantic segmentation model we defined in [Chapter 8](https://cdp.packtpub.com/hands_on_applied_neural_networks_with_tensorflow_2_x/wp-admin/post.php?post=308&action=edit#post_32), *Semantic
+    Segmentation and Custom Dataset Builder*, to its latest checkpoint and export
+    it as a SavedModel object.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Use `tg.LoadModel` to load the Semantic Segmentation model into a Go program
+    and use it to produce a segmentation map for an input image whose path is passed
+    as a command-line parameter.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL

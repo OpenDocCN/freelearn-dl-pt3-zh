@@ -1,0 +1,1416 @@
+- en: '8'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Applications of LSTM – Generating Text
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that we have a good understanding of the underlying mechanisms of LSTMs,
+    such as how they solve the problem of the vanishing gradient and update rules,
+    we can look at how to use them in NLP tasks. LSTMs are employed for tasks such
+    as text generation and image caption generation. For example, language modeling
+    is at the core of any NLP task, as the ability to model language effectively leads
+    to effective language understanding. Therefore, this is typically used for pretraining
+    downstream decision support NLP models. By itself, language modeling can be used
+    to generate songs ([https://towardsdatascience.com/generating-drake-rap-lyrics-using-language-models-and-lstms-8725d71b1b12](https://towardsdatascience.com/generating-drake-rap-lyrics-using-language-models-and-lstms-8725d71b1b12)),
+    movie scripts ([https://builtin.com/media-gaming/ai-movie-script](https://builtin.com/media-gaming/ai-movie-script)),
+    etc.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The application that we will cover in this chapter is building an LSTM that
+    can write new folk stories. For this task, we will download translations of some
+    folk stories by the Grimm brothers. We will use these stories to train an LSTM
+    and then ask it to output a fresh new story. We will process the text by breaking
+    it into character-level bigrams (n-grams where *n=2*) and make a vocabulary out
+    of the unique bigrams. Note that representing bigrams as one-hot-encoded vectors
+    is very ineffective for machine learning models, as it forces the model to treat
+    each bigram as an independent unit of text that is entirely different from other
+    bigrams. But bigrams do share semantics, where certain bigrams co-occur where
+    certain ones would not. One-hot encoding will ignore this important property,
+    which is undesirable. To leverage this property in our modeling, we will use an
+    embedding layer and jointly train it with the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will also explore ways to implement previously described techniques such
+    as greedy sampling or beam search for improving the quality of predictions. Afterward,
+    we will see how we can implement time-series models other than standard LSTMs,
+    such as GRUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Specifically, this chapter will cover the following main topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our data
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Implementing the language model
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Comparing LSTMs to LSTMs with peephole connections and GRUs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Improving sequential models – beam search
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Improving LSTMs – generating text with words instead of n-grams
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Our data
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: First, we will discuss the data we will use for text generation and various
+    preprocessing steps employed to clean the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: About the dataset
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: First, we will understand what the dataset looks like so that when we see the
+    generated text, we can assess whether it makes sense, given the training data.
+    We will download the first 100 books from the website [https://www.cs.cmu.edu/~spok/grimmtmp/](https://www.cs.cmu.edu/~spok/grimmtmp/).
+    These are translations of a set of books (from German to English) by the Grimm
+    brothers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Initially, we will download all 209 books from the website with an automated
+    script, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will now show example text snippets extracted from two randomly picked stories.
+    The following is the first snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then she said, my dearest benjamin, your father has had these coffins made for
+    you and for your eleven brothers, for if I bring a little girl into the world,
+    you are all to be killed and buried in them. And as she wept while she was saying
+    this, the son comforted her and said, weep not, dear mother, we will save ourselves,
+    and go hence. But she said, go forth into the forest with your eleven brothers,
+    and let one sit constantly on the highest tree which can be found, and keep watch,
+    looking towards the tower here in the castle. If I give birth to a little son,
+    I will put up a white flag, and then you may venture to come back. But if I bear
+    a daughter, I will hoist a red flag, and then fly hence as quickly as you are
+    able, and may the good God protect you.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: 'The second text snippet is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Red-cap did not know what a wicked creature he was, and was not at all afraid
+    of him.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: “Good-day, little red-cap,” said he.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: “Thank you kindly, wolf.”
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: “Whither away so early, little red-cap?”
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: “To my grandmother’s.”
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: “What have you got in your apron?”
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: “Cake and wine. Yesterday was baking-day, so poor sick grandmother is to have
+    something good, to make her stronger.”
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: “Where does your grandmother live, little red-cap?”
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: “A good quarter of a league farther on in the wood. Her house stands under the
+    three large oak-trees, the nut-trees are just below. You surely must know it,”
+    replied little red-cap.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: ''
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: The wolf thought to himself, what a tender young creature. What a nice plump
+    mouthful, she will be better to eat than the old woman.
+  prefs:
+  - PREF_BQ
+  type: TYPE_NORMAL
+- en: We now understand what our data looks like. With that understanding, let us
+    move on to processing our data further.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating training, validation, and test sets
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We will segregate the stories we downloaded into three sets: training, validation,
+    and test files. We will use the content in each set of files as the training,
+    validation, and test data. We will use scikit-learn’s `train_test_split()` function
+    to do so.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `train_test_split()` function takes an `iterable` (e.g. list, tuple, array,
+    etc.) as an input and splits it into two sets based on a defined split ratio.
+    In this case, the input is a list of filenames and we first make a split of 80%-20%
+    training and [validation + test] data. Then we further split the `test_and_valid_filenames`
+    50%-50% to generate test and validation sets. Note how we also pass a random seed
+    to the `train_test_split` function to make sure we get the same split over multiple
+    runs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This code will output the following text:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can see that from our 209 files, we have roughly 80% of files allocated as
+    training data, 10% as validation data, and the final 10% as testing data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Analyzing the vocabulary size
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We will be using bigrams (i.e. n-grams with *n=2*) to train our language model.
+    That is, we will split the story into units of two characters. Furthermore, we
+    will convert all characters to lowercase to reduce the input dimensionality. Using
+    character-level bigrams helps us to language model with a reduced vocabulary,
+    leading to faster model training. For example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*The king was hunting in the forest.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'would break down to a sequence of bigrams as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*[‘th’, ‘e ‘, ‘ki’, ‘ng’, ‘ w’, ‘as’, …]*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s find out how large the vocabulary is. For that, we first define a `set`
+    object. Next, we go through each training file, read the content, and store that
+    as a string in the variable document.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we update the `set` object with all the bigrams in the string containing
+    each story. We get the bigrams by traversing the string two characters at a time:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This would print:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: We have a vocabulary of 705 bigrams. It would have been a lot more if we decided
+    to treat each word as a unit, as opposed to character-level bigrams.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the tf.data pipeline
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We will now define a fully fledged data pipeline that is capable of reading
+    the files from the disk and transforming the content into a format or structure
+    that can be used to train the model. The `tf.data` API in TensorFlow allows you
+    to define data pipelines that can manipulate data in specific ways to suite machine
+    learning models. For that we will define a function called `generate_tf_dataset()`
+    that takes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`filenames` – A list of filenames containing the text to be used for the model'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`ngram_width` – Width of the n-grams to be extracted'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`window_size` – Length of the sequence of n-grams to be used to generate a
+    single data point for the model'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`batch_size` – Size of the batch'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`shuffle` – (defaults to `False`) Whether to shuffle the data or not'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'For example assume an `ngram_width` of 2, `batch size` of 1, and `window_size`
+    of 5\. This function would take the string “*the king was hunting in the forest*”
+    and output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The left list in each batch represents the input sequence, and the right list
+    represents the target sequence. Note how the right list is simply the left one
+    shifted one to the right. Also note how there’s no overlap between the inputs
+    in the two records. But in the actual function, we will maintain a small overlap
+    between records. *Figure 8.1* illustrates the high-level process:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_08_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.1: The high-level steps of the data transformation we will be implementing
+    with the tf.data API'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s discuss the specifics of how the pipeline is implemented using TensorFlow’s
+    `tf.data` API. We define the code to generate the data pipeline as a reusable
+    function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let’s now discuss the above code in more detail. First we go through each file
+    in the `filenames` variable and read the content in each with:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: After the content is read, we generate n-grams from that using the `tf.strings.ngrams()`
+    function. However, this function excepts a list of chars as opposed to a string.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Therefore, we convert the string into a list of chars with the `tf.strings.bytes_split()`
+    function. Additionally, we perform several preprocessing steps, such as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Converting text to lowercase with `tf.strings.lower()`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Replacing new-line characters (`\n`) with space to have a continuous stream
+    of words
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Each of these stories is stored in a list object `(documents)`. It is important
+    to note that, `tf.strings.ngrams()` produces all possible n-grams for a given
+    n-gram length. In other words, consecutive n-grams would overlap. For example,
+    the sequence “*The king was hunting*” with an n-gram length of 2 would produce
+    `["Th", "he", "e ", " k", …]`. Therefore, we will need an extra processing step
+    later to remove the overlapping n-grams from the sequence. After all of them are
+    read and processed, we create a `RaggedTensor` object from the documents:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: A `RaggedTensor` is a special type of tensor that can have dimensions that accept
+    arbitrarily sized inputs. For example, it is almost impossible that all the stories
+    would have the same number of n-grams in each as they vary from each other a lot.
+    In this case, we will have arbitrarily long sequences of n-grams representing
+    our stories. Therefore, we can use a `RaggedTensor` to store these arbitrarily
+    sized sequences.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`tf.RaggedTensor` objects are a special type of tensor that can have variable-sized
+    dimensions. You can read more about ragged tensors at [https://www.tensorflow.org/api_docs/python/tf/RaggedTensor](https://www.tensorflow.org/api_docs/python/tf/RaggedTensor).
+    There are many ways to define a ragged tensor.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can define a ragged tensor by passing a nested list containing values to
+    the `tf.ragged.constant()` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can also define a flat sequence of values and define where to split the
+    rows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here, each value in the `row_splits` argument defines where the subsequent
+    row in the resulting tensor ends. For example, the first row will contain elements
+    from index 0 to 3 (i.e. 0, 1, 2). This will output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'You can get the shape of the tensor using `b.shape`, which will return:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, we create a `tf.data.Dataset` from the tensor with the `tf.data.Dataset.from_tensor_slices()`
+    function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This function simply produces a dataset, where a single item in the dataset
+    would be a row of the provided tensor. For example, if you provide a standard
+    tensor of shape `[10, 8, 6]`, it will produce 10 samples of shape `[8, 6]`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here, we simply get rid of the overlapping n-grams by taking only every *n*^(th)
+    n-gram in the sequence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will then use the `tf.data.Dataset.window()` function to create shorter,
+    fixed-length windowed sequences from each story:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'From each window, we generate input and target pairs, as follows. We take all
+    the n-grams except the last as inputs and all the n-grams except the first as
+    targets. This way, at each time step, the model will be predicting the next n-gram
+    given all the previous n-grams. The shift determines how much we shift the window
+    at each iteration. Having some overlap between records make sure the model doesn’t
+    treat the story as independent windows, which may lead to poor performance. We
+    will maintain around 25% overlap between two consecutive sequences:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We shuffle the data using `tf.data.Dataset.shuffle()` and batch the data with
+    a predefined batch size. Note that we have to specify a `buffer_size` for the
+    `shuffle()` function. `buffer_size` determines how much data is retrieved before
+    shuffling. The more data you buffer, the better the shuffling would be, but also
+    the worse the memory consumption would be:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we specify the necessary hyperparameters and generate three datasets:
+    training, validation, and testing:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let’s generate some data and look at the data generated by this function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This returns:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, you can see that the target sequence is just the input sequence shifted
+    one to the right. The `b` in front of the characters denotes that the characters
+    are stored as bytes. Next, we will look at how we can implement the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing the language model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Here, we will discuss the details of the LSTM implementation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, we will discuss the hyperparameters that are used for the LSTM and their
+    effects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thereafter, we will discuss the parameters (weights and biases) required to
+    implement the LSTM. We will then discuss how these parameters are used to write
+    the operations taking place within the LSTM. This will be followed by understanding
+    how we will sequentially feed data to the LSTM. Next, we will discuss how to train
+    the model. Finally, we will investigate how we can use the learned model to output
+    predictions, which are essentially bigrams that will eventually add up to a meaningful
+    story.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the TextVectorization layer
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We discussed the `TextVectorization` layer and used it in *Chapter 6, R**ecurrent
+    Neural Networks*. We’ll be using the same text vectorization mechanism to tokenize
+    text. In summary, the `TextVectorization` layer provides you with a convenient
+    way to integrate text tokenization (i.e. converting strings into a list of tokens
+    that are represented by integer IDs) into the model as a layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here, we will define a `TextVectorization` layer to convert the sequences of
+    n-grams to sequences of integer IDs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that we are defining several important arguments, such as the `max_tokens`
+    (size of the vocabulary), the `standardize` argument to not perform any text preprocessing,
+    the `split` argument to not perform any splitting, and finally, the `input_shape`
+    argument to inform the layer that the input will be a batch of sequences of n-grams.
+    With that, we have to train the text vectorization layer to recognize the available
+    n-grams and map them to unique IDs. We can simply pass our training `tf.data`
+    pipeline to this layer to learn the n-grams.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, let’s print the words in the vocabulary to see what this layer has learned:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This will output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once the `TextVectorization` layer is trained, we have to modify our training,
+    validation, and testing data pipelines slightly. Remember that our data pipelines
+    output sequences of n-gram strings as inputs and targets. We need to convert the
+    target sequences to sequences of n-gram IDs so that a loss can be computed. For
+    that we will simply pass the targets in the datasets through the `text_vectorizer`
+    layer using the `tf.data.Dataset.map()` functionality:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, we will look at the LSTM-based model we’ll be using. We’ll go through
+    various components of the model such as the embedding layer, LSTM layers, and
+    the final prediction layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the LSTM model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We will define a simple LSTM-based model. Our model will have:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The previously trained `TextVectorization` layer
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: An embedding layer randomly initialized and jointly trained with the model
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Two LSTM layers each with 512 and 256 nodes respectively
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A fully-connected hidden layer with 1024 nodes and ReLU activation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The final prediction layer with `n_vocab` nodes and `softmax` activation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Since the model is quite straightforward with the layers defined sequentially,
+    we will use the Sequential API to define this model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We start by calling `K.clear_session()`, which is a function that clears the
+    current TensorFlow session (e.g. layers and variables defined and their states).
+    Otherwise, if you run multiple times in a notebook, it will create an unnecessary
+    number of layers and variables. Additionally, let’s look at the parameters of
+    the LSTM layer in more detail:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`return_state` – Setting this to `False` means that the layer outputs only
+    the final output, whereas if set to `True`, it will return state vectors along
+    with the final output of the layer. For example, for an LSTM layer, setting `return_state=True`
+    means you’ll get three outputs: the final output, cell state, and hidden state.
+    Note that the final output and the hidden state will be identical in this case.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`return_sequences` – Setting this to true will cause the layer to output the
+    full output sequences, as opposed to just the last output. For example, setting
+    this to false will give you a [*b, n*]-sized output where *b* is the batch size
+    and *n* is the number of nodes in the layer. If true, it will output a [*b, t,
+    n*]-sized output, where *t* is the number of time steps.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'You can see a summary of this model by executing:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'which returns:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, let’s look at the metrics we can use to track model performance and finally
+    compile the model with appropriate loss, optimizer, and metrics.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining metrics and compiling the model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: For our language model, we have to define a performance metric that we can use
+    to demonstrate how good the model is. We have typically seen accuracy being used
+    widely as a general-purpose evaluation metric across different ML tasks. However,
+    accuracy might not be cut out for this task, mainly because it relies on the model
+    choosing the exact word/bigram for a given time step as in the dataset. However,
+    languages are complex and there can be many different choices to generate the
+    next word/bigram given a text. Therefore, NLP practitioners rely on a metric known
+    as **perplexity**, which measures how “perplexed” or “surprised” the model was
+    to see a *t*+1 bigram given 1:*t* bigrams.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Perplexity computation is simple. It’s simply the entropy to the power of two.
+    Entropy is a measure of the uncertainty or randomness of an event. The more uncertain
+    the outcome of the event, the higher the entropy (to learn more about entropy
+    visit [https://machinelearningmastery.com/what-is-information-entropy/](https://machinelearningmastery.com/what-is-information-entropy/)).
+    Entropy is computed as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_08_001.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In machine learning, to optimize ML models, we measure the difference between
+    the predicted probability distribution versus the target probability distribution
+    for a given sample. For that, we use cross-entropy, an extension of entropy for
+    two distributions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_08_002.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Finally, we define perplexity as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_08_003.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: To learn more about the relationship between cross entropy and perplexity visit
+    [https://thegradient.pub/understanding-evaluation-metrics-for-language-models/](https://thegradient.pub/understanding-evaluation-metrics-for-language-models/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In TensorFlow, we define a custom `tf.keras.metrics.Metric` object to compute
+    perplexity. We are going to use `tf.keras.metrics.Mean` as our super-class as
+    it already knows how to compute and track the mean value of a given metric:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here we are simply computing the cross-entropy loss for a given batch of predictions
+    and targets using the built-in `SparseCategoricalCrossentropy` loss object. Then
+    we raise it to the power of exponential to get the perplexity. We will now compile
+    our model using:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sparse categorical cross-entropy as our loss function
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Adam as our optimizer
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Accuracy and perplexity as our metrics
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, the perplexity metric will be tracked during model training and validation
+    and be printed out, similar to the accuracy metric.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training the model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'It’s time to train our model. Since we have done all the heavy-lifting required
+    (e.g. reading files, preprocessing and transforming text, and compiling the model),
+    all we have to do is call our model with the `fit()` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here we are passing `train_ds` (training data pipeline) as the first argument
+    and `valid_ds` (validation data pipeline) for the `validation_data` argument,
+    and setting the training to run for 60 epochs. Once the model is trained, let
+    us evaluate it on the test dataset by simply calling:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This gives the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: You might have slight variations in the metrics you see, but it should roughly
+    converge to the same value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the inference model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: During training, we trained our model and evaluated it on sequences of bigrams.
+    This works for us because during training and evaluation, we have the full text
+    available to us. However, when we need to generate new text, we do not have anything
+    available to us. Therefore, we have to make adjustments to our trained model so
+    that it can generate text from scratch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The way we do this is by defining a recursive model that takes the current time
+    step’s output of the model as the input to the next time step. This way we can
+    keep predicting words/bigrams for an infinite number of steps. We provide the
+    initial seed as a random word/bigram picked from the corpus (or even a sequence
+    of bigrams).
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 8.2* illustrates how the inference model works.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_08_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.2: The operational view of the inference model we’ll be building from
+    our trained model'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our inference model is going to be comparatively more sophisticated, as we
+    need to design an iterative process to generate text using previous predictions
+    as inputs. Therefore, we will be using Keras’s Functional API to implement the
+    model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: We start by defining an input layer that takes an input having one time step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note that we are defining the `shape` argument. This means it can accept an
+    arbitrarily sized batch of data (as long as it has one time step). We also define
+    several other inputs to maintain the states of the LSTM layers we have. This is
+    because we have to maintain state vectors of LSTM layers explicitly as we are
+    recursively generating outputs from the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next we retrieve the trained model’s `text_vectorization` layer and transform
+    the text to integer IDs using it:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then we obtain the embeddings layer of the train model and use it to generate
+    the embedding output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will create a fresh new LSTM layer to represent the first LSTM layer in
+    the trained model. This is because the inference LSTM layers will have slight
+    differences to the trained LSTM layers. Therefore, we will define new layers and
+    copy the trained weights over later. We set the `return_state` argument to `True`.
+    By setting this to true we get three outputs when we call the layer with an input:
+    the final output, the cell state, and the final state vector. Note how we are
+    also passing another argument called `initial_state`. The `initial_state` needs
+    to be a list of tensors: the cell state and the final state vector, in that order.
+    We are passing the input layers as those states and will populate them accordingly
+    during runtime:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: Similarly, the second LSTM layer will be defined. We get the dense layers and
+    replicate the fully connected layers found in the trained model. Note that we
+    don’t use `softmax` in the last layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is because at inference time `softmax` is only an overhead, as we only
+    need the output class with the highest output score (i.e. it doesn’t need to be
+    a probability distribution):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Don’t forget to copy the weights of the trained LSTM layers to our newly created
+    LSTM layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we define the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our model takes a sequence of 1 bigram as the input, along with state vectors
+    of both LSTM layers, and outputs the final prediction probabilities and the new
+    state vectors of both LSTM layers. Let us now generate new text from the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating new text with the model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We’ll use our new inference model to generate a story. We will define an initial
+    seed that we will use to generate a story. Here, we take the first phrase from
+    one of the test files. Then we use it to generate text recursively, by using the
+    predicted bigram at time *t* as the input at time *t*+1\. We will run this for
+    500 steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: Notice how we are recursively using the variables `x`, `state_c`, `state_h`,
+    `state_c_1`, and `state_h_1` to generate and assign new values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Moreover, we will use a simple condition to diversify the inputs we are generating:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Essentially, if the predicted bigram ends with the `'' ''` character, we will
+    choose the next bigram randomly, from the top five bigrams. Each bigram will be
+    chosen according to its predicted likelihood. Let’s see what the output text looks
+    like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: It seems our model is able to generate actual words and phrases that make sense.
+    Next we will investigate how the text generated from standard LSTMs compares to
+    other models, such as LSTMs with peepholes and GRUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Comparing LSTMs to LSTMs with peephole connections and GRUs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now we will compare LSTMs to LSTMs with peepholes and GRUs in the text generation
+    task. This will help us to compare how well different models (LSTMs with peepholes
+    and GRUs) perform in terms of perplexity. Remember that we prefer perplexity over
+    accuracy, as accuracy assumes there’s only one correct token given a previous
+    input sequence. However, as we have learned, language is complex and there can
+    be many different correct ways to generate text given previous inputs. This is
+    available as an exercise in `ch08_lstms_for_text_generation.ipynb` located in
+    the `Ch08-Language-Modelling-with-LSTMs` folder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Standard LSTM
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: First, we will reiterate the components of a standard LSTM. We will not repeat
+    the code for standard LSTMs as it is identical to what we discussed previously.
+    Finally, we will see some text generated by an LSTM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Review
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Here, we will revisit what a standard LSTM looks like. As we already mentioned,
+    an LSTM consists of the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Input gate** – This decides how much of the current input is written to the
+    cell state'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Forget gate** – This decides how much of the previous cell state is written
+    to the current cell state'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Output gate** – This decides how much information from the cell state is
+    exposed to output into the external hidden state'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'In *Figure 8.3*, we illustrate how each of these gates, inputs, cell states,
+    and the external hidden states are connected:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Review](img/B14070_08_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.3: An LSTM cell'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Gated Recurrent Units (GRUs)
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Here we will first briefly delineate what a GRU is composed of, followed by
+    showing the code for implementing a GRU cell. Finally, we look at some code generated
+    by a GRU cell.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Review
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Let’s briefly revisit what a GRU is. A GRU is an elegant simplification of
+    the operations of an LSTM. A GRU introduces two different modifications to an
+    LSTM (see *Figure 8.4*):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It connects the internal cell state and the external hidden state into a single
+    state
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Then it combines the input gate and the forget gate into one update gate
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![Review](img/B14070_08_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.4: A GRU cell'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The GRU model uses a simpler gating mechanism than the LSTM. However, it still
+    manages to capture important capabilities such as memory updates, forgets, etc.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The model
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Here we will define a GRU-based language model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: The training code is identical to how we trained the LSTM-based model. Therefore,
+    we won’t duplicate our discussion here. Next we’ll look at a slightly different
+    variant of LSTM models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: LSTMs with peepholes
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Here we will discuss LSTMs with peepholes and how they are different from a
+    standard LSTM. After that, we will discuss their implementation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Review
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Now, let’s briefly look at LSTMs with peepholes. Peepholes are essentially
+    a way for the gates (input, forget, and output) to directly see the cell state,
+    instead of waiting for the external hidden state (see *Figure 8.5*):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Review](img/B14070_08_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.5: An LSTM with peepholes'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The code
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Note that we’re using an implementation of the peephole connections that are
+    diagonal. We found that nondiagonal peephole connections (proposed by Gers and
+    Schmidhuber in their paper *Recurrent Nets that Time and Count*, *Neural Networks*,
+    *2000*) hurt performance more than they help, for this language modeling task.
+    Therefore, we’re using a different variation that uses diagonal peephole connections,
+    as used by Sak, Senior, and Beaufays in their paper *Long Short-Term Memory Recurrent
+    Neural Network Architectures for Large Scale Acoustic Modeling*, *Proceedings
+    of the Annual Conference of the International Speech Communication Association*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Fortunately, we have this technique implemented as an `RNNCell` object in `tensorflow_addons`.
+    Therefore, all we need to do is wrap this `PeepholeLSTMCell` object in a `layers.RNN`
+    object to produce the desired layer. The following is the code implementation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now let’s look at the training and validation perplexities of different models
+    and how they change over time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training and validation perplexities over time
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In *Figure 8.6*, we have plotted the behavior of perplexity over time for LSTMs,
+    LSTMs with peepholes, and GRUs. We can see that GRUs are a clear-cut winner in
+    terms of performance. This can be attributed to the innovative simplification
+    of LSTM cells found in GRU cells. But it looks like GRU model does overfit quite
+    heavily. Therefore, it’s important to use techniques such as early stopping to
+    prevent such behavior. We can see that LSTMs with peepholes haven’t given us much
+    advantage in terms of performance. But it is important to keep in mind that we
+    are using a relatively small dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For larger, more complex datasets, the performance might vary. We will leave
+    experimenting with GRU cells for the reader and continue with the LSTM model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_08_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.6: Perplexity change for training data over time (LSTMs, LSTM (peephole),
+    and GRUs)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The current literature suggests that among LSTMs and GRUs, there is no clear
+    winner and a lot depends on the task (refer to the paper *Empirical Evaluation
+    of Gated Recurrent Neural Networks on Sequence Modeling*, *Chung and others*,
+    *NIPS 2014 Workshop on Deep Learning*, *December 2014* at[https://arxiv.org/abs/1412.3555](https://arxiv.org/abs/1412.3555)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this section, we discussed three different models: standard LSTMs, GRUs,
+    and LSTMs with peepholes.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The results clearly indicate that, for this dataset, GRUs outperform other variants.
+    In the next section, we will discuss techniques that can enhance the predictive
+    power of sequential models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Improving sequential models – beam search
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As we saw earlier, the generated text can be improved. Now let’s see if beam
+    search, which we discussed in *Chapter 7, Understanding Long Short-Term Memory
+    Networks*, might help to improve the performance. The standard way to predict
+    from a language model is by predicting one step at a time and using the prediction
+    from the previous time step as the new input. In beam search, we predict several
+    steps ahead before picking an input.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This enables us to pick output sequences that may not look as attractive if
+    taken individually, but are better when considered as a sequence. The way beam
+    search works is by, at a given time, predicting *m*^n output sequences or beams.
+    *m* is known as the beam width and *n* is the beam depth. Each output sequence
+    (or a beam) is *n* bigrams predicted into the future. We compute the joint probability
+    of each beam by multiplying individual prediction probabilities of the items in
+    that beam. We then pick the beam with the highest joint probability as our output
+    sequence for that given time step. Note that this is a greedy search, meaning
+    that we will calculate the best candidates at each depth of the tree iteratively,
+    as the tree grows. It should be noted that this search will not result in the
+    globally best beam. *Figure 8.7* shows an example. We will indicate the best beam
+    candidates (and their probabilities) with bold font and arrows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_08_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.7: A beam search illustrating the requirement for updating beam states
+    at each step. Each number underneath the word represents the probability of that
+    word being chosen. For the words not in bold, you can assume the probabilities
+    are negligible'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can see that in the first step, the word “*hunting*” has the highest probability.
+    However, if we perform a beam search with a beam depth of 3, we get the sequence
+    [*“king”, “was”, “hunting”*] with a joint probability of *0.3 * 0.5 * 0.4 = 0.06*
+    as the best beam.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is higher than a beam that would start from the word “*hunting*” (which
+    has a joint probability of *0.5 * 0.1 * 0.3 = 0.015*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing beam search
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We implement beam search as a recursive function. But first we will implement
+    a function that performs a single step of our recursive function called `beam_one_step()`.
+    This function simply takes a model, an input, and states (from the LSTM) and produces
+    the output and new states.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we write the main recursive function that performs beam search. This
+    function takes the following arguments:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`model` – An inference-based language model'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`input_` – The initial input'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`states` – The initial state vectors'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`beam_depth` – The search depth of the beam'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`beam_width` – The search width of the beam (i.e. number of candidates considered
+    at a given depth)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Let’s now discuss the function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `beam_search()` function in fact defines a nested recursive function (`recursive_fn`)
+    that accumulates the outputs as it is called and stores the results in a list
+    called results. The `recursive_fn()` does the following. If the function has been
+    called a number of times equal to the `beam_depth`, then it returns the current
+    result. If the number of function calls hasn’t reached the predefined depth, for
+    a given depth index, then the `recursive_fn()`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Computes the new output and states using the `beam_one_step()` function
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Gets the IDs and probabilities of the top bigram candidates
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Computes the joint probability of each beam in the log space (in log space we
+    get better numerical stability for smaller probability values)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Finally, we call the same function with the new inputs, new state, and the next
+    depth index
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: With that you can simply call the `beam_search()` function to get beams of predictions
+    from the inference model. Let’s look at how we can do that next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating text with beam search
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Here we will only show the part where we iteratively call `beam_search()` to
+    generate new text. For the full code refer to `ch08_lstms_for_text_generation.ipynb`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: We simply call the function `beam_search()` with `infer_model`, current input
+    `x`, current states `states`, `beam depth`, and `beam width`, and update `x` and
+    `states` to reflect the winning beam. Then the model will iteratively use the
+    winning beam to produce the next beam.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s see how our LSTM performs with beam search:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here’s what the standard LSTM with greedy sampling (i.e. predicting one word
+    at a time) outputs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: Compared to the text produced by the LSTM, this text seems to have more variation
+    in it while keeping the text grammatically consistent as well. So, in fact, beam
+    search helps to produce quality predictions compared to predicting one word at
+    a time. But still, there are instances where words together don’t make much sense.
+    Let’s see how we can improve our LSTM further.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Improving LSTMs – generating text with words instead of n-grams
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Here we will discuss ways to improve LSTMs. We have so far used bigrams as our
+    basic unit of text. But you would get better results by incorporating words, as
+    opposed to bigrams. This is because using words reduces the overhead of the model
+    by alleviating the need to learn to form words from bigrams. We will discuss how
+    we can employ word vectors in the code to generate better-quality text compared
+    to using bigrams.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The curse of dimensionality
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'One major limitation stopping us from using words instead of n-grams as the
+    input to our LSTM is that this will drastically increase the number of parameters
+    in our model. Let’s understand this through an example. Consider that we have
+    an input of size *500* and a cell state of size *100*. This would result in a
+    total of approximately *240K* parameters (excluding the softmax layer), as shown
+    here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_08_004.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Let’s now increase the size of the input to *1000*. Now the total number of
+    parameters would be approximately *440K*, as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_08_005.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: As you can see, for an increase of 500 units of the input dimensionality, the
+    number of parameters has grown by 200,000\. This not only increases the computational
+    complexity but also increases the risk of overfitting due to the large number
+    of parameters. So, we need ways of restricting the dimensionality of the input.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Word2vec to the rescue
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'As you will remember, not only can Word2vec give a lower-dimensional feature
+    representation of words compared to one-hot encoding, but it also gives semantically
+    sound features. To understand this, let’s consider three words: *cat*, *dog*,
+    and *volcano*. If we one-hot encode just these words and calculate the Euclidean
+    distance between them, it would be the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*distance(cat,volcano) = distance(cat,dog)*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, if we learn word embeddings, it would be the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*distance(cat,volcano) > distance(cat,dog)*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We would like our features to represent the latter, where similar things have
+    a lower distance than dissimilar things. Consequently, the model will be able
+    to generate better-quality text.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating text with Word2vec
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The structure of the model remains more or less the same as what we have discussed.
+    It is only the units of text we would consider that changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 8.8* depicts the overall architecture of LSTM-Word2vec:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Generating text with Word2vec](img/B14070_08_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.8: The structure of a language modeling LSTM using word vectors'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You have a few options when it comes to using word vectors. You can either:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Randomly initialize the vectors and jointly learn them during the task
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Train the embeddings using a word vector algorithm (e.g. Word2vec, GloVe, etc.)
+    beforehand
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Use pretrained word vectors freely available to download, to initialize the
+    embedding layer
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Below we list a few freely available pretrained word vectors. Word vectors
+    found by learning from a text corpus with billions of words are freely available
+    to be downloaded and used:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Word2vec**: [https://code.google.com/archive/p/word2vec/](https://code.google.com/archive/p/word2vec/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Pretrained GloVe word vectors**: [https://nlp.stanford.edu/projects/glove/](https://nlp.stanford.edu/projects/glove/)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**fastText word vectors**: [https://github.com/facebookresearch/fastText](https://github.com/facebookresearch/fastText)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We end our discussion on language modeling here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we looked at the implementations of the LSTM algorithm and
+    other various important aspects to improve LSTMs beyond standard performance.
+    As an exercise, we trained our LSTM on the text of stories by the Grimm brothers
+    and asked the LSTM to output a fresh new story. We discussed how to implement
+    an LSTM model with code examples extracted from exercises.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we had a technical discussion about how to implement LSTMs with peepholes
+    and GRUs. Then we did a performance comparison between a standard LSTM and its
+    variants. We saw that the GRUs performed the best compared to LSTMs with peepholes
+    and LSTMs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then we discussed some of the various improvements possible for enhancing the
+    quality of outputs generated by an LSTM. The first improvement was beam search.
+    We looked at an implementation of beam search and covered how to implement it
+    step by step. Then we looked at how we can use word embeddings to teach our LSTM
+    to output better text.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In conclusion, LSTMs are very powerful machine learning models that can capture
+    both long-term and short-term dependencies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Moreover, beam search in fact helps to produce more realistic-looking textual
+    phrases compared to predicting one at a time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will look at how sequential models can be used to solve
+    a more complex type of problem known as sequence-to-sequence problems. Specifically,
+    we will look at how we can perform machine translation by formulating it as a
+    sequence-to-sequence problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To access the code files for this book, visit our GitHub page at: [https://packt.link/nlpgithub](https://packt.link/nlpgithub)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Join our Discord community to meet like-minded people and learn alongside more
+    than 1000 members at: [https://packt.link/nlp](https://packt.link/nlp)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/QR_Code5143653472357468031.png)'
+  prefs: []
+  type: TYPE_IMG

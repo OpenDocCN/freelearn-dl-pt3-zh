@@ -1,0 +1,1283 @@
+- en: '7'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Understanding Long Short-Term Memory Networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we will discuss the fundamentals behind a more advanced RNN
+    variant known as **Long Short-Term Memory Networks** (**LSTMs**). Here, we will
+    focus on understanding the theory behind LSTMs, so we can discuss their implementation
+    in the next chapter. LSTMs are widely used in many sequential tasks (including
+    stock market prediction, language modeling, and machine translation) and have
+    proven to perform better than older sequential models (for example, standard RNNs),
+    especially given the availability of large amounts of data. LSTMs are designed
+    to avoid the problem of the vanishing gradient that we discussed in the previous
+    chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The main practical limitation posed by the vanishing gradient is that it prevents
+    the model from learning long-term dependencies. However, by avoiding the vanishing
+    gradient problem, LSTMs have the ability to store memory for longer than ordinary
+    RNNs (for hundreds of time steps). In contrast to RNNs, which only maintain a
+    single hidden state, LSTMs have many more parameters as well as better control
+    over what memory to store and what to discard at a given training step. For example,
+    RNNs are not able to decide which memory to store and which to discard, as the
+    hidden state is forced to be updated at every training step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Specifically, we will discuss what an LSTM is at a very high level and how the
+    functionality of LSTMs allows them to store long-term dependencies. Then we will
+    go into the actual underlying mathematical framework governing LSTMs and discuss
+    an example to highlight why each computation matters. We will also compare LSTMs
+    to vanilla RNNs and see that LSTMs have a much more sophisticated architecture
+    that allows them to surpass vanilla RNNs in sequential tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Revisiting the problem of the vanishing gradient and illustrating it through
+    an example will lead us to understand how LSTMs solve the problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thereafter, we will discuss several techniques that have been introduced to
+    improve the predictions produced by a standard LSTM (for example, improving the
+    quality/variety of generated text in a text generation task). For example, generating
+    several predictions at once instead of predicting them one by one can help to
+    improve the quality of generated predictions. We will also look at **bidirectional
+    LSTMs (BiLSTMs)**, which are an extension to the standard LSTM, that have greater
+    capabilities for capturing the patterns present in a sequence than a standard
+    LSTM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we will discuss two recent LSTM variants. First, we will look at **peephole
+    connections**, which introduce more parameters and information to the LSTM gates,
+    allowing LSTMs to perform better. Next, we will discuss **Gated Recurrent Units**
+    (**GRUs**), which are gaining increasing popularity as they have a much simpler
+    structure compared to standard LSTMs and also do not degrade performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Specifically, this chapter will cover the following main topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding Long Short-Term Memory Networks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How LSTMs solve the vanishing gradient problem
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Improving LSTMs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Other variants of LSTMs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Transformer models have emerged as a more powerful alternative for sequence
+    learning. Transformer models deliver better performance as these models have access
+    to the full history of the sequence at a given step, whereas LSTM models can only
+    see the previous output at a given step. We will discuss Transformer models in
+    detail in *Chapter 10*, *Transformers* and *Chapter 11*, *Image Captioning with
+    Transformers*. However, it’s still worth learning about LSTMs as they have laid
+    the foundation for next-generation models like Transformers. Additionally, LSTMs
+    are still used to some extent, especially when working on time-series problems
+    in memory-constrained environments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding Long Short-Term Memory Networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we will first explain how an LSTM cell operates. We will see
+    that in addition to the hidden states, a gating mechanism is in place to control
+    information flow inside the cell.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then we will work through a detailed example and see how gates and states help
+    at various stages of the example to achieve desired behaviors, finally leading
+    to the desired output. Finally, we will compare an LSTM against a standard RNN
+    to learn how an LSTM differs from a standard RNN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is an LSTM?
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'LSTMs can be seen as a more complex and capable family of RNNs. Though LSTMs
+    are a complicated beast, the underlying principles of LSTMs are as same as of
+    RNNs; they process a sequence of items by working on one input at a time in a
+    sequential order. An LSTM is mainly composed of five different components:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Cell state**: This is the internal cell state (that is, memory) of an LSTM
+    cell'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Hidden state**: This is the external hidden state exposed to other layers
+    and used to calculate predictions'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Input gate**: This determines how much of the current input is read into
+    the cell state'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Forget gate**: This determines how much of the previous cell state is sent
+    into the current cell state'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Output gate**: This determines how much of the cell state is output into
+    the hidden state'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'We can wrap the RNN to a cell architecture as follows: the cell will output
+    some state (with a nonlinear activation function) that is dependent on the previous
+    cell state and the current input. However, in RNNs, the cell state is continuously
+    updated with every incoming input. This behavior is quite undesirable for storing
+    long-term dependencies.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: LSTMs can decide when to add, update, or forget information stored in each neuron
+    in the cell state. In other words, LSTMs are equipped with a mechanism to keep
+    the cell state unchanged (if warranted for better performance), giving them the
+    ability to store long-term dependencies.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is achieved by introducing a gating mechanism. LSTMs possess gates for
+    each operation the cell needs to perform. The gates are continuous (often sigmoid
+    functions) between 0 and 1, where 0 means no information flows through the gate
+    and 1 means all the information flows through the gate. An LSTM uses one such
+    gate for each neuron in the cell. As explained in the introduction, these gates
+    control the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How much of the current input is written to the cell state (input gate)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How much information is forgotten from the previous cell state (forget gate)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How much information is output into the final hidden state from the cell state
+    (output gate)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Figure 7.1* illustrates this functionality for a hypothetical scenario. Each
+    gate decides how much of various data (for example, the current input, the previous
+    hidden state, or the previous cell state) flows into the states (that is, the
+    final hidden state or the cell state). The thickness of each line represents how
+    much information is flowing from/to that gate (in some hypothetical scenarios).
+    For example, in this figure, you can see that the input gate is allowing more
+    from the current input than from the previous final hidden state, where the forget
+    gate allows more from the previous final hidden state than from the current input:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![What is an LSTM?](img/B14070_07_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.1: An abstract view of the data flow in an LSTM'
+  prefs: []
+  type: TYPE_NORMAL
+- en: LSTMs in more detail
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Here we will walk through the actual mechanism of LSTMs. We will first briefly
+    discuss the overall view of an LSTM cell and then start discussing each of the
+    computations crunched within an LSTM cell, along with an example of text generation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As we discussed earlier, LSTMs have a gating mechanism composed of the following
+    three gates:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Input gate**: A gate that outputs values between 0 (the current input is
+    not written to the cell state) and 1 (the current input is fully written to the
+    cell state). Sigmoid activation is used to squash the output to between 0 and
+    1.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Forget gate**: A sigmoidal gate that outputs values between 0 (the previous
+    cell state is fully forgotten for calculating the current cell state) and 1 (the
+    previous cell state is fully read in when calculating the current cell state).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Output gate**: A sigmoidal gate that outputs values between 0 (the current
+    cell state is fully discarded for calculating the final state) and 1 (the current
+    cell state is fully used when calculating the final hidden state).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'This can be shown as in *Figure 7.2*. This is a very high-level diagram, and
+    some details have been omitted in order to avoid clutter. We present LSTMs, both
+    with loops and without loops, to improve understanding. The figure on the right-hand
+    side depicts an LSTM with loops, and the one on the left-hand side shows the same
+    LSTM with the loops unfolded so that no loops are present in the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![LSTMs in more detail](img/B14070_07_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.2: An LSTM with recurrent links (that is, loops) (right) and an LSTM
+    with recurrent links unfolded (left)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, to get a better understanding of LSTMs, let’s consider a language modeling
+    example. We will discuss the actual update rules and equations side by side with
+    the example to ground our understanding of LSTMs better.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s consider an example of generating text starting from the following sentence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*John gave Mary a puppy.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The story that we output should be about *John*, *Mary*, and the *puppy*. Let’s
+    assume our LSTM outputs two sentences following the given sentence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*John gave Mary a puppy. ____________________. _____________________.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following is the output given by our LSTM:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*John gave Mary a puppy. It barks very loudly. They named it Luna.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We are still far from outputting realistic phrases such as these. However,
+    LSTMs can learn relationships such as between nouns and pronouns. For example,
+    *it* is related to the *puppy*, and *they* to *John* and *Mary*. Then, it should
+    learn the relationship between the noun/pronoun and the verb. For example, for
+    *it*, the verb should have an *s* at the end. We illustrate these relationships/dependencies
+    in *Figure 7.3*. As we can see, both long-term (for example, *Luna --> puppy*)
+    and short-term (for example, *It -->barks*) dependencies are present in this phrase.
+    The solid arrows depict links between nouns and pronouns and dashed arrows show
+    links between nouns/pronouns and verbs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![LSTMs in more detail](img/B14070_07_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.3: Sentences given and predicted by the LSTM with various relationships
+    between words highlighted'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now let’s consider how LSTMs, using their various operations, can model such
+    relationships and dependencies to output sensible text, given a starting sentence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The input gate (*i*[t]) takes the current input (*x*[t]) and the previous final
+    hidden state (*h*[t-1]) as the input and calculates *i*[t], as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_001.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The input gate *i*[t] can be understood as the calculation performed at the
+    hidden layer of a single-hidden-layer standard RNN with the sigmoidal activation.
+    Remember that we calculated the hidden state of a standard RNN as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_002.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Therefore, the calculation of *i*[t] of the LSTM looks quite analogous to the
+    calculation of *h*[t] of a standard RNN, except for the change in the activation
+    function and the addition of bias.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After the calculation, a value of 0 for *i*[t] will mean that no information
+    from the current input will flow to the cell state, where a value of 1 means that
+    all the information from the current input will flow to the cell state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, another value (which is called **candidate value**) is calculated as
+    follows, which is fed in to calculate the current cell state later. This value
+    will be treated as a potential candidate for the final cell state of this time
+    step:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_003.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We can visualize these calculations in *Figure 7.4*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![LSTMs in more detail](img/B14070_07_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.4: Calculation of i[t] and ![](img/B14070_07_004.png) (in bold) in
+    the context of all the calculations (grayed out) that take place in an LSTM'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In our example, at the very beginning of the learning, the input gate needs
+    to be highly activated, as the model has no prior knowledge of the task. The first
+    word that the LSTM outputs is *it*. Also, in order to do so, the LSTM must learn
+    that *puppy* is also referred to as *it*. Let’s assume our LSTM has five neurons
+    to store the state. We would like the LSTM to store the information that *it*
+    refers to *puppy*. Another piece of information we would like the LSTM to learn
+    (in a different neuron) is that the present tense verb should have an *s* at the
+    end of the verb when the pronoun *it* is used.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One more thing the LSTM needs to know is that the *puppy barks loud*. *Figure
+    7.5* illustrates how this knowledge might be encoded in the cell state of the
+    LSTM. Each circle represents a single neuron (that is, a hidden unit) of the cell
+    state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![LSTMs in more detail](img/B14070_07_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.5: The knowledge that should be encoded in the cell state to output
+    the first sentence'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With this information, we can output the first new sentence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*John gave Mary a puppy. It barks very loudly.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, the forget gate is calculated as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_005.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The forget gate does the following. A value of 0 for the forget gate means that
+    no information from *c*[t-1] will be passed to calculate *c*[t], and a value of
+    1 means that all the information of *c*[t-1] will propagate into the calculation
+    of *c*[t]. It may sound counter-intuitive, as switching on the forget gate causes
+    the model to remember from the previous step and vice versa. But to respect the
+    original naming conventions and design, we’ll continue to use them as they are.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now we will see how the forget gate helps in predicting the next sentence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*They named it Luna.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, as you can see, the new relationship we are looking at is between *John*
+    and *Mary* and *they*. Therefore, we no longer need information about *it* and
+    how the verb *bark* behaves, as the subjects are *John* and *Mary*. We can use
+    the forget gate in combination with the current subject *they* and the corresponding
+    verb *named* to replace the information stored in the **Current subject** and
+    **Verb for current subject** neurons (see *Figure 7.6*):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![LSTMs in more detail](img/B14070_07_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.6: The knowledge in the third neuron from the left (it --> barks)
+    is replaced with new information (they --> named)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In terms of the values of weights, we illustrate this transformation in *Figure
+    7.7*. We do not change the state of the neuron maintaining the *it --> puppy*
+    relationship, because *puppy* appears as an object in the last sentence. This
+    is done by setting weights connecting *it --> puppy* from *c*[t-1] to *c*[t] to
+    1\. Then we will replace the neurons maintaining the current subject and verb
+    information with a new subject and verb. This is achieved by setting the forget
+    weights of *f*[t], for that neuron, to 0\. Then we will set the weights of *i*[t],
+    connecting the current subject and verb to the corresponding state neurons, to
+    1\. We can think of ![](img/B14070_07_004.png) (the candidate value) as a potential
+    candidate for the cell’s memory, as it contains information from the current input
+    *x*[t]:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![LSTMs in more detail](img/B14070_07_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.7: How the cell state c[t] is calculated with the previous state c[t-1]
+    and the candidate value ![](img/B14070_07_004.png)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The current cell state will be updated as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_008.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In other words, the current state is a combination of the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What information to forget/remember from the previous cell state
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What information to add/discard to the current input
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Next, in *Figure 7.8*, we highlight what we have calculated so far with respect
+    to all the calculations that are taking place inside an LSTM:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![LSTMs in more detail](img/B14070_07_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.8: Calculations covered so far, including i[t], f[t], ![](img/B14070_07_004.png),
+    and c[t]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After learning the full cell state, it would look like *Figure 7.9*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![LSTMs in more detail](img/B14070_07_09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.9: The full cell state will look like this after outputting both the
+    sentences'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we will look at how the final state of the LSTM cell (*h*[t]) is computed:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_010.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B14070_07_011.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In our example, we want to output the following sentence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*They named it Luna.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For this, we do **not** need the second to last neuron to compute this sentence,
+    as it contains information about how the puppy barks, whereas this sentence is
+    about the name of the puppy. Therefore, we can ignore this neuron (containing
+    the *bark -> loud* relationship) during the predictions of the last sentence.
+    This is exactly what *o*[t] does; it ignores the unnecessary memory and only retrieves
+    the related memory from the cell state when calculating the final output of the
+    LSTM cell. Also, in *Figure 7.10*, we illustrate what a full LSTM cell would look
+    like at a glance:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![LSTMs in more detail](img/B14070_07_10.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.10: What the full LSTM looks like'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here, we summarize all the equations relating to the operations taking place
+    within an LSTM cell:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_001.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B14070_07_005.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B14070_07_003.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B14070_07_008.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B14070_07_010.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B14070_07_011.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Now in the bigger picture, for a sequential learning problem, we can unroll
+    the LSTM cells over time to show how they would link together so that they receive
+    the previous state of the cell to compute the next state, as shown in *Figure
+    7.11*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![LSTMs in more detail](img/B14070_07_11.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.11: How LSTMs would be linked over time'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, this is not adequate to do something useful. We typically use machine
+    learning models to solve a task formulated as a classification or regression problem.
+    As you can see, we still don’t have an output layer to output predictions. But
+    if we want to use what the LSTM actually learned, we need a way to extract the
+    final output from the LSTM. Therefore, we will fit a `softmax` layer (with weights
+    *W*[s] and bias *b*[s]) on top of the LSTM. The final output is obtained using
+    the following equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_018.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Now the final picture of the LSTM with the softmax layer looks like *Figure
+    7.12*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![LSTMs in more detail](img/B14070_07_12.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.12: LSTMs with a softmax output layer linked over time'
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the softmax head attached to the LSTM, it can now perform a given classification
+    task end to end. Now let’s compare and contrast LSTMs and the standard RNN model
+    we discussed in the previous chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How LSTMs differ from standard RNNs
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let’s now investigate how LSTMs compare to standard RNNs. An LSTM has a more
+    intricate structure compared to a standard RNN. One of the primary differences
+    is that an LSTM has two different states: a cell state *c*[t] and a final hidden
+    state *h*[t]. However, an RNN only has a single hidden state *h*[t]. The next
+    primary difference is that, since an LSTM has three different gates, an LSTM has
+    much more control over how the current input and the previous cell state are handled
+    when computing the final hidden state *h*[t].'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Having the two different states is quite advantageous. With this mechanism,
+    we can decouple the model’s short-term and long-term memory. In other words, even
+    when the cell state is changing quickly, the final hidden state will still be
+    changed more slowly. So, while the cell state is learning both short-term and
+    long-term dependencies, the final hidden state can reflect either only the short-term
+    dependencies, only the long-term dependencies, or both.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, the gating mechanism is composed of three gates: the input, forget, and
+    output gates.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is quite evident that this is a more principled approach (especially compared
+    to the standard RNNs) that permits better control over how much the current input
+    and the previous cell state contribute to the current cell state. Also, the output
+    gate gives better control over how much the cell state contributes to the final
+    hidden state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In *Figure 7.13*, we compare schematic diagrams of a standard RNN and an LSTM
+    to emphasize the difference in terms of the functionality of the two models:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![How LSTMs differ from standard RNNs](img/B14070_07_13.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.13: A side-by-side comparison of a standard RNN and an LSTM cell'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In summary, with the design of maintaining two different states, an LSTM can
+    learn both short-term and long-term dependencies, which helps solve the problem
+    of the vanishing gradient, which we’ll discuss in the following section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How LSTMs solve the vanishing gradient problem
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As we discussed earlier, even though RNNs are theoretically sound, in practice
+    they suffer from a serious drawback. That is, when **Backpropagation Through Time**
+    (**BPTT**) is used, the gradient diminishes quickly, which allows us to propagate
+    the information of only a few time steps. Consequently, we can only store the
+    information of very few time steps, thus possessing only short-term memory. This
+    in turn limits the usefulness of RNNs in real-world sequential tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Often, useful and interesting sequential tasks (such as stock market predictions
+    or language modeling) require the ability to learn and store long-term dependencies.
+    Think of the following example for predicting the next word:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*John is a talented student. He is an A-grade student and plays rugby and cricket.
+    All the other students envy ______.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For us, this is a very easy task. The answer would be *John*. However, for an
+    RNN, this is a difficult task. We are trying to predict an answer that lies at
+    the very beginning of the text. Also, to solve this task, we need a way to store
+    long-term dependencies in the state of the RNN. This is exactly the type of task
+    LSTMs are designed to solve.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In *Chapter 6*, *Recurrent Neural Networks*, we discussed how a vanishing/exploding
+    gradient can appear without any nonlinear functions present. We will now see that
+    it could still happen even with the nonlinear term present. For this, we will
+    derive the term ![](img/B14070_07_019.png) for a standard RNN and ![](img/B14070_07_020.png)
+    for an LSTM network to understand the differences. This is the crucial term that
+    causes the vanishing gradient, as we learned in the previous chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s assume the hidden state is calculated as follows for a standard RNN:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_021.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'To simplify the calculations, we can ignore the current input related terms
+    and focus on the recurrent part, which will give us the following equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_022.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'If we calculate ![](img/B14070_07_019.png) for the preceding equations, we
+    will get the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_024.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B14070_07_025.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Now let’s see what happens when ![](img/B14070_07_026.png) or ![](img/B14070_07_027.png)
+    (which will happen as learning continues). In both cases, ![](img/B14070_07_019.png)
+    will start to approach 0, giving rise to the vanishing gradient. Even when ![](img/B14070_07_029.png),
+    where the gradient is maximum (0.25) for sigmoid activation, when multiplied for
+    many time steps, the overall gradient becomes quite small. Moreover, the term
+    ![](img/B14070_07_030.png) (possibly due to bad initialization) can cause exploding
+    or vanishing of the gradients as well. However, compared to the gradient vanishing
+    due to ![](img/B14070_07_026.png) or ![](img/B14070_07_027.png), the gradient
+    vanishing/explosion caused by the term ![](img/B14070_07_030.png) is relatively
+    easy to solve (with careful initialization of weights and gradient clipping).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now let’s look at an LSTM cell. More specifically, we’ll look at the cell state,
+    given by the following equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_008.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This is the product of all the forget gate applications happening in the LSTM.
+    However, if you calculate ![](img/B14070_07_020.png)in a similar way for LSTMs
+    (that is, ignoring the ![](img/B14070_07_036.png) terms and *b*[f], as they are
+    non-recurrent), we get the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_037.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In this case, though the gradient will vanish if ![](img/B14070_07_038.png),
+    on the other hand, if ![](img/B14070_07_039.png), the derivative will decrease
+    much slower than it would in a standard RNN. Therefore, we have one alternative,
+    where the gradient will not vanish. Also, as the squashing function is used, the
+    gradients will not explode due to ![](img/B14070_07_020.png) being large (which
+    is the thing likely to be the cause of a gradient explosion). In addition, when
+    ![](img/B14070_07_027.png), we get a maximum gradient close to 1, meaning that
+    the gradients will not rapidly decrease as we saw with RNNs (when the gradient
+    is at maximum). Finally, there is no term such as ![](img/B14070_07_030.png) in
+    the derivation. However, derivations are trickier for ![](img/B14070_07_043.png).
+    Let’s see if such terms are present in the derivation of ![](img/B14070_07_043.png).
+    If you calculate the derivatives of this, you will get something of the following
+    form:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_045.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Once you solve this, you will get something of this form:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_046.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We do not care about the content within ![](img/B14070_07_047.png) or ![](img/B14070_07_048.png),
+    because no matter the value, it will be bounded by (0,1) or (-1,1). If we further
+    reduce the notation by replacing the ![](img/B14070_07_047.png), ![](img/B14070_07_050.png),
+    ![](img/B14070_07_051.png) and ![](img/B14070_07_052.png) terms with a common
+    notation such as ![](img/B14070_07_053.png), we get something of this form:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_054.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Alternatively, we get the following (assuming that the outside ![](img/B14070_07_055.png)
+    gets absorbed by each ![](img/B14070_07_055.png) term present within the square
+    brackets):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_057.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This will give the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_058.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This means that though the term ![](img/B14070_07_020.png) is safe from any
+    ![](img/B14070_07_030.png) terms, ![](img/B14070_07_019.png) is not. Therefore,
+    we must be careful when initializing the weights of the LSTM and we should use
+    gradient clipping as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Note**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, *h*[t] of LSTMs being unsafe from vanishing gradient is not as crucial
+    as it is for RNNs, because *c*[t] still can store the long-term dependencies without
+    being affected by vanishing gradient, and *h*[t] can retrieve the long-term dependencies
+    from *c*[t], if required to.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Improving LSTMs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Having a model backed up by solid foundations does not always guarantee pragmatic
+    success when used in the real world. Natural language is quite complex. Sometimes
+    seasoned writers struggle to produce quality content. So we can’t expect LSTMs
+    to magically output meaningful, well-written content all of a sudden. Having a
+    sophisticated design—allowing for better modeling of long-term dependencies in
+    the data—does help, but we need more techniques during inference to produce better
+    text. Therefore, numerous extensions have been developed to help LSTMs perform
+    better at the prediction stage. Here we will discuss several such improvements:
+    greedy sampling, beam search, using word vectors instead of a one-hot-encoded
+    representation of words, and using bidirectional LSTMs. It is important to note
+    that these optimization techniques are not specific to LSTMs; rather, any sequential
+    model can benefit from them.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Greedy sampling
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: If we try to always predict the word with the highest probability, the LSTM
+    will tend to produce very monotonic results. For example, due to the frequent
+    occurrence of stop words (e.g. *the*), it may repeat them many times before switching
+    to another word.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One way to get around this is to use **greedy sampling**, where we pick the
+    predicted best *n* and sample from that set. This helps to break the monotonic
+    nature of the predictions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s consider the first sentence of the previous example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*John gave Mary a puppy.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Say, we start with the first word and want to predict the next four words:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*John ____ ____ _ _____.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we attempt to choose samples deterministically, the LSTM might output something
+    like the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*John gave Mary gave John.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, by sampling the next word from a subset of words in the vocabulary
+    (most highly probable ones), the LSTM is forced to vary the prediction and might
+    output the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*John gave Mary a puppy.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Alternatively, it might give the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*John gave puppy a puppy.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, even though greedy sampling helps to add more flavor/diversity to the
+    generated text, this method does not guarantee that the output will always be
+    realistic, especially when outputting longer sequences of text. Now we will see
+    a better search technique that actually looks ahead several steps before predictions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Beam search
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '**Beam search** is a way of helping with the quality of the predictions produced
+    by the LSTM. In this, the predictions are found by solving a search problem. Particularly,
+    we predict several steps ahead for multiple candidates at each step. This gives
+    rise to a tree-like structure with candidate sequences of words (*Figure 7.14*).
+    The crucial idea of beam search is to produce the *b* outputs (that is, ![](img/B14070_07_062.png))
+    at once instead of a single output *y*[t]. Here, *b* is known as the **length**
+    of the beam, and the *b* outputs produced are known as the **beam**. More technically,
+    we pick the beam that has the highest joint probability ![](img/B14070_07_063.png)
+    instead of picking the highest probable ![](img/B14070_07_064.png). We are looking
+    farther into the future before making a prediction, which usually leads to better
+    results.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s understand beam search through the previous example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*John gave Mary a puppy.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Say, we are predicting word by word and initially we have the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*John ____ ____ _ _____.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s assume hypothetically that our LSTM produces the example sentence using
+    beam search. Then the probabilities for each word might look like what we see
+    in *Figure 7.14*. Let’s assume beam length *b* = *2*, and we will consider the
+    *n* = *3* best candidates at each stage of the search.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The search tree would look like the following figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Beam search](img/B14070_07_14.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.14: The search space of beam search for a b=2 and n=3'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We start with the word *John* and get the probabilities for all the words in
+    the vocabulary. In our example, as *n* = *3*, we pick the best three candidates
+    for the next level of the tree: *gave*, *Mary*, and *puppy*. (Note that these
+    might not be the candidates found by an actual LSTM and are only used as an example.)
+    Then from these selected candidates, the next level of the tree is grown. And
+    from that, we will pick the best three candidates, and the search will repeat
+    until we reach a depth of *b* in the tree.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The path that gives the highest joint probability (that is, ![](img/B14070_07_065.png))
+    is highlighted with heavier arrows. Also, this is a better prediction mechanism,
+    as it would return a higher probability, or a reward, for a phrase such as *John
+    gave Mary* than *John Mary John* or *John John gave*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the outputs produced by both greedy sampling and beam search are identical
+    in our example, which is a simple sentence containing five words. However, this
+    is not the case when we scale this to output a small paragraph. Then the results
+    produced by beam search will be much more realistic and meaningful than the ones
+    produced by greedy sampling.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using word vectors
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Another popular way of improving the performance of LSTMs is to use word vectors
+    instead of using one-hot-encoded vectors as the input to the LSTM. Let’s understand
+    the value of this method through an example. Let’s assume that we want to generate
+    text starting from some random word. In our case, it would be the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*John ____ ____ _ _____.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We have already trained our LSTM on the following sentences:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*John gave Mary a puppy. Mary has sent Bob a kitten.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s also assume that we have the word vectors positioned as shown in *Figure
+    7.15*. Remember that semantically similar words will have vectors placed close
+    to each other:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Using word vectors](img/B14070_07_15.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.15: Assumed word vectors’ topology in two-dimensional space'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The word embeddings of these words, in their numerical form, might look like
+    the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*kitten:* [0.5, 0.3, 0.2]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*puppy:* [0.49, 0.31, 0.25]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*gave:* [0.1, 0.8, 0.9]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It can be seen that *distance(kitten, puppy) < distance(kitten, gave)*. However,
+    if we use one-hot encoding, they would be as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*kitten:* [ 1, 0, 0, …]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*puppy:* [0, 1, 0, …]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*gave:* [0, 0, 1, …]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then, *distance(kitten, puppy) = distance(kitten, gave)*. As we can already
+    see, one-hot-encoded vectors do not capture the proper relationship between words
+    and see all the words are equally distanced from each other. However, word vectors
+    are capable of capturing such relationships and are more suitable to represent
+    text for machine learning models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using word vectors, the LSTM will learn to exploit relationships between words
+    better. For example, with word vectors, LSTM will learn the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*John gave Mary a kitten.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is quite close to the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*John gave Mary a puppy.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Also, it is quite different from the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*John gave Mary a gave.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, this would not be the case if one-hot-encoded vectors are used.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Bidirectional LSTMs (BiLSTMs)
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Making LSTMs bidirectional is another way of improving the quality of the predictions
+    of an LSTM. By this we mean training the LSTM with text read in both directions:
+    from the beginning to the end and the end to the beginning. So far during the
+    training of the LSTM, we would create a dataset as follows.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Consider the following two sentences:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*John gave Mary a _____. It barks very loudly.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: At this stage, there is data missing in one of the sentences that we would want
+    our LSTM to fill sensibly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we read from the beginning up to the missing word, it would be as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*John gave Mary a _____.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This does not provide enough information about the context of the missing word
+    to fill the word properly. However, if we read in both directions, it would be
+    the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*John gave Mary a _____.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*_____. It barks very loudly.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If we created data with both these pieces, it is adequate to predict that the
+    missing word should be something like *dog* or *puppy*. Therefore, certain problems
+    can benefit significantly from reading data from both sides. BiLSTMs also help
+    in multilingual problems as different languages can have very different sentence
+    structures.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another application of BiLSTMs is neural machine translation, where we translate
+    a sentence of a source language to a target language. As there is no specific
+    alignment between the translation of one language to another, having access to
+    both sides of a given token in the source language can greatly help to understand
+    the context better, thus producing better translations. As an example, consider
+    a translation task of translating Filipino to English. In Filipino, sentences
+    are usually written having *verb-object-subject* in that order, whereas in English,
+    it is *subject-verb-object*. In this translation task, it will be extremely helpful
+    to read sentences both forward and backward to make a good translation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A BiLSTM is essentially two separate LSTM networks. One network learns data
+    from the beginning to the end, and the other network learns data from the end
+    to the beginning. In *Figure 7.16*, we illustrate the architecture of a BiLSTM
+    network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Training occurs in two phases. First, the solid-colored network is trained
+    with data created by reading the text from the beginning to the end. This network
+    represents the normal training procedure used for standard LSTMs. Secondly, the
+    dashed network is trained with data generated by reading the text in the reversed
+    direction. Then, at the inference phase, we use both the solid and dashed states’
+    information (by concatenating both states and creating a vector) to predict the
+    missing word:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Bidirectional LSTMs (BiLSTM)](img/B14070_07_16.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.16: A schematic diagram of a BiLSTM'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we discussed several different ways to improve the performance
+    of LSTM models. This involved employing better prediction strategies to introduce
+    structural changes such as word vectors and BiLSTMs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Other variants of LSTMs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Though we will mainly focus on the standard LSTM architecture, many variants
+    have emerged that either simplify the complex architecture found in standard LSTMs,
+    produce better performance, or both. We will look at two variants that introduce
+    structural modifications to the cell architecture of LSTMs: peephole connections
+    and GRUs.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Peephole connections
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '**Peephole connections** allow gates to see not only the current input and
+    the previous final hidden state, but also the previous cell state. This increases
+    the number of weights in the LSTM cell. Having such connections has been shown
+    to produce better results. The equations would look like these:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_066.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B14070_07_003.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B14070_07_068.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B14070_07_008.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B14070_07_070.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B14070_07_011.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Let’s briefly look at how this helps the LSTM perform better. So far, the gates
+    see the current input and final hidden state but not the cell state. However,
+    in this configuration, if the output gate is close to zero, even when the cell
+    state contains information crucial to better performance, the final hidden state
+    will be close to zero. Thus, the gates will not take the hidden state into consideration
+    during calculation. Including the cell state directly in the gate calculation
+    equation allows more control over the cell state, and it can perform well even
+    in situations where the output gate is close to zero.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We illustrate the architecture of the LSTM with peephole connections in *Figure
+    7.17*. We have grayed all the existing connections in a standard LSTM and the
+    newly added connections are shown in black:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Peephole connections](img/B14070_07_17.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.17: An LSTM with peephole connections (the peephole connections are
+    shown in black while the other connections are grayed out)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Gated Recurrent Units
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: '**GRUs** can be seen as a simplification of the standard LSTM architecture.
+    As we have seen already, an LSTM has three different gates and two different states.
+    This alone requires a large number of parameters even for a small state size.
+    Therefore, scientists have investigated ways to reduce the number of parameters.
+    GRUs are a result of one such endeavor.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are several main differences in GRUs compared to LSTMs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, GRUs combine two states, the cell state and the final hidden state, into
+    a single hidden state *h*[t]. Now, as a side effect of this simple modification
+    of not having two different states, we can get rid of the output gate. Remember,
+    the output gate was merely deciding how much of the cell state is read into the
+    final hidden state. This operation greatly reduces the number of parameters in
+    the cell.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, GRUs introduce a reset gate that, when it’s close to 1, takes the full
+    previous state information in when computing the current state. Also, when the
+    reset gate is close to 0, it ignores the previous state when computing the current
+    state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_072.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B14070_07_073.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Then, GRUs combine the input and forget gates into one *update gate*. The standard
+    LSTM has two gates known as the input and forget gates. The input gate decides
+    how much of the current input is read into the cell state, and the forget gate
+    determines how much of the previous cell state is read into the current cell state.
+    Mathematically, this can be shown as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_001.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B14070_07_005.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'GRUs combine these two operations into a single gate known as the update gate.
+    If the update gate is 0, then the full state information of the previous cell
+    state is pushed into the current cell state, where none of the current input is
+    read into the state. If the update gate is 1, then all of the current input is
+    read into the current cell state and none of the previous cell state is propagated
+    into the current cell state. In other words, the input gate *i*[t] becomes inverse
+    of the forget gate, that is, ![](img/B14070_07_076.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_077.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B14070_07_078.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Now let’s bring all the equations into one place. The GRU computations would
+    look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B14070_07_072.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B14070_07_073.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B14070_07_077.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B14070_07_078.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This is much more compact than LSTMs. In *Figure 7.18*, we can visualize a
+    GRU cell (left) and an LSTM cell (right) side by side:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Gated Recurrent Units](img/B14070_07_18.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 7.18: A side-by-side comparison of a GRU (left) and the standard LSTM
+    (right)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this section, we learned two variants of the LSTM: LSTMs with peepholes
+    and GRUs. GRUs have become a popular choice over LSTMs, due to their simplicity
+    and on-par performance with more complex LSTMs.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, you learned about LSTM networks. First, we discussed what an
+    LSTM is and its high-level architecture. We also delved into the detailed computations
+    that take place in an LSTM and discussed the computations through an example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We saw that an LSTM is composed mainly of five different things:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Cell state**: The internal cell state of an LSTM cell'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Hidden state**: The external hidden state used to calculate predictions'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Input gate**: This determines how much of the current input is read into
+    the cell state'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Forget gate**: This determines how much of the previous cell state is sent
+    into the current cell state'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Output gate**: This determines how much of the cell state is output into
+    the hidden state'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Having such a complex structure allows LSTMs to capture both short-term and
+    long-term dependencies quite well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We compared LSTMs to vanilla RNNs and saw that LSTMs are actually capable of
+    learning long-term dependencies as an inherent part of their structure, whereas
+    RNNs can fail to learn long-term dependencies. Afterward, we discussed how LSTMs
+    solve the vanishing gradient with its complex structure.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then we discussed several extensions that improve the performance of LSTMs.
+    First, a very simple technique we called greedy sampling, in which, instead of
+    always outputting the best candidate, we randomly sample a prediction from a set
+    of best candidates. We saw that this improves the diversity of the generated text.
+    After that, we looked at a more complex search technique called beam search. With
+    this, instead of making a prediction for a single time step into the future, we
+    predict several time steps into the future and pick the candidates that produce
+    the best joint probability. Another improvement involved seeing how word vectors
+    can help improve the quality of the predictions of an LSTM. Using word vectors,
+    LSTMs can learn more effectively to replace semantically similar words during
+    prediction (for example, instead of outputting *dog*, LSTM might output *cat*),
+    leading to more realism and correctness of the generated text. The final extension
+    we considered was BiLSTMs or bidirectional LSTMs. A popular application of BiLSTMs
+    is filling missing words in a phrase. BiLSTMs read the text in both directions,
+    from the beginning to the end and the end to the beginning. This gives more context
+    as we are looking at both the past and future before predicting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we discussed two variants of vanilla LSTMs: peephole connections and
+    GRUs. Vanilla LSTMs, when calculating the gates, only look at the current input
+    and the hidden state. With peephole connections, we make the gate computations
+    dependent on all: the current input, and the hidden and cell states.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: GRUs are a much more elegant variant of vanilla LSTMs that simplify LSTMs without
+    compromising on performance. GRUs have only two gates and a single state, whereas
+    vanilla LSTMs have three gates and two states.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will see all these different architectures in action
+    with implementations of each of them and see how well they perform in text generation
+    tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To access the code files for this book, visit our GitHub page at: [https://packt.link/nlpgithub](https://packt.link/nlpgithub)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Join our Discord community to meet like-minded people and learn alongside more
+    than 1000 members at: [https://packt.link/nlp](https://packt.link/nlp)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/QR_Code5143653472357468031.png)'
+  prefs: []
+  type: TYPE_IMG

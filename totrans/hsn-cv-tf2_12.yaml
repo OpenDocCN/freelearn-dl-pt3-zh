@@ -1,0 +1,1401 @@
+- en: Optimizing Models and Deploying on Mobile Devices
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Computer vision applications are various and multifaceted. While most of the
+    training steps take place on a server or a computer, deep learning models are
+    used on a variety of frontend devices, such as mobile phones, self-driving cars,
+    and **Internet-of-Things** (**IoT**) devices. With limited computing power, performance
+    optimization becomes paramount.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will introduce techniques to limit your model size and improve
+    inference speed while maintaining good prediction quality. As a practical example,
+    we will create a simple mobile application to recognize facial expressions on
+    iOS and Android devices, as well as in the browser.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following topics will be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to reduce model size and boost speed without impacting accuracy
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Analyzing model computational performance in depth
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Running models on mobile phones (iOS and Android)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Introducing TensorFlow.js to run models in the browser
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The code for this chapter is available from [https://github.com/PacktPublishing/Hands-On-Computer-Vision-with-TensorFlow-2/tree/master/Chapter09](https://github.com/PacktPublishing/Hands-On-Computer-Vision-with-TensorFlow-2/tree/master/Chapter09).
+  prefs: []
+  type: TYPE_NORMAL
+- en: When developing applications for mobile phones, you will need knowledge of **Swift**
+    (for iOS) or **Java** (for Android). For computer vision in the browser, you will
+    require knowledge of **JavaScript**. The examples in this chapter are simple and
+    thoroughly explained, making it easy to understand for developers who are more
+    familiar with Python.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Moreover, to run the example iOS app, you will need a compatible device as well
+    as a Mac computer with Xcode installed. To run the Android app, you will need
+    an Android device.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Optimizing computational and disk footprints
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: When using a computer vision model, some characteristics are crucial. Optimizing
+    a model for *speed* may allow it to run in real time, opening up many new uses.
+    Improving a model's *accuracy* by even a few percent may make the difference between
+    a toy model and a real-life application.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another important characteristic is *size*, which impacts how much storage the
+    model will use and how long it will take to download it. For some platforms, such
+    as mobile phones or web browsers, the size of the model matters to the end user.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this section, we will describe techniques to improve the model inference
+    speed and how to reduce its size.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Measuring inference speed
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Inference** describes the process of using a deep learning model to get predictions.
+    It is measured in images per second or seconds per image. Models must run between
+    5 and 30 images per second to be considered real-time processing. Before we can
+    improve inference speed, we need to measure it properly.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: If a model can process *i* images per second, we can always run *N* inference
+    pipelines simultaneously to boost performance—the model will then be able to process
+    *N* × *i* images per second. While parallelism benefits many applications, it
+    would not work for real-time applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In a real-time context, such as with a self-driving car, no matter how many
+    images can be processed in parallel, what matters is **latency**—how long it takes
+    to compute predictions for a single image. Therefore, for real-time applications,
+    we only measure the latency of a model—how much time it takes to *process a single
+    image*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For non-real-time applications, you can run as many inference processes in parallel
+    as necessary. For instance, for a video, you can analyze *N* chunks of video in
+    parallel and concatenate the predictions at the end of the process. The only impact
+    will be in terms of financial cost, as you will need more hardware to process
+    the frames in parallel.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Measuring latency
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As stated, to measure how fast a model performs, we want to compute the time
+    it takes to process a *single image*. However, to minimize measuring error, we
+    will actually measure the processing time for several images. We will then divide
+    the time obtained by the number of images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We are not measuring the computing time over a single image for several reasons.
+    First, we want to remove measurement error. When running the inference for the
+    first time, the machine could be busy, the GPU might not be initialized yet, or
+    many other technicalities could be causing the slowdown. Running several times
+    allows us to minimize this error.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second reason is TensorFlow's and CUDA's warmup. When running an operation
+    for the first time, deep learning frameworks are usually slower—they have to initialize
+    variables, allocate memory, move data around, and so on. Moreover, when running
+    repetitive operations, they usually automatically optimize for it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For all those reasons, it is recommended to measure inference time with multiple
+    images to simulate a real environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When measuring inference time, it is also very important to include data loading,
+    data preprocessing, and post-processing times, as these can be significant.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using tracing tools to understand computational performance
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: While measuring the total inference time of a model informs you of the feasibility
+    of an application, you might sometimes need a more detailed performance report.
+    To do so, TensorFlow offers several tools. In this section, we will discuss the
+    **trace tool**, which is part of the TensorFlow summary package.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In [Chapter 7](337ec077-c215-4782-b56c-beae4d94d718.xhtml), *Training on Complex
+    and Scarce Datasets*, we described how to analyze the performance of input pipelines.
+    Refer to this chapter to monitor preprocessing and data ingestion performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To use it, call `trace_on` and set `profiler` to `True`. You can then run TensorFlow
+    or Keras operations and export the trace to a folder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: Omitting the call to `create_file_writer` and `with writer.as_default()` will
+    still create a trace of the operations. However, the model graph representation
+    will not be written to disk.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once the model starts running with tracing enabled, we can point TensorBoard
+    to this folder by executing the following command in the command line:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After opening TensorBoard in the browser and clicking on the **Profile** tab,
+    we can then review the operations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/436d7ed2-5384-4bb7-881e-7012bf36af70.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 9-1: Trace of the operations for a simple fully connected model over
+    multiple batches of data
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As seen in the preceding timeline, the model is composed of many small operations.
+    By clicking on an operation, we can obtain its name and its duration. For instance,
+    here are the details for a dense matrix multiplication (a fully-connected layer):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/47f42293-835f-4e3e-9640-9919d2b3ff8b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 9-2: The details of a matrix multiplication operation'
+  prefs: []
+  type: TYPE_NORMAL
+- en: TensorFlow traces can end up taking a large amount of disk space. For this reason,
+    we recommend running the operations you want to trace on a few batches of data
+    only.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the TPU, a dedicated Capture Profile button is available in TensorBoard.
+    The TPU name, IP, and the trace recording time need to be specified.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In practice, the tracing tool is used on much larger models to determine the
+    following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Which layers are taking the most computing time.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Why a model is taking more time than usual after a modification to the architecture.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Whether TensorFlow is always computing numbers or is waiting on data. This can
+    happen if preprocessing takes too long or if there is a lot of back and forth
+    between CPUs.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We encourage you to trace the models you are using to get a better understanding
+    of the computational performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Improving model inference speed
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that we know how to properly measure a model inference speed, we can use
+    several approaches to improve it. Some involve changing the hardware used, while
+    others imply changing the model architecture itself.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Optimizing for hardware
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'As we saw previously, the hardware used for inference is crucial for speed.
+    From the slowest option to the fastest, it is recommended to use the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**CPU**: While slower, it is often the cheapest option.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**GPU**: Faster but more expensive. Many smartphones have integrated GPUs that
+    can be used for real-time applications.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Specialized hardware**: For instance, Google''s *TPU* (for servers), Apple''s
+    *Neural Engine* (on mobile), or *NVIDIA Jetson* (for portable hardware). They
+    are chips made specifically for running deep learning operations.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If speed is crucial for your application, it is important to use the fastest
+    hardware available and to adapt your code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Optimizing on CPUs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Modern Intel CPUs can compute matrix operations more quickly through special
+    instructions. This is done using the **Math Kernel Library for Deep Neural Networks**
+    (**MKL-DNN**). Out-of-the-box TensorFlow does not exploit those instructions.
+    Using them requires either compiling TensorFlow with the right options or installing
+    a special build of TensorFlow called `tensorflow-mkl`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Information on how to build TensorFlow with MKL-DNN is available at [https://www.tensorflow.org/](https://www.tensorflow.org/).
+    Note that the toolkit currently only works on Linux.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Optimizing on GPUs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To run models on NVIDIA GPUs, two libraries are mandatory—`CUDA` and `cuDNN`.
+    TensorFlow natively exploits the speed-up offered by those libraries.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To properly run operations on the GPU, the `tensorflow-gpu` package must be
+    installed. Moreover, the CUDA version of `tensorflow-gpu` must match the one installed
+    on the computer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Some modern GPUs offer **Floating Point 16** (**FP16**) instructions. The idea
+    is to use reduced precision floats (16 bits instead of the 32 bits commonly used)
+    in order to speed up inference while not impacting the output quality by much.
+    Not all GPUs are compatible with FP16.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Optimizing on specialized hardware
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Since every chip is different, the techniques ensuring faster inference vary
+    from one manufacturer to another. The steps necessary for running a model are
+    well documented by the manufacturer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A rule of thumb is to not use exotic operations. If one of the layers is running
+    operations that include conditions or branching, it is likely that the chip will
+    not support it. The operations will have to run on the CPU, making the whole process
+    slower. It is therefore recommended to *only use standard operations*—convolution,
+    pooling, and fully connected layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Optimizing input
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The inference speed of a computer vision model is directly proportional to the
+    size of the input image. Moreover, dividing the dimensions of an image by two
+    means four times fewer pixels for the model to process. Therefore, using *smaller
+    images improves inference speed*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When using smaller images, the model has less information and fewer details
+    to work with. This often has an impact on the quality of the results. It is necessary
+    to experiment with image size to find a good *trade-off between speed and accuracy*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Optimizing post-processing
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As we saw previously in the book, most models require post-processing operations.
+    If implemented using the wrong tools, post-processing can take a lot of time.
+    While most post-processing happens on the CPU, it is sometimes possible to run
+    some operations on the GPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using tracing tools, we can analyze the time taken by post-processing to optimize
+    it. **Non-Maximum Suppression** (**NMS**) is an operation that can take a lot
+    of time if not implemented correctly (refer to [Chapter 5](593ada62-2ff4-4085-a15e-44f8f5e3d071.xhtml),
+    *Object Detection Models*):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/abea7881-df99-4226-b65b-e3686c106fd0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 9-3: Evolution of NMS computing time with the number of boxes
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice in the preceding diagram that the slow implementation takes linear computing
+    time, while the fast implementation is almost constant. Though four milliseconds
+    may seem quite low, keep in mind that some models can return an even larger number
+    of boxes, resulting in a post-processing time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When the model is still too slow
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Once the model has been optimized for speed, it can sometimes still be too slow
+    for real-time applications. There are a few techniques to work around the slowness
+    while maintaining a real-time feeling for the user.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Interpolating and tracking
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Object detection models are notoriously computationally-intensive. Running on
+    every frame of a video is sometimes impractical. A common technique is to use
+    the model every few frames only. In-between frames, linear interpolation is used
+    to follow the tracked object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While this technique does not work for real-time applications, another one that
+    is commonly used is **object tracking.** Once an object is detected with a deep
+    learning model, a more simple model is used to follow the boundaries of the object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Object tracking can work on almost any kind of object as long as it is well
+    distinguishable from its background and its shape does not change excessively.
+    There are many object tracking algorithms (some of them are available through
+    OpenCV's tracker module,  documented here [https://docs.opencv.org/master/d9/df8/group__tracking.html](https://docs.opencv.org/master/d9/df8/group__tracking.html));
+    many of them are available for mobile applications.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model distillation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: When none of the other techniques work, one last option is **model distillation**.
+    The general idea is to train a small model to learn the output of a bigger model.
+    Instead of training the small model to learn the raw labels (we could use the
+    data for this), we train it to learn the output of the bigger model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s see an example—we trained a very large network to predict an animal''s
+    breed from a picture. The output is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e9ab31a5-6241-4236-9da3-948a0d32c6b6.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 9-4: Examples of predictions made by our network
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because our model is too large to run on mobile, we decided to train a smaller
+    model. Instead of training it with the labels we have, we decided to distill the
+    knowledge of the larger network. To do so, we will use the output of the larger
+    network as targets.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For the first picture, instead of training the new model with a target of *[1,
+    0, 0]*, we will use the output of the larger network, a target of *[0.9, 0.7,
+    0.1]*. This new target is called a **soft target**. This way, the smaller network
+    will be taught that, while the animal in the first picture is not a husky, it
+    does look similar to one according to more advanced models, as the picture has
+    a score of *0.7* for the *husky* class.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The larger network managed to directly learn from the original labels (*[1,
+    0, 0]* in our example) because it has more computing and memory power. During
+    training, it was able to deduce that breeds of dogs look like one another but
+    belong to different classes. A smaller model would not have the capacity to learn
+    such abstract relations in the data by itself, but it can be guided by the other
+    network. Following the aforementioned procedure, the inferred knowledge from the
+    first model will be passed to the new one, hence the name **knowledge distillation**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Reducing model size
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'When using a deep learning model in the browser or on mobile, the model needs
+    to be downloaded on the device. It needs to be as lightweight as possible for
+    the following reasons:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Users are often using their phone on a cellular connection that is sometimes
+    metered.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The connection can also be slow.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Models can be frequently updated.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Disk space on portable devices is sometimes limited.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: With hundreds of millions of parameters, deep learning models are notoriously
+    disk space-consuming. Thankfully, there are techniques to reduce their size.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Quantization
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The most common technique is to reduce the precision of the parameters. Instead
+    of storing them as 32-bit floats, we can store them as 16- or 8-bit floats. There
+    have been experiments for using binary parameters, taking only 1 bit to store.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Quantization** is often done at the end of training, when converting the
+    model for use on the device. This conversion impacts the accuracy of the model.
+    Because of this, it is very important to evaluate the model after quantization.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Among all the compression techniques, quantization is often the one with the
+    highest impact on size and the least impact on performance. It is also very easy
+    to implement.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Channel pruning and weight sparsification
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Other techniques exist but can be harder to implement. There is no straightforward
+    way to apply them because they rely mostly on trial and error.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first one, **channel pruning**, consists of removing some convolutional
+    filters or some channels. Convolutional layers usually have between 16 and 512
+    different filters. At the end of the training phase, it often appears that some
+    of them are not useful. We can remove them to avoid storing weights that will
+    not help the model performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second one is called **weight sparsification**. Instead of storing weights
+    for the whole matrix, we can store only the ones that are deemed important or
+    not close to zero.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For instance, instead of storing a weight vector such as *[0.1, 0.9, 0.05, 0.01,
+    0.7, 0.001]*, we could keep weights that are not close to zero. The result is
+    a list of tuples in the form *(position, value)*. In our example, it would be
+    *[(1, 0.9), (4, 0.7)]*. If many of the vector's values are close to zero, we could
+    expect a large reduction in stored weights.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On-device machine learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Due to their high computational requirements, deep learning algorithms are
+    most commonly run on powerful servers. They are computers specifically designed
+    for this task. For latency, privacy, or cost reasons, it is sometimes more interesting
+    to run inference on customers'' devices: smartphones, connected objects, cars,
+    or microcomputers.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What all those devices have in common are lower computational power and low
+    power requirements. Because they are at the end of the data life cycle, on-device
+    machine learning is also referred to as **edge computing** or **machine learning
+    on the edge**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With regular machine learning, the computation usually happens in the data center.
+    For instance, when you upload a photo to Facebook, a deep learning model is run
+    in Facebook's data center to detect your friends' faces and help you tag them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With on-device machine learning, the inference happens on your device. A common
+    example is Snapchat face filters—the model that detects your face position is
+    run directly on the device. However, model training still happens in data centers—the
+    device uses a trained model fetched from the server:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/62deba1a-1bb9-4848-a42a-f56c56320bdc.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 9-5: Diagram comparing on-device machine learning with conventional machine
+    learning
+  prefs: []
+  type: TYPE_NORMAL
+- en: Most on-device machine learning happens for inference. The training of models
+    is still mostly done on dedicated servers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Considerations of on-device machine learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The use of **on-device machine learning** (**on-device ML**) is usually motivated
+    by a combination of reasons, but also has its limitations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Benefits of on-device ML
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The following paragraphs list the main benefits of running machine learning
+    algorithms directly on users' devices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Latency
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The most common motivation is **latency**. Because sending data to a server
+    for processing takes time, real-time applications make it impossible to use conventional
+    machine learning. The most striking illustration is self-driving cars. To react
+    quickly to its environment, the car must have the lowest latency possible. Therefore,
+    it is crucial to run the model in the car. Moreover, some devices are used in
+    places where internet access is simply not available.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Privacy
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As consumers care more and more about their privacy, companies are devising
+    techniques to run deep learning models while respecting this demand.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's use a large-scale example from Apple. When browsing through photos on
+    an iOS device, you may notice that it is possible to search for objects or things—`cat`,
+    `bottle`, `car` will return the corresponding images. This is the case even if
+    the pictures are not sent to the cloud. For Apple, it was important to make that
+    feature available while respecting the privacy of its users. Sending pictures
+    for processing without the users' consent would have been impossible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Therefore, Apple decided to use on-device ML. Every night, when the phone is
+    charging, a computer vision model is run on the iPhone to detect objects in the
+    image and make this feature available.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Cost
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: On top of respecting user privacy, this feature also reduces costs for Apple
+    because the company does not have to pay the bill for servers to process the hundreds
+    of millions of images that their customers produce.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On a much smaller scale, it is now possible to run some deep learning models
+    in the browser. This is especially useful for demos—by running the models on the
+    user's computer, you can avoid paying for a costly GPU-enabled server to run inference
+    at scale. Moreover, there will not be any overloading issues because the more
+    users that access the page, the more computing power that is available.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Limitations of on-device ML
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: While it has many benefits, this concept also has a number of limitations. First
+    of all, the limited computing power of devices means that some of the most powerful
+    models cannot be considered.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Also, many on-device deep learning frameworks are not compatible with the most
+    innovative or the most complex layers. For instance, TensorFlow Lite is not compatible
+    with custom LSTM layers, making it hard to port advanced recurrent neural networks
+    on mobile using this framework.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, making models available on devices implies sharing the weights and
+    the architecture with users. While encryption and obfuscation methods exist, it
+    increases the risk of reverse engineering or model theft.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Practical on-device computer vision
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Before discussing the practical application of on-device computer vision, we
+    will have a look at the general considerations for running deep learning models
+    on mobile devices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On-device computer vision particularities
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'When running computer vision models on mobile devices, the focus switches from
+    raw performance metrics to user experience. On mobile phones, this means minimizing
+    battery and disk usage: we don''t want to drain the phone''s battery in minutes
+    or fill up all the available space on the device. When running on mobile, it is
+    recommended to use smaller models. As they contain fewer parameters, they use
+    less disk space. Moreover, as they require fewer operations, this leads to reduced
+    battery usage.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another particularity of mobile phones is orientation. In training datasets,
+    most pictures are provided with the correct orientation. While we sometimes change
+    this orientation during data augmentation, the images are rarely upside down or
+    completely sideways. However, there are many ways to hold a mobile phone. For
+    this reason, we must monitor the device's orientation to make sure that we are
+    feeding the model with images that are correctly oriented.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating a SavedModel
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As we mentioned earlier, on-device machine learning is typically used for inference.
+    Therefore, a prerequisite is to have a *trained model*. Hopefully, this book will
+    have given you a good idea of how to implement and prepare your network. We now
+    need to convert the model to an intermediate file format. It will then be converted
+    by a library for mobile use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In TensorFlow 2, the intermediate format of choice is **SavedModel**. A SavedModel
+    contains the model architecture (the graph) and the weights.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Most TensorFlow objects can be exported as a SavedModel. For instance, the
+    following code exports a trained Keras model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Generating a frozen graph
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Before introducing the **SavedModel** API, TensorFlow mainly used the **frozen
+    graphs** format. In practice, a SavedModel is a wrapper around a frozen graph.
+    The former includes more metadata and can include the preprocessing function needed
+    to serve the model. While SavedModel is gaining in popularity, some libraries
+    still require frozen models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To convert a SavedModel to a frozen graph, the following code can be used:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: On top of specifying the input and output, we also need to specify `output_node_names`.
+    Indeed, it is not always clear what the inference output of a model is. For instance,
+    image detection models have several outputs—the box coordinates, the scores, and
+    the classes. We need to specify which one(s) to use.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that many arguments are `False` or `None` because this function can accept
+    many different formats, and SavedModel is only one of them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Importance of preprocessing
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'As explained in [Chapter 3](dd1d3406-d506-4690-bf13-e5e0584ea9d1.xhtml), *Modern
+    Neural Networks*, input images have to be **preprocessed**. The most common preprocessing
+    method is to divide each channel by *127.5* (*127.5* = *255/2* = middle value
+    of an image pixel) and subtract 1\. This way, we represent images with values
+    between -1 and 1:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/2d8034f3-e309-4bc6-836f-a34d00cb4057.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 9-6: Example of preprocessing for a *3 x 3* image with a single channel
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, there are many ways to represent images, depending on the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The order of the channels: RGB or BGR'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Whether the image is between *0* and *1*, *-1* and *1*, or *0* and *255*
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The order of the dimensions: *[W, H, C]* or *[C, W, H]*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The orientation of the image
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: When porting a model, it is paramount to use the *exact same preprocessing*
+    on a device as during training. Failing to do so will lead the model to infer
+    poorly, sometimes even to fail completely, as the input data will be too different
+    compared with the training data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: All mobile deep learning frameworks provide some options to specify preprocessing
+    settings. It is up to you to set the correct parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have obtained a **SavedModel** and that we know the importance of
+    pre-processing, we are ready to use our model on different devices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Example app – recognizing facial expressions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To directly apply the notions presented in this chapter, we will develop an
+    app making use of a lightweight computer vision model, and we will deploy it to
+    various platforms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will build an app that classifies facial expressions. When pointed to a
+    person''s face, it will output the expression of that person—happy, sad, surprised,
+    disgusted, angry, or neutral. We will train our model on the **Facial Expression
+    Recognition** (**FER**) dataset available at [https://www.kaggle.com/c/challenges-in-representation-learning-facial-expression-recognition-challenge](https://www.kaggle.com/c/challenges-in-representation-learning-facial-expression-recognition-challenge),
+    put together by Pierre-Luc Carrier and Aaron Courville. It is composed of 28,709
+    grayscale images of *48 × 48* in size:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/c5a7d006-6b39-4efd-8d63-1c6381414dee.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 9-7: Images sampled from the FER dataset
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Inside the app, the naive approach would be to capture images with the camera
+    and then feed them directly to our trained model. However, this would yield poor
+    results as objects in the environment would impair the quality of the prediction.
+    We need to crop the face of the user before feeding it to the user:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/9e7666d7-4bd5-49f6-a429-f33dc2299d60.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 9-8: Two-step flow of our facial expression classification app
+  prefs: []
+  type: TYPE_NORMAL
+- en: While we could build our own model for the first step (face detection), it is
+    much more convenient to use out-of-the-box APIs. They are available natively on
+    iOS and through libraries on Android and in the browser. The second step, expression
+    classification, will be performed using our custom model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing MobileNet
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The architecture we will use for classification is named **MobileNet**. It
+    is a convolutional model designed to run on mobile. Introduced in 2017, in the
+    paper *MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications*,
+    by Andrew G Howard et al.*,* it uses a special kind of convolution to reduce the
+    number of parameters as well as the computations necessary to generate predictions.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'MobileNet uses **depthwise separable** convolutions. In practice, this means
+    that the architecture is composed of an alternation of two types of convolutions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Pointwise** **convolutions**: These are just like regular convolutions, but
+    with a *1* × *1* kernel. The purpose of pointwise convolutions is to combine the
+    different channels of the input. Applied to an RGB image, they will compute a
+    weighted sum of all channels.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Depthwise** **convolutions**: These are like regular convolutions, but do
+    not combine channels. The role of depthwise convolutions is to filter the content
+    of the input (detect lines or patterns). Applied to an RGB image, they will compute
+    a feature map for each channel.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: When combined, these two types of convolutions perform similarly to regular
+    convolutions. However, due to the small size of their kernels, they require fewer
+    parameters and computational power, making this architecture suited for mobile
+    devices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Deploying models on-device
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To illustrate on-device machine learning, we will port a model to iOS and Android
+    devices, as well as for web browsers. We will also describe the other types of
+    devices available.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Running on iOS devices using Core ML
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: With the release of its latest devices, Apple is putting the emphasis on machine
+    learning. They designed a custom chip—the **neural engine**. This can achieve
+    fast deep learning operations while maintaining a low power usage. To fully benefit
+    from this chip, developers must use a set of official APIs called **Core ML**
+    (refer to the documentation at [https://developer.apple.com/documentation/coreml](https://developer.apple.com/documentation/coreml)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: To use an existing model with Core ML, developers need to convert it to the
+    `.mlmodel` format. Thankfully, Apple provides Python tools to convert from Keras
+    or TensorFlow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In addition to speed and energy efficiency, one of the strengths of Core ML
+    is its integration with other iOS APIs. Powerful native methods exist for augmented
+    reality, face detection, object tracking, and much more.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While TensorFlow Lite supports iOS, as of now, we still recommend using Core
+    ML. This allows faster inference time and broader feature compatibility.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Converting from TensorFlow or Keras
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To convert our model from Keras or TensorFlow, another tool is needed—`tf-coreml`
+    ([https://github.com/tf-coreml/tf-coreml](https://github.com/tf-coreml/tf-coreml)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the time of writing, `tf-coreml` is not compatible with TensorFlow 2\. We
+    have provided a modified version while the library's developers are updating it.
+    Refer to the chapter's notebook for the latest installation instructions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can then convert our model to `.mlmodel`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'A few arguments are important:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`class_labels`: The list of labels. Without this, we would end up with class
+    IDs instead of readable text.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`input_names`: The name of the input layer.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`image_input_names`: This is used to specify to the Core ML framework that
+    our input is an image. This will be useful later on because the library will handle
+    all preprocessing for us.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`output_feature_names`: As with the frozen model conversion, we need to specify
+    the outputs we will target in our model. In this case, they are not operations
+    but outputs. Therefore, `:0` must be appended to the name.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`image_scale`: The scale used for preprocessing.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`bias`: The bias of the preprocessing for each color.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`is_bgr`: Must be `True` if channels are in the BGR order, or `False` if RGB.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: As stated earlier, `scale`, `bias`, and `is_bgr` must match the ones used during
+    training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After converting the model to a `.mlmodel` file, it can be opened in Xcode:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/35e480af-9e51-41fb-8a8c-92ad059ebdaa.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 9-9: Screenshot of Xcode showing the details of a model
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the input is recognized as an `Image` since we specified `image_input_names`.
+    Thanks to this, Core ML will be able to handle the preprocessing of the image
+    for us.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loading the model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The full app is available in the chapter repository. A Mac computer and an
+    iOS device are necessary to build and run it. Let''s briefly detail the steps
+    to get predictions from the model. Note that the following code is written in
+    Swift. It has a similar syntax to Python:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The code consists of three main steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loading the model. All the information about it is available in the `.mlmodel`
+    file.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Setting a custom callback. In our case, after the image is classified, we will
+    call `processClassifications`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Setting `imageCropAndScaleOption`. Our model was designed to accept square images,
+    but the input often has a different ratio. Therefore, we configure Core ML to
+    crop the center of the image by setting it to `centerCrop`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We also load the model used for face detection using the native `VNDetectFaceRectanglesRequest`
+    and `VNSequenceRequestHandler` functions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: Using the model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'As an input, we access `pixelBuffer`, which contains the pixel of the video
+    feed from the camera of the device. We run our face detection model and obtain
+    `faceObservations`. This will contain the detection results. If the variable is
+    empty, it means that no face was detected and we do not go further in the function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, for each `faceObservation` in `faceObservations`, we classify the area
+    containing the face:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: To do so, we specify `regionOfInterest` of the request. This notifies the Core
+    ML framework that the input is this specific area of the image. This is very convenient
+    as we do not have to crop and resize the image—the framework handles this for
+    us. Finally, we call the `classificationHandler.perform` native method.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that we had to change the coordinate system. The face coordinates are returned
+    with an origin at the top left of the image, while `regionOfInterest` must be
+    specified with an origin in the bottom left.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once the predictions are generated, our custom callback, `processClassifications`,
+    will be called with the results. We will then be able to display the results to
+    the user. This part is covered in the full application available in the book's
+    GitHub repository.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Running on Android using TensorFlow Lite
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**TensorFlow Lite** is a mobile framework that allows you to run TensorFlow
+    models on mobile and embedded devices. It supports Android, iOS, and Raspberry
+    Pi. Unlike Core ML on iOS devices, it is not a native library but an external
+    dependency that must be added to your app.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: While Core ML was optimized for iOS device hardware, TensorFlow Lite performance
+    may vary from device to device. On some Android devices, it can use the GPU to
+    improve inference speed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To use TensorFlow Lite for our example application, we will first convert our
+    model to the library's format using the TensorFlow Lite converter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Converting the model from TensorFlow or Keras
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'TensorFlow integrates a function to transform a SavedModel model to the TF
+    Lite format. To do so, we first create a TensorFlow Lite converter object:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, the model is saved to disk:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: You will notice that the TensorFlow Lite function offers fewer options than
+    the Apple Core ML equivalent. Indeed, TensorFlow Lite does not handle preprocessing
+    and resizing of the images automatically. This has to be handled by the developer
+    in the Android app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loading the model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'After converting the model to the `.tflite` format, we can add it to the assets
+    folder of our Android application. We can then load the model using a helper function, `loadModelFile`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: Because our model is in the assets folder of our app, we need to pass the current
+    activity. If you are not familiar with Android app development, you can think
+    of an activity as a specific screen of an app.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can then create `Interpreter`. In TensorFlow Lite, the interpreter is necessary
+    to run a model and return predictions. In our example, we pass the default `Options` constructor.
+    The `Options` constructor could be used to change the number of threads or the
+    precision of the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we will create `ByteBuffer`. This is a data structure that contains
+    the input image data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`ByteBuffer` is an array that will contain the pixels of the image. Its size
+    depends on the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The batch size—in our case, 1.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The dimensions of the input image.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The number of channels (`DIM_PIXEL_SIZE`)—3 for RGB, 1 for grayscale.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Finally, the number of bytes per channel. As *1 byte = 8 bits*, a 32-bits input
+    will require 4 bytes. If using quantization, an 8-bits input will require 1 byte.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'To process predictions, we will later fill this `imgData` buffer and pass it
+    to the interpreter. Our facial expression detection model is ready to be used.
+    Before we can start using our full pipeline, we only need to instantiate the face
+    detector:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that this `FaceDetector` class comes from the Google Vision framework and
+    has nothing to do with TensorFlow Lite.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using the model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'For our example app, we will work with bitmap images. You can see bitmaps as
+    a matrix of raw pixels. They are compatible with most of the image libraries on
+    Android. We obtain this bitmap from the view that displays the video feed from
+    the camera, called `textureView`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: We do not capture the bitmap at full resolution. Instead, we divide its dimensions
+    by `4` (this number was picked by trial and error). Choosing a size that's too
+    large would result in very slow face detection, reducing the inference time of
+    our pipeline.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We then proceed to create `vision.Frame` from the bitmap. This step is necessary
+    to pass the image to `faceDetector`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, for each `face` in `faces`, we can crop the face of the user in the bitmap.
+    Provided in the GitHub repository, the `cropFaceInBitmap` helper function does
+    precisely this—it accepts the coordinates of the face and crops the corresponding
+    area in the bitmap:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After resizing the bitmap to fit the input of our model, we fill `imgData`,
+    `ByteBuffer`, which `Interpreter` accepts:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As you can see, we iterate over the bitmap''s pixels to add them to `imgData`.
+    To do so, we use `addPixelValue`. This function handles the preprocessing of each
+    pixel. It will be different depending on the characteristics of the model. In
+    our case, the model is using a grayscale image. We must therefore convert each
+    pixel from color to grayscale:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this function, we are using bit-wise operations to compute the mean of the
+    three colors of each pixel. We then divide it by `127.5` and subtract `1` as this
+    is the preprocessing step of our model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At the end of this process, `imgData` contains the input information in the
+    correct format. Finally, we can run the inference:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: The predictions will be inside `labelProbArray`. We can then process and display
+    them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Running in the browser using TensorFlow.js
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'With web browsers packing more and more features every year, it was only a
+    matter of time before they could run deep learning models. Running models in the
+    browser has many advantages:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The user does not have anything to install.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The computing is done on the user's machine (mobile or computer).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The model can sometimes make use of the device's GPU.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The library to run in the browser is called TensorFlow.js (refer to the documentation
+    at [https://github.com/tensorflow/tfjs](https://github.com/tensorflow/tfjs)).
+    We will implement our face expression classification application using it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While TensorFlow cannot take advantage of non-NVIDIA GPUs, TensorFlow.js can
+    use GPUs on almost any device. GPU support in the browser was first implemented
+    to display graphical animations through WebGL (a computer graphics API for web
+    applications, based on OpenGL). Since it involves matrix calculus, it was then
+    repurposed to run deep learning operations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Converting the model to the TensorFlow.js format
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To use TensorFlow.js, the model must first be converted to the correct format
+    using `tfjs-converter`. It can convert Keras models, frozen models, and SavedModels.
+    Installation instructions are provided in the GitHub repository.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, converting a model is very similar to the process done for TensorFlow
+    Lite. Instead of being done in Python, it is done from the command line:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: Similar to TensorFlow Lite, we need to specify the names of the output nodes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The output is composed of multiple files:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`optimized_model.pb`: Contains the model graph'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`weights_manifest.json`: Contains information about the list of weights'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`group1-shard1of5`, `group1-shard2of5`, ..., `group1-shard5of5`: Contains the
+    weights of the model split into multiple files'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The model is split into multiple files because parallel downloads are usually
+    faster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using the model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In our JavaScript app, after importing TensorFlow.js, we can load our model.
+    Note that the following code is in JavaScript. It has a similar syntax to Python:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will also use a library called `face-api.js` to extract faces:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once both models are loaded, we can start processing images from the user:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we grab a frame from the `video` element displaying the webcam of the
+    user. The `face-api.js` library will attempt to detect a face in this frame. If
+    it detects a frame, the part of the image containing the frame is extracted and
+    fed to our model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `predict` function handles the preprocessing of the image and the classification.
+    This is what it looks like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: We first resize the image using `resizeBilinear` and convert it from color to
+    grayscale using `mean`. We then preprocess the pixels, normalizing them between
+    `-1` and `1`. Finally, we run the data through `model.predict` to get predictions.
+    At the end of this pipeline, we end up with predictions that we can display to
+    the user.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note the use of `tf.tidy`. This is very important because TensorFlow.js creates
+    intermediate tensors that might never be removed from memory. Wrapping our operations
+    inside `tf.tidy` automatically purges intermediate elements from memory.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Over the last few years, technology improvements have made new applications
+    in the browser possible—image classification, text generation, style transfer,
+    and pose estimation are now available to anyone without needing to install anything.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Running on other devices
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We have covered the conversion of models to run in the browser, and on iOS and
+    Android devices. TensorFlow Lite can also run on the Raspberry Pi, a pocket-sized
+    computer running Linux.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Moreover, devices designed specifically to run deep learning models started
+    to emerge over the years. Here are a few examples:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**NVIDIA Jetson TX2**: The size of a palm; it is often used for robotics applications.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Google Edge TPU**: A chip designed by Google for IoT applications. It is
+    the size of a nail, and is available with a developer kit.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Intel Neural Compute Stick**: The size of a USB flash drive; it can be connected
+    to any computer (including the Raspberry Pi) to improve its machine learning capabilities.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: These devices all focus on maximizing computing power while minimizing power
+    consumption. With each generation getting more powerful, the on-device ML field
+    is moving extremely quickly, opening new applications every year.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this chapter, we covered several topics on performance. First, we learned
+    how to properly measure the inference speed of a model, and then we went through
+    techniques to reduce inference time: choosing the right hardware and the right
+    libraries, optimizing input size, and optimizing post-processing. We covered techniques
+    to make a slower model appear, to the user, as if it were processing in real time,
+    and to reduce the model size.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then, we introduced on-device ML, along with its benefits and limitations. We
+    learned how to convert TensorFlow and Keras models to a format that's compatible
+    with on-device deep learning frameworks. With examples on iOS and Android, and
+    in the browser, we covered a wide range of devices. We also introduced some existing
+    embedded devices.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Throughout this book, we have presented TensorFlow 2 in detail, applying it
+    to multiple computer vision tasks. We have covered a variety of state-of-the-art
+    solutions, providing both a theoretical background and some practical implementations.
+    With this last chapter tackling their deployment, it is now up to you to harness
+    the power of TensorFlow 2 and to develop computer vision applications for the
+    use cases of your choice!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: When measuring a model's inference speed, should you measure with a single image
+    or multiple ones?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Is a model with *float32* weights smaller or larger than one with *float16*
+    weights?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: On iOS devices, should Core ML or TensorFlow Lite be favored? What about Android
+    devices?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What are the benefits and limitations of running a model in the browser?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is the most important requirement for embedded devices running deep learning
+    algorithms?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL

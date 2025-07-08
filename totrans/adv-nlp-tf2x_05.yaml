@@ -1,0 +1,1176 @@
+- en: '5'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Generating Text with RNNs and GPT-2
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: When your mobile phone completes a word as you type a message or when Gmail
+    suggests a short reply or completes a sentence as you reply to an email, a text
+    generation model is working in the background. The Transformer architecture forms
+    the basis of state-of-the-art text generation models. BERT, as explained in the previous
+    chapter, uses only the encoder part of the Transformer architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, BERT, being bi-directional, is not suitable for the generation of text.
+    A left-to-right (or right-to-left, depending on the language) language model built
+    on the decoder part of the Transformer architecture is the foundation of text
+    generation models today.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Text can be generated a character at a time or with words and sentences together.
+    Both of these approaches are shown in this chapter. Specifically, we will cover
+    the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Generating text with:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Character-based RNNs for generating news headlines and completing text messages
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: GPT-2 to generate full sentences
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Improving the quality of text generation using techniques such as:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Greedy search
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Beam search
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Top-K sampling
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Using advanced techniques such as learning rate annealing and checkpointing
+    to enable long training times:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Details of the Transformer decoder architecture
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Details of the GPT and GPT-2 models
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A character-based approach for generating text is shown first. Such models can
+    be quite useful for generating completions of a partially typed word in a sentence
+    on a messaging platform, for example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating text – one character at a time
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Text generation yields a window into whether deep learning models are learning
+    about the underlying structure of language. Text will be generated using two different
+    approaches in this chapter. The first approach is an RNN-based model that generates
+    a character at a time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the previous chapters, we have seen different tokenization methods based
+    on words and sub-words. Text is tokenized into characters, which include capital
+    and small letters, punctuation symbols, and digits. There are 96 tokens in total.
+    This tokenization is an extreme example to test how much a model can learn about
+    the language structure. The model will be trained to predict the next character
+    based on a given set of input characters. If there is indeed an underlying structure
+    in the language, the model should pick it up and generate reasonable-looking sentences.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating coherent sentences one character at a time is a very challenging
+    task. The model does not have a dictionary or vocabulary, and it has no sense
+    of capitalization of nouns or any grammar rules. Yet, we are expecting it to generate
+    reasonable-looking sentences. The structure of words and their order in a sentence
+    is not random but driven by grammar rules in a language. Words have some structure,
+    based on parts of speech and word roots. A character-based model has the smallest
+    possible vocabulary, but we hope that the model learns a lot about the use of
+    the letters. This may seem like a tall order but be prepared to be surprised.
+    Let's get started with the data loading and pre-processing steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Data loading and pre-processing
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: For this particular example, we are going to use data from a constrained domain
+    – a set of news headlines. The hypothesis is that news headlines are usually short
+    and follow a particular structure. These headlines are usually a summary of an
+    article and contain a large number of proper nouns like names of companies and
+    celebrities. For this particular task, data from two different datasets are joined
+    together and used. The first dataset is called the News Aggregator dataset generated
+    by the Artificial Intelligence Lab, part of the Faculty of Engineering at Roma
+    Tre University in Italy. The University of California, Irvine, has made the dataset
+    available for download from [https://archive.ics.uci.edu/ml/datasets/News+Aggregator](https://archive.ics.uci.edu/ml/datasets/News+Aggregator).
+    This dataset has over 420,000 news article titles, URLs, and other information.
+    The second dataset is a set of over 200,000 news articles from The Huffington
+    Post, called the News Category dataset, collected by Rishabh Mishra and posted
+    on Kaggle at [https://www.kaggle.com/rmisra/news-category-dataset](https://www.kaggle.com/rmisra/news-category-dataset).
+  prefs: []
+  type: TYPE_NORMAL
+- en: News article headlines from both datasets are extracted and compiled into one
+    file. This step is already done to save time. The compressed output file is called
+    `news-headlines.tsv.zip` and is located in the `chapter5-nlg-with-transformer-gpt/char-rnn`
+    GitHub folder corresponding to this chapter. The folder is located inside the
+    GitHub repository for this book. The format of this file is pretty simple. It
+    has two columns separated by a tab. The first column is the original headline,
+    and the second column is an uncased version of the same headline. This example
+    uses the first column of the file only.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, you can try the uncased version to see how the results differ. Training
+    such models usually takes a lot of time, often several hours. Training in an IPython
+    notebook can be difficult as a number of issues, such as the loss of the connection
+    to the kernel or the kernel process dying, can result in the loss of the trained
+    model. What we are attempting to do in this example is akin to training BERT from
+    scratch. Don't worry; we train the model for a much shorter time than it took
+    to train BERT. Running long training loops runs the risk of training loops crashing
+    in the middle. In such a case, we don't want to restart training from scratch.
+    The model is checkpointed frequently during training so that the model state can
+    be restored from the last checkpoint if a failure occurs. Then, training can be
+    restarted from the last checkpoint. Python files executed from the command line
+    give the most control when running long training loops.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The command-line instructions shown in this example were tested on an Ubuntu
+    18.04 LTS machine. These commands should work as is on a macOS command line but
+    may need some adjustments. Windows users may need to translate these commands
+    for their operating system. Windows 10 power users should be able to use the **Windows
+    Subsystem for Linux** (**WSL**) capabilities to execute the same commands.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Going back to the data format, all that needs to be done for loading the data
+    is to unzip the prepared headline file. Navigate to the folder where the ZIP file
+    has been pulled down from GitHub. The compressed file of headlines can be unzipped
+    and inspected:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s inspect the contents of the file to get a sense of the data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: The model is trained on the headlines shown above. We are ready to move on to
+    the next step and load the file to perform normalization and tokenization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Data normalization and tokenization
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'As discussed above, this model uses a token per character. So, each letter,
+    including punctuation, numbers, and space, becomes a token. Three additional tokens
+    are added. These are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`<EOS>`: Denotes end of sentences. The model can use this token to indicate
+    that the generation of text is complete. All headlines end with this token.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`<UNK>`: While this is a character-level model, it is possible to have different
+    characters from other languages or character sets in the dataset. When a character
+    is detected that is not present in our set of 96 characters, this token is used.
+    This approach is consistent with word-based vocabulary approaches where it is
+    common to replace out-of-vocabulary words with a special token.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`<PAD>`: This is a unique padding token used to pad all headlines to the same
+    length. Padding is done by hand in this example as opposed to using TensorFlow
+    methods, which we have seen previously.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: All the code in this section will refer to the `rnn-train.py` file from the
+    `chapter5-nlg-with-transformer-gpt` folder of the GitHub repo of the book. The
+    first part of this file has the imports and optional instructions for setting
+    up a GPU. Ignore this section if your setup does not use a GPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A GPU is an excellent investment for deep learning engineers and researchers.
+    A GPU could speed up your training times by orders of magnitude or more! It would
+    be worthwhile to outfit your deep learning setup with a GPU like the Nvidia GeForce
+    RTX 2070.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The code for data normalization and tokenization is between lines 32 and 90
+    of this file. To start, the tokenization function needs to be set up:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once the token list is ready, methods need to be defined for converting characters
+    to tokens and vice versa. Creating mapping is relatively straightforward:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, the data needs can be read in from the TSV file. A maximum length of 75
+    characters is used for the headlines. If the headlines are shorter than this length,
+    they are padded. Any headlines longer than 75 characters are snipped. The `<EOS>`
+    token is appended to the end of every headline. Let''s set this up:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'All the data is loaded into a list with the code above. You may be wondering
+    about the ground truth here for training as we only have a line of text. Since
+    we want this model to generate text, the objective can be reduced to predicting
+    the next character given a set of characters. Hence, a trick will be used to construct
+    the ground truth – we will just shift the input sequence by one character and
+    set it as the expected output. This transformation is quite easy do with `numpy`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'With this nifty trick, we have both inputs and expected outputs ready for training.
+    The final step is to convert it into `tf.Data.DataSet` for ease of batching and
+    shuffling:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now everything is ready to start training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training the model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The code for model training starts at line 90 in the `rnn-train.py` file. The
+    model is quite simple. It has an embedding layer, followed by a GRU layer and
+    a dense layer. The size of the vocabulary, the number of RNN units, and the size
+    of the embeddings are set up:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'With the batch size being defined, training data can be batched and ready for
+    use by the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Similar to code in previous chapters, a convenience method to build models
+    is defined like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'A model can be instantiated with this method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'There are just over 4 million trainable parameters in this model. The Adam
+    optimizer, with a sparse categorical loss function, is used for training this
+    model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Since training is potentially going to take a long time, we need to set up
+    checkpoints along with the training. If there is any problem in training and training
+    stops, these checkpoints can be used to restart the training from the last saved
+    checkpoint. A directory is created using the current timestamp for saving these
+    checkpoints:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'A custom callback that saves checkpoints during training is defined in the
+    last line of code above. This is passed to the `model.fit()` function to be called
+    at the end of every epoch. Starting the training loop is straightforward:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The model will be trained for 25 epochs. The time taken in training will be
+    logged as well in the code above. The final piece of code uses the history to
+    plot the loss and save it as a PNG file in the same directory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The best way to start training is to start the Python process so that it can
+    run in the background without needing a Terminal or command-line. On Unix systems,
+    this can be done with the `nohup` command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This command line starts the process in a way that disconnecting the Terminal
+    would not interrupt the training process. On my machine, this training took approximately
+    1 hour and 43 minutes. Let''s check out the loss curve:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A close up of a mans face  Description automatically generated](img/B16252_05_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.1: Loss curve'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we can see, the loss decreases to a point and then shoots up. The standard
+    expectation is that loss would monotonically decrease as the model was trained
+    for more epochs. In the case shown above, the loss suddenly shoots up. In other
+    cases, you may observe a NaN, or Not-A-Number, error. NaNs result from the exploding
+    gradient problem during backpropagation through RNNs. The gradient direction causes
+    weights to grow very large quickly and overflow, resulting in NaNs. Given how
+    prevalent this is, there are quite a few jokes about NLP engineers and Indian
+    food to go with the nans (referring to a type of Indian bread).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The primary reason behind these occurrences is gradient descent overshooting
+    the minima and starting to climb the slope before reducing again. This happens
+    when the steps gradient descent is taking are too large. Another way to prevent
+    the NaN issue is gradient clipping where gradients are clipped to an absolute
+    maximum, preventing loss from exploding. In the RNN model above, a scheme needs
+    to be used that reduces the learning rate over time. Reducing the learning rate
+    over epochs reduces the chances for gradient descent to overshoot the minima.
+    This technique of reducing the learning rate over time is called **learning rate
+    annealing** or **learning rate decay**. The next section walks through implementing
+    learning rate decay while training the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing learning rate decay as custom callback
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'There are two ways to implement learning rate decay in TensorFlow. The first
+    way is to use one of the prebuilt schedulers that are part of the `tf.keras.optimizers.schedulers`
+    package and use a configured instance with the optimizer. An example of a prebuilt
+    scheduler is `InverseTimeDecay`, and it can be set up as shown below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The first parameter, 0.001 in the example above, is the initial learning rate.
+    The number of steps per epoch can be calculated by dividing the number of training
+    examples by batch size. The number of decay steps determines how the learning
+    rate is reduced. The equation used to compute the learning rate is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16252_05_001.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'After being set up, all this function needs is the step number for computing
+    the new learning rate. Once the schedule is set up, it can be passed to the optimizer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: That's it! The rest of the training loop code is unchanged. However, this learning
+    rate scheduler starts reducing the learning rate from the first epoch itself.
+    A lower learning rate increases the amount of training time. Ideally, we would
+    keep the learning rate unchanged for the first few epochs and then reduce it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Looking at *Figure 5.1* above, the learning rate is probably effective until
+    about the tenth epoch. BERT also uses **learning rate warmup** before learning
+    rate decay. Learning rate warmup generally refers to increasing the learning rate
+    for a few epochs. BERT was trained for 1,000,000 steps, which roughly translates
+    to 40 epochs. For the first 10,000 steps, the learning rate was increased, and
+    then it was linearly decayed. Implementing such a learning rate schedule is better
+    accomplished by a custom callback.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Custom callbacks in TensorFlow enable the execution of custom logic at various
+    points during training and inference. We saw an example of a prebuilt callback
+    that saves checkpoints during training. A custom callback provides hooks that
+    enable desired logic that can be executed at various points during training. This
+    main step is to define a subclass of `tf.keras.callbacks.Callback`. Then, one
+    or more of the following functions can be implemented to hook onto the events
+    exposed by TensorFlow:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`on_[train,test,predict]_begin` / `on_[train,test,predict]_end`: This callback
+    happens at the start of training or the end of the training. There are methods
+    for training, testing, and prediction loops. Names for these methods can be constructed
+    using the appropriate stage name from the possibilities shown in brackets. The
+    method naming convention is a common pattern across other methods in the rest
+    of the list.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`on_[train,test,predict]_batch_begin` / `on_[train,test,predict] _batch_end`:
+    These callbacks happen when training for a specific batch starts or ends.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`on_epoch_begin` / `on_epoch_end`: This is a training-specific function called
+    at the start or end of an epoch.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'We will implement a callback for the start of the epoch that adjusts that epoch''s
+    learning rate. Our implementation will keep the learning rate constant for a configurable
+    number of initial epochs and then reduce the learning rate in a fashion similar
+    to the inverse time decay function described above. This learning rate would look
+    like the following *Figure 5.2*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a cell phone  Description automatically generated](img/B16252_05_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.2: Custom learning rate decay function'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, a subclass is created with the function defined in it. The best place
+    to put this in `rnn_train.py` is just around the checkpoint callback, before the
+    start of training. This class definition is shown below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Using this callback in the training loop requires the instantiation of the
+    callback. The following parameters are set while instantiating the callback:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The initial learning rate is set to 0.001.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The decay rate is set to 4\. Please feel free to play around with different
+    settings.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The number of steps is set to the number of epochs. The model is trained for
+    150 epochs.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Learning rate decay should start after epoch 10, so the start epoch is set to
+    10.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The training loop is updated to include the callback like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Changes are highlighted above. Now, the model is ready to be trained using
+    the command shown above. Training 150 epochs took over 10 hours on the GPU-capable
+    machine. The loss surface is shown in *Figure 5.3*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A close up of a piece of paper  Description automatically generated](img/B16252_05_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.3: Model loss after learning rate decay'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the figure above, the loss drops very fast for the first few epochs before
+    plateauing near epoch 10\. Learning rate decay kicks in at that point, and the
+    loss starts to fall again. This can be verified from a snippet of the log file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note the highlighted loss above. The loss slightly increased around epoch 10
+    as learning rate decay kicked in, and the loss started falling again. The small
+    bumps in the loss that can be seen in *Figure 5.3* correlate with places where
+    the learning rate was higher than needed, and learning rate decay kicked it down
+    to make the loss go lower. The learning rate started at 0.001 and ended at a fifth
+    of that at 0.0002.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training this model took much time and advanced tricks like learning rate decay
+    to train. But how does this model do in terms of generating text? That is the
+    focus of the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating text with greedy search
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Checkpoints were taken during the training process at the end of every epoch.
+    These checkpoints are used to load a trained model for generating text. This part
+    of the code is implemented in an IPython notebook. The code for this section is
+    found in the `charRNN-text-generation.ipynb` file in this chapter's folder in
+    GitHub. The generation of text is dependent on the same normalization and tokenization
+    logic used during training. The *Setup Tokenization* section of the notebook has
+    this code replicated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are two main steps in generating text. The first step is restoring a trained
+    model from the checkpoint. The second step is generating a character at a time
+    from a trained model until a specific end condition is met.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The *Load the Model* section of the notebook has the code to define the model.
+    Since the checkpoints only stored the weights for the layers, defining the model
+    structure is important. The main difference from the training network is the batch
+    size. We want to generate a sentence at a time, so we set the batch size as 1:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'A convenience function for setting up the model structure is defined like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Note that the embedding layer does not use masking because, in text generation,
+    we are not passing an entire sequence but only part of a sequence that needs to
+    be completed. Now that the model is defined, the weights for the layers can be
+    loaded in from the checkpoint. Please remember to replace the checkpoint directory
+    with your local directory containing the checkpoints from training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The second main step is to generate text a character at a time. Generating
+    text needs a seed or a starting few letters, which are completed by the model
+    into a sentence. The process of generation is encapsulated in the function below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: The generation method takes in a seed string that is used as the starting point
+    for the generation. This seed string is vectorized. The actual generation happens
+    in a loop, where one character is generated at a time and appended to the sequence
+    generated. At every point, the character with the highest likelihood is chosen.
+    Choosing the next letter with the highest probability is called **greedy search**.
+    However, there is a configuration parameter called **temperature**, which can
+    be used to adjust the predictability of the generated text.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once probabilities for all characters are predicted, dividing the probabilities
+    by the temperature changes the distribution of the generated characters. Smaller
+    values of the temperature generate text that is closer to the original text. Larger
+    values of the temperature generate more creative text. Here, a value of 0.7 is
+    chosen to bias more on the surprising side.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To generate the text, all that is needed is one line of code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: Each execution of the command may generate slightly different results. The line
+    generated above, while obviously nonsensical, is pretty well structured. The model
+    has learned capitalization rules and headline structure. Normally, we would not
+    generate text beyond the `<EOS>` token, but all 75 characters are generated here
+    for the sake of understanding the model output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the output shown for text generation is indicative. You may see a
+    different output for the same prompt. There is some inherent randomness that is
+    built into this process, which we can try and control by setting random seeds.
+    When a model is retrained, it may end up on a slightly different point on the
+    loss surface, where even though the loss numbers look similar, there may be slight
+    differences in the model weights. Please take the outputs presented in the entire
+    chapter as indicative versus actual.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here are some other examples of seed strings and model outputs, snipped after
+    the end-of-sentence tag:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Seed | Generated Sentence |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S&P | S&P 500 closes above 190<EOS>S&P: Russell Slive to again find any business
+    manufacture<EOS>S&P closes above 2000 for first tim<EOS> |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Beyonce | Beyonce and Solange pose together for ''American Idol'' contes<EOS>Beyonce''s
+    sister Solange rules'' Dawn of the Planet of the Apes'' report<EOS>Beyonce & Jay
+    Z Get Married<EOS> |'
+  prefs: []
+  type: TYPE_TB
+- en: 'Note the model''s use of quotes in the first two sentences for *Beyonce* as
+    the seed word. The following table shows the impact of different temperature settings
+    for similar seed words:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Seed | Temperature | Generated Sentence |'
+  prefs: []
+  type: TYPE_TB
+- en: '| S&P | 0.10.30.50.9 | S&P 500 Closes Above 1900 For First Tim<EOS>S&P Close
+    to $5.7 Billion Deal to Buy Beats Electronic<EOS>S&P 500 index slips to 7.2%,
+    signaling a strong retail sale<EOS>S&P, Ack Factors at Risk of what you see This
+    Ma<EOS> |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Kim | 0.10.30.50.9 | Kim Kardashian and Kanye West wedding photos release<EOS>Kim
+    Kardashian Shares Her Best And Worst Of His First Look At The Met Gala<EOS>Kim
+    Kardashian Wedding Dress Dress In The Works From Fia<EOS>Kim Kardashian''s en<EOS>
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: Generally, the quality of the text goes down at higher values of temperature.
+    All these examples were generated by passing in the different temperature values
+    to the generation function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A practical application of such a character-based model is to complete words
+    in a text messaging or email app. By default, the `generate_text()` method is
+    generating 75 characters to complete the headline. It is easy to pass in much
+    shorter lengths to see what the model proposes as the next few letters or words.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The table below shows some experiments of trying to complete the next 10 characters
+    of text fragments. These completions were generated using:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: '| Prompt | Completion |'
+  prefs: []
+  type: TYPE_TB
+- en: '| I need some money from ba | I need some money from bank chairma |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Swimming in the p | Swimming in the profitabili |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Can you give me a | Can you give me a Letter to |'
+  prefs: []
+  type: TYPE_TB
+- en: '| are you fr | are you from around |'
+  prefs: []
+  type: TYPE_TB
+- en: '| The meeting is | The meeting is back in ex |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Lets have coffee at S | Lets have coffee at Samsung heaLets have coffee at
+    Staples storLets have coffee at San Diego Z |'
+  prefs: []
+  type: TYPE_TB
+- en: Given that the dataset used was only from news headlines, it is biased toward
+    certain types of activities. For example, the second sentence could be completed
+    with *pool* instead of the model trying to fill it in with profitability. If a
+    more general text dataset was used, then this model could do quite well at generating
+    completions for partially typed words at the end of the sentence. However, there
+    is one limitation that this text generation method has – the use of the greedy
+    search algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The greedy search process is a crucial part of the text generation above. It
+    is one of several ways to generate text. Let''s take an example to understand
+    this process. For this example, bigram frequencies were analyzed by Peter Norvig
+    and published on [http://norvig.com/mayzner.html](http://norvig.com/mayzner.html).
+    Over 743 billion English words were analyzed in this work. With 26 characters
+    in an uncased model, there are theoretically 26 x 26 = 676 bigram combinations.
+    However, the article reports that the following bigrams were never seen in roughly
+    2.8 trillion bigram instances: JQ, QG, QK, QY, QZ, WQ, and WZ.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The *Greedy Search with Bigrams* section of the notebook has code to download
+    and process the full dataset and show the process of greedy search. After downloading
+    the set of all n-grams, bigrams are extracted. A set of dictionaries is constructed
+    to help look up the highest-probability next letter given a starting letter. Then,
+    using some recursive code, a tree is constructed, picking the top three choices
+    for the next letter. In the generation code above, only the top letter is chosen.
+    However, the top three letters are chosen to show how greedy search works and
+    its shortcomings.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using the nifty `anytree` Python package, a nicely formatted tree can be visualized.
+    This tree is shown in the following figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A close up of text on a white background  Description automatically generated](img/B16252_05_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.4: Greedy search tree starting with WI'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The algorithm was given the task of completing **WI** in a total of five characters.
+    The preceding tree shows cumulative probabilities for a given path. More than
+    one path is shown so that the branches not taken by greedy search can also be
+    seen. If a three-character word was being built, the highest probability choice
+    is **WIN** with a probability of 0.243, followed by **WIS** at 0.01128\. If four-letter
+    words are considered, then the greedy search would consider only those words that
+    start with **WIN** as that was the path with the highest probability considering
+    the first three letters. **WIND** has the highest probability of 0.000329 in this
+    path. However, a quick scan across all four-letter words shows that the highest
+    probability word should be **WITH** having a probability of 0.000399.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This, in essence, is the challenge of the greedy search algorithm for text generation.
+    Higher-probability options considering joint probabilities are hidden due to optimization
+    at each character instead of cumulative probability. Whether the text is generated
+    a character or a word at a time, greedy search suffers from the same issue.
+  prefs: []
+  type: TYPE_NORMAL
+- en: An alternative algorithm, called **beam search**, allows tracking multiple options,
+    and pruning out the lower-probability options as generation proceeds. The tree
+    shown in *Figure 5.4* can also be seen as an illustration of tracking beams of
+    probabilities. To see the power of this technique, a more sophisticated model
+    for generating text would be better. The **GPT-2**, or **Generative Pre-Training**,
+    based model published by OpenAI set many benchmarks including in open-ended text
+    generation. This is the subject of the next half of this chapter, where the GPT-2
+    model is explained first. The next topic is fine-tuning a GPT-2 model for completing
+    email messages. Beam search and other options to improve the quality of the generated
+    text are also shown.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generative Pre-Training (GPT-2) model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: OpenAI released the first version of the GPT model in June 2018\. They followed
+    up with GPT-2 in February 2019\. This paper attracted much attention as full details
+    of the large GPT-2 model were not released with the paper due to concerns of nefarious
+    uses. The large GPT-2 model was released subsequently in November 2019\. The GPT-3
+    model is the most recent, released in May 2020\.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 5.5* shows the number of parameters in the largest of each of these
+    models:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16252_05_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.5: Parameters in different GPT models'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first model used the standard Transformer decoder architecture with twelve
+    layers, each with twelve attention heads and 768-dimensional embeddings, for a
+    total of approximately 110 million parameters, which is very similar to the BERT
+    model. The largest GPT-2 has over 1.5 billion parameters, and the most recently
+    released GPT-3 model's largest variant has over 175 billion parameters!
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Cost of training language models**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As the number of parameters and dataset sizes increase, the time taken for training
+    also increases. As per a Lambda Labs article, If the GPT-3 model were to be trained
+    on a single Nvidia V100 GPU, it would take 342 years. Using stock Microsoft Azure
+    pricing, this would cost over $3 million. GPT-2 model training is estimated to
+    run to $256 per hour. Assuming a similar running time as BERT, which is about
+    four days, that would cost about $25,000\. If the cost of training multiple models
+    during research is factored in, the overall cost can easily increase ten-fold.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At such costs, training these models from scratch is out of reach for individuals
+    and even most companies. Transfer learning and the availability of pre-trained
+    models from companies like Hugging Face make it possible for the general public
+    to use these models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The base architecture of GPT models uses the decoder part of the Transformer
+    architecture. The decoder is a *left-to-right* language model. The BERT model,
+    in contrast, is a bidirectional model. A left-to-right model is autoregressive,
+    that is, it uses tokens generated thus far to generate the next token. Since it
+    cannot see future tokens like a bi-directional model, this language model is ideal
+    for text generation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 5.6* shows the full Transformer architecture with the encoder blocks
+    on the left and decoder blocks on the right:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16252_05_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.6: Full Transformer architecture with encoder and decoder blocks'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The left side of *Figure 5.6* should be familiar – it is essentially *Figure
+    4.6* from the *Transformer model* section of the previous chapter. The encoder
+    blocks shown are the same as the BERT model. The decoder blocks are very similar
+    to the encoder blocks with a couple of notable differences.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the encoder block, there is only one source of input – the input sequence
+    and all of the input tokens are available for the multi-head attention to operate
+    on. This enables the encoder to understand the context of the token from both
+    the left and right sides.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the decoder block, there are two inputs to each block. The outputs generated
+    by the encoder blocks are available to all the decoder blocks and fed to the middle
+    of the decoder block through multi-head attention and layer norms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**What is layer normalization?**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Large deep neural networks are trained using the **Stochastic Gradient Descent**
+    (**SGD**) optimizer or a variant like Adam. Training large models on big datasets
+    can take a significant amount of time for the model to converge. Techniques such
+    as weight normalization, batch normalization, and layer normalization are aimed
+    at reducing training time by helping models to converge faster while also acting
+    as a regularizer. The idea behind layer normalization is to scale the inputs of
+    a given hidden layer with the mean and standard deviation of the inputs. First,
+    the mean and standard deviation are computed:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16252_05_002.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '*H* denotes the number of hidden units in layer *l*. Inputs to the layer are
+    normalized using the above-calculated values:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16252_05_003.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: where *g* is a gain parameter. Note that the formulation of the mean and standard
+    deviation is not dependent on the size of the mini-batches or dataset size. Hence,
+    this type of normalization can be used for RNNs and other sequence modeling problems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, the tokens generated by the decoder thus far are fed back through a
+    masked multi-head self-attention and added to the output from the encoder blocks.
+    Masked here refers to the fact that tokens to the right of the token being generated
+    are masked, and the decoder cannot see them. Similar to the encoder, there are
+    several such blocks stacked on top of each other. However, GPT architecture is
+    only one half of the Transformer. This requires some modifications to the architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The modified architecture for GPT is shown in *Figure 5.7*. Since there is no
+    encoder block to feed the representation of the input sequence, the multi-head
+    layer is no longer required. The outputs generated by the model are recursively
+    fed back to generate the next token.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The smallest GPT-2 model has twelve layers and 768 dimensions for each token.
+    The largest GPT-2 model has 48 layers and 1,600 dimensions per token. To pre-train
+    models of this size, the authors of GPT-2 needed to create a new dataset. Web
+    pages provide a great source of text, but the text comes with quality issues.
+    To solve this challenge, they scraped all outbound links from Reddit, which had
+    received at least three karma points. The assumption made by the authors is that
+    karma points are an indicator of the quality of the web page being linked. This
+    assumption allows scraping a huge set of text data. The resulting dataset was
+    approximately 45 million links.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To extract text from the HTML on the web pages, two Python libraries were used:
+    Dragnet and Newspaper. After some quality checks and deduplication, the final
+    dataset was about 8 million documents with 40 GB of text. One exciting thing that
+    the authors did was to remove any Wikipedia documents as they felt many of the
+    test datasets used Wikipedia, and adding these pages would cause an overlap between
+    test and training data sets. The pre-training objective is a standard LM training
+    objective of predicting the next word given a set of previous words:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A close up of a sign  Description automatically generated](img/B16252_05_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.7: GPT architecture (Source: Improving Language Understanding by Generative
+    Pre-Training by Radford et al.)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: During pre-training, the GPT-2 model is trained with a maximum sequence length
+    of 1,024 tokens. A **Byte Pair Encoding** (**BPE**) algorithm is used for tokenization,
+    with a vocabulary size of about 50,000 tokens. GPT-2 uses byte sequences rather
+    than Unicode code points for the byte pair merges. If GPT-2 only used bytes for
+    encoding, then the vocabulary would only be 256 tokens. On the other hand, using
+    Unicode code points would yield a vocabulary of over 130,000 tokens. By cleverly
+    using bytes in BPE, GPT-2 is able to keep the vocabulary size to a manageable
+    50,257 tokens.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another peculiarity of the tokenizer in GPT-2 is that it converts all text to
+    lowercase and uses spaCy and `ftfy` tokenizers prior to using BPE. The `ftfy`
+    library is quite useful for fixing Unicode issues. If these two are not available,
+    then the basic BERT tokenizer is used.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are several ways to encode the inputs to solve various problems, even
+    though the left-to-right model may seem limiting. These are shown in *Figure 5.8*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a cell phone  Description automatically generated](img/B16252_05_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.8: Input transformations in GPT-2 for different problems (Source:
+    Improving Language Understanding by Generative Pre-Training by Radford et al.)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The figure above shows how a pre-trained GPT-2 model can be used for a variety
+    of tasks other than text generation. In each instance, start and end tokens are
+    added before and after the input sequence. In all cases, a linear layer is added
+    to the end that is trained during model fine-tuning. The major advantage being
+    claimed is that many different types of tasks can be accomplished using the same
+    architecture. The topmost architecture in *Figure 5.8* shows how it can be used
+    for classification. GPT-2 could be used for IMDb sentiment analysis using this
+    approach, for example.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second example is of textual entailment. Textual entailment is an NLP task
+    where the relationship between two fragments of text needs to be established.
+    The first text fragment is called a premise, and the second fragment is called
+    the hypothesis. Different relationships can exist between the premise and hypothesis.
+    The premise can validate or contradict the hypothesis, or they may be unrelated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's say the premise is *Exercising every day is an important part of a healthy
+    lifestyle and longevity*. If the hypothesis is *exercise increases lifespan*,
+    then the premise *entails* or *validates* the hypothesis. Alternatively, if the
+    hypothesis is *Running has no benefits*, then the premise *contradicts* the hypothesis.
+    Lastly, if the hypothesis is that *lifting weights can build a six-pack*, then
+    the premise neither entails nor contradicts the hypothesis. To perform entailment
+    with GPT-2, the premise and hypothesis are concatenated with a delimiter, usually
+    `$`, in between them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For text similarity, two input sequences are constructed, one with the first
+    text sequence first and the second with the second text sequence first. The output
+    from the GPT model is added together and fed to the linear layer. A similar approach
+    is used for multiple-choice questions. However, our focus in this chapter is text
+    generation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating text with GPT-2
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Hugging Face''s transformers library simplifies the process of generating text
+    with GPT-2\. Similar to the pre-trained BERT model, as shown in the previous chapter,
+    Hugging Face provides pre-trained GPT and GPT-2 models. These pre-trained models
+    are used in the rest of the chapter. Code for this and the rest of the sections
+    of this chapter can be found in the IPython notebook named `text-generation-with-GPT-2.ipynb`.
+    After running the setup, scoot over to the *Generating Text with GPT-2* section.
+    A section showing the generation of text with GPT is also provided for reference.
+    The first step in generating text is to download the pre-trained model, and its
+    corresponding tokenizer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This may take a few minutes as the models need to be downloaded. You may see
+    a warning if spaCy and `ftfy` are not available in your environment. These two
+    libraries are not mandatory for text generation. The following code can be used
+    to generate text using a greedy search algorithm:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: A prompt was supplied for the model to complete. The model started in a promising
+    manner but soon resorted to repeating the same output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the output shown for text generation is indicative. You may see different
+    outputs for the same prompt. There are a few different reasons for this. There
+    is some inherent randomness that is built into this process, which we can try
+    and control by setting random seeds. The models themselves may be retrained periodically
+    by the Hugging Face team and may evolve with newer versions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Issues with the greedy search were noted in the previous section. Beam search
+    can be considered as an alternative. At each step of generating a token, a set
+    of top probability tokens are kept as part of the beam instead of just the highest-probability
+    token. The sequence with the highest overall probability is returned at the end
+    of the generation. *Figure 5.4*, in the previous section with a greedy search,
+    can be considered as the output of a beam search algorithm with a beam size of
+    3\.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Generating text using beam search is trivial:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Qualitatively, the first sentence makes a lot more sense than the one generated
+    by the greedy search. The `early_stopping` parameter signals generation to stop
+    when all beams reach the EOS token. However, there is still much repetition going
+    on. One parameter that can be used to control the repetition is by setting a limit
+    on n-grams being repeated:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: This has made a considerable difference in the quality of the generated text.
+    The `no_repeat_ngram_size` parameter prevents the model from generating any 3-grams
+    or triplets of tokens more than once. While this improves the quality of the text,
+    using the n-gram constraint can have a significant impact on the quality of the
+    generated text. If the generated text is about *The White House*, then these three
+    words can only be used once in the entire generated text. In such a case, using
+    the n-gram constraint will be counter-productive.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**To beam or not to beam**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Beam search works well in cases where the generated sequence is of a restricted
+    length. As the length of the sequence increases, the number of beams to be maintained
+    and computed increases significantly. Consequently, beam search works well in
+    tasks like summarization and translation but performs poorly in open-ended text
+    generation. Further, beam search, by trying to maximize the cumulative probability,
+    generates more predictable text. The text feels less natural. The following piece
+    of code can be used to get a feel for the various beams being generated. Just
+    make sure that the number of beams is greater than or equal to the number of sequences
+    to be returned:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'There is another method for improving the coherence and creativity of the text
+    being generated called Top-K sampling. This is the preferred method in GPT-2 and
+    plays an essential role in the success of GPT-2 in story generation. Before explaining
+    how this works, let''s try it out and see the output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: The above sample was generated by selecting a high temperature value. A random
+    seed was set to ensure repeatable results. The Top-K sampling method was published
+    in a paper titled *Hierarchical Neural Story Generation* by Fan Lewis and Dauphin
+    in 2018\. The algorithm is relatively simple – at every step, it picks a token
+    from the top *K* highest probability tokens. If *K* is set to 1, then this algorithm
+    is identical to the greedy search.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the code example above, the model looks at the 25 top tokens out of the
+    50,000+ tokens while generating text. Then, it picks a random word from these
+    and continues the generation. Choosing larger values will result in more surprising
+    or creative text. Choosing lower values of *K* will result in more predictable
+    text. If you are a little underwhelmed by the results thus far, that is because
+    the prompt selected is a really tough one. Consider this output generated with
+    Top-K of 50 for the prompt *In the dark of the night, there was a*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*In the dark of the night, there was a sudden appearance of light.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Sighing, Xiao Chen slowly stood up and looked at Tian Cheng standing over.
+    He took a step to look closely at Tian Cheng''s left wrist and frowned.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Lin Feng was startled, and quickly took out a long sword!*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Lin Feng didn''t understand what sort of sword that Long Fei had wielded in
+    the Black and Crystal Palace!*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*The Black and Crystal Palace was completely different than his original Black
+    Stone City. Long Fei carried a sword as a souvenir, which had been placed on the
+    back of his father''s arm by Tian Cheng.*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*He drew the sword from his dad''s arm again!*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*The black blade was one of the most valuable weapons within the Black and
+    Crystal Palace. The sword was just as sharp as the sharpest of all weapons, which
+    had been placed on Long Fei''s father''s arm by the Black Stone City''s Black
+    Ice, for him to*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The above longer form text was generated by the smallest GPT-2 model, which
+    has roughly 124 million parameters. Several different settings and model sizes
+    are available for you to now play with. Remember, with great power comes great
+    responsibility.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Between the last chapter and this one, we have covered both the encoder and
+    decoder parts of the Transformer architecture conceptually. Now, we are ready
+    to put both parts together in the next chapter. Let's quickly review what we covered
+    in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Generating text is a complicated task. There are practical uses that can make
+    typing text messages or composing emails easier. On the other hand, there are
+    creative uses, like generating stories. In this chapter, we covered a character-based
+    RNN model to generate headlines one character at a time and noted that it picked
+    up the structure, capitalization, and other things quite well. Even though the
+    model was trained on a particular dataset, it showed promise in completing short
+    sentences and partially typed words based on the context. The next section covered
+    the state-of-the-art GPT-2 model, which is based on the Transformer decoder architecture.
+    The previous chapter had covered the Transformer encoder architecture, which is
+    used by BERT.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating text has many knobs to tune like temperature to resample distributions,
+    greedy search, beam search, and Top-K sampling to balance the creativity and predictability
+    of the generated text. We saw the impact of these settings on text generation
+    and used a pre-trained GPT-2 model provided by Hugging Face to generate text.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that both the encoder and decoder parts of the Transformer architecture
+    have been covered, the next chapter will use the full Transformer to build a text
+    summarization model. Text summarization is at the cutting edge of NLP today. We
+    will build a model that will read news articles and summarize them in a few sentences.
+    Onward!
+  prefs: []
+  type: TYPE_NORMAL

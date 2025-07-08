@@ -1,0 +1,2163 @@
+- en: '5'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Recurrent Neural Networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In *Chapter 3*, we learned about **Convolutional Neural Networks** (**CNNs**)
+    and saw how they exploit the spatial geometry of their inputs. For example, CNNs
+    for images apply convolutions to initially small patches of the image, and progress
+    to larger and larger areas of the image using pooling operations. Convolutions
+    and pooling operations for images are in two dimensions: the width and the height.
+    For audio and text streams, one-dimensional convolution and pooling operations
+    are applied along the time dimension, and for video streams, these operations
+    are applied in three dimensions: along the height, width, and time dimensions.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will focus on **Recurrent Neural Networks** (**RNNs**),
+    a class of neural networks that is popularly used on text inputs. RNNs are very
+    flexible and have been used to solve problems such as speech recognition, language
+    modeling, machine translation, sentiment analysis, and image captioning, to name
+    a few. RNNs exploit the sequential nature of their input. Sequential inputs could
+    be text, speech, time series, and anything else where the occurrence of an element
+    in a sequence is dependent on the elements that came before it. In this chapter,
+    we will see examples of various RNNs and learn how to implement them with TensorFlow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will first look at the internals of a basic RNN cell and how it deals with
+    these sequential dependencies in the input. We will also learn about some limitations
+    of the basic RNN cell (implemented as SimpleRNN in Keras) and see how two popular
+    variants of the SimpleRNN cell – the **Long Short-Term Memory** (**LSTM**) and
+    the **Gated Recurrent Unit** (**GRU**) – overcome this limitation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will then zoom out one level and consider the RNN layer itself, which is
+    just the RNN cell applied to every time step. An RNN can be thought of as a graph
+    of RNN cells, where each cell performs the same operation on successive elements
+    of the sequence. We will describe some simple modifications to improve performance,
+    such as making the RNN bidirectional and/or stateful.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we look at some standard RNN topologies and the kind of applications
+    they can be used to solve. RNNs can be adapted to different types of applications
+    by rearranging the cells in the graph. We will see some examples of these configurations
+    and how they are used to solve specific problems. We will also consider the sequence-to-sequence
+    (or seq2seq) architecture, which has been used with great success in machine translation
+    and various other fields. We will then look at what an attention mechanism is,
+    and how it can be used to improve the performance of sequence-to-sequence architectures.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The basic RNN cell
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: RNN cell variants
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: RNN variants
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: RNN topologies
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Encoder-decoder architectures – seq2seq
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Attention mechanism
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: All the code files for this chapter can be found at [https://packt.link/dltfchp5](https://packt.link/dltfchp5).
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is often said that a journey of a thousand miles starts with a single step,
+    so in that spirit, let’s begin our study of RNNs by first considering the RNN
+    cell.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The basic RNN cell
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Traditional multilayer perceptron neural networks make the assumption that all
+    inputs are independent of each other. This assumption is not true for many types
+    of sequence data. For example, words in a sentence, musical notes in a composition,
+    stock prices over time, or even molecules in a compound are examples of sequences
+    where an element will display a dependence on previous elements.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'RNN cells incorporate this dependence by having a hidden state, or memory,
+    that holds the essence of what has been seen so far. The value of the hidden state
+    at any point in time is a function of the value of the hidden state at the previous
+    time step, and the value of the input at the current time step, that is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_05_001.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, *h*[t] and *h*[t][-1] are the values of the hidden states at the time
+    *t* and *t-1* respectively, and *x*[t] is the value of the input at time *t*.
+    Notice that the equation is recursive, that is, *h*[t][-1] can be represented
+    in terms of *h*[t][-2] and *x*[t-1], and so on, until the beginning of the sequence.
+    This is how RNNs encode and incorporate information from arbitrarily long sequences.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can also represent the RNN cell graphically, as shown in *Figure 5.1(a)*.
+    At time *t*, the cell has an input *x(t)* and output *y(t)*. Part of the output
+    *y(t)* (represented by the hidden state *h*[t]) is fed back into the cell for
+    use at a later time step *t+1*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Just as in a traditional neural network, where the learned parameters are stored
+    as weight matrices, the RNN’s parameters are defined by the three weight matrices
+    *U*, *V*, and *W*, corresponding to the weights of the input, output, and hidden
+    states respectively:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram, schematic  Description automatically generated](img/B18331_05_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.1: (a) Schematic of an RNN cell; (b) the RNN cell unrolled'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 5.1(b)* shows the same RNN in an “unrolled view.” Unrolling just means
+    that we draw the network out for the complete sequence. The network shown here
+    has three time steps, suitable for processing three element sequences. Note that
+    the weight matrices *U*, *V*, and *W*, that we spoke about earlier, are shared
+    between each of the time steps. This is because we are applying the same operation
+    to different inputs at each time step. Being able to share these weights across
+    all the time steps greatly reduces the number of parameters that the RNN needs
+    to learn.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can also describe the RNN as a computation graph in terms of equations. The
+    internal state of the RNN at a time *t* is given by the value of the hidden vector
+    *h(t)*, which is the sum of the weight matrix *W* and the hidden state *h*[t][-1]
+    at time *t-1*, and the product of the weight matrix *U* and the input *x*[t] at
+    time *t*, passed through a `tanh` activation function. The choice of `tanh` over
+    other activation functions such as sigmoid has to do with it being more efficient
+    for learning in practice and helps combat the vanishing gradient problem, which
+    we will learn about later in the chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For notational convenience, in all our equations describing different types
+    of RNN architectures in this chapter, we have omitted explicit reference to the
+    bias terms by incorporating them within the matrix. Consider the following equation
+    of a line in an n-dimensional space. Here, *w*[1] through *w*[n] refer to the
+    coefficients of the line in each of the *n* dimensions, and the bias *b* refers
+    to the y-intercept along each of these dimensions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_05_002.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We can rewrite the equation in matrix notation as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_05_003.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, *W* is a matrix of shape (*m, n*) and *b* is a vector of shape (*m, 1*),
+    where *m* is the number of rows corresponding to the records in our dataset, and
+    *n* is the number of columns corresponding to the features for each record. Equivalently,
+    we can eliminate the vector *b* by folding it into our matrix *W* by treating
+    the *b* vector as a feature column corresponding to the “unit” feature of *W*.
+    Thus:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_05_004.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, *W’* is a matrix of shape (*m, n+1*), where the last column contains the
+    values of *b*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The resulting notation ends up being more compact and (we believe) easier to
+    comprehend and retain as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The output vector *y*[t] at time *t* is the product of the weight matrix *V*
+    and the hidden state *h*[t], passed through a softmax activation, such that the
+    resulting vector is a set of output probabilities:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_05_005.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/B18331_05_006.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Keras provides the SimpleRNN recurrent layer that incorporates all the logic
+    we have seen so far, as well as the more advanced variants such as LSTM and GRU,
+    which we will learn about later in this chapter. Strictly speaking, it is not
+    necessary to understand how they work to start building with them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, an understanding of the structure and equations is helpful when you
+    need to build your own specialized RNN cell to overcome a specific problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we understand the flow of data forward through the RNN cell, that is,
+    how it combines its input and hidden states to produce the output and the next
+    hidden state, let us now examine the flow of gradients in the reverse direction.
+    This is a process called **Backpropagation Through Time** (**BPTT**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Backpropagation through time (BPTT)
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Just like traditional neural networks, training RNNs also involves the backpropagation
+    of gradients. The difference, in this case, is that since the weights are shared
+    by all time steps, the gradient at each output depends not only on the current
+    time step but also on the previous ones. This process is called backpropagation
+    through time [11]. Because the weights *U*, *V*, and *W*, are shared across the
+    different time steps in the case of RNNs, we need to sum up the gradients across
+    the various time steps in the case of BPTT. This is the key difference between
+    traditional backpropagation and BPTT.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Consider the RNN with five time steps shown in *Figure 5.2*. During the forward
+    pass, the network produces predictions *ŷ*[t] at time *t* that are compared with
+    the label *y*[t] to compute a loss *L*[t]. During backpropagation (shown by the
+    dotted lines), the gradients of the loss with respect to the weights *U*, *V*,
+    and *W*, are computed at each time step and the parameters updated with the sum
+    of the gradients:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated](img/B18331_05_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.2: Backpropagation through time'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following equation shows the gradient of the loss with respect to *W*. We
+    focus on this weight because it is the cause of the phenomenon known as the vanishing
+    and exploding gradient problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This problem manifests as the gradients of the loss approaching either zero
+    or infinity, making the network hard to train. To understand why this happens,
+    consider the equation of the SimpleRNN we saw earlier; the hidden state *h*[t]
+    is dependent on *h*[t][-1], which in turn is dependent on *h*[t][-2], and so on:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_05_007.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Let’s now see what happens to this gradient at time step *t=3*. By the chain
+    rule, the gradient of the loss with respect to *W* can be decomposed to a product
+    of three sub-gradients. The gradient of the hidden state *h*[2] with respect to
+    *W* can be further decomposed as the sum of the gradient of each hidden state
+    with respect to the previous one. Finally, each gradient of the hidden state with
+    respect to the previous one can be further decomposed as the product of gradients
+    of the current hidden state against the previous hidden state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_05_008.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Similar calculations are done to compute the gradient of the other losses *L*[0]
+    through *L*[4] with respect to *W*, and sum them up into the gradient update for
+    *W*. We will not explore the math further in this book, but this WildML blog post
+    [12] has a very good explanation of BPTT, including a more detailed derivation
+    of the math behind the process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Vanishing and exploding gradients
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The reason BPTT is particularly sensitive to the problem of vanishing and exploding
+    gradients comes from the product part of the expression representing the final
+    formulation of the gradient of the loss with respect to *W*. Consider the case
+    where the individual gradients of a hidden state with respect to the previous
+    one are less than 1.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we backpropagate across multiple time steps, the product of gradients becomes
+    smaller and smaller, ultimately leading to the problem of vanishing gradients.
+    Similarly, if the gradients are larger than 1, the products get larger and larger,
+    and ultimately lead to the problem of exploding gradients.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of the two, exploding gradients are more easily detectable. The gradients will
+    become very large and turn into **Not a Number** (**NaN**), and the training process
+    will crash. Exploding gradients can be controlled by clipping them at a predefined
+    threshold [13]. TensorFlow 2.0 allows you to clip gradients using the `clipvalue`
+    or `clipnorm` parameter during optimizer construction, or by explicitly clipping
+    gradients using `tf.clip_by_value`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The effect of vanishing gradients is that gradients from time steps that are
+    far away do not contribute anything to the learning process, so the RNN ends up
+    not learning any long-range dependencies. While there are a few approaches toward
+    minimizing the problem, such as proper initialization of the *W* matrix, more
+    aggressive regularization, using ReLU instead of `tanh` activation, and pretraining
+    the layers using unsupervised methods, the most popular solution is to use LSTM
+    or GRU architectures, both of which will be explained shortly. These architectures
+    have been designed to deal with vanishing gradients and learn long-term dependencies
+    more effectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: RNN cell variants
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this section, we’ll look at some cell variants of RNNs. We’ll begin by looking
+    at a variant of the SimpleRNN cell: the LSTM RNN.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Long short-term memory (LSTM)
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The LSTM is a variant of the SimpleRNN cell that is capable of learning long-term
+    dependencies. LSTMs were first proposed by Hochreiter and SchmidHuber [14] and
+    refined by many other researchers. They work well on a large variety of problems
+    and are the most widely used RNN variant.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have seen how the SimpleRNN combines the hidden state from the previous time
+    step and the current input through a `tanh` layer to implement recurrence. LSTMs
+    also implement recurrence in a similar way, but instead of a single `tanh` layer,
+    there are four layers interacting in a very specific way. *Figure 5.3* illustrates
+    the transformations that are applied in the hidden state at time step *t*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The diagram looks complicated, but let’s look at it component by component.
+    The line across the top of the diagram is the cell state *c*, representing the
+    internal memory of the unit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The line across the bottom is the hidden state *h*, and the *i*, *f*, *o*,
+    and *g* gates are the mechanisms by which the LSTM works around the vanishing
+    gradient problem. During training, the LSTM learns the parameters of these gates:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_05_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.3: An LSTM cell'
+  prefs: []
+  type: TYPE_NORMAL
+- en: An alternative way to think about how these gates work inside an LSTM cell is
+    to consider the equations of the cell. These equations describe how the value
+    of the hidden state *h*[t] at time *t* is calculated from the value of hidden
+    state *h*[t-1] at the previous time step. In general, the equation-based description
+    tends to be clearer and more concise and is usually the way a new cell design
+    is presented in academic papers. Diagrams, when provided, may or may not be comparable
+    to the ones you saw earlier. For these reasons, it usually makes sense to learn
+    to read the equations and visualize the cell design. To that end, we will describe
+    the other cell variants in this book using equations only.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The set of equations representing an LSTM is shown as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_05_009.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, *i*, *f*, and *o* are the input, forget, and output gates. They are computed
+    using the same equations but with different parameter matrices *W*[i], *U*[i],
+    *W*[f], *U*[f], and *W*[o], *U*[o]. The sigmoid function modulates the output
+    of these gates between 0 and 1, so the output vectors produced can be multiplied
+    element-wise with another vector to define how much of the second vector can pass
+    through the first one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The forget gate defines how much of the previous state *h*[t][-1] you want to
+    allow to pass through. The input gate defines how much of the newly computed state
+    for the current input *x*[t] you want to let through, and the output gate defines
+    how much of the internal state you want to expose to the next layer. The internal
+    hidden state *g* is computed based on the current input *x*[t] and the previous
+    hidden state *h*[t][-1]. Notice that the equation for *g* is identical to that
+    of the SimpleRNN, except that in this case, we will modulate the output by the
+    output of input vector *i*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Given *i*, *f*, *o*, and *g*, we can now calculate the cell state *c*[t] at
+    time *t* as the cell state *c*[t][-1] at time (*t-1*) multiplied by the value
+    of the forget gate *g*, plus the state *g* multiplied by the input gate *i*. This
+    is basically a way to combine the previous memory and the new input – setting
+    the forget gate to 0 ignores the old memory and setting the input gate to 0 ignores
+    the newly computed state. Finally, the hidden state *h*[t] at time *t* is computed
+    as the memory *c*[t] at time *t*, with the output gate *o*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One thing to realize is that the LSTM is a drop-in replacement for a SimpleRNN
+    cell; the only difference is that LSTMs are resistant to the vanishing gradient
+    problem. You can replace an RNN cell in a network with an LSTM without worrying
+    about any side effects. You should generally see better results along with longer
+    training times.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TensorFlow 2.0 also provides a ConvLSTM2D implementation based on the paper
+    by Shi, et al. [18], where the matrix multiplications are replaced by convolution
+    operators.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you would like to learn more about LSTMs, please take a look at the WildML
+    RNN tutorial [15] and Christopher Olah’s blog post [16]. The first covers LSTMs
+    in somewhat greater detail, and the second takes you step by step through the
+    computations in a very visual way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have covered LTSMs, we will cover the other popular RNN cell architecture
+    – GRUs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Gated recurrent unit (GRU)
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The GRU is a variant of the LSTM and was introduced by Cho, et al [17]. It retains
+    the LSTM’s resistance to the vanishing gradient problem, but its internal structure
+    is simpler, and is, therefore, faster to train, since fewer computations are needed
+    to make updates to its hidden state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Instead of the input (*i*), forgot (*f*), and output (*o*) gates in the LSTM
+    cell, the GRU cell has two gates, an update gate *z* and a reset gate *r*. The
+    update gate defines how much previous memory to keep around, and the reset gate
+    defines how to combine the new input with the previous memory. There is no persistent
+    cell state distinct from the hidden state as it is in LSTM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The GRU cell defines the computation of the hidden state *h*[t] at time *t*
+    from the hidden state *h*[t][-1] at the previous time step using the following
+    set of equations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_05_010.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The outputs of the update gate *z* and the reset gate *r* are both computed
+    using a combination of the previous hidden state *h*[t][-1] and the current input
+    *x*[t]. The sigmoid function modulates the output of these functions between 0
+    and 1\. The cell state *c* is computed as a function of the output of the reset
+    gate *r* and input *x*[t]. Finally, the hidden state *h*[t] at time *t* is computed
+    as a function of the cell state *c* and the previous hidden state *h*[t][-1].
+    The parameters *W*[z], *U*[z], *W*[r], *U*[r], and *W*[c], *U*[c], are learned
+    during training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Similar to LSTM, TensorFlow 2.0 (`tf.keras`) provides an implementation for
+    the basic GRU layer as well, which is a drop-in replacement for the RNN cell.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Peephole LSTM
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The peephole LSTM is an LSTM variant that was first proposed by Gers and Schmidhuber
+    [19]. It adds “peepholes” to the input, forget, and output gates, so they can
+    see the previous cell state *c*[t][-1]. The equations for computing the hidden
+    state *h*[t], at time *t*, from the hidden state *h*[t][-1] at the previous time
+    step, in a peephole LSTM are shown next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Notice that the only difference from the equations for the LSTM is the additional
+    *c*[t][-1] term for computing outputs of the input (*i*), forget (*f*), and output
+    (*o*) gates:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_05_009.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'TensorFlow 2.0 provides an experimental implementation of the peephole LSTM
+    cell. To use this in your own RNN layers, you will need to wrap the cell (or list
+    of cells) in the RNN wrapper, as shown in the following code snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the previous section, we saw some RNN cell variants that were developed to
+    target specific inadequacies of the basic RNN cell. In the next section, we will
+    look at variations in the architecture of the RNN network itself, which were built
+    to address specific use cases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: RNN variants
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we will look at a couple of variations of the basic RNN architecture
+    that can provide performance improvements in some specific circumstances. Note
+    that these strategies can be applied to different kinds of RNN cells, as well
+    as for different RNN topologies, which we will learn about later.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Bidirectional RNNs
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We have seen how, at any given time step *t*, the output of the RNN is dependent
+    on the outputs at all previous time steps. However, it is entirely possible that
+    the output is also dependent on the future outputs as well. This is especially
+    true for applications such as natural language processing where the attributes
+    of the word or phrase we are trying to predict may be dependent on the context
+    given by the entire enclosing sentence, not just the words that came before it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This problem can be solved using a bidirectional LSTM (see *Figure 5.4*), also
+    called biLSTM, which is essentially two RNNs stacked on top of each other, one
+    reading the input from left to right, and the other reading the input from the
+    right to the left.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The output at each time step will be based on the hidden state of both RNNs.
+    Bidirectional RNNs allow the network to place equal emphasis on the beginning
+    and end of the sequence, and typically result in performance improvements:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated](img/B18331_05_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.4: Bidirectional LSTM'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'TensorFlow 2.0 provides support for bidirectional RNNs through a bidirectional
+    wrapper layer. To make an RNN layer bidirectional, all that is needed is to wrap
+    the layer with this wrapper layer, which is shown as follows. Since the output
+    of each pair of cells in the left and right LSTM in the biLSTM pair are concatenated
+    (see *Figure 5.4*), it needs to return output from each cell. Hence, we set `return_sequences`
+    to `True` (the default is `False` meaning that the output is only returned from
+    the last cell in the LSTM):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: The next major RNN variation we will look at is the Stateful RNN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Stateful RNNs
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: RNNs can be stateful, which means that they can maintain state across batches
+    during training. That is, the hidden state computed for a batch of training data
+    will be used as the initial hidden state for the next batch of training data.
+    However, this needs to be explicitly set, since TensorFlow 2.0 (`tf.keras`) RNNs
+    are stateless by default, and resets the state after each batch. Setting an RNN
+    to be stateful means that it can build state across its training sequence and
+    even maintain that state when doing predictions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The benefits of using stateful RNNs are smaller network sizes and/or lower training
+    times. The disadvantage is that we are now responsible for training the network
+    with a batch size that reflects the periodicity of the data and resetting the
+    state after each epoch. In addition, data should not be shuffled while training
+    the network since the order in which the data is presented is relevant for stateful
+    networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To set an RNN layer as stateful, set the named variable stateful to `True`.
+    In our example of a one-to-many topology for learning how to generate text, we
+    provide an example of using a stateful RNN. Here, we train using data consisting
+    of contiguous text slices, so setting the LSTM to stateful means that the hidden
+    state generated from the previous text chunk is reused for the current text chunk.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section on RNN topologies, we will look at different ways to set
+    up the RNN network for different use cases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: RNN topologies
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We have seen examples of how MLP and CNN architectures can be composed to form
+    more complex networks. RNNs offer yet another degree of freedom, in that they
+    allow sequence input and output. This means that RNN cells can be arranged in
+    different ways to build networks that are adapted to solve different types of
+    problems. *Figure 5.5* shows five different configurations of inputs, hidden layers,
+    and outputs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of these, the first one (one-to-one) is not interesting from a sequence processing
+    point of view, as it can be implemented as a simple dense network with one input
+    and one output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The one-to-many case has a single input and outputs a sequence. An example
+    of such a network might be a network that can generate text tags from images [6],
+    containing short text descriptions of different aspects of the image. Such a network
+    would be trained with image input and labeled sequences of text representing the
+    image tags:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated](img/B18331_05_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.5: Common RNN topologies'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The many-to-one case is the reverse; it takes a sequence of tensors as input
+    but outputs a single tensor. Examples of such networks would be a sentiment analysis
+    network [7], which takes as input a block of text such as a movie review and outputs
+    a single sentiment value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The many-to-many use case comes in two flavors. The first one is more popular
+    and is better known as the seq2seq model. In this model, a sequence is read in
+    and produces a context vector representing the input sequence, which is used to
+    generate the output sequence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The topology has been used with great success in the field of machine translation,
+    as well as problems that can be reframed as machine translation problems. Real-life
+    examples of the former can be found in [8, 9], and an example of the latter is
+    described in [10].
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second many-to-many type has an output cell corresponding to each input
+    cell. This kind of network is suited for use cases where there is a 1:1 correspondence
+    between the input and output, such as time series. The major difference between
+    this model and the seq2seq model is that the input does not have to be completely
+    encoded before the decoding process begins.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next three sections, we provide examples of a one-to-many network that
+    learns to generate text, a many-to-one network that does sentiment analysis, and
+    a many-to-many network of the second type, which predicts **Part-of-Speech** (**POS**)
+    for words in a sentence. Because of the popularity of the seq2seq network, we
+    will cover it in more detail later in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Example ‒ One-to-many – Learning to generate text
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: RNNs have been used extensively by the **Natural Language Processing** (**NLP**)
+    community for various applications. One such application is to build language
+    models. A language model is a model that allows us to predict the probability
+    of a word in a text given previous words. Language models are important for various
+    higher-level tasks such as machine translation, spelling correction, and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The ability of a language model to predict the next word in a sequence makes
+    it a generative model that allows us to generate text by sampling from the output
+    probabilities of different words in the vocabulary. The training data is a sequence
+    of words, and the label is the word appearing at the next time step in the sequence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For our example, we will train a character-based RNN on the text of the children’s
+    stories *Alice in Wonderland* and its sequel *Through the Looking Glass* by Lewis
+    Carroll. We have chosen to build a character-based model because it has a smaller
+    vocabulary and trains quicker. The idea is the same as training and using a word-based
+    language model, except we will use characters instead of words. Once trained,
+    the model can be used to generate some text in the same style.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The data for our example will come from the plain texts of two novels on the
+    Project Gutenberg website [36]. Input to the network are sequences of 100 characters,
+    and the corresponding output is another sequence of 100 characters, offset from
+    the input by 1 position.
+  prefs: []
+  type: TYPE_NORMAL
+- en: That is, if the input is the sequence [*c*[1], *c*[2], …, *c*[n]], the output
+    will be [*c*[2], *c*[3], …, *c*[n+1]]. We will train the network for 50 epochs,
+    and at the end of every 10 epochs, we will generate a fixed-size sequence of characters
+    starting with a standard prefix. In the following example, we have used the prefix
+    “Alice”, the name of the protagonist in our novels.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As always, we will first import the necessary libraries and set up some constants.
+    Here, `DATA_DIR` points to a data folder under the location where you downloaded
+    the source code for this chapter. `CHECKPOINT_DIR` is the location, a folder of
+    checkpoints under the data folder, where we will save the weights of the model
+    at the end of every 10 epochs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we download and prepare the data for our network to consume. The texts
+    of both books are publicly available from the Project Gutenberg website. The `tf.keras.utils.get_file()`
+    function will check to see whether the file has already been downloaded to your
+    local drive, and if not, it will download to a `datasets` folder under the location
+    of the code. We also preprocess the input a little here, removing newline and
+    byte order mark characters from the text. This step will create the `texts` variable,
+    a flat list of characters for these two books:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, we will create our vocabulary. In our case, our vocabulary contains 90
+    unique characters, composed of uppercase and lowercase alphabets, numbers, and
+    special characters. We also create some mapping dictionaries to convert each vocabulary
+    character into a unique integer and vice versa. As noted earlier, the input and
+    output of the network is a sequence of characters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, the actual input and output of the network are sequences of integers,
+    and we will use these mapping dictionaries to handle this conversion:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The next step is to use these mapping dictionaries to convert our character
+    sequence input into an integer sequence and then into a TensorFlow dataset. Each
+    of our sequences is going to be 100 characters long, with the output being offset
+    from the input by 1 character position. We first batch the dataset into slices
+    of 101 characters, then apply the `split_train_labels()` function to every element
+    of the dataset to create our sequences dataset, which is a dataset of tuples of
+    two elements, with each element of the tuple being a vector of size 100 and type
+    `tf.int64`. We then shuffle these sequences and create batches of 64 tuples for
+    each input to our network. Each element of the dataset is now a tuple consisting
+    of a pair of matrices, each of size (64, 100) and type `tf.int64`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: We are now ready to define our network. As before, we define our network as
+    a subclass of `tf.keras.Model`, as shown next. The network is fairly simple; it
+    takes as input a sequence of integers of size 100 (`num_timesteps`) and passes
+    them through an embedding layer so that each integer in the sequence is converted
+    into a vector of size 256 (`embedding_dim`). So, assuming a batch size of 64,
+    for our input sequence of size (64, 100), the output of the embedding layer is
+    a matrix of shape (64, 100, 256).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next layer is an RNN layer with 100 time steps. The implementation of RNN
+    chosen is a GRU. This GRU layer will take, at each of its time steps, a vector
+    of size (256,) and output a vector of shape (1024,) (`rnn_output_dim`). Note also
+    that the RNN is stateful, which means that the hidden state output from the previous
+    training epoch will be used as input to the current epoch. The `return_sequences=True`
+    flag also indicates that the RNN will output at each of the time steps rather
+    than an aggregate output at the last time steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, each of the time steps will emit a vector of shape (1024,) into a
+    dense layer that outputs a vector of shape (90,) (`vocab_size`). The output from
+    this layer will be a tensor of shape (64, 100, 90). Each position in the output
+    vector corresponds to a character in our vocabulary, and the values correspond
+    to the probability of that character occurring at that output position:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we define a loss function and compile our model. We will use the sparse
+    categorical cross-entropy as our loss function because that is the standard loss
+    function to use when our inputs and outputs are sequences of integers. For the
+    optimizer, we will choose the Adam optimizer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Normally, the character at each position of the output is found by computing
+    the argmax of the vector at that position, that is, the character corresponding
+    to the maximum probability value. This is known as greedy search. In the case
+    of language models where the output of one time step becomes the input to the
+    next time step, this can lead to a repetitive output. The two most common approaches
+    to overcome this problem are either to sample the output randomly or to use beam
+    search, which samples from *k* the most probable values at each time step. Here,
+    we will use the `tf.random.categorical()` function to sample the output randomly.
+    The following function takes a string as a prefix and uses it to generate a string
+    whose length is specified by `num_chars_to_generate`. The temperature parameter
+    is used to control the quality of the predictions. Lower values will create a
+    more predictable output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The logic follows a predictable pattern. We convert the sequence of characters
+    in our `prefix_string` into a sequence of integers, then `expand_dims` to add
+    a batch dimension so the input can be passed into our model. We then reset the
+    state of the model. This is needed because our model is stateful, and we don’t
+    want the hidden state of the first time step in our prediction run to be carried
+    over from the one computed during training. We then run the input through our
+    model and get back a prediction. This is the vector of shape (90,) representing
+    the probabilities of each character in the vocabulary appearing at the next time
+    step. We then reshape the prediction by removing the batch dimension and dividing
+    by the temperature, and then randomly sampling from the vector. We then set our
+    prediction as the input of the next time step. We repeat this for the number of
+    characters we need to generate, converting each prediction back into character
+    form and accumulating them in a list, and returning the list at the end of the
+    loop:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we are ready to run our training and evaluation loop. As mentioned
+    earlier, we will train our network for 50 epochs, and at every 10-epoch interval,
+    we will try to generate some text with the model trained so far. Our prefix at
+    each stage is the string `"Alice "`. Notice that in order to accommodate a single
+    string prefix, we save the weights after every 10 epochs and build a separate
+    generative model with these weights but with an input shape with a batch size
+    of 1\. Here is the code to do this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output after the very first epoch of training contains words that are completely
+    undecipherable:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'However, after about 30 epochs of training, we begin to see words that look
+    familiar:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After 50 epochs of training, the model still has trouble expressing coherent
+    thought but has learned to spell reasonably well. What is amazing here is that
+    the model is character-based and has no knowledge of words, yet it learns to spell
+    words that look like they might have come from the original text:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: Generating the next character or next word in the text isn’t the only thing
+    you can do with this sort of model. Similar models have been built to make stock
+    price predictions [3] or generate classical music [4]. Andrej Karpathy covers
+    a few other fun examples, such as generating fake Wikipedia pages, algebraic geometry
+    proofs, and Linux source code in his blog post [5].
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The full code for this example is available in `alice_text_generator.py` in
+    the source code folder for this chapter. It can be run from the command line using
+    the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our next example will show an implementation of a many-to-one network for sentiment
+    analysis.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Example ‒ Many-to-one – Sentiment analysis
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this example, we will use a many-to-one network that takes a sentence as
+    input and predicts its sentiment as being either positive or negative. Our dataset
+    is the Sentiment-labeled sentences dataset on the UCI Machine Learning Repository
+    [20], a set of 3,000 sentences from reviews on Amazon, IMDb, and Yelp, each labeled
+    with 0 if it expresses a negative sentiment, or 1 if it expresses a positive sentiment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As usual, we will start with our imports:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The dataset is provided as a zip file, which expands into a folder containing
+    three files of labeled sentences, one for each provider, with one sentence and
+    label per line and with the sentence and label separated by the tab character.
+    We first download the zip file, then parse the files into a list of `(sentence,
+    label)` pairs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our objective is to train the model so that, given a sentence as input, it learns
+    to predict the corresponding sentiment provided in the label. Each sentence is
+    a sequence of words. However, to input it into the model, we have to convert it
+    into a sequence of integers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Each integer in the sequence will point to a word. The mapping of integers
+    to words for our corpus is called a vocabulary. Thus, we need to tokenize the
+    sentences and produce a vocabulary. This is done using the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our vocabulary consists of 5,271 unique words. It is possible to make the size
+    smaller by dropping words that occur fewer than some threshold number of times,
+    which can be found by inspecting the `tokenizer.word_counts` dictionary. In such
+    cases, we need to add 1 to the vocabulary size for the UNK (unknown) entry, which
+    will be used to replace every word that is not found in the vocabulary.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We also construct lookup dictionaries to convert from the word-to-word index
+    and back. The first dictionary is useful during training to construct integer
+    sequences to feed the network. The second dictionary is used to convert from the
+    word index back into words in our prediction code later.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Each sentence can have a different number of words. Our model will require
+    us to provide sequences of integers of identical length for each sentence. To
+    support this requirement, it is common to choose a maximum sequence length that
+    is large enough to accommodate most of the sentences in the training set. Any
+    sentences that are shorter will be padded with zeros, and any sentences that are
+    longer will be truncated. An easy way to choose a good value for the maximum sequence
+    length is to look at the sentence length (as in the number of words) at different
+    percentile positions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This gives us the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: As can be seen, the maximum sentence length is 71 words, but 99% of the sentences
+    are under 36 words. If we choose a value of 64, for example, we should be able
+    to get away with not having to truncate most of the sentences.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The preceding blocks of code can be run interactively multiple times to choose
+    good values of vocabulary size and maximum sequence length respectively. In our
+    example, we have chosen to keep all the words (so `vocab_size = 5271`), and we
+    have set our `max_seqlen` to `64`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our next step is to create a dataset that our model can consume. We first use
+    our trained tokenizer to convert each sentence from a sequence of words (`sentences`)
+    into a sequence of integers (`sentences_as_ints`), where each corresponding integer
+    is the index of the word in the `tokenizer.word_index`. It is then truncated and
+    padded with zeros.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The labels are also converted into a NumPy array `labels_as_ints`, and finally,
+    we combine the tensors `sentences_as_ints` and `labels_as_ints` to form a TensorFlow
+    dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We want to set aside 1/3 of the dataset for evaluation. Of the remaining data,
+    we will use 10% as an inline validation dataset, which the model will use to gauge
+    its own progress during training, and the remaining as the training dataset. Finally,
+    we create batches of 64 sentences for each dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, we define our model. As you can see, the model is fairly straightforward,
+    each input sentence is a sequence of integers of size `max_seqlen` (64). This
+    is input into an embedding layer that converts each word into a vector given by
+    the size of the vocabulary + 1\. The additional word is to account for the padding
+    integer 0 that was introduced during the `pad_sequences()` call above. The vector
+    at each of the 64 time steps is then fed into a bidirectional LSTM layer, which
+    converts each word into a vector of size (64,). The output of the LSTM at each
+    time step is fed into a dense layer, which produces a vector of size (64,) with
+    ReLU activation. The output of this dense layer is then fed into another dense
+    layer, which outputs a vector of (1,) at each time step, modulated through a sigmoid
+    activation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The model is compiled with the binary cross-entropy loss function and the Adam
+    optimizer, and then trained over 10 epochs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As you can see from the output, the training set accuracy goes to 99.8% and
+    the validation set accuracy goes to about 78.5%. Having a higher accuracy over
+    the training set is expected since the model was trained on this dataset. You
+    can also look at the following loss plot to see exactly where the model starts
+    overfitting on the training set. Notice that the training loss keeps going down,
+    but the validation loss comes down initially and then starts going up. It is at
+    the point where it starts going up that we know that the model overfits on the
+    training set:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*Figure 5.6* shows TensorBoard plots of accuracy and loss for the training
+    and validation datasets:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Chart, line chart, scatter chart  Description automatically generated](img/B18331_05_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.6: Accuracy and loss plots from TensorBoard for sentiment analysis
+    network training'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Our checkpoint callback has saved the best model based on the lowest value
+    of validation loss, and we can now reload this for evaluation against our held
+    out test set:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The easiest high-level way to evaluate a model against a dataset is to use
+    the `model.evaluate()` call:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This gives us the following output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can also use `model.predict()` to retrieve our predictions and compare them
+    individually to the labels and use external tools (from scikit-learn, for example)
+    to compute our results:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For the first batch of 64 sentences in our test dataset, we reconstruct the
+    sentence and display the label (first column) as well as the prediction from the
+    model (second column). Here, we show the top 10 sentences. As you can see, the
+    model gets it right for most sentences on this list:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We also report the results across all sentences in the test dataset. As you
+    can see, the test accuracy is the same as that reported by the `evaluate` call.
+    We have also generated the confusion matrix, which shows that out of 1,000 test
+    examples, our sentiment analysis network predicted correctly 782 times and incorrectly
+    218 times:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The full code for this example is available in `lstm_sentiment_analysis.py`
+    in the source code folder for this chapter. It can be run from the command line
+    using the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our next example will describe a many-to-many network trained for POS tagging
+    English text.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Example ‒ Many-to-many – POS tagging
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this example, we will use a GRU layer to build a network that does **Part
+    of Speech** (**POS**) tagging. A POS is a grammatical category of words that are
+    used in the same way across multiple sentences. Examples of POS are nouns, verbs,
+    adjectives, and so on. For example, nouns are typically used to identify things,
+    verbs are typically used to identify what they do, and adjectives are used to
+    describe attributes of these things. POS tagging used to be done manually in the
+    past, but this is now mostly a solved problem, initially through statistical models,
+    and more recently by using deep learning models in an end-to-end manner, as described
+    in Collobert, et al. [21].
+  prefs: []
+  type: TYPE_NORMAL
+- en: For our training data, we will need sentences tagged with POS tags. The Penn
+    Treebank [22] is one such dataset; it is a human-annotated corpus of about 4.5
+    million words of American English. However, it is a non-free resource. A 10% sample
+    of the Penn Treebank is freely available as part of NLTK [23], which we will use
+    to train our network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our model will take a sequence of words in a sentence as input, then will output
+    the corresponding POS tag for each word. Thus, for an input sequence consisting
+    of the words [The, cat, sat. on, the, mat, .], the output sequence should be the
+    POS symbols `[DT, NN, VB, IN, DT, NN, .]`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In order to get the data, you need to install the NLTK library if it is not
+    already installed (NLTK is included in the Anaconda distribution), as well as
+    the 10% treebank dataset (not installed by default). To install NLTK, follow the
+    steps on the NLTK install page [23]. To install the treebank dataset, perform
+    the following in the Python REPL:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once this is done, we are ready to build our network. As usual, we will start
+    by importing the necessary packages:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will lazily import the NLTK treebank dataset into a pair of parallel flat
+    files, one containing the sentences and the other containing a corresponding **POS**
+    sequence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'There are 3,194 sentences in our dataset. The preceding code writes the sentences
+    and corresponding tags into parallel files, that is, line 1 in `treebank-sents.txt`
+    contains the first sentence, and line 1 in `treebank-poss.txt` contains the corresponding
+    POS tags for each word in the sentence. *Table 5.1* shows two sentences from this
+    dataset and their corresponding POS tags:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Sentences** | **POS Tags** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Pierre Vinken, 61 years old, will join the board as a nonexecutive director
+    Nov. 29. | NNP NNP , CD NNS JJ , MD VB DT NN IN DT JJ NN NNP CD. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Mr. Vinken is chairman of Elsevier N.V., the Dutch publishing group. | NNP
+    NNP VBZ NN IN NNP NNP , DT NNP VBG NN. |'
+  prefs: []
+  type: TYPE_TB
+- en: 'Table 5.1: Sentences and their corresponding POS tags'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will then use the TensorFlow (`tf.keras`) tokenizer to tokenize the sentences
+    and create a list of sentence tokens. We reuse the same infrastructure to tokenize
+    the POS, although we could have simply split on spaces. Each input record to the
+    network is currently a sequence of text tokens, but they need to be a sequence
+    of integers. During the tokenizing process, the Tokenizer also maintains the tokens
+    in the vocabulary, from which we can build mappings from the token to the integer
+    and back.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We have two vocabularies to consider, the vocabulary of word tokens in the
+    sentence collection and the vocabulary of POS tags in the part-of-speech collection.
+    The following code shows how to tokenize both collections and generate the necessary
+    mapping dictionaries:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Our sentences are going to be of different lengths, although the number of
+    tokens in a sentence and their corresponding POS tag sequence are the same. The
+    network expects the input to have the same length, so we have to decide how much
+    to make our sentence length. The following (throwaway) code computes various percentiles
+    and prints sentence lengths at these percentiles to the console:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: We see that we could probably get away with setting the sentence length to around
+    100 and have a few truncated sentences as a result. Sentences shorter than our
+    selected length will be padded at the end. Because our dataset is small, we prefer
+    to use as much of it as possible, so we end up choosing the maximum length.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The next step is to create the dataset from our inputs. First, we have to convert
+    our sequence of tokens and POS tags in our input and output sequences into sequences
+    of integers. Second, we have to pad shorter sequences to the maximum length of
+    271\. Notice that we do an additional operation on the POS tag sequences after
+    padding, rather than keep it as a sequence of integers; we convert it into a sequence
+    of one-hot encodings using the `to_categorical()` function. TensorFlow 2.0 does
+    provide loss functions to handle outputs as a sequence of integers, but we want
+    to keep our code as simple as possible, so we opt to do the conversion ourselves.
+    Finally, we use the `from_tensor_slices()` function to create our dataset, shuffle
+    it, and split it up into training, validation, and test sets:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, we will define our model and instantiate it. Our model is a sequential
+    model consisting of an embedding layer, a dropout layer, a bidirectional GRU layer,
+    a dense layer, and a softmax activation layer. The input is a batch of integer
+    sequences with shape (`batch_size`, `max_seqlen`). When passed through the embedding
+    layer, each integer in the sequence is converted into a vector of size (`embedding_dim`),
+    so now the shape of our tensor is (`batch_size`, `max_seqlen`, `embedding_dim`).
+    Each of these vectors is passed to corresponding time steps of a bidirectional
+    GRU with an output dimension of 256\.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because the GRU is bidirectional, this is equivalent to stacking one GRU on
+    top of the other, so the tensor that comes out of the bidirectional GRU has the
+    dimension (`batch_size`, `max_seqlen`, `2*rnn_output_dimension`). Each time step
+    tensor of shape (`batch_size`, `1`, `2*rnn_output_dimension`) is fed into a dense
+    layer, which converts each time step into a vector of the same size as the target
+    vocabulary, that is, (`batch_size`, `number_of_timesteps`, `output_vocab_size`).
+    Each time step represents a probability distribution of output tokens, so the
+    final softmax layer is applied to each time step to return a sequence of output
+    POS tokens.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we declare the model with some parameters, then compile it with the
+    Adam optimizer, the categorical cross-entropy loss function, and accuracy as the
+    metric:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Perhaps the best approach is to replace the current loss function with one
+    that ignores any matches where both numbers are zero; however, a simpler approach
+    is to build a stricter metric and use that to judge when to stop the training.
+    Accordingly, we build a new accuracy function `masked_accuracy()` whose code is
+    shown as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We are now ready to train our model. As usual, we set up the model checkpoint
+    and TensorBoard callbacks, and then call the `fit()` convenience method on the
+    model to train the model with a batch size of 128 for 50 epochs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'A truncated output of the training is shown as follows. As you can see, the
+    `masked_accuracy` and `val_masked_accuracy` numbers seem more conservative than
+    the `accuracy` and `val_accuracy` numbers. This is because the masked versions
+    do not consider the sequence positions where the input is a PAD character:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here are some examples of POS tags generated for some random sentences in the
+    test set, shown together with the POS tags in the corresponding ground truth sentences.
+    As you can see, while the metric values are not perfect, it seems to have learned
+    to do POS tagging fairly well:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If you would like to run this code yourself, you can find the code in the code
+    folder for this chapter. To run it from the command line, enter the following
+    command. The output is written to the console:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now that we have seen some examples of three common RNN network topologies,
+    let’s explore the most popular of them all – the seq2seq model, which is also
+    known as the recurrent encoder-decoder architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Encoder-decoder architecture – seq2seq
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The example of a many-to-many network we just saw was mostly similar to the
+    many-to-one network. The one important difference was that the RNN returns outputs
+    at each time step instead of a single combined output at the end. One other noticeable
+    feature was that the number of input time steps was equal to the number of output
+    time steps. As you learn about the encoder-decoder architecture, which is the
+    “other,” and arguably more popular, style of a many-to-many network, you will
+    notice another difference – the output is in line with the input in a many-to-many
+    network, that is, it is not necessary for the network to wait until all of the
+    input is consumed before generating the output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The encoder-decoder architecture is also called a seq2seq model. As the name
+    implies, the network is composed of an encoder and a decoder part, both RNN-based
+    and capable of consuming and returning sequences of outputs corresponding to multiple
+    time steps. The biggest application of the seq2seq network has been in neural
+    machine translation, although it is equally applicable for problems that can be
+    roughly structured as translation problems. Some examples are sentence parsing
+    [10] and image captioning [24]. The seq2seq model has also been used for time
+    series analysis [25] and question answering.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the seq2seq model, the encoder consumes the source sequence, which is a batch
+    of integer sequences. The length of the sequence is the number of input time steps,
+    which corresponds to the maximum input sequence length (padded or truncated as
+    necessary). Thus, the dimensions of the input tensor are (`batch_size`, `number_of_encoder_timesteps`).
+    This is passed into an embedding layer, which will convert the integer at each
+    time step into an embedding vector. The output of the embedding is a tensor of
+    shape (`batch_size`, `number_of_encoder_timesteps`, `encoder_embedding_dim`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: This tensor is fed into an RNN, which converts the vector at each time step
+    into the size corresponding to its encoding dimension. This vector is a combination
+    of the current time step and all previous time steps. Typically, the encoder will
+    return the output at the last time step, representing the context or “thought”
+    vector for the entire sequence. This tensor has the shape (`batch_size`, `encoder_rnn_dim`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The decoder network has a similar architecture as the encoder, except there
+    is an additional dense layer at each time step to convert the output. The input
+    to each time step on the decoder side is the hidden state of the previous time
+    step and the input vector that is the token predicted by the decoder of the previous
+    time step. For the very first time step, the hidden state is the context vector
+    from the encoder, and the input vector corresponds to the token that will initiate
+    sequence generation on the target side. For the translation use case, for example,
+    it is a **beginning-of-string** (**BOS**) pseudo-token. The shape of the hidden
+    signal is (`batch_size`, `encoder_rnn_dim`) and the shape of the input signal
+    across all time steps is (`batch_size`, `number_of_decoder_timesteps`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once it passes through the embedding layer, the output tensor shape is (`batch_size`,
+    `number_of_decoder_timesteps`, `decoder_embedding_dim`). The next step is the
+    decoder RNN layer, the output of which is a tensor of shape (`batch_size`, `number_of_decoder_timesteps`,
+    `decoder_rnn_dim`). The output at each time step is then sent through a dense
+    layer, which converts the vector into the size of the target vocabulary, so the
+    output of the dense layer is (`batch_size`, `number_of_decoder_timesteps`, `output_vocab_size`).
+    This is basically a probability distribution over tokens at each time step, so
+    if we compute the argmax over the last dimension, we can convert it back into
+    a predicted sequence of tokens in the target language. *Figure 5.7* shows a high-level
+    view of the seq2seq architecture:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated](img/B18331_05_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.7: Seq2seq network data flow. Image Source: Artur Suilin [25]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will look at an example of a seq2seq network for machine
+    translation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Example ‒ seq2seq without attention for machine translation
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: To understand the seq2seq model in greater detail, we will look at an example
+    of one that learns how to translate from English to French using the French-English
+    bilingual dataset from the Tatoeba Project (1997-2019) [26]. The dataset contains
+    approximately 167,000 sentence pairs. To make our training go faster, we will
+    only consider the first 30,000 sentence pairs for our training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As always, we will start with the imports:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: The data is provided as a remote zip file. The easiest way to access the file
+    is to download it from [http://www.manythings.org/anki/fra-eng.zip](http://www.manythings.org/anki/fra-eng.zip)
+    and expand it locally using unzip. The zip file contains a tab-separated file
+    called `fra.txt`, with French and English sentence pairs separated by a tab, one
+    pair per line. The code expects the `fra.txt` file in a dataset folder in the
+    same directory as itself. We want to extract three different datasets from it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you recall the structure of the seq2seq network, the input to the encoder
+    is a sequence of English words. On the decoder side, the input is a set of French
+    words, and the output is the sequence of French words offset by one time step.
+    The following function will download the zip file, expand it, and create the datasets
+    described before.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The input is preprocessed to *asciify* the characters, separate out specific
+    punctuations from their neighboring word, and remove all characters other than
+    alphabets and these specific punctuation symbols. Finally, the sentences are converted
+    into lowercase. Each English sentence is just converted into a single sequence
+    of words. Each French sentence is converted into two sequences, one preceded by
+    the BOS pseudo-word and the other followed by the **end-of-sentence** (**EOS**)
+    pseudo-word.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first sequence starts at position 0 and stops one short of the final word
+    in the sentence, and the second sequence starts at position 1 and goes all the
+    way to the end of the sentence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our next step is to tokenize our inputs and create the vocabulary. Since we
+    have sequences in two different languages, we will create two different tokenizers
+    and vocabularies, one for each language.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The tf.keras framework provides a very powerful and versatile tokenizer class
+    – here, we have set filters to an empty string and `lower` to `False` because
+    we have already done what was needed for tokenization in our `preprocess_sentence()`
+    function. The Tokenizer creates various data structures from which we can compute
+    the vocabulary sizes and lookup tables that allow us to go from word to word index
+    and back.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we handle different length sequences of words by padding with zeros at
+    the end, using the `pad_sequences()` function. Because our strings are fairly
+    short, we do not do any truncation; we just pad to the maximum length of sentence
+    that we have (8 words for English and 16 words for French):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we convert the data into a TensorFlow dataset, and then split it into
+    a training and test dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our data is now ready to be used for training the seq2seq network, which we
+    will define next. Our encoder is an embedding layer followed by a GRU layer. The
+    input to the encoder is a sequence of integers, which is converted into a sequence
+    of embedding vectors of size `embedding_dim`. This sequence of vectors is sent
+    to an RNN, which converts the input at each of the `num_timesteps` time steps
+    into a vector of size `encoder_dim`. Only the output at the last time step is
+    returned, as shown by `return_sequences=False`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The decoder has almost the same structure as the encoder, except that it has
+    an additional dense layer that converts the vector of size `decoder_dim`, which
+    is output from the RNN, into a vector that represents the probability distribution
+    across the target vocabulary. The decoder also returns outputs along with all
+    its time steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In our example network, we have chosen our embedding dimension to be 128, followed
+    by an encoder and decoder RNN dimension of 1024 each. Note that we have to add
+    1 to the vocabulary size for both the English and French vocabularies to account
+    for the PAD character that was added during the `pad_sequences()` step:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now that we have defined our `Encoder` and `Decoder` classes, let’s revisit
+    the dimensions of their inputs and outputs. The following piece of (throwaway)
+    code can be used to print out the dimensions of the various inputs and outputs
+    of the system. It has been left in for convenience as a commented-out block in
+    the code supplied with this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: This produces the following output, which is in line with our expectations.
+    The encoder input is a batch of a sequence of integers, each sequence being of
+    size 8, which is the maximum number of tokens in our English sentences, so its
+    dimension is (`batch_size`, `maxlen_en`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The output of the encoder is a single tensor (`return_sequences=False`) of shape
+    (`batch_size`, `encoder_dim`) and represents a batch of context vectors representing
+    the input sentences. The encoder state tensor has the same dimensions. The decoder
+    outputs are also a batch of sequences of integers, but the maximum size of a French
+    sentence is 16; therefore, the dimensions are (`batch_size`, `maxlen_fr`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The decoder predictions are a batch of probability distributions across all
+    time steps; hence, the dimensions are (`batch_size`, `maxlen_fr`, `vocab_size_fr+1`),
+    and the decoder state is the same dimension as the encoder state (`batch_size`,
+    `decoder_dim`):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we define the loss function. Because we padded our sentences, we don’t
+    want to bias our results by considering the equality of pad words between the
+    labels and predictions. Our loss function masks our predictions with the labels,
+    so any padded positions on the label are also removed from the predictions, and
+    we only compute our loss using the non-zero elements on both the label and predictions.
+    This is done as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: Because the seq2seq model is not easy to package into a simple Keras model,
+    we have to handle the training loop manually as well. Our `train_step()` function
+    handles the flow of data and computes the loss at each step, applies the gradient
+    of the loss back to the trainable weights, and returns the loss.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Notice that the training code is not quite the same as what was described in
+    our discussion of the seq2seq model earlier. Here, it appears that the entire
+    `decoder_input` is fed in one go into the decoder to produce the output offset
+    by one time step, whereas in the discussion, we said that this happens sequentially,
+    where the token generated in the previous time step is used as the input for the
+    next time step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This is a common technique used to train seq2seq networks, which is called
+    **Teacher Forcing**, where the input to the decoder is the ground truth output
+    instead of the prediction from the previous time step. This is preferred because
+    it makes training faster but also results in some degradation in prediction quality.
+    To offset this, techniques such as **Scheduled Sampling** can be used, where the
+    input is sampled randomly either from the ground truth or the prediction at the
+    previous time step, based on some threshold (this depends on the problem, but
+    usually varies between 0.1 and 0.4):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `predict()` method is used to randomly sample a single English sentence
+    from the dataset and use the model trained so far to predict the French sentence.
+    For reference, the label French sentence is also displayed. The `evaluate()` method
+    computes the **BiLingual Evaluation Understudy** (**BLEU**) score [35] between
+    the labels and predictions across all records in the test set. BLEU scores are
+    generally used where multiple ground truth labels exist (we have only one) and
+    compare up to 4-grams (n-grams with *n=4*) in both reference and candidate sentences.
+    Both the `predict()` and `evaluate()` methods are called at the end of every epoch:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The training loop is shown as follows. We will use the Adam optimizer for our
+    model. We also set up a checkpoint so that we can save our model after every 10
+    epochs. We then train the model for 250 epochs, and print out the loss, an example
+    sentence and its translation, and the BLEU score computed over the entire test
+    set:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The results from the first 5 and last 5 epochs of training are shown as follows.
+    Notice that the loss has gone down from about 1.5 to around 0.07 in epoch 247\.
+    The BLEU scores have also gone up by around 2.5 times. Most impressive, however,
+    is the difference in translation quality between the first 5 and last 5 epochs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Epoch-#** | **Loss (Training)** | **BLEU Score (Test)** | **English** |
+    **French (true)** | **French (predicted)** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 1 | 1.4119 | 1.957e-02 | tom is special. | tom est special. | elle est tres
+    bon. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 2 | 1.1067 | 2.244e-02 | he hates shopping. | il deteste faire les courses.
+    | il est tres mineure. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 3 | 0.9154 | 2.700e-02 | did she say it? | l a t elle dit? | n est ce pas
+    clair? |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 4 | 0.7817 | 2.803e-02 | i d rather walk. | je prefererais marcher. | je
+    suis alle a kyoto. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 5 | 0.6632 | 2.943e-02 | i m in the car. | je suis dans la voiture. | je
+    suis toujours inquiet. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| ... |  |  |  |  |  |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 245 | 0.0896 | 4.991e-02 | she sued him. | elle le poursuivit en justice.
+    | elle l a poursuivi en justice. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 246 | 0.0853 | 5.011e-02 | she isn t poor. | elle n est pas pauvre. | elle
+    n est pas pauvre. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 247 | 0.0738 | 5.022e-02 | which one is mine? | lequel est le mien? | lequel
+    est le mien? |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 248 | 0.1208 | 4.931e-02 | i m getting old. | je me fais vieux. | je me fais
+    vieux. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 249 | 0.0837 | 4.856e-02 | it was worth a try. | ca valait le coup d essayer.
+    | ca valait le coup d essayer. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 250 | 0.0967 | 4.869e-02 | don t back away. | ne reculez pas! | ne reculez
+    pas! |'
+  prefs: []
+  type: TYPE_TB
+- en: 'Table 5.2: Training results by epoch'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The full code for this example can be found in the source code accompanying
+    this chapter. You will need a GPU-based machine to run it, although you may be
+    able to run it on the CPU using smaller network dimensions (`embedding_dim`, `encoder_dim`,
+    `decoder_dim`), smaller hyperparameters (`batch_size`, `num_epochs`), and a smaller
+    number of sentence pairs. To run the code in its entirety, run the following command.
+    The output will be written to the console:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the next section, we will look at a mechanism to improve the performance
+    of the seq2seq network, by allowing it to focus on certain parts of the input
+    more than on others in a data-driven way. This mechanism is known as the attention
+    mechanism.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Attention mechanism
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous section, we saw how the context or thought vector from the last
+    time step of the encoder is fed into the decoder as the initial hidden state.
+    As the context flows through the time steps on the decoder, the signal gets combined
+    with the decoder output and progressively gets weaker and weaker. The result is
+    that the context does not have much effect on the later time steps in the decoder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In addition, certain sections of the decoder output may depend more heavily
+    on certain sections of the input. For example, consider an input “thank you very
+    much,” and the corresponding output “merci beaucoup” for an English-to-French
+    translation network such as the one we looked at in the previous section. Here,
+    the English phrases “thank you,” and “very much,” correspond to the French “merci”
+    and “beaucoup” respectively. This information is also not conveyed adequately
+    through the single context vector.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The attention mechanism provides access to all encoder hidden states at every
+    time step on the decoder. The decoder learns which part of the encoder states
+    to pay more attention to. The use of attention has resulted in great improvements
+    to the quality of machine translation, as well as a variety of standard natural
+    language processing tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The use of attention is not limited to seq2seq networks. For example, attention
+    is a key component in the “Embed, Encode, Attend, Predict” formula for creating
+    state-of-the-art deep learning models for NLP [34]. Here, attention has been used
+    to preserve as much information as possible when downsizing from a larger to a
+    more compact representation, for example, when reducing a sequence of word vectors
+    into a single sentence vector.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Essentially, the attention mechanism provides a way to score tokens in the
+    target against all tokens in the source and modify the input signal to the decoder
+    accordingly. Consider an encoder-decoder architecture where the input and output
+    time steps are denoted by indices *i* and *j* respectively, and the hidden states
+    on the encoder and decoder at these respective time steps are denoted by *h*[i]
+    and *s*[j]. Inputs to the encoder are denoted by *x*[i], and outputs from the
+    decoder are denoted by *y*[j]. In an encoder-decoder network without attention,
+    the value of decoder state *s*[j] is given by the hidden state *s*[j][-1] and
+    output *y*[j][-1] at the previous time step. The attention mechanism adds a third
+    signal *c*[j], known as the attention context. With attention, therefore, the
+    decoder’s hidden state *s*[j] is a function of *y*[j][-1], *s*[j][-1], and *c*[j],
+    which is shown as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_05_012.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The attention context signal *c*[j] is computed as follows. For every decoder
+    step *j*, we compute the alignment between the decoder state *s*[j][-1] and every
+    encoder state *h*[i]. This gives us a set of *N* similarity values *e*[ij] for
+    each decoder state *j*, which we then convert into a probability distribution
+    by computing their corresponding softmax values *b*[ij]. Finally, the attention
+    context *c*[j] is computed as the weighted sum of the encoder states *h*[i] and
+    their corresponding softmax weights *b*[ij] over all *N* encoder time steps. The
+    set of equations shown encapsulates this transformation for each decoder step
+    *j*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_05_013.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Multiple attention mechanisms have been proposed based on how the alignment
+    is done. We will describe a few next. For notational convenience, we will indicate
+    the state vector *h*[i] on the encoder side with *h*, and the state vector *s*[j][-1]
+    on the decoder side with *s*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The simplest formulation of alignment is **content-based attention**. It was
+    proposed by Graves, Wayne, and Danihelka [27], and is just the cosine similarity
+    between the encoder and decoder states. A precondition for using this formulation
+    is that the hidden state vector on both the encoder and decoder must have the
+    same dimensions:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_05_014.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Another formulation, known as **additive** or **Bahdanau attention**, was proposed
+    by Bahdanau, Cho, and Bengio [28]. This involves combining the state vectors using
+    learnable weights in a small neural network, given by the following equation.
+    Here, the *s* and *h* vectors are concatenated and multiplied by the learned weights
+    *W*, which is equivalent to using two learned weights *W*[s] and *W*[h] to multiply
+    with *s* and *h*, and adding the results:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_05_015.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Luong, Pham, and Manning [29] proposed a set of three attention formulations
+    (dot, general, and concat), of which the general formulation is also known as
+    the **multiplicative** or **Luong’s attention**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `dot` and `concat` attention formulations are similar to the content-based
+    and additive attention formulations discussed earlier. The multiplicative attention
+    formulation is given by the following equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_05_016.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Finally, Vaswani, et al. [30] proposed a variation on content-based attention,
+    called the **scaled dot-product attention**, which is given by the following equation.
+    Here, *N* is the dimension of the encoder hidden state *h*. Scaled dot-product
+    attention is used in transformer architecture, which we will learn about in the
+    next chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_05_017.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Attention mechanisms can also be categorized by what they attend to. Using this
+    categorization scheme attention mechanisms can be self-attention, global or soft
+    attention, and local or hard attention.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Self-attention is when the alignment is computed across different sections of
+    the same sequence and has been found to be useful for applications such as machine
+    reading, abstractive text summarization, and image caption generation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Soft or global attention is when the alignment is computed over the entire input
+    sequence, and hard or local attention is when the alignment is computed over part
+    of the sequence. The advantage of soft attention is that it is differentiable;
+    however, it can be expensive to compute. Conversely, hard attention is cheaper
+    to compute at inference time but is non-differentiable and requires more complicated
+    techniques during training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will see how to integrate the attention mechanism with
+    a seq2seq network and how it improves performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Example ‒ seq2seq with attention for machine translation
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Let’s look at the same example of machine translation that we saw earlier in
+    this chapter, except that the decoder will now attend to the encoder outputs using
+    the additive attention mechanism proposed by Bahdanau, et al. [28], and the multiplicative
+    one proposed by Luong, et al [29].
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first change is to the encoder. Instead of returning a single context or
+    thought vector, it will return outputs at every time point, because the attention
+    mechanism will need this information. Here is the revised encoder class with the
+    change highlighted:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The decoder will have bigger changes. The biggest is the declaration of attention
+    layers, which need to be defined, so let’s do that first. Let’s first consider
+    the class definition for the additive attention proposed by Bahdanau. Recall that
+    this combines the decoder hidden state at each time step with all the encoder
+    hidden states to produce an input to the decoder at the next time step, which
+    is given by the following equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_05_015.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The *W [s;h]* in the equation is shorthand for two separate linear transformations
+    (of the form *y = Wx + b*), one on *s*, and the other on *h*. The two linear transformations
+    are implemented as dense layers, as shown in the following implementation. We
+    subclass a `tf.keras` Layer object since our end goal is to use this as a layer
+    in our network, but it is also acceptable to subclass a Model object. The `call()`
+    method takes the query (the decoder state) and values (the encoder states), computes
+    the score, then the alignment as the corresponding softmax, and context vector
+    as given by the equation, and then returns them. The shape of the context vector
+    is given by (`batch_size`, `num_decoder_timesteps`), and the alignments have the
+    shape (`batch_size`, `num_encoder_timesteps`, `1`). The weights for the dense
+    layer’s `W1`, `W2`, and `V` tensors are learned during training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The Luong attention is multiplicative, but the general implementation is similar.
+    Instead of declaring three linear transformations `W1`, `W2`, and `V`, we only
+    have a single one `W`. The steps in the `call()` method follow the same general
+    steps – first, we compute the scores according to the equation for Luong’s attention,
+    as described in the last section. Then, we compute the alignments as the corresponding
+    softmax version of the scores and then the context vector as the dot product of
+    the alignment and the values. Like the weights in the Bahdanau attention class,
+    the weight matrices represented by the dense layer `W` are learned during training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To verify that the two classes are drop-in replacements for each other, we
+    run the following piece of throwaway code (commented out in the source code for
+    this example). We just manufacture some random inputs and send them to both attention
+    classes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding code produces the following output and shows, as expected, that
+    the two classes produce identically shaped outputs when given the same input.
+    Hence, they are drop-in replacements for each other:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now that we have our attention classes, let’s look at the decoder. The difference
+    in the `init()` method is the addition of the attention class variable, which
+    we have set to the `BahdanauAttention` class. In addition, we have two additional
+    transformations, `Wc` and `Ws`, that will be applied to the output of the decoder
+    RNN. The first one has a `tanh` activation to modulate the output between -1 and
+    +1, and the next one is a standard linear transformation. Compared to the seq2seq
+    network without an attention decoder component, this decoder takes an additional
+    parameter `encoder_output` in its `call()` method and returns an additional context
+    vector:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The training loop is also a little different. Unlike the seq2seq without attention
+    network, where we used teacher forcing to speed up training, using attention means
+    that we now have to consume the decoder input one by one. This is because the
+    decoder output at the previous step influences more strongly, through attention,
+    the output at the current time step. Our new training loop is described by the
+    `train_step` function below and is significantly slower than the training loop
+    on the seq2seq network without attention. However, this kind of training loop
+    may be used on the former network as well, especially when we want to implement
+    scheduled sampling strategies:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `predict()` and `evaluate()` methods also have similar changes, since they
+    also implement the new data flow on the decoder side that involves an extra `encoder_out`
+    parameter and an extra `context` return value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We trained two versions of the seq2seq network with attention, one with additive
+    (Bahdanau) attention and one with multiplicative (Luong) attention. Both networks
+    were trained for 50 epochs instead of 250\. However, in both cases, translations
+    were produced with a quality similar to that obtained from the seq2seq network
+    without attention trained for 250 epochs. The training losses at the end of training
+    for the seq2seq networks with either attention mechanism were marginally lower,
+    and the BLEU scores on the test sets were slightly higher, compared with the seq2seq
+    network without attention:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Network Description** | **Ending Loss (training set)** | **Ending BLEU
+    score (test set)** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| seq2seq without attention, trained for 250 epochs | 0.0967 | 4.869e-02 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| seq2seq with additive attention, trained for 50 epochs | 0.0893 | 5.508e-02
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '| seq2seq with multiplicative attention, trained for 50 epochs | 0.0706 | 5.563e-02
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: 'Table 5.3: BLEU scores for the different methods'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here are some examples of the translations produced by the two networks. Epoch
+    numbers and the type of attention used are mentioned with each example. Notice
+    that even when the translations are not 100% the same as the labels, many of them
+    are valid translations of the original:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Attention Type** | **Epoch-#** | **English** | **French (label)** | **French
+    (predicted)** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Bahdanau | 20 | your cat is fat. | ton chat est gras. | ton chat est mouille.
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 25 | i had to go back. | il m a fallu retourner. | il me faut partir. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 30 | try to find it. | tentez de le trouver. | tentez de le trouver. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Luong | 20 | that s peculiar. | c est etrange. | c est deconcertant. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 25 | tom is athletic. | thomas est sportif. | tom est sportif. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| 30 | it s dangerous. | c est dangereux. | c est dangereux. |'
+  prefs: []
+  type: TYPE_TB
+- en: 'Table 5.4: Examples of English-to-French translations'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The full code for the network described here is in the `seq2seq_with_attn.py`
+    file in the code folder for this chapter. To run the code from the command line,
+    please use the following command. You can switch between Bahdanau (additive) or
+    Luong (multiplicative) attention mechanisms by commenting out one or the other
+    in the `init()` method of the `Decoder` class:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned about RNNs, a class of networks that is specialized
+    for dealing with sequences such as natural language, time series, speech, and
+    so on. Just like CNNs exploit the geometry of images, RNNs exploit the sequential
+    structure of their inputs. We learned about the basic RNN cell, how it handles
+    state from previous time steps, and how it suffers from vanishing and exploding
+    gradients because of inherent problems with BPTT. We saw how these problems lead
+    to the development of novel RNN cell architectures such as LSTM, GRU, and peephole
+    LSTMs. We also learned about some simple ways to make your RNN more effective,
+    such as making it bidirectional or stateful.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We then looked at different RNN topologies and how each topology is adapted
+    to a particular set of problems. After a lot of theory, we finally saw examples
+    of three of these topologies. We then focused on one of these topologies, called
+    seq2seq, which first gained popularity in the machine translation community, but
+    has since been used in situations where the use case can be adapted to look like
+    a machine translation problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: From here, we looked at attention, which started as a way to improve the performance
+    of seq2seq networks but has since been used very effectively in many situations
+    where we want to compress the representation while keeping the data loss to a
+    minimum. We looked at different kinds of attention and an example of using them
+    in a seq2seq network with attention.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, you will learn about transformers, a state-of-the-art encoder-decoder
+    architecture where the recurrent layers have been replaced by attention layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Jozefowicz, R., Zaremba, R. and Sutskever, I. (2015). *An Empirical Exploration
+    of Recurrent Neural Network Architectures*. Journal of Machine Learning
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Greff, K., et al. (July 2016). *LSTM: A Search Space Odyssey*. IEEE Transactions
+    on Neural Networks and Learning Systems'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Bernal, A., Fok, S., and Pidaparthi, R. (December 2012). *Financial Markets
+    Time Series Prediction with Recurrent Neural Networks*
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Hadjeres, G., Pachet, F., and Nielsen, F. (August 2017). *DeepBach: a Steerable
+    Model for Bach Chorales Generation*. Proceedings of the 34th International Conference
+    on Machine Learning (ICML)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Karpathy, A. (2015). *The Unreasonable Effectiveness of Recurrent Neural Networks*.
+    URL: [http://karpathy.github.io/2015/05/21/rnn-effectiveness/](http://karpathy.github.io/2015/05/21/rnn-effectiveness/)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Karpathy, A., Li, F. (2015). *Deep Visual-Semantic Alignments for Generating
+    Image Descriptions*. Conference on Pattern Recognition and Pattern Recognition
+    (CVPR)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Socher, et al. (2013). *Recursive Deep Models for Sentiment Compositionality
+    over a Sentiment Treebank*. Proceedings of the 2013 Conference on Empirical Methods
+    in Natural Language Processing (EMNLP)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Bahdanau, D., Cho, K., and Bengio, Y. (2015). *Neural Machine Translation by
+    Jointly Learning to Align and Translate*. arXiv: 1409.0473 [cs.CL]'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Wu, Y., et al. (2016). *Google’s Neural Machine Translation System: Bridging
+    the Gap between Human and Machine Translation*. arXiv 1609.08144 [cs.CL]'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Vinyals, O., et al. (2015). *Grammar as a Foreign Language*. Advances in Neural
+    Information Processing Systems (NIPS)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Rumelhart, D. E., Hinton, G. E., and Williams, R. J. (1985). *Learning Internal
+    Representations by Error Propagation*. Parallel Distributed Processing: Explorations
+    in the Microstructure of Cognition'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Britz, D. (2015). *Recurrent Neural Networks Tutorial, Part 3 - Backpropagation
+    Through Time and Vanishing Gradients*: [http://www.wildml.com/2015/10/recurrent-neural-networks-tutorial-part-3-backpropagation-through-time-and-vanishing-gradients/](http://www.wildml.com/2015/10/recurrent-neural-networks-tutorial-part-3-backpropagation-through-time-and-vanishing-gradients/)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Pascanu, R., Mikolov, T., and Bengio, Y. (2013). *On the difficulty of training
+    Recurrent Neural Networks*. Proceedings of the 30th International Conference on
+    Machine Learning (ICML)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Hochreiter, S., and Schmidhuber, J. (1997). *LSTM can solve hard long time lag
+    problems*. Advances in Neural Information Processing Systems (NIPS)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Britz, D. (2015). *Recurrent Neural Network Tutorial, Part 4 – Implementing
+    a GRU/LSTM RNN with Python and Theano*: [http://www.wildml.com/2015/10/recurrent-neural-network-tutorial-part-4-implementing-a-grulstm-rnn-with-python-and-theano/](http://www.wildml.com/2015/10/recurrent-neural-network-tutorial-part-4-implementing-a-grulstm-rnn-with-python-and-theano/)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Olah, C. (2015). *Understanding LSTM Networks*: [https://colah.github.io/posts/2015-08-Understanding-LSTMs/](https://colah.github.io/posts/2015-08-Understanding-LSTMs/)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Cho, K., et al. (2014). *Learning Phrase Representations using RNN Encoder-Decoder
+    for Statistical Machine Translation*. arXiv: 1406.1078 [cs.CL]'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Shi, X., et al. (2015). *Convolutional LSTM Network: A Machine Learning Approach
+    for Precipitation Nowcasting*. arXiv: 1506.04214 [cs.CV]'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Gers, F.A., and Schmidhuber, J. (2000). *Recurrent Nets that Time and Count*.
+    Proceedings of the IEEE-INNS-ENNS International Joint Conference on Neural Networks
+    (IJCNN)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Kotzias, D. (2015). *Sentiment Labeled Sentences Dataset*, provided as part
+    of “From Group to Individual Labels using Deep Features” (KDD 2015): [https://archive.ics.uci.edu/ml/datasets/Sentiment+Labelled+Sentences](https://archive.ics.uci.edu/ml/datasets/Sentiment+Labelled+Sentences)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Collobert, R., et al (2011). *Natural Language Processing (Almost) from Scratch*.
+    Journal of Machine Learning Research (JMLR)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Marcus, M. P., Santorini, B., and Marcinkiewicz, M. A. (1993). *Building a
+    large annotated corpus of English: the Penn Treebank*. Journal of Computational
+    Linguistics'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Bird, S., Loper, E., and Klein, E. (2009). *Natural Language Processing with
+    Python, O’Reilly Media Inc*. Installation: [https://www.nltk.org/install.xhtml](https://www.nltk.org/install.xhtml)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Liu, C., et al. (2017). *MAT: A Multimodal Attentive Translator for Image Captioning*.
+    arXiv: 1702.05658v3 [cs.CV]'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Suilin, A. (2017). *Kaggle Web Traffic Time Series Forecasting*. GitHub repository:
+    [https://github.com/Arturus/kaggle-web-traffic](https://github.com/Arturus/kaggle-web-traffic)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Tatoeba Project. (1997-2019). Tab-delimited Bilingual Sentence Pairs: [http://tatoeba.org](https://tatoeba.org/en/)
+    and [http://www.manythings.org/anki](http://www.manythings.org/anki)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Graves, A., Wayne, G., and Danihelka, I. (2014). *Neural Turing Machines*.
+    arXiv: 1410.5401v2 [cs.NE]'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Bahdanau, D., Cho, K., and Bengio, Y. (2015). *Neural Machine Translation by
+    jointly learning to Align and Translate*. arXiv: 1409.0473v7 [cs.CL]'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Luong, M., Pham, H., and Manning, C. (2015). *Effective Approaches to Attention-based
+    Neural Machine Translation*. arXiv: 1508.04025v5 [cs.CL]'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Vaswani, A., et al. (2017). *Attention Is All You Need*. 31st Conference on
+    Neural Information Processing Systems (NeurIPS)
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Zhang, A., Lipton, Z. C., Li, M., and Smola, A. J. (2019). *Dive into Deep
+    Learning*: [http://www.d2l.ai](http://www.d2l.ai)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Ba, J. L., Kiros, J. R., and Hinton, G. E. (2016). *Layer Normalization*. arXiv:
+    1607.06450v1 [stat.ML]'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Allamar, J. (2018). *The Illustrated Transformer*: [http://jalammar.github.io/illustrated-transformer/](http://jalammar.github.io/illustrated-transformer/)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Honnibal, M. (2016). *Embed, encode, attend, predict: The new deep learning
+    formula for state-of-the-art NLP models*: [https://explosion.ai/blog/deep-learning-formula-nlp](https://explosion.ai/blog/deep-learning-formula-nlp)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Papineni, K., Roukos, S., Ward, T., and Zhu, W. (2002). *BLEU: A Method for
+    Automatic Evaluation of Machine Translation*. Proceedings of the 40th Annual Meeting
+    for the Association of Computational Linguistics (ACL)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Project Gutenberg (2019): [https://www.gutenberg.org/](https://www.gutenberg.org/)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Join our book’s Discord space
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Join our Discord community to meet like-minded people and learn alongside more
+    than 2000 members at: [https://packt.link/keras](https://packt.link/keras)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/QR_Code1831217224278819687.png)'
+  prefs: []
+  type: TYPE_IMG

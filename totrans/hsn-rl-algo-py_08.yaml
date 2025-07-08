@@ -1,0 +1,1069 @@
+- en: Learning Stochastic and PG Optimization
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we've addressed and developed value-based reinforcement learning algorithms.
+    These algorithms learn a value function in order to be able to find a good policy. Despite
+    the fact that they exhibit good performances, their application is constrained
+    by some limits that are embedded in their inner workings. In this chapter, we'll
+    introduce a new class of algorithms called policy gradient methods, which are
+    used to overcome the constraints of value-based methods by approaching the RL
+    problem from a different perspective.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Policy gradient methods select an action based on a learned parametrized policy,
+    instead of relying on a value function. In this chapter, we will also elaborate
+    on the theory and intuition behind these methods, and with this background, develop
+    the most basic version of a policy gradient algorithm, named **REINFORCE**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: REINFORCE exhibits some deficiencies due to its simplicity, but these can be
+    mitigated with only a small amount of additional effort. Thus, we'll present two
+    improved versions of REINFORCE, called **REINFORCE** with baseline and **actor-critic**
+    (**AC**) models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following topics will be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Policy gradient methods
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding the REINFORCE algorithm
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: REINFORCE with a baseline
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Learning the AC algorithm
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Policy gradient methods
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The algorithms that have been learned and developed so far are value-based,
+    which, at their core, learn a value function, *V(s)*, or action-value function, *Q(s,
+    a)*. A value function is a function that defines the total reward that can be
+    accumulated from a given state or state-action pair. An action can then be selected,
+    based on the estimated action (or state) values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Therefore, a greedy policy can be defined as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[![](img/65fc237e-c05d-401a-990e-1965179d5114.png)]'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Value-based methods, when combined with deep neural networks, can learn very
+    sophisticated policies in order to control agents that operate in high-dimensionality
+    spaces. Despite these great qualities, they suffer when dealing with problems
+    with a large number of actions, or when the action space is continuous.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In such cases, maximum operation is not feasible. **Policy gradient** (**PG**)
+    algorithms exhibit incredible potential in such contexts, as they can be easily
+    adapted to continuous action spaces.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PG methods belong to the broader class of policy-based methods, including evolution
+    strategies, which are studied later in [Chapter 11](dab022a7-3243-4e45-9f91-39a82df3a248.xhtml),
+    *Understanding Black-Box Optimization Algorithms*. The distinctiveness of PG algorithms
+    is in their use of the gradient of the policy, hence the name **policy gradient**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A more concise categorization of RL algorithms, with respect to the one reported
+    in [Chapter 3](f2414b11-976a-4410-92d8-89ee54745d99.xhtml), *Solving Problems
+    with Dynamic Programming*, is shown in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e4912522-6ce0-48c0-a369-1cf6ecc6b79c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Examples of policy gradient methods are **REINFORCE** and **AC **that will be
+    introduced in the next sections.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The gradient of the policy
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The objective of RL is to maximize the expected return (the total reward, discounted
+    or undiscounted) of a trajectory. The objective function, can then be expressed
+    as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/50c66cf3-976b-4e4e-ae01-e5cc9abf869b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Where *θ* is the parameters of the policy, such as the trainable variables of
+    a deep neural network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In PG methods, the maximization of the objective function is done through the
+    gradient of the objective function [![](img/2efadf0f-29b6-46b5-8e32-ec49106fa982.png)].
+    Using gradient ascent, we can improve [![](img/eab1062a-1560-4650-ba0f-baf11baf24ee.png)] by moving
+    the parameters toward the direction of the gradient, as the gradient points in
+    the direction in which the function increases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have to take the same direction of the gradient, because we aim to maximize
+    the objective function (6.1).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once the maximum is found, the policy, *π[θ]*, will produce trajectories with
+    the highest possible return. On an intuitive level, policy gradient incentivizes
+    good policies by increasing their probability while punishing bad policies by
+    reducing their probabilities.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Using equation (6.1), the gradient of the objective function is defined as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ea2657c5-0fb7-4bd5-a3d2-afc8e12e9819.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: By relating to the concepts from the previous chapters, in policy gradient methods,
+    policy evaluation is the estimation of the return, ![](img/7706f255-9576-478c-aaf4-c7ffdf9a32be.png).
+    Instead, policy improvement is the optimization step of the parameter ![](img/22e0eb66-b158-4ef4-a799-6fce86165959.png).
+    Thus, policy gradient methods have to symbiotically carry on both phases in order
+    to improve the policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Policy gradient theorem
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'An initial problem is encountered when looking at equation (6.2), because,
+    in its formulation, the gradient of the objective function depends on the distribution
+    of the states of a policy; that is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/9f8a5642-590c-4fca-80ce-db0033892f03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We would use a stochastic approximation of that expectation, but to compute
+    the distribution of the states, ![](img/52a2958e-64e4-44ac-9fe7-64ed137ebf42.png),
+    we still need a complete model of the environment. Thus, this formulation isn't
+    suitable for our purposes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The policy gradient theorem comes to the rescue here. Its purpose is to provide
+    an analytical formulation to compute the gradient of the objective function, with
+    respect to the parameters of the policy, without involving the derivative of the
+    state distribution. Formally, the policy gradient theorem, enables us to express
+    the gradient of the objective function as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/9c17f233-6856-4b70-938a-29d6a56f1a4b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The proof of the policy gradient theorem is beyond the scope of this book, and
+    thus, isn't included. However, you can find it in the book by Sutton and Barto ([http://incompleteideas.net/book/the-book-2nd.htmlor](http://incompleteideas.net/book/the-book-2nd.htmlor))
+    or from other online resources.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that the derivative of the objective doesn''t involve the derivative of
+    the state distribution, the expectation can be estimated by sampling from the
+    policy. Thus, the derivative of the objective can be approximated as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b267976e-96b6-4923-8137-cb7c810ccfaf.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This can be used to produce a stochastic update with gradient ascent:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/19e5ff29-d46f-4579-90a2-5f09fd3f80bb.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Note, that because the goal is to maximize the objective function, gradient
+    ascent is used to move the parameters in the same direction as the gradient (contrary
+    to gradient descent, which performs ![](img/bc2a2826-6786-41f1-ae1e-21dbfbae61c4.png)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The idea behind equation (6.5) is to increase the probability that good actions
+    will be re-proposed in the future, while reducing the probability of bad actions.
+    The quality of the actions is carried on by the usual scalar value of ![](img/fcb741e8-5b10-4d2a-a4d3-d84fdca36d90.png),
+    which gives the quality of the state-action pair.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Computing the gradient
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As long as the policy is differentiable, its gradient can be easily computed,
+    taking advantage of modern automatic differentiation software.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To do that in TensorFlow, we can define the computational graph and call `tf.gradient(loss_function,variables)` to
+    calculate the gradient of the loss function (`loss_function`) with respect to
+    the `variables` trainable parameters. An alternative would be to directly maximize
+    the `objective` function using the stochastic gradient descent optimizer, for
+    example, by calling `tf.train.AdamOptimizer(lr).minimize(-objective_function)`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following snippet is an example of the steps that are required to compute
+    the approximation in formula (6.5), with a policy of discrete action space of
+    the `env.action_space.n` dimension:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`tf.one_hot` produces a one-hot encoding of the `actions` actions. That is,
+    it produces a mask with `1`, corresponding with the numerical value of the action,
+    `0`, in the others.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, in the third line of the code, the mask is multiplied by the logarithm
+    of the action probability, in order to obtain the log probability of the `actions`
+    actions. The fourth line computes the loss as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a4e87877-72a6-462b-a265-9f2bd0e8d3ea.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: And finally, `tf.gradient` calculates the gradients of `pi_loss`, with respect
+    to the `variables` parameter, as in formula (6.5).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The policy
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the case that the actions are discrete and limited in number, the most common
+    approach is to create a parameterized policy that produces a numerical value for
+    each action.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that, differently from the Deep Q-Network algorithm, here, the output values
+    of the policy aren't the *Q(s,a)* action values.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Then, each output value is converted to a probability. This operation is performed
+    with the softmax function, which is given as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/68fae670-41fd-4d26-8ac0-4bff1fdfcaa5.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The softmax values are normalized to have a sum of one, so as to produce a probability
+    distribution where each value corresponds to the probability of selecting a given
+    action.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The next two plots show an example of five action-value predictions before
+    (the plot on the left) and after (the right plot) they are applied to the softmax
+    function. Indeed, from the plot on the right, you can see that, after the softmax
+    is computed, the sum of the new values is one, and that they all have values greater
+    than zero:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e3493f9f-b5bc-4e94-bc9a-cc20b61e8b5d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The right plot indicates that actions 0,1,2,3, and 4, will be selected approximately,
+    with probabilities of 0.64, 0.02, 0.09, 0.21, and 0.02, correspondingly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To use a softmax distribution on the action values that are returned by the
+    parameterized policy, we can use the code that is given in the *Computing the
+    gradient* section, with only one change, which has been highlighted in the following
+    snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, we used `tf.nn.log_softmax`, because it's been designed to be more stable
+    than first calling `tf.nn.softmax`, and then `tf.math.log`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: An advantage of having actions according to stochastic distribution, is in the
+    intrinsic randomness of the actions selected, which enable a dynamic exploration
+    of the environment. This can seem like a side effect, but it's very important
+    to have a policy that can adapt the level of exploration by itself.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the case of DQN, we had to use a hand-crafted ![](img/38d16fa6-2b85-4103-87a9-b626e9a67487.png) variable
+    to adjust the exploration throughout all the training, using linear ![](img/8ec787b5-7c40-4a5a-a8b4-cd885d8f2355.png) decay.
+    Now that the exploration is built into the policy, at most, we have to add a term
+    (the entropy) in the loss function in order to incentivize it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On-policy PG
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: A very important aspect of policy gradient algorithms is that they are *on-policy*.
+    Their on-policy nature comes from the formula (6.4), as it is dependent on the
+    current policy. Thus, unlike off-policy algorithms such as DQN, on-policy methods
+    aren't allowed to reuse old experiences.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This means that all the experience that has been collected with a given policy
+    has to be discarded once the policy changes. As a side effect, policy gradient
+    algorithms are less sample efficient, meaning that they are required to gain more
+    experience to reach the same performance as the off-policy counterpart. Moreover,
+    they usually tend to generalize slightly worse.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the REINFORCE algorithm
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The core of policy gradient algorithms has already been covered, but we have
+    another important concept to explain. We are yet to look at how action values
+    are computed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We already saw with the formula (6.4):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6455ffe3-0183-406a-9a13-25258d760860.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: that we are able to estimate the gradient of the objective function by sampling
+    directly from the experience that is collected following the *[![](img/6cf0573f-766a-4776-a94f-18061e74eb65.png)]*
+    policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The only two terms that are involved are the values of [![](img/80fd981c-9df3-4958-aa68-bdfda5ee263a.png)] and
+    the derivative of the logarithm of the policy, which can be obtained through modern
+    deep learning frameworks (such as TensorFlow and PyTorch). While we defined [![](img/6cf0573f-766a-4776-a94f-18061e74eb65.png)],
+    we haven't explained how to estimate the action-value function, yet.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The simpler way, introduced for the first time in the REINFORCE algorithm by
+    Williams, is to estimate the return is using **Monte Carlo** (**MC**) returns.
+    For this reason, REINFORCE is considered an MC algorithm. If you remember, MC
+    returns are the return values of sampled trajectories run with a given policy.
+    Thus, we can rewrite equation (6.4), changing the action-value function, [![](img/62ce1473-0e9d-40ab-8380-0a8582619415.png)],
+    with the MC return, [![](img/b1c3bbc1-40ca-430b-9d92-5de9efad9894.png)]:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/7105239c-6d19-41c4-91fc-ef132185c2ba.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The ![](img/99c1ce90-6620-46ac-8ab2-f040e9e4f939.png) return is computed from
+    a complete trajectory, implying that the PG update is available only after![](img/674dc43c-0ce5-40ad-9c80-59cbf1c101b8.png)
+    steps, where ![](img/0d80fa61-df32-4816-8ec3-6fa90e1e9de2.png) is the total number
+    of steps in a trajectory. Another consequence is that the MC return is well defined
+    only in episodic problems, where there is an upper bound to the maximum number
+    of steps (the same conclusions that we came up with in the other MC algorithms
+    that we previously learned).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To get more practical, the discounted return at time ![](img/61b732c8-d3ab-4f9a-84fb-55930cb8428f.png),
+    which can also be called the *reward to go*, as it uses only future rewards, is
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e80d67af-90fc-4e63-b4e6-e5e752037fc7.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This can be rewritten recursively, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/14e68d1c-fbe4-4af4-b9e6-372e070041d3.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This function can be implemented by proceeding in reverse order, starting from
+    the last reward, as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, in the first place, a NumPy array is created, and the value of the last
+    reward is assigned to the `rtg` variable. This is done because, at time ![](img/ae84e3b5-19cc-44c1-85de-178788d74d91.png), ![](img/7b3ac824-c869-4c08-b21e-d523ff5f84e3.png).
+    Then, the algorithm computes `rtg[i]` backward, using the subsequent value.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The main cycle of the REINFORCE algorithm involves running a few epochs until
+    it gathers enough experience, and optimizing the policy parameter. To be effective,
+    the algorithm has to complete at least one epoch before performing the update
+    step (it needs at least a full trajectory to compute the reward to go (![](img/ce76b287-a263-4070-81d0-e973431e5bbd.png))).
+    REINFORCE is summarized in the following pseudocode:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Implementing REINFORCE
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: It's time to implement REINFORCE. Here, we provide a mere implementation of
+    the algorithm, without the procedures for its debugging and monitoring. The complete
+    implementation is available in the GitHub repository. So, make sure that you check
+    it out.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The code is divided into three main functions, and one class:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`REINFORCE(env_name, hidden_sizes, lr, num_epochs, gamma, steps_per_epoch)`:
+    This is the function that contains the main implementation of the algorithm.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`Buffer`: This is a class that is used to temporarily store the trajectories.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`mlp(x, hidden_layer, output_size, activation, last_activation)`: This is used
+    to build a multi-layer perceptron in TensorFlow.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`discounted_rewards(rews, gamma)`: This computes the discounted reward to go.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We'll first look at the main `REINFORCE` function, and then implement the supplementary
+    functions and class.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `REINFORCE `function is divided into two main parts. In the first part,
+    the computational graph is created, while in the second, the environment is run
+    and the policy is optimized cyclically until a convergence criterion is met.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `REINFORCE` function takes the name of the `env_name` environment as the
+    input, a list with the sizes of the hidden layers—`hidden_sizes`, the learning
+    rate—`lr`, the number of training epochs—`num_epochs`, the discount value—`gamma`,
+    and the minimum number of steps per epoch—`steps_per_epoch`. Formally, the heading
+    of `REINFORCE` is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'At the beginning of `REINFORCE(..)`, the TensorFlow default graph is reset,
+    an environment is created, the placeholder is initialized, and the policy is created.
+    The policy is a fully connected multi-layer perceptron, with an output for each
+    action, and `tanh` activation, on each hidden layer. The outputs of the multi-layer
+    perceptron are the unnormalized values of the actions, called logits. All this
+    is done in the following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can then create an operation that will compute the loss function, and one
+    that will optimize the policy. The code is similar to the code that we saw earlier,
+    in the *The policy* section. The only difference is that now the actions are sampled
+    by `tf.random.multinomial` , which follows the action distribution that is returned
+    by the policy. This function draws samples from a categorical distribution. In
+    our case, it chooses a single action (depending on the environment, it could be
+    more than one action).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following snippet is the implementation of the REINFORCE update:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: A mask is created over the actions that are chosen during the interaction with
+    the environment and multiplied by `log_softmax` in order to obtain ![](img/80cb1341-b1db-4b7f-91f8-618d43bad519.png). Then,
+    the full loss function is computed. Be careful—there is a minus sign before `tf.reduce_sum`.
+    We are interested in the maximization of the objective function. But because the
+    optimizer needs a function to minimize, we have to pass a loss function. The last
+    line optimizes the PG loss function using `AdamOptimizer`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We are now ready to start a session, reset the global variables of the computational
+    graph, and initialize some further variables that we''ll use later:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we create the two inner cycles that will interact with the environment
+    to gather experience and optimize the policy, and print a few statistics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: The two cycles follow the usual flow, with the exception that the interaction
+    with the environment stops whenever the trajectory ends, and the temporary buffer
+    has enough transitions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can now implement the `Buffer` class that contains the data of the trajectories:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And finally, we can implement the function that creates the neural network
+    with an arbitrary number of hidden layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, `activation` is the non-linear function that is applied to the hidden
+    layers, and `last_activation` is the non-linearity function that is applied to
+    the output layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Landing a spacecraft using REINFORCE
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The algorithm is complete however, the most interesting part has yet to be explained.
+    In this section, we'll apply REINFORCE to `LunarLander-v2`, an episodic Gym environment
+    with the aim of landing a lunar lander.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following is a screenshot of the game in its initial position, and a hypothetical
+    successful final position:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b23124f7-ca9a-40e2-8d2f-294d33d31aab.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This is a discrete problem, and the lander has to land at coordinates (0,0),
+    with a penalty if it lands far from that point. The lander has a positive reward
+    when it moves from the top of the screen to the bottom, but when it fires the
+    engine to slow down, it loses 0.3 points on each frame.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Moreover, depending on the conditions of the landing, it receives an additional
+    -100 or +100 points. The game is considered solved with a total of 200 points.
+    Each game is run for a maximum of 1,000 steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For that last reason, we'll gather at least 1,000 steps of experience, to be
+    sure that at least one full episode has been completed (this value is set by the
+    `steps_per_epoch` hyperparameter).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'REINFORCE is run calling the function with the following hyperparameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: Analyzing the results
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Throughout the learning, we monitored many parameters, including `p_loss` (the
+    loss of the policy), `old_p_loss` (the policy's loss before the optimization phase),
+    the total rewards, and the length of the episodes, in order to get a better understanding
+    of the algorithm, and to properly tune the hyperparameters. We also summarized
+    some histograms. Look at the code in the book's repository to learn more about
+    the TensorBoard summaries!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the following figure, we have plotted the mean of the total rewards of the
+    full trajectories that were obtained during training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/738017d2-2d7e-46aa-b2cd-4159ce1a0cd6.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: From this plot, we can see that it reaches a mean score of 200, or slightly
+    less, in about 500,000 steps; therefore requiring about 1,000 full trajectories,
+    before it is able to master the game.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When plotting the training performance, remember that it is likely that the
+    algorithm is still exploring. To check whether this is true, monitor the entropy
+    of the actions. If it''s higher than 0, it means that the algorithm is uncertain
+    about the actions selected, and it will keep exploring—choosing the other actions,
+    and following their distribution. In this case, after 500,000 steps, the agent
+    is also exploring the environment, as shown in the following plot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/09e63e62-ee86-4032-8ec3-3459730ece14.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: REINFORCE with baseline
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: REINFORCE has the nice property of being unbiased, due to the MC return, which
+    provides the true return of a full trajectory. However, the unbiased estimate
+    is to the detriment of the variance, which increases with the length of the trajectory. Why?
+    This effect is due to the stochasticity of the policy. By executing a full trajectory,
+    you would know its true reward. However, the value that is assigned to each state-action
+    pair may not be correct, since the policy is stochastic, and executing it another
+    time may lead to a new state, and consequently, a different reward. Moreover,
+    you can see that the higher the number of actions in a trajectory, the more stochasticity
+    you will have introduced into the system, therefore, ending up with higher variance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Luckily, it is possible to introduce a baseline, ![](img/9a81020c-7604-437d-8bc7-2e35a47209c9.png),
+    in the estimation of the return, therefore decreasing the variance, and improving
+    the stability and performance of the algorithm. The algorithms that adopt this
+    strategy is called **REINFORCE** with baseline, and the gradient of its objective
+    function is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a23a9b32-1a0c-4f25-a33f-89ae7bb58c97.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This trick of introducing a baseline is possible, because the gradient estimator
+    still remains unchanged in bias:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d7f552ec-7f1f-4340-b684-0f0ede810167.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: At the same time, for this equation to be true, the baseline must be a constant
+    with respect to the actions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our job now is to find a good ![](img/94943530-1306-4e84-984e-e6af2b7ca089.png)
+    baseline. The simplest way is to subtract the average return.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/48c9de86-fd72-4f33-a17a-e8d21d185829.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'If you would like to implement this in the REINFORCE code, the only change
+    is in the `get_batch()` function of the `Buffer` class:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Although this baseline decreases the variance, it''s not the best strategy.
+    As the baseline can be conditioned on the state, a better idea is to use an estimate
+    of the value function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/cd704c56-e37e-4f18-860a-fd35b85acf00.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Remember that the ![](img/4f0a54d4-2ee9-43e5-b13f-f4e28cf2f16b.png) value function
+    is, on average, the return that is obtained following the ![](img/ff4f4ab5-b993-4e8a-9be3-1b581925803c.png)
+    policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This variation introduces more complexity into the system, as we have to design
+    an approximation of the value function, but it's very common to use, and it considerably
+    increases the performance of the algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To learn ![](img/0d4c296b-488f-479e-b008-bfa7f9a5388e.png), the best solution
+    is to fit a neural network with MC estimates:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8747c6e4-8e9e-439b-b8db-c0dbb5913b75.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In the preceding equation, ![](img/4f581b80-60d7-46c9-8188-737e83a0c188.png) is
+    the parameters of the neural network to be learned.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In order to not overrun the notation, from now on, we'll neglect to specify
+    the policy, so that ![](img/35844138-3049-42c1-b4b6-67d55ada95e5.png) will become ![](img/40c76756-1c31-42c1-afbb-0c17efb507e4.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The neural network is trained on the same trajectories'' data that is used
+    for learning ![](img/76bcd8d3-a24b-41c2-b16b-84cfdbe47bdd.png), without requiring
+    additional interaction with the environment. Once computed, the MC estimates,
+    for example, with `discounted_rewards(rews, gamma)`, will become the ![](img/512d6543-23dd-4aac-b864-4ec3642a4a86.png)
+    target values, and the neural network will be optimized in order to minimize the
+    mean square error (MSE) loss—just as you''d do in a supervised learning task:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/cbe98b06-473b-4ca4-823a-dc4dafbcb72c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/aeca18ae-fab6-443e-b0a6-d6237d029998.png) is the weights of the
+    value function neural network, and each element of the dataset contains the ![](img/dbeecb7f-e955-4daf-9d4b-06ca14894ff8.png)
+    state, and the target value ![](img/4ee8929c-cacf-4a63-933f-c63dfee82aeb.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing REINFORCE with baseline
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The value function that baseline approximated with a neural network can be
+    implemented by adding a few lines to our previous code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Add the neural network, the operations for computing the MSE loss function,
+    and the optimization procedure to the computational graph:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Run `s_values`, and store the ![](img/0037c50a-75e4-49bb-b6b0-ab2095b92691.png)predictions,
+    as later we''ll need to compute ![](img/8df6a5dd-8373-4462-961f-805dc3f8eba3.png).
+    This operation can be done in the innermost cycle (the differences from the REINFORCE
+    code are shown in bold):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Retrieve `rtg_batch`, which contains the "target" values from the buffer, and
+    optimize the value function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Compute the reward to go (![](img/f0dd0b06-c9c8-43ee-940e-8e21ac00b4ac.png)),
+    and the target values ![](img/de87b8d5-2dfe-4c84-b1f7-af49aba9e641.png). This
+    change is done in the `Buffer` class. We have to create a new empty `self.rtg`
+    list in the initialization method of the class, and modify the `store` and `get_batch`
+    functions, as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: You can now test the REINFORCE with baseline algorithm on whatever environment
+    you want, and compare the performance with the basic REINFORCE implementation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Learning the AC algorithm
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Simple REINFORCE has the notable property of being unbiased, but it exhibits
+    high variance. Adding a baseline reduces the variance, while keeping it unbiased
+    (asymptotically, the algorithm will converge to a local minimum). A major drawback
+    of REINFORCE with baseline is that it'll converge very slowly, requiring a consistent
+    number of interactions with the environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: An approach to speed up training is called bootstrapping. This is a technique
+    that we've already seen many times throughout the book. It allows the estimation
+    of the return values from the subsequent state values. The policy gradient algorithms
+    that use this techniques is called actor-critic (AC). In the AC algorithm, the
+    actor is the policy, and the critic is the value function (typically, a state-value
+    function) that "critiques" the behavior of the actor, to help him learn faster. The
+    advantages of AC methods are multiple, but the most important is their ability
+    to learn in non-episodic problems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It's not possible to solve continuous tasks with REINFORCE, as to compute the
+    reward to go, they need all the rewards until the end of the trajectory (if the
+    trajectories are infinite, there is no end). Relying on the bootstrapping technique,
+    AC methods are also able to learn action values from incomplete trajectories.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using a critic to help an actor to learn
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The action-value function that uses one-step bootstrapping is defined as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b8a275fb-6b31-4f5d-ac38-f809d016d179.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/b0dac0f6-61a1-4938-a6dd-6c3420dcce52.png) is the notorious next state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Thus, with an ![](img/3e0578d1-d7b6-4d9a-9346-71df6842bea9.png) actor, and
+    a ![](img/bd9cfb2d-0a7d-4f54-9b50-e2bb986c5bf0.png) critic using bootstrapping,
+    we obtain a one-step AC step:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0b0dacf6-6010-4b45-b86c-b744ef400c29.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This will replace the REINFORCE step with a baseline:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8de0363f-6c5d-4c22-bd2d-01f4a07d7738.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Note the difference between the use of the state-value function in REINFORCE
+    and AC. In the former, it is used only as a baseline, to provide the state value
+    of the current state. In the latter example, the state-value function is used
+    to estimate the value of the next state, so as to only require the current reward
+    to estimate ![](img/0745c16f-3926-466d-9316-31a1f3bdbbaf.png). Thus, we can say
+    that the one-step AC model is a fully online, incremental algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The n-step AC model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In reality, as we already saw in TD learning, a fully online algorithm has low
+    variance but high bias, the opposite of MC learning. However, usually, a middle-ground strategy,
+    between fully online and MC methods, is preferred. To balance this trade-off,
+    an n-step return can replace a one-step return of online algorithms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you remember, we already implemented n-step learning in the DQN algorithm.
+    The only difference is that DQN is an off-policy algorithm, and in theory, n-step
+    can be employed only on on-policy algorithms. Nevertheless, we showed that with
+    a small ![](img/298ede41-f52b-47b1-b30d-bce9761e87bb.png), the performance increased.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'AC algorithms are on-policy, therefore, as far as the performance increase
+    goes, it''s possible to use arbitrary large ![](img/150066f6-e6c8-4530-8594-857271431f41.png) values.
+    The integration of n-step in AC is pretty straightforward; the one-step return
+    is replaced by ![](img/6d88c26c-8b10-4908-8a5c-137d77e8c487.png), and the value
+    function is taken in the ![](img/93cfe315-7e80-4559-84f7-64247c471eba.png) state:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f5a7b562-3d72-4b5b-a82b-1b5c491644bd.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/b03016a1-1fb3-45ec-93e4-1cbfaa795bd2.png). Pay attention here
+    to how, if ![](img/ded9562c-a399-4da7-b4f9-f63eb41c13d9.png) is a final state, ![](img/bdabdf88-e089-4606-a3ed-eae8804cb52e.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Besides reducing the bias, the n-step return propagates the subsequent returns
+    faster, making the learning much more efficient.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Interestingly, the ![](img/ac9730d0-848f-492e-91b9-323c0ab42870.png)quantity
+    can be seen as an estimate of the advantage function. In fact, the advantage function
+    is defined as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ef6264dd-3aa0-4949-a184-b5d2c7bd4e69.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Due to the fact that ![](img/68902dba-0710-4680-97f7-ddb38b1e7c5c.png) is an
+    estimate of ![](img/8d5a0ace-b449-4f15-8396-d61102b8254c.png), we obtain an estimate
+    of the advantage function. Usually, this function is easier to learn, as it only
+    denotes the preference of one particular action over the others in a particular
+    state. It doesn't have to learn the value of that state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Regarding the optimization of the weights of the critic, it is optimized using
+    one of the well-known SGD optimization methods, minimizing the MSE loss:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/4d75e122-9f78-42ae-bf15-f5b497f411f0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In the previous equation, the target values are computed as follows: ![](img/1c87dffc-1161-4c82-9c9b-053e1098d5a2.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The AC implementation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Overall, as we have seen so far, the AC algorithm is very similar to the REINFORCE
+    algorithm, with the state function as a baseline. But, to provide a recap, the
+    algorithm is summarized in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: The only differences with REINFORCE are the calculation of the n-step reward
+    to go, the advantage function calculation, and a few adjustments of the main function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s first look at the new implementation of the discounted reward. Differently
+    to before, the estimated value of the last `last_sv` state is now passed in the
+    input and is used to bootstrap, as given in the following implementation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: The computational graph doesn't change, but in the main cycle, we have to take
+    care of a few small, but very important, changes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Obviously, the name of the function is changed to `AC`, and the learning rate
+    of the `cr_lr` critic is added as an argument.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first actual change involves the way in which the environment is reset.
+    If, in REINFORCE, it was preferred to reset the environment on every iteration
+    of the main cycle, in AC, we have to resume the environment from where we left
+    off in the previous iteration, resetting it only when it reaches its final state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The second change involves the way in which the action-value function is bootstrapped,
+    and how the reward to go is calculated. Remember that ![](img/6cb365a1-c652-4002-8935-7a268cd532e6.png) for
+    every state-action pair, except in the case of when ![](img/3657e493-86d3-42ff-9550-ed4ec30b965f.png)
+    is a final state. In this case, ![](img/f60da65c-1493-4b3b-917d-714c659448a8.png). Thus,
+    we have to bootstrap with a value of `0`, whenever we are in the last state, and
+    bootstrap with ![](img/057c60da-c9c2-4750-993b-8af4fd807af8.png) in all the other
+    cases. With these changes, the code is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The third change is in the `store` method of the `Buffer` class. In fact, now,
+    we also have to deal with incomplete trajectories. In the previous snippet, we
+    saw that the estimated ![](img/057c60da-c9c2-4750-993b-8af4fd807af8.png) state
+    values are passed as the third argument to the `store` function. Indeed, we use
+    them to bootstrap and to compute the reward to go. In the new version of `store`,
+    we call the variable that is associated with the state values, `last_sv`, and
+    pass it as the input to the `discounted_reward` function, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: Landing a spacecraft using AC
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We applied AC to LunarLander-v2, the same environment used for testing REINFORCE.
+    It is an episodic game, and as such, it doesn't fully emphasize the main qualities
+    of the AC algorithm. Nonetheless, it provides a good testbed, and you can freely
+    test it in another environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We call the `AC` function with the following hyperparameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The resulting plot that shows the total reward accumulated in the training
+    epochs is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/898b67e6-f59f-42db-8618-b8a038f456a8.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'You can see that AC is faster than REINFORCE, as shown in the following plot.
+    However, it is less stable, and after about 200,000 steps, the performance declines
+    a little bit, fortunately continuing to increment afterward:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e162f2ae-1142-428e-8fd9-fe438e87125e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In this configuration, the AC algorithm updates the actor and critic every 100
+    steps. In theory, you could use a smaller `steps_per_epochs` but, usually, it
+    makes the training more unstable. Using a longer epoch can stabilize the training,
+    but the actor learns more slowly. It's all about finding a good trade-off and
+    good learning rates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For all the color references mentioned in the chapter, please refer to the color
+    images bundle at [http://www.packtpub.com/sites/default/files/downloads/9781789131116_ColorImages.pdf](http://www.packtpub.com/sites/default/files/downloads/9781789131116_ColorImages.pdf).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Advanced AC, and tips and tricks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'There are several further advancements of AC algorithms, and there are many
+    tips and tricks to keep in mind, while designing such algorithms:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Architectural design**: In our implementation, we implemented two distinct
+    neural networks, one for the critic, and one for the actor. It''s also possible
+    to design a neural network that shares the main hidden layers, while keeping the
+    heads distinct. This architecture can be more difficult to tune, but overall,
+    it increases the efficiency of the algorithms.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Parallel environments**: A widely adopted technique to decrease the variance
+    is to collect experience from multiple environments in parallel. The **A3C** (**Asynchronous
+    Advantage Actor-Critic**) algorithm updates the global parameters asynchronously.
+    Instead, the synchronous version of it, called **A2C** (**Advantage Actor-Critic**)
+    waits for all of the parallel actors to finish before updating the global parameters.
+    The agent parallelization ensures more independent experience from different parts
+    of the environment.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Batch size**: With respect to other RL algorithms (especially off-policy
+    algorithms), policy gradient and AC methods need large batches. Thus, if after
+    tuning the other hyperparameters, the algorithm doesn''t stabilize, consider using
+    a larger batch size.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Learning rate**: Tuning the learning rate in itself is very tricky, so make
+    sure that you use a more advanced SGD optimization method, such as Adam or RMSprop.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we learned about a new class of reinforcement learning algorithms
+    called policy gradients. They approach the RL problem in a different way, compared
+    to the value function methods that were studied in the previous chapters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The simpler version of PG methods is called REINFORCE, which was learned, implemented,
+    and tested throughout the course of this chapter. We then proposed adding a baseline
+    in REINFORCE in order to decrease the variance and increase the convergence property
+    of the algorithm. AC algorithms are free from the need for a full trajectory using
+    a critic, and thus, we then solved the same problem using the AC model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With a solid foundation of the classic policy gradient algorithms, we can now
+    go further. In the next chapter, we'll look at some more complex, state-of-the-art
+    policy gradient algorithms; namely, **Trust Region Policy Optimization** (**TRPO**)
+    and **Proximal Policy Optimization** (**PPO**). These two algorithms are built
+    on top of the material that we have covered in this chapter, but additionally,
+    they propose a new objective function that improves the stability and efficiency
+    of PG algorithms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: How do PG algorithms maximize the objective function?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What's the main idea behind policy gradient algorithms?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Why does the algorithm remain unbiased when introducing a baseline in REINFORCE?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What broader class of algorithms does REINFORCE belong to?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How does the critic in AC methods differ from a value function that is used
+    as a baseline in REINFORCE?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: If you had to develop an algorithm for an agent that has to learn to move, would
+    you prefer REINFORCE or AC?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Could you use an n-step AC algorithm as a REINFORCE algorithm?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To learn about an asynchronous version of the actor-critic algorithm, read [https://arxiv.org/pdf/1602.01783.pdf](https://arxiv.org/pdf/1602.01783.pdf).
+  prefs: []
+  type: TYPE_NORMAL

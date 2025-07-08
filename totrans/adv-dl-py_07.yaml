@@ -1,0 +1,1777 @@
+- en: Generative Models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous two chapters ([Chapter 4](433225cc-e19a-4ecb-9874-8de71338142d.xhtml),*Advanced
+    Convolutional Networks*, and [Chapter 5](9ac88546-8662-4b23-aa96-7eb00f48fedb.xhtml),
+    *Object Detection and Image Segmentation*), we focused on supervised computer
+    vision problems, such as classification and object detection. In this chapter,
+    we'll discuss how to create new images with the help of unsupervised neural networks. After
+    all, it's a lot better knowing that you don't need labeled data. More specifically,
+    we'll talk about generative models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This chapter will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Intuition and justification of generative models
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Introduction to **Variational Autoencoders** (**VAEs**)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Introduction to **Generative Adversarial Networks** (**GANs**)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Types of GAN
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Introducing to artistic style transfer
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Intuition and justification of generative models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'So far, we''ve used neural networks as **discriminative models**. This simply means that,
+    given input data, a discriminative model will map it to a certain label (in other
+    words, a classification). A typical example is the classification of MNIST images
+    in 1 of 10 digit classes, where the neural network maps input data features (pixel
+    intensities) to the digit label. We can also say this in another way: a discriminative model gives
+    us the probability of [![](img/b238f670-d7e7-44c2-8206-3eef71a5182a.png)] (class),
+    given [![](img/d7261168-d220-4861-80e7-8703f5e681a0.png)] (input). In the case
+    of MNIST, this is the probability of the digit when given the pixel intensities
+    of the image.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the other hand, a generative model learns how classes are distributed. You
+    can think of it as the opposite of what the discriminative model does. Instead
+    of predicting the class probability, [![](img/2a4f73c5-6ad5-4785-b1aa-0d2305853f43.png)],
+    given certain input features, it tries to predict the probability of the input
+    features when given a class, [![](img/0f43e650-3720-4ac8-a1a3-f729a3edd573.png) ]- [![](img/74f689dd-1cca-47e1-9348-0b06933bde17.png)].
+    For example, a generative model will be able to create an image of a handwritten
+    digit when given the digit class. Since we only have 10 classes, it will be able
+    to generate just 10 images. However, we've only used this example to illustrate
+    this concept. In reality, the [![](img/6e740484-c601-46eb-9648-9c3ca3d93f76.png)] *class*
+    could be an arbitrary tensor of values, and the model would be able to generate
+    an unlimited number of images with different features. If you don't understand
+    this now, don't worry; we'll look at many examples throughout this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Throughout this chapter, we'll denote probability distribution with a lower-case
+    *p*, rather than the usual upper-case *P* that we used in the previous chapters.
+    We are doing this to follow the convention that has been established in the context
+    of VAEs and GANs. While writing this book, I couldn't find a definitive reason
+    to use lower-case, but one possible explanation is that *P* denotes the probability
+    of events, while *p* denotes the probability of the mass (or density) functions
+    of a random variable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Two of the most popular ways to use neural networks in a generative way is via
+    VAEs and GANs. In the next section, we'll introduce VAEs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introduction to VAEs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To understand VAEs, we need to talk about regular autoencoders. An autoencoder
+    is a feed-forward neural network that tries to reproduce its input. In other words,
+    the target value (label) of an autoencoder is equal to the input data, **y***^i =*
+    **x***^i*, where *i* is the sample index. We can formally say that it tries to
+    learn an identity function, [![](img/1f499b17-4a29-411c-b7cc-4102c4f87f1c.png)] (a
+    function that repeats its input). Since our labels are just input data, the autoencoder
+    is an unsupervised algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following diagram represents an autoencoder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/7ab06d46-2566-4471-ad60-891eeedf7a21.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: An autoencoder
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'An autoencoder consists of input, hidden (or bottleneck), and output layers.
+    Similar to U-Net ([Chapter 4](9ac88546-8662-4b23-aa96-7eb00f48fedb.xhtml)*, Object
+    Detection and Image Segmentation*), we can think of the autoencoder as a virtual
+    composition of two components:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Encoder**: Maps the input data to the network''s internal representation.
+    For the sake of simplicity, in this example the encoder is a single, fully connected
+    hidden bottleneck layer. The internal state is just its activation vector. In
+    general, the encoder can have multiple hidden layers, including convolutional
+    ones.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Decoder**: Tries to reconstruct the input from the network''s internal data
+    representation. The decoder can also have a complex structure that typically mirrors
+    the encoder. While U-Net tries to translate the input image into a target image
+    of some other domain (for example, a segmentation map), the autoencoder simply
+    tries to reconstruct its input.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We can train the autoencoder by minimizing a loss function, which is known as
+    the **reconstruction** **error**,** [![](img/59cf2229-1f46-4abc-9e7f-12cf96347b03.png)]**.
+    It measures the distance between the original input and its reconstruction. We
+    can minimize it in the usual way, that is, with gradient descent and backpropagation.
+    Depending on the approach we use, we can use either use **mean square error**
+    (**MSE**) or binary cross-entropy (such as cross-entropy, but with two classes)
+    as reconstruction errors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'At this point, you may be wondering what the point of the autoencoder is since
+    it just repeats its input. However, we aren''t interested in the network output,
+    but in its internal data representation (which is also known as representation
+    in the **latent space**). The latent space contains hidden data features that
+    are not directly observed but are inferred by the algorithm instead. The key is
+    that the bottleneck layer has fewer neurons than the input/output ones. There
+    are two main reasons for this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Because the network tries to reconstruct its input from a smaller feature space,
+    it learns a compact representation of the data. You can think of this as compression
+    (but not lossless).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'By using fewer neurons, the network is forced to learn only the most important
+    features of the data. To illustrate this concept, let''s look at denoising autoencoders,
+    where we intentionally use corrupted input data, but non-corrupted target data
+    during training. For example, if we train a denoising autoencoder to reconstruct
+    MNIST images, we can introduce noise by setting the max intensity (white) to random
+    pixels of the image (as shown in the following screenshot). To minimize the loss
+    with the noiseless target, the autoencoder is forced to look beyond the noise
+    in the input and learn only the important features of the data. However, if the
+    network had more hidden neurons than input, it might overfit on the noise. With
+    the additional constraint of fewer hidden neurons, it can only try to ignore the
+    noise. Once trained, we can use a denoising autoencoder to remove the noise from
+    real images:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/7e476cb7-0952-4ef5-a08c-0778be517c82.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Denoising autoencoder input and target
+  prefs: []
+  type: TYPE_NORMAL
+- en: The encoder maps each input sample to the latent space, where each attribute
+    of the latent representation has a discrete value. This means that an input sample
+    can have only one latent representation. Therefore, the decoder can reconstruct
+    the input in only one possible way. In other words, we can generate a single reconstruction
+    of one input sample. But we don't want this. Instead, we want to generate new
+    images that are different from the original ones. VAEs are one possible solution
+    to this task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A VAE can describe a latent representation in probabilistic terms. That is,
+    instead of discrete values, we'll have a probability distribution for each latent
+    attribute, making the latent space continuous. This makes it easier for random
+    sampling and interpolation. Let's illustrate this with an example. Imagine that
+    we are trying to encode an image of a vehicle and our latent representation is
+    a vector, **z**, with *n* elements (*n* neurons in the bottleneck layer). Each
+    element represents one vehicle property, such as length, height, and width (as
+    shown in the following diagram).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Say that the average vehicle length is four meters. Instead of the fixed value,
+    the VAE can decode this property as a normal distribution with a mean of 4 (the
+    same applies for the others). Then, the decoder can choose to sample a latent
+    variable from the range of its distribution. For example, it can reconstruct a
+    longer and lower vehicle compared to the input. By doing this, the VAE can generate
+    an unlimited number of modified versions of the input:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ca7963b1-63c9-4dfe-acec-3412d9b389b4.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: An example of a variational encoder sampling different values from the distribution
+    ranges of the latent variables
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s formalize this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The goal of the encoder is to approximate the real probability distribution, ![](img/1a3c9132-2603-4a19-a100-3b9ffb3f270a.png),
+    where **z** is the latent space representation. However, it does so indirectly
+    by inferring ![](img/731217cc-21d3-498b-a99e-66c5d60d5ddb.png) from the conditional
+    probability distribution of various samples, ![](img/f9ae7213-2ff8-4851-b65a-ac6c51503a03.png),
+    where **x** is the input data. In other words, the encoder tries to learn the
+    probability distribution of **z**, given the input data, **x**. We'll denote the
+    encoder's approximation of ![](img/447524c7-6c0e-4a74-9e66-2351ba3595f7.png) with
+    ![](img/987d3cac-ffcf-4c5c-8763-91cc83c75624.png), where *φ* are the weights of
+    the network. The encoder output is a probability distribution (for example, Gaussian)
+    over the possible values of **z**, which could have been generated by **x**. During
+    training, we continuously update the weights, *φ*, to bring ![](img/73ef9a85-0440-413a-a935-5a8a41a5e66d.png)closer
+    to the real ![](img/c80bd4e2-4ee1-4571-93ed-63d288c45a17.png)*.*
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The goal of the decoder is to approximate the real probability distribution, ![](img/e6ee0e0b-6516-405c-8cd4-d91e35893f01.png). In
+    other words, the decoder tries to learn the conditional probability distribution
+    of the data, *x*, given the latent representation, **z**. We'll denote the decoder's
+    approximation of the real probability distribution with ![](img/3087226a-ff1d-475b-b8a9-645b704cb330.png) ,
+    where *θ* is the decoder weights. The process starts by sampling **z** stochastically
+    (randomly) from the probability distribution (for example, Gaussian). Then, **z**
+    is sent through the decoder, whose output is a probability distribution over the
+    possible corresponding values of *x*. During training, we continuously update
+    the weights, *θ*, to bring ![](img/063bdfe0-14c3-4117-96d6-858379046b64.png)closer
+    to the real ![](img/bdb62cc6-5642-48ba-80cf-367f36e30fdd.png)*.*
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The VAE uses a special type of loss function with two terms:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/375738b8-6acf-4617-b579-8eb9ff731667.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The first is the Kullback-Leibler divergence ([Chapter 1](b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml),
+    *The Nuts and Bolts of Neural Networks*) between the probability distribution, ![](img/0a69f896-e2f3-4a73-a147-e7e14a41870f.png), and
+    the expected probability distribution, ![](img/feeaa04b-54f9-4ce2-b225-29dbcaf4d4a8.png).
+    In this context, it measures how much information is lost when we use ![](img/0141d506-ca77-486d-9793-10b0cf619839.png) to
+    represent ![](img/03768c4c-840a-46b2-a849-0b935a8c36ea.png) (in other words, how
+    close the two distributions are). It encourages the autoencoder to explore different
+    reconstructions. The second is the reconstruction loss, which measures the difference
+    between the original input and its reconstruction. The more they differ, the more
+    it increases. Therefore, it encourages the autoencoder to reconstruct data in
+    a better way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To implement this, the bottleneck layer won''t directly output latent state
+    variables. Instead, it will output two vectors, which describe the **mean** and **variance** of
+    the distribution of each latent variable:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0d2e5729-4a36-4ee0-b2e3-4bd93d3a5c2b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Variational encoder sampling
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once we have the mean and variance distributions, we can sample a state, **z**,
+    from the latent variable distributions and pass it through the decoder for reconstruction.
+    But we can''t celebrate yet. This presents us with another problem: backpropagation
+    doesn''t work over random processes such as the one we have here. Fortunately,
+    we can solve this with the so-called **reparameterization trick**. First, we''ll sample a
+    random vector, ε, with the same dimensions as **z** from a Gaussian distribution
+    (the ε circle in the preceding diagram). Then, we''ll shift it by the latent distribution''s
+    mean, μ, and scale it by the latent distribution''s variance, σ:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/966588f8-306a-4935-b6e9-9ddfa2b931e5.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In this way, we'll be able to optimize the mean and variance (red arrows) and
+    we'll omit the random generator from the backward pass. At the same time, the
+    sampled data will have the properties of the original distribution. Now that we've
+    introduced VAEs, we'll learn how to implement one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating new MNIST digits with VAE
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we'll learn how a VAE can generate new digits for the MNIST dataset.
+    We'll use Keras under TF 2.0.0 to do so. We chose MNIST because it will illustrate
+    VAE's generative capabilities well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The code in this section is partially based on [https://github.com/keras-team/keras/blob/master/examples/variational_autoencoder.py](https://github.com/keras-team/keras/blob/master/examples/variational_autoencoder.py).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s go through the implementation, step by step:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s start with the imports. We''ll use the Keras module, which is integrated
+    in TF:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we will instantiate the MNIST dataset. Recall that in [Chapter 2](d94e220f-820e-40da-8bb5-9593e0790b21.xhtml)*,
+    Understanding Convolutional Networks*, we implemented a transfer learning example
+    with TF/Keras, where we used the `tensorflow_datasets` module to load the CIFAR-10
+    dataset. In this example, we''ll use the `keras.datasets` module to load MNIST,
+    which also works:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we''ll implement the `build_vae` function, which will build the VAE:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We'll have separate access to the encoder, decoder, and the full network. The
+    function will return them as a tuple.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The bottleneck layer will have only `2` neurons (that is, we'll have only `2` latent
+    variables). In this way, we'll be able to display the latent distribution as a
+    2D plot.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The encoder/decoder will contain a single intermediate (hidden) fully-connected
+    layer with `512` neurons. This is not a convolutional network.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We'll use cross-entropy reconstruction loss and KL divergence.
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The following shows how this is implemented globally:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Immediately tied to the network definition is the `sampling` function, which
+    implements a random sampling of latent vectors `z` from the Gaussian unit (this
+    is the reparameterization trick we introduced in the *Introduction to VAEs* section):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we need to implement the `plot_latent_distribution` function. It collects
+    the latent representations of all the images in the test set and displays them
+    over a 2D plot. We can do this because our network has only two latent variables
+    (for the two axes of the plot). Note that to implement this we only need the `encoder`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we will implement the `plot_generated_images` function. It will sample
+    `n*n` vectors, `z`, in a `[-4, 4]` range for each of the two latent variables.
+    Next, it will generate images based on the sampled vectors and display them in
+    a 2D grid. Note that to do this we only need the `decoder`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, run the entirety of the code. We''ll use the Adam optimizer (introduced
+    in [Chapter 1](b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml),* The Nuts and Bolts
+    of Neural Networks*) to train the network for 50 epochs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If everything goes to plan, once the training is over, we''ll see the latent
+    distribution for each digit class for all the test images. The left and bottom
+    axes represent the `z[1]` and `z[2]` latent variables. Different marker shapes
+    represent different digit classes:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/f973f0aa-9c8b-4034-ada5-6c70f9d98baa.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The latent distributions of the MNIST test images
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we''ll look at the images that were generated by `plot_generated_images`.
+    The axes represent the particular latent distribution, `z`, that was used for
+    each image:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/9b6f48b1-6347-4cc5-a5d2-ce4e5f088f34.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Images generated by the VAE
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes our description of VAEs. In the next section, we'll discuss GANs—arguably
+    the most popular family of generative models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introduction to GANs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this section, we''ll talk about arguably the most popular generative model
+    today: the GAN framework. It was first introduced in 2014 in the landmark paper *Generative
+    Adversarial Nets *([http://papers.nips.cc/paper/5423-generative-adversarial-nets.pdf](http://papers.nips.cc/paper/5423-generative-adversarial-nets.pdf)).
+    The GAN framework can work with any type of data, but its most popular application
+    by far is to generate images, and we''ll discuss them in this context only. Let''s
+    see how it works:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/7c414189-7fd7-4213-8d98-b6d11719c1f8.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: A GAN system
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A GAN is a system of two components (neural networks):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Generator**: This is the generative model itself. It takes a probability distribution
+    (random noise) as input and tries to generate a realistic output image. Its purpose
+    is similar to the decoder part of the VAE.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Discriminator**: This takes two alternating inputs: real images of the training
+    dataset or generated fake samples from the generator. It tries to determine whether
+    the input image comes from the real images or the generated ones.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The two networks are trained together as a system. On the one hand, the discriminator
+    tries to get better at distinguishing between real and fake images. On the other
+    hand, the generator tries to output more realistic images so that it can *deceive*
+    the discriminator into thinking that the generated images are real. To use the
+    analogy in the original paper, you can think of the generator as a team of counterfeiters,
+    trying to produce fake currency. Conversely, the discriminator acts as a police
+    officer, trying to capture the fake money, and the two are constantly trying to
+    deceive each other (hence the name adversarial). The ultimate goal of the system
+    is to make the generator so good that the discriminator can't distinguish between
+    real and fake images. Even though the discriminator performs classification, a
+    GAN is still unsupervised, since we don't need labels for the images. In the next
+    section, we'll discuss the process of training in the context of the GAN framework.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training GANs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Our main goal is for the generator to produce realistic images, and the GAN
+    framework is a vehicle for that goal. We'll train the generator and the discriminator separately
+    and sequentially (one after the other) and alternate between the two phases multiple
+    times.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Before going into more detail, let''s use the following diagram to introduce
+    some notations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We'll denote the generator with ![](img/bcbbfa02-24dc-4482-b07e-8dd60e1fd713.png) ,
+    where ![](img/22bb18a4-d9b9-4556-a55a-c818717dac5a.png) is the network weights
+    and **z** is the latent vector, which serves as an input to the generator. Think
+    of it as a random seed value to kickstart the image-generation process. It is
+    similar to the latent vector in VAEs. **z** has a probability distribution, ![](img/e32bcba0-3230-458b-9a75-ba2001ad4ab5.png),
+    which is usually random normal or random uniform. The generator outputs fake samples,
+    **x**, with a probability distribution of ![](img/3d4a4e6e-4f50-4a75-bc4b-61e2a9191eea.png).
+    You can think of ![](img/7c9715b8-cb69-47a8-bcf0-b40d631cb7d4.png) as the probability
+    distribution of the real data according to the generator.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We'll denote the discriminator with ![](img/d2aeadec-72da-4c67-9ce4-3cdf4b4c2168.png),
+    where ![](img/3e467c31-98b4-4b30-a4db-baec41b4d099.png) is the network weights.
+    It takes either real data with the ![](img/d381bc4e-4576-48cd-8f6c-825cc69e46c4.png) distribution or
+    generated samples, ![](img/e1542f41-298c-44aa-ae40-6e0fcea895de.png), as input.
+    The discriminator is a binary classifier that outputs whether the input image
+    is part of the real (network output 1) or the generated data (network output 0).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: During training, we'll denote the discriminator and generator loss functions
+    with![](img/b9f92315-ed74-4577-a08b-781e7c1a4ddb.png) and ![](img/39905801-6028-4091-90d6-6d318e06f2ad.png) ,
+    respectively.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The following is a more detailed diagram of a GAN framework:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3e65a493-05b1-43fa-8f9d-4b24b32fd6e1.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: A detailed example of a GAN
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'GAN training is different compared to training a regular DNN because we have
+    two networks. We can think of it as a sequential minimax zero-sum game of two
+    players (generator and discriminator):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Sequential**: This means that the players take turns after one another, similar
+    to chess or tic-tac-toe (as opposed to simultaneously). First, the discriminator
+    tries to minimize ![](img/2c43645e-8a20-4d89-a7e4-9d0464cb1aa8.png), but it can
+    only do so by adjusting the weights, ![](img/13edf7a3-eec0-46e6-8180-7dfac3b1fae0.png).
+    Next, the generator tries to minimize ![](img/d7aa480b-9b21-4494-9186-b50a577d937b.png),
+    but it can only adjust the weights, ![](img/7a5ffc5f-0c61-4633-9950-bbf71baff3cd.png). We
+    repeat this process multiple times.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Zero-sum**: This means that the gains or losses of one player are balanced
+    by the gains or losses of the opposite player. That is, the sum of the generator''s
+    loss and the discriminator''s loss is always 0:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/9d13c209-7820-4a67-8eb5-47fab1eda918.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '**Minimax**: This means that the strategy of the first player (generator) is
+    to **minimize** the opponent''s (discriminator) **maximum** score (hence the name).
+    When we train the discriminator, it becomes better at distinguishing between real
+    and fake samples (minimizing ![](img/3642e1bc-6d13-438e-9b8c-a6ff3f7d5eec.png)).
+    Next, when we train the generator, it tries to step up to the level of the new
+    and improved discriminator (we minimize ![](img/b7c64658-7d82-43a6-a7b4-68478bc67d01.png) ,
+    which is equivalent to maximizing ![](img/935102ba-8da5-4087-819f-bacdebb515a6.png)).
+    The two networks are in constant competition. We''ll denote the minimax game with
+    the following formula, where ![](img/909d5f59-d3b0-4185-ab8f-1aa5e7eefa6e.png) is
+    the loss function:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/820971ea-bce7-4624-b374-b4c5722a920c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Let's assume that, after a number of training steps, both ![](img/47781deb-e5d3-49dd-be70-af2cf4d31eb1.png) and ![](img/35578969-ec91-43d8-902c-c900a29b99a6.png) will
+    be at some local minimum. Here, the solution to the minimax game is called the
+    Nash equilibrium. A Nash equilibrium happens when one of the actors doesn't change
+    its action, regardless of what the other actor may do. A Nash equilibrium in a
+    GAN framework happens when the generator becomes so good that the discriminator is
+    no longer able to distinguish between generated and real samples. That is, the
+    discriminator output will always be half, regardless of the presented input.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have had an overview of GANs, let's discuss how to train them. We'll
+    start with the discriminator and then we'll continue with the generator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training the discriminator
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The discriminator is a classification neural network and we can train it in
+    the usual way, that is, using gradient descent and backpropagation. However, the
+    training set is composed of real and generated samples. Let''s learn how to incorporate
+    that in the training process:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Depending on the input sample (real or fake), we have two paths:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Select the sample from the real data, ![](img/5d97e04f-dfdf-4558-a5f9-bb2a5660b9dc.png),
+    and use it to produce ![](img/3d5522f8-1f33-450b-b459-0c47b862181b.png).
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Generate a fake sample, ![](img/d6b3f32c-cbcf-4eca-a9c8-b5fd2e5459d3.png). Here,
+    the generator and discriminator work as a single network. We start with a random
+    vector, **z**, which we use to produce the generated sample,![](img/7e3fa3c3-4644-4293-9205-05b28d7d22b3.png).
+    Then, we use it as input to the discriminator to produce the final output, ![](img/7bb391a2-3cb9-46cb-bdaa-3c3897a2067c.png).
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Next, we compute the loss function, which reflects the duality of the training
+    data (more on that later).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Finally, we backpropagate the error gradient and update the weights. Although
+    the two networks work together, the generator weights, ![](img/557fb571-01a9-4f5f-8ad0-df9f2ed4e42f.png),
+    will be locked and we'll only update the discriminator weights, ![](img/1f4c5681-dfb1-4e14-bad0-a050832ee537.png).
+    This ensures that we'll improve the discriminatory performance by making it better,
+    as opposed to making the generator worse.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'To understand discriminator loss, let''s recall the formula for cross-entropy
+    loss:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/53a958ee-004a-4cb1-906a-d213fe2ea6be.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, ![](img/a44a36e6-b6ab-4220-9773-d625d3437bc7.png) is the estimated probability
+    of the output belonging to the *i*-th class (out of *n* total classes) and ![](img/77505bad-5b15-4195-8331-f92ca37df667.png) is
+    the actual probability. For the sake of simplicity, we''ll assume that we apply
+    the formula over a single training sample. In the case of binary classification,
+    this formula can be simplified, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a5101d66-76fb-4c3c-8aec-feb244019a92.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: When the target probabilities are [![](img/976fe21a-8bf0-488f-8a35-5c6d987e44ef.png)] (one-hot-encoding),
+    one of the loss terms is always *0*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can expand the formula for a mini-batch of *m* samples:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/adf53eaf-b140-4666-8e44-8d0aa532bfb1.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Knowing all this, let''s define the discriminator loss:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e2b14266-f49c-4547-bcf8-0c08f77f04e5.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Although it seems complex, this is just cross-entropy loss for a binary classifier
+    with some GAN-specific bells and whistles. Let''s discuss them:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The two components of the loss reflect the two possible classes (real or fake),
+    which are equal in number in the training set.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/774af71b-1b7e-4819-a8d7-029827c60db7.png)is the loss when the input
+    is sampled from real data. Ideally, in such cases, we''ll have ![](img/e5b468c6-1f4b-4095-b86e-7fb2dadcac50.png).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In this context, the expectation term, ![](img/aaf721e7-7573-481c-92f9-7493b78a36c8.png), implies
+    that **x** is sampled from ![](img/8cfa008d-275e-4f8a-9505-f162889529d1.png). In
+    essence, this part of the loss means that, when we sample **x** from ![](img/a610dfc5-80da-410c-b7d3-307d39038478.png),
+    we expect the discriminator output,![](img/14cd182d-42d2-4146-9fff-0623d9941f5c.png).
+    Finally, 0.5 is the cumulative class probability of the real data, ![](img/802ad000-4795-4002-9ab3-464a238be1cb.png),
+    since it comprises exactly half of the whole set.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/f5860c78-954b-4743-ba11-b2fc0031a8d7.png)is the loss when the input
+    is sampled from generated data. Here, we can make the same observations that we
+    made with the real data component. However, this term is maximized when ![](img/8a323555-d661-467a-9932-7ddbe32ccc1a.png).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: To summarize, the discriminator loss will be zero when ![](img/e4936295-2648-4560-b427-e2bb43070f70.png) for
+    all ![](img/d3842269-6022-4eef-8a98-63ce3536015e.png) and ![](img/6d5ad66b-f88b-4f2e-bce5-4904241f8664.png) for
+    all generated ![](img/515c08e1-d0bb-4b8e-9d68-1451ab7698c1.png) (or ![](img/9e0d2db1-d438-43d9-a894-9d2065079a42.png)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training the generator
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We''ll train the generator by making it better at deceiving the discriminator.
+    To do this, we''ll need both networks, similar to the way we trained the discriminator
+    with fake samples:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We start with a random latent vector, **z**, and feed it through both the generator
+    and discriminator to produce the output, ![](img/a51a9fe6-0b01-4404-a7f3-a15015fa4528.png).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The loss function is the same as the discriminator loss. However, our goal here
+    is to maximize rather than minimize it, since we want to deceive the discriminator.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: In the backward pass, the discriminator weights, ![](img/04ebd62f-9d63-4b2c-ac18-15b1a60677c5.png),
+    are locked and we can only adjust ![](img/dd4cbf8b-b4d8-4e6e-8cbd-506c388294f0.png).
+    This forces us to maximize the discriminator loss by making the generator better,
+    instead of making the discriminator worse.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'You may have noticed that, in this phase, we only use generated data. Since
+    the discriminator weights are locked, we can ignore the part of the loss function
+    that deals with real data. Therefore, we can simplify it to the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b29f63c3-b5b4-4280-87dd-5a723926da2e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The derivative (gradient) of this formula is ![](img/8f81c792-2138-4c3f-9231-384a6e0d4d2d.png),
+    which can be seen in the following diagram as an uninterrupted line. This imposes
+    a limitation on the training. Early on, when the discriminator can easily distinguish
+    between real and fake samples (![](img/f4f3790d-88d5-4cc1-abfb-72979964c0f3.png)),
+    the gradient will be close to zero. This will result in little learning of the
+    weights, ![](img/d9fa8f2a-dacd-40bf-96df-4ff3a5556821.png) (another manifestation
+    of the vanishing gradient problem):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ce5af7d3-6d16-499d-9e0f-1bbb38116cff.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Gradients of the two generator loss functions
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can solve this issue by using a different loss function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b0de4813-b13a-44f5-9051-6e99ef0395d3.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The derivative of this function is displayed in the preceding diagram with a
+    dashed line. This loss is still minimized when ![](img/fa89da70-a3a3-4e4d-9971-2e91e28cb23a.png) and
+    when the gradient is large; that is, when the generator underperforms. With this
+    loss, the game is no longer zero-sum, but this won't have a practical effect on
+    the GAN framework. Now, we have all the ingredients we need to define the GAN
+    training algorithm. We'll do this in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Putting it all together
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'With our newfound knowledge, we can define the minimax objective in full:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/aece5d87-490b-4419-9fd4-795396f47338.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In short, the generator tries to minimize the objective, while the discriminator
+    tries to maximize it. Note that, while the discriminator should minimize its loss,
+    the minimax objective is a negative of the discriminator loss, and therefore the
+    discriminator has to maximize it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The following step-by-step training algorithm was introduced by the authors
+    of the GAN framework.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Repeat this for a number of iterations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Repeat for *k* steps, where *k* is a hyperparameter:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Sample a mini-batch of *m* random samples from the latent space,![](img/ccb1ce7f-ea61-44fd-a73b-5e4e74e2a3f5.png)
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Sample a mini-batch of *m* samples from the real data,![](img/63b32472-2b4f-4365-a961-ddb74222380a.png)
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Update the discriminator weights, ![](img/35d83794-8b1e-4ded-a95d-705dbaa266ab.png),
+    by ascending the stochastic gradient of its cost:'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/85093089-8bab-4a0c-a6b4-25c55e90ab02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Sample a mini-batch of *m* random samples from the latent space,![](img/76bef6d4-3429-4816-ab7d-42970437865f.png).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Update the generator by descending the stochastic gradient of its cost:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/92b4f00d-9be0-4105-9221-7a7ce2ec0eda.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Alternatively, we can use the updated cost function we introduced in the *Training
+    the generator* section:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3de6492b-30bf-4e87-bc3f-1093600c06ca.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Now that we know how to train GANs, let's discuss some of the problems we may
+    face while training them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Problems with training GANs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Training GAN models has some major pitfalls:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The gradient descent algorithm is designed to find the minimum of the loss function,
+    rather than the Nash equilibrium, which is not the same thing. As a result, sometimes
+    the training may fail to converge and could oscillate instead.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Recall that the discriminator output is a sigmoid function that represents the
+    probability of the example being real or fake. If the discriminator becomes too
+    good at this task, the probability output will converge to either 0 or 1 at every
+    training sample. This would mean that the error gradient will always be 0, which
+    will prevent the generator from learning anything. On the other hand, if the discriminator
+    is bad at recognizing fakes from real images, it will backpropagate the wrong
+    information to the generator. Therefore, the discriminator shouldn't be either
+    too good or too bad for the training to succeed. In practice, this means that
+    we cannot train it until convergence.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Mode collapse** is a problem where the generator can generate a limited number
+    of images (or even just one), regardless of the latent input vector value. To
+    understand why this happens, let''s focus on a single generator training episode
+    that tries to minimize [![](img/5719dc8c-46a6-42d6-a170-76372b3fc78c.png)] while
+    the weights of the discriminator are fixed. In other words, the generator tries
+    to generate a fake image, **x**^*, so that [![](img/3c3cd4f4-708a-4f2c-b986-8ffd203afe57.png)].
+    However, the loss function does not force the generator to create a unique image, **x**^*,
+    for different values of the input latent vector. That is, the training can modify
+    the generator in a way where it completely decouples the generated image, **x**^*,
+    from the latent vector value and, at the same time, still minimize the loss function.
+    For example, a GAN for generating new MNIST images could only generate the number
+    4, regardless of the input. Once we update the discriminator, the previous value, **x**^*,
+    may not be optimal anymore, which would force the generator to generate new and
+    different images. Nevertheless, mode collapse may recur in different stages of
+    the training process.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Now that we are familiar with the GAN framework, we'll discuss several different
+    types of GAN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Types of GAN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Since the GAN framework was first introduced, a lot of new variations have emerged.
+    In fact, there are so many new GANs now that, in order to stand out, the authors
+    have come up with creative GAN names, such as BicycleGAN, DiscoGAN, GANs for LIFE,
+    and ELEGANT. In the next few sections, we'll discuss some of them. All of the
+    examples have been implemented with TensorFlow 2.0 and Keras.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The code for DCGAN, CGAN, WGAN, and CycleGAN is partially inspired by [https://github.com/eriklindernoren/Keras-GAN](https://github.com/eriklindernoren/Keras-GAN).
+    You can find the full implementations of all the examples in this chapter at [https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter05](https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter05).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Deep Convolutional GAN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this section, we''ll implement the **Deep Convolutional GAN** (**DCGAN**, *Unsupervised
+    Representation Learning with Deep Convolutional Generative Adversarial Networks*,** [https://arxiv.rg/abs/1511.06434](https://arxiv.org/abs/1511.06434)**). In
+    the original GAN framework proposal, the authors only used fully-connected networks.
+    In contrast, in DCGANs both the generator and the discriminator are CNNs. They have some
+    constraints that help stabilize the training process. You can think of these as
+    general guidelines for GAN training and not just for DCGANs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The discriminator uses strided convolutions instead of pooling layers.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The generator uses transpose convolutions to upsample the latent vector, ![](img/a6f3fc7b-2965-4074-8e82-6daa68f0a312.png), to
+    the size of the generated image.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Both networks use batch normalization.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: No fully-connected layers, with the exception of the last layer of the discriminator.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: LeakyReLU activations for all the layers of the generator and discriminator,
+    except their outputs. The generator output layer uses Tanh activation (which has
+    a range of (-1, 1)) to mimic the properties of real-world data. The discriminator
+    has a single sigmoid output (recall that it's in the range of (0, 1)) because
+    it measures the probability of the sample being real or fake.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'In the following diagram, we can see a sample generator network in the DCGAN
+    framework:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/018fc328-a765-4b96-a164-b39d2ae28c76.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Generator network with transpose convolutions
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing DCGAN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this section, we''ll implement DCGAN, which generates new MNIST images.
+    This example will serve as a blueprint for all GAN implementations in upcoming
+    sections. Let''s get started:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s start by importing the necessary modules and classes:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Implement the `build_generator` function. We''ll follow the guidelines that
+    were outlined at the beginning of this section—upsampling with transpose convolutions,
+    batch normalization, and LeakyReLU activations. The model starts with a fully-connected
+    layer to upsample the 1D latent vector. Then, the vector is upsampled with a series
+    of `Conv2DTranspose`. The final `Conv2DTranspose` has a `tanh` activation and
+    the generated image has only 1 channel:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Build the discriminator. Again, it''s a simple CNN with stride convolutions:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Implement the `train` function with the actual GAN training. This function
+    implements the procedure that was outlined in the *Putting it all together* subsection
+    in the *Training GANs* section. We''ll start with the function declaration and
+    the initialization of the variables:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We''ll continue with the training loop, where we alternate one discriminator
+    training episode with one generator training episode. First, we train the `discriminator`
+    on 1 batch of `real_images` and one batch of `generated_images`. Then, we train
+    the generator (which includes the `discriminator` as well) on the same batch of `generated_images`.
+    Note that we label these images as real because we want to maximize the `discriminator`
+    loss. The following is the implementation (please note the indentation; this is
+    still part of the `train` function):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Implement a boilerplate function, `plot_generated_images`, to display some
+    generated images after the training is finished:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create an `nxn` grid (the `figure` variable).
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create `nxn` random latent vectors (the `noise` variable)—one for each generated
+    image.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Generate the images and place them in the grid cells.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Display the result.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The following is the implementation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Build the full GAN model by including the `generator`, `discriminator`, and
+    the `combined` network. We''ll use the latent vector that''s 64 in size (the `latent_dim`
+    variable) and we''ll run the training for 50,000 batches using the Adam optimizer
+    (this may take a while). Then, we''ll plot the results:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If everything goes as planned, we should see something similar to the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a2f2de4f-2637-4c56-b787-ac831df73d0e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Newly generated MNIST images
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes our discussion of DCGANs. In the next section, we'll discuss
+    another type of GAN model called the Conditional GAN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Conditional GAN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The conditional GAN (CGAN, *Conditional Generative Adversarial Nets*, [https://arxiv.org/abs/1411.1784](https://arxiv.org/abs/1411.1784))
+    is an extension of the GAN model where both the generator and discriminator receive
+    some additional conditioning input information. This could be the class of the
+    current image or some other property:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8109b440-49ad-491c-b72a-3f0768a6256b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Conditional GAN. *Y* represents the conditional input for the generator and
+    discriminator
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For example, if we train a GAN to generate new MNIST images, we could add an
+    additional input layer with values of one-hot encoded image labels. CGANs have
+    the disadvantage that they are not strictly unsupervised and we need some kind
+    of label for them to work. However, they have some other advantages:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: By using more well-structured information for training, the model can learn
+    better data representations and generate better samples.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'In regular GANs, all the image information is stored in the latent vector,
+    **z**. This poses a problem: since ![](img/92040d51-daef-42af-9e62-7843f787a669.png) can
+    be complex, we don''t have much control over the properties of the generated image.
+    For example, suppose that we want our MNIST GAN to generate a certain digit; say,
+    7\. We would have to experiment with different latent vectors until we reach the
+    desired output. But with CGAN, we could simply combine the one-hot vector of 7
+    with some random **z** and the network will generate the correct digit. We could
+    still try different values for **z** and the model would generate different versions
+    of the digit, that is, 7\. In short, CGAN provides a way for us to control (condition)
+    the generator output.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Because of the conditional input, we''ll modify the minimax objective to include
+    the condition, *y*, as well:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/e603f48e-8b7d-4bbe-b73c-3d86c0025ed3.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Implementing CGAN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The blueprint for the CGAN implementation is very similar to the DCGAN example
+    in the *Implementing DCGAN* section. That is, we'll implement CGAN in order to
+    generate new images of the MNIST dataset. For the sake of simplicity (and diversity),
+    we'll use fully connected generators and discriminators. To avoid repetition,
+    we'll only show modified sections of the code compared to DCGAN. You can find
+    the full example in this book's GitHub repository.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first significant difference is the definition of the generator:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Although it''s a fully-connected network, we still follow the GAN network design
+    guidelines that were defined in the *Deep Convolutional GANs* section. Let''s
+    discuss the way we combine the latent vector, `z_input`, with the conditional
+    label, `label_input` (an integer with values from 0 to 9). We can see that `label_input`
+    is transformed with an `Embedding` layer. This layer does two things:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Converts the integer value, `label_input`, into a one-hot representation with
+    a length of `input_dim`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Uses the one-hot representation as an input for a fully-connected layer with
+    the size of `output_dim`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The embedding layer allows us to obtain unique vector representations for each
+    possible input value. In this case, the output of `label_embedding` has the same
+    dimensions as the size of the latent vector and `z_input`. `label_embedding` is
+    combined with the latent vector, `z_input`, with the help of element-wise multiplication
+    in the `model_input` variable, which serves as an input for the rest of the network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we''ll focus on the discriminator, which is also a fully-connected network
+    and uses the same embedding mechanism as the generator. This time, the embedding
+    output size is `np.prod((28, 28, 1))`, which is equal to 784 (the size of the
+    MNIST images):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The rest of the example code is very similar to the DCGAN example. The only
+    other differences are trivial—they account for the multiple inputs (latent vector
+    and embedding) for the networks. The `plot_generated_images` function has an additional
+    parameter, which allows it to generate images for random latent vectors and a
+    specific conditional label (in this case, a digit). In the following, we can see
+    the newly generated images for conditional labels 3, 8, and 9:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/7e9fa126-d99e-4f28-8a98-5e9ffad73815.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: CGAN for conditional labels 3, 8, and 9
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes our discussion of CGANs. In the next section, we'll discuss another
+    type of GAN model called the Wasserstein GAN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Wasserstein GAN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'To understand the Wasserstein GAN (WGAN, [https://arxiv.org/abs/1701.07875](https://arxiv.org/abs/1701.07875)),
+    let''s recall that, in the *Training GANs* section, we denoted the probability
+    distribution of the generator with ![](img/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png)and
+    the probability distribution of the real data with ![](img/e043e680-d6bc-4abe-949a-441df0f3a05d.png). In
+    the process of training the GAN model, we update the generator weights and so
+    we change ![](img/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png). The goal of the GAN
+    framework is to converge ![](img/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png) to ![](img/e043e680-d6bc-4abe-949a-441df0f3a05d.png)(this
+    is also valid for other types of generative model, such as VAE), that is, the
+    probability distribution of the generated images should be the same as the real
+    ones, which would result in realistic images. WGAN uses a new way to measure the
+    distance between the two distributions called the Wasserstein distance (or the
+    **Earth mover''s distance** (**EMD**)). To understand it, let''s start with the
+    following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/c4118fda-f908-4d33-983d-4756d840b288.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'An example of EMD. Left: Initial and target distributions; Right: Two different
+    ways to transform ![](img/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png) into ![](img/e043e680-d6bc-4abe-949a-441df0f3a05d.png)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For the sake of simplicity, we'll assume that the ![](img/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png) and ![](img/e043e680-d6bc-4abe-949a-441df0f3a05d.png) are
+    distributions discrete (the same rule applies for continuous distributions). We
+    can transform ![](img/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png) into ![](img/e043e680-d6bc-4abe-949a-441df0f3a05d.png) by
+    moving the columns (a, b, c, d, e) left or right along the *x* axis. Each transfer
+    of 1 position has a cost of 1. For example, the cost to move column *a* from its
+    initial position, 2, to position 6 is 4. The right-hand side of the preceding
+    diagram shows two ways of doing this. In the first case, we have *total cost =
+    cost(a:2->6) + cost(e:6->3) + cost(b:3->2) = 4 +3 + 1 = 8*. In the second case,
+    we have *total cost = cost(a:2->3) + cost(b:2->1) = 1 + 1 = 2*. EMD is the minimal
+    total cost it takes to transform one distribution into the other. Therefore, in
+    this example, we have EMD = 2.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We now have a basic idea of what EMD is, but we still don't know why it's necessary
+    to use this metric in the GAN model. The WGAN paper provides an elaborate but
+    somewhat complex answer to this question. In this section, we'll try to explain
+    it. To start, let's note that the generator starts with a low-dimensional latent
+    vector, ![](img/7a361be8-949f-4b71-a9ba-641c76c67d3b.png), and then transforms
+    it into a high-dimensional generated image (for example, 784, in the case of MNIST).
+    The output size of the image also implies a high-dimensional distribution of the
+    generated data, ![](img/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png). However, its
+    intrinsic dimensions (the latent vector, ![](img/7a361be8-949f-4b71-a9ba-641c76c67d3b.png))
+    are much lower. Because of this ![](img/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png)
+    will be excluded from big sections of the high-dimensional feature space. On the
+    other hand, ![](img/e043e680-d6bc-4abe-949a-441df0f3a05d.png) is truly high dimensional
+    because it doesn't start from a latent vector; instead, it represents the real
+    data with its full richness. Therefore, it's very likely that ![](img/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png)
+    and ![](img/e043e680-d6bc-4abe-949a-441df0f3a05d.png) don't intersect anywhere
+    in the feature space.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To understand why this matters, let''s note that we can transform the generator
+    and discriminator cost functions (see the *Training GANs* section) into functions
+    of the KL and the **Jensen–Shannon** (**JS**,[https://en.wikipedia.org/wiki/Jensen%E2%80%93Shannon_divergence](https://en.wikipedia.org/wiki/Jensen%E2%80%93Shannon_divergence))
+    divergence. The problem with these metrics is that they provide a zero gradient
+    when the two distributions don''t intersect. That is, no matter what the distance
+    between the two distributions is (small or large), if they don''t intersect, the
+    metrics won''t provide any information about the actual difference between them.
+    However, as we just explained, it''s very likely that the distributions won''t
+    intersect. Contrary to this, the Wasserstein distance works regardless of whether
+    the distributions intersect or not, which makes it a better candidate for the
+    GAN model. We can illustrate this issue visually with the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/178670ad-2cb5-4f1c-9d7e-12c8738f532d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The advantage of the Wasserstein distance over the regular GAN discriminator.
+    Source: https://arxiv.org/abs/1701.07875
+  prefs: []
+  type: TYPE_NORMAL
+- en: Here, we can see two non-intersecting Gaussian distributions, ![](img/fa42aa65-e0cb-49ed-ab02-d097a3f2f710.png) and ![](img/e043e680-d6bc-4abe-949a-441df0f3a05d.png) (to
+    the left and to the right, respectively). The regular GAN discriminator output
+    is the sigmoid function (with a range of (0, 1)), which tells us the probability
+    of the input being fake or not. In this case, the sigmoid output is meaningful
+    in a very narrow range (centered around 0) and converges toward 0 or 1 in all
+    other areas. This is a manifestation of the same problem we outlined in the *Problems
+    with training GANs* section. It leads to vanishing gradients, which prevents error
+    backpropagation to the generator. In contrast, the WGAN doesn't give us binary
+    feedback on whether an image is real or fake and instead provides an actual distance
+    measurement between the two distributions (also displayed in the preceding diagram).
+    This distance is more useful than binary classification because it will provide
+    a better indication of how to update the generator. To reflect this, the authors
+    of the paper have renamed the discriminator and called it **critic**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following screenshot shows the WGAN algorithm as it''s described in the
+    paper:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8099c5fd-4ded-489a-af4b-1c7e85622148.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, *f[w]* denotes the critic, *g[w]* is the critic weight update, and *g[θ]*
+    is the generator weight update. Although the theory behind WGAN is sophisticated,
+    in practice we can implement it by making relatively few changes to the regular
+    GAN model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Remove the output sigmoid activation of the discriminator.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Replace the log generator/discriminator loss functions with an EMD-derived loss.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Clip the critic weights after each mini-batch so that their absolute values
+    are smaller than a constant, *c*. This requirement enforces the so-called Lipschitz
+    constraint on the critic, which makes it possible to use the Wasserstein distance
+    (more on this in the paper itself). Without getting into the details, we'll just
+    mention that weight clipping can lead to undesired behavior. One successful solution
+    to these issues has been the gradient penalty (WGAN-GP, *Improved Training of
+    Wasserstein GANs*, [https://arxiv.org/abs/1704.00028](https://arxiv.org/abs/1704.00028)),
+    which does not suffer from the same problems.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The authors of the paper reported that optimization methods without momentum
+    (SGD, RMSProp) work better than those with momentum.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Implementing WGAN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Now that we have a basic idea of how the Wasserstein GAN works, let''s implement
+    it. Once again, we''ll use the DCGAN blueprint and omit the repetitive code snippets
+    so that we can focus on the differences. The `build_generator` and `build_critic` functions
+    instantiate the generator and the critic, respectively. For the sake of simplicity,
+    the two networks contain only fully connected layers. All the hidden layers have
+    LeakyReLU activations. Following the paper''s guidelines, the generator has Tanh
+    output activation and the critic has a single scalar output (no sigmoid activation,
+    though). Next, let''s implement the `train` method since it contains some WGAN
+    specifics. We''ll start with the method''s declaration and the initialization
+    of the training process:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we''ll continue with the training loop, which follows the steps of the
+    WGAN algorithm we described earlier in this section. The inner loop trains the
+    `critic` `n_critic` steps for each training step of the `generator`. In fact,
+    this is the main difference between training the `critic` and training the `discriminator`
+    in the train function of the *Implementing DCGAN* section, where the discriminator
+    and the generator alternate at each step*.* Additionally, the `weights` critic
+    is clipped after each mini-batch. The following is the implementation (please
+    note the indentation; this code is part of the `train` function):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we''ll implement the derivative of the Wasserstein loss itself. It is
+    a TF operation that represents the mean value of the product of the network output
+    and the labels (real or fake):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we can build the full GAN model. This step is similar to the other GAN
+    models:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, let''s initiate training and evaluation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once we run this example, WGAN will produce the following images after training
+    40,000 mini-batches (this may take a while):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/118f62d9-b265-4744-a119-eb5a3fe348f6.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: WGAN MNIST generator results
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes our discussion of WGANs. In the next section, we'll discuss how
+    to implement image-to-image translation with CycleGAN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Image-to-image translation with CycleGAN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we'll discuss **Cycle-Consistent Adversarial Networks** (**CycleGAN**, *Unpaired
+    Image-to-Image Translation using Cycle-Consistent Adversarial Networks*, [https://arxiv.org/abs/1703.10593](https://arxiv.org/abs/1703.10593))
+    and their application for image-to-image translation. To quote the paper itself, image-to-image
+    translation is a class of vision and graphics problems where the goal is to learn
+    the mapping between an input image and an output image using a training set of
+    aligned image pairs. For example, if we have grayscale and RGB versions of the
+    same image, we can train an ML algorithm to colorize grayscale images or vice
+    versa.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Another example is image segmentation ([Chapter 3](9ac88546-8662-4b23-aa96-7eb00f48fedb.xhtml),* Object
+    Detection and Image Segmentation*), where the input image is translated into a
+    segmentation map of the same image. In the latter case, we train the model (U-Net,
+    Mask R-CNN) with image/segmentation map pairs. However, paired training data may
+    not be available for many tasks. CycleGAN presents a way for us to transform an
+    image from the source domain, *X*, into the target domain, *Y*, in the absence
+    of paired samples. The following image shows some examples of paired and unpaired
+    images:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/7f45296e-5e6d-40af-b836-d2cce1a0c2d8.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Left: Paired training samples with the corresponding source and target images;
+    Right: Unpaired training samples, where the source and target images don''t correspond.
+    Source: https://arxiv.org/abs/1703.10593'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The *Image-to-Image Translation with Conditional Adversarial Networks* (known
+    as Pix2Pix, [https://arxiv.org/abs/1611.07004](https://arxiv.org/abs/1611.07004))
+    paper from the same team also does image-to-image translation for paired training
+    data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But how does CycleGAN do this? First, the algorithm assumes that, although there
+    are no direct pairs in the two sets, there is still some relationship between
+    the two domains. For example, these could be photographs of the same scene but
+    from different angles. CycleGAN aims to learn this set-level relationship, rather
+    than the relationships between distinct pairs. In theory, the GAN model lends
+    itself to this task well. We can train a generator that maps ![](img/cc8fc839-1087-4065-b914-46ecf623989b.png),
+    which produces an image, ![](img/f006826f-ea20-4518-b662-fd68d2e1c38d.png), that
+    a discriminator cannot distinguish from the target images, ![](img/5a05feb6-7899-4a80-8011-091b7aebd4d3.png).
+    More specifically, the optimal *G* should translate the domain, X, into a domain, ![](img/fc044c73-e153-4d7c-a777-1b23fa8b114f.png), with
+    an identical distribution to domain *Y*. In practice, the authors of the paper
+    discovered that such a translation does not guarantee that an individual input, *x*,
+    and output, *y*, are paired up in a meaningful way—there are infinitely many mappings, *G*,
+    that will create the same distribution over ![](img/0b892c90-4404-4327-8bbe-32148ff90681.png).
+    They also found that this GAN model suffers from the familiar mode collapse problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: CycleGAN tries to solve these issues with the so-called **cycle consistency**.
+    To understand what this is, let's say that we translate a sentence from English
+    into German. The translation will be cycle-consistent if we translate the sentence
+    back from German into English and we arrive at the original sentence we started
+    with. In a mathematical context, if we have a translator, ![](img/0c4fefb7-620d-4f2d-9106-739d207e735b.png), and
+    another translator, ![](img/06c75834-066b-49ee-be8f-d15acea94fc5.png), the two
+    should be inverses of each other.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To explain how CycleGAN implements cycle consistency, let''s start with the
+    following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/83c40c4d-e712-4b0f-8b07-8486589d8b64.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Left: Overall CycleGAN schema; Middle: Forward cycle-consistency loss; Right:
+    Backward cycle-consistency loss. Source: https://arxiv.org/abs/1703.10593'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The model has two generators, [![](img/0c4fefb7-620d-4f2d-9106-739d207e735b.png)]
+    and [![](img/06c75834-066b-49ee-be8f-d15acea94fc5.png)], and two associated discriminators, *D[x]*
+    and *D[y]*, respectively (left in the preceding diagram). Let''s take a look at *G*
+    first*.* It takes an input image, ![](img/204079ed-a5c5-4cf1-b474-ba34f7a7de2f.png), and
+    generates ![](img/fe49c7be-9444-4ede-b029-b9586188e0f3.png), which look similar
+    to the images from domain *Y*. *D[y]* aims to discriminate between real images, ![](img/a242aec9-02be-4228-ab67-c1fb68d37a08.png), and
+    the generated ![](img/98d91a20-d6b6-4ba5-ba80-acf9b5851539.png). This part of
+    the model functions like a regular GAN and uses the regular minimax GAN adversarial
+    loss:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a11267c7-2a3e-496c-a180-c46a94d2f204.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The first term represents the original images, *y*, and the second represents
+    the images that were generated by *G*. The same formula is valid for the generator, *F*.
+    As we mentioned previously, this loss only ensures that ![](img/ca6d7e8d-990f-49b2-96a7-bb18d26f4af0.png) will
+    have the same distribution as the images from *Y*, but doesn't create a meaningful
+    pair of **x** and **y**. To quote the paper: with a large enough capacity, a network
+    can map the same set of input images to any random permutation of images in the
+    target domain, where any of the learned mappings can induce an output distribution
+    that matches the target distribution. Thus, adversarial losses alone cannot guarantee
+    that the learned function can map an individual input, **x**[*i*, ]to the desired
+    output, **y***[i]*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The authors of the paper argue that the learned mapping functions should be
+    cycle-consistent (preceding diagram, middle). For each image, ![](img/ff116f2a-7091-4b4d-b4a3-86dfcee3af5f.png),
+    the image translation cycle should be able to bring **x** back to the original
+    image (this is called forward cycle consistency). *G* generates a new image, ![](img/36649dd2-269f-4f3f-a035-ea23bfc54e00.png),
+    which serves as an input to *F*, which in turn generates a new image, ![](img/9d6869b8-ecf9-410f-a32a-29a9e9037cc3.png),
+    where ![](img/af5abbe3-616b-4a4b-8e26-2b9842551933.png): ![](img/72a089ab-26c4-47f9-9d78-6a638e887967.png). *G*
+    and *F* should also satisfy backward cycle consistency (preceding diagram, right):
+    ![](img/6e24c434-598b-4a8c-87a4-77c7ffb6b636.png).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This new path creates an additional cycle-consistency loss term:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/06594f64-84da-453e-9adf-20357b3d00ca.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This measures the absolute difference between the original images, that is, *x*
+    and *y*, and their generated counterparts, ![](img/ce8ce93b-93ba-426b-8d18-1f6e6f116879.png) and
+    ![](img/f39352cb-a3a2-48e2-a1dd-35da7c23a89f.png). Note that these paths can be
+    viewed as jointly training two autoencoders, ![](img/cfdf4e9a-1ea4-4749-a426-21b3fa1f6d55.png) and ![](img/987e6078-8c09-4169-968a-f0eb1dcf7bfe.png). Each
+    autoencoder has a special internal structure: it maps an image to itself with
+    the help of an intermediate representation – the translation of the image into
+    another domain.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The full CycleGAN objective is a combination of the cycle consistency loss
+    and the adversarial losses of *F* and *G*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/99d5230b-cef3-4d67-9ae4-624bd1176b8f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, the coefficient, λ, controls the relative importance between the two
+    losses. CycleGAN aims to solve the following minimax objective:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/2d6daef8-178c-4fda-884e-faf0f245ecd0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Implementing CycleGAN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: This example contains several source files located at [https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter05/cyclegan](https://github.com/PacktPublishing/Advanced-Deep-Learning-with-Python/tree/master/Chapter05/cyclegan).
+    Besides TF, the code also depends on `tensorflow_addons` and `imageio` packages.
+    You can install them with the `pip` package installer. We'll implement CycleGAN
+    for multiple training datasets, all of which were provided by the authors of the
+    paper. Before you run the example, you have to download the relevant dataset with
+    the help of the `download_dataset.sh` executable script, which uses the dataset
+    name as an argument. The list of available datasets is included in the file. Once
+    you've downloaded this, you can access the images with the help of the `DataLoader`
+    class, which is located in the `data_loader.py` module (we won't include its source
+    code here). Suffice to say that the class can load mini-batches and whole datasets
+    of normalized images as `numpy` arrays. We'll also omit the usual imports.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building the generator and discriminator
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'First, we''ll implement the `build_generator` function. The GAN models we''ve
+    looked at so far started with some sort of latent vector. But here, the generator
+    input is an image from one of the domains and the output is an image from the
+    opposite domain. Following the paper''s guidelines, the generator is a U-Net style
+    network. It has a downsampling encoder, an upsampling decoder, and shortcut connections
+    between the corresponding encoder/decoder blocks. We''ll start with the `build_generator`
+    definition:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The U-Net downsampling encoder consists of a number of convolutional layers
+    with `LeakyReLU` activations, followed by `InstanceNormalization`. The difference
+    between batch and instance normalization is that batch normalization computes
+    its parameters across the whole mini-batch, while instance normalization computes
+    them separately for each image of the mini-batch. For clarity, we''ll implement
+    a separate subroutine called `downsampling2d`, which defines one such layer. We''ll
+    use this function to build the necessary number of layers when we build the network
+    encoder (please note the indentation here; `downsampling2d` is a subroutine defined
+    within `build_generator`):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, let''s focus on the decoder, which isn''t implemented with transpose
+    convolutions. Instead, the input data is upsampled with the `UpSampling2D` operation,
+    which simply duplicates each input pixel as a 2×2 patch. This is followed by a
+    regular convolution to smooth out the patches. This smoothed output is concatenated
+    with the shortcut (or `skip_input`) connection from the corresponding encoder
+    block. The decoder consists of a number of such upsampling blocks. For clarity,
+    we''ll implement a separate subroutine called `upsampling2d`, which defines one
+    such block. We''ll use it to build the necessary number of blocks for the network
+    decoder (please note the indentation here; `upsampling2d` is a subroutine defined
+    within `build_generator`):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we''ll implement the full definition of the U-Net using the subroutines
+    we just defined (please note the indentation here; the code is part of `build_generator`):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: Then, we should implement the `build_discriminator` function. We'll omit the
+    implementation here because it is a fairly straightforward CNN, similar to those
+    shown in the previous examples (you can find this in the book's GitHub repository).
+    The only difference is that, instead of using batch normalization, it uses instance
+    normalization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Putting it all together
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'At this point, we usually implement the `train` method, but because CycleGAN
+    has more components, we''ll show you how to build the entire model. First, we
+    instantiate the `data_loader` object, where you can specify the name of the training
+    set (feel free to experiment with the different datasets). All the images will
+    be resized to `img_res=(IMG_SIZE, IMG_SIZE)` for the network input, where `IMG_SIZE
+    = 256` (you can also try `128` to speed up the training process):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we''ll define the optimizer and the loss weights:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we''ll create the two generators, `g_XY` and `g_YX`, and their corresponding
+    discriminators, `d_Y` and `d_X`. We''ll also create the `combined` model to train
+    both generators simultaneously. Then, we''ll create the composite loss function,
+    which contains an additional identity mapping term. You can read more about it
+    in the respective paper, but in short, it helps preserve color composition between
+    the input and the output when translating images from the painting domain to the
+    photo domain:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, let''s configure the `combined` model for training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once the model is ready, we initiate the training process with the `train`
+    function. In line with the paper''s guidelines, we will use a mini-batch of size
+    1:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we''ll implement the `train` function. It is somewhat similar to the
+    previous GAN models, but it also takes the two pairs of generators and discriminators
+    into account:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The training may take a while to finish, but the process will generate images
+    after each `sample_interval` batch. The following shows some examples of the images
+    that were generated by the Center for Machine Perception facade database ([http://cmp.felk.cvut.cz/~tylecr1/facade/](http://cmp.felk.cvut.cz/~tylecr1/facade/)).
+    It contains building facades, where each pixel is labeled as one of multiple facade-related
+    categories, such as windows, doors, balconies, and so on:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/2a6ef916-a9a3-4107-bc54-86806b502521.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: An example of CycleGAN image-to-image translation
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes our discussion of GANs. Next, we'll focus on a different type
+    of generative model called artistic style transfer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing artistic style transfer
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this final section, we'll discuss artistic style transfer. Similar to one
+    of the applications of CycleGAN, it allows us to use the style (or texture) of
+    one image to reproduce the semantic content of another. Although it can be implemented
+    with different algorithms, the most popular way was introduced in 2015 in the *A
+    Neural Algorithm of Artistic* *Style* paper ([https://arxiv.org/abs/1508.06576](https://arxiv.org/abs/1508.06576)).
+    It's also known as neural style transfer and it uses (you guessed it!) CNNs. The
+    basic algorithm has been improved and tweaked over the past few years, but in
+    this section we'll explore its original form as this will give us a good foundation
+    for understanding the latest versions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The algorithm takes two images as input:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The content image (*C*) we would like to redraw
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The style image (I) whose style (texture) we'll use to redraw *C*
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The result of the algorithm is a new image: *G = C + S*. The following is an
+    example of neural style transfer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/5881e581-891e-4120-bdd1-38e5aec76e40.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: An example of neural style transfer
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To understand how neural style transfer works, let''s recall that CNNs learn a
+    hierarchical representation of their features. We know that initial convolutional
+    layers learn basic features, such as edges and lines. Conversely, deeper layers
+    learn more complex features, such as faces, cars, and trees. Knowing this, let''s
+    look at the algorithm itself:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Like many other tasks (for example, [Chapter 3](9ac88546-8662-4b23-aa96-7eb00f48fedb.xhtml)*, Object
+    Detection and Image Segmentation*), this algorithm starts with a pretrained VGG
+    network.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Feed the network with the content image, *C*. Extract and store the output activations
+    (or feature maps or slices) of one or more of the hidden convolutional layers
+    in the middle of the network. Let's denote these activations with *A[c]^l*, where *l* is
+    the index of the layer. We're interested in the middle layers because the level
+    of feature abstraction encoded in them is best suited for this task.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Do the same with the style image, *S*. This time, denote the style activations
+    of the *l* layer with *A[s]^l*. The layers we choose for the content and style
+    are not necessarily the same.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Generate a single random image (white noise), *G*. This random image will gradually
+    turn into the end result of the algorithm. We''ll repeat this for a number of
+    iterations:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Propagate *G* through the network. This is the only image we'll use throughout
+    the whole process. Like we did previously, we'll store the activations for all
+    the *l* layers (here, *l* is a combination of all layers we used for the content
+    and style images). Let's denote these activations with *A[g]^l*.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Compute the difference between the random noise activations, *A[g]^l*, on one
+    hand and *A[c]^l* and *A[s]^l* on the other. These will be the two components of
+    our loss function:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/40dba1df-c29d-4daf-b191-cf57362f210e.png), known as the **content loss**:
+    This is just the MSE over the element-wise difference between the two activations
+    of all *l* layers.'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/5e6ed128-6148-46ff-82e9-10b6a9f5363c.png), known as the **style loss**:
+    This is similar to the content loss, but instead of raw activations we''ll compare
+    their **gram matrices** (we won''t go into  this in any detail).'
+  prefs:
+  - PREF_IND
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Use the content and style losses to compute the total loss, ![](img/31512847-eade-4abd-9f49-e81cbcd56250.png),
+    which is just a weighted sum of the two. The α and β coefficients determine which
+    of the components will carry more weight.
+  prefs:
+  - PREF_OL
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Backpropagate the gradients to the start of the network and update the generated
+    image, ![](img/b0971a06-2691-47a8-b6d4-ca441b8b02e9.png). In this way, we make *G* more
+    similar to both the content and style images since the loss function is a combination
+    of both.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: This algorithm makes it possible for us to harness the powerful representational
+    power of CNNs for artistic style transfer. It does this with a novel loss function
+    and the smart use of backpropagation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you are interested in implementing neural style transfer, check out the official
+    PyTorch tutorial at [https://pytorch.org/tutorials/advanced/neural_style_tutorial.html](https://pytorch.org/tutorials/advanced/neural_style_tutorial.html).
+    Alternatively, go to [https://www.tensorflow.org/beta/tutorials/generative/style_transfer](https://www.tensorflow.org/beta/tutorials/generative/style_transfer)
+    for the TF 2.0 implementation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One shortcoming of this algorithm is that it's relatively slow. Typically, we
+    have to repeat this pseudo-training procedure for a couple of hundred iterations
+    to produce a visually appealing result. Fortunately, the paper *Perceptual Losses
+    for Real-Time Style Transfer and Super-Resolution* ([https://arxiv.org/abs/1603.08155](https://arxiv.org/abs/1603.08155))
+    builds on top of the original algorithm to provide a solution, which is three
+    orders of magnitude faster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we discussed how to create new images with generative models,
+    which is one of the most exciting deep learning areas at the moment. We learned
+    about the theoretical foundations of VAEs and then we implemented a simple VAE to
+    generate new MNIST digits. Then, we described the GAN framework and we discussed
+    and implemented multiple types of GAN, including DCGAN, CGAN, WGAN, and CycleGAN.
+    Finally, we mentioned the neural style transfer algorithm. This chapter concludes
+    a series of four chapters dedicated to computer vision and I really hope you've
+    enjoyed them.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next few chapters, we'll talk about Natural Language Processing and recurrent
+    networks.
+  prefs: []
+  type: TYPE_NORMAL

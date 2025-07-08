@@ -1,0 +1,1225 @@
+- en: '*Chapter 5*: Style Transfer'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Generative models such as VAE and GAN are great at generating realistic looking
+    images. But we understand very little about the latent variables, let alone how
+    to control them with regard to image generation. Researchers began to explore
+    ways to better represent images aside from pixel distribution. It was found that
+    an image could be disentangled into **content** and **style**. Content describes
+    the composition in the image such as a tall building in the middle of the image.
+    On the other hand, style refers to the fine details, such as the brick or stone
+    textures of the wall or the color of the roof. Images showing the same building
+    at different times of the day have different hues and brightness and can be seen
+    as having the same content but different styles.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will start by implementing some seminal work in **neural
+    style transfer** to transfer the artistic style of an image. We will then learn
+    to implement **feed-forward neural style transfer**, which is a lot faster in
+    terms of speed. Then we will implement **adaptive instance normalization** (**AdaIN**)
+    to perform style transfer with arbitrary numbers of styles. AdaIN has been incorporated
+    into some state-of-the-art GANs, which are collectively known as **style-based
+    GANs**. This includes **MUNIT** for image translation and **StyleGAN**, which
+    is famous for generating realistic looking, high-fidelity faces. We will learn
+    about their architecture in the final section of the chapter. This wraps up the
+    evolution of style-based generative models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By the end of this chapter, you will have learned how to perform artistic neural
+    style transfer to convert a photo into painting. You will have a good understanding
+    of how style is used in advanced GANs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Neural style transfer
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Improving style transfer
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Arbitrary style transfer in real time
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Introduction to style-based generative models
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The Jupyter notebooks and codes can be found at the following link:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[https://github.com/PacktPublishing/Hands-On-Image-Generation-with-TensorFlow-2.0/tree/master/Chapter05](https://github.com/PacktPublishing/Hands-On-Image-Generation-with-TensorFlow-2.0/tree/master/Chapter05)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The notebooks used in the chapter are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`ch5_neural_style_transfer.ipynb`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`ch5_arbitrary_style_transfer.ipynb`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Neural style transfer
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'When **convolutional neural networks** (**CNNs**) outperformed all other algorithms
+    in the ImageNet image classification competition, people started to realize the
+    potential of it and began exploring it for other computer vision tasks. In the
+    *A Neural Algorithm of Artistic Style* paper published in 2015 by Gatys et al.,
+    they demonstrated the use of CNNs to transfer the artistic style of one image
+    to another, as shown in the following examples:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.1 – (A) Content image. (B)-(D) Bottom image is the style image and
+    the bigger pictures are stylized images'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(Source: Gatys et al., 2015, “A Neural Algorithm of Artistic Style” https://arxiv.org/abs/1508.06576)](img/B14538_05_01.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 5.1 – (A) Content image. (B)-(D) Bottom image is the style image and
+    the bigger pictures are stylized images (Source: Gatys et al., 2015, “A Neural
+    Algorithm of Artistic Style” https://arxiv.org/abs/1508.06576)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unlike most deep learning trainings that require tons of training data, neural
+    style transfer requires only two images – content and style images. We can use
+    pre-trained CNN such as VGG to transfer the style from the style image to the
+    content image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As shown in the preceding image, (**A**) is the content image and (**B**) –
+    (**D**) are the style and stylized images. The results were so impressive that
+    they blew people's minds! Some even use the algorithm to create and sell art paintings.
+    There are websites and apps that let people upload photos to perform style transfer
+    without having to know the underlying theory and coding. Of course, as technical
+    folks, we want to implement things by ourselves.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will now look into the details in terms of how to implement neural style
+    transfer, starting with extracting image features with CNNs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Extracting features with VGG
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Classification CNNs, like VGG, can be divided into two parts. The first part
+    is known as **feature extractor** and is made up of mainly convolutional layers.
+    The latter part consists of several dense layers that give the scores of classes.
+    This is known as **classifier head**. It was found that a CNN pre-trained on ImageNet
+    for classification tasks can be used for other tasks as well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, if you want to create classification CNNs for other datasets that
+    have only 10 classes instead of ImageNet's 1,000 classes, then you could keep
+    the feature extractor and only swap out the classifier head with a new one. This
+    is known as **transfer learning**, where we could transfer or reuse some learned
+    knowledge to new networks or applications. Many deep neural networks for computer
+    vision tasks include a feature extractor, either reusing weights or training from
+    scratch. This includes **object detection** and **pose estimation**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In a CNN, as we go deeper toward the output, it increasingly learns representation
+    of the content of the image compared to its detailed pixel values. To understand
+    this better, we will build a network to reconstruct the image that the layers
+    see. The two steps for image reconstruction are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Forward pass the image through a CNN to extract the features.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: With randomly initialized input, we *train the input* so that it recreates the
+    features that best match the reference features from *step 1*.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Let me elaborate on *step 2*. In normal network training, the input image is
+    fixed and the backpropagated gradients are used to update the network weights.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In neural style transfer, all network layers are frozen, and we use the gradients
+    to change the input instead. The original paper uses VGG19 and Keras does have
+    a pre-trained model that we could use. The feature extractor part of VGG is made
+    up of five blocks and there is one downsampling at the end of each block. Every
+    block has between two and four convolutional layers and the entire VGG19 has 16
+    convolutional layers and 3 dense layers, hence the number 19 in VGG19 stands for
+    19 layers with trainable weights. The following table shows different VGG configurations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.2 – Different configurations of VGG'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(Source: K. Simonyan, A. Zisserman, “Very Deep Convolutional Networks For Large-Scale
+    Image Recognition” – https://arxiv.org/abs/1409.1556)](img/B14538_05_02.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 5.2 – Different configurations of VGG (Source: K. Simonyan, A. Zisserman,
+    “Very Deep Convolutional Networks For Large-Scale Image Recognition” – https://arxiv.org/abs/1409.1556)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Jupyter notebook for this is `ch5_neural_style_transfer.ipynb`, which is
+    the complete neural style transfer solution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, in the following text, I''ll use a simpler code to show content reconstruction,
+    which will be expanded to perform style transfer. The following is the code for
+    using a pretrained VGG to extract the output layer of `block4_conv2`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: Pre-trained Keras CNN models are grouped into two parts. The bottom part is
+    made up of convolutional layers, commonly known as the `include_top=False` when
+    instantiating the VGG model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: VGG pre-processing
+  prefs: []
+  type: TYPE_NORMAL
+- en: A Keras pre-trained model expects an input image to be in BGR in the range [0,
+    255]. Thus, the first step is to reverse the color channel to convert RGB into
+    BGR. VGG uses different mean values for different color channels. Inside `preprocess_input()`,
+    the pixel values are subtracted by the values of 103.939, 116.779, and 123.68
+    for the B, G, and R channels, respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following is the forward pass code where the image is first pre-processed
+    before feeding into the model to return the content feature. We then extract the
+    content features and use them as our target:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Note that the image is normalized to [0., 1.] and so we need to restore that
+    to [0., 255.] by multiplying it by 255\. We then create a randomly initialized
+    input that will also become the stylized image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Next, we will use backpropagation to reconstruct the image from the content
+    features.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Reconstructing content
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In the training step, we feed an image to the frozen VGG to extract the content
+    features and we use L2 loss to measure against the target content features. The
+    following is the custom `loss` function to calculate the L2 loss of each feature
+    layer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The following training step uses `tf.GradientTape()` to calculate the gradients.
+    In normal neural network training, the gradients are applied to the trainable
+    variables, that is, the weights of the neural network. However, in neural style
+    transfer, the gradients are applied to the image. After that, we clip the image
+    value between [0., 1.] as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We train it for 1,000 steps, and this is what the reconstructed content looks
+    like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.3 – Image reconstructed from content layers'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(Source: https://www.pexels.com/. (Left): Original content image, (Right):
+    Content of ‘block1_1’)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_05_03.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 5.3 – Image reconstructed from content layers (Source: https://www.pexels.com/.
+    (Left): Original content image, (Right): Content of ''block1_1'')'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We could reconstruct the image almost perfectly with the first few convolutional
+    layers similar to *block1_1*, as shown in the image above:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.4 – Image reconstructed from content layers'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(Left): Content of ‘block4_1’. (Right): Content of ‘block5_1’](img/B14538_05_04.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 5.4 – Image reconstructed from content layers (Left): Content of ''block4_1''.
+    (Right): Content of ''block5_1'''
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we go deeper into *block4_1*, we start to lose fine details, such as the
+    window frames and the words on the building. As we go deeper into *block5_1*,we
+    see that all the details are gone and filled with some random noise. If we look
+    carefully, the building structure and edges are still intact and in places where
+    they should be. Now we have extracted just the content and omitted the style.
+    After extracting the content features, the next step is to extract the style features.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Reconstructing styles with the Gram matrix
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As we have seen with the style reconstruction, the feature maps, especially
+    the first few layers, contain both style and content. So how do we extract the
+    style representation from the image? Gats et al. uses the **Gram matrix**, which
+    computes the correlations between the different filter responses. Let's say the
+    activation of convolutional layer *l* has a shape of (H, W, C), where *H* and
+    *W* are the spatial dimensions and *C* is the number of channels, which equals
+    the number of filters. Each filter detects different image features; they can
+    be horizontal lines, diagonal lines, colors, and so on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Humans perceive things as having the same textures when they share some common
+    features, such as a color and an edge. For instance, if we feed an image of a
+    grass field into a convolutional layer, the filters that detect *vertical lines*
+    and *green color* will produce bigger responses in their feature maps. Hence,
+    we can use the correlation between feature maps to represent textures in the image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To create a Gram matrix from activations with a shape of (H, W, C), we will
+    first reshape it into C number of vectors. Each vector is a flattened feature
+    map with a size of H×W. We perform an inner product on these C vectors to get
+    a symmetric C×C Gram matrix. The detailed steps for calculating a Gram matrix
+    in TensorFlow are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Use `tf.squeeze()` to remove the batch dimension (1, H, W, C) to (H, W, C) as
+    the batch size is always `1`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Transpose the tensor to transform the shape from (H, W, C) to (C, H, W).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Flatten the final two dimensions to become (C, H×W).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Perform the dot product of the features to create a Gram matrix with a shape
+    of (C, C).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Normalize by dividing the matrix by the number of points (H×W) in each flattened
+    feature map.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The code to calculate a Gram matrix from a single convolution layer activation
+    is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can use this function to obtain Gram matrices for each VGG layer that we
+    designated as a style layer. We then use L2 loss on Gram matrices from the target
+    and reference images. The loss function and the rest of the code is identical
+    to content reconstruction. The code to create a list of the Gram matrices is as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The following images are reconstructed from style features from the different
+    VGG layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![ Figure 5.5 – (Top) Style image: Vincent Van Goh’s Starry Night. (Bottom
+    Left) Reconstructed style from ‘block1_1’. (Bottom Right) Reconstructed style
+    from ‘block3_1’](img/B14538_05_05.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 5.5 – (Top) Style image: Vincent Van Goh''s Starry Night. (Bottom Left)
+    Reconstructed style from ''block1_1''. (Bottom Right) Reconstructed style from
+    ''block3_1'''
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the style image reconstructed from *block1_1*, the content information is
+    completely gone, showing only high spatial frequency texture details. The higher
+    layer, *block3_1*, shows some curly shapes that seem to capture the higher hierarchy
+    of the style in the input image. The loss function for the Gram matrix is the
+    sum of **squared error** instead of **mean squared error**. Hence, higher hierarchy
+    style layers have higher intrinsic weights. This allows the transfer of higher
+    style representations, such as brush strokes. If we use mean squared error, low-level
+    style features such as texture will be more prominent visually and may appear
+    like high frequency noise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Performing neural style transfer
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We can now merge the code from both the content and style reconstruction to
+    perform neural style transfer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We first create a model that extracts two blocks of features, one for content
+    and the other for style. We use only one layer of `block5_conv1` for the content,
+    and five layers, from `block1_conv1` to `block5_conv1`, to capture styles from
+    different hierarchies as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Before the start of the training loop, we extract content and style features
+    from respective images to use as the targets. While we can use randomly initialized
+    input for content and style reconstruction, it would be faster to train by starting
+    from the content image as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we weigh the content and style loss and add them. The code snippet is
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The following are the two stylized images produced using different weights
+    and content layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.6 – Stylized images using neural style transfer'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_05_06.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 5.6 – Stylized images using neural style transfer
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feel free to change the weights and layers to create the styles that you want.
+    I hope you now have a better understanding of content and style representation,
+    which will come in handy when we explore advanced generative models. Next, we
+    will look at ways to improve the neural style transfer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Improving style transfer
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The research community and industry were excited about neural style transfer
+    and wasted no time in putting it to use. Some set up websites to allow users to
+    upload photos to perform style transfer, while some used that to create merchandise
+    to sell. Then people realized some of the shortcomings of the original neural
+    style transfer and worked to improve it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One of the biggest limitations is that style transfer takes all the style information,
+    including the color and brush strokes of the entire style image, and transfers
+    it to the whole of the content image. Using the examples that we just did in the
+    previous section, the blueish color from the style image was transferred into
+    both the building and background. Wouldn't it be nice if we had the choice to
+    transfer only the brush stroke but not the color, and just to the preferred regions?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The lead author of neural style transfer and his team produced a new algorithm
+    to address these issues. The following diagram shows the control the algorithm
+    can give and an example of the results:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.7 – Different control methods of neural style transfer. (a) Content
+    image (b) The sky and ground are stylized using different style images (c) The
+    color of the content image is preserved (d) The fine scale and coarse scale are
+    stylized using different style images'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(Source: L. Gatys, 2017, “Controlling Perceptual Factors in Neural Style Transfer”,
+    https://arxiv.org/abs/1611.07865)](img/B14538_05_07.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 5.7 – Different control methods of neural style transfer. (a) Content
+    image (b) The sky and ground are stylized using different style images (c) The
+    color of the content image is preserved (d) The fine scale and coarse scale are
+    stylized using different style images (Source: L. Gatys, 2017, “Controlling Perceptual
+    Factors in Neural Style Transfer”, https://arxiv.org/abs/1611.07865)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The controls proposed in this paper are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Spatial control**: This controls the spatial location of style transfer in
+    both the content and style images. This is done by applying a spatial mask to
+    style features before calculating the Gram matrix.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Color control**: This can be used to preserve the color of the content image.
+    To do this, we will convert the RGB format into color space such that HCL separates
+    the luminance (brightness) from other color channels. We can think of the luminance
+    channel as a grayscale image. We then perform style transfer only in the luminance
+    channel and then merge it with color channels from the original style image to
+    give the final stylized image.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Scale control**: This manages the granularity of the brush strokes. The process
+    is more involved as it requires multiple runs of style transfers and different
+    layers of style features to be chosen in order to compute the Gram matrix.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: These perceptual controls are useful for creating better stylized images that
+    suit your requirements. I'll leave it as an exercise for you to implement those
+    controls if you desire, because we have more important things to cover.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following are the two major themes associated with improving style transfer
+    that had a big influence on the development of GANs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Improving speed
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Improving style variations
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Let's go through some of these developments to lay some foundations for the
+    next project that we will implement – performing arbitrary style transfer in real
+    time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Faster style transfer with a feed-forward network
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Neural style transfer is based on optimization that is akin to neural network
+    training. It is slow and takes several minutes to run even with the use of a GPU.
+    This limited its potential applications on mobile devices. As a result, researchers
+    were motivated to develop faster algorithms for style transfer and **feed-forward
+    style transfer** was born. The following diagram shows one of the first networks
+    that employed such an architecture:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.8 – Block diagram of a feed-forward convolutional neural network
+    for style transfer.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(Redrawn from: J. Johnson et al., 2016 “Perceptual Losses for Real-Time Style
+    Transfer and Super-Resolution” – https://arxiv.org/abs/1603.08155)](img/B14538_05_08.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 5.8 – Block diagram of a feed-forward convolutional neural network for
+    style transfer. (Redrawn from: J. Johnson et al., 2016 “Perceptual Losses for
+    Real-Time Style Transfer and Super-Resolution” – https://arxiv.org/abs/1603.08155)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The architecture is simpler than the how the block diagram looks. There are
+    two networks in this architecture:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A **trainable convolutional network** (normally known as a **style transfer
+    network**) to translate an input image into a stylized image. This can be implemented
+    as an encoder-decoder-like architecture, like that of U-Net or VAE.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A **fixed convolutional network**, usually a pretrained VGG, that measures the
+    content and style losses.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Similar to the original neural style transfer, we first extract the content
+    and style targets with VGG. Instead of training the input image, we now train
+    a convolutional network to translate a content image into a stylized image. The
+    content and style features of the stylized image are extracted by VGG, and losses
+    are measured and backpropagated to the trainable convolutional network. We train
+    it like a normal feed-forward CNN. During inference, we only need to perform one
+    forward pass to translate the input image into a stylized image, which is 1,000
+    times faster than before!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Alright, the speed problem is now solved, but there is still a problem. Such
+    a network could only learn one style to transfer. We'll need to train one network
+    for each of the styles we want to perform, which is a lot less flexible than the
+    original style transfer. Then people started working on that, and as you may have
+    guessed, that got solved too! We'll go over that shortly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A different style feature
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The original neural style transfer paper didn't explain why the Gram matrix
+    is effective as a style feature. Many subsequent improvements to style transfers,
+    such as the feed-forward style transfer, continued using the Gram matrix solely
+    as style features. That's changed with the *Demystifying Neural Style Transfer*
+    paper published by Y, Li et al. in 2017\. It was found that the style information
+    is intrinsically represented by the *distributions of activations* in a CNN. They
+    have shown that matching Gram matrices of activations are equivalent to minimizing
+    the **maximum mean discrepancy** (**MMD**) of activation distributions. Therefore,
+    we can perform style transfer by matching the activation distribution of an image
+    to those of the style image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Therefore, the Gram matrix is not the only way in which to implement style transfer.
+    We could use adversarial loss, too. Let's recall that GANs such as pix2pix ([*Chapter
+    4*](B14538_04_Final_JM_ePub.xhtml#_idTextAnchor084), *Image-to-Image Translation*)
+    could perform style transfer by matching the pixel distribution of a generated
+    image with the real (style) images. The difference is that GANs try to minimize
+    the discrepancy in pixel distribution, while style transfer does it to the layer
+    activation's distributions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Later, researchers found that we can use just the basic statistics of the mean
+    and variance of the activations to represent the styles. In other words, if we
+    feed two images that are similar in style into VGG, their layer activations will
+    have a similar mean and variance. We can therefore train a network to perform
+    style transfer by minimizing the difference in the mean and variance of activations
+    between a generated image and a style image. This leads to the development of
+    using a normalization layer to control the style.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Controlling styles with a normalization layer
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'A simple but effective way of controlling the activation statistics is by changing
+    the gamma ![](img/Formula_05_001.png) and beta *β* in the normalization layer.
+    In other words, we could change the style by using different affine transform
+    parameters (gamma and beta). As a reminder, both batch normalization and instance
+    normalization share the same equation, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/Formula_05_002.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: The difference is that batch normalization (*BN*) calculates the mean *µ* and
+    standard deviation *σ* across (N, H, W) dimensions, while instance normalization
+    (*IN*) calculates only from (H, W).
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, there is only one gamma and beta pair per normalization layer, which
+    limits the network to learning only one style. How do we make the network learn
+    multiple styles? Well, we could use multiple sets of gammas and betas where each
+    set remembers one style. This is exactly what **conditional instance normalization**
+    (**CIN**) does.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It builds upon instance normalization but has multiple sets of gamma and beta
+    pairs. Each gamma and beta set is used to train a particular style; in other words,
+    they are conditioned on the style images. The equation of conditional instance
+    normalization is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/Formula_05_003.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Say we have *S* different style images, then we have *S* gammas and *S* betas
+    in normalization layers for each of the styles. In addition to the content image,
+    we also feed in the one-hot encoded style label into the style transfer network.
+    In practice, gamma and beta are implemented as matrices with a shape of (S×C).
+    We retrieve the gamma and beta for that style by performing matrix multiplication
+    of a one-hot encoded label (1×S) with matrices (S×C) to get *γ*S and *β*s for
+    each (1×C) channel. It is easier to understand when we implement the code. However,
+    we will defer implementation to [*Chapter 9*](B14538_09_Final_JM_ePub.xhtml#_idTextAnchor175),
+    *Video Synthesis*, when we use it to perform class condition normalization. We
+    are introducing CIN now to prepare ourselves for the upcoming section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, with style encoded into the embedding spaces of gammas and betas, we could
+    perform style interpolation by interpolating gammas and betas as shown in the
+    following image:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.9 – Combination of artistic styles by interpolating the gammas and
+    betas of two different styles'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(Source: V. Dumoulin et al., 2017 “A Learned Representation for Artistic Style”
+    – https://arxiv.org/abs/1610.07629) ](img/B14538_05_09.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 5.9 – Combination of artistic styles by interpolating the gammas and
+    betas of two different styles (Source: V. Dumoulin et al., 2017 “A Learned Representation
+    for Artistic Style” – https://arxiv.org/abs/1610.07629)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is all good, but the network is still limited to the fixed *N* styles that
+    are used in training. Next, we will learn and implement an improvement that allows
+    any arbitrary styles!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Arbitrary style transfer in real time
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we will learn how to implement a network that could perform
+    arbitrary style transfer in real time. We have already learned how to use a feed-forward
+    network for faster inference and that solves the real-time part. We have also
+    learned how to use conditional instance normalization to transfer a fixed number
+    of styles. Now, we will learn one further normalization technique that allows
+    for any arbitrary style, and then we are good to go in terms of implementing the
+    code.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing adaptive instance normalization
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Like CIN, **AdaIN** is also instance normalization, meaning that the mean and
+    standard deviation are calculated across (H, W) per image, and per channel, as
+    opposed to batch normalization, which calculates across (N, H, W). In CIN, the
+    gammas and betas are trainable variables, and they learn the means and variances
+    that are needed for different styles. In AdaIN, gammas and betas are replaced
+    by standard deviations and means of style features, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/Formula_05_004.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: AdaIN can still be understood as a form of conditional instance normalization
+    where the conditions are the style features rather than the style labels. In both
+    training and inference time, we use VGG to extract the style layer outputs and
+    use their statistics as the style conditions. This avoids the need to pre-define
+    a fixed set of styles. We can now implement AdaIN in TensorFlow. The notebook
+    for this is `ch5_arbitrary_style_transfer.ipynb`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will use TensorFlow''s subclassing to create a custom `AdaIN` layer as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is a straightforward implementation of the equation. One thing that deserves
+    a bit of explanation is the use of `tf.nn.moments`, which is also used in the
+    TensorFlow batch normalization implementation. It calculates the mean and variance
+    of the feature maps, where the axes `1`, `2` refer to H, W of the feature maps.
+    We also set `keepdims=True` to keep the results in four dimensions with a shape
+    of (N, 1, 1, C) as opposed to the default (N, C). The former allows TensorFlow
+    to perform broadcast arithmetic with the input tensor that has a shape of (N,
+    H, W, C). Here, broadcast refers to repeating one value in bigger dimensions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To be more precise, when we subtract *x* from the calculated mean for a particular
+    instance and channel, the single mean value will first be repeated into the shape
+    of (H, W) before the subtraction. We will now look at how to incorporate AdaIN
+    into style transfer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Style transfer network architecture
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The following diagram shows the architecture of a style transfer network and
+    the training pipeline:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.10 – Overview of style transfer with AdaIN'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(Redrawn from: X. Huang, S. Belongie, 2017, “Arbitrary Style Transfer in Real
+    Time with Adaptive Instance Normalization” – https://arxiv.org/abs/1703.06868)](img/B14538_05_10.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 5.10 – Overview of style transfer with AdaIN (Redrawn from: X. Huang,
+    S. Belongie, 2017, “Arbitrary Style Transfer in Real Time with Adaptive Instance
+    Normalization” – https://arxiv.org/abs/1703.06868)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The **style transfer network** (**STN**) is an encoder-decoder network where
+    the encoder encodes the content and style features with fixed VGG. AdaIN then
+    encodes the style features into the statistics of content features and the decoder
+    takes these new features to generate the stylized image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building the encoder
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The following is the code to build the encoder from VGG:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is similar to neural style transfer, except that we use the last style
+    layer, `'block4_conv1'`, as our content layer. Thus, we don't need to define the
+    content layer separately. We will now make a small but important improvement to
+    the convolutional layer to improve the appearance of generated images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Reducing block artifacts with reflection padding
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: Normally, when we apply padding to an input tensor in a convolutional layer,
+    constant zeros are padded around the tensor. However, the sudden drop in value
+    at a border creates high frequency components and results in block artefacts in
+    the generated image. One way to reduce these frequency components is by adding
+    *total variation loss* as the regularizer in the network training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To do that, we first calculate the high frequency components simply by shifting
+    the image by one pixel, and then subtract by the original image to create a matrix.
+    Total variation loss is the L1 norm or the sum of absolute values. Therefore,
+    the training will try to minimize this loss function so as to reduce the high-frequency
+    component.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is another alternative, which is to replace the constant zeros in padding
+    with reflective values. For example, if we pad an array of [10, 8, 9] with zeros,
+    this will give [0, 10, 8, 9, 0]. We can then see a sudden change in values between
+    0 and its neighbors.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If we use reflective padding, the padded array will be [8, 10, 8, 9, 8], which
+    provides a smoother transition toward the border. However, Keras Conv2D doesn''t
+    support reflective padding, so we will have to create a custom Conv2D using TensorFlow
+    subclassing. The following code snippet (the code has been curtailed for brevity;
+    please check out GitHub for the entire code) shows how to add reflective padding
+    to the input tensor prior to the convolution:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: The preceding code is taken from [*Chapter 1*](B14538_01_Final_JM_ePub.xhtml#_idTextAnchor017),
+    *Getting Started with Image Generation Using TensorFlow*, but with an added low-level
+    `tf.pad` API to pad the input tensor.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building the decoder
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Although we use 4 VGG layers (`block1_conv1` to `block4_conv1`) in the encoder
+    code, only the last layer, `block4_conv1`, from the encoder is used by AdaIN.
+    Therefore, the input tensor to the decoder has the same activation as `block4_conv1`.
+    The decoder architecture is not too dissimilar to the ones we have implemented
+    in earlier chapters. It consists of convolutional and upsampling layers, as shown
+    in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: The preceding code uses custom `Conv2D` with reflective padding. All layers
+    use the ReLU activation function, except the output layer, which does not have
+    any non-linearity activation function. We have now completed AdaIN, the encoder,
+    and the decoder, and can move on to the image pre-processing pipeline.
+  prefs: []
+  type: TYPE_NORMAL
+- en: VGG processing
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Like the neural style transfer we built earlier, we will need to pre-process
+    the image by inverting the color channel to BGR and then subtracting the color
+    means. The code is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We could do the same in post-processing, that is, adding back the color means
+    and reversing the color channel. However, this is something that could be learned
+    by the decoder as color means is equivalent to the biases in the output layer.
+    We will let the training do the job and all we need to do is to clip the pixels
+    to range of [0, 255], as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: We now have all the building blocks ready and all that is left to do is to put
+    them together to create the STN and training pipeline.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building the style transfer network
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Constructing the **STN** is straightforward and simply involves connecting
+    the encoder, AdaIN, and decoder, as shown in the preceding architectural diagram.
+    The STN is also the model we will use to perform inference. The code to do this
+    is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: The content and style images are pre-processed and fed into the encoder. The
+    last feature layer, that is, `block4_conv1` from both images, goes to `AdaIN()`.
+    The stylized feature then goes into the decoder to generate the stylized image
+    in RGB.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Arbitrary style transfer training
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Like neural and feed-forward style transfer, content loss and style loss are
+    computed from an activation extracted by the fixed VGG. The content loss is also
+    an L2 norm, but the generated stylized image''s content features are now compared
+    against AdaIN''s output rather than the features from the content image, as shown
+    in the following code. The authors of the paper found that this makes convergence
+    faster:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For style loss, the commonly used Gram matrix is replaced with the L2 norm
+    of the activation statistics of mean and variance. This produces similar results
+    to the Gram matrix but is conceptually cleaner. The following is the style loss
+    function equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/Formula_05_005.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, *φ*i denotes a layer in VGG-19 used to compute the style loss.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We use `tf.nn.moments` as in the AdaIN layer to calculate the statistics and
+    the L2 norm between the features from stylized and style images. Each style layer
+    carries the same weight, and hence we average the content layer losses as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The final step is to write the training step, as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Instead of tweaking weights to both the content and style, we fix the content
+    weight to be `1` and adjust just the style weight. In this example, we set the
+    content weight to `1` and the style weight to `1e-4`. In *Figure 5.10*, it may
+    look like there are three networks to train but two of them are fixed VGG, so
+    the only trainable network is the decoder. Therefore, we only track and apply
+    gradients to the decoder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Tips
+  prefs: []
+  type: TYPE_NORMAL
+- en: The preceding training step can be replaced by Keras' `train_on_batch()` function
+    (see [*Chapter 3*](B14538_03_Final_JM_ePub.xhtml#_idTextAnchor060), *Generative
+    Adversarial Network*), which uses fewer code lines. I'll leave this to you as
+    an additional exercise.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this example, we''ll use faces as content images, and `cyclegan/vangogh2photo`
+    for the styles. Although Van Gogh''s paintings are of one artistic style, from
+    the style transfer perspective, each style image is a unique style. The `vangoh2photo`
+    dataset contains 400 style images, meaning we are training the network with 400
+    different styles! The following diagram shows examples of images produced by our
+    network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.11 – Arbitrary style transfer. (Left) Style image (Middle) Content
+    image (Right) Stylized image'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_05_11.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 5.11 – Arbitrary style transfer. (Left) Style image (Middle) Content
+    image (Right) Stylized image
+  prefs: []
+  type: TYPE_NORMAL
+- en: The images in the preceding diagram shows the style transfers in inference time
+    using style images that were not previously seen by the network. Each style transfer
+    happens only with a single forward pass, which is a lot faster than the iterative
+    optimization of the original neural style transfer algorithm. Having understood
+    various techniques to perform style transfer, we are now in a good position to
+    learn how to design GANs in style (pun intended).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introduction to style-based GANs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The innovations in style transfer made their way into influencing the development
+    of GANs. Although GANs at that time could generate realistic images, they were
+    generated by using random latent variables, where we had little understanding
+    in terms of what they represented. Even though multimodal GANs could create variations
+    in generated images, we did not know how to control the latent variables to achieve
+    the outcome that we wanted.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In an ideal world, we would love to have some knobs to independently control
+    the features we would like to generate, as in the face manipulation exercise in
+    [*Chapter 2*](B14538_02_Final_JM_ePub.xhtml#_idTextAnchor039)*, Variational Autoencoder*.
+    This is known as **disentangled representation**, which is a relatively new idea
+    in deep learning. The idea of disentangled representation is to separate an image
+    into independent representation. For example, a face has two eyes, a nose, and
+    a mouth, with each of them being a representation of a face. As we have learned
+    in style transfer, an image can be disentangled into content and style. So researchers
+    brought that idea into GANs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, we will look at a style-based GAN known as **MUNIT**. As
+    we are limited by the number of pages in the book, we won't be writing the detailed
+    code, but will go over the overall architecture to understand how style is used
+    in these models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Multimodal Unsupervised Image-to-Image Translation (MUNIT)
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: MUNIT is an image-to-image translation model similar to BicycleGAN ([*Chapter
+    4*](B14538_04_Final_JM_ePub.xhtml#_idTextAnchor084), *Image-to-Image Translation*).
+    Both can generate multimodal images with continuous distributions, but BicycleGAN
+    needs to have paired data while MUNIT does not. BicycleGAN generates multimodal
+    images by using two models that relate the target image to latent variables. It
+    is not very clear how these models work, nor how to control the latent variable
+    to change the output. MUNIT's approach is conceptually a lot different, but also
+    a lot simpler to understand. It assumes that the source and target images share
+    the same content space, but with different styles.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following diagram shows the principal idea behind MUNIT:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.12 – Illustration of the MUNIT method.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(Redrawn from: X. Huang et al., 2018, “Multimodal Unsupervised Image-to-Image
+    Translation” – https://arxiv.org/abs/1804.04732)](img/B14538_05_12.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 5.12 – Illustration of the MUNIT method.(Redrawn from: X. Huang et al.,
+    2018, “Multimodal Unsupervised Image-to-Image Translation” – https://arxiv.org/abs/1804.04732)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Say we have two images, **X**1 and **X**2\. Each of them can be represented
+    as a content code and style code pair (**C**1, **S**1) and (**C**2, **S**2), respectively.
+    It is assumed that both **C**1 and **C**2 are in a shared content space, **C**.
+    In other words, the contents may not be exactly the same but are similar. The
+    styles are in their respective domain-specific style spaces. Therefore, image
+    translation from **X**1 and **X**2 can be formulated as generating image with
+    content code from **X**1 and style code from **X**2, or, in other words, from
+    code (**C**1, **S**2).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Previously in style transfer, we viewed styles as artistic styles with different
+    brush strokes, colors, and textures. Now, we expand the meaning of style to beyond
+    artistic painting. For example, tigers and lions are just cats with different
+    styles of whiskers, skin, fur, and shapes. Next, let's look at the MUNIT model
+    architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding the architecture
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The MUNIT architecture is shown in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.13 – MUNIT model overview'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(Redrawn from: X. Huang et al., 2018, “Multimodal Unsupervised Image-to-Image
+    Translation” – https://arxiv.org/abs/1804.04732)](img/B14538_05_13.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 5.13 – MUNIT model overview (Redrawn from: X. Huang et al., 2018, “Multimodal
+    Unsupervised Image-to-Image Translation” – https://arxiv.org/abs/1804.04732)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are two autoencoders, one in each domain. The autoencoder encodes the
+    image into its style and content codes, and then the decoder decodes them back
+    into the original image. This is trained using adversarial loss, in other words,
+    the model is made up of an autoencoder but is trained like a GAN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the preceding diagram, the image reconstruction process is shown on the
+    left. On the right is the cross-domain translation. As mentioned earlier, to translate
+    from **X**1 to **X**2, we first encode the images into their respective content
+    and style codes, and then we do two things with it as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We generate a fake image in style domain 2 with (**C**1, **S**2). This is also
+    trained using GANs.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We encode the fake image into content and style code. If the translation works
+    well, then it should be similar to (**C**1, **S**2).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Well, if this is sounding very familiar to you, that is because this is the
+    *cycle consistency constraint* from CycleGAN. Except, here the cycle consistency
+    is not applied to the image, but to the content and style codes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Looking into autoencoder design
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Finally, let''s look at the detailed architecture of the autoencoder, as shown
+    in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.14 – MUNIT model overview'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(Source: X. Huang et al., 2018, “Multimodal Unsupervised Image-to-Image Translation”
+    – https://arxiv.org/abs/1804.04732)](img/B14538_05_14.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 5.14 – MUNIT model overview (Source: X. Huang et al., 2018, “Multimodal
+    Unsupervised Image-to-Image Translation” – https://arxiv.org/abs/1804.04732)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unlike other style transfer models, MUNIT doesn't use VGG as an encoder. It
+    uses two separate encoders, one for content and another for style. The content
+    encoder consists of several residual blocks with instance normalization and downsampling.
+    This is quite similar to VGG's style feature.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The style encoder is different from the content encoder in two aspects:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Firstly, there is no normalization. As we have learned, normalizing activations
+    to zero means removing the style information.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Secondly, the residual blocks are replaced with fully connected layers. This
+    is because style is seen as spatially invariant and therefore we don't need convolutional
+    layers to provide the spatial information.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'This is to say that the style code only contains information about the eye
+    color and doesn''t need to know where the eyes are as it is the responsibility
+    of the content code. The style code is a low-dimensional vector and usually has
+    the size of 8, which is in contrast to high-dimensional latent variables in GAN
+    and VAE, and styles features in style transfer. The reason for a small style code
+    size is so that we have a fewer number of knobs to control the styles, which make
+    things more manageable. The following diagram shows how the content and style
+    code feed into the decoder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.15 – AdaIN layers within the decoder'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_05_15.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Figure 5.15 – AdaIN layers within the decoder
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The generator within the decoder is made up of a group of residual blocks.
+    Only residual blocks within the first group have AdaIN as the normalization layer.
+    The equation for AdaIN, where *z* is the activation from the previous convolutional
+    layer, is shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/Formula_05_006.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: In the arbitrary feed-forward neural style transfer, we use the mean and standard
+    deviation from a single style layer as gamma and beta in AdaIN. In MUNIT, the
+    gamma and beta are generated from the style code with a **multilayer perceptron**
+    (**MLP**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Translating animal images
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'The following screenshot shows samples of *1-to-many* image translations by
+    MUNIT. We can generate a variety of output images by using different style codes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 5.16 – Animal image translation by MUNIT'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '(Source: X. Huang et al., 2018, “Multimodal Unsupervised Image-to-Image Translation”
+    – https://arxiv.org/abs/1804.04732)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '](img/B14538_05_16.jpg)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Figure 5.16 – Animal image translation by MUNIT (Source: X. Huang et al., 2018,
+    “Multimodal Unsupervised Image-to-Image Translation” – https://arxiv.org/abs/1804.04732)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the time of writing, MUNIT is still the state-of-the-art model for multimodal
+    image-to-image translation, according to [https://paperswithcode.com/task/multimodal-unsupervised-image-to-image](https://paperswithcode.com/task/multimodal-unsupervised-image-to-image).
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you are interested in the code implementation, you can refer to the official
+    implementation by NVIDIA at [https://github.com/NVlabs/MUNIT](https://github.com/NVlabs/MUNIT).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we covered the evolution of styled-based generative models.
+    It all started with neural style transfer, where we learned that the image can
+    be disentangled into content and style. The original algorithm was slowed and
+    the iterative optimization process in inference time replaced with a feed-forward
+    style transfer that could perform style transfer in real time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We then learned that the Gram matrix is not the only method for representing
+    style, and that we could use the layers' statistics instead. As a result, normalization
+    layers have been explored to control the style of an image, which eventually led
+    to the creation of AdaIN. By combing a feed-forward network and AdaIN, we implemented
+    arbitrary style transfer in real time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the success in style transfer, AdaIN found its way into GANs. We went over
+    the MUNIT architecture in detail in terms of how AdaIN was used for multimodal
+    image generation. There is a style-based GAN that you should be familiar with,
+    and it is called StyleGAN. It was made famous for its ability to generate ultra-realistic,
+    high-fidelity face images. The implementation of StyleGAN requires pre-requisite
+    knowledge of progressive GANs. Therefore, we will defer the detailed implementation
+    to [*Chapter 7*](B14538_07_Final_JM_ePub.xhtml#_idTextAnchor136), *High Fidelity
+    Face Generation*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: At this point, GANs are moving away from the black box method, which uses only
+    random noise as input, and toward the disentangled representation approach, which
+    better exploits data properties. In the next chapter, we will look at how to use
+    specific GAN techniques in drawing paintings.
+  prefs: []
+  type: TYPE_NORMAL

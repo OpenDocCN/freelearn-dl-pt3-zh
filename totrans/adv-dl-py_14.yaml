@@ -1,0 +1,1125 @@
+- en: Meta Learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In [Chapter 9](66956576-0f67-49a6-9ba8-1a782baa6b24.xhtml), *Emerging Neural
+    Network Designs*, we introduced new **neural network** (**NN**) architectures
+    to tackle some of the limitations of existing **deep learning** (**DL**) algorithms.
+    We discussed graph neural networks that are used to process structured data, represented
+    as graphs. We also introduced memory augmented neural networks, which allow networks
+    to use external memory. In this chapter, we'll look at how to improve DL algorithms
+    by giving them the ability to learn more information using fewer training samples.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's illustrate this problem with an example. Imagine that a person has never
+    seen a certain type of object, say a car (I know—highly unlikely). They will only
+    need to see a car once to be able to recognize other cars as well. But this is
+    not the case with DL algorithms. A DNN needs a lot of training samples (and sometimes
+    data augmentation as well), to be able to recognize a certain class of object.
+    Even the relatively small CIFAR-10 ([https://www.cs.toronto.edu/~kriz/cifar.html](https://www.cs.toronto.edu/~kriz/cifar.html))
+    dataset contains 50,000 training images for only 10 classes of objects, the equivalent
+    of 5,000 images per class.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Meta learning, also referred to as learning to learn, allows **machine learning**
+    (**ML**) algorithms to leverage and channel knowledge, gained over multiple training
+    tasks, to improve its training efficiency over a new task. Hopefully, in this
+    way, the algorithm will require fewer training samples to learn the new task.
+    The ability to train with fewer samples has two advantages: reduced training time
+    and good performance when there is not enough training data. In that regard, the
+    goals of meta learning are similar to the transfer learning mechanism that we
+    introduced in [Chapter 2](d94e220f-820e-40da-8bb5-9593e0790b21.xhtml),*Understanding
+    Convolutional Networks*. In fact, we can think of transfer learning as a meta
+    learning algorithm. But there are multiple approaches to meta learning. In this
+    chapter, we''ll discuss some of them.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This chapter will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introduction to meta learning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Metric-based meta learning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Optimization-based meta learning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Introduction to meta learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'As we mentioned in the introduction, the goal of meta learning is to allow
+    an ML algorithm (in our case, NN) to learn from relatively fewer training samples
+    compared to standard supervised training. Some meta learning algorithms try to
+    achieve this goal by finding a mapping between their existing knowledge of the
+    domain of a well-known task to the domain of a new task. Other algorithms are
+    simply designed from scratch to learn from fewer training samples. Yet another
+    category of algorithms introduce new optimization training techniques, designed
+    specifically with meta learning in mind. But before we discuss these topics, let''s
+    introduce some basic meta learning paradigms. In a standard ML supervised learning
+    task, we aim to minimize the cost function *J(θ)* across a training dataset *D* by
+    updating the model parameters *θ *(network weights, in the case of NNs). As we
+    mentioned in the introduction, in meta learning we usually work with multiple
+    datasets. Therefore, in a meta learning scenario, we can extend this definition
+    by saying that we aim to minimize *J(θ) *over a distribution of these datasets
+    *P(D)*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8fb8d948-a381-4a5c-a510-044386944a60.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/7c90bf15-eefe-4035-9a88-d268ac605628.png) is the optimal model
+    parameters and ![](img/031dc6dc-63e5-4e8e-a5da-207139d104da.png) is the cost function,
+    which now depends on the current dataset as well as the model parameters. In other
+    words, the goal is to find model parameters ![](img/43cc2369-d0da-4210-a0a1-3b6f68952bfc.png) such
+    that the expected value (as described in [Chapter 1](b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml),
+    *The Nuts and Bolts of Neural Networks*, in the *Random variables and probability
+    distributions* section) of the cost across all datasets ![](img/8348ecdc-8752-4afb-8f4d-4607fa921b82.png) is
+    minimized. We can think of this scenario as training over a single dataset whose
+    training samples are themselves datasets.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, let''s continue by expanding the expression *fewer training samples* that
+    we used in the introduction. In supervised training, we can refer to this scenario
+    of scarce training data as ***k*-shot learning**, where *k* can be 0, 1, 2, and
+    so on. Let''s assume that our training dataset consists of labeled samples distributed
+    among *n* classes. In *k*-shot learning, we have *k* labeled training samples
+    for each of the *n* classes (the total number of labeled samples is *n × k*).
+    We refer to this dataset as the **support set**, and we''ll denote it with *S*. We
+    also have a **query set** *Q*, which contains unlabeled samples that belong to
+    one of the *n* classes. Our goal is to correctly classify the samples of the query
+    set. There are three types of *k*-shot learning: zero-shot, one-shot, and few-shot.
+    Let''s start with zero-shot learning.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Zero-shot learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We'll begin with zero-shot learning (*k* = 0), where we know that a particular
+    class exists, but we don't have any labeled samples of that class (that is, there
+    is no support set). At first, this sounds impossible—how can we classify something
+    we have never seen before? But in meta learning, this is not exactly the case.
+    Recall that we leverage knowledge of previously learned tasks (let's denote them
+    with *a*) over the task at hand (*b*). In that regard, zero-shot learning is a
+    form of transfer learning. To understand how this works, let's imagine that a
+    person has never seen an elephant (another highly unlikely example), yet they
+    have to recognize one when they see a picture of it (new task *b*). However, the
+    person has read in a book that the elephant is large, gray, has four legs, large
+    ears, and a trunk (previous task *a*). Given this description, they'll easily
+    recognize an elephant when they see it. In this example, the person applied their
+    knowledge from the domain of a previously learned task (reading a book) to the
+    domain of the new task (image classification).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the context of ML, these features can be encoded as nonhuman readable embedding
+    vectors. We can replicate the elephant recognition example in the NN realm by
+    using language-modeling techniques, such as word2vec or transformers to encode
+    a context-based embedding vector of the word *elephant*. We can also use a convolutional
+    network (CNN) to produce an embedding vector **h**[*b*] of an image of an elephant.
+    Let''s look at how to implement this step by step:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Apply encoders *f* and g (NNs) over labeled and unlabeled samples *a* and *b *to
+    produce embeddings **h**[*a*] and **h**[*b*] respectively.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Use a mapping function to transform **h**[*b*] to the vector space of the embeddings **h**[*a**] of
+    the known samples. The mapping function could be an NN as well. Furthermore, the
+    encoders and the mapping could be combined in a single model and learned jointly.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Once we have the transformed representation of the query sample, we can compare
+    it to all representations **h**[*a*]* using a similarity measure (for example,
+    cosine similarity). We then assume that the query sample''s class is the same
+    as the class of the support sample most closely related to the query. The following
+    diagram illustrates this scenario:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/8e41022d-9fb4-492d-bb62-63c299a64fe8.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Zero-shot learning is possible thanks to transfer learning. Inspired by Chapter
+    15 of http://www.deeplearningbook.org/
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's formalize the zero-shot learning scenario. In a traditional classification
+    task with a single dataset, the NN represents the conditional probability ![](img/d7cc052e-9841-434d-923f-3b137dd1f47f.png),
+    where *y* is the label of input sample **x** and *θ* is the model parameters.
+    In meta learning, **x** and *y* belong to the traditional dataset, but we introduce
+    a random variable *T* that describes the new task we're interested in. In our
+    example, **x** would be the context (surrounding words) of the word *elephant*,
+    and the label *y* is a one-hot encoding of the class elephant. On the other hand,
+    *T* will be an image we're interested in; therefore, the meta learning model represents
+    a new conditional probability ![](img/20ce23f4-8e8d-43a4-a4ff-aca3bbf6a943.png).
+    The zero-shot scenario we just described is part of so-called metric-based meta
+    learning (we'll see more examples of this later in the chapter). For now, let's
+    move on to one-shot learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One-shot learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we'll be looking at **one-shot learning** (*k = 1*) and its
+    generalization **few-shot learning** (*k > 1*). In this case, the support set
+    is not empty and we have one or more labeled samples of each class. This is an
+    advantage over the zero-shot scenario because we can rely on labeled samples from
+    the same domain instead of using a mapping from the labeled samples of another
+    domain. Therefore, we have a single encoder *f* and no need for additional mapping.
+  prefs: []
+  type: TYPE_NORMAL
+- en: An example of a one-shot learning task is a company's facial recognition system.
+    This system should be able to recognize the identity of an employee based on a
+    single photo. It should be possible to add new employees with a single photo as
+    well. Let's note that in this scenario, adding a new employee is equivalent to
+    adding a new class that has already been seen (the photo itself), but which is
+    otherwise unknown. This is in contrast to zero-shot learning, where we had unseen,
+    but known classes. A naive way to solve this task is with a classification **feed-forward
+    network** (**FFN**), which takes the photo as input and ends with a softmax output,
+    where each class represents one employee. This system will have two major disadvantages.
+    First, every time we add a new employee, we have to retrain the whole model using
+    the full dataset of employees. And second, we need multiple images per employee
+    to train the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following description is based on the method introduced in *Matching Networks
+    for One Shot Learning* ([https://arxiv.org/abs/1606.04080](https://arxiv.org/abs/1606.04080)).
+    The paper has two major contributions: a novel one-shot training procedure and
+    a special network architecture. In this section, we''ll discuss the training procedure
+    and we''ll describe the network architecture in the *Matching networks* section.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can also solve this task within the one-shot learning framework. The first
+    thing we'll need is a pretrained network that can produce embedding vectors of
+    the employee images. We'll assume that the pretraining allows the network to produce
+    a sufficiently unique embedding **h** for each photo. We'll also store all employee
+    photos in some external database. For performance reasons, we can apply the network
+    to all photos and then store the embedding of each image as well. Let's focus
+    on the use case where the system has to identify an existing employee when he
+    or she tries to authenticate with a new photo. We'll use the network to produce
+    an embedding of that photo and then we'll compare it to the embeddings in the
+    database. We'll identify the employee by taking the database embedding that most
+    closely matches the embedding of the current photo.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, let's look at the use case when a new employee is added to the system.
+    Here, we'll simply take a photo of that employee and store it in the database.
+    In this way, every time the employee tries to authenticate, their current photo
+    will be compared to the initial one (along with all other photos). In this way,
+    we have added a new class (the employee) without any changes to the network. We
+    can think of the employee photo/identification database as a support set ![](img/3697813c-caa0-4554-9008-6da67efc3a5f.png).
+    The goal of the task is to map this support set to a classifier ![](img/a86cb797-f60e-4e0d-b95f-b79c0d2c5c18.png),
+    which outputs a probability distribution over the labels ![](img/c54b34bd-26a6-4570-aa0a-778c3befbdfe.png),
+    given a previously unseen query sample ![](img/2c4ff6d5-f273-40d9-a492-11c0bd853084.png).
+    In our case, the ![](img/654a154a-a2e7-4893-8094-7a99365c1c59.png) pairs represent
+    new employees (that is, new query samples and new classes) that were not part
+    of the system before.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In other words, we want to be able to predict never before seen classes with
+    the help of the existing support set. We'll define the mapping ![](img/f3fa7d27-d701-4c0e-867e-2532b9c61574.png) as
+    a conditional probability ![](img/a3e6dc4c-5998-418e-a878-f7af427e9d09.png), implemented
+    by a neural network with weights *θ*. Additionally, we can also plug a new support
+    set ![](img/e3146769-fbf0-4f1a-9a2a-35757e5babac.png) into the same network, which
+    would lead to a new probability distribution ![](img/ee987cf4-2602-45a3-88a7-8a6349fca99a.png).
+    In this way, we can condition the outputs over the new training data without changing
+    the network weights *θ*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we are familiar with *k*-shot learning, let's look at how to train
+    an algorithm with few-shot datasets.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Meta-training and meta-testing
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The scenarios we described in the *Zero-shot learning* and *One-shot learning* sections are
+    referred to as **meta-testing** **phases**. In this phase, we leverage the knowledge
+    of a pretrained network and apply it to predict previously unseen labels with
+    the help of only a small support set (or no support set at all). We also have
+    a **meta-training phase**, where we train a network from scratch in a few-shot
+    context. The authors of *Matching Networks for One Shot Learning* introduce a
+    meta-training algorithm that closely matches the meta-testing. This is necessary
+    so that we can train the model under the same conditions that we expect it to
+    work in the testing phase. Since we train the network from scratch, the training
+    set (denoted with ***D***) is not a few-shot dataset, and instead contains a sufficient
+    number of labeled examples of each class. Nevertheless, the training process simulates
+    a few-shot dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here''s how it works:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sample a set of labels ![](img/0f33b03f-3446-4a31-97fb-7857d111590b.png), where
+    *T* is the set of all labels in *D*. To clarify, *L* contains only part of all
+    labels *T*. In this way, the training mimics the testing when the model sees just
+    a couple of samples. For example, adding a new employee to the facial recognition
+    system requires a single image and a label.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Sample a support set ![](img/aa4bc1ea-b5c3-4afd-84af-822b26901b15.png), where
+    the labels of all samples in ![](img/f8a6dbad-5521-4176-9c67-7d093f01da14.png) are
+    only part of L ![](img/7fc335ba-2d84-4a81-85e1-5021be3694c6.png). The support
+    set contains *k* samples of each label.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Sample a training batch ![](img/97335221-af7f-4e5c-8804-f9a15409fb29.png), where
+    ![](img/13951691-7fcb-47c8-b849-1d6a6c15df90.png) (the same as the support set). The
+    combination of ![](img/780e0957-6fd5-415d-8921-da00cad5e2ac.png) and ![](img/464ecc9a-6411-46fb-b8ad-4a48dd54cc34.png) represents
+    one training **episode**. We can think of the episode as a separate learning **task**
+    with its corresponding dataset. Alternatively, in supervised learning, one episode
+    is simply a single training sample.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Optimize the network weights over the episode. The network represents the probability
+    ![](img/fce68f2a-12ac-4a4f-aa9d-bd1229ed21b1.png) and uses both ![](img/780e0957-6fd5-415d-8921-da00cad5e2ac.png) and ![](img/464ecc9a-6411-46fb-b8ad-4a48dd54cc34.png) as
+    inputs. To clarify, the set ![](img/bc78000b-ce6c-45b3-b80e-6ce86ee4ff22.png) consists
+    of the ![](img/8a63630d-66b4-4e85-aa2b-b4e96e56969e.png) tuples, conditioned on
+    the support set ![](img/4c0b25dd-e5ba-49e3-816a-84287b8da55a.png). This is the
+    "meta" part of the training process, because the model learns to learn from a
+    support set to minimize the loss over the full batch. The model uses the following
+    cross-entropy objective:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/9da8b85a-03fa-4a0e-85d6-780c27e5ee2a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, ![](img/ea5bddf9-9d3e-49be-a5a7-73a24bb0ec6f.png) and ![](img/6c29607a-e8a2-4892-b43e-0215125e28b2.png) reflect
+    the sampling of labels and examples respectively. Let''s compare this to the same
+    task, but in a classic supervised learning scenario. In this case, we sample mini
+    batches *B* from the dataset *D* and there is no support set. The sampling is
+    random and doesn''t depend on the labels. Then, the preceding formula would transform
+    to the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/971e0294-1966-44bc-93e6-5b948cb613fb.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Meta learning algorithms can be classified into three main categories: metric-based,
+    model-based, and optimization-based. In this chapter, we''ll focus on the metric-
+    and optimization- based approaches (excluding model-based). Model-based meta learning
+    algorithms don''t impose any restrictions on the type of ML algorithm that implements
+    the probability ![](img/732a9825-aa4b-4429-9700-d77602b5935d.png). That is, there
+    is no requirement for encoder and mapping functions. Instead, they rely on network
+    architectures specifically adapted to work with a small number of labeled samples. You
+    may recall that in [Chapter 9](66956576-0f67-49a6-9ba8-1a782baa6b24.xhtml), *Emerging
+    Neural Network Designs*, we introduced one such model when we looked at the *One-shot
+    Learning with Memory-Augmented Neural Networks* paper([https://arxiv.org/abs/1605.06065](https://arxiv.org/abs/1605.06065)).
+    As the name suggests, the paper demonstrates the use of memory-augmented neural
+    networks in a one-shot learning framework. Since we have already discussed the
+    network architecture, and the training process is similar to the one we described
+    in this section, we won''t include another model-based example in this chapter.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we've introduced the basics of meta learning, in the following section
+    we'll focus on metric-based learning algorithms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Metric-based meta learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We mentioned a metric-based approach when we discussed the one-shot scenario
+    in the *Introduction to meta learning *section, but this approach applies to *k*-shot
+    learning in general. The idea is to measure the similarity between the unlabeled
+    query sample ![](img/0737f559-b5df-47e5-8f94-61c64b233435.png) and all other samples
+    ![](img/428554e4-a2f5-4329-bb51-48ba85405fa2.png) of the support set. Using these
+    similarity scores, we can compute a probability distribution ![](img/e3047114-b1db-449c-91ad-4a8c07c441ad.png).
+    The following formula reflects this mechanism:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/843c91d4-f4f7-4593-bb4d-d806d7dfdb94.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, *α* is the similarity measure between the query samples and ![](img/eabcb9e2-b8e4-439c-bf46-8a7522301878.png) is
+    the size of the support set with *n* classes and *k* samples of each class. To
+    clarify, the label of the query sample is simply a linear combination of all samples
+    of the support set. The classes of the samples with higher similarities will have
+    higher contributions to the distribution of the label of the query sample. We
+    can implement *α* as a clustering algorithm (for example, *k*-nearest neighbors)
+    or an attention model (as we''ll see later in the upcoming section). In the case
+    of zero-shot learning, this process has two formal steps: compute sample embeddings
+    and then compute the similarity between the embeddings. But the preceding formula
+    is a generalized combination of the two steps, and computes the similarity directly
+    from the query samples (although internally, the steps could still be separate).
+    The two-step metric-based learning (including the encoders *f* and *g*) is illustrated
+    in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/c1ee8ed7-cf32-4dba-a869-a43efc4ee63c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Generic metric-based learning algorithm
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next few sections, we'll discuss some of the more popular metric meta-learning
+    algorithms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Matching networks for one-shot learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We already discussed the training procedure that was introduced alongside matching
+    networks in the *Introduction to* *meta learning* section. Now, let''s focus on
+    the actual model, starting with the similarity measure, which we outlined in the *Metric-based
+    meta learning *section*. *One way to implement this is with cosine similarity (denoted
+    with *c*), followed by softmax:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3f743c02-83f5-46ed-9fe9-dc2607309fc4.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, *f* and *g* are encoders of the samples of the new task and the support
+    set respectively (as we discussed, it's possible that *f* and *g* are the same
+    function). The encoders could be CNNs for image inputs or word embeddings, such
+    as word2vec in the case of natural language processing tasks. This formula is
+    very similar to the attention mechanism that we introduced in [Chapter 8](0a021de6-b007-49bf-80e9-b7f6a72cbba7.xhtml),*Sequence-to-Sequence
+    Models and Attention. *
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'With the current definition, the encoder *g* only encodes one support sample
+    at a time, independently of the other samples of the support set. However, it''s
+    possible that the embeddings ![](img/129f9541-1bbb-43b2-bebe-4310d53a8b00.png) and ![](img/b2aa5d9c-f3c1-4932-8a0a-187f78564751.png) of
+    two samples *i* and *j* are very close in the embedding feature space, but that
+    the two samples have different labels. The authors of the paper propose modifying *g*
+    to take the whole support set *S* as additional input: ![](img/8b93e6d0-a0b6-4e9f-ac1a-850ab142a1b6.png).
+    In this way, the encoder could condition the embedding vector of ![](img/2af7ad11-148a-4894-8d30-c181bd5585f5.png) on
+    *S* and avoid this problem. We can apply similar logic to the encoder *f* as well.
+    The paper refers to new embedding functions as **full context embeddings**.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's look at how to implement full context embeddings over *f*. First, we'll
+    introduce a new function ![](img/c46e1950-117a-43cf-84ce-592498727f9a.png), which
+    is similar to the old encoder (before including *S* as input)—that is, *f'* could
+    be a CNN or word-embedding model, which creates sample embedding, independently
+    of the support set. The result of ![](img/c46e1950-117a-43cf-84ce-592498727f9a.png) will
+    serve as the input for the full embedding function ![](img/ca72fc39-4d7a-448e-a67d-2c7336d2977b.png). We'll
+    treat the support set as a sequence, which allows us to embed it using long short-term
+    memory (LSTM). Because of this, computing the embedding vector is a sequential
+    process of multiple steps.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, *S* is a set, which implies that the order of samples in the sequence
+    is not relevant. To reflect this, the algorithm also uses a special attention
+    mechanism over the elements of the support set. In this way, the embedding function
+    can attend to all previous elements of the sequence, regardless of their order.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s see how one step of the encoder works:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/fd51771f-facb-41bb-8b25-e16bc4ec5776.png), where *t* is the current
+    element of the input sequence, ![](img/a9ea670b-72b1-4af1-be30-1fe93e02d555.png) is
+    an intermediate hidden state, ![](img/5da17d1b-16a9-4da0-a99d-e363b302f1c4.png) is
+    the hidden state at step *t-1*, and ![](img/d172852d-a434-4c56-b861-395e3685bf5b.png) is
+    the cell state. The attention mechanism is implemented with a vector ![](img/17b4899b-1150-432e-b153-34bbc012cc11.png),
+    which is concatenated to the hidden state ![](img/91a1c38c-e597-47da-8840-8f6e1c369c71.png).'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/0bbe5c21-503b-4a53-b89c-db4eb7ca5db4.png), where ![](img/1d7d2444-6565-4fe0-aeef-6b627dd6bb21.png) is
+    the final hidden state at step *t*.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/2211a28c-c0fa-4804-898c-f10d7e2304cd.png), where ![](img/d0a84215-84c6-4555-ad04-18d6f3fab826.png) is
+    the size of the support set, *g* is an embedding function for the support set,
+    and α is a similarity measure, which is defined as multiplicative attention, followed
+    by a softmax:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/f482152a-6913-4870-ac20-eb0219de356b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The process continues for *T* steps (*T* is a parameter). We can summarize
+    it with the following formula:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/16204eed-bf27-42d7-a7c3-c5c673afb6b9.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Next, let''s focus on the full context embeddings of *g*. Like *f*, we''ll
+    introduce a new function, ![](img/3f28a031-ed39-4bab-a7a5-d88d8d243ebf.png), which
+    is similar to the old encoder (before including *S* as input). The authors propose
+    to use a bidirectional LSTM encoder, defined as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/9bfdab3d-e575-4900-ae76-2a37fc18c20e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, ![](img/20547e60-5396-43af-8168-185a072ca9e1.png) and ![](img/40fe9ba8-571b-4e0c-98f0-3232fac5e237.png) are
+    the cell hidden states in both directions. We can define them as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/04b0f06b-7947-4297-ad2d-8eb11f6e736a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In the next section, we'll discuss another metric-based learning approach called
+    Siamese networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Siamese networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this section, we''ll discuss the *Siamese Neural Networks for One-shot Image
+    Recognition* paper ([https://www.cs.cmu.edu/~rsalakhu/papers/oneshot1.pdf](https://www.cs.cmu.edu/~rsalakhu/papers/oneshot1.pdf)).
+    A Siamese network is a system of two identical base networks, as illustrated in
+    the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a472a2ae-9a98-44be-9c15-e7c2018a8144.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Siamese networks
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The two networks are identical in the sense that they share the same architecture
+    and the same parameters (weights). Each network is fed a single input sample and
+    the last hidden layer produces an embedding vector of that sample. The two embeddings
+    are fed to a distance measure. The distance is further processed to produce the
+    final output of the system, which is binary and represents a verification of whether
+    the two samples are from the same class. The distance measure itself is differentiable,
+    which allows us to train the networks as a single system. The authors of the paper
+    recommend using *L1* distance:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/bf11009d-9829-442f-87e0-b5733908126e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/c5191441-03d4-4710-be85-b879e8b75f25.png) is the base network.
+    Using Siamese networks in a one-shot learning scenario follows the same general
+    idea we described in the *Meta-training and meta-testing *section, but in this
+    case, the task is simplified because we always have only two classes (same or
+    not same), regardless of the actual number of classes in the dataset. In the meta-training
+    phase, we train the system with a large labeled dataset. We do this by generating
+    samples of image pairs and binary labels with either the same or a different class.
+    In the meta-testing phase, we have a single query sample and a support set. We
+    then create multiple pairs of images, where each pair contains the query sample
+    and a single sample of the support set. We have as many image pairs as the size
+    of the support set. Then, we feed all pairs to the Siamese system and we pick
+    the pair with the smallest distance. The class of the query image is determined
+    by the class of the support sample of that pair.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing Siamese networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we'll use Keras to implement a simple example of Siamese networks,
+    which will verify whether two MNIST images are from the same class or not. It
+    is partially based on [https://github.com/keras-team/keras/blob/master/examples/mnist_siamese.py](https://github.com/keras-team/keras/blob/master/examples/mnist_siamese.py).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s look at how to do this step by step:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We''ll start with the import statements:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we''ll implement the `create_pairs` function to create the train/test
+    dataset (both for training and testing):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: Each dataset sample consists of an input pair of two MNIST images and a binary
+    label, which indicates whether they are from the same class. The function creates
+    an equal number of true/false samples distributed over all classes (digits).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, let''s implement the `create_base_network` function, which defines one
+    branch of the Siamese network:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: The branch represents the base network that starts from the input and goes to
+    the last hidden layer, before the distance measure. We'll use a simple NN of three
+    fully connected layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, let''s build the whole training system, starting from the MNIST dataset:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We''ll use the raw dataset to create the actual train and test verification
+    datasets:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we''ll build the base portion of the Siamese network:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `base_network` object is shared between the two forks of the Siamese system.
+    In this way, we ensure that the weights are the same in the two branches.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, let''s create the two branches:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we''ll create the L1 distance, which uses the outputs of `encoder_a`
+    and `encoder_b`. It is implemented as a `tf.keras.layers.Lambda` layer:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, we''ll create the final fully connected layer, which takes the output
+    of the distance and compresses it to a single sigmoid output:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, we can build the model and initiate the training for 20 epochs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: If everything goes alright, the model will achieve around 98% accuracy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we'll discuss yet another metric learning method called prototypical networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Prototypical networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In a few short learning scenarios, it would be very easy for a high-capacity
+    model (an NN with many layers and parameters) to overfit. Prototypical networks (as
+    discussed in the *Prototypical Networks for Few-shot Learning* paper, [https://arxiv.org/abs/1703.05175](https://arxiv.org/abs/1703.05175))
+    address this issue by computing a special prototype vector of each label, which
+    is based on all samples of that label. The same prototypical network computes
+    an embedding of the query samples as well. Then, we measure the distance between
+    the query embedding and the prototypes and assign the query class accordingly
+    (more details on this later in the section).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Prototypical networks work for both zero-shot and few-shot learning, as illustrated
+    in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/58be1cd6-d9e8-438d-a162-e36d75404460.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Left: Few-shot learning; Right: Zero-shot learning. Source: https://arxiv.org/abs/1703.05175'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s start with the few-shot learning scenario, where the prototype vector ![](img/e72f4c55-df9a-4d9e-95c8-81f9244a499d.png)
+    of each class *k* is computed as the element-wise mean value of all samples of
+    that class:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/16491fe9-1061-41e5-81c4-1a0731c13384.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, ![](img/30bb12e9-f333-4761-adbd-0d6528c3606e.png) is the number of samples
+    in the support set of class *k* and ![](img/97739005-895a-4f7e-a9b0-91cc57aaa616.png) is
+    the prototypical network with parameters *θ*. In the zero-shot learning scenario,
+    the prototype is computed as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/05302326-8610-4da4-b8e0-5e6ccb3a58e4.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/770cd824-65a0-4b46-b1cb-ce9cf587643c.png)is a metadata vector,
+    which gives a high-level description of the label, and ![](img/6d0952ea-11c9-4b62-90cb-5a891c014b8f.png) is
+    the embedding function (encoder) of that vector. The metadata vectors could be
+    given in advance or computed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Each new query sample is classified as a softmax over the distance between
+    the sample embedding and all prototypes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0af436ea-87c0-4572-a362-0249a8fa36ee.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, *d* is a distance measure (for example, the linear Euclidean distance).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have an overview of the main idea behind prototype networks, let's
+    focus on how to train them (the procedure is similar to the training we outlined
+    in the *Introduction to meta learning *section).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Before we start, we''ll introduce some notations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*D* is the few-shot training set.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '* D[k]* is the training samples of *D* of class *k*.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*T* is the total number of classes in the dataset.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/aeebc6f9-55ef-4356-a4c8-aa68957472ca.png) is the subset of labels,
+    selected for each training episode.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*N[S]* is the number of support samples per class per episode.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*N[Q]* is the number of query samples per episode.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The algorithm starts with the training set *D* and outputs the result of the
+    cost function *J.* Let''s look at how it works step by step:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sample a set of labels ![](img/aeebc6f9-55ef-4356-a4c8-aa68957472ca.png).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For each class *k* in *L*, do the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Sample support set ![](img/f281ab2d-23e9-4cae-8c30-b2108591b259.png), where ![](img/fc7488e4-b34b-4096-8a86-9de46e6b63df.png).
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Sample query set ![](img/dd31ea70-5b05-4b41-8f2f-f8c618b9f6eb.png), where ![](img/0a4e6495-2547-4855-9112-13020afe2afc.png).
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Compute the class prototype from the support set:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/16491fe9-1061-41e5-81c4-1a0731c13384.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Initialize the cost function ![](img/e65dadec-23f7-4f15-b24d-34dc8a1d25b2.png).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For each class *k* in *L*, do the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'For each query sample ![](img/41a130c0-a158-4900-8769-5e1fc8adf9f0.png), update
+    the cost function as follows:'
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/9c041ae9-5e63-4a39-a70e-aa10926261f9.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Intuitively, the first component (in the square braces) minimizes the distance
+    between the query and its corresponding prototype of the same class. The second
+    term maximizes the sum of the distance between the query and the prototypes of
+    the other classes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The authors of the paper demonstrated their work on the Omniglot dataset ([https://github.com/brendenlake/omniglot](https://github.com/brendenlake/omniglot)),
+    which contains 1,623 images of handwritten characters collected from 50 alphabets.
+    There are 20 examples associated with each character, where each example is drawn
+    by a different human subject. The goal is to classify a new character as one of
+    the 1,623 classes. They trained prototypical networks using Euclidean distance,
+    one-shot, and five-shot scenarios, and training episodes with 60 classes and 5
+    query points per class. The following screenshot shows a *t*-SNE ([https://lvdmaaten.github.io/tsne/](https://lvdmaaten.github.io/tsne/))
+    visualization of the embeddings of a subset of similar (but not the same) characters
+    of the same alphabet, learned by the prototypical network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Even though the visualized characters are minor variations of each other, the
+    network is able to cluster the hand-drawn characters closely around the class
+    prototypes. Several misclassified characters are highlighted in rectangles, along
+    with arrows pointing to the correct prototype:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/28516082-2f11-4246-bb25-2bee44a03d0c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: A *t*-SNE visualization of the embeddings of a subset of similar characters,
+    learned by the network; source: https://arxiv.org/abs/1703.05175
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes our description of prototypical networks and metric-based meta
+    learning as well. Next, we'll focus on model-based methods.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Optimization-based learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far, we have discussed metric-based learning, which uses a special similarity
+    measure (which is hard to overfit) to adapt the representational power of NNs
+    with the ability to learn from datasets with few training samples. Alternatively,
+    model-based approaches rely on improved network architectures (for example, memory
+    augmented networks) to solve the same issue. In this section, we'll discuss optimization-based
+    approaches, which adjust the training framework to adapt to the few-shot learning
+    requirements. More specifically, we'll focus on a particular algorithm called **model-agnostic
+    meta learning** (MAML; *Model-Agnostic Meta-Learning for Fast Adaptation of Deep
+    Networks*, [https://arxiv.org/abs/1703.03400](https://arxiv.org/abs/1703.03400)).
+    As the name suggests, MAML can be applied over any learning problem and model
+    that is trained with gradient descent.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To quote the original paper:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The key idea underlying our method is to train the model’s initial parameters
+    such that the model has maximal performance on a new task after the parameters
+    have been updated through one or more gradient steps computed with a small amount
+    of data from that new task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '...'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The process of training a model’s parameters such that a few gradient steps,
+    or even a single gradient step, can produce good results on a new task can be
+    viewed from a feature learning standpoint as building an internal representation
+    that is broadly suitable for many tasks. If the internal representation is suitable
+    to many tasks, simply fine-tuning the parameters slightly (e.g. by primarily modifying
+    the top layer weights in a feedforward model) can produce good results. In effect,
+    our procedure optimizes for models that are easy and fast to fine-tune, allowing
+    the adaptation to happen in the right space for fast learning. From a dynamical
+    systems standpoint, our learning process can be viewed as maximizing the sensitivity
+    of the loss functions of new tasks with respect to the parameters: when the sensitivity
+    is high, small local changes to the parameters can lead to large improvements
+    in the task loss.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The primary contribution of this work is a simple model and task-agnostic algorithm
+    for meta-learning that trains a model’s parameters such that a small number of
+    gradient updates will lead to fast learning on a new task. We demonstrate the
+    algorithm on different model types, including fully connected and convolutional
+    networks, and in several distinct domains, including few-shot regression, image
+    classification, and reinforcement learning. Our evaluation shows that our meta-learning
+    algorithm compares favorably to state-of-the-art one-shot learning methods designed
+    specifically for supervised classification, while using fewer parameters, but
+    that it can also be readily applied to regression and can accelerate reinforcement
+    learning in the presence of task variability, substantially outperforming direct
+    pretraining as initialization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To understand MAML, we''ll introduce some paper-specific notations (some of
+    them overlap with notations from the preceding sections, but I prefer to preserve
+    the originals from the paper):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We'll denote the model (neural network) with *![](img/bd356c54-ccf7-4925-a927-44ad2593e014.png),*
+    which maps inputs **x** to outputs **a**.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We'll denote the full training set with ![](img/fccdc6d6-2215-4a4a-9a04-679fc9fcf47a.png) (equivalent
+    to the dataset *D*). Similar to the meta-training of the *Meta-training and meta-testing *section,
+    we sample tasks ![](img/405c5e5e-1ef4-4528-95f0-f7408e991380.png)(equivalent to
+    episodes) from ![](img/57f3e407-f1aa-423a-92fe-e7b52b477953.png)during training.
+    This process is defined as a distribution over tasks ![](img/fe7b2420-8146-4563-95d5-e219560c8b13.png).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We'll denote one task (an episode) with ![](img/54b1269a-0a1a-424c-ae52-2bc0e9ac97f0.png).
+    It is defined by a loss function ![](img/0431e13d-3789-4612-b937-aa14bed7d0cd.png) (equivalent
+    to the loss *J*), a distribution over the initial observations ![](img/ad65abcb-0d83-4ffe-aae4-b8e50ef72d3d.png),
+    a transition distribution ![](img/1aaba41c-f1ed-4a83-9010-848ce3f9438e.png), and
+    length *H*.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'To understand some components of the MAML task definition, let''s note that
+    besides supervised problems, MAML can be applied to **reinforcement learning**
+    (**RL**) tasks as well. In the RL framework, we have an environment and an agent,
+    which continuously interact with each other. At each step, the agent takes an
+    action (from a number of possible actions) and the environment provides it with
+    feedback. The feedback consists of a reward (which could be negative) and the
+    new state of the environment after the agent''s action. Then the agent takes a
+    new action, and so on, as illustrated in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/db858706-4511-4407-8c5e-5fbd55b4bf0f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The RL framework
+  prefs: []
+  type: TYPE_NORMAL
+- en: Many real-world tasks can be represented as RL problems, including games, where
+    the agent is the player and the environment is the game universe.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can view task ![](img/56d99c2b-8167-4080-9483-ed465ed1f3d3.png) in both
+    supervised and RL contexts. With a supervised task, we have labeled training samples ![](img/df638237-5175-4d54-bbda-b4eafb34a6a5.png) in
+    no particular order. But in an RL context, we can view the inputs **x** as the
+    environment state and the outputs **a** as the agent''s action. In this scenario,
+    the task is sequential—state **x***[1]* leads to action **a**[*1*], which in turn
+    leads to state **x**[*2*], and so on. The initial state of the environment is
+    denoted as ![](img/ad65abcb-0d83-4ffe-aae4-b8e50ef72d3d.png). This means that ![](img/1aaba41c-f1ed-4a83-9010-848ce3f9438e.png) is
+    the probability of a new environment state ![](img/d1ac7d91-b821-4f28-a9af-0ac7326c59b7.png),
+    given the previous state **x***[t]* and the agent''s action **a**[*t*]. The loss ![](img/aded729e-1ffc-4689-9b56-719691cfaa4b.png) can
+    be viewed in both contexts as well: a misclassification loss in the supervised
+    scenario and a cost function (the one that provides rewards) in the RL scenario.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we''re familiar with the notation, let''s focus on the MAML algorithm.
+    To understand how it works, we''ll look at another quote from the original paper:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We propose a method that can learn the parameters of any standard model via
+    meta-learning in such a way as to prepare that model for fast adaptation. The
+    intuition behind this approach is that some internal representations are more
+    transferable than others. For example, a neural network might learn internal features
+    that are broadly applicable to all tasks in ![](img/8d889142-b146-4f41-a47e-dd57238882d0.png),
+    rather than a single individual task. How can we encourage the emergence of such
+    general-purpose representations? We take an explicit approach to this problem:
+    since the model will be fine-tuned using a gradient-based learning rule on a new
+    task, we will aim to learn a model in such a way that this gradient-based learning
+    rule can make rapid progress on new tasks drawn from ![](img/231436d9-6ab9-4ff4-a63f-62fda7143215.png),
+    without overfitting. In effect, we will aim to find model parameters that are
+    sensitive to changes in the task, such that small changes in the parameters will
+    produce large improvements on the loss function of any task drawn from ![](img/1be30fb7-8c51-469d-8e47-c2ffb6895e1c.png),
+    when altered in the direction of the gradient of that loss.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'After all this suspense, let''s check the MAML algorithm, illustrated by the
+    following pseudocode:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8ed9c91a-6d4d-4dbd-8a5d-bb0c9013be39.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The MAML algorithm: source: https://arxiv.org/abs/1703.03400
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The algorithm has an outer (line 2) and an inner loop (line 4). We''ll start
+    with the inner loop, which iterates over a number of tasks, sampled from the task
+    distribution ![](img/17f4abf2-e718-48f2-b619-f07ca66f52ff.png). Let''s focus on
+    a single loop iteration, which handles a single task ![](img/07a0cc41-5a51-4412-bf2c-6eee6e86c686.png) with ![](img/bdd38bab-6c83-4fbb-8f26-a4ffcdb2b52e.png) training
+    samples, where ![](img/95d50486-9933-4695-ab69-4170bc0a56ba.png) is the support
+    set of the task. The training samples are processed as batches in the following
+    steps (lines 4 through 7 in the preceding screenshot):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Propagate the samples through the model and compute the loss ![](img/b6d1c143-b5c5-4d67-adbc-d3353ecb6fc8.png).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the error gradient ![](img/2ce06d60-e158-48ce-8c69-1aa1ecf91ac2.png) with
+    respect to the initial parameters *θ.*
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Propagate the gradient backward and compute the updated model parameters ![](img/3949829b-221a-4175-851d-8f886214d0b5.png),
+    where α is the learning rate. Note that the parameters ![](img/02942f5e-041d-42b8-af9a-d45b069de7d8.png) are
+    auxiliary and are specific for each task. To clarify, whenever the inner loop
+    starts a new iteration for a new task ![](img/79232bbc-2d38-44cd-aca8-30c1f1fe9df1.png),
+    the model always starts with the same initial parameters *θ**.* At the same time,
+    each task stores its updated weights as an additional variable ![](img/8d2390a5-3ae9-479d-94f5-6c1e50126ca6.png) without
+    actually modifying the initial parameters *θ* (we'll update the original model
+    in the outer loop).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'We can perform such gradient updates multiple times over the same task. Think
+    of it as training over multiple batches, implemented with an additional nested
+    loop in the inner loop. In this scenario, the algorithm starts each iteration
+    *i* with the weights ![](img/5744edb7-fe78-47a9-97df-9f4b87dc23bc.png) of the
+    last iteration and not with the initial parameters *θ*, as shown in the following
+    formula:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/fcd96c3f-47ce-4d6a-b59b-084e6d9fa2ca.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In the case of multiple iterations, only the latest weights ![](img/bb684ec6-d41a-4ca2-bee9-b765b06e8689.png) are
+    preserved.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Only after the inner loop is done can we proceed to update the initial parameters *θ*
+    of the original model, based on the feedback of all tasks ![](img/cb429e50-f798-426e-9792-5557e2699e3c.png).
+    To understand why this is necessary, let''s take a look at the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/185047d5-b9ac-4aa4-897c-6285fe0566d0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: MAML that optimizes for parameters *θ* that can quickly adapt to new tasks: source: https://arxiv.org/abs/1703.03400
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It shows the error gradients of three tasks ![](img/f67b0a3a-58bc-4c2c-be06-8adfbb56484e.png) along
+    the global error gradient. Let''s assume that, instead of an inner/outer loop
+    mechanism, we iterate sequentially over each task and simply update the original
+    model parameters *θ* after each mini batch*.* We can see that the gradients of
+    the different loss functions would push the model in completely different directions;
+    for example, the error gradient of task 2 will contradict the gradient of task
+    1\. MAML solves this problem by aggregating (but not applying) the updated weights
+    for each task from the inner loop (the auxiliary parameters ![](img/8d2390a5-3ae9-479d-94f5-6c1e50126ca6.png)).
+    Then, we can compute the outer loop cost function (referred to as the meta-objective),
+    combining the updated weights of all tasks all at once (this is a meta optimization
+    across all tasks):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0ece93d6-c678-40b6-8b7d-9fd721f250f9.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We use the following formula for the weight update of the main model parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b4d82576-378d-4629-a4f6-b3fa3259db10.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, β is the learning rate. The outer loop tasks ![](img/cafe3eca-c354-4d70-9cdc-77c5f072b84d.png) (line
+    8 of the MAML pseudocode program) are not the same as the ones from the inner
+    loop (line 3). We can think of inner loop tasks as the training set and the tasks
+    of the outer loop as the validation set. Note that we use task-specific parameters ![](img/8d2390a5-3ae9-479d-94f5-6c1e50126ca6.png) to
+    compute the losses, but we compute the loss gradient with respect to the initial
+    parameters *θ*. To clarify, this means that we backpropagate through the outer
+    loop and the inner loop as well. This is referred to as a second-order gradient,
+    because we compute a gradient over the gradient (second derivative). This makes
+    it possible to learn parameter that can generalize over a task even after a number
+    of updates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One disadvantage of MAML is that backpropagation through the full computational
+    graph (the outer loop and inner loop) is computationally expensive. In addition,
+    because of the large number of backpropagation steps, it can suffer from vanishing
+    or exploding gradients. To better understand this, let''s assume that we have
+    a single task ![](img/cafe3eca-c354-4d70-9cdc-77c5f072b84d.png) (we''ll omit it
+    from the formulas); we perform a single gradient step (one inner loop iteration)
+    for that task, and the inner loop''s updated parameters are ![](img/b5d8c89a-4eb0-42b2-8562-58268f1bc207.png).
+    That is, we change the notation of the loss function from ![](img/14233372-0ec2-4bdf-a55a-62c8d16a6764.png) to
+    ![](img/cdb3b688-6555-483c-a3c6-eb1e13d32ca0.png). Then, the parameter update
+    rule of the outer loop becomes the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f64fb8b8-0784-453e-ae82-c4712fb0b196.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We can compute the gradient of the loss with respect to the initial parameters *θ*
+    with the help of the chain rule (see [Chapter 1](b94f711b-daab-4de7-97b7-b7efccd0b392.xhtml),
+    *The Nuts and Bolts Of Neural Networks*):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/dedd5d9b-fbff-41a2-9aad-e9fefa467305.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We can see that the formula includes second-degree derivative ![](img/01fbf8b5-14a9-4822-badf-d77723f72555.png).
+    The authors of MAML have proposed the so-called **first-order MAML** (**FOMAML**),
+    which simply ignores the term ![](img/9a4d1637-422f-4a4e-8b17-ebebecac8549.png).
+    With this, we have ![](img/30598cc8-79a9-41cb-9d04-bcea6c45d59f.png) and the FOMAML
+    gradient becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/c3fd34a5-d556-428d-b7e1-e7d316a681e4.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: This simplified formula excludes the computationally expensive second-order
+    gradient.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'So far, we have looked at the generic MAML algorithm, which applies for both
+    supervised and RL settings. Next, let''s focus on the supervised version. Let''s
+    recall that in the supervised case, each task is a list of unrelated input/label
+    pairs and the episode length *H* is *1*. We can see the MAML algorithm for few-shot
+    supervised learning in the following pseudocode (it''s similar to the generic
+    algorithm):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/66cf802b-e94d-417b-a945-c2c575b9ccfe.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: MAML for few-shot supervised learning: source: https://arxiv.org/abs/1703.03400
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the preceding code, equations 2 and 3 both refer to cross-entropy losses
+    for classification tasks or mean square errors for regression tasks, ![](img/84101fed-0c4c-4d2d-b671-b4cd6dd43ee5.png) refers
+    to the inner loop training set, and ![](img/fb149d2e-5e1d-4262-8e82-0e463ff8033e.png) refers
+    to the validation set of the outer loop.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, let''s discuss the RL scenario, as illustrated by the following pseudocode:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/2a79b67c-b4c1-4ea9-88e9-14cb933aa8dc.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: MAML for few-shot reinforcement learning: source: https://arxiv.org/abs/1703.03400
+  prefs: []
+  type: TYPE_NORMAL
+- en: Each sample ![](img/22fd3afd-a08e-4a6e-8351-81ea3a82d65e.png) represents a trajectory
+    of one game episode, where the environment presents the agent with its current
+    state ![](img/6995f43b-5308-45bb-a6f7-ee41a2a6ce75.png) at step *t*. In turn, the
+    agent (NN) samples use **policy** ![](img/5365dd0a-8fb5-43fa-be6e-98e72aace46f.png) to
+    map states ![](img/cbf56b62-9c7a-463d-881c-0c27324811d0.png) to a distribution
+    over actions ![](img/b0c3bb4e-5d4e-4a33-8e1a-e878aabb91d0.png). The model uses
+    a special type of loss function, which aims to train the network to maximize rewards
+    over all steps of the episode.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we looked at the field of meta learning, which can be described
+    as learning to learn. We started with an introduction to meta learning. More specifically,
+    we talked about zero-shot and few-shot learning, as well as meta training and
+    meta testing. Then, we focused on several metric-based learning approaches. We
+    looked at matching networks, implemented an example of a Siamese network, and
+    we introduced prototypical networks. Next, we focused on optimization-based learning,
+    where we introduced the MAML algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the next chapter, we''ll learn about an exciting topic: automated vehicles.'
+  prefs: []
+  type: TYPE_NORMAL

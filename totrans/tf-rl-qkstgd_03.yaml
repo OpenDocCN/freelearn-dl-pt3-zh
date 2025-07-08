@@ -1,0 +1,944 @@
+- en: Deep Q-Network
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Deep Q-Networks** (**DQNs**) revolutionized the field of **reinforcement
+    learning** (**RL**). I am sure you have heard of Google DeepMind, which used to
+    be a British company called DeepMind Technologies until Google acquired it in
+    2014\. DeepMind published a paper in 2013 titled *Playing Atari with Deep RL*,
+    where they used **Deep Neural Networks** (**DNNs**) in the context of RL, or DQNs
+    as they are referred to – which is an idea that is seminal to the field. This
+    paper revolutionized the field of deep RL, and the rest is history! Later, in
+    2015, they published a second paper, titled *Human Level Control Through Deep
+    RL*, in *Nature*, where they had more interesting ideas that further improved
+    the former paper. Together, the two papers led to a Cambrian explosion in the
+    field of deep RL, with several new algorithms that have improved the training
+    of agents using neural networks, and have also pushed the limits of applying deep
+    RL to interesting real-world problems.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will investigate a DQN and also code it using Python and
+    TensorFlow. This will be our first use of deep neural networks in RL. It will
+    also be our first effort in this book to use deep RL to solve real-world control
+    problems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, the following topics will be covered:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Learning the theory behind a DQN
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding target networks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Learning about replay buffer
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Getting introduced to the Atari environment
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Coding a DQN in TensorFlow
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Evaluating the performance of a DQN on Atari Breakout
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Knowledge of the following will help you to better understand the concepts
+    presented in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Python (2 and above)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: NumPy
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: TensorFlow (version 1.4 or higher)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Learning the theory behind a DQN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we will look at the theory behind a DQN, including the math
+    behind it, and learn the use of neural networks to evaluate the `value` function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Previously, we looked at Q-learning, where *Q(s,a)* was stored and evaluated
+    as a multi-dimensional array, with one entry for each state-action pair. This
+    worked well for grid-world and cliff-walking problems, both of which are low-dimensional
+    in both state and action spaces. So, can we apply this to higher dimensional problems?
+    Well, no, due to the *curse of dimensionality*, which makes it unfeasible to store
+    very large number states and actions. Moreover, in continuous control problems,
+    the actions vary as a real number in a bounded range, although an infinite number
+    of real numbers are possible, which cannot be represented as a tabular *Q* array.
+    This gave rise to function approximations in RL, particularly with the use of
+    DNNs – that is, DQNs. Here, *Q(s,a)* is represented as a DNN that will output
+    the value of *Q*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following are the steps that are involved in a DQN:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Update the state-action value function using a Bellman equation, where (*s,
+    a*) are the states and actions at a time, *t*, *s''* and *a''* are respectively
+    the states and actions at the subsequent time *t+1, *and *γ* is the discount factor:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/5766505f-bb33-4f83-9824-7a86ff366bd4.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'We then define a loss function at iteration step *i* to train the Q-network
+    as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/ed6fd3dd-bb31-457d-919a-312b4088734c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The preceding parameters are are the neural network parameters, which are represented
+    as *θ*, hence the Q-value is written as *Q(s, a; θ).*
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*y[i]* is the target for iteration *i,* and is given by the following equation:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/e97f346e-e71f-4954-bba0-58dd07edb1a2.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We then train the neural network on the DQN by minimizing this loss function
+    *L(θ)* using optimization algorithms, such as gradient descent, RMSprop, and Adam.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We used the least squared loss previously for the DQN loss function, also referred
+    to as the L2 loss. You can also consider other losses, such as the Huber loss,
+    which combines the L1 and L2 losses, with the L2 loss in the vicinity of zero
+    and L1 in regions far away. The Huber loss is less sensitive to outliers than
+    the L2 loss.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will now look at the use of target networks. This is a very important concept,
+    required to stabilize training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding target networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: An interesting feature of a DQN is the utilization of a second network during
+    the training procedure, which is referred to as the target network. This second
+    network is used for generating the target-Q values that are used to compute the
+    loss function during training. Why not use just use one network for both estimations,
+    that is, for choosing the action *a* to take, as well as updating the Q-network?
+    The issue is that, at every step of training, the Q-network's values change, and
+    if we use a constantly changing set of values to update our network, then the
+    estimations can easily become unstable – the network can fall into feedback loops
+    between the target and estimated Q-values. In order to mitigate this instability,
+    the target network's weights are fixed – that is, slowly updated to the primary
+    Q-network's values. This leads to training that is far more stable and practical.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We have a second neural network, which we will refer to as the target network.
+    It is identical in architecture to the primary Q-network, although the neural
+    network parameter values are different. Once every *N* steps, the parameters are
+    copied from the Q-network to the target network. This results in stable training.
+    For example, *N* = 10,000 steps can be used. Another option is to slowly update
+    the weights of the target network (here, *θ* is the Q-network''s weights, and
+    *θ^t* is the target network''s weights):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/17b0450e-4576-4258-b434-66eced448b6d.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, *τ* is a small number, say, 0.001\. This latter approach of using an exponential
+    moving average is the preferred choice in this book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's now learn about the use of replay buffer in off-policy algorithms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Learning about replay buffer
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We need the tuple (`s`, `a`, `r`, `s'`, `done`) for updating the DQN, where
+    `s` and `a` are respectively the state and actions at time `t`; `s'` is the new
+    state at time *t+1*; and `done` is a Boolean value that is `True` or `False` depending
+    on whether the episode is not completed or has ended, also referred to as the
+    terminal value in the literature. This Boolean `done` or `terminal` variable is
+    used so that, in the Bellman update, the last terminal state of an episode is
+    properly handled (since we cannot do an *r + γ max Q(s',a')* for the terminal
+    state). One problem in DQNs is that we use contiguous samples of the (`s`, `a`,
+    `r`, `s'`, `done`) tuple, they are correlated, and so the training can overfit.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To mitigate this issue, a replay buffer is used, where the tuple (`s`, `a`,
+    `r`, `s'`, `done`) is stored from experience, and a mini-batch of such experiences
+    are randomly sampled from the replay buffer and used for training. This ensures
+    that the samples drawn for each mini-batch are **independent and identically distributed**
+    (**IID**). Usually, a large-size replay buffer is used, say, 500,000 to 1 million
+    samples. At the beginning of the training, the replay buffer is filled to a sufficient
+    number of samples and populated with new experiences. Once the replay buffer is
+    filled to a maximum number of samples, the older samples are discarded one by
+    one. This is because the older samples were generated from an inferior policy,
+    and are not desired for training at a later stage as the agent has advanced in
+    its learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In a more recent paper, DeepMind came up with a prioritized replay buffer, where
+    the absolute value of the temporal difference error is used to give importance
+    to a sample in the buffer. Thus, samples with higher errors have a higher priority
+    and so have a bigger chance of being sampled. This prioritized replay buffer results
+    in faster learning than the vanilla replay buffer. However, it is slightly harder
+    to code, as it uses a SumTree data structure, which is a binary tree where the
+    value of every parent node is the sum of the values of its two child nodes. This
+    prioritized experience replay will not be discussed further for now!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The prioritized experience replay buffer is based on this DeepMind paper: [https://arxiv.org/abs/1511.05952](https://arxiv.org/abs/1511.05952)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will now look into the Atari environment. If you like playing video games,
+    you will love this section!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting introduced to the Atari environment
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The Atari 2600 game suite was originally released in the 1970s, and was a big
+    hit at that time. It involves several games that are played by users using the
+    keyboard to enter actions. These games were a big hit back in the day, and inspired
+    many computer game players of the 1970s and 1980s, but are considered too primitive
+    by today's video game players' standards. However, they are popular today in the
+    RL community as a portal to games that can be trained by RL agents.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary of Atari games
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Here is a summary of a select few games from Atari (we won't present screenshots
+    of the games for copyright reasons, but will provide links to them).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pong
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Our first example is a ping pong game called Pong, which allows the user to
+    move up or down to hit a ping pong ball to an opponent, which is the computer.
+    The first one to score 21 points is the winner of the game. A screenshot of the
+    Pong game from Atari can be found at [https://gym.openai.com/envs/Pong-v0/](https://gym.openai.com/envs/Pong-v0/).
+    [](https://gym.openai.com/envs/Pong-v0/)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Breakout
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In another game, called Breakout, the user must move a paddle to the left or
+    right to hit a ball that then bounces off a set of blocks at the top of the screen.
+    The higher the number of blocks hit, the more points or rewards the player can
+    accrue. There are a total of five lives per game, and if the player misses the
+    ball, it results in the loss of a life. A screenshot of the Breakout game from
+    Atari can be found at [https://gym.openai.com/envs/Breakout-v0/](https://gym.openai.com/envs/Breakout-v0/).
+    [](https://gym.openai.com/envs/Breakout-v0/)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Space Invaders
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: If you like shooting space aliens, then Space Invaders is the game for you.
+    In this game, wave after wave of space aliens descend from the top, and the goal
+    is to shoot them using a laser beam, accruing points. The link to this can be
+    found at [https://gym.openai.com/envs/SpaceInvaders-v0/](https://gym.openai.com/envs/SpaceInvaders-v0/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: LunarLander
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Or, if you are fascinated by space travel, then LunarLander is about landing
+    a spacecraft (which resembles the Apollo 11 Eagle) on the surface of the moon.
+    For each level, the surface of the landing zone changes and the goal is to guide
+    the spacecraft to land on the lunar surface between two flags. A screenshot of
+    LunarLander from Atari can be found at [https://gym.openai.com/envs/LunarLander-v2/](https://gym.openai.com/envs/LunarLander-v2/).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Arcade Learning Environment
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Over 50 such games exist in Atari. They are now part of the **Arcade Learning
+    Environment** (**ALE**), which is an object-oriented framework built on top of
+    Atari. OpenAI's gym is used to invoke Atari games these days so that RL agents
+    can be trained to play these games. For instance, you can import `gym` in Python
+    and play them as follows.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `reset()` function resets the game environment, and `render()` renders
+    the screenshot of the game:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will now code a DQN in TensorFlow and Python to train an agent on how to
+    play Atari Breakout.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Coding a DQN in TensorFlow
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Here, we will code a DQN using TensorFlow and play Atari Breakout. There are
+    three Python files that we will use:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`dqn.py`: This file will have the main loop, where we explore the environment
+    and call the update functions'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`model.py`: This file will have the class for the DQN agent, where we will
+    have the neural network and the functions we require to train it'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`funcs.py`: This file will involve some utility functions—for example, to process
+    the image frames, or to populate the replay buffer'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using the model.py file
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s first code the `model.py` file. The steps involved in this are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Import the required packages**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Choose the** **bigger** **or** **smaller** **network**: We will use two neural
+    network architectures, one called `bigger` and the other `smaller`. Let''s use
+    the `bigger` network for now; the interested user can later change the network
+    to the `smaller` option and compare performance:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Choose the** **loss** **function (L2 loss or the Huber loss)**: For the Q-learning
+    `loss` function, we can use either the L2 loss or the Huber loss. Both options
+    will be used in the code. We will choose `huber` for now:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Define neural network weights initialization**: We will then specify a weights
+    initializer for the neural network weights. `tf.variance_scaling_initializer(scale=2)`
+    is used for He initialization. Xavier initialization can also be used, and is
+    provided as a comment. The interested user can compare the performance of both
+    the He and Xavier initializers later:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Define the** **QNetwork()** **class**: We will then define the `QNetwork()`
+    class as follows. It will have an `__init__()` constructor and the `_build_model()`,
+    `predict()`, and `update()` functions. The `__init__` constructor is shown as
+    follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Complete the** **_build_model()** **function**: `In _build_model()`, we first
+    define the TensorFlow `tf_X, tf_Y`, and `tf_actions` placeholders. Note that the
+    image frames are stored in `uint8` format in the replay buffer to save memory,
+    and so they are normalized by converting them to `float` and then dividing them
+    by `255.0` to put the `X` input in the 0-1 range:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Defining convolutional layers**: As mentioned earlier, we have a `bigger`
+    and a `smaller` neural network option. The `bigger` network has three convolutional
+    layers, followed by a fully connected layer. The `smaller` network only has two
+    convolutional layers, followed by a fully connected layer. We can define convolutional
+    layers in TensorFlow using `tf.contrib.layers.conv2d()`, and fully connected layers
+    using `tf.contrib.layers.fully_connected()`. Note that, after the last convolutional
+    layer, we need to flatten the output before passing it to the fully connected
+    layer, for which we will use `tf.contrib.layers.flatten()`. We use the `winit`
+    object as our weights initializer, which we defined earlier:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Defining the fully connected layer**: Finally, we have a fully connected
+    layer sized according to the number of actions, which is specified using `len(self.VALID_ACTIONS)`.
+    The output of this last fully connected layer is stored in `self.predictions`,
+    and represents *Q(s,a)*, which we saw in the equations presented earlier, in the
+    *Learning the theory behind a DQN* section. The actions we pass to this function
+    (`self.tf_actions`) have to be converted to one-hot format, for which we use `tf.one_hot()`.
+    Note that `one_hot` is a way to represent the action number as a binary array
+    with zero for all actions, except for one action, for which we store *a* as `1.0`.
+    Then, we multiply the predictions with the one-hot actions using `self.predictions
+    * action_one_hot`, which is summed over using `tf.reduce_sum()`; this is stored
+    in the `self.action_predictions` variable:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Computing loss for training the Q-network**: We compute the loss for training
+    the Q-network, stored in `self.loss`, using either the L2 loss or the Huber loss,
+    which is determined using the `LOSS` variable. For L2 loss, we use the `tf.squared_difference()`
+    function; for the Huber loss, we use `huber_loss()`, which we will soon define.
+    The loss is averaged over many samples, and for this we use the `tf.reduce_mean()`
+    function. Note that we will compute the loss between the `tf_y` placeholder that
+    we defined earlier and the `action_predictions` variable that we obtained in the
+    previous step:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Using the optimizer**: We use either the RMSprop or Adam optimizer, and store
+    it in `self.optimizer`. Our learning objective is to minimize `self.loss`, and
+    so we use `self.optimizer.minimize()`. This is stored in `self.train_op`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Define the** **predict()** **function for the class**: In the `predict()`
+    function, we run the `self.predictions` function defined earlier using TensorFlow''s
+    `sess.run()`, where `sess` is the `tf.Session()` object that is passed to this
+    function. The states are passed as an argument to this function in the `s` variable,
+    which is passed on to the TensorFlow placeholder, `tf_X`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Define the** **update()** **function for the class**: Finally, in the `update()`
+    function, we call the `train_op` and `loss` objects, and feed the `a` dictionary
+    to the placeholders involved in performing these operations, which we call `feed_dict`.
+    The states are stored in `s`, the actions in `a`, and the targets in `y`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Define the** **huber_loss()** **function outside the class**: The last thing
+    to complete `model.py` is the definition of the Huber loss function, which is
+    a blend of L1 and L2 losses. Whenever the input is `< 1.0`, the L2 loss is used,
+    and the L1 loss otherwise:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Using the funcs.py file
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We will next code `funcs.py` by completing the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Import packages**: First, we import the required packages:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Complete the** **ImageProcess()** **class**: Then, convert the 210 x 160
+    x 3 RGB image from the Atari emulator to an 84 x 84 grayscale image. For this,
+    we create an `ImageProcess()` class and use TensorFlow utility functions, such
+    as `rgb_to_grayscale()` to convert RGB to grayscale, `crop_to_bounding_box()`
+    to crop the image to the region of interest, `resize_images()` to resize the image
+    to the desired 84 x 84 size, and `squeeze()` to remove a dimension from the input.
+    The `process()` function of the class will carry out the operations by invoking
+    the `sess.run()` function on `self.output`; note that we pass the `state` variable
+    as a dictionary:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Copy model parameters from one network to another**: The next step is to
+    write a function called `copy_model_parameters()`, which will take as arguments
+    the `tf.Session()` object `sess`, and two networks (in this case, the Q-network
+    and the target network). Let''s call them `qnet1` and `qnet2`. The function will
+    copy the parameter values from `qnet1` to `qnet2`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Write a function to use ε-greedy strategy to explore or exploit**: We will
+    then write a function called `epsilon_greedy_policy()`, which will either explore
+    or exploit depending on whether a random real number computed using NumPy''s `np.random.rand()`
+    is less than `epsilon`, the parameter described earlier for the ε-greedy strategy.
+    For exploration, all actions have equal probabilities and equal one/`(num_actions)`,
+    where `num_actions` is the number of actions (which is four for Breakout). On
+    the other hand, for exploiting, we use Q-network''s `predict()` function to obtain
+    Q values and identify which action has the highest Q value with the use of NumPy''s
+    `np.argmax()` function. The output of this function is the probability of each
+    of the actions, which, for exploitation, will have all `0` actions except the
+    one action corresponding to the largest Q value, for which the probability is
+    assigned `1.0`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Write a function to populate the replay memory**: Finally, we will write
+    the `populate_replay_mem` function to populate the replay buffer with `replay_memory_init_size`
+    number of samples. First, we reset the environment using `env.reset()`. Then,
+    we process the state obtained from the reset. We need four frames for each state,
+    as the agent otherwise has no way of determining which way the ball or the paddle
+    are moving, their speed and/or acceleration (in the Breakout game; for other games,
+    such as Space Invaders, similar reasoning applies to determine when and where
+    to fire). For the first frame, we stack up four copies. We also compute `delta_epsilon`,
+    which is the amount epsilon is decreased per time step. The replay memory is initialized
+    as an empty list:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Computing action probabilities**: Then, we loop over `replay_memory_init_size`
+    four times, decrease epsilon by `delta_epsilon`, and compute the action probabilities,
+    stored in the `action_probs` variable, using `policy()`, which was passed as an
+    argument. The exact action is determined from the `action_probs` variable by sampling
+    using NumPy''s `np.random.choice`. Then, `env.render()` renders the environment,
+    and then we pass the action to `env.step()`, which outputs the next state (stored
+    in `next_state`), the reward for the transition, and whether the episode terminated,
+    which is stored in the Boolean `done` variable.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Append to replay buffer**: We then process the next state and append it to
+    the replay memory, the tuple (`state`, `action`, `reward`, `next_state`, `done`).
+    If the episode is done, we reset the environment to a new round of the game, process
+    the image and stack up four times, as done earlier. If the episode is not yet
+    complete, the new state becomes the current state for the next time step, and
+    we proceed this way on and on until the loop finishes:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: This completes `funcs.py`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using the dqn.py file
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We will first code the `dqn.py` file. This requires the following steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Import the necessary packages**: We will import the required packages as
+    follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Set the game and choose the valid actions**: We will then set the game. Let''s
+    choose the `BreakoutDeterministic-v4` game for now, which is a later version of
+    Breakout v0\. This game has four actions, numbered zero to three, and they represent
+    `0`: no-operation (`noop`), `1`: `fire`, `2`: move left, and `3`: move right:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Set the mode (train/test) and the start iterations**: We will then set the
+    mode in the `train_or_test` variable. Let''s start with `train` to begin with
+    (you can later set it to `test` to evaluate the model after the training is complete).
+    We will also train from scratch from the `0` iteration:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Create environment**: We will create the environment `env` object, which
+    will create the `GAME` game. `env.action_space.n` will print the number of actions
+    in this game. `env.reset()` will reset the game and output the initial state/observation
+    (note that state and observation in RL parlance are the same and are interchangeable).
+    `observation.shape` will print the shape of the state space:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Create paths and directories for storing checkpoint files**: We will then
+    create the paths for storing the checkpoint model files and create the directory:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Define the** **deep_q_learning()** **function**: We will next create the
+    `deep_q_learning()` function, which will take a long list of arguments that involve
+    the TensorFlow session object, the environment, the *Q* and target network objects,
+    and so on. The policy to be followed is `epsilon_greedy_policy()`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Populate the replay memory with experiences encountered with initial random
+    actions**: Then, we populate the replay memory with the initial samples:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Set the epsilon values**: Next, we will set the `epsilon` values. Note that
+    we have a double linear function, which will decrease the value of `epsilon`,
+    first from 1 to 0.1, and then from 0.1 to 0.01, in as many steps, specified in
+    `epsilon_decay_steps`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will then set the total number of time steps:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, the main loop starts over the episodes from the start to the total number
+    of episodes. We reset the episode, process the first frame, and stack it up `4`
+    times. Then, we will initialize `loss`, `time_steps`, and `episode_rewards` to
+    `0`. The total number of lives per episode for Breakout is `5`, and so we keep
+    count of it in the `ale_lives` variable. The total number of time steps in this
+    life of the agent is initialized to a large number:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Keeping track of time steps:** We will use an inner `while` loop to keep
+    track of the time steps in a given episode (note: the outer `for` loop is over
+    episodes, and this inner `while` loop is over time steps in the current episode).
+    We will decrease `epsilon` accordingly, depending on whether it is in the 0.1
+    to 1 range or in the 0.01 to 0.1 range, both of which have different `delta_epsilon`
+    values:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Updating the target network:** We update the target network if the total
+    number of time steps so far is a multiple of `update_target_net_every`, which
+    is a user-defined parameter. This is accomplished by calling the `copy_model_parameters()`
+    function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: At the start of every new life of the agent, we undertake a no-op (corresponding
+    to action probabilities [1, 0, 0, 0]) a random number of times between zero and
+    seven to make the episode different from past episodes, so that the agent gets
+    to see more variations when it explores and learns the environment. This was also
+    done in the original DeepMind paper, and ensures that the agent learns better,
+    since this randomness will ensure that more diversity is experienced. Once we
+    are outside this initial randomness cycle, the actions are taken as per the `policy()`
+    function.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Note that we still need to take one fire operation (action probabilities [0,
+    1, 0, 0]) for one time step at the start of every new life to kick-start the agent.
+    This is a requirement for the ALE framework, without which the frames will freeze.
+    Thus, the life cycle evolves as a `1` fire operation, followed by a random number
+    (between zero and seven) of no-ops, and then the agent uses the `policy` function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will then take the action using NumPy''s `random.choice`, which will use
+    the `action_probs` probabilities. Then, we render the environment and take one
+    `step`. `info[''ale.lives'']` will let us know the number of lives remaining for
+    the agent, from which we can ascertain whether the agent lost a life in the current
+    time step. In the DeepMind paper, the rewards were set to `+1` or `-1` depending
+    on the sign of the reward, so as to be able to compare the different games. This
+    is accomplished using `np.sign(reward)`, which we will not use for now. We will
+    then process `next_state_img` to convert to grayscale of the desired size, which
+    is then appended to the `next_state` vector, which maintains a sequence of four
+    contiguous frames. The rewards obtained are used to increment `episode_rewards`,
+    and we also increment `time_steps`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Updating the networks:** Next, if we are in training mode, we update the
+    networks. First, we pop the oldest element in the replay memory if the size is
+    exceeded. Then, we append the recent tuple (`state`, `action`, `reward`, `next_state`,
+    `done`) to the replay memory. Note that, if we have lost a life, we treat `done
+    = True` in the last time step so that the agent learns to avoid losses of lives;
+    without this, `done = True` is experienced only when the episode ends, that is,
+    when all lives are lost. However, we also want the agent to be self-conscious
+    of the loss of lives.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '**Sampling a mini-batch from the replay buffer:** We sample a mini-batch from
+    the replay buffer of `batch_size`. We calculate the *Q* values of the next state
+    (`q_values_next`) using the target network, and use it to compute the greedy *Q*
+    value, which is used to compute the target (*y* in the equation presented earlier).
+    Once every four time steps, we update the Q-network using `q_net.update()`; this
+    update frequency is once every four, as it is known to be more stable:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We exit the inner `while` loop if `done = True`, otherwise, we proceed to the
+    next time step, where the state will now be `new_state` from the previous time
+    step. We can also print on the screen the episode number, time steps for the episode,
+    the total rewards earned in the episode, the current `epsilon`, and the replay
+    buffer size at the end of the episode. These values are also useful for analysis
+    later, and so we store them in a text file called `performance.txt`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The next few lines of code will complete `dqn.py`. We reset the TensorFlow
+    graph to begin with using `tf.reset_default_graph()`. Then, we create two instances
+    of the `QNetwork` class, the `q_net` and `target_net` objects. We create a `state_processor`
+    object of the `ImageProcess` class and also create the TensorFlow `saver` object:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: We will now execute the TensorFlow graph by calling `tf.Session()`. If we are
+    starting from scratch in training mode, we have to initialize the variables, which
+    is accomplished by calling `sess.run()` on `tf.global_variables_initializer()`.
+    Otherwise, if we are in test mode, or in training mode but not starting from scratch,
+    we load the latest checkpoint file by calling `saver.restore()`.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The `replay_memory_size` parameter is limited by the size of RAM you have at
+    your disposal. The present simulations were undertaken in a 16 GB RAM computer,
+    where `replay_memory_size = 300000` was the limit. If the reader has access to
+    more RAM, a larger value can be used for this parameter. For your information,
+    DeepMind used a replay memory size of 1,000,000\. A larger replay memory size
+    is good, as it helps to provide more diversity in training when a mini-batch is
+    sampled:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: That's it—this completes `dqn.py`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will now evaluate the performance of the DQN on Atari Breakout.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Evaluating the performance of the DQN on Atari Breakout
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Here, we will plot the performance of our DQN algorithm on Breakout using the
+    `performance.txt` file that we wrote in the code previously. We will use `matplotlib`
+    to plot two graphs as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Number of time steps per episode versus episode number
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Total episode reward versus time step number
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The steps involved in this are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Plot number of time steps versus episode number for Atari Breakout using
+    DQN**: First, we plot the number of time steps the agent lasted per episode of
+    training in the following diagram. As we can see, after about 10,000 episodes,
+    the agent has learned to survive for a peak of 2,000 time steps per episode (blue
+    curve). We also plot the exponentially weighted moving average with the degree
+    of weighing, *α* = 0.02, in orange. The average number of time steps lasted is
+    approximately 1,400 per episode at the end of the training:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/9ddf9707-46e5-42f9-ab20-162ef909927c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 1: Number of time steps lasted per episode for Atari Breakout using
+    the DQN'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Plot episode reward versus time step number**: In the following graph, we
+    plot the total episode reward versus time time step for Atari Breakout using the
+    DQN algorithm. As we can see, the peak episode rewards are close to 400 (blue
+    curve), and the exponentially weighted moving average is approximately 160 to
+    180 toward the end of the training. We used a replay memory size of 300,000, which
+    is fairly small by modern standards, due to RAM limitations. If a bigger replay
+    memory size was used, a higher average episode reward could be obtained. This
+    is left for experimentation by the reader:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '![](img/5b3eabb5-0f16-45ea-8bb8-25fcf5fc278a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 2: Total episode reward versus time step number for Atari Breakout using
+    the DQN'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes this chapter on DQN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we looked at our very first deep RL algorithm, DQN, which is
+    probably the most popular RL algorithm in use today. We learned the theory behind
+    a DQN, and also looked at the concept and use of target networks to stabilize
+    training. We were also introduced to the Atari environment, which is the most
+    popular environment suite for RL. In fact, many of the RL papers published today
+    apply their algorithms to games from the Atari suite and report their episodic
+    rewards, comparing them with corresponding values reported by other researchers
+    who use other algorithms. So, the Atari environment is a natural suite of games
+    to train RL agents and compare them to ascertain the robustness of algorithms.
+    We also looked at the use of a replay buffer, and learned why it is used in off-policy
+    algorithms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter has laid the foundation for us to delve deeper into deep RL (no
+    pun intended!). In the next chapter, we will look at other DQN extensions, such
+    as DDQN, dueling network architectures, and rainbow networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Why is a replay buffer used in a DQN?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Why do we use target networks?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Why do we stack four frames into one state? Will one frame alone suffice to
+    represent one state?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Why is the Huber loss sometimes preferred over L2 loss?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: We converted the RGB input image into grayscale. Can we instead use the RGB
+    image as input to the network? What are the pros and cons of using RGB images
+    instead of grayscale?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '*Playing Atari with Deep Reinforcement Learning*, by* Volodymyr Mnih, Koray
+    Kavukcuoglu, David Silver, Alex Graves, Ioannis Antonoglou, Daan Wierstra, and
+    Martin Riedmiller, arXiv*:1312.5602: [https://arxiv.org/abs/1312.5602](https://arxiv.org/abs/1312.5602)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Human-level control through deep reinforcement learning* by *Volodymyr Mnih,
+    Koray Kavukcuoglu, David Silver, Andrei A. Rusu, Joel Veness, Marc G. Bellemare,
+    Alex Graves, Martin Riedmiller, Andreas K. Fidjeland, Georg Ostrovski, Stig Petersen,
+    Charles Beattie, Amir Sadik, Ioannis Antonoglou, Helen King, Dharshan Kumaran,
+    Daan Wierstra, Shane Legg, and Demis Hassabis*, *Nature*, 2015: [https://www.nature.com/articles/nature14236](https://www.nature.com/articles/nature14236)'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

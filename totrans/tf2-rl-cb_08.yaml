@@ -1,0 +1,1407 @@
+- en: '*Chapter 8*: Distributed Training for Accelerated Development of Deep RL Agents'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Training Deep RL agents to solve a task takes enormous wall-clock time due to
+    the high sample complexity. For real-world applications, iterating over agent
+    training and testing cycles at a faster pace plays a crucial role in the market
+    readiness of a Deep RL application. The recipes in this chapter provide instructions
+    on how to speed up Deep RL agent development using the distributed training of
+    deep neural network models by leveraging TensorFlow 2.x’s capabilities. Strategies
+    for utilizing multiple CPUs and GPUs both on a single machine and across a cluster
+    of machines are discussed. Multiple recipes for training distributed **Deep Reinforcement
+    Learning** (**Deep RL**) agents using the **Ray**, **Tune**, and **RLLib** frameworks
+    are also provided.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Specifically, the following recipes are a part of this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building distributed deep learning models using TensorFlow 2.x – Multi-GPU training
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Scaling up and out – Multi-machine, multi-GPU training
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Training Deep RL agents at scale – Multi-GPU PPO agent
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building blocks for distributed Deep Reinforcement Learning for accelerated
+    training
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Large-scale Deep RL agent training using Ray, Tune, and RLLib
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The code in the book is extensively tested on Ubuntu 18.04 and Ubuntu 20.04
+    and should work with later versions of Ubuntu if Python 3.6+ is available. With
+    Python 3.6+ installed along with the necessary Python packages, as listed before
+    the start of each of the recipes, the code should run fine on Windows and Mac
+    OSX too. It is advised to create and use a Python virtual environment named `tf2rl-cookbook`
+    to install the packages and run the code in this book. Miniconda or Anaconda installation
+    for Python virtual environment management is recommended.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The complete code for each recipe in each chapter will be available here: [https://github.com/PacktPublishing/Tensorflow-2-Reinforcement-Learning-Cookbook](https://github.com/PacktPublishing/Tensorflow-2-Reinforcement-Learning-Cookbook).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Distributed deep learning models using TensorFlow 2.x – Multi-GPU training
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Deep RL utilizes a deep neural network for policy, value-function, or model
+    representations. For higher-dimensional observation/state spaces, for example,
+    in the case of image or image-like observations, it is typical to use **convolutional
+    neural network** (**CNN**) architectures. While CNNs are powerful and enable training
+    Deep RL policies for vision-based control tasks, training deep CNNs requires a
+    lot of time, especially in the RL setting. This recipe will help you understand
+    how we can leverage TensorFlow 2.x’s distributed training APIs to train deep **residual
+    networks** (**ResNets**) using multiple GPUs. The recipe comes with configurable
+    building blocks that you can use to build Deep RL components like deep policy
+    networks or value networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s get started!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: To complete this recipe, you will first need to activate the `tf2rl-cookbook`
+    Python/conda virtual environment. Make sure to update the environment to match
+    the latest conda environment specification file (`tfrl-cookbook.yml`) in the cookbook’s
+    code repo. Having access to a (local or cloud) machine with one or more GPUs will
+    be beneficial for this recipe. We will be using the `tensorflow_datasets`. This
+    should be already installed if you used `tfrl-cookbook.yml` to set up/update your
+    conda environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let’s begin!
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The implementation in this recipe is based on the latest official TensorFlow
+    documentation/tutorial. The following steps will help you get a good command over
+    TensorFlow 2.x’s distributed execution capabilities. We will be using a ResNet
+    model as an example of a large model that will benefit from being trained in a
+    distributed fashion, utilizing multiple GPUs to speed up training. We will discuss
+    the code snippets for the main components for building a ResNet. Please refer
+    to the `resnet.py` file in the cookbook’s code repository for the full and complete
+    implementation. Let’s get started:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s jump right into the template for building residual neural networks:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'With the above template for a ResNet block, we can quickly build ResNets with
+    multiple ResNet blocks. We will implement a ResNet with one ResNet block here
+    in the book, and you will find the ResNet implemented with multiple configurable
+    numbers and sizes of ResNet blocks in the code repository. Let’s get started and
+    complete the ResNet implementation in the following several steps, focusing on
+    one important concept at a time. First, let’s define the function signature:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, let’s handle the channel ordering in the input image data representation.
+    The most common ordering of the dimensions is either: `batch_size` x `channels`
+    x `width` x `height` or `batch_size` x `width` x `height` x `channels`. We will
+    handle these two cases:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, let’s apply zero padding to the input and apply initial layers to start
+    processing:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'It’s time to add the ResNet blocks using the `resnet_block` function we created:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'As the final layer, we want to add a `softmax` activated `Dense` (fully connected)
+    layer with the number of nodes equal to the number of output classes needed for
+    the task:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The last step in the ResNet model building function is to wrap the layers as
+    a TensorFlow 2.x Keras model and return the output:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Using the ResNet function that we just discussed, it becomes quite easy to
+    build deep residual networks of varying layer depths by simply changing the number
+    of blocks. For example, the following is possible:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'With our model defined, we can jump to the multi-GPU training code. The remaining
+    steps in this recipe will guide you through the implementation that will allow
+    you to speed up training the ResNet using all the available GPUs on a machine.
+    Let’s start by importing the `ResNet` module that we built along with the `tensorflow_datasets`
+    module:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We can now choose which dataset we want to use to exercise our distributed
+    training pipeline. For this recipe, we will use the `dmlab` dataset that contains
+    images typically observed by RL agents acting in the DeepMind Lab environment.
+    Depending on the compute capabilities of the GPUs, RAM, and CPUs on your training
+    machine, you may want to use a smaller dataset such as `CIFAR10`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The next step needs your full attention! We are going to choose the distributed
+    execution strategy. TensorFlow 2.x has wrapped a lot of functionality into a simple
+    API call like the one listed here:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We will declare the key hyperparameters in this step that you can adjust depending
+    on your machine’s hardware (such as RAM and GPU memory):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Before we start preparing the datasets, let’s implement a preprocessing function
+    that performs operations before we pass the images to the neural network. You
+    can add your own custom preprocessing operations. In this recipe, we will only
+    need to cast the image data to `float32` first and then convert the image pixel
+    value ranges to be [0, 1] rather than the typical interval of [0, 255]:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We are ready to create the dataset splits for training and validation/testing:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We are at the crucial step of this recipe! Let’s instantiate and compile our
+    model within the scope of the distributed strategy:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let’s also create callbacks for logging to TensorBoard and checkpointing our
+    model parameters during training:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'With that, we have everything needed to train our model using the distributed
+    strategy. With Keras’s user-friendly `fit()` API, it is as simple as the following:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'When the preceding line is executed, the training process will start. We can
+    also manually save the model using the following lines:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Once we have a saved checkpoint, it is easy to load the weights and start evaluating
+    the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'To verify that the trained model using the distributed strategy works with
+    and without replication, we will load it using two different methods in the following
+    steps and evaluate. First, let’s load the model without replicating using the
+    (same) strategy we used to train the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, let’s load the model within the distributed execution strategy’s scope,
+    which would create replicas and evaluate the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: When you execute the preceding two code blocks, you will notice that both the
+    methods result in the same evaluation accuracy, which is a good sign and signifies
+    that we can use the model for prediction without any constraints on the execution
+    strategy!
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: That completes our recipe. Let’s recap and look at how the recipe works.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: A residual block in a neural network architecture applies convolution filters
+    followed by multiple identity blocks. Specifically, a convolution block is applied
+    once, followed by (size - 1) identity blocks where size is an integer representing
+    the number of constituent convolutional-identity blocks. The identity block implements
+    the shortcut or skip connections for the inputs to go through without being filtered
+    through convolution operators. The convolutional block implements convolution
+    layers followed by batch-normalization activation, followed by one or more sets
+    of convolution-batchnorm-activation layers. The `resnet` module we built uses
+    these convolution and identity building blocks to build a full ResNet with varying
+    sizes that can be configured by simply changing the number of blocks. The size
+    of the network is calculated as `6 * num_blocks + 2`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once our ResNet model was ready, we used the `tensorflow_datasets` module to
+    generate training and validation datasets. The TensorFlow Datasets module offers
+    several popular datasets, such as CIFAR10, CIFAR100, and DMLAB, that have images
+    and the associated labels for classification tasks. The list of all the available
+    datasets can be found here: [https://tensorflow.org/datasets/catalog](https://tensorflow.org/datasets/catalog).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this recipe, we used the Mirrored Strategy for distributed execution using
+    `tf.distribute.MirroredStrategy`, which enables synchronous distributed training
+    using multiple replicas on one machine. Even with distributed execution with multiple
+    replicas, we saw that the usual logging and checkpointing using callbacks worked
+    as expected. We also verified that loading a saved model and running inference
+    for evaluation works both with and without replication, making it portable without
+    any added constraints just because the training utilized a distributed execution
+    strategy!
+  prefs: []
+  type: TYPE_NORMAL
+- en: It’s time to advance to the next recipe!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Scaling up and out – Multi-machine, multi-GPU training
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To reach the highest scale in terms of the distributed training of deep learning-based
+    models, we need the capability to leverage compute resources across GPUs and across
+    machines. This can significantly reduce the time it takes to iterate over or develop
+    new models and architectures for the problem you are trying to solve. With easy
+    access to cloud computing services such as Microsoft Azure, Amazon AWS, and Google’s
+    GCP, renting multiple GPU-equipped machines for an hourly rate has become easier
+    and much more common. It is also more economical than setting up and maintaining
+    your own multi-GPU multi-machine node. This recipe will provide a quick walk-through
+    of training deep models using TensorFlow 2.x’s multi-worker mirrored distributed
+    execution strategy based on the official documentation, which you can use and
+    easily customize for your use cases. For the multi-machine, multi-GPU distributed
+    training example in this recipe, we will train a deep residual network (ResNet
+    or resnet) for typical image classification tasks. The same network architecture
+    can be used by RL agents for their policy or value-function representation with
+    a slight modification to the output layer, as we will see in the later recipes
+    of this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s get started!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: To complete this recipe, you will first need to activate the `tf2rl-cookbook`
+    Python/conda virtual environment. Make sure to update the environment to match
+    the latest conda environment specification file (`tfrl-cookbook.yml`) in the cookbook’s
+    code repo. To exercise the distributed training pipeline, it is recommended to
+    set up a cluster with two or more machines equipped with GPUs either locally or
+    on a cloud instance such as Azure, AWS, or GCP. While the training script we will
+    implement can utilize multiple machines in a cluster, it is not absolutely necessary
+    to have a cluster set up, although it is encouraged.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let’s begin!
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Since this distributed training setup involves multiple machines, we need a
+    communication interface between the machines and a way to address the individual
+    machines. This is typically done using the existing network infrastructure and
+    IP address:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s begin by setting up a configuration parameter describing the cluster
+    where we would like to train the models. The following code block is commented
+    out so that you can edit and uncomment based on your cluster setup or leave it
+    commented if you want to simply try it out on a single machine setup:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'To leverage multi-machine setups, we will use TensorFlow 2.x’s `MultiWorkerMirroredStrategy`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, let’s declare the basic hyperparameters for the training. Feel free to
+    adjust the batch sizes and the `NUM_GPUS` values as per your cluster/computer
+    configuration:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'To prepare the dataset, let’s implement two quick functions for normalizing
+    and augmenting the input images:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'For the sake of simplicity and faster convergence, we will stick with the CIFAR10
+    dataset as per the official TensorFlow 2.x sample for training, but feel free
+    to choose a different dataset when you explore. Once you choose the dataset, we
+    can generate the training and the testing sets:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'To make the training results reproducible, we will use a fixed random seed
+    to shuffle the dataset:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We are not ready to generate the training and validation/testing dataset. We
+    will shuffle the dataset using the known and fixed random seed declared in the
+    previous step and apply the augmentation to the training set:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Similarly, we will prepare the test dataset but we do not want to apply random
+    cropping to the test images! So, we will skip the augmentation and use the normalization
+    step for preprocessing:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Before we can start training, we need to create an instance of an optimizer
+    and also prepare the input layer. Feel free to use a different optimizer, such
+    as Adam, as per the needs of your task:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, we are ready to construct the model instance within the scope of the
+    `MultiMachineMirroredStrategy`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'To train the model, we use the simple but powerful Keras API:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Once the model is trained, we easily save, load, and evaluate:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 12.1 Save
+  prefs:
+  - PREF_IND
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: That completes our recipe implementation! Let’s summarize what we implemented
+    and how it works in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'For any distributed training runs with TensorFlow 2.x, the `TF_CONFIG` environment
+    variable needs to be set on each of the (virtual) machines on your cluster. These
+    configuration values inform each of the machines about the role and the training
+    information each of the nodes will need to perform its job. You can read more
+    about the details of **TF_CONFIG** configurations used by TensorFlow 2.x’s distributed
+    training here: [https://cloud.google.com/ai-platform/training/docs/distributed-training-details](https://cloud.google.com/ai-platform/training/docs/distributed-training-details).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We used TensorFlow 2.x’s `MultiWorkerMirroredStrategy`, which is a strategy
+    similar to the Mirrored Strategy we used in the previous recipe in this chapter.
+    This strategy is useful for synchronous training across machines with each machine
+    potentially having one or more GPUs. All the variables and computations required
+    for training the model are replicated on each of the worker nodes as in the Mirrored
+    Strategy and, additionally, a distributed collection routine (such as all-reduce)
+    is used to collate results from multiple distributed nodes. The remaining workflow
+    for training, saving the model, loading the model, and evaluating the model remains
+    the same as in our previous recipe.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Ready for the next recipe? Let’s do it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training Deep RL agents at scale – Multi-GPU PPO agent
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: RL agents in general require a large number of samples and gradient steps to
+    be trained depending on the complexity of the state, action, and the problem space.
+    With Deep RL, the computational complexity also increases drastically as the deep
+    neural network used by the agent (for Q/value-function representation, for policy
+    representation, or for both) has a lot more operations and parameters that need
+    to be executed and updated, respectively. To speed up the training process, we
+    need the capability to scale our Deep RL agent training to leverage the available
+    compute resources, such as GPUs. This recipe will help you leverage multiple GPUs
+    to train a PPO agent with a deep convolutional neural network policy in a distributed
+    fashion in one of the procedurally generated RL environments using **OpenAI’s
+    procgen** library.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s get started!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: To complete this recipe, you will first need to activate the `tf2rl-cookbook`
+    Python/conda virtual environment. Make sure to update the environment to match
+    the latest conda environment specification file (`tfrl-cookbook.yml`) in the cookbook’s
+    code repo. Although not required, it is recommended to use a machine with two
+    or more GPUs to execute this recipe.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, let’s begin!
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We will implement a complete recipe to allow configurable training of a PPO
+    agent with a deep convolutional neural network policy in a distributed fashion.
+    Let’s start implementing it step by step:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will begin by importing the necessary modules for our recipe:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We will be using the `procgen` environments from OpenAI. Let’s import that
+    as well:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'In order to make this recipe easy to configure and run, let’s add support for
+    command-line arguments with useful configuration flags:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let’s use a TensorBoard summary writer for logging:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We will first implement the `Actor` class in the following several steps, starting
+    with the `__init__` method. You will notice that we need to instantiate the models
+    within the context of the execution strategy:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'For the Actor’s policy network model, we will implement a deep convolutional
+    neural network comprising of multiple `Conv2D` and `MaxPool2D` layers. We will
+    start the implementation in this step and finish in the following few steps:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We will add more Conv2D – Pool2D layers to stack up the processing layers depending
+    on the needs for the task. In this recipe, we will be training policies for the
+    procgen environment, which is somewhat visually rich, so we will stack a few more
+    layers:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, we can use a flattening layer and prepare the output heads for the policy
+    network:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'As the final step for building the neural model for the policy network, we
+    will create the output layer and return a Keras model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'With the model we have defined in the previous steps, we can start processing
+    a state/observation image input and produce the logits (unnormalized probabilities)
+    and the action that the Actor would take. Let’s implement a method to do that:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, to compute the surrogate loss to drive the learning, we will implement
+    the `compute_loss` method:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next up is a core method that ties all the methods together to perform the
+    training. Note that this is the train method per replica, and we will use it in
+    our distributed training method, which will follow in the next steps:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'To implement the distributed training method, we will make use of the `tf.function`
+    decorator to implement a TensorFlow 2.x function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'That completes our `Actor` class implementation, and we will now start our
+    implementation of the `Critic` class:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'You must have noticed that we are creating the Critic’s value-function model
+    instance within the scope of the execution strategy to support distributed training.
+    We will now start implementing the Critic’s neural network model in the following
+    few steps:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Like our Actor’s model, we will have similar layering of Conv2D-MaxPool2D layers
+    followed by flattening layers with dropout:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We will add the value output head and return the model as a Keras model to
+    complete our Critic’s neural network model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'As you may recall, the Critic’s loss is the mean squared error between the
+    predicted temporal-difference target and the actual temporal-difference targets.
+    Let’s implement a method to compute the loss:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Similar to our Actor implementation, we will implement a per-replica `train`
+    method and then use it in a later step for distributed training:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We will now finalize our `Critic` class implementation by implementing the
+    `train_distributed` method that enables distributed training:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'With our `Actor` and `Critic` classes implemented, we can start our distributed
+    `PPOAgent` implementation. We will implement the `PPOAgent` class in the following
+    several steps. Let’s begin with the `__init__` method:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, we will implement a method to calculate the target for the **generalized
+    advantage estimate** (**GAE**):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We are all set to start our main `train(…)` method. We will split the implementation
+    of this method into the following few steps. Let’s set up the scope, start the
+    outer loop, and initialize varaibles:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, we can start the loop that needs to be executed for each episode until
+    the episode is done:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Within each episode, if we have reached `update_freq` or just reached an end
+    state, we need to compute the GAEs and TD targets. Let’s add the code for that:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Within the same execution context, we need to train the `Actor` and the `Critic`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, we need to reset the tracking variables and update our episode reward
+    values:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'With that, our distributed `main` method to finalize our recipe:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE60]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: That’s it for the recipe! Hope you enjoyed cooking it up. You can execute the
+    recipe and watch the progress using the TensorBoard logs to see the training speedup
+    you get with a greater number of GPUs!
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: Let’s recap what we accomplished and how the recipe works in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We implemented `Actor` and `Critic` classes where the Actor used a deep convolutional
+    neural network for the policy representation and the Critic utilized a similar
+    deep convolutional neural network for its value function representation. Both
+    these models were instantiated under the scope of the distributed execution strategy
+    using the `self.execution_strategy.scope()` construct.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The procgen environments, such as coinrun, fruitbot, jumper, leaper, maze, and
+    others, are visually (relatively) rich environments and therefore require convolutional
+    layers that are relatively deep to process the visual observations. We therefore
+    used a deep CNN model for the policy network of the Actor. For distributed training
+    using multiple replicas on multiple GPUs, we first implemented a single-replica
+    training method (train) and then used `Tensorflow.function` to run across replicas
+    and reduce the results to arrive at the total loss.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, while training our PPO agent in the distributed setting, we performed
+    all the training operations within the scope of the distributed execution strategy
+    by using Python’s `with` statement for context management like this: `with self.distributed_execution_strategy.scope()`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It’s time to move on to the next recipe!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building blocks for distributed Deep Reinforcement Learning for accelerated
+    training
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The previous recipes in this chapter discussed how you could scale your Deep
+    RL training using TensorFlow 2.x’s distributed execution APIs. While it was straightforward
+    after understanding the concepts and the implementation style, training Deep RL
+    agents with more advanced architectures such as Impala and R2D2 requires RL building
+    blocks such as distributed parameter servers and distributed experience replay.
+    This chapter will walk through the implementation of such building blocks for
+    distributed RL training. We will be using the Ray distributed computing framework
+    to implement our building blocks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s get started!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To complete this recipe, you will first need to activate the `tf2rl-cookbook`
+    Python/conda virtual environment. Make sure to update the environment to match
+    the latest conda environment specification file (`tfrl-cookbook.yml`) in the cookbook’s
+    code repo. To test the building blocks we build in this recipe, we will be using
+    the `sac_agent_base` module based on our SAC agent implemented in one of the book’s
+    earlier recipes. If the following `import` statements run without issues, you
+    are ready to start:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, let’s begin!
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We will implement the building blocks one by one, starting with the distributed
+    parameter server:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The `ParameterServer` class is a simple store for sharing the neural network
+    parameters or weights between workers in a distributed training setting. We will
+    implement the class as a Ray’s remote Actor:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE62]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let’s also add a method to save the weights to the disk:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE63]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'As the next building block, we will implement the `ReplayBuffer`, which can
+    be used by a distributed set of agents. We will start the implementation in this
+    step and continue in the next several steps:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE64]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, we will implement a method to store new experiences in the replay buffer:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE65]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'To sample a batch of experience data from the replay buffer, we will implement
+    a method that randomly samples from the replay buffer and returns a dictionary
+    containing the sampled experience data:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE66]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'That completes our `ReplayBuffer` class implementation. We will now start implementing
+    a method to roll out, which essentially collects experiences in an RL environment
+    using an exploration policy with parameters pulled from the distributed parameter
+    server object and stores the collected experience in the distributed replay buffer.
+    We will start our implementation in this step and complete the `rollout` method
+    implementation in the following steps:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE67]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'With the agent intialized and loaded and the environment instance(s) ready,
+    we can start our experience-gathering loop:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE68]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let’s handle the case when a `max_ep_len` is configured to indicate the maximum
+    length of the episode and then store the collected experience in the distributed
+    replay buffer:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE69]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, at the end of the episode, sync the weights of the behavior policy
+    using the parameter server:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE70]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'That completes the implementation of the `rollout` method and we can now implement
+    a `train` method that runs the train loop:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE71]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'The final module in our recipe is the `main` function, which puts together
+    all the building blocks we have built so far in this recipe and exercises them.
+    We will begin the implementation in this step and finish it in the remaining steps.
+    Let’s start with the `main` function argument list and capture the arguments in
+    a config dictionary:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE72]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, let’s create an instance of the desired environment, obtain the state
+    and observation space, initialize ray, and also initialize a Stochastic Actor-Critic
+    agent. Note that we are initializing a single-node ray cluster but feel free to
+    initialize ray with a cluster of nodes (local or in the cloud):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE73]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'In this step, we will initialize an instance of the `ParameterServer` class
+    and an instance of the `ReplayBuffer` class:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE74]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We are now ready to exercise the building blocks we have built. We will first
+    launch a series of rollout tasks based on the number of workers specified as a
+    configuration argument that will launch the rollout process on the distributed
+    ray cluster:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE75]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The rollout task will launch the remote tasks that will populate the replay
+    buffer with the gathered experience. The above line will return immediately even
+    though the rollout tasks will take time to complete because of the asynchronous
+    function call.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'Next, we will launch a configurable number of learners that run the distributed
+    training task on the ray cluster:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE76]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: The above statement will launch the remote training process and return immediately
+    even though the `train` function on the learners will take time to complete.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE77]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, let’s define our entry point. We will use the Python Fire library
+    to expose our `main` function, and its arguments to look like an executable supporting
+    command-line argument:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE78]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'With the preceding entry point, the script can be configured and launched from
+    the command line. An example is provided here for your reference:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE79]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: That completes our implementation! Let’s briefly discuss how it works in the
+    next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We built a distributed `ParameterServer`, `ReplayBuffer`, rollout worker, and
+    learner processes. These building blocks are crucial for training distributed
+    RL agents. We utilized Ray as the framework for distributed computing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After implementing the building blocks and the tasks, in the `main` function,
+    we launched the two asynchronous, distributed tasks on the ray cluster. The `task_rollout`
+    launched a (configurable) number of rollout workers and the `task_train` launched
+    a (configurable) number of learners. Both the tasks run on the ray cluster asynchronously
+    in a distributed manner. The rollout workers pull the latest weights from the
+    parameter server and gather and store experiences in the replay memory buffer
+    while, simultaneously, the learners train using batches of experiences sampled
+    from the replay memory and push the updated (and potentially improved) set of
+    parameters to the parameter server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It’s time to move on to the next and final recipe of this chapter!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Large-scale Deep RL agent training using Ray, Tune, and RLLib
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous recipe, we got a flavor of how to implement distributed RL agent
+    training routines from scratch. Since most of the components used as building
+    blocks have become a standard way of building Deep RL training infrastructure,
+    we can leverage an existing library that maintains a high-quality implementation
+    of such building blocks. Fortunately, with our choice of ray as the framework
+    for distributed computing, we are in a good place. Tune and RLLib are two libraries
+    built on top of ray, and are available together with Ray, that provide highly
+    scalable hyperparameter tuning (Tune) and RL training (RLLib). This recipe will
+    provide a curated set of steps to get you acquainted with ray, Tune, and RLLib
+    so that you can utilize them to scale your Deep RL training routines. In addition
+    to the recipe discussed here in the text, the cookbook’s code repository for this
+    chapter will have a handful of additional recipes for you.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s get started!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting ready
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'To complete this recipe, you will first need to activate the `tf2rl-cookbook`
+    Python/conda virtual environment. Make sure to update the environment to match
+    the latest conda environment specification file (`tfrl-cookbook.yml`) in the cookbook’s
+    code repo. Ray, Tune, and RLLib will be installed in your `tfrl-cookbook` conda
+    environment when you use the provided conda YAML spec for the environment. If
+    you want to install Tune and RLLib in a different environment, the easiest way
+    is to install it using the following command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE80]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now, let’s begin!
+  prefs: []
+  type: TYPE_NORMAL
+- en: How to do it...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'We will start with quick and basic commands and recipes to launch training
+    on ray clusters using Tune and RLLib and progressively customize the training
+    pipeline to provide you with a useful recipe:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Launching typical training of RL agents in OpenAI Gym environments is as easy
+    as specifying the algorithm name and the environment name. For example, to train
+    a PPO agent in the CartPole-v4 Gym environment, all you need to execute is the
+    following command:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE81]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let’s try to train a PPO agent in the `coinrun` `procgen` environment, like
+    in one of our previous recipes:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE82]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'You will notice that the preceding command fails with the following (shortened)
+    error:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '[PRE83]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: This is because, as the error states, RLLib by default supports observations
+    of shapes (42, 42, k) or (84, 84, k). Observations of other shapes will need a
+    custom model or a preprocessor. In the next few steps, we will see how we can
+    implement a custom neural network model implemented using the TensorFlow 2.x Keras
+    API, which can be used with ray RLLib.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We will start our custom model implementation (`custom_model.py`) in this step
+    and complete it in the following few steps. In this step, let’s import the necessary
+    modules and also implement a helper method to return a Conv2D layer with a certain
+    filter depth:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE84]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, let’s implement a helper method to build and return a simple residual
+    block:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE85]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let’s implement another handy function to construct multiple residual block
+    sequences:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE86]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We can now start implementing the `CustomModel` class as a subclass of the
+    TFModelV2 base class provided by RLLib to make it easy to integrate with RLLib:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE87]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'After the `__init__` method, we need to implement the `forward` method as it
+    is not implemented by the base class (`TFModelV2`) but is necessary:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE88]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We will also implement a one-line method to reshape the value function output:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE89]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: With that, our `CustomModel` implementation is complete and is ready to use!
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'We will implement a solution (`5.1_training_using_tune_run.py`) using ray,
+    Tune, and RLLib’s Python API so that you also utilize the model in addition to
+    their command-line usage. Let’s split the implementation into two steps. In this
+    step, we will import the necessary modules and initialize ray:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE90]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'In this step, we will register our custom model in RLLib’s `ModelCatlog` and
+    then use it to train a PPO agent with a custom set of parameters including the
+    `framework` parameter that forces RLLib to use TensorFlow 2\. We will also shut
+    down ray at the end of the script:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE91]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We will look at another quick recipe (`5_2_custom_training_using_tune.py`)
+    to customize the training loop. We will split the implementation into the following
+    few steps to keep it simple. In this step, we will import the necessary libraries
+    and initialize ray:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE92]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now, let’s register our custom model with RLLib’s `ModelCatalog` and configure
+    the **IMPALA agent**. We could very well use any other RLLib support agents, such
+    as PPO or SAC:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE93]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We can now implement our custom training loop and include any steps in the
+    loop as we desire. We will keep the example loop simple by simply performing a
+    training step and saving the agent’s model every n(100) epochs:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE94]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Note that we could continue to train the agent using the saved checkpoint and
+    using the simpler ray tune’s run API as shown here as an example:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE95]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Finally, let’s shut down ray to free up system resources:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE96]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: That completes this recipe! In the next section, let’s recap what we discussed
+    in this recipe.
+  prefs: []
+  type: TYPE_NORMAL
+- en: How it works...
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We identified one of the common limitations with the simple but limited command-line
+    interface of ray RLLib. We also discussed a solution to overcome the failure in
+    step 2 where a custom model was needed to use RLLib’s PPO agent training and implemented
+    it in steps 9 and 10.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While the solution discussed in steps 9 and 10 looks elegant, it may not provide
+    all the customization knobs you are looking for or are familiar with. For example,
+    it abstracts away the basic RL loop that steps through the environment. We implemented
+    another quick recipe starting from step 11 that allows the customization of the
+    training loop. In step 12, we saw how we can register our custom model and use
+    it with the IMPALA agent – which is a scalable, distributed Deep RL agent based
+    on IMPortance-weighted Actor-Learner Architecture. IMPALA agent actors communicate
+    sequences of states, actions, and rewards to a centralized learner where batch
+    gradient updates take place, in contrast to the (asynchronous) Actor-Critic-based
+    agents where the gradients are communicated to a centralized parameter server.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For more information on Tune, you can refer to the Tune user guide and configuration
+    documentation at [https://docs.ray.io/en/master/tune/user-guide.html](https://docs.ray.io/en/master/tune/user-guide.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: For more information on RLLib training APIs and configuration documentation,
+    you can refer to [https://docs.ray.io/en/master/rllib-training.html](https://docs.ray.io/en/master/rllib-training.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: That completes the recipe and the chapter! Hope you feel empowered with the
+    new skills and knowledge you have gained to speed up your Deep RL agent training.
+    See you in the next chapter!
+  prefs: []
+  type: TYPE_NORMAL

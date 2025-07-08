@@ -1,0 +1,918 @@
+- en: Video and Recurrent Neural Networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: So far in this book, we have only considered still images. However, in this
+    chapter, we will introduce the techniques that are applied to video analysis.
+    From self-driving cars to video streaming websites, computer vision techniques
+    have been developed to enable sequences of images to be processed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will introduce a new type of neural network—**recurrent neural networks**
+    (**RNNs**), which are designed specifically for sequential inputs such as video.
+    As a practical application, we will combine them with **convolutional neural networks**
+    (**CNNs**) to detect actions included in short video clips.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following topics will be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introduction to RNNs
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Inner workings of long short-term memory networks
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Applications of computer vision models to videos
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Commented code in the form of Jupyter notebooks is available in this book's
+    GitHub repository at [https://github.com/PacktPublishing/Hands-On-Computer-Vision-with-TensorFlow-2/tree/master/Chapter08](https://github.com/PacktPublishing/Hands-On-Computer-Vision-with-TensorFlow-2/tree/master/Chapter08).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introducing RNNs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: RNNs are a type of neural network that are suited for *sequential* (or *recurrent*)
+    data. Examples of sequential data include sentences (sequences of words), time
+    series (sequences of stock prices, for instance), or videos (sequences of frames).
+    They qualify as recurrent data as each time step is related to the previous ones.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While RNNs were originally developed for time series analysis and natural language
+    processing tasks, they are now applied to various computer vision tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will first introduce the basic concepts behind RNNs, before trying to get
+    a general understanding of how they work. We will then describe how their weights
+    can be learned.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Basic formalism
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To introduce RNNs, we will use the example of video recognition. A video is
+    composed of *N* frames. The naive method to classify a video would be to apply
+    a CNN to each frame, and then take the average of the outputs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While this would provide decent results, it does not reflect the fact that some
+    parts of the video are more important than others. Moreover, the important parts
+    do not always take more frames than the meaningless ones. The risk of averaging
+    the output would be to lose important information.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To circumvent this problem, an RNN is applied to all the frames of the video,
+    one after the other, from the first one to the last one. The main attribute of
+    RNNs is adequately combining features from all the frames in order to generate
+    meaningful results.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We do not apply the RNN directly to the raw pixels of the frame. As described
+    later in the chapter, we first use a CNN to generate a feature volume (a stack
+    of feature maps). The concept of feature volume was detailed in [Chapter 3](dd1d3406-d506-4690-bf13-e5e0584ea9d1.xhtml),
+    *Modern Neural Networks*. As a reminder, a feature volume is the output of a CNN
+    and usually represents the input with a smaller dimensionality.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To do so, RNNs introduce a new concept called the **state**. State can be pictured
+    as the memory of the RNN. In practice, *state* is a float matrix. The *state*
+    starts as a zero matrix and is updated with each frame of the video. At the end
+    of the process, the final state is used to generate the output of the RNN.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The main component of an RNN is the **RNN cell**, which we will apply to every
+    frame. A cell receives as inputs both the *current frame* and the *previous state*.
+    For a video composed of *N* frames, an unfolded representation of a simple recurrent
+    network is depicted in *Figure 8-1*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/5169459a-a619-4a53-9a8b-4c3a7fe2928e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8-1: Basic RNN cell'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In detail, we start with a null state (*h^(<0>)*). As a first step, the cell
+    combines the current state (*h^(<0>)*) with the current frame (frame[1]) to generate
+    a new state (*h^(<1>)*). Then, the same process is applied to the next frames.
+    At the end of this process, we end up with the final state (*h^(<n>)*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note the vocabulary here—*RNN* refers to the component that accepts an image
+    and returns a final output. An *RNN cell* refers to the sub-component that combines
+    a frame as well as a current state, and returns the next state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In practice, the cell combines the current state and the frame to generate
+    a new state. This combination happens according to the following formula:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a963e0e1-c4b2-4417-ace0-01520200eb48.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In the formula, the following applies:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*b* is the bias.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*W[rec]* is the recurrent weight matrix, and *W[input]* is the weight matrix.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*x^(<t>)* is the input.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*h*^(*<t-1*)^> is the current state, and *h^(<t>)* is the new state.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The hidden state is not used as is. A weight matrix, *V*, is used to compute
+    the final prediction:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/dbf994e9-96b7-42f6-876a-4dc1d6022356.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Throughout this chapter, we will make use of chevrons (*< >*) to denote temporal
+    information. Other sources may use different conventions. Note, however, that
+    the *y* with a hat (![](img/4d9d459e-d52e-4560-ad87-0679ff1768e4.png)) commonly
+    represents the prediction of a neural network, while *y* represents the ground
+    truth.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When applied to videos, RNNs can be used to classify the whole video or every
+    single frame. In the former case, for instance, when predicting whether a video
+    is violent, only the final prediction, ![](img/9a1a7978-6dd9-4bba-b4e5-b677fb274ad6.png),
+    will be used. In the latter case, for instance, to detect which frames may contain
+    nudity, predictions for each time step will be used.
+  prefs: []
+  type: TYPE_NORMAL
+- en: General understanding of RNNs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Before we detail how the network learns the weights of *W[input]*, *W[rec]*,
+    and *V*, let's try to get a broad understanding of how a basic RNN works. The
+    general idea is that *W[input]* will influence the results if some of the features
+    from the input make it into the hidden state, and *W[rec]* will influence the
+    results if some features stay in the hidden state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's use specific examples—classifying a violent video and a dance video.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As a gunshot can be quite sudden, it would represent only a few frames among
+    all the frames of the video. Ideally, the network will learn W[input], so that
+    when *x^(<t>)* contains the information of a gunshot, the concept of *violent
+    video* would be added to the state. Moreover, *W[rec]* (defined in the previous
+    equation) must be learned in a way that prevents the concept of *violent* from
+    disappearing from the state. This way, even if the gunshot appears only in the
+    first few frames, the video would still be classified as violent (see *Figure
+    8-2*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'However, to classify dance videos, we would adopt another behavior. Ideally,
+    the network would learn *W[input]* so that, for example, when *x^(<t> )*contains
+    people who appear to be dancing, the concept of *dance* would only be lightly
+    incremented in the state (see *Figure 8-2*):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b9eb6930-ae06-4161-9841-7c6e18e6696a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8-2: Simplified representation of how the hidden state should evolve,
+    depending on the video content'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Indeed, if the input is a sport video, we would not want a single frame mistakenly
+    classified as *dancing people* to change our state to *dancing*. As a dancing
+    video is mostly made of frames containing dancing people, by incrementing the
+    state little by little, we would avoid misclassification.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Moreover, *W[rec]* must be learned in order to make *dance* gradually disappear
+    from the state. This way, if the introduction of the video is about dance, but
+    the whole video is not, it would not be classified as such.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Learning RNN weights
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In practice, the state of the network is much more complex than a vector containing
+    a weight for each class, as in the previous example. The weights of *W[input]*, *W[rec]*,
+    and *V* cannot be engineered by hand. Thankfully, they can be learned through
+    **backpropagation**. This technique was detailed in [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml),
+    *Computer Vision and Neural Networks*. The general idea is to learn the weights
+    by correcting them based on the errors that the network makes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Backpropagation through time
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'For RNNs, however, we not only backpropagate the error through the depth of
+    the network, but also through time. First of all, we compute the total loss by
+    summing the individual loss (*L*) over all the time steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/dcef82b0-e784-40a7-9d94-5230a6aec74a.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This means that we can compute the gradient for each time step separately.
+    To greatly simplify the calculations, we will assume that *tanh* = *identity*
+    (that is, we assume that there is no activation function). For instance, at *t*
+    = *4*, we will compute the gradient by applying the chain rule:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/2dc89d41-4b50-41c7-9652-606b9839cec7.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, we stumble upon a complexity—the third term (in bold) on the right-hand
+    side of the equation cannot be easily derived. Indeed, to take the derivative
+    of *h^(<4>)* with respect to *W[rec]*, all other terms must not depend on *W[rec]*.
+    However, *h^(<4>)* also depends on *h^(<3>)*. And *h^(<3>)* depends on *W[rec]*,
+    since *h^(<3>)*= *tanh* (*W**[rec] h^(<2>)* + *W**[input] x^(<3>)*+*b*), and so
+    on and so forth until we reach *h^(<0>)*, which is entirely composed of zeros.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To properly derive this term, we apply the total derivative formula on this
+    partial derivative:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/2301b12c-ff98-425b-8cc0-5384c6a2a653.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: It might seem weird that a term is equal to itself plus other (non-null) terms.
+    However, since we are taking the total derivative of a partial derivative, we
+    need to take into account all the terms in order to generate the gradient.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'By noticing that all the other terms are remaining constant, we obtain the
+    following equations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0a6c7dd6-ae58-4567-b5fc-81350c329cf6.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Therefore, the partial derivative presented before can be expressed as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/165d3572-8480-436e-a48e-35b45fcc897e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In conclusion, we notice that the gradient will depend on all the previous states
+    as well as *W[rec]*. This concept is called **backpropagation through time** (**BPTT**).
+    Since the latest state depends on all the states before it, it only makes sense
+    to consider them to compute the error. As we sum the gradient of each time step
+    to compute the total gradient, and since, for each time step, we have to go back
+    to the first time step to compute the gradient, a large amount of computation
+    is implied. For this reason, RNNs are notoriously slow to train.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Moreover, we can generalize the previous formula to show that ![](img/1fd22468-8206-4bb5-bd9b-35c90b6f2489.png)depends
+    on *W[rec]* to the power of (*t-2*). This is very problematic when *t* is large.
+    Indeed, if the terms of *W[rec]* are below one, with the high exponent, they become
+    very small. Worse, if the terms are above one, the gradient tends toward infinity.
+    These phenomena are called **gradient vanishing** and **gradient explosion**,
+    respectively (they were previously described in [Chapter 4](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml),
+    *Influential Classification Tools*). Thankfully, workarounds exist to avoid this
+    problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Truncated backpropagation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To circumvent the long training time, it is possible to compute the gradient
+    every *k[1]* time step instead of every step. This divides the number of gradient
+    operations by *k[1]*, making the training of the network faster.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Instead of backpropagating throughout all the time steps, we can also limit
+    the propagation to *k[2]* steps in the past. This effectively limits the gradient
+    vanishing, since the gradient will depend on *W^(k[2])* at most. This also limits
+    the computations that are necessary to compute the gradient. However, the network
+    will be less likely to learn long-term temporal relations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The combination of those two techniques is called **truncated backpropagation**,
+    with its two parameters commonly referred to as *k[1]* and *k[2]*. They must be
+    tuned to ensure a good trade-off between training speed and model performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This technique—while powerful—remains a workaround for a fundamental RNN problem.
+    In the next section, we will introduce a change of architecture that can be used
+    to solve this issue in its entirety.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Long short-term memory cells
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As we saw previously, regular RNNs suffer from gradient explosion. As such,
+    it can sometimes be hard to teach them long-term relations in sequences of data.
+    Moreover, they store information in a single-state matrix. For instance, if a
+    gunshot happens at the very beginning of a very long video, it will be unlikely
+    that the hidden state of the RNNs will not be overridden by noise by the time
+    it reaches the end of the video. The video might not be classified as violent.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To circumvent those two problems, Sepp Hochreiter and Jürgen Schmidhuber proposed,
+    in their paper (*Long Short-Term Memory*, *Neural Computation*, 1997), a variant
+    of the basic RNN—the **Long Short-Term Memory** (**LSTM**) cell. This has improved
+    markedly over the years, with many variants being introduced. In this section,
+    we will give an overview of its inner workings, and we will show why gradient
+    vanishing is less of an issue.
+  prefs: []
+  type: TYPE_NORMAL
+- en: LSTM general principles
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Before we detail the mathematics behind the LSTM cell, let's try to get a general
+    understanding of how it works. To do so, we will use the example of a live classification
+    system that is applied to the Olympic Games. The system has to detect, for every
+    frame, which sport is being played during a long video from the Olympics.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If the network sees people standing in line, can it infer what sport it is?
+    Is it soccer players singing the anthem, or is it athletes preparing to run a
+    100-meter race? Without information about what happened in the frames just prior
+    to this, the prediction will not be accurate. The basic RNN architecture we presented
+    earlier would be able to store this information in the hidden state. However,
+    if the sports are alternating one after the other, it would be much harder. Indeed,
+    the state is used to generate the current predictions. The basic RNN is unable
+    to store information that it will not use immediately.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The LSTM architecture solves this by storing a memory matrix, which is called
+    the **cell state** and is referred to as *C^(<t>)*. At every time step, *C^(<t>)*
+    contains information about the current state. But this information will not be
+    used directly to generate the output. Instead, it will be filtered by a *gate*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the LSTM's cell state is different from the simple RNN's state, as
+    outlined by the following equations. The LSTM's cell state is filtered before
+    being transformed into the final state.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Gates are the core idea of LSTM's cell. A gate is a matrix that will be multiplied
+    term by term to another element in the LSTM. If all the values of the gate are
+    *0*, none of the information from the other element will pass through. On the
+    other hand, if the gate values are all around *1*, all the information of the
+    other element will pass through.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As a reminder, an example of term-by-term multiplication (also called **element-wise
+    multiplication** or the **Hadamard product**) can be depicted as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/98e6f482-4d5e-4a76-a4c2-bf147d661b8f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'At each time step, three gate matrices are computed using the current input
+    and the previous output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**The input gate**: Applied to the input to decide which information gets through.
+    In our example, if the video is showing members of the audience, we would not
+    want to use this input to generate predictions. The gate would be mostly zeros.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**The forget gate**: Applied to the cell state to decide which information
+    to forget. In our example, if the video is showing presenters talking, we would
+    want to forget about the current sport, as we are probably going to see a new
+    sport next.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**The output gate**: This will be multiplied by the cell state to decide which
+    information to output. We might want to keep in the cell state the fact that the
+    previous sport was soccer, but this information will not be useful for the current
+    frame. Outputting this information would perturb the upcoming time steps. By setting
+    the gate around zero, we would effectively keep this information for later.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In the next section, we will cover how the gates and the candidate state are
+    computed and demonstrate why LSTMs suffer less from gradient vanishing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: LSTM inner workings
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'First, let''s detail how the gates are computed:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b5777da1-74f4-4480-941d-d114c7f886f5.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: As detailed in the previous equations, the three gates are computed using the
+    same principle—by multiplying a weight matrix (*W*) by the previous output (*h^(<t-1>)*)
+    and the current input (*x^(<t>)*). Notice that the activation function is the
+    sigmoid (σ). As a consequence, the gate values are always between *0* and *1*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The candidate state (![](img/729d7117-1700-4f15-b009-bc5a52b11a51.png)) is
+    computed in a similar fashion. However, the activation function used is a hyperbolic
+    tangent instead of the sigmoid:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8c27adaf-69d5-4c6e-a822-9cb219f86b97.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Notice that this formula is exactly the same as the one used to compute *h^(<t>)*
+    in the basic RNN architecture. However, *h^(<t>)* was the *hidden state* while,
+    in this case, we are computing the **candidate cell state**. To compute the new
+    cell state, we combine the previous one with the candidate cell state. Both states
+    are gated by the forget and input gates, respectively:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/1d704d09-e5d0-48fc-8c44-c5077a57ef37.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Finally, the LSTM hidden state (output) will be computed from the cell state
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/90069c9e-8d6f-4409-a98b-4a850ff902a7.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The simplified representation of the LSTM cell is depicted in *Figure 8-3*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/84f1e8a6-d776-431d-80d8-7c7fb6571eb3.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8-3: Simplified representation of the LSTM cell. Gate computation is
+    omitted'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'LSTM weights are also computed using backpropagation through time. Due to the
+    numerous information paths in LSTM cells, gradient computation is even more complex.
+    However, we can observe that if the terms of the forget gate, *f^(<t>)*, are close
+    to *1*, information can be passed from one cell state to the other, as shown in
+    the following equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/63f36f34-b96e-48d6-8bfd-6c5e73186690.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: For this reason, by initializing the forget gate bias to a vector of ones, we
+    can ensure that the information backpropagates through numerous time steps. As
+    such, LSTMs suffer less from gradient vanishing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes our introduction to RNNs; we can now begin with the hands-on
+    classification of a video.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Classifying videos
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: From television to web streaming, the video format is getting more and more
+    popular. Since the inception of computer vision, researchers have attempted to
+    apply computer vision to more than one image at a time. While limited by computing
+    power at first, they more recently have developed powerful techniques for video
+    analysis. In this section, we will introduce video-related tasks and detail one
+    of them—video classification.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Applying computer vision to video
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: At 30 frames per second, processing every frame of a video implies analyzing
+    *30 × 60* = *180* frames per minute. This problem was faced really early in computer
+    vision, before the rise of deep learning. Techniques were then devised to analyze
+    videos efficiently.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The most obvious technique is **sampling**. We can analyze only one or two frames
+    per second instead of all the frames. While more efficient, we may lose information
+    if an important scene appears very briefly, such as in the case of a gunshot,
+    which was mentioned earlier.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A more advanced technique is **scene extraction**. This is particularly popular
+    for analyzing movies. An algorithm detects when the video is changing from one
+    scene to another. For instance, if the camera goes from a close-up view to a wide
+    view, we would analyze a frame from each framing. Even if the close-up is really
+    short and the wide view occurs over many frames, we would extract only one frame
+    from each shot. *Scene extraction* can be done by using fast and efficient algorithms.
+    They process the pixels of images and evaluate the variation between two consecutive
+    frames. A large variation indicates a scene change.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In addition, all the image-related tasks described in [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml),
+    *Computer Vision and Neural Networks*, also apply to video. For instance, super-resolution,
+    segmentation, and style transfer are commonly targeted at video. However, the
+    temporal aspect of a video creates new applications in the form of the following
+    video-specific tasks:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Action detection**: A variant of video classification, the goal here is to
+    classify what actions a person is accomplishing. Actions range from running to
+    playing soccer, but can also be as precise as the kind of dance being performed,
+    or the musical instrument being played.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Next-frame prediction**: Given *N* consecutive frames, this predicts how
+    frame *N+1* is going to look.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Ultra slow motion**: This is also called **frame interpolation**. The model
+    has to generate intermediate frames to make slow motion look less jerky.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Object tracking**: This was executed historically using classical computer
+    vision techniques such as descriptors. However, deep learning is now applied to
+    track objects in videos.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Of these video-specific tasks, we will focus on action detection. In the next
+    section, we will introduce an action video dataset and cover how to apply an LSTM
+    cell to videos.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Classifying videos with an LSTM
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We will make use of the *UCF1**01* dataset ([https://www.crcv.ucf.edu/data/UCF101.php](https://www.crcv.ucf.edu/data/UCF101.php)),
+    which was put together by K. Soomro et al. (refer to *UCF101: A Dataset of 101
+    Human Actions Classes From Videos in The Wild*, CRCV-TR-12-01, 2012). Here are
+    a few examples from the dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/deca8b2d-956c-4dae-ad97-7409d5742783.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8-4: Example images from the UCF101 dataset'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The dataset is composed of 13,320 segments of video. Each segment contains a
+    person performing one of 101 possible actions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To classify the video, we will use a two-step process. Indeed, a recurrent
+    network is not fed the raw pixel images. While it could technically be fed with
+    full images, CNN feature extractors are used beforehand in order to reduce the
+    dimensionality, and to reduce the computations done by LSTMs. Therefore, our network
+    architecture can be represented by *Figure 8-5*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d30c5edf-b57d-4a39-911e-8ee2255bfc67.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8-5: Combination of a CNN and an RNN to categorize videos. In this simplified
+    example, the sequence length is 3'
+  prefs: []
+  type: TYPE_NORMAL
+- en: As stated earlier, backpropagating errors through RNNs is difficult. While we
+    could train the CNN from scratch, it would take a tremendous amount of time for
+    sub-par results. Therefore, we use a pretrained network, applying the transfer
+    learning technique that was introduced in [Chapter 4](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml),
+    *Influential Classification Tools*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For the same reason, it is also common practice not to fine-tune the CNN and
+    to keep its weights untouched, as this does not bring any performance improvement.
+    Since the CNN will stay unchanged throughout all the epochs of training, a specific
+    frame will always return the same feature vector. This allows us to *cache* the
+    feature vectors. As the CNN step is the most time-consuming, caching the results
+    means computing the feature vector only once instead of at each epoch, saving
+    us a tremendous amount of training time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Therefore, we will classify the videos in two steps. First, we will extract
+    the features and cache them. Once this is done, we will train the LSTM on extracted
+    features.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Extracting features from videos
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To generate feature vectors, we will use a pretrained inception network trained
+    on the ImageNet dataset to categorize images in different categories.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We will remove the last layer (the fully connected layer) and only keep the
+    feature vector that is generated after a max-pooling operation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another option would be to keep the output of the layer just before average-pooling,
+    that is, the higher-dimensional feature maps. However, in our example, we will
+    not need spatial information—whether the action takes place in the middle of the
+    frame or in the corner, the predictions will be the same. Therefore, we will use
+    the output of the two-dimensional max-pooling layer. This will make the training
+    faster, since the input of the LSTM will be 64 times smaller (*64* = *8* × *8*
+    = the size of a feature map for an input image of size *299* × *299*).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'TensorFlow allows us to access a pretrained model with a single line, as described
+    in [Chapter 4](061eb54a-4e3f-44e8-afb1-bacf796511f4.xhtml), *Influential Classification
+    Tools*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We add the max-pooling operation to transform the *8* × *8* × *2,048* feature
+    map into a *1* × *2,048* vector:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will use the `tf.data` API to load the frames from the video. An initial
+    problem arises—all the videos have different lengths. Here is the distribution
+    of the number of frames:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d45fba54-3893-4f07-908b-7854257096e0.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8-6: Distribution of the number of frames per video in the UCF101 dataset'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is always good practice to run a quick analysis on data before using it.
+    Manually reviewing it and plotting the distributions can save a lot of experimenting
+    time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With TensorFlow, as with most deep learning frameworks, all examples in a batch
+    must be of the same length. The most common solution to fit this requirement is
+    *padding*—we fill the first temporal time steps with actual data and the last
+    ones with zeros.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In our case, we will not use all the frames from the video. At 25 frames per
+    second, most of the frames look alike. By using only a subset of the frames, we
+    will reduce the size of our input, and therefore speed up the training process.
+    To select this subset, we can use any of the following options:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Extract *N* frames per second.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Sample *N* frames out of all the frames.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Segment the videos in scenes and extract *N* frames per scene, as shown in
+    the following diagram:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/1ba1d585-f268-460d-b199-f2773f7e4606.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8-7: Comparison of two sampling techniques. Dotted rectangles indicate
+    zero padding'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Due to the large variation in video length, extracting *N* frames per second
+    would also result in a large variation in input length. Although this could be
+    solved with padding, we would end up with some inputs mostly composed of zeros—this
+    could lead to poor training performance. We will, therefore, sample *N* images
+    per video.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We will use the TensorFlow dataset API to feed the input to our feature extraction
+    network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the previous code, we specify the input type and the input shape. Our generator
+    will return images of shape *299* × *299* with three channels, as well as a string
+    representing the filename. The filename will be used to group the frames by video
+    later on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The role of `frame_generator` is to select the frames that will be processed
+    by the network. We use the OpenCV library to read from the video file. For each
+    video, we will sample an image every *N* frames, where *N* equals `num_frames
+    / SEQUENCE_LENGTH` and `SEQUENCE_LENGTH` is the size of the input sequence of
+    the LSTM. A simplified version of this generator looks like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: We iterate over the frames of the video, processing only a subset. At the end
+    of the video, the OpenCV library will return `success` as `False` and the loop
+    will terminate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that just like in any Python generator, instead of using the `return` keyword,
+    we use the `yield` keyword. This allows us to start returning frames before the
+    end of the loop. This way, the network can start training without waiting for
+    all the frames to be preprocessed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, we iterate over the dataset to generate video features:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the previous code, note that we iterate over the batch output and compare
+    video filenames. We do so because the batch size is not necessarily the same as
+    *N* (the number of frames we sample per video). Therefore, a batch may contain
+    frames from multiple consecutive sequences:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f5dd6d25-9070-4070-a4ee-7b942f513eee.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8-8: Representation of the input for a batch size of four and three
+    sampled frames per video'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We read the output of the network, and when we reach a different filename, we
+    save the video features to file. Note that this technique will only work if the
+    frames are in the correct order. If the dataset is shuffled, it would no longer
+    work. Video features are saved at the same location as the video, but with a different
+    extension (`.npy` instead of `.avi`).
+  prefs: []
+  type: TYPE_NORMAL
+- en: This step iterates over the 13,320 videos of the dataset and generates features
+    for every single one of them. Sampling 40 frames per video takes about one hour
+    on a modern GPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training the LSTM
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that the video features are generated, we can use them to train an LSTM.
+    This step is very similar to the training steps described earlier in the book—we
+    define a model and an input pipeline, and launch the training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Defining the model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Our model is a simple sequential model, defined using Keras layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: We apply a dropout, a concept introduced in [Chapter 3](dd1d3406-d506-4690-bf13-e5e0584ea9d1.xhtml),
+    *Modern Neural Networks.* The `dropout` parameter of the LSTM controls how much
+    dropout is applied to the input weight matrix. The `recurrent_dropout` parameter
+    controls how much dropout is applied to the previous state. Similar to a mask,
+    `recurrent_dropout` randomly ignores part of the previous state activations in
+    order to avoid overfitting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The very first layer of our model is a `Masking` layer. As we padded our image
+    sequences with empty frames in order to batch them, our LSTM cell would needlessly
+    iterate over those added frames. Adding the `Masking` layer ensures the LSTM layer
+    stops at the actual end of the sequence, before it encounters a zero matrix.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The model will categorize videos in 101 categories, such as *kayaking*, *rafting,*
+    or *fencing*. However, it will only predict a vector representing the predictions.
+    We need a way to convert those 101 categories into vector form. We will use a
+    technique called **one-hot encoding**, described in [Chapter 1](3d1c879b-b6fa-4eee-b578-60b57a77ff33.xhtml),
+    *Computer Vision and Neural Networks*. Since we have 101 different labels, we
+    will return a vector of size 101\. For *kayaking*, the vector will be full of
+    zeros except for the first item, which is set to *1*. For *rafting*, it will be
+    *0* except for the second element, which is set to *1*, and so on for the other
+    categories.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loading the data
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We will load the `.npy` files that are produced when generating frame features
+    using a generator. The code ensures that all the input sequences have the same
+    length, padding them with zeros if necessary:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the previous code, we defined a Python **closure function**—a function that
+    returns another function. This technique allows us to create `train_dataset`,
+    returning training data, and `validation_dataset`, returning validation data with
+    just one generator function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: We also batch and prefetch the data according to the best practices that were
+    described in [Chapter 7](337ec077-c215-4782-b56c-beae4d94d718.xhtml), **Training
+    on Complex and Scarce Datasets**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training the model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The training procedure is very similar to those previously described in the
+    book, and we invite the readers to refer to the notebook attached to this chapter.
+    Using the model described previously, we reach a precision level of 72% on the
+    validation set.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This result can be compared to the state-of-the-art precision level of 94%,
+    which is obtained when using more advanced techniques. Our simple model could
+    be enhanced by improving frame sampling, using data augmentation, using a different
+    sequence length, or by optimizing the size of the layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We expanded our knowledge of neural networks by describing the general principles
+    of RNNs. After covering the inner workings of the basic RNN, we extended backpropagation
+    to apply it to recurrent networks. As presented in this chapter, BPTT suffers
+    from gradient vanishing when applied to RNNs. This can be worked around by using
+    truncated backpropagation, or by using a different type of architecture—LSTM networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We applied those theoretical principles to a practical problem—action recognition
+    in videos. By combining CNNs and LSTMs, we successfully trained a network to classify
+    videos in 101 categories, introducing video-specific techniques such as frame
+    sampling and padding.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will broaden our knowledge of neural network applications
+    by covering new platforms—mobile devices and web browsers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: What are the main advantages of LSTMs over the simple RNN architecture?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is the CNN used for when it is applied before the LSTM?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is gradient vanishing and why does it occur? Why is it a problem?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What are some of the workarounds for gradient vanishing?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '*RNNs with Python Quick Start Guide* ([https://www.packtpub.com/big-data-and-business-intelligence/recurrent-neural-networks-python-quick-start-guide](https://www.packtpub.com/big-data-and-business-intelligence/recurrent-neural-networks-python-quick-start-guide)),
+    by Simeon Kostadinov: This book details RNN architectures, and applies them to
+    examples using TensorFlow 1.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*A Critical Review of RNNs for Sequence Learning* ([https://arxiv.org/abs/1506.00019](https://arxiv.org/abs/1506.00019)),
+    by Zachary C. Lipton et al.: This survey reviews and synthesizes three decades
+    of RNN architectures.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Empirical Evaluation of Gated RNNs on Sequence Modeling* ([https://arxiv.org/abs/1412.3555](https://arxiv.org/abs/1412.3555)),
+    by Junyoung Chung et al.: This paper compares the performance of different RNN
+    architectures.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

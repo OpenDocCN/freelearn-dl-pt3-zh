@@ -1,0 +1,1273 @@
+- en: '8'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Autoencoders
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Autoencoders are neural networks that learn by unsupervised learning, also
+    sometimes called semi-supervised learning, since the input is treated as the target
+    too. In this chapter, you will learn about and implement different variants of
+    autoencoders and eventually learn how to stack autoencoders. We will also see
+    how autoencoders can be used to create MNIST digits, and finally, also cover the
+    steps involved in building a long short-term memory autoencoder to generate sentence
+    vectors. This chapter includes the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Vanilla autoencoders
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Sparse autoencoders
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Denoising autoencoders
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Convolutional autoencoders
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Stacked autoencoders
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Generating sentences using LSTM autoencoders
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Variational autoencoders for generating images
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: All the code files for this chapter can be found at [https://packt.link/dltfchp8](https://packt.link/dltfchp8)
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s begin!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introduction to autoencoders
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Autoencoders are a class of neural networks that attempt to recreate input
+    as their target using backpropagation. An autoencoder consists of two parts: an
+    encoder and a decoder. The encoder will read the input and compress it to a compact
+    representation, and the decoder will read the compact representation and recreate
+    the input from it. In other words, the autoencoder tries to learn the identity
+    function by minimizing the reconstruction error.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: They have an inherent capability to learn a compact representation of data.
+    They are at the center of deep belief networks and find applications in image
+    reconstruction, clustering, machine translation, and much more.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You might think that implementing an identity function using deep neural networks
+    is boring; however, the way in which this is done makes it interesting. The number
+    of hidden units in the autoencoder is typically fewer than the number of input
+    (and output) units. This forces the encoder to learn a compressed representation
+    of the input, which the decoder reconstructs. If there is a structure in the input
+    data in the form of correlations between input features, then the autoencoder
+    will discover some of these correlations, and end up learning a low-dimensional
+    representation of the data similar to that learned using **principal component
+    analysis** (**PCA**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: While PCA uses linear transformations, autoencoders on the other hand use non-linear
+    transformations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once the autoencoder is trained, we would typically just discard the decoder
+    component and use the encoder component to generate compact representations of
+    the input. Alternatively, we could use the encoder as a feature detector that
+    generates a compact, semantically rich representation of our input and build a
+    classifier by attaching a softmax classifier to the hidden layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The encoder and decoder components of an autoencoder can be implemented using
+    either dense, convolutional, or recurrent networks, depending on the kind of data
+    that is being modeled. For example, dense networks might be a good choice for
+    autoencoders used to build **collaborative filtering** (**CF**) models, where
+    we learn a compressed model of user preferences based on actual sparse user ratings.
+    Similarly, convolutional neural networks may be appropriate for the use case described
+    in the article *iSee: Using Deep Learning to Remove Eyeglasses from Faces*, by
+    M. Runfeldt. Recurrent networks, on the other hand, are a good choice for autoencoders
+    working on sequential or text data, such as Deep Patient (*Deep Patient: An Unsupervised
+    Representation to Predict the Future of Patients from the Electronic Health Records*,
+    Miotto et al.) and skip-thought vectors.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can think of autoencoders as consisting of two cascaded networks. The first
+    network is an encoder; it takes the input *x*, and encodes it using a transformation
+    *h* to an encoded signal *y*, that is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*y= h*(*x*)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The second network uses the encoded signal *y* as its input and performs another
+    transformation *f* to get a reconstructed signal *r*, that is:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*r= f*(*y*) *= f*(*h*(*x*))'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We define error, *e*, as the difference between the original input *x* and the
+    reconstructed signal *r, e= x- r*. The network then learns by reducing the loss
+    function (for example, **mean squared error** (**MSE**)), and the error is propagated
+    backward to the hidden layers as in the case of **multilayer perceptrons** (**MLPs**).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Depending upon the actual dimensions of the encoded layer with respect to the
+    input, the loss function, and constraints, there are various types of autoencoders:
+    variational autoencoders, sparse autoencoders, denoising autoencoders, and convolution
+    autoencoders.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Autoencoders can also be stacked by successively stacking encoders that compress
+    their input to smaller and smaller representations, then stacking decoders in
+    the opposite sequence. Stacked autoencoders have greater expressive power and
+    the successive layers of representations capture a hierarchical grouping of the
+    input, similar to the convolution and pooling operations in convolutional neural
+    networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Stacked autoencoders used to be trained layer by layer. For example, in the
+    network in *Figure 8.1*, we would first train layer **X** to reconstruct layer
+    **X’** using the hidden layer **H1** (ignoring **H2**). We would then train layer
+    **H1** to reconstruct layer **H1’** using the hidden layer **H2**. Finally, we
+    would stack all the layers together in the configuration shown and fine-tune it
+    to reconstruct **X’** from **X**. With better activation and regularization functions
+    nowadays, however, it is quite common to train these networks in totality:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram, shape  Description automatically generated](img/B18331_08_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.1: Visualization of stacked autoencoders'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will learn about these variations in autoencoders and implement
+    them using TensorFlow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Vanilla autoencoders
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The vanilla autoencoder, as proposed by Hinton in his 2006 paper *Reducing the
+    Dimensionality of Data with Neural Networks*, consists of one hidden layer only.
+    The number of neurons in the hidden layer is fewer than the number of neurons
+    in the input (or output) layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This results in producing a bottleneck effect in the flow of information in
+    the network. The hidden layer (*y*) between the encoder input and decoder output
+    is also called the “bottleneck layer.” Learning in the autoencoder consists of
+    developing a compact representation of the input signal at the hidden layer so
+    that the output layer can faithfully reproduce the original input.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In *Figure 8.2*, you can see the architecture of a vanilla autoencoder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Chart, waterfall chart  Description automatically generated](img/B18331_08_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.2: Architecture of the vanilla autoencoder'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s try to build a vanilla autoencoder. While in the paper Hinton used it
+    for dimension reduction, in the code to follow, we will use autoencoders for image
+    reconstruction. We will train the autoencoder on the MNIST database and will use
+    it to reconstruct the test images. In the code, we will use the TensorFlow Keras
+    `Layers` class to build our own encoder and decoder layers, so firstly let’s learn
+    a little about the `Layers` class.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TensorFlow Keras layers ‒ defining custom layers
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'TensorFlow provides an easy way to define your own custom layer both from scratch
+    or as a composition of existing layers. The TensorFlow Keras `layers` package
+    defines a `Layers` object. We can make our own layer by simply making it a subclass
+    of the `Layers` class. It is necessary to define the dimensions of the output
+    while defining the layer. Though input dimensions are optional, if you do not
+    define them, it will infer them automatically from the data. To build our own
+    layer we will need to implement three methods:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`__init__()`: Here, you define all input-independent initializations.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`build()`: Here, we define the shapes of input tensors and can perform rest
+    initializations if required. In our example, since we are not explicitly defining
+    input shapes, we need not define the `build()` method.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`call()`: This is where the forward computation is performed.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Using the `tensorflow.keras.layers.Layer` class, we now define the encoder
+    and decoder layers. First let’s start with the encoder layer. We import `tensorflow.keras`
+    as `K`, and create an `Encoder` class. The `Encoder` takes in the input and generates
+    the hidden or the bottleneck layer as the output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we define the `Decoder` class; this class takes in the output from the
+    `Encoder` and then passes it through a fully connected neural network. The aim
+    is to be able to reconstruct the input to the `Encoder`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now that we have both the encoder and decoder defined we use the `tensorflow.keras.Model`
+    object to build the autoencoder model. You can see in the following code that
+    in the `__init__()` function we instantiate the encoder and decoder objects, and
+    in the `call()` method we define the signal flow. Also notice the member list
+    `self.loss` initialized in the `_init__()`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: In the next section, we will use the autoencoder that we defined here to reconstruct
+    handwritten digits.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Reconstructing handwritten digits using an autoencoder
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Now that we have our model autoencoder with its layer encoder and decoder ready,
+    let us try to reconstruct handwritten digits. The complete code is available in
+    the GitHub repo of the chapter in the notebook `VanillaAutoencoder.ipynb`. The
+    code will require the NumPy, TensorFlow, and Matplotlib modules:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Before starting with the actual implementation, let’s also define some hyperparameters.
+    If you play around with them, you will notice that even though the architecture
+    of your model remains the same, there is a significant change in model performance.
+    Hyperparameter tuning (refer to *Chapter 1*, *Neural Network Foundations with
+    TF*, for more details) is one of the important steps in deep learning. For reproducibility,
+    we set the seeds for random calculation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: For training data, we are using the MNIST dataset available in the TensorFlow
+    datasets. We normalize the data so that pixel values lie between [0,1]; this is
+    achieved by simply dividing each pixel element by 255.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We reshape the tensors from 2D to 1D. We employ the `from_tensor_slices` function
+    to generate a batched dataset with the training dataset sliced along its first
+    dimension (slices of tensors). Also note that we are not using one-hot encoded
+    labels; this is because we are not using labels to train the network since autoencoders
+    learn via unsupervised learning:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now we instantiate our autoencoder model object and define the loss and optimizers
+    to be used for training. Observe the formulation of the loss function carefully;
+    it is simply the difference between the original image and the reconstructed image.
+    You may find that the term *reconstruction loss* is also used to describe it in
+    many books and papers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Instead of using the auto-training loop, for our custom autoencoder model,
+    we will define a custom training. We use `tf.GradientTape` to record the gradients
+    as they are calculated and implicitly apply the gradients to all the trainable
+    variables of our model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding `train()` function will be invoked in a training loop, with the
+    dataset fed to the model in batches:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let’s now train our autoencoder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'And plot our training graph:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The training graph is shown as follows. We can see that loss/cost is decreasing
+    as the network learns and after 50 epochs it is almost constant about a line.
+    This means that further increasing the number of epochs will not be useful. If
+    we want to improve our training further, we should change the hyperparameters
+    like learning rate and `batch_size`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Chart  Description automatically generated](img/B18331_08_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.3: Loss plot of the vanilla autoencoder'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In *Figure 8.4*, you can see the original (top) and reconstructed (bottom)
+    images; they are slightly blurred, but accurate:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![Text  Description automatically generated with medium confidence](img/B18331_08_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.4: Original and reconstructed images using vanilla autoencoder'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It is interesting to note that in the preceding code we reduced the dimensions
+    of the input from 784 to 128 and our network could still reconstruct the original
+    image. This should give you an idea of the power of the autoencoder for dimensionality
+    reduction. One advantage of autoencoders over PCA for dimensionality reduction
+    is that while PCA can only represent linear transformations, we can use non-linear
+    activation functions in autoencoders, thus introducing non-linearities in our
+    encodings:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Chart, scatter chart  Description automatically generated](img/B18331_08_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.5: LHS image: The two-dimensional code for 500 digits of each class
+    produced by taking the first two principal components of all 60,000 training samples.
+    RHS image: The two-dimensional code found by a 784-500-2 autoencoder'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 8.5* compares the result of a PCA with that of stacked autoencoders
+    with architecture consisting of 784-500-2 (here the numbers represent the size
+    of the encoder layers in each autoencoder; the autoencoders had a symmetric decoder).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can see that the colored dots on the right are nicely separated, thus stacked
+    autoencoders give much better results compared to PCA. Now that you are familiar
+    with vanilla autoencoders, let us see different variants of autoencoders and their
+    implementation details.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sparse autoencoder
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The autoencoder we covered in the previous section works more like an identity
+    network; it simply reconstructs the input. The emphasis is on reconstructing the
+    image at the pixel level, and the only constraint is the number of units in the
+    bottleneck layer. While it is interesting, pixel-level reconstruction is primarily
+    a compression mechanism and does not necessarily ensure that the network will
+    learn abstract features from the dataset. We can ensure that a network learns
+    abstract features from the dataset by adding further constraints.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In sparse autoencoders, a sparse penalty term is added to the reconstruction
+    error. This tries to ensure that fewer units in the bottleneck layer will fire
+    at any given time. We can include the sparse penalty within the encoder layer
+    itself.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the following code, you can see that the dense layer of `Encoder` now has
+    an additional parameter, `activity_regularizer`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The activity regularizer tries to reduce the layer output (refer to *Chapter
+    1*, *Neural Network Foundations with TF*). It will reduce both the weights and
+    bias of the fully connected layer to ensure that the output is as small as it
+    can be. TensorFlow supports three types of `activity_regularizer`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`l1`: Here the activity is computed as the sum of absolute values'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`l2`: The activity here is calculated as the sum of the squared values'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`l1_l2`: This includes both L1 and L2 terms'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Keeping the rest of the code the same, and just changing the encoder, you can
+    get the sparse autoencoder from the vanilla autoencoder. The complete code for
+    the sparse autoencoder is in the Jupyter notebook `SparseAutoencoder.ipynb`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Alternatively, you can explicitly add a regularization term for sparsity in
+    the loss function. To do so you will need to implement the regularization for
+    the sparsity term as a function. If *m* is the total number of input patterns,
+    then we can define a quantity ![](img/B18331_08_001.png) (you can check the mathematical
+    details in Andrew Ng’s lecture here: [https://web.stanford.edu/class/cs294a/sparseAutoencoder_2011new.pdf](https://web.stanford.edu/class/cs294a/sparseAutoencoder_2011new.pdf)),
+    which measures the net activity (how many times on average it fires) for each
+    hidden layer unit. The basic idea is to put a constraint ![](img/B18331_08_001.png),
+    such that it is equal to the sparsity parameter ![](img/B18331_08_003.png). This
+    results in adding a regularization term for sparsity in the loss function so that
+    now the loss function becomes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*loss = Mean squared error + Regularization for sparsity parameter*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This regularization term will penalize the network if ![](img/B18331_08_001.png)
+    deviates from ![](img/B18331_08_003.png). One standard way to do this is to use
+    **Kullback-Leiber** (**KL**) divergence (you can learn more about KL divergence
+    from this interesting lecture: [https://www.stat.cmu.edu/~cshalizi/754/2006/notes/lecture-28.pdf](https://www.stat.cmu.edu/~cshalizi/754/2006/notes/lecture-28.pdf))
+    between ![](img/B18331_08_003.png) and ![](img/B18331_08_001.png).'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s explore the KL divergence, *D*[KL], a little more. It is a non-symmetric
+    measure of the difference between the two distributions, in our case, ![](img/B18331_08_003.png)
+    and ![](img/B18331_08_001.png). When ![](img/B18331_08_003.png) and ![](img/B18331_08_001.png)
+    are equal then the difference is zero; otherwise, it increases monotonically as
+    ![](img/B18331_08_001.png) diverges from ![](img/B18331_08_003.png). Mathematically,
+    it is expressed as:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_08_014.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: We add this to the loss to implicitly include the sparse term. We will need
+    to fix a constant value for the sparsity term ![](img/B18331_08_003.png) and compute
+    ![](img/B18331_08_001.png) using the encoder output.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The compact representation of the inputs is stored in weights. Let us visualize
+    the weights learned by the network. The following are the weights of the encoder
+    layer for the standard and sparse autoencoders respectively.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can see that in the standard autoencoder (a) many hidden units have very
+    large weights (brighter), suggesting that they are overworked, while all the hidden
+    units of the sparse autoencoder (b) learn the input representation almost equally,
+    and we see a more even color distribution:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing appliance, grate  Description automatically generated](img/B18331_08_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.6: Encoder weight matrix for (a) standard autoencoder and (b) sparse
+    autoencoder'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have learned about sparse autoencoders, we next move to a case where
+    autoencoders can learn to remove noise from the image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Denoising autoencoders
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The two autoencoders that we have covered in the previous sections are examples
+    of undercomplete autoencoders, because the hidden layer in them has lower dimensionality
+    compared to the input (output) layer. Denoising autoencoders belong to the class
+    of overcomplete autoencoders because they work better when the dimensions of the
+    hidden layer are more than the input layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A denoising autoencoder learns from a corrupted (noisy) input; it feeds its
+    encoder network the noisy input, and then the reconstructed image from the decoder
+    is compared with the original input. The idea is that this will help the network
+    learn how to denoise an input. It will no longer just make pixel-wise comparisons,
+    but in order to denoise, it will learn the information of neighboring pixels as
+    well.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A denoising autoencoder has two main differences from other autoencoders: first,
+    `n_hidden`, the number of hidden units in the bottleneck layer is greater than
+    the number of units in the input layer, `m`, that is, `n_hidden` > `m`. Second,
+    the input to the encoder is corrupted input.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To do this, we add a noise term in both the test and training images:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: Let us see the denoising autoencoder in action next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Clearing images using a denoising autoencoder
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Let us use the denoising autoencoder to clear the handwritten MNIST digits:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We start by importing the required modules:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, we define the hyperparameters for our model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We read in the MNIST dataset, normalize it, and introduce noise to it:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We use the same encoder, decoder, and autoencoder classes as defined in the
+    *Vanilla autoencoders* section:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next, we create the model and define the loss and optimizers to be used. Notice
+    that this time, instead of writing the custom training loop, we are using the
+    easier Keras inbuilt `compile()` and `fit()` methods:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now let’s plot the training loss:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '*Figure 8.7* shows the loss over epochs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Chart, histogram  Description automatically generated](img/B18331_08_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.7: Loss plot of a denoising autoencoder'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'And finally, let’s see our model in action:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The top row shows the input noisy image, and the bottom row shows cleaned images
+    produced from our trained denoising autoencoder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing text  Description automatically generated](img/B18331_08_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.8: The noisy input images and corresponding denoised reconstructed
+    images'
+  prefs: []
+  type: TYPE_NORMAL
+- en: An impressive reconstruction of images from noisy images, I’m sure you’ll agree.
+    You can access the code in the notebook `DenoisingAutoencoder.ipynb` if you want
+    to play around with it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Stacked autoencoder
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Until now, we have restricted ourselves to autoencoders with only one hidden
+    layer. We can build deep autoencoders by stacking many layers of both encoders
+    and decoders; such an autoencoder is called a stacked autoencoder. The features
+    extracted by one encoder are passed on to the next encoder as input. The stacked
+    autoencoder can be trained as a whole network with the aim of minimizing the reconstruction
+    error. Alternatively, each individual encoder/decoder network can first be pretrained
+    using the unsupervised method you learned earlier, and then the complete network
+    can be fine-tuned. When the deep autoencoder network is a convolutional network,
+    we call it a **convolutional autoencoder**. Let us implement a convolutional autoencoder
+    in TensorFlow next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Convolutional autoencoder for removing noise from images
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In the previous section, we reconstructed handwritten digits from noisy input
+    images. We used a fully connected network as the encoder and decoder for the work.
+    However, we know that for images, a convolutional network can give better results,
+    so in this section, we will use a convolution network for both the encoder and
+    decoder. To get better results we will use multiple convolution layers in both
+    the encoder and decoder networks; that is, we will make stacks of convolutional
+    layers (along with max pooling or upsampling layers). We will also be training
+    the entire autoencoder as a single entity:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We import all the required modules and the specific layers from `tensorflow.keras.layers`:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We specify our hyperparameters. If you look carefully, the list is slightly
+    different compared to earlier autoencoder implementations; instead of learning
+    rate and momentum, this time we are concerned with filters of the convolutional
+    layer:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'In the next step, we read in the data and preprocess it. Again, you may observe
+    a slight variation from the previous code, especially in the way we are adding
+    noise and then limiting the range between [0-1]. We are doing so because in this
+    case, instead of the mean squared error loss, we will be using binary cross-entropy
+    loss and the final output of the decoder will pass through sigmoid activation,
+    restricting it between [0-1]:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Let us now define our encoder. The encoder consists of three convolutional
+    layers, each followed by a max pooling layer. Since we are using the MNIST dataset
+    the shape of the input image is 28 × 28 (single channel) and the output image
+    is of size 4 × 4 (and since the last convolutional layer has 16 filters, the image
+    has 16 channels):'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Next comes the decoder. It is the exact opposite of the encoder in design,
+    and instead of max pooling, we are using upsampling to increase the size back.
+    Notice the commented `print` statements; you can use them to understand how the
+    shape gets modified after each step. (Alternatively, you can also use the `model.summary`
+    function to get the complete model summary.) Also notice that both the encoder
+    and decoder are still classes based on the TensorFlow Keras `Layers` class, but
+    now they have multiple layers inside them. So now you know how to build a complex
+    custom layer:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'We combine the encoder and decoder to make an autoencoder model. This remains
+    exactly the same as before:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Now we instantiate our model, then specify the binary cross-entropy as the
+    loss function and Adam as the optimizer in the `compile()` method. Then, fit the
+    model to the training dataset:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'Plot the loss curve:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: 'You can see the loss curve as the model is trained; in 50 epochs the loss was
+    reduced to 0.0988:'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '![Chart  Description automatically generated](img/B18331_08_09.png)'
+  prefs:
+  - PREF_IND
+  type: TYPE_IMG
+- en: 'Figure 8.9: Loss plot for the convolutional autoencoder'
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: 'And finally, you can see the wonderful reconstructed images from the noisy
+    input images:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs:
+  - PREF_IND
+  type: TYPE_PRE
+- en: '![A picture containing text  Description automatically generated](img/B18331_08_10.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.10: The inputted noisy images and reconstructed denoised images'
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can see that the images are much clearer and sharper relative to the previous
+    autoencoders we have covered in this chapter. The magic lies in the stacking of
+    convolutional layers. The code for this section is available in the Jupyter notebook
+    `ConvolutionAutoencoder.ipynb`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A TensorFlow Keras autoencoder example ‒ sentence vectors
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In this example, we will build and train an LSTM-based autoencoder to generate
+    sentence vectors for documents in the Reuters-21578 corpus ([https://archive.ics.uci.edu/ml/datasets/reuters-21578+text+categorization+collection](https://archive.ics.uci.edu/ml/datasets/reuters-21578+text+categorization+collection)).
+    We have already seen in *Chapter 4*, *Word Embeddings*, how to represent a word
+    using word embeddings to create vectors that represent the word’s meaning in the
+    context of other words it appears with. Here, we will see how to build similar
+    vectors for sentences. Sentences are sequences of words, so a sentence vector
+    represents the meaning of a sentence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The easiest way to build a sentence vector is to just add up the word vectors
+    and divide them by the number of words. However, this treats the sentence as a
+    bag of words, and does not take the order of words into account. Thus, the sentences
+    *The dog bit the man* and *The man bit the dog* would be treated as identical
+    in this scenario. LSTMs are designed to work with sequence input and do take the
+    order of words into consideration, thus providing a better and more natural representation
+    of the sentence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we import the necessary libraries:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In case you are using Google’s Colab to run the code, you will also need to
+    unzip the Reuters corpus by adding the following to the code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we will be using the GloVe embeddings, so let us download them as well:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now that all our tools are in our workspace, we will first convert each block
+    of text (documents) into a list of sentences, one sentence per line. Also, each
+    word in the sentence is normalized as it is added. The normalization involves
+    removing all numbers and replacing them with the number `9`, then converting the
+    word to lowercase. Simultaneously we also calculate the word frequencies in the
+    same code. The result is the word frequency table, `word_freqs`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let us use the preceding generated arrays to get some information about the
+    corpus that will help us figure out good values for the constants for our LSTM
+    network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This gives us the following information about the corpus:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Based on this information, we set the following constants for our LSTM model.
+    We choose our `VOCAB_SIZE` as `5000`; that is, our vocabulary covers the most
+    frequent 5,000 words, which covers over 93% of the words used in the corpus. The
+    remaining words are treated as **out of vocabulary** (**OOV**) and replaced with
+    the token `UNK`. At prediction time, any word that the model hasn’t seen will
+    also be assigned the token `UNK`. `SEQUENCE_LEN` is set to approximately half
+    the median length of sentences in the training set. Sentences that are shorter
+    than `SEQUENCE_LEN` will be padded by a special `PAD` character, and those that
+    are longer will be truncated to fit the limit:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Since the input to our LSTM will be numeric, we need to build lookup tables
+    that go back and forth between words and word IDs. Since we limit our vocabulary
+    size to 5,000 and we have to add the two pseudo-words `PAD` and `UNK`, our lookup
+    table contains entries for the most frequently occurring 4,998 words plus `PAD`
+    and `UNK`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: The input to our network is a sequence of words, where each word is represented
+    by a vector. Simplistically, we could just use one-hot encoding for each word,
+    but that makes the input data very large. So, we encode each word using its 50-dimensional
+    GloVe embeddings.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The embedding is generated into a matrix of shape (`VOCAB_SIZE` and `EMBED_SIZE`)
+    where each row represents the GloVe embedding for a word in our vocabulary. The
+    `PAD` and `UNK` rows (`0` and `1` respectively) are populated with zeros and random
+    uniform values respectively:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, we use these functions to generate embeddings:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: Our autoencoder model takes a sequence of GloVe word vectors and learns to produce
+    another sequence that is similar to the input sequence. The encoder LSTM compresses
+    the sequence into a fixed-size context vector, which the decoder LSTM uses to
+    reconstruct the original sequence.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A schematic of the network is shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a cell phone  Description automatically generated](img/B18331_08_11.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.11: Visualization of the LSTM network'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Because the input is quite large, we will use a generator to produce each batch
+    of input. Our generator produces batches of tensors of shape (`BATCH_SIZE`, `SEQUENCE_LEN`,
+    `EMBED_SIZE`). Here `BATCH_SIZE` is `64`, and since we are using 50-dimensional
+    GloVe vectors, `EMBED_SIZE` is `50`. We shuffle the sentences at the beginning
+    of each epoch and return batches of 64 sentences. Each sentence is represented
+    as a vector of GloVe word vectors. If a word in the vocabulary does not have a
+    corresponding GloVe embedding, it is represented by a zero vector. We construct
+    two instances of the generator, one for training data and one for test data, consisting
+    of 70% and 30% of the original dataset respectively:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: Now we are ready to define the autoencoder. As we have shown in the diagram,
+    it is composed of an encoder LSTM and a decoder LSTM. The encoder LSTM reads a
+    tensor of shape (`BATCH_SIZE`, `SEQUENCE_LEN`, `EMBED_SIZE`) representing a batch
+    of sentences. Each sentence is represented as a padded fixed-length sequence of
+    words of size `SEQUENCE_LEN`. Each word is represented as a 300-dimensional GloVe
+    vector. The output dimension of the encoder LSTM is a hyperparameter, `LATENT_SIZE`,
+    which is the size of the sentence vector that will come from the encoder part
+    of the trained autoencoder later. The vector space of dimensionality `LATENT_SIZE`
+    represents the latent space that encodes the meaning of the sentence. The output
+    of the LSTM is a vector of size (`LATENT_SIZE`) for each sentence, so for the
+    batch, the shape of the output tensor is (`BATCH_SIZE`, `LATENT_SIZE`). This is
+    now fed to a `RepeatVector` layer, which replicates this across the entire sequence;
+    that is, the output tensor from this layer has the shape (`BATCH_SIZE`, `SEQUENCE_LEN`,
+    `LATENT_SIZE`). This tensor is now fed into the decoder LSTM, whose output dimension
+    is the `EMBED_SIZE`, so the output tensor has shape (`BATCH_SIZE`, `SEQUENCE_LEN`,
+    `EMBED_SIZE`), that is, the same shape as the input tensor.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We compile this model with the Adam optimizer and the MSE loss function. The
+    reason we use MSE is that we want to reconstruct a sentence that has a similar
+    meaning, that is, something that is close to the original sentence in the embedded
+    space of dimension `LATENT_SIZE`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We define the loss function as mean squared error and choose the Adam optimizer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We train the autoencoder for 20 epochs using the following code. 20 epochs
+    was chosen because the MSE loss converges within this time:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The results of the training are shown as follows. The plot below shows the
+    loss plot for both training and validation data; we can see that as our model
+    learns, the losses decrease as expected:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Chart, line chart  Description automatically generated](img/B18331_08_12.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.12: Loss plot of the LSTM autoencoder'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since we are feeding in a matrix of embeddings, the output will also be a matrix
+    of word embeddings. Since the embedding space is continuous and our vocabulary
+    is discrete, not every output embedding will correspond to a word. The best we
+    can do is to find a word that is closest to the output embedding in order to reconstruct
+    the original text. This is a bit cumbersome, so we will evaluate our autoencoder
+    in a different way.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since the objective of the autoencoder is to produce a good latent representation,
+    we compare the latent vectors produced from the encoder using the original input
+    versus the output of the autoencoder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, we extract the encoder component into its own network:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: Then we run the autoencoder on the test set to return the predicted embeddings.
+    We then send both the input embedding and the predicted embedding through the
+    encoder to produce sentence vectors from each and compare the two vectors using
+    *cosine* similarity. Cosine similarities close to “one” indicate high similarity
+    and those close to “zero” indicate low similarity.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following code runs against a random subset of 500 test sentences and produces
+    some sample values of cosine similarities, between the sentence vectors generated
+    from the source embedding and the corresponding target embedding produced by the
+    autoencoder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The first 10 values of cosine similarities are shown as follows. As we can
+    see, the vectors seem to be quite similar:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*Figure 8.13* shows a histogram of the distribution of values of cosine similarities
+    for the sentence vectors from the first 500 sentences.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'As previously mentioned, it confirms that the sentence vectors generated from
+    the input and output of the autoencoder are very similar, showing that the resulting
+    sentence vector is a good representation of the sentence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Chart, histogram  Description automatically generated](img/B18331_08_13.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.13: Cosine similarity distribution'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Till now we have focused on autoencoders that can reconstruct data; in the next
+    section, we will go through a slightly different variant of the autoencoder –
+    the variational autoencoder, which is used to generate data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Variational autoencoders
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Like DBNs (*Chapter 7*, *Unsupervised Learning*) and GANs (see *Chapter 9*,
+    *Generative Models*, for more details), variational autoencoders are also generative
+    models. **Variational autoencoders** (**VAEs**) are a mix of the best neural networks
+    and Bayesian inference. They are one of the most interesting neural networks and
+    have emerged as one of the most popular approaches to unsupervised learning. They
+    are autoencoders with a twist. Along with the conventional encoder and decoder
+    network of autoencoders, they have additional stochastic layers. The stochastic
+    layer, after the encoder network, samples the data using a Gaussian distribution,
+    and the one after the decoder network samples the data using Bernoulli’s distribution.
+    Like GANs, VAEs can be used to generate images and figures based on the distribution
+    they have been trained on.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'VAEs allow one to set complex priors in the latent space and thus learn powerful
+    latent representations. *Figure 8.14* describes a VAE:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Diagram  Description automatically generated](img/B18331_08_14.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.14: Architecture of a variational autoencoder'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The encoder network ![](img/B18331_08_017.png) approximates the true but intractable
+    posterior distribution ![](img/B18331_08_018.png), where *x* is the input to the
+    VAE and *z* is the latent representation. The decoder network ![](img/B18331_08_019.png)
+    takes the *d*-dimensional latent variables (also called latent space) as its input
+    and generates new images following the same distribution as *P*(*x*). As you can
+    see from the preceding diagram, the latent representation *z* is sampled from
+    ![](img/B18331_08_020.png), and the output of the decoder network samples ![](img/B18331_08_021.png)
+    from ![](img/B18331_08_022.png). Here *N* represents a normal distribution with
+    mean ![](img/B18331_08_023.png) and variance ![](img/B18331_01_017.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that we have the basic architecture of VAEs, the question arises of how
+    they can be trained, since the maximum likelihood of the training data and posterior
+    density are intractable. The network is trained by maximizing the lower bound
+    of the log data likelihood. Thus, the loss term consists of two components: generation
+    loss, which is obtained from the decoder network through sampling, and the Kullback–Leibler
+    divergence term, also called the latent loss.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generation loss ensures that the image generated by the decoder and the image
+    used to train the network are similar, and latent loss ensures that the posterior
+    distribution ![](img/B18331_08_025.png) is close to the prior ![](img/B18331_08_026.png).
+    Since the encoder uses Gaussian distribution for sampling, the latent loss measures
+    how closely the latent variables match this distribution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Once the VAE is trained, we can use only the decoder network to generate new
+    images. Let us try coding a VAE. This time we are using the Fashion-MNIST dataset;
+    the dataset contains Zalando’s ([https://github.com/zalandoresearch/fashion-mnist](https://github.com/zalandoresearch/fashion-mnist))
+    article images. The test-train split is exactly the same as for MNIST, that is,
+    60,000 train images and 10,000 test images. The size of each image is also 28
+    × 28, so we can easily replace the code running on the MNIST dataset with the
+    Fashion-MNIST dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The code in this section has been adapted from [https://github.com/dragen1860/TensorFlow-2.x-Tutorials](https://github.com/dragen1860/TensorFlow-2.x-Tutorials).
+    As the first step we, as usual, import all the necessary libraries:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let us fix the seeds for a random number, so that the results are reproducible.
+    We can also add an `assert` statement to ensure that our code runs on TensorFlow
+    2.0 or above:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Before going ahead with making the VAE, let us also explore the Fashion-MNIST
+    dataset a little. The dataset is available in the TensorFlow Keras API:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We see some sample images:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![](img/B18331_08_15.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.15: Sample images from the Fashion-MNIST dataset'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Before we start, let us declare some hyperparameters like learning rate, dimensions
+    of the hidden layer and the latent space, batch size, epochs, and so on:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We use the TensorFlow Keras Model API to build a VAE model. The `__init__()`
+    function defines all the layers that we will be using:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We define the functions to give us the encoder output and decoder output and
+    reparametrize. The implementation of the encoder and decoder functions are straightforward;
+    however, we need to delve a little deeper into the `reparametrize` function. As
+    you know, VAEs sample from a random node *z*, which is approximated by ![](img/B18331_08_027.png)
+    of the true posterior. Now, to get parameters we need to use backpropagation.
+    However, backpropagation cannot work on random nodes. Using reparameterization,
+    we can use a new parameter, `eps`, which allows us to reparametrize `z` in a way
+    that will allow backpropagation through the deterministic random node ([https://arxiv.org/pdf/1312.6114v10.pdf](https://arxiv.org/pdf/1312.6114v10.pdf)):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Lastly, we define the `call()` function, which will control how signals move
+    through different layers of the VAE:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we create the VAE model and declare the optimizer for it. You can see
+    the summary of the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Now, we train the model. We define our loss function, which is the sum of the
+    reconstruction loss and KL divergence loss:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Once the model is trained it should be able to generate images similar to the
+    original Fashion-MNIST images. To do so we need to use only the decoder network,
+    and we will pass to it a randomly generated *z* input:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: '*Figure 8.16* shows the results after 80 epochs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B18331_08_16.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.16: Results after 80 epochs'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The generated images resemble the input space. The generated images are similar
+    to the original Fashion-MNIST images as desired.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'In this chapter, we’ve had an extensive look at a new generation of deep learning
+    models: autoencoders. We started with the vanilla autoencoder, and then moved
+    on to its variants: sparse autoencoders, denoising autoencoders, stacked autoencoders,
+    and convolutional autoencoders. We used the autoencoders to reconstruct images,
+    and we also demonstrated how they can be used to clean noise from an image. Finally,
+    the chapter demonstrated how autoencoders can be used to generate sentence vectors
+    and images. The autoencoders learned through unsupervised learning.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will delve deeper into generative adversarial networks,
+    another interesting deep learning model that learns via an unsupervised learning
+    paradigm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: References
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Rumelhart, D. E., Hinton, G. E., and Williams, R. J. (1985). *Learning Internal
+    Representations by Error Propagation*. No. ICS-8506\. University of California,
+    San Diego. La Jolla Institute for Cognitive Science: [http://www.cs.toronto.edu/~fritz/absps/pdp8.pdf](http://www.cs.toronto.edu/~fritz/absps/pdp8.pdf)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Hinton, G. E. and Salakhutdinov, R. R. (2016). *Reducing the dimensionality
+    of data with neural networks*. science 313.5786: 504–507: [https://www.cs.toronto.edu/~hinton/science.pdf](https://www.cs.toronto.edu/~hinton/science.pdf)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Masci, J. et al. (2011). *Stacked convolutional auto-encoders for hierarchical
+    feature extraction*. Artificial Neural Networks and Machine Learning–ICANN 2011:
+    52–59: [https://www.semanticscholar.org/paper/Reducing-the-dimensionality-of-data-with-neural-Hinton-Salakhutdinov/46eb79e5eec8a4e2b2f5652b66441e8a4c921c3e](https://www.semanticscholar.org/paper/Reducing-the-dimensionality-of-data-with-neural-Hinton-Salakhutdinov/46eb79e5eec8a4e2b2f5652b66441e8a4c921c3e)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Japkowicz, N., Myers, C., and Gluck, M. (1995). *A novelty detection approach
+    to classification*. IJCAI. Vol: [https://www.ijcai.org/Proceedings/95-1/Papers/068.pdf](https://www.ijcai.org/Proceedings/95-1/Papers/068.pdf)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Sedhain, S. (2015). *AutoRec: Autoencoders Meet Collaborative Filtering*. Proceedings
+    of the 24th International Conference on World Wide Web, ACM.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Cheng, H. (2016). *Wide & Deep Learning for Recommender Systems*. Proceedings
+    of the 1st Workshop on Deep Learning for Recommender Systems, ACM.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Runfeldt, M. *Using Deep Learning to Remove Eyeglasses from Faces*.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Miotto, R. (2016). *Deep Patient: An Unsupervised Representation to Predict
+    the Future of Patients from the Electronic Health Records*. Scientific Reports.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Kiros, R. (2015). *Skip-Thought Vectors*, Advances in Neural Information Processing
+    Systems.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Kullback-Leibler divergence: [http://hanj.cs.illinois.edu/cs412/bk3/KL-divergence.pdf](http://hanj.cs.illinois.edu/cs412/bk3/KL-divergence.pdf)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Denoising autoencoders: [https://cs.stanford.edu/people/karpathy/convnetjs/demo/autoencoder.xhtml](https://cs.stanford.edu/people/karpathy/convnetjs/demo/autoencoder.xhtml)'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Join our book’s Discord space
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Join our Discord community to meet like-minded people and learn alongside more
+    than 2000 members at: [https://packt.link/keras](https://packt.link/keras)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/QR_Code18312172242788196872.png)'
+  prefs: []
+  type: TYPE_IMG

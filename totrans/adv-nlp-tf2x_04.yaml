@@ -1,0 +1,1618 @@
+- en: '4'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Transfer Learning with BERT
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Deep learning models really shine with large amounts of training data. Having
+    enough labeled data is a constant challenge in the field, especially in NLP. A
+    successful approach that has yielded great results in the last couple of years
+    is that of transfer learning. A model is trained in an unsupervised or semi-supervised
+    way on a large corpus and then fine-tuned for a specific application. Such models
+    have shown excellent results. In this chapter, we will build on the IMDb movie
+    review sentiment analysis and use transfer learning to build models using **GloVe**
+    (**Global Vectors for Word Representation**) pre-trained embeddings and **BERT**
+    (**Bi-Directional Encoder Representations from Transformers**) contextual models.
+    In this chapter, we will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Overview of transfer learning and use in NLP
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Loading pre-trained GloVe embeddings in a model
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building a sentiment analysis model using pre-trained GloVe embeddings and fine-tuning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Overview of contextual embeddings using Attention – BERT
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Loading pre-trained BERT models using the Hugging Face library
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Using pre-trained and custom BERT-based fine-tuned models for sentiment analysis
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Transfer learning is a core concept that has made rapid advances in NLP possible.
+    We will discuss transfer learning first.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transfer learning overview
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Traditionally, a machine learning model is trained for performance on a specific
+    task. It is only expected to work for that task and is not likely to have high
+    performance beyond that task. Let's take the example of the problem of classifying
+    the sentiment of IMDb movie reviews *Chapter 2*, *Understanding Sentiment in Natural
+    Language with BiLSTMs*. The model that was trained for this particular task was
+    optimized for performance on this task alone. A separate set of labeled data specific
+    to a different task is required if we wish to train another model. Building another
+    model might not be effective if there isn't enough labeled data for that task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Transfer learning is the concept of learning a fundamental representation of
+    the data that can be adapted to different tasks. In the case of transfer learning,
+    a more abundantly available dataset may be used to distill knowledge and in building
+    a new ML model for a specific task. Through the use of this knowledge, this new
+    ML model can have decent performance even when there is not enough labeled data
+    available for a traditional ML approach to return good results. For this scheme
+    to be effective, there are a few important considerations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The knowledge distillation step, called **pre-training**, should have an abundant
+    amount of data available relatively cheaply
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Adaptation, often called fine-tuning, should be done with data that shares similarities
+    with the data used for pre-training
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The figure below illustrates this concept:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16252_04_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.1: Comparing traditional machine learning with transfer learning'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This technique has been very effective in computer vision. ImageNet is often
+    used as the dataset for pre-training. Specific models are then fine-tuned for
+    a variety of tasks such as image classification, object detection, image segmentation,
+    and pose detection, among others.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Types of transfer learning
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The concepts of **domains** and **tasks** underpin the concept of transfer learning.
+    A domain represents a specific area of knowledge or data. News articles, social
+    media posts, medical records, Wikipedia entries, and court judgments could be
+    considered examples of different domains. A task is a specific objective or action
+    within a domain. Sentiment analysis and stance detection of tweets are specific
+    tasks in the social media posts domain. Detection of cancer and fractures could
+    be different tasks in the domain of medical records. Different types of transfer
+    learning have different combinations of source and target domains and tasks. Three
+    main types of transfer learning, namely domain adaptation, multi-task learning,
+    and sequential learning, are described below.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Domain adaptation
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: In this setting, the domains of source and target tasks are usually the same.
+    However, the differences are related to the distribution of training and testing
+    data. This case of transfer learning is related to a fundamental assumption in
+    any machine learning task – the assumption that training and testing data are
+    *i.i.d*. The first *i* stands for *independent*, which implies that each sample
+    is independent of the others. In practice, this assumption can be violated when
+    there are feedback loops, like in recommendation systems. The second section is
+    *i.d.*, which stands for *identically distributed* and implies that the distribution
+    of labels and other characteristics between training and test samples is the same.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Suppose the domain was animal photos, and the task was identifying cats in the
+    photos. This task can be modeled as a binary classification problem. The identically
+    distributed assumption implies that the distribution of cats in the photos between
+    training and test samples is similar. This also implies that characteristics of
+    photos, such as resolutions, lighting conditions, and orientations, are very similar.
+    In practice, this assumption is also frequently violated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is a case about a very early perceptron model built to identify tanks
+    in the woods. The model was performing quite well on the training set. When the
+    test set was expanded, it was discovered that all the pictures of tanks in woods
+    were taken on sunny days, whereas the pictures of woods without tanks were taken
+    on a cloudy day.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this case, the network learned to differentiate sunny and cloudy conditions
+    more than the presence or absence of tanks. During testing, the pictures supplied
+    were from a different distribution, but the same domain, which led to the model
+    failing.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dealing with similar situations is called domain adaptation. There are many
+    techniques for domain adaptation, one of which is data augmentation. In computer
+    vision, images in the training set can be cropped, warped, or rotated, and varying
+    amounts of exposure or contrast or saturation can be applied to them. These transformations
+    would increase the training data and could mitigate the gap between training and
+    potential testing data. Similar techniques are used in speech and audio by adding
+    random noises, including street sounds or background chatter, to an audio sample.
+    Domain adaptation techniques are well known in traditional machine learning with
+    several resources already available on it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, what makes transfer learning exciting is using data from a different
+    source domain or task for pre-training results in improvements in model performance
+    on a different task or domain. There are two types of transfer learning in this
+    area. The first one is multi-task learning, and the second one is sequential learning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Multi-task learning
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'In multi-task learning, data from different but related tasks are passed through
+    a set of common layers. Then, there may be task-specific layers on the top that
+    learn about a particular task objective. *Figure 4.2* shows the multi-task learning
+    setting:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A picture containing building, drawing  Description automatically generated](img/B16252_04_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.2: Multi-task transfer learning'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The output of these task-specific layers would be evaluated on different loss
+    functions. All the training examples for all the tasks are passed through all
+    the layers of the model. The task-specific layers are not expected to do well
+    for all the tasks. The expectation is that the common layers learn some of the
+    underlying structure that is shared by the different tasks. This information about
+    structure provides useful signals and improves the performance of all the models.
+    The data for each task has many features. However, these features may be used
+    to construct representations that can be useful in other related tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Intuitively, people learn some elementary skills before mastering more complex
+    skills. Learning to write requires first becoming skilled in holding a pen or
+    pencil. Writing, drawing, and painting can be considered different tasks that
+    share a standard "layer" of holding a pen or pencil. The same concept applies
+    while learning a new language where the structure and grammar of one language
+    may help with learning a related language. Learning Latin-based languages like
+    French, Italian, and Spanish becomes more comfortable if one of the other Latin
+    languages is known, as these languages share word roots.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Multi-task learning increases the amount of data available for training by pooling
+    data from different tasks together. Further, it forces the network to generalize
+    better by trying to learn representations that are common across tasks in shared
+    layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Multi-task learning is a crucial reason behind the recent success of models
+    such as GPT-2 and BERT. It is the most common technique used for pre-training
+    models that are then used for specific tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sequential learning
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Sequential learning is the most common form of transfer learning. It is named
+    so because it involves two simple steps executed in sequence. The first step is
+    pre-training and the second step is fine-tuning. These steps are shown in *Figure
+    4.3*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16252_04_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.3: Sequential learning'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The first step is to pre-train a model. The most successful pre-trained models
+    use some form of multi-task learning objectives, as depicted on the left side
+    of the figure. A portion of the model used for pre-training is then used for different
+    tasks shown on the right in the figure. This reusable part of the pre-trained
+    model depends on the specific architecture and may have a different set of layers.
+    The reusable partition shown in *Figure 4.3* is just illustrative. In the second
+    step, the pre-trained model is loaded and added as the starting layer of a task-specific
+    model. The weights learned by the pre-trained model can be frozen during the training
+    of the task-specific model, or those weights can be updated or fine-tuned. When
+    the weights are frozen, then this pattern of using the pre-trained model is called
+    *feature extraction*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generally, fine-tuning gives better performance than a feature extraction approach.
+    However, there are some pros and cons to both approaches. In fine-tuning, not
+    all weights get updated as the task-specific training data may be much smaller
+    in size. If the pre-trained model is an embedding for words, then other embeddings
+    can become stale. If the task is such that it has a small vocabulary or has many
+    out-of-vocabulary words, then this can hurt the performance of the model. Generally,
+    if the source and target tasks are similar, then fine-tuning would produce better
+    results.
+  prefs: []
+  type: TYPE_NORMAL
+- en: An example of such a pre-trained model is Word2vec, which we saw in *Chapter
+    1*, *Essentials of NLP*. There is another model of generating word-level embeddings
+    called **GloVe** or **Global Vectors for Word Representation**, introduced in
+    2014 by researchers from Stanford. Let's take a practical tour of transfer learning
+    by re-building the IMDb movie sentiment analysis using GloVe embeddings in the
+    next section. After that, we shall take a tour of BERT and apply BERT in the same
+    sequential learning setting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: IMDb sentiment analysis with GloVe embeddings
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In *Chapter 2*, *Understanding Sentiment in Natural Language with BiLSTMs*,
+    a BiLSTM model was built to predict the sentiment of IMDb movie reviews. That
+    model learned embeddings of the words from scratch. This model had an accuracy
+    of 83.55% on the test set, while the SOTA result was closer to 97.4%. If pre-trained
+    embeddings are used, we expect an increase in model accuracy. Let's try this out
+    and see the impact of transfer learning on this model. But first, let's understand
+    the GloVe embedding model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: GloVe embeddings
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In *Chapter 1*, *Essentials of NLP*, we discussed the Word2Vec algorithm, which
+    is based on skip-grams with negative sampling. The GloVe model came out in 2014,
+    a year after the Word2Vec paper came out. The GloVe and Word2Vec models are similar
+    as the embeddings generated for a word are determined by the words that occur
+    around it. However, these context words occur with different frequencies. Some
+    of these context words appear more frequently in the text compared to other words.
+    Due to this difference in frequencies of occurrence, training data for some words
+    may be more common than other words.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Beyond this part, Word2Vec does not use these statistics of co-occurrence in
+    any way. GloVe takes these frequencies into account and posits that the co-occurrences
+    provide vital information. The *Global* part of the name refers to the fact that
+    the model considers these co-occurrences over the entire corpus. Rather than focus
+    on the probabilities of co-occurrence, GloVe focuses on the ratios of co-occurrence
+    considering probe words.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the paper, the authors take the example of the words *ice* and *steam* to
+    illustrate the concept. Let's say that *solid* is another word that is going to
+    be used to probe the relationship between ice and steam. A probability of occurrence
+    of solid given steam is *p*[solid|steam]. Intuitively, we expect this probability
+    to be small. Conversely, the probability of occurrence of solid with ice is represented
+    by *p*[solid|ice] and is expected to be large. If ![](img/B16252_04_001.png) is
+    computed, we expect this value to be significant. If the same ratio is computed
+    with the probe word being gas, the opposite behavior would be expected. In cases
+    where both are equally probable, either due to the probe word being unrelated,
+    or equally probable to occur with the two words, then the ratio should be closer
+    to 1\. An example of a probe word close to both ice and steam is *water*. An example
+    of a word unrelated to ice or steam is *fashion*. GloVe ensures that this relationship
+    is factored into the embeddings generated for the words. It also has optimizations
+    for rare co-occurrences, numerical stability issues computation, and others.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now let us see how to use these pre-trained embeddings for predicting sentiment.
+    The first step is to load the data. The code here is identical to the code used
+    in *Chapter 2*, *Understanding Sentiment in Natural Language with BiLSTMs*; it's
+    provided here for the sake of completeness.
+  prefs: []
+  type: TYPE_NORMAL
+- en: All the code for this exercise is in the file `imdb-transfer-learning.ipynb`
+    located in the `chapter4-Xfer-learning-BERT` directory in GitHub.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loading IMDb training data
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'TensorFlow Datasets or the `tfds` package will be used to load the data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Note that the additional 50,000 reviews that are unlabeled are ignored for
+    the purpose of this exercise. After the training and test sets are loaded as shown
+    above, the content of the reviews needs to be tokenized and encoded:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The code shown above tokenizes the review text and constructs a vocabulary.
+    This vocabulary is used to construct a tokenizer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that text was converted to lowercase before encoding. Converting to lowercase
+    helps reduce the vocabulary size and may benefit the lookup of corresponding GloVe
+    vectors later on. Note that capitalization may contain important information,
+    which may help in tasks such as NER, which we covered in previous chapters. Also
+    note that all languages do not distinguish between capital and small letters.
+    Hence, this particular transformation should be applied after due consideration.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now that the tokenizer is ready, the data needs to be tokenized, and sequences
+    padded to a maximum length. Since we are interested in comparing performance with
+    the model trained in *Chapter 2*, *Understanding Sentiment in Natural Language
+    with BiLSTMs*, we can use the same setting of sampling a maximum of 150 words
+    of the review. The following convenience methods help in performing this task:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Finally, the data is encoded using the convenience functions above like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: At this point, all the training and test data is ready for training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that in limiting the size of the reviews, only the first 150 tokens will
+    be counted for a long review. Typically, the first few sentences of the review
+    have the context or description, and the latter part of the review has the conclusion.
+    By limiting to the first part of the review, valuable information could be lost.
+    The reader is encouraged to try a different padding scheme where tokens from the
+    first part of the review are dropped instead of the second part and observe the
+    difference in the accuracy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next step is the foremost step in transfer learning – loading the pre-trained
+    GloVe embeddings and using these as the weights of the embedding layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Loading pre-trained GloVe embeddings
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'First, the pre-trained embeddings need to be downloaded and unzipped:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that this is a huge download of over 800 MB, so this step may take some
+    time to execute. Upon unzipping, there will be four different files, as shown
+    in the output above. Each file has a vocabulary of 400,000 words. The main difference
+    is the dimensions of embeddings generated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the previous chapter, an embedding dimension of 64 was used for the model.
+    The nearest GloVe dimension is 50, so let''s use that. The file format is quite
+    simple. Each line of the text has multiple values separated by spaces. The first
+    item of each row is the word, and the rest of the items are the values of the
+    vector for each dimension. So, in the 50-dimensional file, each row will have
+    51 columns. These vectors need to be loaded up in memory:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: If the code processed the file correctly, you shouldn't see any errors and you
+    should see a dictionary size of 400,000 words. Once these vectors are loaded,
+    an embedding matrix needs to be created.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Creating a pre-trained embedding matrix using GloVe
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'So far, we have a dataset, its vocabulary, and a dictionary of GloVe words
+    and their corresponding vectors. However, there is no correlation between these
+    two vocabularies. The way to connect them is through the creation of an embedding
+    matrix. First, let''s initialize an embedding matrix of zeros:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that this is a crucial step. When a pre-trained word list is used, finding
+    a vector for each word in the training/test is not guaranteed. Recall the discussion
+    on transfer learning earlier, where the source and target domains are different.
+    One way this difference manifests itself is through having a mismatch in tokens
+    between the training data and the pre-trained model. As we go through the next
+    steps, this will become more apparent.
+  prefs: []
+  type: TYPE_NORMAL
+- en: After this embedding matrix of zeros is initialized, it needs to be populated.
+    For each word in the vocabulary of reviews, the corresponding vector is retrieved
+    from the GloVe dictionary.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The ID of the word is retrieved using the encoder, and then the embedding matrix
+    entry corresponding to that entry is set to the retrieved vector:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: During the data loading step, we saw that the total number of tokens was 93,931\.
+    Out of these, 14,553 words could not be found, which is approximately 15% of the
+    tokens. For these words, the embedding matrix will have zeros. This is the first
+    step in transfer learning. Now that the setup is completed, we will need to use
+    TensorFlow to use these pre-trained embeddings. There will be two different models that
+    will be tried – the first will be based on feature extraction and the second one
+    on fine-tuning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Feature extraction model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: As discussed earlier, the feature extraction model freezes the pre-trained weights
+    and does not update them. An important issue with this approach in the current
+    setup is that there are a large number of tokens, over 14,000, that have zero
+    embedding vectors. These words could not be matched to an entry in the GloVe word
+    list.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To minimize the chances of not finding matches between the pre-trained vocabulary
+    and task-specific vocabulary, ensure that similar tokenization schemes are used.
+    GloVe uses a word-based tokenization scheme like the one provided by the Stanford
+    tokenizer. As seen in *Chapter 1*, *Essentials of NLP*, this works better than
+    a whitespace tokenizer, which is used for the training data above. We see 15%
+    unmatched tokens due to different tokenizers. As an exercise, the reader can implement
+    the Stanford tokenizer and see the reduction in unknown tokens.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Newer methods like BERT use parts of subword tokenizers. Subword tokenization
+    schemes can break up words into parts, which minimizes this chance of mismatch
+    in tokens. Some examples of subword tokenization schemes are **Byte Pair Encoding**
+    (**BPE**) or WordPiece tokenization. The BERT section of this chapter explains
+    subword tokenization schemes in more detail.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If pre-trained vectors were not used, then the vectors for all the words would
+    start with nearly zero and get trained through gradient descent. In this case,
+    the vectors are already trained, so we expect the training to go along much faster.
+    For a baseline, one epoch of training of the BiLSTM model while training embeddings
+    takes between 65 seconds and 100 seconds, with most values around 63 seconds on
+    an Ubuntu machine with an i5 processor and an Nvidia RTX-2070 GPU.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let''s build the model and plug in the embedding matrix generated above
+    into the model. Some basic parameters need to be set up:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'A convenience function being set up will enable fast switching. This method
+    enables building models with the same architecture but different hyperparameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The model is identical to what was used in the previous chapter with the exception
+    of the highlighted code pieces above. First, a flag can now be passed to this
+    method that specifies whether the embeddings should be trained further or frozen.
+    This parameter is set to false as it''s the default value. The second change is
+    in the definition of the `Embedding` layer. A new parameter, `weights`, loads
+    the embedding matrix as the weights for the layer. Just after this parameter,
+    a Boolean parameter called `trainable` is passed that determines whether the weights
+    of this layer should be updated during training time. A feature extraction-based
+    model can now be created like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: This model has about 4.8 million trainable parameters. It should be noted that
+    this model is considerably smaller than the previous BiLSTM model, which had over
+    12 million parameters. A simpler or smaller model will train faster and possibly
+    be less likely to overfit as the model capacity is lower.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This model needs to be compiled with the loss function, optimizer, and metrics
+    for observation progress of the model. Binary cross-entropy is the right loss
+    function for this problem of binary classification. The Adam optimizer is a decent
+    choice in most cases.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Adaptive Moment Estimation or Adam Optimizer**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The simplest optimization algorithm used in backpropagation for the training
+    of deep neural networks is mini-batch **Stochastic Gradient Descent** (**SGD**).
+    Any error in the prediction is propagated back and weights, called parameters,
+    of the various units are adjusted according to the error. Adam is a method that
+    eliminates some of the issues of SGD such as getting trapped in sub-optimal local
+    optima, and having the same learning rate for each parameter. Adam computes adaptive
+    learning rates for each parameter and adjusts them based on not only the error
+    but also previous adjustments. Consequently, Adam converges much faster than other
+    optimization methods and is recommended as the default choice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The metrics that will be observed are the same as before, accuracy, precision,
+    and recall:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After setting up batches for preloading, the model is ready for training. Similar
+    to previously, the model will be trained for 10 epochs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: A few things can be seen immediately. The model trained significantly faster.
+    Each epoch took approximately 17 seconds with a maximum of 28 seconds for the
+    first epoch. Secondly, the model has not overfit. The final accuracy is just over
+    81% on the training set. In the previous setup, the accuracy on the training set
+    was 99.56%.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It should also be noted that the accuracy was still increasing at the end of
+    the tenth epoch, with lots of room to go. This indicates that training this model
+    for longer would probably increase accuracy further. Quickly changing the number
+    of epochs to 20 and training the model yields an accuracy of just over 85% on
+    the testing set, with precision at 80% and recall at 92.8%.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'For now, let''s understand the utility of this model. To make an assessment
+    of the quality of this model, performance on the test set should be evaluated:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: Compared to the previous model's accuracy of 83.6% on the test set, this model
+    produces an accuracy of 82.82%. This performance is quite impressive because this
+    model is just 40% of the size of the previous model and represents a 70% reduction
+    in training time for a less than 1% drop in accuracy. This model has a slightly
+    better recall for slightly worse accuracy. This result should not be entirely
+    unexpected. There are over 14,000 word vectors that are zeros in this model! To
+    fix this issue, and also to try the fine-tuning sequential transfer learning approach,
+    let's build a fine-tuning-based model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fine-tuning model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Creating the fine-tuning model is trivial when using the convenience function.
+    All that is needed is to pass the `train_emb` parameter as true:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This model is identical to the feature extraction model in size. However, since
+    the embeddings will be fine-tuned, training is expected to take a little longer.
+    There are several thousand zero embeddings, which can now be updated. The resulting
+    accuracy is expected to be much better than the previous model. The model is compiled
+    with the same loss function, optimizer, and metrics, and trained for 10 epochs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This accuracy is very impressive but needs to be checked against the test set:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: That is the best result we have obtained so far at an accuracy of 87.1%. Data
+    about state-of-the-art results on datasets are maintained by the [paperswithcode.com](http://paperswithcode.com)
+    website. Research papers that have reproducible code are featured on the leaderboards
+    for datasets. This result would be about seventeenth on the SOTA result on the
+    [paperswithcode.com](http://paperswithcode.com) website at the time of writing!
+  prefs: []
+  type: TYPE_NORMAL
+- en: It can also be seen that the network is overfitting a little bit. A `Dropout`
+    layer can be added between the `Embedding` layer and the first `LSTM` layer to
+    help reduce this overfitting. It should also be noted that this network is still
+    much faster than training embeddings from scratch. Most epochs took 24 seconds
+    for training. Overall, this model is smaller in size, takes much less time to
+    train, and has much higher accuracy! This is why transfer learning is so important
+    in machine learning in general and NLP more specifically.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So far, we have seen the use of context-free word embeddings. The major challenge
+    with this approach is that a word could have multiple meanings depending on the
+    context. The word *bank* could refer to a place for storing money and valuables
+    and also the side of a river. A more recent innovation in this area is BERT, published
+    in May 2019\. The next step in improving the accuracy of movie review sentiment
+    analysis is to use a pre-trained BERT model. The next section explains the BERT
+    model, its vital innovations, and the impact of using this model for the task
+    at hand. Please note that the BERT model is enormous! If you do not have adequate
+    local computing resources, using Google Colab with a GPU accelerator would be
+    an excellent choice for the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: BERT-based transfer learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Embeddings like GloVe are context-free embeddings. Lack of context can be limiting
+    in NLP contexts. As discussed before, the word bank can mean different things
+    depending on the context. **Bi-directional Encoder Representations** **from Transformers**,
+    or **BERT**, came out of Google Research in May 2019 and demonstrated significant
+    improvements on baselines. The BERT model builds on several innovations that came
+    before it. The BERT paper also introduces several innovations of ERT works.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Two foundational advancements that enabled BERT are the **encoder-decoder network**
+    architecture and the **Attention mechanism**. The Attention mechanism further
+    evolved to produce the **Transformer architecture**. The Transformer architecture
+    is the fundamental building block of BERT. These concepts are covered next and
+    detailed further in later chapters. After these two sections, we will discuss
+    specific innovations and structures of the BERT model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Encoder-decoder networks
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: We have seen the use of LSTMs and BiLSTMs on sentences modeled as sequences
+    of words. These sequences can be of varying lengths as sentences are composed
+    of a different number of words. Recall that in *Chapter 2*, *Understanding Sentiment
+    in Natural Language with BiLSTMs*, we discussed the core concept of an LSTM being
+    a unit unrolled in time. For each input token, the LSTM unit generated an output.
+    Consequently, the number of outputs produced by the LSTM depends on the number
+    of input tokens. All of these input tokens are combined through a `TimeDistributed()`
+    layer for use by later `Dense()` layers in the network. The main issue is that
+    the input and output sequence lengths are linked. This model cannot handle variable-length
+    sequences effectively. Translation-type tasks where the input and the output may
+    have different lengths, consequently, won't do well with this architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The solution to these challenges was posed in a paper titled *Sequence to Sequence
+    Learning with Neural Networks* written by Ilya Sutskever et al. in 2014\. This
+    model is also referred to as the **seq2seq** model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The basic idea is shown in the figure below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16252_04_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.4: Encoder-decoder network'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The model is divided into two parts – an encoder and a decoder. A special token
+    that denotes the end of the input sequence is appended to the input sequence.
+    Note that now the input sequence can have any length as this end of sentence token,
+    (**EOS**) in the figure above, denotes the end. In the figure above, the input
+    sequence is denoted by tokens (**I**[1], **I**[2], **I**[3],…). Each input token,
+    after vectorization, is passed to an LSTM model. The output is only collected
+    from the last (**EOS**) token. The vector generated by the encoder LSTM network
+    for the (**EOS**) token is a representation of the entire input sequence. It can
+    be thought of as a summary of the entire input. A variable-length sequence has
+    not been transformed into a fixed-length or dimensional vector.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This vector becomes the input to the decoder layer. The model is auto-regressive
+    in the sense that the output generated by the previous step of the decoder is
+    fed into the next step as input. Output generation continues until the special
+    (**EOS**) token is generated. This scheme allows the model to determine the length
+    of the output sequence. It breaks apart the dependency between the length of the
+    input and output sequences. Conceptually, this is a straightforward model to understand.
+    However, this is a potent model. Many tasks can be cast as a sequence-to-sequence
+    problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Some examples include translating a sentence from one language to another, summarizing
+    an article where the input sequence is the text of the article and the output
+    sequence is the summary, or question-answering where the question is the input
+    sequence and the output is the answer. Speech recognition is a sequence-to-sequence
+    problem with input sequences of 10 ms samples of voice, and the output is text.
+    At the time of its release, it garnered much attention because it had a massive
+    impact on the quality of Google Translate. In nine months of work using this model,
+    the team behind the seq2seq model was able to provide much higher performance
+    than that after over 10 years of improvements in Google Translate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**The Great A.I. Awakening**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The New York Times published a fantastic article with the above title in 2016
+    that documents the journey of deep learning and especially the authors of the
+    seq2seq paper and its dramatic effect on the quality of Google Translate. This
+    article is highly recommended to see how transformational this architecture was
+    for NLP. This article is available at [https://www.nytimes.com/2016/12/14/magazine/the-great-ai-awakening.html](https://www.nytimes.com/2016/12/14/magazine/the-great-ai-awakening.html).
+  prefs: []
+  type: TYPE_NORMAL
+- en: With these techniques at hand, the next innovation was the use of the Attention
+    mechanism, which allows the modeling of dependencies between tokens irrespective
+    of their distance. The Attention model became the cornerstone of the **Transformer
+    model**, described in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Attention model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In the encoder-decoder model, the encoder part of the network creates a fixed
+    dimensional representation of the input sequence. As the input sequence length
+    grows, more and more of the input is compressed into this vector. The encodings
+    or hidden states generated by processing the input tokens are not available to
+    the decoder layer. The encoder states are hidden from the decoder. The Attention
+    mechanism allows the decoder part of the network to see the encoder hidden states.
+    These hidden states are depicted in *Figure 4.4* as the output of each of the
+    input tokens, (I[1], I[2], I[3],…), but shown only as feeding in to the next input
+    token.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the Attention mechanism, these input token encodings will also be made available
+    to the decoder layer. This is called **General Attention**, and it refers to the
+    ability of output tokens to directly have a dependence on the encodings or hidden
+    states of input tokens. The main innovation here is the decoder operates on a
+    sequence of vectors generating by encoding the input rather than one fixed vector
+    generated at the end of the input. The Attention mechanism allows the decoder
+    to focus its attention on a subset of the encoded input vectors while decoding,
+    hence the name.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There is another form of attention, called **self-attention**. Self-attention
+    enables connections between different encodings of input tokens in different positions.
+    As depicted in the model in *Figure 4.4*, an input token only sees the encoding
+    of the previous token. Self-attention will allow it to look at the encodings of
+    previous tokens. Both forms are an improvement to the encoder-decoder architecture.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'While there are many Attention architectures, a prevalent form is called **Bahdanau
+    Attention**. It is named after the first author of the paper, published in 2016,
+    where this Attention mechanism was proposed. Building on the encoder-decoder network,
+    this form enables each output state to look at the encoded inputs and learn some
+    weights for each of these inputs. Consequently, each output could focus on different
+    input tokens. An illustration of this model is shown in *Figure 4.5*, which is
+    a modified version of *Figure 4.4*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16252_04_05.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.5: Bahdanau Attention architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Two specific changes have been made in the Attention mechanism when compared
+    to the encoder-decoder architecture. The first change is in the encoder. The encoder
+    layer here uses BiLSTMs. The use of BiLSTMs allows each word to learn from the
+    words preceding and succeeding them both. In the standard encoder-decoder architecture,
+    LSTMs were used, which meant each input word could only learn from the words before
+    it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second change is related to how the decoder uses the output of the encoders.
+    In the previous architecture, only the output of the last token, the end-of-sentence
+    token, used the summary of the entire input sequence. In the Bahdanau Attention
+    architecture, the hidden state output of each input token is multiplied by an
+    *alignment weight* that represents the degree of match between the input token
+    at a specific position with the output token in question. A context vector is
+    computed by multiplying each input hidden state output with the corresponding
+    alignment weight and concatenating all the results. This context vector is fed
+    to the output token along with the previous output token.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 4.5* shows this computation, for only the second output token. This
+    alignment model with the weights for each output token can help point to the most
+    helpful input tokens in generating that output token. Note that some of the details
+    have been simplified for brevity and can be found in the paper. We will implement
+    Attention from scratch in later chapters.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Attention is not an explanation**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It can be tempting to interpret the alignment scores or attention weights as
+    an explanation of the model predicting a particular output token. A paper with
+    the title of this information box was published that tests this hypothesis that
+    Attention is an explanation. The conclusion from the research is that Attention
+    should not be interpreted as an explanation. Different attention weights on the
+    same set of inputs may result in the same outputs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The next advancement to the Attention model came in the form of the Transformer
+    architecture in 2017\. The Transformer model is the key to the BERT architecture,
+    so let's understand that next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transformer model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Vaswani et al. published a ground-breaking paper in 2017 titled *Attention Is
+    All You Need*. This paper laid the foundation of the Transformer model, which
+    has been behind most of the recent advanced models such as ELMo, GPT, GPT-2, and
+    BERT. The transformer model is built on the Attention model by taking the critical
+    innovation from it – enabling the decoder to see all of the input hidden states
+    while getting rid of the recurrence in it, which makes the model slow to train
+    due to the sequential nature of processing the input sequences.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Transformer model has an encoder and a decoder part. This encoder-decoder
+    structure enables it to perform best on machine translation-type tasks. However,
+    not all tasks need full encoder and decoder layers. BERT only uses the encoder
+    part, while generative models like GPT-2 use the decoder part. In this section,
+    only the encoder part of the architecture is covered. The next chapter deals with
+    the generation of text and the best models that use the Transformer decoder. Hence,
+    the decoder will be covered in that chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**What is a Language Model?**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A **Language Model** (**LM**) task is traditionally defined as predicting the
+    next word in a sequence of words. LMs are particularly useful for text generation,
+    but less for classification. GPT-2 is an example of a model that fits this definition
+    of an LM. Such a model only has context from the words or tokens that have occurred
+    on its left (reverse for a right-to-left language). This is a trade-off that is
+    appropriate in the generation of text. However, in other tasks such as question-answering
+    or translation, the full sentence should be available. In such a case, using a
+    bi-directional model that can use the context from both sides is useful. BERT
+    is such a model. It loses the auto-regression property in favor of gaining context
+    from both sides of a word of the token.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'An encoder block of the Transformer has sub-layers parts – the multi-head self-attention
+    sub-layer and a feed-forward sub-layer. The self-attention sub-layer looks at
+    all the words of the input sequence and generates an encoding for these words
+    in the context of each other. The feed-forward sublayer is composed of two layers
+    using linear transformations and a ReLU activation in between. Each encoder block
+    is composed of these two sub-layers, while the entire encoder is composed of six
+    such blocks, as shown in *Figure 4.6*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a cell phone  Description automatically generated](img/B16252_04_06.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.6: Transformer encoder architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: A residual connection around the multi-head attention block and the feed-forward
+    block is made in each encoder block. While adding the output of the sublayer with
+    the input it received, layer normalization is performed. The main innovation here
+    is the **Multi-Head Attention** block. There are eight identical attention blocks
+    whose outputs are concatenated to produce the multi-head attention output. Each
+    attention block takes in the encoding and defines three new vectors called the
+    query, key, and value vectors. Each of these vectors is defined as 64-dimensional,
+    though this size is a hyperparameter that can be tuned. The query, key, and value
+    vectors are learned through training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To understand how this works, let's assume that the input has three tokens.
+    Each token has a corresponding embedding. Each of these tokens is initialized
+    with its query, key, and value vectors. A weight vector is also initialized, which,
+    when multiplied with the embedding of the input token, produces the key for that
+    token. After the query vector is computed for a token, it is multiplied by the
+    key vectors of all the input tokens. Note that the encoder has access to all the
+    inputs, on both sides of each token. As a result, a score has now been computed
+    by taking the query vector of the word in question and the value vector of all
+    the tokens in the input sequence. All of these scores are passed through a softmax.
+    The result can be interpreted as providing a sense of which tokens of the input
+    are important to this particular input token.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In a way, the input token in question is attentive to the other tokens with
+    a high softmax score. This score is expected to be high when the input token attends
+    to itself but can be high for other tokens as well. Next, this softmax score is
+    multiplied by the value vector of each token. All these value vectors of the different
+    input tokens are then summed up. Value vectors of tokens with higher softmax scores
+    will have a higher contribution to the output value vector of the input token
+    in question. This completes the calculation of the output for a given token in
+    the Attention layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Multi-head self-attention creates multiple copies of the query, key, and value
+    vectors along with the weights matrix used to compute the query from the embedding
+    of the input token. The paper proposed eight heads, though this could be experimented
+    with. An additional weight matrix is used to combine the multiple outputs of each
+    of the heads and concatenate them together into one output value vector.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This output value vector is fed to the feed-forward layer, and the output of
+    the feed-forward layer goes to the next encoder block or becomes the output of
+    the model at the final encoder block.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While the core BERT model is essentially the core Transformer encoder model,
+    there are a few specific enhancements it introduced that are covered next. Note
+    that using the BERT model is much easier as all of these details are abstracted.
+    Knowing these details may, however, help in understanding BERT inputs and outputs.
+    The code to use BERT for the IMDb sentiment analysis follows the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The bidirectional encoder representations from transformers (BERT) model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: The emergence of the Transformer architecture was a seminal moment in the NLP
+    world. This architecture has driven a lot of innovation through several derivative
+    architectures. BERT is one such model. It was released in 2018\. The BERT model
+    only uses the encoder part of the Transformer architecture. The layout of the
+    encoder is identical to the one described earlier with twelve encoder blocks and
+    twelve attention heads. The size of the hidden layers is 768\. These sets of parameters
+    are referred to as *BERT Base*. These hyperparameters result in a total model
+    size of 110 million parameters. A larger model was also published with 24 encoder
+    blocks, 16 attention heads, and a hidden unit size of 1,024\. Since the paper
+    came out, a number of different variants of BERT like ALBERT, DistilBERT, RoBERTa,
+    CamemBERT, and so on have also emerged. Each of these models has tried to improve
+    the BERT performance in terms of accuracy or in terms of training/inference time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The way BERT is pre-trained is unique. It uses the multi-task transfer learning
+    principle explained above to pre-train on two different objectives. The first
+    objective is the **Masked Language Model** (**MLM**) task. In this task, some
+    of the input tokens are masked randomly. The model has to predict the right token
+    given the tokens on both sides of the masked token. Specifically, a token in the
+    input sequence is replaced with a special `[MASK]` token 80% of the time. In 10%
+    of the cases, the selected token is replaced with another random token from the
+    vocabulary. In the last 10% of the cases, the token is kept unchanged. Further,
+    this happens for 15% of the overall tokens in a batch. The consequence of this
+    scheme is that the model cannot rely on certain tokens being present and is forced
+    to learn a contextual representation based on the distribution of the tokens before
+    and after any given token. Without this masking, the bidirectional nature of the
+    model means each word would be able to indirectly *see* itself from either direction.
+    This would make the task of predicting the target token really easy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The second objective the model is pre-trained on is **Next Sentence Prediction**
+    (**NSP**). The intuition here is that there are many NLP tasks that deal with
+    pairs of sentences. For example, a question-answering problem can model the question
+    as the first sentence, and the passage to be used to answer the question becomes
+    the second sentence. The output from the model may be a span identifier that identifies
+    the start and end token indices in the passage provided as the answer to the question.
+    In the case of sentence similarity or paraphrasing, both sentence pairs can be
+    passed in to get a similarity score. The NSP model is trained by passing in sentence
+    pairs with a binary label that indicates whether the second sentence follows the
+    first sentence. 50% of the training examples are passed as actual next sentences
+    from the corpus with the label **IsNext**, while in the other 50% a random sentence
+    is passed with the output label **NotNext**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: BERT also addresses a problem we saw in the GloVe example above – out-of-vocabulary
+    tokens. About 15% of the tokens were not in the vocabulary. To address this problem,
+    BERT uses the **WordPiece** tokenization scheme with a vocabulary size of 30,000
+    tokens. Note that this is much smaller than the GloVe vocabulary size. WordPiece
+    belongs to a class of tokenization schemes called **subword** tokenization. Other
+    members of this class are **Byte Pair Encoding** (**BPE**), SentencePiece, and
+    the Unigram language model. Inspiration for the WordPiece model came from the
+    Google Translate team working with Japanese and Korean texts. If you recall the
+    discussion on tokenization in the first chapter, we showed that the Japanese language
+    does not use spaces for delimiting words. Hence, it is hard to tokenize it into
+    words. Methods developed for creating vocabularies for such languages are quite
+    useful for applying to languages like English and keeping the dictionary size
+    down to a reasonable size.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Consider the German translation of the phrase *Life Insurance Company*. This
+    would translate to *Lebensversicherungsgesellschaft*. Similarly, *Gross Domestic
+    Product* would translate to *Bruttoinlandsprodukt*. If words are taken as such,
+    the size of the vocabulary would be very large. A subword approach could represent
+    these words more efficiently.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A smaller dictionary reduces training time and memory requirements. If a smaller
+    dictionary does not come at the cost of out-of-vocabulary tokens, then it is quite
+    useful. To help understand the concept of subword tokenization, consider an extreme
+    example where the tokenization breaks apart the work into individual characters
+    and numbers. The size of this vocabulary would be 37 – with 26 alphabets, 10 numbers,
+    and space. An example of a subword tokenization scheme is to introduce two new
+    tokens, *-ing* and *-tion*. Every word that ends with these two tokens can be
+    broken into two subwords – the part before the suffix and one of the two suffixes.
+    This can be done through knowledge of the language grammar and constructs, using
+    techniques such as stemming and lemmatization. The WordPiece tokenization approach
+    used in BERT is based on BPE. In BPE, the first step is defining a target vocabulary
+    size.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, the entire text is converted to a vocabulary of just the individual character
+    tokens and mapped to the frequency of occurrence. Now multiple passes are made
+    on this to combine pairs of tokens so as to maximize the frequency of the bigram
+    created. For each subword created, a special token is added to denote the end
+    of the word so that detokenization can be performed. Further, if the subword is
+    not the start of the word, a `##` tag is added to help in reconstructing the original
+    words. This process is continued until the desired vocabulary is hit, or the base
+    condition of a minimum frequency of 1 is hit for tokens. BPE maximizes the frequency,
+    and WordPiece builds on top of this to include another objective.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The objective for WordPiece includes increasing mutual information by considering
+    the frequencies of the tokens being merged along with the frequency of the merged
+    bigram. This introduces a minor adjustment to the model. RoBERTa from Facebook
+    experimented with using a BPE model and did not see a material difference in performance.
+    The GPT-2 generative model is based on the BPE model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To take an example from the IMDb dataset, here is an example sentence:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'After tokenization with BERT, it would look like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: Where `[CLS]` and `[SEP]` are special tokens, which will be introduced shortly.
+    Note how the word *lured* was broken up as a consequence. Now that we understand
+    the underlying construct of the BERT model, let's try to use it for transfer learning
+    on the IMDb sentiment classification problem. The first step is preparing the
+    data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: All the code for the BERT implementation can be found in the `imdb-transfer-learning.ipynb`
+    notebook in this chapter's GitHub folder, in the section *BERT-based transfer
+    learning*. Please run the code in the section titled *Loading IMDb training data*
+    to ensure the data is loaded prior to proceeding.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Tokenization and normalization with BERT
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'After reading the description of the BERT model, you may be bracing yourself
+    for a difficult implementation in code. Have no fear. Our friends at Hugging Face
+    have provided pre-trained models as well as abstractions that make working with
+    advanced models like BERT a breeze. The general flow for getting BERT to work
+    will be:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Load a pre-trained model
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Instantiate a tokenizer and tokenize the data
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Set up a model and compile it
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Fit the model on the data
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'These steps won''t take more than a few lines of code each. So let''s get started.
+    The first step is to install the Hugging Face libraries:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The tokenizer is the first step – it needs to be imported before it can be
+    used:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'That is all there is to load a pre-trained tokenizer! A few things to note
+    in the code above. First, there are a number of models published by Hugging Face
+    that are available for download. A full list of the models and their names can
+    be found at [https://huggingface.co/transformers/pretrained_models.html](https://huggingface.co/transformers/pretrained_models.html).
+    Some key BERT models that are available are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Model Name | Description |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `bert-base-uncased` / `bert-base-cased` | Variants of the base BERT model
+    with 12 encoder layers, hidden size of 768 units, and 12 attention heads for a
+    total of ~110 million parameters. The only difference is whether the inputs were
+    cased or all lowercase. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `bert-large-uncased` / `bert-large-cased` | This model has 24 encoder layers,
+    1,024 hidden units, and 16 attention heads for a total of ~340 million parameters.
+    Similar split by cased and lowercase models. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `bert-base-multilingual-cased` | Parameters here are the same as `bert-base-cased`
+    above, trained on 104 languages with the largest Wikipedia entries. However, it
+    is not recommended to use the uncased version for international languages, while
+    that model is available. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `bert-base-cased-finetuned-mrpc` | This model has been fine-tuned on the
+    Microsoft Research Paraphrase Corpus task for paraphrase identification in the
+    news domain. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `bert-base-japanese` | Same size as the base model but trained on Japanese
+    text. Note that both the MeCab and WordPiece tokenizers are used. |'
+  prefs: []
+  type: TYPE_TB
+- en: '| `bert-base-chinese` | Same size as the base model but trained on cased-simplified
+    Chinese and traditional Chinese. |'
+  prefs: []
+  type: TYPE_TB
+- en: Any of the values on the left can be used in the `bert_name` variable above
+    to load the appropriate tokenizer. The second line in the code above downloads
+    the configuration and the vocabulary file from the cloud and instantiates a tokenizer.
+    This loader takes a number of parameters. Since a cased English model is being
+    used, we don't want the tokenizer to convert words to lowercase as specified by
+    the `do_lower_case` parameter. Note that the default value of this parameter is
+    `True`. The input sentences will be tokenized to a maximum of 150 tokens, as we
+    saw in the GloVe model as well. `pad_to_max_length` further indicates that the
+    tokenizer should also pad the sequences it generates.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first argument, `add_special_tokens`, deserves some explanation. In the
+    example so far, we have taken a sequence and a maximum length. If the sequence
+    is shorter than this maximum length, then the sequence is padded with a special
+    padding token. However, BERT has a special way to encode its sequence due to the
+    next sentence prediction task pre-training. It needs a way to provide two sequences
+    as the input. In the case of classification, like the IMDb sentiment prediction,
+    the second sequence is just left empty. There are three sequences that need to
+    be provided to the BERT model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`input_ids`: This corresponds to the tokens in the inputs converted into IDs.
+    This is what we have been doing thus far in other examples. In the IMDb example,
+    we only have one sequence. However, if the problem required passing in two sequences,
+    then a special token, `[SEP]`, would be added in between the sequences. `[SEP]`
+    is an example of a special token that has been added by the tokenizer. Another
+    special token, `[CLS]`, is appended to the start of the inputs. `[CLS]` stands
+    for classifier token. The embedding for this token can be viewed as the summary
+    of the inputs in the case of a classification problem, and additional layers on
+    top of the BERT model would use this token. It is also possible to use the sum
+    of the embeddings of all the inputs as an alternative.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`token_type_ids`: If the input contains two sequences, for a question-answering
+    problem, for example, then these IDs tell the model indicates which `input_ids`
+    correspond to which sequence. In some texts, this is referred to as the segment
+    identifiers. The first sequence would be the first segment, and the second sequence
+    would be the second segment.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`attention_mask`: Given that the sequences are padded, this mask tells the
+    model where the actual tokens end so that the attention calculation does not use
+    the padding tokens.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Given that BERT can take two sequences as input, understanding the padding is
+    essential as it can be confusing how padding works in the context of the maximum
+    sequence length when a pair of sequences is provided. The maximum sequence length
+    refers to the combined length of the pair. There are three different ways to do
+    truncation if the combined length exceeds the maximum length. The first two could
+    be to reduce the lengths from either the first or the second sequence. The third
+    way is to truncate from the lengthiest sequence, a token at a time so that the
+    lengths of the pair are only off by one at maximum. In the constructor, this behavior
+    can be configured by passing the `truncation_strategy` parameter with the values
+    `only_first`, `only_second`, or `longest_first`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*Figure 4.7* shows how an input sequence is converted into the three input
+    sequences listed above:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A close up of a keyboard  Description automatically generated](img/B16252_04_07.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.7: Mapping inputs to BERT sequences'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'If the input sequence was *Don''t be lured*, then the figure above shows how
+    it is tokenized with the WordPiece tokenizer as well as the addition of special
+    tokens. The example above sets a maximum sequence length of nine tokens. Only
+    one sequence is provided, hence the token type IDs or segment IDs all have the
+    same value. The attention mask is set to 1, where the corresponding entry in the
+    tokens is an actual token. The following code is used to generate these encodings:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Even though we won''t be using a pair of sequences in this chapter, it is useful
+    to be aware of how the encodings look when a pair is passed. If two strings are
+    passed to the tokenizer, then they are treated as a pair. This is shown in the
+    code below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: The input IDs have two separators to distinguish between the two sequences.
+    The token type IDs help distinguish which tokens correspond to which sequence.
+    Note that the token type ID for the padding token is set to 0\. In the network,
+    it is never used as all the values are multiplied by the attention mask.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To perform encoding of the inputs for all the IMDb reviews, a helper function
+    is defined, as shown below:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: The method is pretty straightforward. It takes the input tensor and uses UTF-8
+    decoding. Using the tokenizer, this input is converted into the three sequences.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This would be a great opportunity to implement a different padding algorithm.
+    For example, implement an algorithm that takes the last 150 tokens instead of
+    the first 150 and compare the performance of the two methods.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, this needs to be applied to every review in the training data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Labels of the reviews are also converted into categorical values. Using the
+    `sklearn` package, the training data is split into training and validation sets:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'A little more data processing is required to wrangle the inputs into three
+    input dictionaries in `tf.DataSet` for easy use in training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'These training and validation sequences are converted into a dataset like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: A batch size of 16 has been used here. The memory of the GPU is the limiting
+    factor here. Google Colab can support a batch length of 32\. An 8 GB RAM GPU can
+    support a batch size of 16\. Now, we are ready to train a model using BERT for
+    classification. We will see two approaches. The first approach will use a pre-built
+    classification model on top of BERT. This is shown in the next section. The second
+    approach will use the base BERT model and adds custom layers on top to accomplish
+    the same task. This technique will be demonstrated in the section after.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Pre-built BERT classification model
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: 'Hugging Face libraries make it really easy to use a pre-built BERT model for
+    classification by providing a class to do so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'That was quite easy, wasn''t it? Note that the instantiation of the model will
+    require a download of the model from the cloud. However, these models are cached
+    on the local machine if the code is being run from a local or dedicated machine.
+    In the Google Colab environment, this download will be run every time a Colab
+    instance is initialized. To use this model, we only need to provide an optimizer
+    and a loss function and compile the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This model is actually quite simple in layout as its summary shows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: So, the model has the entire BERT model, a dropout layer, and a classifier layer
+    on top. This is as simple as it gets.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The BERT paper suggests some settings for fine-tuning. They suggest a batch
+    size of 16 or 32, run for 2 to 4 epochs. Further, they suggest using one of the
+    following learning rates for Adam: 5e-5, 3e-5, or 2e-5\. Once this model is up
+    and running in your environment, please feel free to train with different settings
+    to see the impact on accuracy.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the previous section, we batched the data into sets of 16\. Here, the Adam
+    optimizer is configured to use a learning rate of 2e-5\. Let''s train this model
+    for 3 epochs. Note that training is going to be quite slow:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The validation accuracy is quite impressive for the little work we have done
+    here if it holds on the test set. That needs to be checked next. Using the convenience
+    methods from the previous section, the test data will be tokenized and encoded
+    in the right format:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Evaluating the performance of this model on the test dataset, we get the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: The model accuracy is almost 88%! This is higher than the best GloVe model shown
+    previously, and it took much less code to implement.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next section, let's try to build custom layers on top of the BERT model
+    to take transfer learning to the next level.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Custom model with BERT
+  prefs:
+  - PREF_H3
+  type: TYPE_NORMAL
+- en: The BERT model outputs contextual embeddings for all of the input tokens. The
+    embedding corresponding to the `[CLS]` token is generally used for classification
+    tasks, and it represents the entire document. The pre-built model from Hugging
+    Face returns the embeddings for the entire sequence as well as this *pooled output*,
+    which represents the entire document as the output of the model. This pooled output
+    vector can be used in future layers to help with the classification task. This
+    is the approach we will take in building a customer model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The code for this section is under the heading *Customer Model With BERT* in
+    the same notebook as above.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The starting point for this exploration is the base `TFBertModel`. It can be
+    imported and instantiated like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: Since we are using the same pre-trained model, the cased BERT-Base model, we
+    can reuse the tokenized and prepared data from the section above. If you haven't
+    already, take a moment to ensure the code in the *Tokenization and normalization
+    with BERT* section has been run to prepare the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, the custom model needs to be defined. The first layer of this model is
+    the BERT layer. This layer will take three inputs, namely the input tokens, attention
+    masks, and token type IDs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'These names need to match the dictionary defined in the training and testing
+    dataset. This can be checked by printing the specification of the dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The BERT model expects these inputs in a dictionary. It can also accept the
+    inputs as named arguments, but this approach is clearer and makes it easy to trace
+    the inputs. Once the inputs are mapped, the output of the BERT model can be computed:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The first output has embeddings for each of the input tokens including the
+    special tokens `[CLS]` and `[SEP]`. The second output corresponds to the output
+    of the `[CLS]` token. This output will be used further in the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The model above is only illustrative, to demonstrate the technique. We add
+    a dense layer and a couple of dropout layers before an output layer. Now, the
+    customer model is ready for training. The model needs to be compiled with an optimizer,
+    loss function, and metrics to watch for:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE57]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here is what this model looks like:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE58]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![A screenshot of a cell phone  Description automatically generated](img/B16252_04_08.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This custom model has 154,202 additional trainable parameters in addition to
+    the BERT parameters. The model is ready to be trained. We will use the same settings
+    from the previous BERT section and train the model for 3 epochs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE59]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE60]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Evaluating on the test set gives an accuracy of 86.29%. Note that the test
+    data encoding steps used in the pretrained BERT model section are used here as
+    well:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE61]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE62]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Fine-tuning of BERT is run for a small number of epochs with a small value
+    for Adam''s learning rate. If a lot of fine-tuning is done, then there is a risk
+    of BERT forgetting its pretrained parameters. This can be a limitation while building
+    custom models on top as a few epochs may not be sufficient to train the layers
+    that have been added. In this case, the BERT model layer can be frozen, and training
+    can be continued further. Freezing the BERT layer is fairly easy, though it needs
+    the re-compilation of the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE63]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We can check the model summary to verify that the number of trainable parameters
+    has changed to reflect the BERT layer being frozen:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE64]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![A screenshot of a cell phone  Description automatically generated](img/B16252_04_09.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 4.8: Model summary'
+  prefs: []
+  type: TYPE_NORMAL
+- en: We can see that all the BERT parameters are now set to non-trainable. Since
+    the model was being recompiled, we also took the opportunity to change the learning
+    rate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Changing the sequence length and learning rate during training are advanced
+    techniques in TensorFlow. The BERT model also used 128 as the sequence length
+    for initial epochs, which was changed to 512 later in training. It is also common
+    to see a learning rate increase for the first few epochs and then decrease as
+    training proceeds.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, training can be continued for a number of epochs like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE65]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The training output has not been shown for brevity. Checking the model on the
+    test set yields 86.96% accuracy:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE66]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE67]'
+  prefs: []
+  type: TYPE_PRE
+- en: If you are contemplating whether the accuracy of this custom model is lower
+    than the pre-trained model, then it is a fair question to ponder over. A bigger
+    network is not always better, and overtraining can lead to a reduction in model
+    performance due to overfitting. Something to try in the custom model is to use
+    the output encodings of all the input tokens and pass them through an LSTM layer
+    or concatenate them together to pass through dense layers and then make the prediction.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Having done the tour of the encoder side of the Transformer architecture, we
+    are ready to look into the decoder side of the architecture, which is used for
+    text generation. That will be the focus of the next chapter. Before we go there,
+    let's review everything we covered in this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Transfer learning has made a lot of progress possible in the world of NLP, where
+    data is readily available, but labeled data is a challenge. We covered different
+    types of transfer learning first. Then, we took pre-trained GloVe embeddings and
+    applied them to the IMDb sentiment analysis problem, seeing comparable accuracy
+    with a much smaller model that takes much less time to train.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Next, we learned about seminal moments in the evolution of NLP models, starting
+    from encoder-decoder architectures, attention, and Transformer models, before
+    understanding the BERT model. Using the Hugging Face library, we used a pre-trained
+    BERT model and a custom model built on top of BERT for the purpose of sentiment
+    classification of IMDb reviews.
+  prefs: []
+  type: TYPE_NORMAL
+- en: BERT only uses the encoder part of the Transformer model. The decoder side of
+    the stack is used in text generation. The next two chapters will focus on completing
+    the understanding of the Transformer model. The next chapter will use the decoder
+    side of the stack to perform text generation and sentence completion. The chapter
+    after that will use the full encoder-decoder network architecture for text summarization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus far, we have trained embeddings for tokens in the models. A considerable
+    amount of lift can be achieved by using pre-trained embeddings. The next chapter
+    will focus on the concept of transfer learning and the use of pre-trained embeddings
+    like BERT.
+  prefs: []
+  type: TYPE_NORMAL

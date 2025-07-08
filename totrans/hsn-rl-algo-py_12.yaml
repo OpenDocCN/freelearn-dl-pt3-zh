@@ -1,0 +1,876 @@
+- en: Model-Based RL
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Reinforcement learning algorithms are divided into two classes—model-free methods
+    and model-based methods. These two classes differ by the assumption made about
+    the model of the environment. Model-free algorithms learn a policy from mere interactions
+    with the environment without knowing anything about it, whereas model-based algorithms
+    already have a deep understanding of the environment and use this knowledge to
+    take the next actions according to the dynamics of the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we'll give you a comprehensive overview of model-based approaches,
+    highlighting their advantages and disadvantages vis-à-vis model-free approaches,
+    and the differences that arise when the model is known or has to be learned. This
+    latter division is important because it influences how problems are approached
+    and the tools used to solve them. After this introduction, we'll talk about more
+    advanced cases where model-based algorithms have to deal with high-dimensional
+    observation spaces such as images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Furthermore, we'll look at a class of algorithms that combine both model-based
+    and model-free methods to learn both a model and a policy in high dimensional
+    spaces. We'll learn their inner workings and give the reasons for using such methods.
+    Then, to deepen our understanding of model-based algorithms, and especially of
+    algorithms that combine both model-based and model-free approaches, we'll develop
+    a state-of-the-art algorithm called **model-ensemble trust region policy optimization**
+    (**ME-TRPO**) and apply it to a continuous inverted pendulum.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following topics will be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model-based methods
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Combining model-based with model-free learning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: ME-TRPO applied to an inverted pendulum
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Model-based methods
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Model-free algorithms are a formidable kind of algorithm that have the ability
+    to learn very complex policies and accomplish objectives in complicated and composite
+    environments. As demonstrated in the latest works by OpenAI ([https://openai.com/five/](https://openai.com/five/))
+    and DeepMind ([https://deepmind.com/blog/article/alphastar-mastering-real-time-strategy-game-starcraft-ii](https://deepmind.com/blog/article/alphastar-mastering-real-time-strategy-game-starcraft-ii)),
+    these algorithms can actually show long-term planning, teamwork, and adaptation
+    to unexpected situations in challenge games such as StarCraft and Dota 2.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Trained agents have been able to beat top professional players. However, the
+    biggest downside is in the huge number of games that need to be played in order
+    to train agents to master these games. In fact, to achieve these results, the
+    algorithms have been scaled massively to let the agents play hundreds of years'
+    worth of games against themselves. But, what's the problem with this approach?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Well, until you are training an agent for a simulator, you can gather as much
+    experience as you want. The problem arises when you are running the agents in
+    an environment as slow and complex as the world you live in. In this case, you
+    cannot wait hundreds of years before seeing some interesting capabilities. So,
+    can we develop an algorithm that uses fewer interactions with the real environment?
+    Yes. And, as you probably remember, we already tackled this question in model-free
+    algorithms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The solution was to use off-policy algorithms. However, the gains were relatively
+    marginal and not substantial enough for many real-world problems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you might expect, the answer (or at least one possible answer) is in model-based
+    reinforcement learning algorithms. You have already developed a model-based algorithm.
+    Do you remember which one? In [Chapter 3](f2414b11-976a-4410-92d8-89ee54745d99.xhtml),
+    *Solving Problems with Dynamic Programming*, we used a model of the environment
+    in conjunction with dynamic programming to train an agent to navigate a map with
+    pitfalls. And because DP uses a model of the environment, it is considered a model-based
+    algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unfortunately, DP isn't usable in moderate or complex problems. So, we need
+    to explore other types of model-based algorithms that can scale up and be useful
+    in more challenging environments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A broad perspective on model-based learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Let's first remember what a model is. A model consists of the transition dynamics
+    and rewards of an environment. Transition dynamics are a mapping from a state, *s,* and
+    an action*,* *a,* to the next state*,* *s'*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Having this information, the environment is fully represented by the model that
+    can be used in its place. And if an agent has access to it, then the agent has
+    the ability to predict its own future.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the following sections, we'll see that a model can be either known or unknown.
+    In the former case, the model is used as it is to exploit the dynamics of the
+    environment; that is, the model provides a representation that is used in place
+    of the environment. In the latter case, where the model of the environment is
+    unknown, it can be learned by direct interaction with the environment. But since,
+    in most cases, only an approximation of the environment is learned*,* additional
+    factors have to be taken into account when using it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now that we have explained what a model is, we can see how can we use one and
+    how it can help us to reduce the number of interactions with the environment. The
+    way in which a model is used depends on two very important factors—the model itself
+    and the way in which actions are chosen.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Indeed, as we just noted, the model can be known or unknown, and actions can
+    be planned or chosen by a learned policy. The algorithms vary a lot depending
+    on each case, so let's first elaborate on the approaches used when the model is
+    known (meaning that we already have the transition dynamics and rewards of the
+    environment).
+  prefs: []
+  type: TYPE_NORMAL
+- en: A known model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: When a model is known, it can be used to simulate complete trajectories and
+    compute the return for each of them. Then, the actions that yield the highest
+    reward are chosen. This process is called **planning**, and the model of the environment
+    is indispensable as it provides the information required to produce the next state
+    (given a state and an action) and reward.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Planning algorithms are used everywhere, but the ones we are interested in differ
+    from the type of action space on which they operate. Some of them work with discrete
+    actions, others with continuous actions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Planning algorithms for discrete actions are usually search algorithms that
+    build a decision tree, such as the one illustrated in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6dd2283d-42c8-433b-b2dd-00a51f1b619b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The current state is the root, the possible actions are represented by the arrows,
+    and the other nodes are the states that are reached following a sequence of actions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: You can see that by trying every possible sequence of actions, you'll eventually
+    find the optimal one. Unfortunately, in most problems, this procedure is intractable
+    as the number of possible actions increases exponentially. Planning algorithms
+    used for complex problems adopt strategies that allow planning by relying on a
+    limited number of trajectories.
+  prefs: []
+  type: TYPE_NORMAL
+- en: An algorithm of these, adopted also in AlphaGo, is called Monte Carlo Tree Search
+    (MCTS). MCTS iteratively builds a decision tree by generating a finite series
+    of simulated games, while sufficiently exploring parts of the tree that haven't
+    been visited yet. Once a simulated game or trajectory reaches a leaf (that is,
+    it ends the game), it backpropagates the results on the states visited and updates
+    the information of win/loss or reward held by the nodes. Then, the action that
+    yields to the next state with the higher win/loss ratio or reward is taken.
+  prefs: []
+  type: TYPE_NORMAL
+- en: On the opposite side, planning algorithms that operate with continuous actions
+    involve trajectory optimization techniques. These are much more difficult to solve
+    than their counterpart with discrete actions, as they deal with an infinite-dimensional
+    optimization problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Furthermore, many of them require the gradient of the model. An example is Model
+    Predictive Control (MPC), which optimizes for a finite time horizon, but instead
+    of executing the trajectory found, it only executes the first action. Doing so,
+    MPC has a faster response compared to other methods with infinite time horizon
+    planning.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unknown model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: What should you do when the model of the environment is unknown? Learn it! Almost
+    everything we have seen so far involves learning. So, is it the best approach?
+    Well, if you actually want to use a model-based approach, the answer is yes, and
+    soon we'll see how to do it. However, this isn't always the best way to proceed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In reinforcement learning, the end goal is to learn an optimal policy for a
+    given task. Previously in this chapter, we said that the model-based approach
+    is primarily used to reduce the number of interactions with the environment, but
+    is this always true? Imagine your goal is to prepare an omelet. Knowing the exact
+    breaking point of the egg isn't useful at all; you just need to know approximately
+    how to break it. Thus, in this situation, a model-free algorithm that doesn't
+    deal with the exact structure of the egg is more appropriate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, this shouldn't lead you to think that model-based algorithms are not
+    worth it. For example, model-based approaches outweigh model-free approaches in
+    situations where the model is much easier to learn than the policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The only way to learn a model is (unfortunately) through interactions with
+    the environment. This is an obligatory step, as it allows us to acquire and create
+    a dataset about the environment. Usually, the learning process takes place in
+    a supervised fashion, where a function approximator (such as a deep neural network)
+    is trained to minimize a loss function, such as the mean squared error loss between
+    the transitions obtained from the environment and the prediction. An example of
+    this is shown in the following diagram, where a deep neural network is trained
+    to model the environment by predicting the next state, *s''*, and the reward,
+    *r*, from a state, *s* and an action, *a*:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a8af758b-2245-4228-8c7a-0558afd1e0c6.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: There are other options besides neural networks, such as Gaussian processes,
+    and Gaussian mixture models. In particular, Gaussian processes have the particularity
+    of taking into account the uncertainty of the model and are regarded as being
+    very data efficient. In fact, until the advent of deep neural networks, they were
+    the most popular choice.
+  prefs: []
+  type: TYPE_NORMAL
+- en: However, the main drawback of Gaussian processes is that they are slow with
+    large datasets. Indeed, to learn more complex environments (thereby requiring
+    bigger datasets), deep neural networks are preferred. Furthermore, deep neural
+    networks can learn models of environments that have images as observations.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are two main ways to learn a model of the environment; one in which the
+    model is learned once and then kept fixed, and one in which the model is learned
+    at the beginning but retrained once the plan or policy has changed. The two options
+    are illustrated in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/b5b6d82e-746e-4ab5-b6c3-281f1a5f0c17.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: In the top half of the diagram, a sequential model-based algorithm is shown,
+    where the agent interacts with the environment only before learning the model.
+    In the bottom half, a cyclic approach to model-based learning is shown, where
+    the model is refined with additional data from a different policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To understand how an algorithm can benefit from the second option, we have to
+    define a key concept. In order to collect the dataset for learning the dynamics
+    of the environment, you need a policy that lets you navigate it. But in the beginning,
+    the policy may be deterministic or completely random. Thus, with a limited number
+    of interactions, the space explored will be very restricted.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This precludes the model from learning those parts of the environment that are
+    needed to plan or learn optimal trajectories. But if the model is retrained with
+    new interactions coming from a newer and better policy, it will iteratively adapt
+    to the new policy and capture all the parts of the environment (from a policy
+    perspective) that haven't been visited yet. This is called data aggregation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In practice, in most cases, the model is unknown and is learned using data
+    aggregation methods to adapt to the new policy produced. However, learning a model
+    can be challenging, and the potential problems are the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Overfitting the model**: The learned model overfits on a local region of
+    the environment, missing its global structure.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Inaccurate model**: Planning or learning a policy on top of an imperfect
+    model may induce a cascade of errors with potentially catastrophic conclusions.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Good model-based algorithms that learn a model have to deal with those problems.
+    A potential solution may be to use algorithms that estimate the uncertainty, such
+    as Bayesian neural networks, or by using an ensemble of models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Advantages and disadvantages
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'When developing a reinforcement learning algorithm (all kinds of RL algorithms),
+    there are three basic aspects to consider:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Asymptotical performance**: This is the maximum performance that an algorithm
+    can achieve if it has infinite resources available in terms of both time and hardware.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Wall clock time**: This is the learning time required for an algorithm to
+    reach a given performance with a given computational power.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Sample efficiency**: This is the number of interactions with the environment
+    to reach a given performance.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: We already explored sample efficiency in both model-free and model-based RL,
+    and we saw how the latter is much more sample efficient. But what about wall clock
+    time and performance? Well, model-based algorithms usually have lower asymptotic performance
+    and are slower to train than model-free algorithms. Generally, higher data efficiency
+    occurs to the detriment of performance and speed.
+  prefs: []
+  type: TYPE_NORMAL
+- en: One of the reasons behind the lower performance of model-based learning can
+    be attributed to model inaccuracies (if it's learned) that introduce additional
+    errors into the policies. The higher learning wall clock time is due to the slowness
+    of the planning algorithm or to the higher number of interactions needed to learn
+    the policy in an inaccurate learned environment. Furthermore, planning model-based
+    algorithms experience slower inference time due to the high computational cost
+    of planning, which still has to be done on each step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In conclusion, you have to take into account the extra time required to train
+    a model-based algorithm and recognize the lower asymptotical performance of these
+    approaches. However, model-based learning is extremely useful when the model is
+    easier to learn than the policy itself and when interactions with the environment
+    are costly or slow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: From the two sides, we have model-free learning and model-based learning, both
+    with compelling characteristics but distinct disadvantages. Can we take the best
+    from both worlds?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Combining model-based with model-free learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We just saw how planning can be computationally expensive both during training
+    and runtime, and how, in more complex environments, planning algorithms aren't
+    able to achieve good performances. The other strategy that we briefly hinted at
+    is to learn a policy. A policy is certainly much faster in inference as it doesn't
+    have to plan at each step.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A simple, yet effective, way to learn a policy is to combine model-based with
+    model-free learning. With the latest innovations in model-free algorithms, this
+    combination has gained in popularity and is the most common approach to date.
+    The algorithm we'll develop in the next section, ME-TRPO, is one such method.
+    Let's dive further into these algorithms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A useful combination
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: As you know, model-free learning has good asymptotic performance but poor sample
+    complexity. On the other side, model-based learning is efficient from a data standpoint,
+    but struggles when it comes to more complex tasks. By combining model-based and
+    model-free approaches, it is possible to reach a smooth spot where sample complexity
+    decreases consistently, while achieving the high performance of model-free algorithms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are many ways to integrate both worlds, and the algorithms that propose
+    to do it are very different from one another. For example, when the model is given
+    (as they are in the games of Go and Chess), search tree and value-based algorithms
+    can help each other to produce a better action value estimate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another example is to combine the learning of the environment and the policy
+    directly in a deep neural network architecture so that the learned dynamics can
+    contribute to the planning of a policy. Another strategy used by a fair number
+    of algorithms is to use a learned model of the environment to generate additional
+    samples to optimize the policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To put it in another way, the policy is trained by playing simulated games
+    inside the learned model. This can be done in multiple ways, but the main recipe
+    is shown in the pseudocode that follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: This blueprint involves two cycles. The outermost cycle collects data from the
+    real environment to train the model, while, in the innermost cycle, the model
+    generates simulated samples that are used to optimize the policy using model-free
+    algorithms. Usually, the dynamics model is trained to minimize the MSE loss in
+    a supervised fashion. The more precise the predictions made by the model, the
+    more accurate the policy can be.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In the innermost cycle, either full or fixed-length trajectories can be simulated.
+    In practice, the latter option can be adopted to mitigate the imperfections of
+    the model. Furthermore, the trajectories can start from a random state sampled
+    from the buffer that contains real transitions or from an initial state. The former
+    option is preferred in situations where the model is inaccurate, because that
+    prevents the trajectory from diverging too much from the real one. To illustrate
+    this situation, take the following diagram. The trajectories that have been collected
+    in the real environment are colored black, while those simulated are colored blue:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/64607389-0e90-4fd1-a6f7-6114bf729bee.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: You can see that the trajectories that start from an initial state are longer,
+    and thus will diverge more rapidly as the errors of the inaccurate model propagate
+    in all the subsequent predictions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that you could do only a single iteration of the main cycle and gather
+    all the data required to learn a decent approximated model of the environment.
+    However, for the reasons outlined previously, it's better to use iterative data
+    aggregation methods to cyclically retrain the model with transitions that come
+    from the newer policy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building a model from images
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The methods seen so far that combine model-based and model-free learning have
+    been designed especially to work with low-dimensional state spaces. So, how do
+    we deal with high-dimensional observation spaces as images?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One choice is to learn in latent space. Latent space is a low-dimensional representation,
+    also called embedding, *g(s),* of a high-dimensional input, *s*, such as an image.
+    It can be produced by neural networks such as autoencoders. An example of an autoencoder
+    is shown in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/16988e27-a6a1-409a-acbc-515b9fc29e61.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: It comprises an encoder that maps the image to a small latent space, *g(s),* and
+    the decoder that maps the latent space to the reconstructed image. As a result
+    of the autoencoder, the latent space should represent the main features of an
+    image in a constrained space so that two similar images are also similar in latent
+    space.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In RL, the autoencoder may be trained to reconstruct the input, *S*, or trained
+    to predict the next frame observation, *S',* (along with the reward, if needed).
+    Then, we can use the latent space to learn both the dynamic model and the policy. The
+    main benefit arising from this approach is the big gain in speed due to the smaller
+    representation of the image. However, the policy learned in the latent space may
+    suffer from severe deficits when the autoencoder isn't able to recover the right
+    representation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model-based learning on high-dimensional spaces is still a very active area
+    of research.
+  prefs: []
+  type: TYPE_NORMAL
+- en: If you are interested in model-based algorithms that learn from image observation,
+    you may find the paper entitled *Model-Based Reinforcement Learning for Atari*,
+    by Kaiser, quite interesting ([https://arxiv.org/pdf/1903.00374.pdf](https://arxiv.org/pdf/1903.00374.pdf)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: So far, we have covered model-based learning and its combination with model-free
+    learning in a more figurative and theoretical way. Although it's indispensable
+    in terms of understanding these paradigms, we want to put them into practice.
+    So, without further ado, let's focus on the details and implementation of our
+    first model-based algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: ME-TRPO applied to an inverted pendulum
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Many variants exist of the vanilla model-based and model-free algorithms introduced
+    in the pseudocode in the *A useful combination* section. Pretty much all of them
+    propose different ways to deal with the imperfections of the model of the environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is a key problem to address in order to reach the same performance as model-free
+    methods. Models learned from complex environments will always have some inaccuracies.
+    So, the main challenge is to estimate or control the uncertainty of the model
+    to stabilize and accelerate the learning process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: ME-TRPO proposes the use of an ensemble of models to maintain the model uncertainty
+    and regularize the learning process. The models are deep neural networks with
+    different weight initialization and training data. Together, they provide a more
+    robust general model of the environment that is less prone to exploit regions
+    where insufficient data is available.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then, the policy is learned from trajectories simulated with the ensemble. In
+    particular, the algorithm chosen to learn the policy is **trust region policy
+    optimization** (**TRPO**), which was explained in [Chapter 7](4148a47d-a2c7-44da-ba6d-76ae4d8bec2c.xhtml),
+    *TRPO and PPO Implementation*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Understanding ME-TRPO
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the first part of ME-TRPO, the dynamics of the environment (that is, the
+    ensemble of models) are learned. The algorithm starts by interacting with the
+    environment with a random policy, ![](img/df3fb161-2261-4a34-a110-c8d0c8a18390.png), to
+    collect a dataset of transitions, ![](img/69af50a2-9788-4b93-a702-0f8ba8f22be9.png).
+    This dataset is then used to train all the dynamic models, ![](img/2b5b58c7-fe8c-47f9-8939-26fc497f4355.png),
+    in a supervised fashion. The models, ![](img/2b5b58c7-fe8c-47f9-8939-26fc497f4355.png),
+    are initialized with different random weights and are trained with different mini-batches.
+    To avoid overfitting issues, a validation set is created from the dataset. Also, a
+    mechanism of *early stopping* (a regularization technique widely used in machine
+    learning) interrupts the training process whenever the loss on the validation
+    set stops improving.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the second part of the algorithm, the policy is learned with TRPO. Specifically,
+    the policy is trained on the data gathered from the learned models, which we'll
+    also call the *simulated environment,* instead of the real environment. To avoid
+    the policy exploiting inaccurate regions of a single learned model, the policy, ![](img/5fcbff6e-968d-4c05-b106-3241552c4c7c.png),
+    is trained using the predicted transitions from the whole ensemble of models, ![](img/2b5b58c7-fe8c-47f9-8939-26fc497f4355.png).
+    In particular, the policy is trained on the simulated dataset composed of transitions
+    acquired from the models, ![](img/2b5b58c7-fe8c-47f9-8939-26fc497f4355.png), randomly
+    chosen among the ensemble. During training, the policy is monitored constantly,
+    and the process stops as soon as the performance stops improving.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Finally, the cycle constituted by the two parts is repeated until convergence.
+    However, at each new iteration, the data from the real environment is collected
+    by running the newly learned policy, ![](img/5fcbff6e-968d-4c05-b106-3241552c4c7c.png),
+    and the data collected is aggregated with the dataset of the previous iterations.
+    The ME-TRPO algorithm is briefly summarized in the following pseudocode:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: An important note to make here is that, unlike most model-based algorithms,
+    the reward is not embedded in the model of the environment. Therefore, ME-TRPO
+    assumes that the reward function is known.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementing ME-TRPO
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The code of ME-TRPO is quite long and, in this section, we won't give you the
+    full code. Also, many parts are not interesting, and all the code concerning TRPO
+    has already been discussed in [Chapter 7](4148a47d-a2c7-44da-ba6d-76ae4d8bec2c.xhtml),
+    *TRPO and PPO Implementation*. However, if you are interested in the complete
+    implementation, or if you want to play with the algorithm, the full code is available
+    in the GitHub repository of this chapter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here, we''ll provide an explanation and the implementation of the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The inner cycle, where the games are simulated and the policy is optimized
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The function that trains the models
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The remaining code is very similar to that of TRPO.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following steps will guide us through the process of building and implementing
+    the core of ME-TRPO:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Changing the policy**: The only change in the interaction procedure with
+    the real environment is the policy. In particular, the policy will act randomly
+    on the first episode but, on the others, it will sample the actions from a Gaussian
+    distribution with a random standard deviation fixed at the start of the algorithm.
+    This change is done by replacing the line, `act, val = sess.run([a_sampl, s_values],
+    feed_dict=``{obs_ph:[env.n_obs]})`, in the TRPO implementation with the following
+    lines of code:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: '**Fitting the deep neural networks,** ![](img/70ab6f5a-ae81-47f0-8607-637f56ff429a.png): The
+    neural networks learn the model of the environment with the dataset acquired in
+    the preceding step. The dataset is divided into a training and a validation set,
+    wherein the validation set is used by the early stopping technique to determine
+    whether it is worth continuing with the training:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`model_buffer` is an instance of the `FullBuffer` class that contains the samples
+    generated by the environment, and `generate_random_dataset` creates two partitions
+    for training and validation, which are then returned by calling `get_training_batch`
+    and `get_valid_batch`.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next lines, each model is trained with the `train_model` function by
+    passing the datasets, the current number of steps, and the index of the model
+    that has to be trained. `num_ensemble_models` is the total number of models that
+    populate the ensemble. In the ME-TRPO paper, it is shown that 5 to 10 models are
+    sufficient. The argument, `i`, establishes which model of the ensemble has to
+    be optimized.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Generating fictitious trajectories in the simulated environments and fitting
+    the policy**:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: This is repeated 80 times or at least until the policy continues improving.
+    `simulate_environment` collects a dataset (constituted by observations, actions,
+    advantages, values, and return values) by rolling the policy in the simulated
+    environment (represented by the learned models). In our case, the policy is represented
+    by the function, `action_op_noise`, which, when given a state, returns an action
+    following the learned policy. Instead, the environment, `sim_env`, is a model
+    of the environment, ![](img/70ab6f5a-ae81-47f0-8607-637f56ff429a.png), chosen
+    randomly at each step among those in the ensemble. The last argument passed to
+    the `simulated_environment` function is `simulated_steps`, which establishes the
+    number of steps to take in the fictitious environments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Ultimately, the `policy_update` function does a TRPO step to update the policy
+    with the data collected in the fictitious environments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Implementing the early step mechanism and evaluating the policy: The early
+    stopping mechanism prevents the policy from overfitting on the models of the environment.
+    It works by monitoring the performance of the policy on each separate model. If
+    the percentage of models on which the policy improved exceeds a certain threshold,
+    then the cycle is terminated. This should be a good indication of whether the
+    policy has started to overfit. Note that, unlike the training, during testing, the
+    policy is tested on one model at a time. During training, each trajectory is produced
+    by all the learned models of the environment:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: The evaluation of the policy is done every five training iterations. For each
+    model of the ensemble, a new object of the `NetworkEnv` class is instantiated.
+    It provides the same functionalities of a real environment but, under the hood,
+    it returns transitions from a learned model of the environment. `NetworkEnv` does
+    this by inheriting `Gym.wrapper` and overriding the `reset` and `step` functions.
+    The first parameter of the constructor is a real environment that is used merely
+    to get a real initial state, while `model_os` is a function that, when given a
+    state and action, produces the next state. Lastly, `pendulum_reward` and `pendulum_done` are
+    functions that return the reward and the done flag. These two functions are built
+    around the particular functionalities of the environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Training the dynamic model**: The `train_model` function optimizes a model
+    to predict the future state. It is very simple to understand. We used this function
+    in step 2, when we were training the ensemble of models. `train_model` is an inner
+    function and takes the arguments that we saw earlier. On each ME-TRPO iteration
+    of the outer loop, we retrain all the models, that is, we train the models starting
+    from their random initial weights; we don''t resume from the preceding optimization.
+    Hence, every time `train_model` is called and before the training takes place,
+    we restore the initial random weights of the model. The following code snippet
+    restores the weights and computes the loss before and after this operation:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`run_model_loss` returns the loss of the current model, and `model_assign`
+    restores the parameters that are in `initial_variables_models[model_idx].`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We then train the model, as long as the loss on the validation set improved
+    in the last `model_iter` iterations. But because the best model may not be the
+    last one, we keep track of the best one and restore its parameters at the end
+    of the training. We also randomly shuffle the dataset and divide it into mini-batches.
+    The code is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`run_model_opt_loss` is a function that executes the optimizer of the model
+    with the `model_idx` index.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: This concludes the implementation of ME-TRPO. In the next section, we'll see
+    how it performs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Experimenting with RoboSchool
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let''s test ME-TRPO on **RoboSchoolInvertedPendulum**, a continuous inverted
+    pendulum environment similar to the well-known discrete control counterpart, CartPole.
+    A screenshot of **RoboSchoolInvertedPendulum-v****1** is shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/71ea6457-3ae9-4e07-931d-c24748beabda.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The goal is to keep the pole upright by moving the cart. A reward of +1 is obtained
+    for every step that the pole points upward.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Considering that ME-TRPO needs the reward function and, consequently, a `done`
+    function, we have to define both for this task. To this end, we defined `pendulum_reward`,
+    which returns 1 no matter what the observation and actions are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`pendulum_done` returns `True` if the absolute value of the angle of the pole
+    is higher than a fixed threshold. We can retrieve the angle directly from the
+    state. In fact, the third and fourth elements of the state are the cosine and
+    sine of the angle, respectively. We can then arbitrarily choose one of the two
+    to compute the angle. Hence, `pendulum_done` is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Besides the usual hyperparameters of TRPO that remain almost unchanged compared
+    to the ones used in [Chapter 7](4148a47d-a2c7-44da-ba6d-76ae4d8bec2c.xhtml), *TRPO
+    and PPO Implementation*, ME-TRPO asks for the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The learning rate of the dynamic models' optimizer, `mb_lr`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The mini-batch size, `model_batch_size`, which is used to train the dynamic
+    models
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The number of simulated steps to execute on each iteration, `simulated_steps`
+    (this is also the batch size used to train the policy)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The number of models that constitute the ensemble, `num_ensemble_models`
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The number of iterations to wait before interrupting the `model_iter` training of
+    the model if the validation hasn't decreased
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The values of these hyperparameters used in this environment are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Hyperparameters** | **Values** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Learning rate (`mb_lr`) | 1e-5 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Model batch size (`model_batch_size`) | 50 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Number of simulated steps (`simulated_steps`) | 50000 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Number of models (`num_ensemble_models`) | 10 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Early stopping iterations (`model_iter`) | 15 |'
+  prefs: []
+  type: TYPE_TB
+- en: Results on RoboSchoolInvertedPendulum
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The performance graph is shown in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/edef2f65-2ce0-4389-b722-16b62f80a031.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The reward is plotted as a function of the number of interactions with the real
+    environment. After 900 steps and about 15 games, the agent achieves the top performance
+    of 1,000\. The policy updated itself 15 times and learned from 750,000 simulated
+    steps. From a computational point of view, the algorithm trained for about 2 hours
+    on a mid-range computer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We noted that the results have very high variability and, if trained with different
+    random seeds, you can obtain very different performance curves. This is also true
+    for model-free algorithms, but here, the differences are more acute. One reason
+    for this may be the different data collected in the real environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we took a break from model-free algorithms and started discussing
+    and exploring algorithms that learn from a model of the environment. We looked
+    at the key reasons behind the change of paradigm that inspired us to develop this
+    kind of algorithm. We then distinguished two main cases that can be found when
+    dealing with a model, the first in which the model is already known, and the second
+    in which the model has to be learned.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Moreover, we learned how the model can either be used to plan the next actions
+    or to learn a policy. There's no fixed rule to choose one over the other, but
+    generally, it is related to the complexity of the action and observation space
+    and the inference speed. We then investigated the advantages and disadvantages
+    of model-free algorithms and deepened our understanding of how to learn a policy
+    with model-free algorithms by combining them with model-based learning. This revealed
+    a new way to use models in very high-dimensional observation spaces such as images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, to better grasp all the material related to model-based algorithms,
+    we developed ME-TRPO. This proposed dealing with the uncertainty of the model
+    by using an ensemble of models and trust region policy optimization to learn the
+    policy. All the models are used to predict the next states and thus create simulated
+    trajectories on which the policy is learned. As a consequence, the policy is trained
+    entirely on the learned model of the environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This chapter concludes the arguments about model-based learning and, in the
+    next one, we'll introduce new genera of learning. We'll talk about algorithms
+    that learn by imitation. Moreover, we'll develop and train an agent that, by following
+    the behavior of an expert, will be able to play FlappyBird.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Would you use a model-based or a model-free algorithm if you had only 10 games
+    in which to train your agent to play checkers?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What are the disadvantages of model-based algorithms?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: If a model of the environment is unknown, how can it be learned?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Why are data aggregation methods used?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How does ME-TRPO stabilize training?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How does using an ensemble of models improve policy learning?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: To expand your knowledge of model-based algorithms that learn policies from
+    image observations, read the paper *Model-Based Reinforcement Learning for Atari*: [https://arxiv.org/pdf/1903.00374.pdf](https://arxiv.org/pdf/1903.00374.pdf).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: To read the original paper relating to ME-TRPO, follow this link: [https://arxiv.org/pdf/1802.10592.pdf](https://arxiv.org/pdf/1802.10592.pdf).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

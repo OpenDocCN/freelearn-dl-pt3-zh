@@ -1,0 +1,663 @@
+- en: '8'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Handling Overfitting
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: One major challenge in **machine learning** (**ML**) is overfitting. **Overfitting**
+    occurs when a model is trained too well on the training data but fails to generalize
+    on unseen data, resulting in poor performance. In [*Chapter 6*](B18118_06.xhtml#_idTextAnchor129),
+    *Improving the Model* we witnessed firsthand how overtraining pushed our model
+    into this overfitting trap. In this chapter, we will probe further into the nuances
+    of overfitting, striving to unpack both its warning signs and the underlying reasons
+    behind it. Also, we will explore the different strategies we can apply to mitigate
+    the dangers overfitting presents to real-world ML applications. Using TensorFlow,
+    we will apply these ideas in a hands-on fashion to overcome overfitting in a real-world
+    case study. By the end of this chapter, you should have a solid understanding
+    of what overfitting is and how to mitigate it in real-world image classification
+    tasks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Overfitting in ML
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Early stopping
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Changing the model’s architecture
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: L1 and L2 regularization
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Dropout regularization
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Data augmentation
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Technical requirements
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'We will be using Google Colab to run the coding exercise that requires `python
+    >= 3.8.0`, along with the following packages, which can be installed using the
+    `pip` `install` command:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`tensorflow>=2.7.0`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`os`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`pillow==8.4.0`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`pandas==1.3.4`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`numpy==1.21.4`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '`matplotlib >=3.4.0`'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The code bundle for this book is available at the following GitHub link: [https://github.com/PacktPublishing/TensorFlow-Developer-Certificate](https://github.com/PacktPublishing/TensorFlow-Developer-Certificate).
+    Also, solutions to all exercises can be found in the GitHub repo itself.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Overfitting in ML
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: From the previous chapters, we now know what overfitting is and its adverse
+    effect when used on unseen data. Let's take a step further by digging into what
+    the root causes of overfitting are, how we can spot overfitting when we build
+    our models, and some important strategies we can apply to curb overfitting. When
+    we gain this understanding, we can go on to build effective and robust ML models.
+  prefs: []
+  type: TYPE_NORMAL
+- en: What triggers overfitting
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: In [*Chapter 6*](B18118_06.xhtml#_idTextAnchor129), *Improving the Model,* we
+    saw that by adding more neurons to our hidden layer, our model became too complex.
+    This made our model not only capture the patterns in our data but also the noise
+    in it, leading to overfitting. Another root cause of overfitting is working with
+    insufficient data volume. If our data does not truly capture the full spectrum
+    of variations our model will be faced with upon deployment, when we train our
+    model on such a dataset, it becomes too specialized and fails to generalize when
+    used in the real world.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Beyond the volume of data, another issue we can face is noisy data. Unlike when
+    we work with curated or static data, when building real-world applications, we
+    may find that our data could be noisy or incorrect. If we develop models with
+    such data, there is a chance it would lead to overfitting when put to use. We
+    looked at some ideas around why overfitting could occur; the next question we
+    may want to ask is, how can we detect overfitting? Let's discuss this in the following
+    subsection.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Detecting overfitting
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: One way we can detect overfitting is by comparing a model’s accuracy on training
+    data versus the validation/test data. When a model records a high accuracy on
+    training and poor accuracy on testing, this disparity indicates that the model
+    has memorized the training samples, hence its poor generalization of unseen data.
+    Another effective way of discovering overfitting is to examine the training error
+    against the validation error. When the training error decreases over time but
+    the validation error increases, this can indicate our model overfits, as the model
+    performs worse on the validation data. A scenario where the model’s validation
+    accuracy deteriorates as its training counterpart flourishes should sound the
+    alarm bells for potential overfitting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let’s revisit our case study from [*Chapter 7*](B18118_07.xhtml#_idTextAnchor146),
+    *Image Classification with Convolutional Neural Networks,* the weather dataset
+    from WeatherBIG, and examine how we can monitor overfitting by using a validation
+    dataset during the model’s training process. By employing a validation dataset,
+    we can accurately track the model’s performance and prevent overfitting. Let’s
+    begin by creating a baseline model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Baseline model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Following the standard three-step approach of building, compiling, and fitting,
+    we will construct a **convolutional neural network** (**CNN**) model comprising
+    two Conv2D and pooling layers, coupled with a fully connected layer that has a
+    dense layer of 1,050 neurons. The output layer consists of four neurons, which
+    represent the four classes in our dataset. We then compile and fit the model using
+    the training data for 20 epochs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: We set the `validation_data` parameter to `valid_data`. This ensures that when
+    we run the code, after each epoch, the model will evaluate its performance on
+    the validation data, as shown in *Figure 8**.1*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.1 – The last five training epochs](img/B18118_08_01.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.1 – The last five training epochs
+  prefs: []
+  type: TYPE_NORMAL
+- en: This is a straightforward way to compare the loss values between the training
+    set and the validation set. We can see that the model accurately predicts every
+    sample in the training set, reaching an accuracy of 100 percent. However, on the
+    validation set, it attains an accuracy of 91 percent, which suggests that the
+    model likely overfits. Another effective way to observe overfitting is to use
+    the learning curve to plot the loss and accuracy values of both the training set
+    and the validation set – again, a large gap between both plots is a sign of overfitting,
+    as shown in *Figure 8**.2*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.2 – The learning curve showing the loss and accuracy for both training
+    and test data](img/B18118_08_02.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.2 – The learning curve showing the loss and accuracy for both training
+    and test data
+  prefs: []
+  type: TYPE_NORMAL
+- en: At the start of the experiment, the difference between the training loss and
+    the validation loss is minimal; however, as we move into the fourth epoch, the
+    validation loss starts to increase, while the training loss continues to decrease.
+    Similarly, the training and validation accuracies are closely aligned at the start,
+    but again, at around the fourth epoch, the validation accuracy reaches a peak
+    of around 90 percent and stays there, while the training accuracy reaches 100
+    percent accuracy.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The ultimate objective of building an image classifier is to apply it to real-world
+    data. After completing the training process, we evaluate the model on our holdout
+    dataset. If the results obtained during testing are significantly different from
+    those achieved during training, this could indicate overfitting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fortunately, there are several strategies that can be applied to overcome overfitting.
+    Some of the main techniques to handle overfitting focus on improving the model
+    itself to enhance its generalization capabilities. On the other hand, it is equally
+    important to examine the data itself, observing what the model missed during training
+    and evaluation. By visualizing the misclassified images, we gain insight into
+    where the model falls short. We start by first recreating our baseline model from
+    [*Chapter 7*](B18118_07.xhtml#_idTextAnchor146)*, Image Classification with Convolutional
+    Neural Networks*. This time, we train it for 20 epochs to enable us to observe
+    overfitting, as illustrated in *Figure 8**.2*. Next, let's see how we can curb
+    overfitting using several strategies, starting with applying early stopping.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Early stopping
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In [*Chapter 6*](B18118_06.xhtml#_idTextAnchor129)*,* *Improving the Model,*
+    we introduced the concept of early stopping as an effective way of preventing
+    overfitting. It does this by halting training when the model’s performance fails
+    to improve over a defined number of epochs, as indicated in *Figure 8**.3*. This
+    way, we prevent our model from overfitting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.3 – A learning curve showing early stopping](img/B18118_08_03.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.3 – A learning curve showing early stopping
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let’s recreate the same baseline model, but this time, we will apply a built-in
+    callback to stop training when the validation accuracy fails to improve. We will
+    use the same build and compile steps as in the first model and then add a callback
+    when we fit the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here, we specified the number of epochs as `20` and added a validation set
+    to monitor the model’s performance during training. After this, we used the `callbacks`
+    argument to specify a callback function to implement early stopping. We used an
+    early stopping callback to stop training after three epochs should the validation
+    set accuracy fail to improve. This is done by setting the `patience` parameter
+    to `3`. This means that if there’s no progress in validation accuracy for three
+    straight epochs, the early stopping callback halts training. We also set the `restore_best_weights`
+    parameter to `True`; this restores the best model weight from the training process
+    when the training ends. The information from the `fit` function is stored in the
+    `history_2` variable:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'From the training process, we can see that our model reaches a peak validation
+    accuracy of `0.9218` on the ninth epoch, after which training continues for three
+    epochs before stopping. Since there were no further improvements in the validation
+    accuracy, training is stopped and the best weight is saved. Now, let''s evaluate
+    `model_2` on our test data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: When we run the code, we see that the model achieves an accuracy of `0.9355`.
+    Here, the performance on the test set is in line with the performance on the validation
+    set and higher than our baseline model, where we achieved an accuracy of `0.9097`.
+    This is our first step to create a better model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.4 – A snapshot of the model summary](img/B18118_08_04.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.4 – A snapshot of the model summary
+  prefs: []
+  type: TYPE_NORMAL
+- en: When we inspect our model summary, we can see that our model has over 45 million
+    parameters, and this could lead to the model being susceptible to picking up noise
+    in the training data, due to the model being highly parameterized. To address
+    this issue, we can simplify our model by reducing the number of parameters in
+    such a way that our model is not too complex for our dataset. Let's discuss model
+    simplification next.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Model simplification
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: To address overfitting, you may consider reassessing the model’s architecture.
+    Simplifying your model’s architecture could prove to be an effective strategy
+    in tackling overfitting, especially when your model is highly parameterized. However,
+    it is important to know that this approach does not always guarantee better performance
+    in every instance; in fact, you must be mindful of oversimplifying your model,
+    which could lead to the trap of underfitting. Hence, it is important to strike
+    the right balance between model complexity and simplicity to achieve an optimally
+    performing model, as illustrated in *Figure 8**.5*, as the relationship between
+    model complexity and overfitting is not a linear one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.5 – Overfitting and underfitting in ML](img/B18118_08_05.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.5 – Overfitting and underfitting in ML
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Model simplification can be achieved in a number of ways – for instance, we
+    can replace a large number of filters with smaller ones, or we could also reduce
+    the number of neurons in the first `Dense` layer. In our architecture, you can
+    see that the first dense layer has `1050` neurons. Let''s reduce the neurons to
+    `500` as the initial step in our model simplification experiment:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'When we compile and fit the model, our model reaches a peak accuracy of `0.9162`
+    on the validation set:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: Since our validation accuracy did not fare better, perhaps now will be a good
+    time to try a few well-known ideas to fix overfitting. Let's look at L1 and L2
+    regularizations in the following subsection. We will discuss how they work and
+    apply them to our case study.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note
+  prefs: []
+  type: TYPE_NORMAL
+- en: The goal of model simplification is not to achieve a smaller model but a well-designed
+    model that generalizes well. We may just need to reduce layers if they are unnecessary
+    for our use case, or we could simplify the model by changing the activation function
+    or reorganizing the order and arrangement of the model layers to improve the flow
+    of information.
+  prefs: []
+  type: TYPE_NORMAL
+- en: L1 and L2 regularization
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Regularization is a set of techniques used to prevent overfitting by reducing
+    a model’s complexity, by applying a penalty term to the loss function. Regularization
+    techniques make the model more resistant to the noise in the training data, thus
+    improving its ability to generalize to unseen data. There are different types
+    of regularization techniques, namely L1 and L2 regularization. **L1 and L2 regularization**
+    are two well know regularization techniques; L1 can also be referred to as **lasso
+    regression**. When selecting between L1 and L2, it is important to consider the
+    type of data we work with.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'L1 regularization comes in handy when working with data with many irrelevant
+    features. The penalty term in L1 will cause some of the coefficients to become
+    zero, resulting in a reduction in the number of features used during modeling;
+    this, in turn, reduces the risk of overfitting, as the model will be trained on
+    less noisy data. Conversely, L2 is an excellent choice when the goal is to create
+    a model with small weights and good generalization. The penalty term in L2 reduces
+    the magnitude of the coefficients, preventing them from becoming too large and
+    leading to overfitting:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: When we run this experiment, we reach an accuracy of around 92 percent, not
+    faring better than other experiments. To try out L1 regularization, we simply
+    changed the regularization method from L2 to L1\. However, in this case, our results
+    were not as good. As a result, let's try another regularization method called
+    dropout regularization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Dropout regularization
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: One key issue with neural networks is co-dependence. **Co-dependence** is a
+    phenomenon in neural networks that occurs when a group of neurons, especially
+    in the same layer, become highly correlated such that they rely too much on each
+    other. This could lead to them amplifying certain features and failing to capture
+    other important features in the data. Because these neurons act in sync, our model
+    is more prone to overfitting. To mitigate this risk, we can apply a technique
+    referred to as **dropout**. Unlike L1 and L2 regularization, dropout does not
+    add a penalty term, but as the name implies, we randomly “drop out” a certain
+    percentage of neurons from the model during training, as illustrated in *Figure
+    8**.6*, reducing co-dependence between neurons, which can help to mitigate against
+    overfitting.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.6 – A neural network with dropout applied](img/B18118_08_06.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.6 – A neural network with dropout applied
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'When we apply the dropout technique, the model is forced to learn more robust
+    features, since we break co-dependence between neurons. However, it’s worth noting
+    that when we apply dropout, the training process may require more iterations to
+    achieve convergence. Let’s apply dropout to our baseline model and observe what
+    its effect will be:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To implement dropout in code, we specify the dropout layer using the `tf.keras.layers.Dropout(0.6)`
+    function. This creates a dropout layer with a dropout rate of `0.6` – that is,
+    we turn off 60 percent of the neurons during training. It is worth noting that
+    we can set the dropout value between 0 and 1:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: In this experiment, our model reaches a peak performance of `0.9441` on the
+    validation set, improving our baseline model’s performance. Next, let's look at
+    changing the learning rate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Adjusting the learning rate
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'In [*Chapter 6*](B18118_06.xhtml#_idTextAnchor129), *Improving the Model,*
+    we discussed learning rates and the need to find an optimal learning rate. For
+    this experiment, let us use a learning rate of `0.0001`, which I found to produce
+    a good result here, by experimenting with different learning rates, similar to
+    what we did in [*Chapter 6*](B18118_06.xhtml#_idTextAnchor129)*, Improving the
+    Model*. In [*Chapter 13*](B18118_13.xhtml#_idTextAnchor318),*Time Series, Sequence
+    and Prediction with TensorFlow,* we will look at how to apply both custom and
+    inbuilt learning rate schedulers. Here, we also apply our early stopping callback
+    to ensure that training is terminated once the model fails to improve. Let’s compile
+    our model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We will fit the model and run it. In seven epochs, our model’s training stops,
+    reaching peak performance of `0.9274` on the validation set:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: We’ve explored various methods to improve our model and overcome overfitting.
+    Now, let’s shift our focus to the dataset itself and examine how error analysis
+    can be useful.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Error analysis
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: From our results so far, we can see that our model fails to misclassify some
+    labels correctly. To further improve the generalization ability of our model,
+    it is a good idea to examine the mistakes made by the model, with the underlying
+    idea to uncover patterns in the misclassified data so that the insights we gain
+    from looking at the misclassified labels can be used to improve the model’s generalization
+    capability. This technique is referred to as **error analysis**. To perform error
+    analysis, we begin by identifying misclassified labels on the validation/test
+    set. Next, we put these errors into groups – for example, we can make a group
+    to blur images or images taken under poor lighting conditions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Based on the insights gained from the collected errors, we may need to adjust
+    our model architecture or tune our hyperparameters, especially when certain features
+    are not captured by the model. Also, our error analysis step can also point us
+    to the need to improve our data size and quality. One effective way of resolving
+    this is by applying data augmentation, a well-known technique to enrich our data
+    size and quality. Let's discuss data augmentation next and apply it to our case
+    study.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Data augmentation
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Image **data augmentation** is a technique used to increase the size and diversity
+    of our training set by the application of various transformations, such as rotating,
+    flipping, cropping, and scaling to create new, synthetic data, as illustrated
+    in *Figure 8**.7*. For many real-world applications, data collection can be a
+    very expensive and time-consuming process; hence, data augmentation comes in quite
+    handy. Data augmentation helps the model to learn more robust features rather
+    than allowing the model to memorize features, thereby improving the model’s generalization
+    capabilities.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.7 – Various data augmentation techniques applied to an image of
+    a butterfly (Source: https://medium.com/secure-and-private-ai-writing-challenge/data-augmentation-increases-accuracy-of-your-model-but-how-aa1913468722)](img/B18118_08_07.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 8.7 – Various data augmentation techniques applied to an image of a
+    butterfly (Source: https://medium.com/secure-and-private-ai-writing-challenge/data-augmentation-increases-accuracy-of-your-model-but-how-aa1913468722)'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another important use of data augmentation is to create balance across different
+    classes in our training dataset. If the training set contains imbalanced data,
+    we can use data augmentation techniques to create variants of the minority class,
+    thereby building a more balanced dataset with a lower likelihood of overfitting.
+    When implementing data augmentation, it’s important to keep in mind various factors
+    that may affect the outcome. For instance, the type of data augmentation to use
+    depends on the type of data we work with.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In image classification tasks, techniques such as random rotations, translations,
+    flips, and scaling may prove useful. However, when dealing with numeric datasets,
+    applying rotations to numbers could lead to unintended results, such as rotating
+    a 6 into a 9\. Again, flipping letters of the alphabet, such as “b” and “d,” can
+    also have adverse effects. When applying image augmentation to our training set,
+    it’s crucial to consider the magnitude of augmentation and its effect on the quality
+    of our training data. Excessive augmentation may lead to severely distorted images,
+    resulting in a poorly performing model. To prevent this, it’s equally important
+    to monitor the model’s training with a validation set.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's apply data augmentation to our case study and see what our results will
+    look like.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To implement data augmentation, you can use the `ImageDataGenerator` class
+    from the `tf.keras.preprocessing.image` module. This class allows you to specify
+    a range of transformations, which should only be applied to images in our training
+    set, and it generates synthetic images on the fly during the training process.
+    For example, here is how you can use the `ImageDataGenerator` class to apply rotation,
+    flipping, and scaling transformations to the training images:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: Using image data augmentation is quite straightforward; we created three instances
+    of the `ImageDataGenerator` class from the `keras.preprocessing.image` module
+    for our train, validation, and test sets. One key difference is that we added
+    the `rotation_range=25` and `zoom_range=0.3` arguments to the `train_datagen`
+    object. This will randomly rotate our images by 25 degrees and zoom them by a
+    factor of `0.3` during the training process; everything else will remain the same.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Next, we will build, compile, and fit our baseline model, with early stopping
+    applied, on our augmented data:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: In eight epochs, our training comes to an end. This time, we reached `0.9330`
+    on the validation set. So far, we have run seven different experiments. Let's
+    test each of these models on the test set and examine what the results will look
+    like. To do this, we will write a helper function that creates a DataFrame showing
+    the top 5 models, each model’s name, and the loss and accuracy of each model,
+    as shown in *Figure 8**.8*.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![Figure 8.8 – A DataFrame showing the loss and accuracy of the top five models](img/B18118_08_08.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 8.8 – A DataFrame showing the loss and accuracy of the top five models
+  prefs: []
+  type: TYPE_NORMAL
+- en: Our best-performing model on our test data was **model 7**, where we altered
+    the learning rate. We have covered a few ideas that are used to tackle overfitting
+    in real-world image classifiers; however, a combination of these techniques can
+    be applied to build a simpler yet more robust model that is less prone to overfitting.
+    Combining various techniques of curbing overfitting is generally a good idea,
+    as it may help to produce a more robust and generalizable model. However, it is
+    important to keep in mind that there is no one-size-fits-all solution, and the
+    best combination of methods will depend on the specific data and task at hand
+    and may require multiple experiments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we discussed overfitting in image classification and explored
+    the different techniques to overcome it. We started by examining what overfitting
+    is and why it happens, and we discussed how we can apply different techniques
+    such as early stopping, model simplification, L1 and L2 regularization, dropout,
+    and data augmentation to mitigate against overfitting in image classification
+    tasks. Furthermore, we applied each of these techniques in our weather dataset
+    case study and saw, hands-on, the effects of these techniques on our case study.
+    We also explored combining these techniques in a quest to build an optimal model.
+    By now, you should have a good understanding of overfitting and how to mitigate
+    it in your own image classification projects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will dive into transfer learning, a powerful technique
+    that allows you to leverage pre-trained models for your specific image classification
+    tasks, saving time and resources while achieving impressive results.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Let’s test what we learned in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: What is overfitting in image classification tasks?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How does overfitting occur?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What techniques can be used to prevent overfitting?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What is data augmentation, and how is it used to prevent overfitting?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How can data pre-processing, data diversity, and data balancing be used to mitigate
+    overfitting?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'To learn more, you can check out the following resources:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Garbin, C., Zhu, X., & Marques, O. (2020). *Dropout vs. Batch Normalization:
+    An Empirical Study of Their Impact to Deep Learning*. arXiv preprint arXiv:1911.12677:
+    [https://par.nsf.gov/servlets/purl/10166570](https://par.nsf.gov/servlets/purl/10166570).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Kandel, I., & Castelli, M. (2020). *The effect of batch size on the generalizability
+    of the convolutional neural networks on a histopathology dataset*. arXiv preprint
+    arXiv:2003.00204.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Effect_batch_size_generalizability_convolutional_neural_networks_histopathology_dataset.pdf
+    (unl.pt)*. Kapoor, A., Gulli, A. and Pal, S. (2020): [https://research.unl.pt/ws/portalfiles/portal/18415506/Effect_batch_size_generalizability_convolutional_neural_networks_histopathology_dataset.pdf](https://research.unl.pt/ws/portalfiles/portal/18415506/Effect_batch_size_generalizability_convolutional_neural_networks_histopathology_dataset.pdf).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '*Deep Learning with TensorFlow and Keras, Third Edition, Amita Kapoor, Antonio
+    Gulli, Sujit Pal*, Packt Publishing Ltd.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Nitish Srivastava, Geoffrey Hinton, Alex Krizhevsky, Ilya Sutskever, and Ruslan
+    Salakhutdinov. 2014\. *Dropout: A simple way to prevent neural networks from overfitting*.
+    J. Mach. Learn. Res. 15, 1 (2014), 1,929–1,958 [https://jmlr.org/papers/volume15/srivastava14a/srivastava14a.pdf](https://jmlr.org/papers/volume15/srivastava14a/srivastava14a.pdf).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Zhang, Z., Ma, H., Fu, H., & Zha, C. (2016). *Scene-Free Multi-Class Weather
+    Classification on Single Images*. IEEE Access, 8, 146,038–146,049\. doi:10.1109:
+    [https://web.cse.ohio-state.edu/~zhang.7804/Cheng_NC2016.pdf](https://web.cse.ohio-state.edu/~zhang.7804/Cheng_NC2016.pdf).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

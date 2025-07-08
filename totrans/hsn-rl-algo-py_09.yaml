@@ -1,0 +1,1221 @@
+- en: TRPO and PPO Implementation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In the previous chapter, we looked at policy gradient algorithms. Their uniqueness lies
+    in the order in which they solve a **reinforcement learning** (**RL**) problem—policy
+    gradient algorithms take a step in the direction of the highest gain of the reward.
+    The simpler version of this algorithm (**REINFORCE**) has a straightforward implementation
+    that alone achieves good results. Nevertheless, it is slow and has a high variance.
+    For this reason, we introduced a value function that has a double goal—to critique
+    the actor and to provide a baseline. Despite their great potential, these actor-critic
+    algorithms can suffer from unwanted rapid variations in the action distribution
+    that may cause a drastic change in the states that are visited, followed by a
+    rapid decline in the performance from which they could never recover from.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will address this problem by showing you how introducing
+    a trust-region, or a clipped objective, can mitigate it. We'll show two practical
+    algorithms, namely TRPO and PPO. These have shown ability in controlling simulated
+    walking, controlling hopping and swimming robots, and playing Atari games. We'll
+    cover a new set of environments for continuous control and show how policy gradient
+    algorithms can be adapted to work in a continuous action space. By applying TRPO
+    and PPO to these new environments, you'll be able to train an agent to run, jump,
+    and walk.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The following topics will be covered in this chapter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Roboschool
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Natural policy gradient
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Trust region policy optimization
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Proximal policy optimization
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Roboschool
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Up until this point, we have worked with discrete control tasks such as the
+    Atari games in [Chapter 5](b2fa8158-6d3c-469a-964d-a800942472ca.xhtml), *Deep
+    Q-Network*, and LunarLander in [Chapter 6](6748bde9-7cd9-43a0-a477-b8a867b1e424.xhtml),
+    *Learning Stochastic and PG Optimization*. To play these games, only a few discrete
+    actions have to be controlled, that is, approximately two to five actions. As
+    we learned in [Chapter 6](6748bde9-7cd9-43a0-a477-b8a867b1e424.xhtml), *Learning
+    Stochastic and PG Optimization*, policy gradient algorithms can be easily adapted
+    to continuous actions. To show these properties, we'll deploy the next few policy
+    gradient algorithms in a new set of environments called Roboschool, in which the
+    goal is to control a robot in different situations. Roboschool has been developed
+    by OpenAI and uses the famous OpenAI Gym interface that we used in the previous
+    chapters. These environments are based on the Bullet Physics Engine (a physics
+    engine that simulates soft and rigid body dynamics) and are similar to the ones
+    of the famous Mujoco physical engine. We opted for Roboschool as it is open source
+    (Mujoco requires a license) and because it includes some more challenging environments.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Specifically, Roboschool incorporates 12 environments, from the simple Hopper
+    (RoboschoolHopper), displayed on the left in the following figure and controlled
+    by three continuous actions, to a more complex humanoid (RoboschoolHumanoidFlagrun)
+    with 17 continuous actions, shown on the right:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/37f5ad9a-4bb0-4d86-87ec-7c28867cbc76.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.1\. Render of RoboschoolHopper-v1 on the left and RoboschoolHumanoidFlagrun-v1
+    on the right
+  prefs: []
+  type: TYPE_NORMAL
+- en: In some of these environments, the goal is to run, jump, or walk as fast as
+    possible to reach the 100 m endpoint while moving in a single direction. In others,
+    the goal is to move in a three-dimensional field while being careful of possible
+    external factors, such as objects that have been thrown. Also included in the
+    set of 12 environments is a multiplayer Pong environment, as well as an interactive
+    environment in which a 3D humanoid is free to move in all directions and has to
+    move toward a flag in a continuous movement. In addition to this, there is a similar
+    environment in which the robot is bombarded with cubes to destabilize the robot,
+    who then has to build a more robust control to keep its balance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The environments are fully observable, meaning that an agent has a complete
+    view of its state that is encoded in a `Box` class of variable size, from about
+    10 to 40\. As we mentioned previously, the action space is continuous and it is
+    represented by a `Box` class of variable size, depending on the environment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Control a continuous system
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Policy gradient algorithms such as REINFORCE and AC, as well as PPO and TRPO,
+    all of which will be implemented in this chapter, can work with a discrete and
+    continuous action space. The migration from one type of action to the other is
+    pretty simple. Instead of computing a probability for each action in a continuous
+    control, the actions can be specified through the parameters of a probability
+    distribution. The most common approach is to learn the parameters of a normal
+    Gaussian distribution, which is a very important family of distributions that
+    is parametrized by a mean, ![](img/9649d114-e700-485e-a586-42154c153513.png), and
+    a standard deviation, ![](img/c6cfee24-4967-4627-b62e-8f6c5654706a.png). Examples
+    of Gaussian distributions and the change of these parameters are shown in the
+    following figure:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/99173b39-afaa-4193-a34f-592648e141eb.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.2\. A plot of three Gaussian distributions with different means and
+    standard deviations
+  prefs: []
+  type: TYPE_NORMAL
+- en: For all the color references mentioned in the chapter, please refer to the color
+    images bundle at [http://www.packtpub.com/sites/default/files/downloads/9781789131116_ColorImages.pdf](http://www.packtpub.com/sites/default/files/downloads/9781789131116_ColorImages.pdf).
+  prefs: []
+  type: TYPE_NORMAL
+- en: For example, a policy that's represented by a parametric function approximation
+    (such as deep neural networks) can predict the mean and the standard deviation
+    of a normal distribution in the functionality of a state. The mean can be approximated
+    as a linear function and, usually, the standard deviation is independent of the
+    state. In this case, we'll represent the parameterized mean as a function of a
+    state denoted by ![](img/43585b36-5ac1-4e1e-9a69-87d2283053a7.png) and the standard
+    deviation as a fixed value denoted by ![](img/4fea26fa-3eb6-460e-96b7-ac230c3f47be.png).
+    Moreover, instead of working with standard deviation, it is preferred to use the
+    logarithm of the standard deviation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Wrapping this up, a parametric policy for discrete control can be defined using
+    the following line of code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: '`mlp` is a function that builds a multi-layer perceptron (also called a fully
+    connected neural network) with hidden layer sizes specified in `hidden_sizes`,
+    an output of the `act_dim` dimension, and the activations specified in the `activation`
+    and `last_activation` arguments. These will become part of a parametric policy
+    for continuous control and will have the following changes:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here `p_means` is ![](img/43585b36-5ac1-4e1e-9a69-87d2283053a7.png) and `log_std`
+    is ![](img/8ee83f0d-7596-4bf5-89fe-c606afe367b0.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Furthermore, if all the actions have a value between 0 and 1, it is better
+    to use a `tanh` function as the last activation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, to sample from this Gaussian distribution and obtain the actions, the
+    standard deviation has to be multiplied by a noisy vector that follows a normal
+    distribution with a mean of 0 and a standard deviation of 1 that have been summed
+    to the predicted mean:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/bbbae8ae-518b-41cb-82f4-11136f2bbfcc.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, z is the vector of Gaussian noise, ![](img/14af4d96-9a28-42e0-bfed-11a90d8f9cd0.png), with
+    the same shape as ![](img/a2223d73-33e9-4c19-a375-0a08feeee23d.png) . This can
+    be implemented in just one line of code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Since we are introducing noise, we cannot be sure that the values still lie
+    in the limit of the actions, so we have to clip `p_noisy` in such a way that the
+    action values remain between the minimum and maximum allowed values. The clipping
+    is done in the following line of code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the end, the log probability is computed as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/cd12c059-7e22-4e81-a02b-32f369aa33f5.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'This formula is computed in the `gaussian_log_likelihood` function, which returns
+    the log probability. Thus, we can retrieve the log probability as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Here, `gaussian_log_likelihood` is defined in the following snippet:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: That's it. Now, you can implement it in every PG algorithm and try all sorts
+    of environments with continuous action space. As you may recall, in the previous
+    chapter, we implemented REINFORCE and AC on LunarLander. The same game is also
+    available with continuous control and is called `LunarLanderContinuous-v2`.
+  prefs: []
+  type: TYPE_NORMAL
+- en: With the necessary knowledge to tackle problems with an inherent continuous
+    action space, you are now able to address a broader variety of tasks. However,
+    generally speaking, these are also more difficult to solve and the PG algorithms
+    we've learned about so far are too weak and not best suited to solving hard problems.
+    Thus, in the remaining chapters, we'll look at more advanced PG algorithms, starting
+    with the natural policy gradient.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Natural policy gradient
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'REINFORCE and Actor-Critic are very intuitive methods that work well on small
+    to medium-sized RL tasks. However, they present some problems that need to be
+    addressed so that we can adapt policy gradient algorithms so that they work on
+    much larger and complex tasks. The main problems are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Difficult to choose a correct step size**: This comes from the nature of
+    RL being non-stationary, meaning that the distribution of the data changes continuously
+    over time and as the agent learns new things, it explores a different state space.
+    Finding an overall stable learning rate is very tricky.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Instability**: The algorithms aren''t aware of the amount by which the policy
+    will change. This is also related to the problem we stated previously. A single,
+    not controlled update could induce a substantial shift of the policy that will
+    drastically change the action distribution, and that consequently will move the
+    agent toward a bad state space. Additionally, if the new state space is very different
+    from the previous one, it could take a long time before recovering from it.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Bad sample efficiency**: This problem is common to almost all on-policy algorithms.
+    The challenge here is to extract more information from the on-policy data before
+    discarding it.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The algorithms that are proposed in this chapter, namely TRPO and PPO, try
+    to address these three problems by taking different approaches, though they share
+    a common background that will be explained soon. Also, both TRPO and PPO are on-policy
+    policy gradient algorithms that belong to the model-free family, as shown in the
+    following categorization RL map:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/c18ca40e-b73f-42ad-b20c-0e4d3e0101bb.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.3\. The collocation of TRPO and PPO inside the categorization map of
+    the RL algorithms
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Natural Policy Gradient** (**NPG**) is one of the first algorithms that has
+    been proposed to tackle the instability problem of the policy gradient methods.
+    It does this by presenting a variation in the policy step that takes care of guiding
+    the policy in a more controlled way. Unfortunately, it is designed for linear
+    function approximations only, and it cannot be applied to deep neural networks.
+    However, it''s the base for more powerful algorithms such as TRPO and PPO.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Intuition behind NPG
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Before looking at a potential solution to the instability of PG methods, let''s
+    understand why it appears. Imagine you are climbing a steep volcano with a crater
+    on the top, similar to the function in the following diagram. Let''s also imagine
+    that the only sense you have is the inclination of your foot (the gradient) and
+    that you cannot see the world around you—you are blind. Let''s also set a fixed
+    length of each step you can take (a learning rate), for example, one meter. You
+    take the first step, perceive the inclination of your feet, and move 1 m toward
+    the steepest ascent direction. After repeating this process many times, you arrive
+    at a point near the top where the crater lies, but still, you are not aware of
+    it since you are blind. At this point, you observe that the inclination is still
+    pointing in the direction of the crater. However, if the volcano only gets higher
+    for a length smaller than your step, with the next step, you''ll fall down. At
+    this point, the space around you is totally new. In the case outlined in the following
+    diagram, you''ll recover pretty soon as it is a simple function, but in general,
+    it can be arbitrarily complex. As a remedy, you could use a much smaller step
+    size but you''ll climb the mountain much slower and still, there is no guarantee
+    of reaching the maximum. This problem is not unique to RL, but here it is more
+    serious as the data is not stationary and the damage could be way bigger than
+    in other contexts, such as supervised learning. Let''s take a look at the following
+    diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/1f666ace-b10f-4191-b8f8-2645f2c7502e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.4\. While trying to reach the maximum of this function, you may fall
+    inside the crater
+  prefs: []
+  type: TYPE_NORMAL
+- en: A solution that could come to mind, and one that has been proposed in NPG, is
+    to use the curvature of the function in addition to the gradient. The information
+    regarding the curvature is carried on by the second derivative. It is very useful
+    because a high value indicates a drastic change in the gradient between two points
+    and, as prevention, a smaller and more cautious step could be taken, thus avoiding
+    possible cliffs. With this new approach, you can use the second derivative to
+    gain more information about the action distribution space and make sure that,
+    in the case of a drastic shift, the distribution of the action spaces don't vary
+    too much. In the following section, we'll see how this is done in NPG.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A bit of math
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The novelty of the NPG algorithm is in how it updates the parameters with a
+    step update that combines the first and second derivatives. To understand the
+    natural policy gradient step, we have to explain two key concepts: the **Fisher
+    Information Matrix** (**FIM**) and the **Kullback-Leibler** (**KL**) divergence.
+    But before explaining these two key concepts, let''s look at the formula behind
+    the update:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/17666fbf-8eaa-4e6b-a566-46f7179dd190.png) (7.1)'
+  prefs: []
+  type: TYPE_IMG
+- en: This update differentiates from the vanilla policy gradient, but only by the
+    term ![](img/5474c6f5-f532-4ceb-949e-40a546bbb8d2.png), which is used to enhance
+    the gradient term.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this formula, ![](img/bcc9d5c5-34e4-44bb-a4bd-9c53476edd92.png) is the FIM
+    and ![](img/774e9e83-fce6-4ce7-80b8-5d6755106f99.png) is the objective function.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As we mentioned previously, we are interested in making all the steps of the
+    same length in the distribution space, no matter what the gradient is. This is
+    accomplished by the inverse of the FIM.
+  prefs: []
+  type: TYPE_NORMAL
+- en: FIM and KL divergence
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The FIM is defined as the covariance of an objective function. Let''s look
+    at how it can help us. To be able to limit the distance between the distributions
+    of our model, we need to define a metric that provides the distance between the
+    new and the old distributions. The most popular choice is to use the KL divergence.
+    It measures how far apart two distributions are and is used in many places in
+    RL and machine learning. The KL divergence is not a proper metric as it is not
+    symmetric, but it is a good approximation of it. The more different two distributions,
+    are the higher the KL divergence value. Consider the plot in the following diagram.
+    In this example, the KL divergences are computed with respect to the green function.
+    Indeed, because the orange function is similar to the green function, the KL divergence
+    is 1.11, which is close to 0\. Instead, it''s easy to see that the blue and the
+    green lines are quite different. This observation is confirmed by the high KL
+    divergence between the two: 45.8\. Note that the KL divergence between the same
+    function will be always 0.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For those of you who are interested, the KL divergence for discrete probability
+    distribution is computed as ![](img/05df10d1-9804-496e-8102-c25bb5fe9899.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s take a look at the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/83415e1d-05c7-4b7e-bbb9-03d15a43096e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.5\. The KL divergence that's shown in the box is measured between each
+    function and the function colored in green. The bigger the value, the farther
+    the two functions are apart.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, using the KL divergence, we are able to compare two distributions and
+    get an indication of how they relate to each other. So, how can we use this metric
+    in our problem and limit the divergence between two subsequent policies distribution?
+  prefs: []
+  type: TYPE_NORMAL
+- en: It so happens that the FIM defines the local curvature in the distribution space
+    by using the KL divergence as a metric. Thereby, we can obtain the direction and
+    the length of the step that keeps the KL divergence distance constant by combining
+    the curvature (second-order derivative) of the KL divergence with the gradient
+    (first-order derivative) of the objective function (as in formula (7.1)). Thus,
+    the update that follows from formula (7.1) will be more cautious by taking small
+    steps along the steepest direction when the FIM is high (meaning that there is
+    a big distance between the action distributions) and big steps when the FIM is
+    low (meaning that there is a plateau and the distributions don't vary too much).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Natural gradient complications
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Despite knowing the usefulness of the natural gradient in the RL framework,
+    one of the major drawbacks of it is the computational cost that involves the calculation
+    of FIM. While the computation of the gradient has a computational cost of ![](img/5d7df3b0-ef0f-43b1-81b6-692b6b72c407.png),
+    the natural gradient has a computational cost of ![](img/c9e9563d-9439-47bd-a47e-95bcc8c1846b.png), where ![](img/c1febc28-3777-48a1-941c-268d9ba05b84.png)
+    is the number of parameters. In fact, in the NPG paper that dates back to 2003,
+    the algorithm has been applied to very small tasks with linear policies. The computation
+    of ![](img/3dca5d3e-8058-4d21-80f2-2c6d786918f0.png) is too expensive with modern
+    deep neural networks that have hundreds of thousands of parameters. Nonetheless,
+    by introducing some approximations and tricks, the natural gradient can be also used
+    with deep neural networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In supervised learning, the use of the natural gradient is not needed as much
+    as in reinforcement learning because the second-order gradient is somehow approximated
+    in an empirical way by modern optimizers such as Adam and RMSProp.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Trust region policy optimization
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: '**Trust region policy optimization** (**TRPO**) is the first successful algorithm
+    that makes use of several approximations to compute the natural gradient with
+    the goal of training a deep neural network policy in a more controlled and stable
+    way. From NPG, we saw that it isn''t possible to compute the inverse of the FIM
+    for nonlinear functions with a lot of parameters. TRPO overcomes these difficulties
+    by building on top of NPG. It does this by introducing a surrogate objective function
+    and making a series of approximations, which means it succeeds in learning about
+    complex policies for walking, hopping, or playing Atari games from raw pixels.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: TRPO is one of the most complex model-free algorithms and though we already
+    learned the underlying principles of the natural gradient, there are still difficult
+    parts behind it. In this chapter, we'll only give an intuitive level of detail
+    regarding the algorithm and provide the main equations. If you want to dig into
+    the algorithm in more detail, check their paper ([https://arxiv.org/abs/1502.05477](https://arxiv.org/abs/1502.05477))
+    for a complete explanation and proof of the theorems.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We'll also implement the algorithm and apply it to a Roboschool environment.
+    Nonetheless, we won't discuss every component of the implementation here. For
+    the complete implementation, check the GitHub repository of this book.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The TRPO algorithm
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'From a broad perspective, TRPO can be seen as a continuation of the NPG algorithm
+    for nonlinear function approximation. The biggest improvement that was introduced
+    in TRPO is the use of a constraint on the KL divergence between the new and the
+    old policy that forms a *trust region.* This allows the network to take larger
+    steps, always within the trust region. The resulting constraint problem is formulated
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/d6ad2df0-d457-498d-9040-fcf62c432f60.png) (7.2)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/566596fb-1cc6-4d2e-a26c-c0683f771a5c.png) is the objective surrogate
+    function that we'll see soon, ![](img/eb787be5-e07c-4ebc-9303-af6c054265bb.png) is
+    the KL divergence between the old policy with the ![](img/7bd85162-5171-4b32-8272-efb7a599dba7.png) parameters,
+    and the new policy with
+  prefs: []
+  type: TYPE_NORMAL
+- en: the ![](img/8fcdc5a0-205c-44a7-8338-0f437d7948bb.png) and ![](img/118cb98d-380e-41ec-97c8-e208698c3f45.png) parameters
+    is a coefficient of the constraint.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The objective surrogate function is designed in such a way that it is maximized
+    with respect to the new policy parameters using the state distribution of the
+    old policy. This is done using importance sampling, which estimates the distribution
+    of the new policy (the desired one) while only having the distribution of the
+    old policy (the known distribution). Importance sampling is required because the
+    trajectory was sampled with the old policy, but what we actually care about is
+    the distribution of the new one. Using importance sampling, the surrogate objective
+    function is defined:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/c5d873fc-2f25-4558-8be6-60b7b047b49d.png) (7.3)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/a493723c-4f11-4e85-a046-9e2aaaba2ae8.png) is the advantage function
+    of the old policy. Thus, the constraint optimization problem is equivalent to
+    the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/511e5dac-0210-48f5-ad72-5583db302cbd.png) (7.4)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/a3131585-ed20-4e88-a731-4a6ce71eb67c.png) indicates the actions
+    distributions conditioned on the state, ![](img/31a74e77-c25b-4db8-8b02-d3668510fc04.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: What we are left to do is replace the expectation with an empirical average
+    over a batch of samples and substitute ![](img/cbd8354d-7ff8-4b75-9c16-098f793154e3.png) with
+    an empirical estimate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Constraint problems are difficult to solve and in TRPO, the optimization problem
+    in equation (7.4) is approximately solved by using a linear approximation of the
+    objective function and a quadratic approximation to the constraint so that the
+    solution becomes similar to the NPG update:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/06ea7307-6019-452a-9c51-3e8bf4003822.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Here, ![](img/706a6722-8040-43f4-b1f7-c43338239009.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The approximation of the original optimization problem can now be solved using
+    the **Conjugate Gradient** (**CG**) method, an iterative method for solving linear
+    systems. When we talked about NPG, we emphasize that computing ![](img/29560202-4d86-4173-803f-69befefbc670.png) is
+    computationally very expensive with a large number of parameters. However, CG
+    can approximately solve a linear problem without forming the full matrix, ![](img/b98d4fbf-7edb-4f5f-a6a7-16f13450a320.png). Thus,
+    using CG, we can compute ![](img/d894bb78-8af2-4807-bf95-861935118d06.png) as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/de87bafe-7bf9-44dc-b851-917f9afe0688.png) (7.5)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'TRPO also gives us a way of estimating the step size:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ad8bc8ea-b7cc-4603-a0ca-5011874e2ffd.png) (7.6)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Therefore, the update becomes as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/816d421d-da65-4a88-bb86-428bf93e8de1.png) (7.7)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'So far, we have created a special case of the natural policy gradient step,
+    but to complete the TRPO update, we are missing a key ingredient. Remember that
+    we approximated the problem with the solution of a linear objective function and
+    quadratic constraint. Thus, we are solving only a local approximation to the expected
+    return. With the introduction of these approximations, we cannot be certain that
+    the KL divergence constraint is still satisfied. To ensure the nonlinear constraint
+    while improving the nonlinear objective, TRPO performs a line search to find the
+    higher value, ![](img/1ea7c5d6-6679-488f-b2fe-0af78e933cab.png), that satisfies
+    the constraint. The TRPO update with the line search becomes the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/619b58e7-0948-4811-963b-8a0ee8824efb.png) (7.8)'
+  prefs: []
+  type: TYPE_IMG
+- en: It may seem to you that the line search is a negligible part of the algorithm,
+    but as demonstrated in the paper, it has a fundamental role. Without it, the algorithm
+    may compute large steps, causing catastrophic degradation in the performance.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In terms of the TRPO algorithm, it computes a search direction with the conjugate
+    gradient algorithm to find a solution for the approximated objective function
+    and constraint. Then it uses a line search for the maximal step length, ![](img/42841f37-dbf5-4cee-ba15-1bbdafda1a17.png), so
+    that the constraint on the KL divergence is satisfied and the objective is improved.
+    To further increase the speed of the algorithm, the conjugate gradient algorithm
+    also makes use of an efficient Fisher-Vector product (to learn more about it,
+    check out the paper that can be found at [https://arxiv.org/abs/1502.05477paper](https://arxiv.org/abs/1502.05477)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'TRPO can be integrated into an AC architecture where the critic is included
+    in the algorithm to provide additional support to the policy (the actor) in the
+    learning of the task. A high-level implementation of such an algorithm (that is,
+    TRPO combined with a critic), when written in pseudocode, is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: After this high-level overview of TRPO, we can finally start implementing it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Implementation of the TRPO algorithm
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this implementation section of the TRPO algorithm, we'll concentrate our
+    efforts on the computational graph and the steps that are required to optimize
+    the policy. We'll leave out the implementation of other aspects that we looked
+    at in the previous chapters (such as the cycle to gather trajectories from the
+    environment, the conjugate gradient algorithm, and the line search algorithm).
+    However, make sure to check out the full code in this book's GitHub repository.
+    The implementation is for continuous control.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, let''s create all the placeholders and the two deep neural networks
+    for the policy (the actor) and the value function (the critic):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'There are a few things to note here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The placeholder with the `old_` prefix refers to the tensors of the old policy.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The actor and the critic are defined in two separate variable scopes because
+    we'll need to select the parameters separately later.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: The action space is a Gaussian distribution with a covariance matrix that is
+    diagonal and independent of the state. A diagonal matrix can then be resized as
+    a vector with one element for each action. We also work with the logarithm of
+    this vector.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Now, we can add normal noise to the predicted mean according to the standard
+    deviation, clip the actions, and compute the Gaussian log likelihood, as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'We then have to compute the objective function, ![](img/9c129825-9522-4ccd-a3c7-ce6dbb51176d.png),
+    the MSE loss function of the critic, and create the optimizer for the critic,
+    as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, the subsequent steps involve the creation of the graph for the points
+    (2), (3), and (4), as given in the preceding pseudocode. Actually, (2) and (3)
+    are not done in TensorFlow and so they aren''t part of the computational graph.
+    Nevertheless, in the computational graph, we have to take care of some related
+    things. The steps for this are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Estimate the gradient of the policy loss function.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Define a procedure to restore the policy parameters. This is needed because
+    in the line search algorithm, we'll optimize the policy and test the constraints,
+    and if the new policy doesn't satisfy them, we'll have to restore the policy parameters
+    and try with a smaller ![](img/b088313b-2e23-4184-a6a9-8ffc45d388e6.png) coefficient.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the Fisher-vector product. It is an efficient way to compute ![](img/6e8cdfd0-5f49-4f07-a0de-80fd60b13eec.png) without
+    forming the full ![](img/d786b2b8-bb88-453a-8ba3-5ad45f4e5a5c.png).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the TRPO step.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Update the policy.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Let''s start from step 1, that is, estimating the gradient of the policy loss
+    function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: Since we are working with vector parameters, we have to flatten them using `flatten_list`.
+    `variable_in_scope` returns the trainable variables in `scope`. This function
+    is used to get the variables of the actor since the gradients have to be computed
+    with respect to these variables only.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Regarding step 2, the policy parameters are restored in this way:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: It iterates over each layer's variables and assigns the values of the old variables
+    to the current one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The Fisher-vector product of step 3 is done by calculating the second derivative
+    of the KL divergence with respect to the policy variables:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Steps 4 and 5 involve the application of the updates to the policy, where `beta_ph`
+    is ![](img/6a731882-7484-4235-87ad-dfa0688ebf4c.png), which is calculated using
+    formula (7.6), and `alpha` is the rescaling factor found by line search:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note how, without ![](img/50429154-550d-4b3a-af35-805862f2b90e.png), the update
+    can be seen as the NPG update.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The update is applied to each variable of the policy. The work is done by `p_v.assign_sub(upd_rsh)`,
+    which assigns the `p_v - upd_rsh` values to `p_v`, that i,: ![](img/1e217f24-f0ed-41ec-941a-8dd03a5bdc24.png).
+    The subtraction is due to the fact that we converted the objective function into
+    a loss function.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let''s briefly see how all the pieces we implemented come together when
+    we update the policy at every iteration of the algorithm. The snippets of code
+    we''ll present here should be added after the innermost cycle where the trajectories
+    are sampled. But before digging into the code, let''s recap what we have to do:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Get the output, log probability, standard deviation, and parameters of the policy
+    that we used to sample the trajectory. This policy is our old policy.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Get the conjugate gradient.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Compute the step length, ![](img/0137aa34-0139-4e38-9c80-5ed0d857a5a1.png).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Execute the backtracking line search to get ![](img/de031bca-d8ab-4690-90c8-9fbc5211c7f2.png).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Run the policy update.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The first point is achieved by running a few operations:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The conjugate gradient algorithm requires an input function that returns the
+    estimated Fisher Information Matrix, the gradient of the objective function, and
+    the number of iterations (in TRPO, this is a value between 5 and 15):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: We can then compute the step length, ![](img/14a11483-4f11-47a4-abd3-02cffc682185.png), `beta_np`,
+    and the maximum coefficient, ![](img/42343ec7-8b72-4d73-8bdc-b9a70a05f3fe.png),
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`best_alpha`, which satisfies the constraint using the backtracking line search
+    algorithm, and run the optimization by feeding all the values to the computational
+    graph:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'As you can see, `backtracking_line_search` takes a function called `DKL` that
+    returns the KL divergence between the old and the new policy, the ![](img/53ada7b4-4686-498b-ae68-ecd38c630df9.png) coefficient
+    (this is the constraint value), and the loss of the old policy. What `backtracking_line_search`
+    does is, starting from ![](img/e55a1b33-07c4-459b-aa50-2476397c0b1a.png), incrementally
+    decrease the value until it satisfies the following condition: the KL divergence
+    is less than ![](img/81708741-4453-4f0f-a4c7-6342d29e7f48.png) and the new loss
+    function has decreased.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To this end, the hyperparameters that are unique to TRPO are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`delta`, (![](img/d3132ac7-9721-486b-9de5-2eb7cb568311.png)), the maximum KL
+    divergence between the old and new policy.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The number of conjugate iterations, `conj_iters`. Usually, it is a number between
+    5 and 15.
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Congratulations for coming this far! That was tough.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Application of TRPO
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The efficiency and stability of TRPO allowed us to test it on new and more
+    complex environments. We applied it on Roboschool. Roboschool and its Mujoco counterpart
+    are often used as a testbed for algorithms that are able to control complex agents
+    with continuous actions, such as TRPO. Specifically, we tested TRPO on RoboschoolWalker2d,
+    where the task of the agent is to learn to walk as fast as possible. This environment
+    is shown in the following figure. The environment terminates whenever the agent
+    falls or when more than 1,000 timesteps have passed since the start. The state
+    is encoded in a `Box` class of size 22 and the agent is controlled with 6 float
+    values with a range of ![](img/23091402-2556-43b3-9c13-75e42b683263.png):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/42124a47-710b-477f-8fdb-41e8fe5d6178.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.6\. Render of the RoboschoolWalker2d environment
+  prefs: []
+  type: TYPE_NORMAL
+- en: In TRPO, the number of steps to collect from an environment on each episode
+    is called the *time horizon.* This number will also determine the size of the
+    batch. Moreover, it can be beneficial to run multiple agents in parallel so as
+    to collect more representative data of the environment. In this case, the batch
+    size will be equal to the time horizon, multiplied by the number of agents. Although
+    our implementation is not predisposed to running multiple agents in parallel,
+    the same objective can be achieved by using a time horizon longer than the maximum
+    number of steps allowed on each episode. For example, knowing that, in RoboschoolWalker2d,
+    an agent has a maximum of 1,000 time steps to reach the goal, by using a time
+    horizon of 6,000, we are sure that at least six full trajectories are run.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We run TRPO with the hyperparameters that are reported in the following table.
+    Its third column also shows the standard ranges for each hyperparameter:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Hyperparameter** | **For RoboschoolWalker2**  | **Range** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Conjugate iterations | 10 | [7-10] |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Delta (δ) | 0.01 | [0.005-0.03] |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Batch size (Time Horizon * Number of Agents) | 6000 | [500-20000] |'
+  prefs: []
+  type: TYPE_TB
+- en: The progress of TRPO (and PPO, as we'll see in the next section) can be monitored
+    by specifically looking at the total reward accumulated in each game and the state
+    values that were predicted by the critic.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We trained for 6 million steps and the result of the performance is shown in
+    the following diagram. With 2 million steps, it is able to reach a good score
+    of 1,300 and it is able to walk fluently and with a moderate speed. In the first
+    phase of training, we can note a transition period where the score decreases a
+    little bit, probably due to a local optimum. After that, the agent recovers and
+    improves until reaching a score of 1,250:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/8d7621e3-f311-415a-b26d-8ee00a945409.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.7\. Learning curve of TRPO on RoboschoolWalker2d
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Also, the predicted state value offers an important metric with which we can
+    study the results. Generally, it is more stable than the total reward and is easier
+    to analyze. The shown is provided in the following diagram. Indeed, it confirms
+    our hypothesis since it is showing a smoother function in general, despite a few
+    spikes around 4 million and 4\. 5 million steps:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/aac3f834-27e6-489f-8c25-23006681c25e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.8\. State values predicted by the critic of TRPO on RoboschoolWalker2d
+  prefs: []
+  type: TYPE_NORMAL
+- en: From this plot, it is also easier to see that after the first 3 million steps, the
+    agent continues to learn, if even at a very slow rate.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you saw, TRPO is a pretty complex algorithm with many moving parts. Nonetheless,
+    it constitutes as proof of the effectiveness of limiting the policy inside a trust
+    region so as to keep the policy from deviating too much from the current distribution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: But can we design a simpler and more general algorithm that uses the same underlying
+    approach?
+  prefs: []
+  type: TYPE_NORMAL
+- en: Proximal Policy Optimization
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: A work by [Schulman and others](https://arxiv.org/pdf/1707.06347.pdf) shows
+    that this is possible. Indeed, it uses a similar idea to TRPO while reducing the
+    complexity of the method. This method is called **Proximal Policy Optimization**
+    (**PPO**) and its strength is in the use of the first-order optimization only,
+    without degrading the reliability compared to TRPO. PPO is also more general and
+    sample-efficient than TRPO and enables multi updates with mini-batches.
+  prefs: []
+  type: TYPE_NORMAL
+- en: A quick overview
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The main idea behind PPO is to clip the surrogate objective function when it
+    moves away, instead of constraining it as it does in TRPO. This prevents the policy
+    from making updates that are too large. The main objective is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/204037a2-8946-4117-975c-5f6b49a65cc4.png) (7.9)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Here, ![](img/f066d0ab-a18a-4e26-939c-981c5c22b461.png) is defined as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/280ee6c1-5a25-4705-b19a-58df34726268.png) (7.10)'
+  prefs: []
+  type: TYPE_IMG
+- en: What the objective is saying is that if the probability ratio, ![](img/76a3e45e-ea39-42c5-87c0-7cd767d7e763.png),
+    between the new and the old policy is higher or lower than a constant, ![](img/ec8b96f4-57bc-4a2d-861c-dbde954b7eee.png),
+    then the minimum value should be taken. This prevents ![](img/592512b4-4696-45ad-bd85-22b34fdf31b1.png) from
+    moving outside the interval ![](img/4fa9b030-6938-45e7-a0b4-32b3d2844fa9.png). The
+    value of ![](img/84c73744-eb16-45c2-836c-72acd5b2b77a.png) is taken as the reference
+    point, ![](img/8d97faa8-64b4-4596-919c-cc9879f3c8bf.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The PPO algorithm
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The practical algorithm that is introduced in the PPO paper uses a truncated
+    version of **Generalized Advantage Estimation** (**GAE**), an idea that was introduced
+    for the first time in the paper [High-Dimensional Continuous Control using Generalized
+    Advantage Estimation](https://arxiv.org/pdf/1506.02438.pdf). GAE calculates the
+    advantage as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/a16f4c12-b653-4188-a10c-d0301750c4f1.png) (7.11)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'It does this instead of using the common advantage estimator:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/72e54cc9-9d38-4877-a8a5-bd6dfb8b3088.png) (7.12)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Continuing with the PPO algorithm, on each iteration, *N* trajectories from
+    multiple parallel actors are collected with time horizon *T*, and the policy is
+    updated *K* times with mini-batches. Following this trend, the critic can also
+    be updated multiple times using mini-batches. The following table contains standard
+    values of every PPO hyperparameter and coefficient. Despite the fact that every
+    problem needs ad hoc hyperparameters, it would be useful to get an idea of their
+    ranges (reported in the third column of the table):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Hyperparameter** | **Symbol** | **Range** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Policy learning rate  | - | [1e^(-5), 1e^(-3)] |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Number of policy iterations | K | [3, 15] |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Number of trajectories (equivalent to the number of parallel actors) | N
+    | [1, 20] |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Time horizon | T | [64, 5120] |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Mini-batch size | - | [64, 5120] |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Clipping coefficient | ∈ | 0.1 or 0.2 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Delta (for GAE) | δ | [0.9, 0.97] |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Gamma (for GAE) | γ | [0.8, 0.995] |'
+  prefs: []
+  type: TYPE_TB
+- en: Implementation of PPO
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Now that we have the basic ingredients of PPO, we can implement it using Python
+    and TensorFlow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The structure and implementation of PPO is very similar to the actor-critic
+    algorithms but with only a few additional parts, all of which we'll explain here.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One such addition is the generalized advantage estimation (7.11) that takes
+    just a few lines of code using the already implemented `discounted_rewards` function,
+    which computes (7.12):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `GAE` function is used in the `store` method of the `Buffer` class when
+    a trajectory is stored:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: Here, `...` stands for the lines of code that we didn't report.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'We can now define the clipped surrogate loss function (7.9):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: It is quite intuitive and it doesn't need further explanation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The computational graph holds nothing new, but let''s go through it quickly:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: The code for interaction with the environment and the collection of the experience
+    is equal to AC and TRPO. However, in the PPO implementation in this book's GitHub
+    repository, you can find a simple implementation that uses multiple agents.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once ![](img/11fd3429-de91-4e1a-99fc-3aa01f1b89e2.png) transitions (where *N*
+    is the number of trajectories to run and *T* is the time horizon of each trajectory)
+    are collected, we are ready to update the policy and the critic. In both cases,
+    the optimization is run multiple times and done on mini-batches. But before it,
+    we have to run `p_log` on the full batch because the clipped objective needs the
+    action log probabilities of the old policy:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: On each optimization iteration, we shuffle the batch so that every mini-batch
+    is different from the others.
+  prefs: []
+  type: TYPE_NORMAL
+- en: That's everything for the PPO implementation, but keep in mind that before and
+    after every iteration, we are also running the summaries that we will later use
+    with TensorBoard to analyze the results and debug the algorithm. Again, we don't
+    show the code here as it is always the same and is quite long, but you can go
+    through it in the full form in this book's repository. It is fundamental for you
+    to understand what each plot displays if you want to master these RL algorithms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: PPO application
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'PPO and TRPO are very similar algorithms and we choose to compare them by testing
+    PPO in the same environment as TRPO, namely RoboschoolWalker2d. We devoted the
+    same computational resources for tuning both of the algorithms so that we have
+    a fairer comparison. The hyperparameters for TRPO are the same as those we listed
+    in the previous section but instead, the hyperparameters of PPO are shown in the
+    following table:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| **Hyperparameter** | **Value** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Neural network | 64, tanh, 64, tanh |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Policy learning rate  | 3e-4 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Number of actor iterations | 10 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Number of agents | 1 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Time horizon | 5,000 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Mini-batch size | 256 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Clipping coefficient | 0.2 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Delta (for GAE) | 0.95 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Gamma (for GAE) | 0.99 |'
+  prefs: []
+  type: TYPE_TB
+- en: 'A comparison between PPO and TRPO is shown in the following diagram. PPO needs
+    more experience to take off, but once it reaches this state, it has a rapid improvement
+    that outpaces TRPO. In these specific settings, PPO also outperforms TRPO in terms
+    of its final performance. Keep in mind that further tuning of the hyperparameters
+    could bring better and slightly different results:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/fb3db0f3-8ba5-4b5b-9589-febc68af8be2.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Figure 7.9\. Comparison of performance between PPO and TRPO
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A few personal observations: we found PPO more difficult to tune compared to
+    TRPO. One reason for that is the higher number of hyperparameters in PPO. Moreover,
+    the actor learning rate is one of the most important coefficients to tune, and
+    if not properly tuned, it can greatly affect the final results. A great point
+    in favor of TRPO is that it doesn''t have a learning rate and that the policy
+    is conditioned on a few hyperparameters that are easy to tune. Instead, an advantage
+    of PPO is that it''s faster and has been shown to work with a bigger variety of
+    environments.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, you learned how policy gradient algorithms can be adapted to
+    control agents with continuous actions and then used a new set of environments
+    called Roboschool.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You also learned aboutand developed two advanced policy gradient algorithms:
+    trust region policy optimization and proximal policy optimization. These algorithms
+    make better use of the data sampled from the environment and both use techniques
+    to limit the difference in the distribution of two subsequent policies. In particular,
+    TRPO (as the name suggests) builds a trust region around the objective function
+    using a second-order derivative and some constraints based on the KL divergence
+    between the old and the new policy. PPO, on the other hand, optimizes an objective
+    function similar to TRPO but using only a first-order optimization method. PPO
+    prevents the policy from taking steps that are too large by clipping the objective
+    function when it becomes too large.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: PPO and TRPO are still on-policy (like the other policy gradient algorithms)
+    but they are more sample-efficient than AC and REINFORCE. This is due to the fact
+    that TRPO, using a second-order derivative, is actually extracting a higher order
+    of information from the data. The sample efficiency of PPO, on the other hand,
+    is due to its ability to perform multiple policy updates on the same on-policy
+    data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thanks to their sample efficiency, robustness, and reliability, TRPO and especially
+    PPO are used in many very complex environments such as Dota ([https://openai.com/blog/openai-five/](https://openai.com/blog/openai-five/)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: PPO and TRPO, as well as AC and REINFORCE, are stochastic gradient algorithms.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we'll look at two policy gradient algorithms that are deterministic.
+    Deterministic algorithms are an interesting alternative because they have some
+    useful properties that cannot be replicated in the algorithms we have seen so
+    far.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: How can a policy neural network control a continuous agent?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What's the KL divergence?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What's the main idea behind TRPO?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How is the KL divergence used in TRPO?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What's the main benefit of PPO?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: How does PPO achieve good sample efficiency?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Further reading
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: If you are interested in the original paper of the NPG, read **A Natural Policy
+    Gradient**: [https://papers.nips.cc/paper/2073-a-natural-policy-gradient.pdf](https://papers.nips.cc/paper/2073-a-natural-policy-gradient.pdf).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For the paper that introduced the Generalized Advantage Function, please read *High-Dimensional
+    Continuous Control Using Generalized Advantage Estimation*: [https://arxiv.org/pdf/1506.02438.pdf](https://arxiv.org/pdf/1506.02438.pdf).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If you are interested in the original Trust Region Policy Optimization paper,
+    then please read **Trust Region Policy** **Optimization**: [https://arxiv.org/pdf/1502.05477.pdf](https://arxiv.org/pdf/1502.05477.pdf).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If you are interested in the original paper that introduced the Proximal Policy
+    Optimization algorithm, then please read *Proximal Policy Optimization Algorithms*: [https://arxiv.org/pdf/1707.06347.pdf](https://arxiv.org/pdf/1707.06347.pdf).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: For a further explanation of Proximal Policy Optimization, read the following
+    blog post: [https://openai.com/blog/openai-baselines-ppo/](https://openai.com/blog/openai-baselines-ppo/).
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'If you are interested in knowing how PPO has been applied on Dota 2, check
+    the following blog post regarding OpenAI: [https://openai.com/blog/openai-five/](https://openai.com/blog/openai-five/).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

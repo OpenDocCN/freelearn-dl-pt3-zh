@@ -1,0 +1,1408 @@
+- en: '6'
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Text Summarization with Seq2seq Attention and Transformer Networks
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Summarizing a piece of text challenges a deep learning model''s understanding
+    of language. Summarization can be considered a uniquely human ability, where the
+    gist of a piece of text needs to be understood and phrased. In the previous chapters,
+    we have built components that can help in summarization. First, we used BERT to
+    encode text and perform sentiment analysis. Then, we used a decoder architecture
+    with GPT-2 to generate text. Putting the Encoder and Decoder together yields a
+    summarization model. In this chapter, we will implement a seq2seq Encoder-Decoder
+    with Bahdanau Attention. Specifically, we will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Overview of extractive and abstractive text summarization
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Building a seq2seq model with attention to summarize text
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Improving summarization with beam search
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Addressing beam search issues with length normalizations
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Measuring the performance of summarization with ROUGE metrics
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A review of state-of-the-art summarization
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The first step of this journey begins with understanding the main ideas behind
+    text summarization. It is important to understand the task before building a model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Overview of text summarization
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The core idea in summarization is to condense long-form text or articles into
+    a short representation. The shorter representation should contain the main idea
+    of crucial information from the longer form. A single document can be summarized.
+    This document could be long or may contain just a couple of sentences. An example
+    of a short document summarization is generating a headline from the first few
+    sentences of an article. This is called **sentence compression**. When multiple
+    documents are being summarized, they are usually related. They could be the financial
+    reports of a company or news reports about an event. The generated summary could
+    itself be long or short. A shorter summary would be desirable when generating
+    a headline. A lengthier summary would be something like an abstract and could
+    have multiple sentences.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are two main approaches when summarizing text:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Extractive summarization**: Phrases or sentences from the articles are selected
+    and put together to create a summary. A mental model for this approach is using
+    a highlighter on the long-form text, and the summary is the highlights put together.
+    Extractive summarization is a more straightforward approach as sentences from
+    the source text can be copied, which leads to fewer grammatical issues. The quality
+    of the summarization is also easier to measure using metrics such as ROUGE. This
+    metric is detailed later in this chapter. Extractive summarization was the predominant
+    approach before deep learning and neural networks.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Abstractive summarization**: A person may use the full vocabulary available
+    in a language while summarizing an article. They are not restricted to only using
+    words from the article. The mental model is that the person is penning a new piece
+    of text. The model must have some understanding of the meaning of different words
+    so that the model can use them in the summary. Abstractive summarization is quite
+    hard to implement and evaluate. The advent of the seq2seq architecture made significant
+    improvements to the quality of abstractive summarization models.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'This chapter focuses on abstractive summarization. Here are some examples of
+    summaries that our model can generate:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '| Source text | Generated summary |'
+  prefs: []
+  type: TYPE_TB
+- en: '| american airlines group inc said on sunday it plans to raise ## billion by
+    selling shares and convertible senior notes , to improve the airline''s liquidity
+    as it grapples with travel restrictions caused by the coronavirus . | american
+    airlines to raise ## **bln** convertible **bond issue** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| sales of newly-built single-family houses occurred at a seasonally adjusted
+    annual rate of ## in may , that represented a #.#% increase from the downwardly
+    revised pace of ## in april . | **new home** sales **rise** in may |'
+  prefs: []
+  type: TYPE_TB
+- en: '| jc penney will close another ## stores for good . the department store chain
+    , which filed for bankruptcy last month , is inching toward its target of closing
+    ## stores . | jc penney to close **more** stores |'
+  prefs: []
+  type: TYPE_TB
+- en: The source text was pre-processed to be all in lowercase, and numbers were replaced
+    with placeholder tokens to prevent the model from inventing numbers in the summary.
+    The generated summaries have some words highlighted. Those words were not present
+    in the source text. The model was able to propose these words in the summary.
+    Thus, the model is an abstractive summarization model. So, how can such a model
+    be built?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'One way of looking at the summarization problem is that the model is *translating*
+    an input sequence of tokens into a smaller set of output tokens. The model learns
+    the output lengths based on the supervised examples provided. Another well-known
+    problem is mapping an input sequence to an output sequence – the problem of Neural
+    Machine Translation or NMT. In NMT, the input sequence could be a sentence from
+    the source language, and the output could be a sequence of tokens in the target
+    language. The process for translation is as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Convert the input text into tokens
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Learn embeddings for these tokens
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Pass the token embeddings through an encoder to calculate the hidden states
+    and outputs
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Use the hidden states with the attention mechanism for generating a context
+    vector for the inputs
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Pass encoder outputs, hidden states, and context vectors to the decoder part
+    of the network
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Generate the outputs from left to right using an autoregressive model
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Google AI published a tutorial on NMT using a seq2seq attention model in July
+    2017\. This model uses a left-to-right encoder with GRU cells. The Decoder also
+    uses GRU cells. In summarization, the piece of text to be summarized is a prerequisite.
+    This may or may not be valid for machine translation. In some cases, the translation
+    is performed on the fly. In that case, a left-to-right encoder is useful. However,
+    if the entire text to be translated or summarized is available from the outset,
+    a bi-directional Encoder can encode context from both sides of a given token.
+    BiRNN in the Encoder leads to much better performance of the overall model. The
+    NMT tutorial code serves as inspiration for the seq2seq attention model and the
+    attention tutorial referenced previously. Before we work on the model, let's look
+    at the datasets that are used for this purpose.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Data loading and pre-processing
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: There are several summarization-related datasets available for training. These
+    datasets are available through the TensorFlow Datasets or `tfds` package, which
+    we have used in the previous chapters as well. The datasets that are available
+    differ in length and style. The CNN/DailyMail dataset is one of the most commonly
+    used datasets. It was published in 2015, with approximately a total of 1 million
+    news articles. Articles from CNN, starting in 2007, and Daily Mail, starting in
+    2010, were collected until 2015\. The summaries are usually multi-sentence. The
+    Newsroom dataset, available from [https://summari.es](https://summari.es), contains
+    over 1.3 million news articles from 38 publications. However, this dataset requires
+    that you register to download it, which is why it is not used in this book. The
+    wikiHow data set contains full Wikipedia article pages and the summary sentences
+    for those articles. The LCSTS data set contains Chinese language data collected
+    from Sina Weibo with paragraphs and their one-sentence summaries.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Another popular dataset is the Gigaword dataset. It provides the first one or
+    two sentences of a news story and has the headline of the story as the summary.
+    This dataset is quite large, with just under 4 million rows. This dataset was
+    published in a paper titled *Annotated Gigaword* by Napoles et al. in 2011\. It
+    is quite easy to import this dataset using `tfds`. Given the large size of the
+    dataset and long training times for the model, the training code is stored in
+    Python files, while the inference code is in an IPython notebook. This pattern
+    was used in the previous chapter as well. The code for training is in the `s2s-training.py`
+    file. The top part of the file contains the imports and a method called `setupGPU()`
+    to initialize the GPU. The file contains a main function, which provides the control
+    flow, and several functions that perform specific actions.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The dataset needs to be loaded first. The code for loading the data is in the
+    `load_data()` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The corresponding section in the main function looks like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Only the training dataset is being loaded. The validation dataset contains
+    approximately 190,000 examples, while the test split contains over 1,900 examples.
+    In contrast, the training set contains over 3.8 million examples. Depending on
+    the internet connection, downloading the dataset may take a while:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: The warning about insecure requests can be safely ignored. The data is now ready
+    to be tokenized and vectorized.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Data tokenization and vectorization
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The Gigaword dataset has been already cleaned, normalized, and tokenized using
+    the StanfordNLP tokenizer. All the data is converted into lowercase and normalized
+    using the StanfordNLP tokenizer, as seen in the preceding examples. The main task
+    in this step is to create a vocabulary. A word-based tokenizer is the most common
+    choice in summarization. However, we will use a subword tokenizer in this chapter.
+    A subword tokenizer provides the benefit of limiting the size of the vocabulary
+    while minimizing the number of unknown words. *Chapter 3*, *Named Entity Recognition
+    (NER) with BiLSTMs, CRFs, and Viterbi Decoding*, on BERT, described different
+    types of tokenizers. Consequently, models such specifically the part as BERT and
+    GPT-2 use some variant of a subword tokenizer. The `tfds` package provides a way
+    for us to create a subword tokenizer, initialized from a corpus of text. Since
+    generating the vocabulary requires running it over all of the training data, this
+    process can be slow. After initialization, the tokenizer can be persisted to disk
+    for future use. The code for this process is defined in the `get_tokenizer()`
+    function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: This method checks to see if a subword tokenizer is saved and loads it. If no
+    tokenizer exists on disk, it creates one by feeding in the articles and summaries
+    combined. Note that creating a new tokenizer took over 20 minutes on my machine.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hence, it is a good idea to do this process only once and persist the results
+    for future use. The GitHub folder for this chapter contains a saved version of
+    the tokenizer to save some of your time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Two additional tokens that denote the start and end of a sequence are added
+    to the vocabulary after its creation. These tokens help the model start and end
+    the inputs and outputs. The end of sequence token provides a way for the Decoder,
+    which generates the summary, to signal the end of the summary. The main method
+    at this point looks like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: Articles and their summaries can be tokenized using the tokenizer. Articles
+    can be of varying lengths and will need to be truncated at a maximum length. A
+    maximum token length of 128 has been chosen as the Gigaword dataset only contains
+    a few sentences from the article. Note that 128 tokens are not the same as 128
+    words due to the subword tokenizer. Using a subword tokenizer minimizes the presence
+    of unknown tokens during summary generation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Once the tokenizer is ready, both the article and summary texts need to be
+    tokenized. Since the summary will be fed to the Decoder one token at a time, the
+    provided summary text will be shifted right by adding a `start` token, as shown
+    previously. An `end` token will be appended to the summary to let the Decoder
+    learn how to signal the end of the summary''s generation. The `encode()` method
+    in the file `seq2seq.py` defines the vectorization step:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Since this is a Python function working on the contents of the text of tensors,
+    another function needs to be defined. This can be passed to the dataset to be
+    applied to all the rows of the data. This function is also defined in the same
+    file as the `encode` function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Going back to the main function in the `s2s-training.py` file, the dataset
+    can be vectorized with the help of the preceding functions like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: Note that shuffling the dataset is recommended. By shuffling the dataset, it
+    is easier for the model to converge and not overfit to batches. However, this
+    adds to the training time. This has been commented out here as this is an optional
+    step. Shuffling records in batches while training models for production use cases
+    is recommended. The last step in preparing the data is batching it, as shown in
+    the last step here. Now, we are ready to build the model and train it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Seq2seq model with attention
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The summarization model has an Encoder part with a bidirectional RNN and a
+    unidirectional decoder part. There is an attention layer that helps the Decoder
+    focus on specific parts of the input while generating an output token. The overall
+    architecture is shown in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16252_06_01.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6.1: Seq2seq and attention model'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'These layers are detailed in the following subsections. All the code for these
+    parts of the model are in the file `seq2seq.py`. All the layers use common hyperparameters
+    specified in the main function in the `s2s-training.py` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The code and architecture for this section have been inspired by the paper
+    titled *Get To The Point: Summarization with Pointer-Generator Networks* by Abigail
+    See, Peter Liu, and Chris Manning, published in April 2017\. The fundamental architecture
+    is easy to follow and provides impressive performance for a model that can be
+    trained on a desktop with a commodity GPU.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Encoder model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The detailed architecture of the Encoder layer is shown in the following diagram.
+    Tokenized and vectorized input is fed through an embedding layer. Embeddings for
+    the tokens generated by the tokenizer are learned from scratch. It is possible
+    to use a set of pre-trained embeddings like GloVe and use the corresponding tokenizer.
+    While using a pre-trained set of embeddings can help with the accuracy of the
+    model, a word-based vocabulary would have many unknown tokens, as we saw in the
+    IMDb example and GloVe vectors earlier. The unknown tokens would impact the ability
+    of the model to create summaries with words it hasn''t seen before. If the summarization
+    model is used on daily news, there can be several unknown words, like names of
+    people, places, or new products:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a cell phone  Description automatically generated](img/B16252_06_02.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6.2: Encoder architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The embedding layer has a dimension of 128, as configured in the hyperparameters.
+    These hyperparameters have been chosen to resemble those in the paper. We then
+    create an embedding singleton that can be used by both the Encoder and the Decoder.
+    The code for the class is in the `seq2seq.py` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Input sequences will be padded to a fixed length of 128\. Hence, a masking
+    parameter is passed to the embedding layer so that the embedding layer ignores
+    the mask tokens. Next, let''s define an `Encoder` class and instantiate the embedding
+    layer in the constructor:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The constructor takes a number of parameters:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Size of the vocabulary**: In the present case, this is 32,899 tokens.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Embedding dimensions**: This is 128 dimensions. Feel free to experiment with
+    a larger or smaller embedding dimension. Smaller dimensions would reduce the model''s
+    size and memory required for training the model.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Encoder units**: The number of forward and backward units in the bidirectional
+    layer. 256 units will be used for a total of 512 units.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Batch size**: The size of the input batches. 64 records will be in one batch.
+    A larger batch would make training go faster but would need more memory on the
+    GPU. So, this number can be adjusted based on the capacity of the training hardware.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The output of the embedding layer is fed to a bidirectional RNN layer. There
+    are 256 GRU units in each direction. The bidirectional layer in Keras provides
+    options on how to combine the output of the forward and backward layer. In this
+    case, we concatenate the outputs of the forward and backward GRU cells. Hence,
+    the output will be 512-dimensional. Furthermore, the hidden states are also needed
+    for the attention mechanism to work, so a parameter is passed to retrieve the
+    output states. The bidirectional GRU layer is configured like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'A dense layer with ReLU activation is also set up. The two layers return their
+    hidden layers. However, the Decoder and attention layers require one vector of
+    hidden states. We pass the hidden states through the dense layer and convert the
+    dimensions from 512 into 256, which is expected by the Decoder and attention modules.
+    This completes the constructor for the Encoder class. Given this is a custom model
+    with specific ways to compute the model, a `call()` method is defined that operates
+    on a batch of inputs to produce the output and hidden states. This method takes
+    in hidden states to seed the bidirectional layer:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'First, the input is passed through the embedding layer. The output is fed to
+    the bidirectional layer, and the output and hidden states are retrieved. The two
+    hidden states are concatenated and fed through the dense layer to create the output
+    hidden state. Lastly, a utility method to return initial hidden states is defined:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: This completes the code for the Encoder. Before going into the Decoder, an attention
+    layer needs to be defined, which will be used in the Decoder. Bahdanau's attention
+    formulation will be used for this. Note that TensorFlow/Keras does not provide
+    an attention layer out of the box. However, this simple attention layer code should
+    be entirely reusable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Bahdanau attention layer
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Bahdanau et al. published this form of global attention in 2015\. It has been
+    widely used in Transformer models, as we saw in the previous chapters. Now, we
+    are going to implement an attention layer from scratch. This part of the code
+    is inspired by the NMT tutorial published by the TensorFlow team.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The core idea behind attention is to let the Decoder see all the inputs and
+    focus on the most relevant inputs while predicting the output token. A global
+    attention mechanism allows the Decoder to see all the inputs. This global version
+    of the attention mechanism will be implemented. At an abstract level, the purpose
+    of the attention mechanism maps a set of values to a given query. It does this
+    by providing a relevance score of each of these values for a given query.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In our case, the query is the Decoder''s hidden state, and the values are the
+    Encoder outputs. We are interested in figuring out which inputs can best help
+    in generating the next token from the Decoder. The first step is computing a score
+    using the Encoder output and the Decoder''s previous hidden state. If this is
+    the first step of decoding, then the hidden states from the Encoder are used to
+    seed the Decoder. A corresponding weight matrix is multiplied by the Encoder''s
+    output and Decoder''s hidden state. The output is passed through a *tanh* activation
+    function and multiplied by another weight matrix to produce the final score. The
+    following equation shows this formulation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16252_06_001.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Matrices *V*, *W*[1], and *W*[2] are trainable. Then, to understand the alignment
+    between the Decoder output and the Encoder outputs, a softmax is computed:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16252_06_002.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The last step is to produce a context vector. The context vector is produced
+    by multiplying the attention weights by the Encoder outputs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16252_06_003.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: These are all the computations in the attention layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The first step is setting up the constructor for the attention class:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `call()` method of the `BahdanauAttention` class implements the equations
+    shown previously with some additional code to manage the tensor shapes. This is
+    shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: The only thing we have left to do is implement the Decoder model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Decoder model
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'The detailed Decoder model is shown in the following diagram:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a cell phone  Description automatically generated](img/B16252_06_03.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6.3: Detailed decoder architecture'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Hidden states from the Encoder are used to initialize the hidden states of the
+    Decoder. The start token initiates the summaries being generated. The hidden states
+    of the Decoder, along with the Encoder output, are used to compute the attention
+    weights and the context vector. The context vector, along with the embeddings
+    of the output token, are concatenated and passed through the unidirectional GRU
+    cell. The output of the GRU cell is passed through a dense layer, with a softmax
+    activation function to get the output token. This process is repeated token by
+    token.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Note that the Decoder functions differently during training and inference. During
+    training, the output token from the Decoder is used to calculate the loss but
+    is not fed back into the Decoder to produce the next token. Instead, the next
+    token from the ground truth is fed into the Decoder at each time step. This process
+    is called **teacher forcing**. The output tokens generated by the Decoder are
+    only fed back in during inference when summaries are being generated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A `Decoder` class is defined in the `seq2seq.py` file. The constructor for
+    this class sets up the dimensions and the various layers:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: The embedding layer in the Decoder is not shared with the Encoder. This is a
+    design choice. It is common in summarization to use a shared embedding layer.
+    The structure of the articles and their summaries is slightly different in the
+    Gigaword dataset as news headlines are not proper sentences but fragments of sentences.
+    During training, using different embedding layers gave better results than shared
+    embeddings. It is possible that, on the CNN/DailyMail dataset, shared embeddings
+    give better results than on the Gigaword dataset. In the case of machine translation,
+    the Encoder and Decoder are seeing different languages, so having separate embedding
+    layers is a best practice. You are encouraged to try out both versions on different
+    datasets and build your own intuition. The preceding commented code makes it easy
+    to switch back and forth between shared and separate embeddings between the Encoder
+    and Decoder.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The next part of the Decoder is the computation that calculates the output:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE17]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The computation is fairly straightforward. The model looks like this:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE18]'
+  prefs: []
+  type: TYPE_PRE
+- en: The Encoder model contains 4.9M parameters, while the Decoder model contains
+    13.5M parameters for a total of 18.4M parameters. Now, we are ready to train the
+    model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training the model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'There are a number of steps to be performed in training that require a custom
+    training loop. First, let''s define a method that executes one step of the training
+    loop. This method is defined in the `s2s-training.py` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE19]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is a custom training loop that uses `GradientTape`, which tracks the different
+    variables of the model and calculates the gradients. The preceding function runs
+    once for each batch of inputs. Inputs are passed through the Encoder to get the
+    final encoding and the last hidden state. The Decoder is initialized with the
+    last Encoder hidden state, and summaries are generated one token at a time. However,
+    the generated token is not fed back into the Decoder. Instead, the actual token
+    is fed back. This method is known as **Teacher Forcing**. A custom loss function
+    is defined in the `seq2seq.py` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE20]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The key to the loss function is to use a mask to handle summaries of varying
+    lengths. The last part of the model is using an optimizer. The Adam optimizer
+    is being used here, with a learning rate schedule that reduces the learning rate
+    over epochs of training. The concept of learning rate annealing was covered in
+    previous chapters. The code for the optimizer is inside the main function in the
+    `s2s-training.py` file:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE21]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Since the model is going to be trained for a long time, it is important to
+    set up checkpoints that can be used to restart training in case issues occur.
+    Checkpoints also provide us with an opportunity to adjust some of the training
+    parameters across runs. The next part of the main function sets up the checkpointing
+    system. We looked at checkpoints in the previous chapter. We will extend what
+    we''ve learned and set up an optional command-line argument that specifies if
+    training needs to be restarted from a specific checkpoint:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE22]'
+  prefs: []
+  type: TYPE_PRE
+- en: If training needs to be restarted from a checkpoint, then a command-line argument
+    in the form `–-checkpoint <dir>` can be specified while invoking the training
+    script. If no argument is supplied, then a new checkpoint directory will be created.
+    Training with 1.5M records takes over 3 hours. Running 10 iterations will take
+    over a day and a half. The Pointer-Generator model we referenced earlier in this
+    chapter was trained for 33 epochs, which took over 4 days of training. However,
+    it is possible to see some results after 4 epochs of training.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, the last part of the main function is to start the training process:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE23]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The training loop prints the loss every 100 batches and saves a checkpoint
+    every second epoch. Feel free to adjust these settings as needed. The following
+    command can be used to start training:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE24]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The output of this script should be something similar to:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE25]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This sample run used only 2,000 samples since we edited this line:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE26]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If training is being restarted from a checkpoint, then the command line will
+    be:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE27]'
+  prefs: []
+  type: TYPE_PRE
+- en: With this comment, the model is hydrated from the checkpoint directory we used
+    in the training step. Training continues from that point. Once the model has finished
+    training, we are ready to generate the summaries. Note that the model we'll be
+    using in the next section was trained for 8 epochs with 1.5M records. Using all
+    3.8M records and training for more epochs would give better results.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Generating summaries
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The critical thing to note while generating summaries is that a new inference
+    loop will need to be built. Recall that *teacher forcing* was used during training,
+    and the output of the Decoder was not used in predicting the next token. While
+    generating summaries, we would like to use the generated tokens in predicting
+    the next token. Since we would like to play with various input texts and generate
+    summaries, we will use the code in the `generating-summaries.ipynb` IPython notebook.
+    After importing and setting everything up, the tokenizer needs to be instantiated.
+    The *Setup Tokenization* section of the notebook loads the tokenizers and sets
+    up the vocabulary by adding start and end token IDs. Similar to when we loaded
+    the data, the data encoding method is set up to encode the input articles.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, we must hydrate the model from the saved checkpoint. All of the model
+    objects are created first:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE28]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, a checkpoint with the appropriate checkpoint directory is defined:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE29]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Then, the last checkpoint is checked:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE30]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE31]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Since checkpoints are stored after every alternate epoch, this checkpoint corresponds
+    to 8 epochs of training. Checkpoints can be loaded and tested with the following
+    code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE32]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE33]'
+  prefs: []
+  type: TYPE_PRE
+- en: That's it! The model is now ready for inference.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Checkpoints and variable names**'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'It is possible that the second command may give an error if it cannot match
+    the names of the variables in the checkpoint with the names in the model. This
+    can happen as we did not explicitly name the layers when they were instantiated
+    in the model. TensorFlow will provide a dynamically generated name for the layer
+    when the model is instantiated:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE34]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE35]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Variable names in the checkpoint can be inspected with:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE36]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'If the model is instantiated again, these names may change, and restore from
+    checkpoint may fail. There are two solutions to prevent this. A quick fix is to
+    restart the notebook kernel. A better fix is to edit the code and add names to
+    each layer in the Encoder and Decoder constructors before training. This ensures
+    that checkpoints will always find the variables. An example of this approach is
+    shown for the `fc1` layer in the Decoder:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE37]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Inference can be done via the greedy search or beam search algorithms. Both
+    of these methods will be demonstrated here. Before going into the code for generating
+    summaries, a convenience method for plotting attention weights will be defined.
+    This helps in providing some intuition on what inputs contributed to a given token
+    being generated in the summary:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE38]'
+  prefs: []
+  type: TYPE_PRE
+- en: A plot is configured with the input sequence as the columns and the output summary
+    tokens as the rows. Feel free to play with different color scales to get a better
+    idea of the strength of the association between the tokens.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We have covered much ground and possibly trained a network for hours. It is
+    time to see the fruits of our labor!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Greedy search
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Greedy search uses the highest probability token at each time step to construct
+    the sequence. The predicted token is fed back into the model to generate the next
+    token. This is the same model that was used in the previous chapter while generating
+    characters in the char-RNN model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE39]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The first part of the code encodes the inputs the same way they were encoded
+    during training. These inputs are passed through the Encoder to the final encoder
+    output and the last hidden state. The Decoder''s initial hidden state is set to
+    the last hidden state of the Encoder. Now, the process of generating the output
+    tokens begins. First, the inputs are fed to the Decoder, which generates a prediction,
+    the hidden state, and the attention weights. Attention weights are added to a
+    running list of attention weights per time step. This generation continues until
+    whichever comes earlier; producing an end-of-sequence token, or producing 50 tokens.
+    The resulting summary and attention plot are returned. A summarization method
+    is defined, which calls this greedy search algorithm, plots the attention weights,
+    and converts the generated tokens into proper words:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE40]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding method has a spot where we can plug in beam search later. Let''s
+    test the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE41]'
+  prefs: []
+  type: TYPE_PRE
+- en: '[PRE42]'
+  prefs: []
+  type: TYPE_PRE
+- en: '![](img/B16252_06_04.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6.4: Attention plot for an example summary'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Let''s take a look at the generated summary:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '*bulgarian president summons french ambassador over remarks on iraq*'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is a pretty good summary! The most surprising part is that the model was
+    able to identify the Bulgarian president, even though Bulgaria is not mentioned
+    anywhere in the source text. It contains other words not found in the original
+    text. These are highlighted in the preceding output. The model was able to change
+    the tense of the word *summoned* to *summons*. The word *remarks* never appears
+    in the source text. The model was able to infer this from a number of input tokens.
+    The notebook contains many examples, both good and bad, of summaries generated
+    by the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Here is an example of a piece of challenging text for the model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Input**: *charles kennedy , leader of britain''s third-ranked liberal democrats
+    , announced saturday he was quitting with immediate effect and would not stand
+    in a new leadership election . us president george w. bush on saturday called
+    for extending tax cuts adopted in his first term , which he said had bolstered
+    economic growth.*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Predicted summary**: *kennedy quits to be a step toward new term*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'In this article, there are two seemingly unrelated sentences. The model is
+    trying to make sense of them but messes it up. There are other examples where
+    the model doesn''t do so well:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Input**: *jc penney will close another ## stores for good . the department
+    store chain , which filed for bankruptcy last month , is inching toward its target
+    of closing ## stores.*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Predicted summary**: *jc penney to close another ## stores for #nd stores*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In this example, the model repeats itself, attending to the same positions.
+    In fact, this is a common problem with summarization models. One solution to prevent
+    repetition is to add coverage loss. Coverage loss keeps a running total of the
+    attention weights across time steps and feeds it back to the attention mechanism,
+    as a way to clue it in to previously attended positions. Furthermore, coverage
+    loss terms are added to the overall loss equation to penalize repetition. Training
+    the model for much longer would also help in this particular case. Note that Transformer-based
+    models suffer a little less from repetition.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The second example is the model inventing something:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Input**: *the german engineering giant siemens is working on a revamped version
+    of its defective tram car , of which the ### units sold so far worldwide are being
+    recalled owing to a technical fault , a company spokeswoman said on tuesday.*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Predicted summary**: *siemens to launch reb-made cars*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The model invents *reb-made*, which is incorrect:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16252_06_05.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6.5: Model invents the word "reb-made"'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Looking at the preceding attention plot, the new word is being generated by
+    attending to *revamped*, *version*, *defective*, and *tram*. This made-up word
+    garbles the summary generated.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As noted earlier, using beam search can help in further improving the accuracy
+    of the translations. We will try some of these challenging examples after implementing
+    the beam search algorithm.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Beam search
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: Beam search uses multiple paths or beams to generate tokens and tries to minimize
+    the overall conditional probability. At each time step, all the options are evaluated,
+    and the cumulative conditional probabilities are evaluated over all the time steps
+    so far. Only the top *k* beams, where *k* is the beam width, are kept; the rest
+    are pruned for the next time step. Greedy search is a special case of beam search
+    with a beam width of 1\. In fact, this property serves as a test case for the
+    beam search algorithm. The code for this section can be found in the *Beam Search*
+    section of the IPython notebook.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'A new method called `beam_search()` is defined. The first part of this method
+    is similar to greedy search, where inputs are tokenized and passed through the
+    Encoder. The main difference between this algorithm and the greedy search algorithm
+    is the core loop, which processes one token at a time. In beam search, a token
+    needs to be generated for every beam. This makes beam search slower than greedy
+    search, and running time increases in proportion to beam width. At each time step,
+    for each of the *k* beams, the top *k* tokens are generated, sorted, and pruned
+    back to *k* items. This step is performed until each beam generates an end of
+    sequence token or has generated the maximum number of tokens. If there are *m*
+    tokens to be generated, then beam search would require *k * m* runs of the Decoder
+    to generate the output sequence. The main loop is shown in the following code:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE43]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'At the start, there is only one beam within the start token. A list to keep
+    track of the beams generated is then defined. The list of tuples stores the attention
+    plots, tokens, last hidden state, and the overall cost of the beam. Conditional
+    probability requires a product of all probabilities. Given that all probabilities
+    are numbers between 0 and 1, the conditional probability could become very small.
+    Instead, logs of the probabilities are added together, as shown in the preceding
+    highlighted code. The best beams minimize this score. Finally, a small section
+    is inserted that prints all the top beams with their scores once the function
+    completes its execution. This part is optional and can be removed:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE44]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'At the end, the function returns the best beam:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE45]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The `summarize()` method is extended so that you can generate greedy and beam
+    search, like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE46]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s re-run the Siemens tram car example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Greedy search summary**: *siemens to launch reb-made cars*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Beam search summary**: *siemens working on revamped european tram car*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The beam search summary contains more detail and represents the text better.
+    It introduces a new word, *european*, which may or may not be accurate in the
+    current context. Contrast the following attention plot with the one shown previously:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16252_06_06.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6.6: Attention plot of summary generated by beam search'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The summary generated by beam search covers more concepts from the source text.
+    For the JC Penney example, beam search makes the output better:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Greedy search summary**: *jc penney to close another ## stores stores for
+    #nd stores*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Beam search summary**: *jc penney to close ## more stores*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The beam search summary is more concise and grammatically correct. These examples
+    were generated with a beam width of 3\. The notebook contains several other examples
+    for you to play with. You will notice that generally, beam search improves the
+    results, but it reduces the length of the output. Beam search suffers from issues
+    where the score of sequences is not normalized for the sequence length, and repeatedly
+    attending to the same input tokens has no penalty.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The most significant improvement at this point will come from training the model
+    for longer and on more examples. The model that was used for these examples was
+    trained for 22 epochs on 1.5M samples out of 3.8M from the Gigaword dataset. However,
+    it is important to have beam search and various penalties in your back pocket
+    to improve the quality of your model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: There are two specific penalties that address these issues, both of which will
+    be discussed in the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Decoding penalties with beam search
+  prefs:
+  - PREF_H2
+  type: TYPE_NORMAL
+- en: 'Wu et al. proposed two penalties in the seminal paper *Google''s Neural Machine
+    Translation System*, published in 2016\. These penalties are:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Length normalization**: Aimed at encouraging longer or short summaries.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Coverage normalization**: Aimed at penalizing generation if the output focuses
+    too much on the same part of the input sequence. As per the pointer-generator
+    paper, this is best added during training for the last few iterations of training.
+    This will not be implemented in this section.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'These methods are inspired by NMT and must be adapted for the needs of summarization.
+    At a high level, the score can be represented by the following formula:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16252_06_004.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'For example, the beam search algorithm naturally produces shorter sequences.
+    The length penalty is important for NMT as the output sequence should address
+    the input text. This is different from summarization, where shorter outputs are
+    preferred. Length normalization computes a factor based on a parameter and the
+    current token number. The cost of the beam is divided by this factor to calculate
+    a length-normalized score. The paper proposes the following empirical formula:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/B16252_06_005.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Smaller values of alpha produce shorter sequences, and larger values produce
+    longer sequences. Values of ![](img/B16252_06_006.png) are between 0 and 1\. The
+    conditional probability score is divided by the preceding quantity to give the
+    normalized score for a beam. The `length_wu()` method normalizes the score using
+    this parameter.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Note that all the code for this part is in the *Beam Search with Length Normalizations*
+    section of the notebook:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE47]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'It is easy to implement in the code. A new beam search method with normalizations
+    is created. Most of the code is the same as in the previous implementation. The
+    key change for enabling length normalization involves adding an alpha parameter
+    to the method signature and updating the computation of the score so that it uses
+    the aforementioned method:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE48]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Next, the score is normalized like so (around line 60 in the code):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE49]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s try the settings out on some examples. First, we will try placing a
+    length normalization penalty on the Siemens example:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Greedy search**: *siemens to launch reb-made cars*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Beam search**: *siemens working on revamped european tram car*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Beam search with length penalties**: *siemens working on new version of defective
+    tram car*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'A beam size of 5 and an alpha of 0.8 was used to generate the preceding example.
+    Length normalization generates longer summaries, which corrects some of the challenges
+    that are faced by the summaries generated purely by beam search:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![A screenshot of a cell phone  Description automatically generated](img/B16252_06_07.jpg)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Figure 6.7: Beam search with length normalization produces a great summary'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Now, let''s take a look at a more complex contemporary example, which is not
+    in the training set at all:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Input**: *the uk on friday said that it would allow a quarantine-free international
+    travel to some low-risk countries falling in its green zone list of an estimated
+    ## nations . uk transport secretary said that the us will fall within the red
+    zone*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Greedy search**: *uk to allow free travel to low-risk countries*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Beam search**: *britain to allow free travel to low-risk countries*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Beam search with length normalization**: *britain to allow quarantines free
+    travel to low-risk countries*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The best summary uses beam search and length normalization. Note that beam search
+    alone was removing a very important word, "quarantines", before "free travel."
+    This changed the meaning of the summary. With length normalization, the summary
+    contains all the right details. Note that the Gigaword dataset has very short summaries
+    in general, and beam search is making them even shorter. Hence, we use larger
+    values of alpha. Generally, smaller values of alpha are used for summarization
+    and larger values for NMT. You can try different values of the length normalization
+    parameter and beam width to build some intuition. Note that the formulation for
+    the length penalty was empirical. It should also be experimented with.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The penalty adds a new parameter that needs to be tuned in addition to beam
+    size. Selecting the right parameters requires a better way of evaluating summaries
+    than human inspection. This is the focus of the next section.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Evaluating summaries
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'When people write summaries, they use inventive language. Human-written summaries
+    often use words that are not present in the vocabulary of the text being summarized.
+    When models generate abstractive summaries, they may also use words that are different
+    from the words used in the ground truth summaries provided. There is no real way
+    to do an effective semantic comparison of the ground truth summary and the generated
+    summary. In summarization problems, a human evaluation step is often involved,
+    which is where a qualitative check of the generated summaries is done. This method
+    is both unscalable and expensive. There are approximations that uses n-gram overlaps
+    and the longest common subsequence matches after stemming and lemmatization. The
+    hope is that such pre-processing helps bring ground truth and generated summaries
+    closer together for evaluation. The most common metric used for evaluating summaries
+    is **Recall-Oriented Understudy for Gisting Evaluation**, also referred to as
+    **ROUGE**. In machine translation, metrics such as **Bilingual Evaluation Understudy**
+    (**BLEU**) and **Metric for Evaluation of Translation with Explicit Ordering**
+    (**METEOR**) are used. BLEU relies mainly on precision, as precision is very important
+    for translation. In summarization, recall is more important. Consequently, ROUGE
+    is the metric of choice for evaluating summarization models. It was proposed by
+    Chin-Yew Lin in 2004 in a paper titled *Rouge: A Package for Automatic Evaluation
+    of Summaries*.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: ROUGE metric evaluation
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'A summary that''s generated by a model should be readable, coherent, and factually
+    correct. In addition, it should be grammatically correct. Human evaluation of
+    summaries can be a mammoth task. If a person took 30 seconds to evaluate one summary
+    in the Gigaword dataset, then it would take over 26 hours for one person to check
+    the validation set. Since abstractive summaries are being generated, this human
+    evaluation work will need to be done every time summaries are produced. The ROUGE
+    metric tries to measure various aspects of an abstractive summary. It is a collection
+    of four metrics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**ROUGE-N** is the n-gram recall between a generated summary and the ground
+    truth or reference summary. "N" at the end of the name specifies the length of
+    the n-gram. It is common to report ROUGE-1 and ROUGE-2\. The metric is calculated
+    as the ratio of matching n-grams between the ground truth summary and the generated
+    summary, divided by the total number of n-grams in the ground truth. This formulation
+    is oriented toward recall. If multiple reference summaries exist, the ROUGE-N
+    metric is calculated pairwise for each reference summary, and the maximum score
+    is taken. In our example, only one reference summary exists.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**ROUGE-L** uses the **longest common subsequence** (**LCS**) between the generated
+    summary and the ground truth to calculate the metric. Often, the sequences are
+    stemmed prior to computing the LCS. Once the length of the LCS is known, precision
+    is calculated by dividing it by the length of the reference summary; recall is
+    calculated by dividing by the length of the generated score. The F1 score, which
+    is the harmonic mean of precision and recall, is also calculated and reported.
+    The F1 score provides a way for us to balance precision and recall. Since the
+    LCS already includes common n-grams, choosing an n-gram length is not required.
+    This particular version of ROUGE-L is called the sentence-level LCS score. There
+    is a summary-level score as well, for cases when the summary contains more than
+    one sentence. It is used for the CNN and DailyMail datasets, among others. The
+    summary-level score matches each sentence in the ground truth with all the generated
+    sentences to calculate the union LCS precision and recall. Details of the method
+    can be found in the paper referenced previously.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**ROUGE-W** is a weighted version of the previous metric, where contiguous
+    matches in the LCS are weighted higher than if the tokens were separated by some
+    other tokens in the middle.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**ROUGE-S** uses skip-bigram co-occurrence statistics. A skip-bigram allows
+    there to be arbitrary gaps between two tokens. Precision and recall are calculated
+    using this measure.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The paper that proposed these metrics also contained code, in Perl, for calculating
+    these metrics. This requires generating text files with references and generating
+    summaries. Google Research has published a full Python implementation that is
+    available from their GitHub repository: [https://github.com/google-research/google-research](https://github.com/google-research/google-research).
+    The `rouge/` directory contains the code for these metrics. Please follow the
+    installation instructions from the repository. Once installed, we can evaluate
+    greedy search, beam search, and beam search with length normalization to judge
+    their quality using the ROUGE-L metric. The code for this part is in the ROUGE
+    Evaluation section.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The scorer library can be imported and initialized like so:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE50]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'A version of the `summarize()` method, called `summarize_quietly()`, is used
+    to summarize pieces of text without printing any outputs like attention plots.
+    Random samples from the validation test will be used to measure the performance.
+    The code for loading the data and the quiet summarization method can be found
+    in the notebook and should be run prior to running metrics. Evaluation can be
+    run using a greedy search, as shown in the following code fragment:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE51]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'While the validation set contains close to 190,000 records, the preceding code
+    runs metrics on 1,000 records. The code also randomly prints out summaries for
+    about 1% of the samples. The results of this evaluation should look similar to
+    these:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE52]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'This is not a bad start since we have high precision, but the recall is low.
+    The current leaderboard for the Gigaword dataset has 36.74 as the highest ROUGE-L
+    F1 score, as per paperswithcode.com. Let''s run the same test with beam search
+    and see the results. The code here is identical to the preceding code, with the
+    only difference being that a beam width of 3 is being used:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE53]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'It seems that the precision has improved considerably at the expense of recall.
+    Overall, the F1 score shows a slight decrease. Beam search does produce shorter
+    summaries, which could be the reason for the decrease in recall. Adjusting length
+    normalization could help with this. Another hypothesis could be to try bigger
+    beams. Trying a bigger beam size of 5 produces this result:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE54]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'There is a significant improvement in precision and a further decrease in recall.
+    Now, let''s try some length normalization. Running beam search with an alpha of
+    0.7 gives us the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE55]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'By running a larger beam width of 5 with the same alpha, we obtain this result:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE56]'
+  prefs: []
+  type: TYPE_PRE
+- en: There is a considerable increase in recall due to there being a decline in precision.
+    Overall, for a basic model trained only on a slice of data, the performance is
+    quite good. A score of 27.3 would yield a spot on the top 20 of the leaderboard.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Seq2seq-based text summarization was the main approach prior to the advent of
+    Transformer-based models. Now, Transformer-based models, which include both the Encoder
+    and Decoder parts, are used for summarization. The next section reviews state-of-the-art
+    approaches to summarization.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summarization – state of the art
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Today, the predominant approach to summarization uses the full Transformer
+    architecture. Such models are quite big, often ranging from 223M parameters to
+    over a billion in the case of GPT-3\. Google Research published a paper at ICML
+    in June 2020 titled *PEGASUS: Pre-training with Extracted Gap-sentences for Abstractive
+    Summarization*. This paper sets the benchmark for state-of-the-art results as
+    of the time of writing. The key innovation proposed by this model is a specific
+    pre-training objective for summarization. Recall that BERT was pre-trained using
+    a **masked language model** (**MLM**) objective, where tokens were randomly masked
+    and the model had to predict them. The PEGASUS model proposed a **Gap Sentence
+    Generation** (**GSG**) pre-training objective, where important sentences are completely
+    replaced with a special masking token, and the model has to generate the sequence.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The importance of the sentence is judged using the ROUGE1-F1 score of a given
+    score compared to the entire document. A certain number of top-scoring sentences
+    are masked from the input, and the model needs to predict them. Additional details
+    can be found in the aforementioned paper. The base Transformer model is very similar
+    to the BERT configurations. The pre-training objective makes a significant difference
+    to the ROUGE1/2/L-F1 scores and sets new records on many of the datasets.
+  prefs: []
+  type: TYPE_NORMAL
+- en: These models are quite large and training them on a desktop is not realistic.
+    Often, the models are pre-trained on humongous datasets for several days at a
+    time. Thankfully, pre-trained versions of such models are available through libraries
+    like HuggingFace.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Summarizing text is considered a uniquely human trait. Deep learning NLP models
+    have made great strides in this area in the past 2-3 years. Summarization remains
+    a very hot area of research within many applications. In this chapter, we built
+    a seq2seq model from scratch that can summarize sentences from news articles and
+    generate a headline. This model obtains fairly good results due to its simplicity.
+    We were able to train the model for a long period of time due to learning rate
+    annealing. By checkpointing the model, training was made resilient as it could
+    be restarted from the last checkpoint in case of failure. Post-training, we improved
+    our generated summaries through a custom implementation of beam search. As beam
+    search has a tendency to provide short summaries, length normalization techniques
+    were used to make the summaries even better.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Measuring the quality of generated summaries is a challenge in abstractive
+    summarization. Here is a random example from the validation dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Input**: *the french soccer star david ginola on saturday launched his anti-land
+    mines campaign on behalf of the international committee for the red cross which
+    has taken him on as a sort of poster boy for the cause .*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Ground truth**: *soccer star joins red cross effort against land mines*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Beam search (5/0.7)**: *former french star ginola launches anti-land mine
+    campaign*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The generated summary is very comparable to the ground truth. However, matching
+    token by token would give us a very low score. ROUGE metrics that use n-grams
+    and the LCS allow us to measure the quality of the summaries.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we took a quick look at the current state-of-the-art models for summarization.
+    Large models that are pre-trained on even larger datasets are ruling the roost.
+    Unfortunately, training a model of such size is often beyond the resources of
+    a single individual.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Now, we will move on to a very new and exciting area of research – multi-modal
+    networks. Thus far, we have only treated text in isolation. But is a picture really
+    worth a thousand words? We shall find out when we try to caption images and answer
+    questions about them in the next chapter.
+  prefs: []
+  type: TYPE_NORMAL

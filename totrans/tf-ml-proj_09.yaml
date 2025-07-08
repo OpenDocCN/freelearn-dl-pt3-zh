@@ -1,0 +1,732 @@
+- en: Generating Matching Shoe Bags from Shoe Images Using DiscoGANs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Human beings are quite smart when it comes to understanding the relationship
+    between different domains. For example, we can easily understand the relationship
+    between a Spanish sentence and its translated version in English. We can even
+    guess which color tie to wear to match a certain kind of suit. While it seems
+    easy for humans, this is not a straightforward process for machines.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The task of style transfer across different domains for machines can be framed
+    as a conditional image generation problem. Given an image from one domain, can
+    we learn to map to an image from a different domain.
+  prefs: []
+  type: TYPE_NORMAL
+- en: While there have been many approaches to achieve this using pairwise labeled
+    data from two different domains, these approaches are fraught with problems. The
+    major issue with these approaches is obtaining the pairwise labeled data, which
+    is both an expensive and time-consuming process.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we will learn about an approach for learning style transfer
+    without explicitly providing pairwise labeled data to the algorithm. This approach,
+    known as DiscoGANs, is highlighted in the recently released paper by Kim et. al 
+    named *Learning to Discover Cross-Domain Relations with Generative Adversarial
+    Networks* ([https://arxiv.org/pdf/1703.05192.pdf](https://arxiv.org/pdf/1703.05192.pdf)). Specifically,
+    we will try to generate matching shoes from shoe bag images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The remainder of this chapter is organized as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Introduction to **Generative Adversarial Networks** (**GANs**)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: What are DiscoGANs?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: How to generate matching shoes from shoe bag images and vice versa
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding generative models
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: An unsupervised learning model that learns the underlying data distribution
+    of the training set and generates new data that may or may not have variations
+    is commonly known as a **generative model**. Knowing the true underlying distribution
+    might not always be a possibility, hence the neural network trains on a function
+    that tries to be as close a match as possible to the true distribution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The most common methods used to train generative models are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Variational autoencoders: **A high dimensional input image is encoded by
+    an auto-encoder to create a lower dimensional representation. During this process,
+    it is of the utmost importance to preserve the underlying data distribution. This
+    encoder can only be used to map to the input image using a decoder and cannot
+    introduce any variability to generate similar images. The VAE introduces variability
+    by generating constrained latent vectors that still follow the underlying distribution.
+    Though VAEs help in creating probabilistic graphical models, the generated images
+    tend to be slightly blurry.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**PixelRNN/PixelCNN: **These auto-regressive models are used to train networks
+    that model the conditional distribution of a successive individual pixel, given
+    previous pixels starting from the top left. RNNs move horizontally and vertically
+    over any image. The training for PixelRNNs is a stable and simple process with
+    better log likelihoods than other models, but they are time consuming and relatively
+    inefficient.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Generative adversarial networks: **Generative adversarial networks were first
+    published in the 2014 paper by *Goodfellow et al.* ([https://arxiv.org/abs/1406.2661](https://arxiv.org/abs/1406.2661)).
+    These can be thought of as a competition framework with two adversaries called
+    the generator and the discriminator. These are nothing but two differentiable
+    functions in the form of neural networks. The generator takes a randomly generated
+    input known as a latent sample and produces an image. The overall objective of
+    the generator is to generate an image that is as close as possible to the real
+    input image (such as MNIST digits) and give it as an input to the discriminator.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The discriminator is essentially a classifier that's trained to distinguish
+    between real images (original MNIST digits) and fake images (output of the generator).
+    Ideally, after being trained, the generator should adapt its parameters and capture
+    the underlying training data distribution and fool the discriminator about its
+    input being a real image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Let's consider an analogy that is inspired by the real world. Imagine that GANs
+    work like the relationship between a forger making counterfeit currency and the
+    police identifying and discarding that forged currency. The aim of the forger
+    is to try and pass off the fake currency as real currency in the market. This
+    is analogous to what a generator tries to do. The police try and inspect every
+    currency note it can, accepting the original notes and scrapping the fake ones.
+    The police know of the details of the original currency and compare it to the
+    properties of the currency in question in order to make a decision regarding its
+    authenticity. If there is a match, the currency is retained; otherwise, it is
+    scrapped. This is in line with the work of a discriminator.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training GANs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The following diagram illustrates the basic architecture of GANs:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/6296918a-8ac6-4574-b1ff-2368e6946b4c.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: A random input is used to generate a sample of data. For example, a generator,
+    *G(z)*, uses a prior distribution, *p(z)*, to achieve an input, *z*. Using *z*,
+    it then generates some data. This output is fed as input to the discriminator
+    neural network, *D(x)*. It takes an input x from ![](img/1ff29fae-3f62-4e27-8ebe-6c1a91597318.png), where ![](img/49289ba1-2cdd-4375-9077-36f8649f8e3a.png)
+    is our real data distribution. *D(x)* then solves a binary classification problem
+    using the `sigmoid` function, which gives us an output in the range of 0 to 1.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'GANS are trained to be part of a competition between the generator and discriminator.
+    The objective function can be represented mathematically as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/61972a78-46bc-4575-aa1b-c94c1fe6e907.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'In this, the following applies:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f619e329-5665-425b-a42f-227ca87bc47e.png) denotes the parameters of
+    the discriminator'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/ea4c4428-39c2-4afb-9c6c-2a4a6ac531ee.png) denotes the parameters of
+    the generator'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/173c7e8d-6049-4dcb-8467-b7fa266f45ff.png)denotes the underlying distribution
+    of training data'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/dc44753e-ecd8-423b-9633-8be92c39bbb5.png) denotes the discriminator
+    operation over input images *x*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/22d6d1fc-22dd-4ca2-9fcb-b1683de79bbc.png) denotes the generator operation
+    over latent sample *z*'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/7fdda8a8-8bdf-4bf7-9683-c546acea033a.png) denotes the discriminator
+    output for generated fake data ![](img/0b5145dd-c1da-404d-9ca8-c20abecc4498.png)'
+  prefs:
+  - PREF_UL
+  type: TYPE_IMG
+- en: In the objective function, the first term from the left represents the cross
+    entropy of the discriminator's output from a real distribution (![](img/71f08933-8f06-4736-a01b-d04cfe1736ef.png)).
+    The second term from the left is the cross entropy between the random distribution
+    (![](img/bebcff21-5a62-4571-94ec-1e3dfcde3341.png)) and one minus the prediction
+    of the discriminator on the output of the generator that was generated using random
+    sample z from ![](img/817e906e-f25e-40d8-b1e0-d3010aa96031.png). The discriminator
+    tries to maximize both terms to classify the images as real and fake, respectively.
+    On the other hand, the generator tries to fool the discriminator by minimizing
+    this objective.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In order to train GANs, gradient-based optimization algorithms, such as stochastic
+    gradient descent, are used. Algorithmically, it flows as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: First, sample *m* noise samples and *m* real data samples.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Freeze the generator, that is, set the training as false so that the generator
+    network only does a forward pass without any back propagation. Train the discriminator
+    on this data.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Sample different *m* noise samples.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Freeze the discriminator and train the generator on this data.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Iterate through the preceding steps.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Formally, the pseudocode is as follows.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this example, we are performing mini-batch stochastic gradient descent training
+    of generative adversarial nets. The number of steps to apply to the discriminator,
+    *k*, is a hyper parameter. We used *k=1*, the least expensive option, in our experiment:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/193ed986-2232-4d70-8c9b-0849d7207c54.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Pseudocode for GAN training. With k=1, this equates to training D, then G, one
+    after the other. Adapted from Goodfellow et al. 2014
+  prefs: []
+  type: TYPE_NORMAL
+- en: The gradient-based updates can use any standard gradient-based learning rule.
+    We used momentum in our experiment.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Applications
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Some of the applications of GANs include converting monochrome or black and
+    white images into colored images, filling additional details in an image, such
+    as the insertion of objects into a partial image or into an image with only edges,
+    and constructing images representing what somebody would look like when they are
+    older given an image of their present self.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Challenges
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Though GANs generate one of the sharpest images from a given piece of input
+    data, their optimization is difficult to achieve due to unstable training dynamics.
+    They also suffer from other challenges, such as mode collapse and bad initialization.
+    Mode collapse is a phenomena where, if the data is multimodal, the generator is
+    never incentivized to cover both modes, which leads to lower variability among
+    generated samples and, hence, lower utility of GANs. If all generated samples
+    start to become identical, it leads to complete collapse. In cases where most
+    of the samples show some commonality, there is partial collapse of the model.
+    At the core of this, GANs work on an objective function that aims to achieve optimization
+    of min-max, but if the initial parameters end up being inefficient, then it becomes
+    an oscillating process with no true optimization. In addition to this, there are
+    issues such as GANs failing to differentiate the count of particular objects that
+    should occur at a location. For example, GANs have no idea that there can't be
+    more than two eyes and can generate images of human faces with 3 eyes.  There
+    are also issues with GANs being unable to adapt to a 3D perspective, such as front
+    and posterior view. This gives a flat 2D image instead of depth for a 3D object.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Different variants of GANs have evolved over time. Some of them are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Deep convolutional GANs** (**DCGANs**) were one of the first major improvements
+    on the GAN architecture. It is made up of convolutional layers that avoid the
+    use of max pooling or fully connected layers. The convolutional stride and transposed
+    convolution for downsampling and upsampling is majorly used by this. It also uses
+    ReLU activation in the generator and LeakyReLU in the discriminator.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**InfoGANs** are another variant of GANs that try and encode meaningful features
+    of the image (for example, rotation) in parts of the noise vector, z.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Conditional GANs** (**cGANs**) use extra conditional information that describes
+    some aspect of the data as input to the generator and discriminator. For example,
+    if we are dealing with vehicles, the condition could describe attributes such
+    as four-wheeled or two-wheeled. This helps generate better samples and additional
+    features. In this chapter, we will mainly focus on DiscoGANs, which are described
+    in the following section.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Understanding DiscoGANs
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this section, we are mainly going to take a closer look at Discovery GANS,
+    which are popularly known as **DiscoGANs**.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before going further, let's try to understand reconstruction loss in machine
+    learning, since this is one of the concepts that this chapter is majorly dependent
+    on. When learning about the representation of an unstructured data type such as
+    an image/text, we want our model to encode the data in such a manner that when
+    it's decoded, the underlying image/text can be generated back. To incorporate
+    this condition in the model explicitly, we use a reconstruction loss (essentially
+    the Euclidean distance between the reconstructed and original image) in training
+    the model.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Style transfer has been one of the most prominent use cases of GANs. Style transfer
+    basically refers to the problem where, if you are given an image/data in one domain,
+    is it possible to successfully generate an image/data in another domain. This
+    problem has become quite famous among several researchers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'You can read more about style transfer problems from the paper  Neural Style
+    Transfer: A Review  ([https://arxiv.org/abs/1705.04058](https://arxiv.org/abs/1705.04058))
+    by Jing et. al. However, most of the work is done by using an explicitly paired
+    dataset that''s generated by humans or other algorithms. This puts limitations
+    on these approaches, since paired data is seldom available and is too costly to
+    generate.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: DiscoGANs, on the other hand, propose a method of learning cross-domain relations
+    without the explicit need for paired datasets. This method takes an image from
+    one domain and generates the corresponding image from the other domain. Let's
+    say we are trying to transfer an image from Domain A to Domain B. During the learning
+    process, we force the generated image to be the image-based representation of
+    the image from Domain A through a reconstruction loss and to be as close to the
+    image in Domain B as possible through a GAN loss, as mentioned earlier. Essentially,
+    this approach tends to generate a bijective (one-to-one) mapping between two domains,
+    rather than a many-to-one or one-to-many mapping.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fundamental units of a DiscoGAN
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'As mentioned previously, normal GANs have a generator and a discriminator.
+    Let''s try to understand the building blocks of DiscoGANs and then proceed to
+    understand how to combine them so that we can learn about cross-domain relationships.
+    These are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Generator:** In the original GANs, the generator would take an input vector *z* randomly
+    sampled from, say, Gaussian distribution, and generate fake images. In this case,
+    however, since we are looking to transfer images from one domain to another, we
+    replace the input vector *z* with an image. Here are the parameters of the generator
+    function:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '| **Parameters** | **Value** |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Input image size | 64x64x3 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Output image size | 64x64x3 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| # Convolutional layers | 4 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| # Conv transpose/Deconv layers | 4 |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Normalizer function | Batch Normalization |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Activation function | LeakyReLU |'
+  prefs: []
+  type: TYPE_TB
+- en: Before specifying the structure of each particular layer, let's try to understand
+    a few of the terms that were mentioned in the parameters.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Transposed convolution: **As we mentioned previously, generators are used
+    to generate images from the input vector. In our case, the input image is first
+    convolved by 4 convolutional layers, which produce an embedding. Generating an
+    image from the embedding involves upsampling from a low resolution to a higher
+    resolution.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: General ways of upsampling include manual feature engineering to interpolate
+    lower dimensional images. A better approach could be to employ Transposed Convolution, also
+    known as the **fractional stride convolution**/**deconvolution**. It doesn't employ
+    any predefined interpolation method. Let's say that we have a 4x4 matrix that
+    is convolved with a 3x3 filter (stride 1 and no padding); this will result in
+    a matrix of size 2x2\. As you can see, we downsampled the original image from
+    4x4 to 2x2\. The process of going from 2x2 back to 4x4 can be achieved through
+    transposed convolution.
+  prefs: []
+  type: TYPE_NORMAL
+- en: From an implementation perspective, the built-in function in TensorFlow for
+    defining convolutional layers can be used directly with the `num_outputs` value,
+    which can be changed to perform upsampling.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Batch normalization**: This method is used to counter the internal covariance
+    shift that happens in deep neural networks.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: A covariance shift can be defined as when the model is able to predict when
+    the distribution of inputs changes. Let's say we train a model to detect black
+    and white images of dogs. During the inference phase, if we supply colored images
+    of dogs to the model, it will not perform well. This is because the model learned
+    the parameters based on black and white images, which are not suitable for predicting
+    colored images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Deep neural networks experience what is known as an internal covariance shift,
+    since changes in the parameters of an internal layer change the distribution of
+    input in the next layer. To fix this issue, we normalize the output of each batch
+    by using its mean and variance, and pass on a weighted combination of mean and
+    variance to the next layer. Due to the weighted combination, batch normalization
+    adds two extra parameters in each layer of the neural network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Batch normalization helps speed up training and tends to reduce overfitting
+    because of its regularization effects.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this model, we use batch normalization in all of the convolutional and convolutional
+    transpose layers, except the first and the last layers.
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Leaky ReLU: ****ReLU**, or **rectified linear units**, are quite popular
+    in the deep learning domain today as activation functions. ReLU units in deep
+    neural networks can be fragile at times since they can cause neurons to die or
+    never get activated again at any data point. The following diagram illustrates
+    the ReLU function:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/96327a14-715d-473b-a725-fbc12a33026e.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Leaky ReLU is used to try and fix this problem. They have small negative values
+    instead of zeros for negative input values. This avoids the dying issue with regard
+    to neurons. The following diagram illustrates a sample Leaky ReLU function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/89a49618-25a6-4d85-9714-8b94641120cd.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '**Discriminator**: In the GANs that we described previously, the generator
+    takes an input vector that''s been randomly sampled from, say, a Gaussian distribution,
+    and generates fake images. In this case, however, since we are looking to transfer
+    images from one domain to another, we replace the input vector with an image.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'The parameters of the discriminator from an architectural standpoint are as
+    follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Layers:** The discriminator is made up of 5 convolutional layers, each stacked
+    on top of the other, and then followed by two fully connected layers.'
+  prefs:
+  - PREF_UL
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Activation:** Leaky ReLU activation is used for all layers except the last
+    fully connected layer. The last layer uses `sigmoid` to predict the probability
+    of a sample.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Normalizer:** This performs batch normalization, except on the first and
+    last layers of the network.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Stride:** A stride length of 2 is used for all of the convolutional layers.'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: DiscoGAN modeling
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'For each mapping, that is, **handbags** (denoted by **b**) to **shoes** (denoted
+    by **s**), or vice versa, we add two generators. Let''s say, for the mapping **b** to **s,** the
+    first generator maps the input image from domain **b** to **s**, while the second
+    generator reconstructs the image from domain **s** to domain **b**. Intuitively,
+    we need a second generator to achieve the objective (one-to-one) mapping we talked
+    about in the previous sections. Mathematically, this can be represented as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/55e10729-cbc7-4f69-b8b5-b1ef79cef683.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/78432287-0789-4a32-9c18-9ef46abe80b7.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'While modeling, since this is a very hard constraint to satisfy, we add a reconstruction
+    loss. Reconstruction loss is given as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/7967859e-4513-4b97-86c1-4a74e0255488.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'Now, the usual GAN loss that is required to generate fake images of another
+    domain is given by the following equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/f5c80320-09bc-4d6a-8d6b-b94c42ec5f99.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'For each mapping, the generator receives two losses:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The reconstruction loss, which tries to see how well we can map the generated
+    image to its original domain
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: The usual GAN loss, which is for the task of fooling the discriminator
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: In this case, the discriminator is the usual discriminator, with the loss that
+    we mentioned in the section of *Training GANs*. Let's denote it by using ![](img/ab0bc834-4b50-4fd0-a928-30a465dfbe1c.png).
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The total generator and discriminator loss is given by the following equation:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/3a5e2a5b-5eba-4322-b245-4ed3e71702fb.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: '![](img/1571492e-824a-4eed-846e-caa3fe9f0a69.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Building a DiscoGAN model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The base datasets in this problem are obtained from the `edges2handbags` ([https://people.eecs.berkeley.edu/~tinghuiz/projects/pix2pix/datasets/edges2handbags.tar.gz](https://people.eecs.berkeley.edu/~tinghuiz/projects/pix2pix/datasets/edges2handbags.tar.gz)) and
+    `edges2shoes` ([https://people.eecs.berkeley.edu/~tinghuiz/projects/pix2pix/datasets/edges2shoes.tar.gz](https://people.eecs.berkeley.edu/~tinghuiz/projects/pix2pix/datasets/edges2shoes.tar.gz))
+    datasets. Each image that's present in these datasets contain two sub-images.
+    One is the colored image of the object, while the other is the image of the edges
+    of the corresponding color image.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Follow the steps to build a DiscoGAN model:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'First, resize and crop the images in this dataset to obtain the handbag and
+    shoe images:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Save the images in the corresponding folders of `bags` and `shoes`. Some of
+    the sample images are shown as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '| ![](img/eaab41c1-360b-48f1-b667-fd83e0169c31.png) | ![](img/50d09e05-b3a9-4323-a25d-c6b20b021356.png)
+    | ![](img/db30ccae-c0fe-43df-bd2c-404654975f3b.png) | ![](img/7f0fbff0-68c3-4714-a612-fa2bf1beefb6.png)
+    |'
+  prefs: []
+  type: TYPE_TB
+- en: '| Shoes |  | Bags |  |'
+  prefs: []
+  type: TYPE_TB
+- en: 'Implement the `generator` function with  4 convolutional layers followed by
+    4 convolutional transpose (or deconv) layers.The kernel size used in this scenario
+    is 4, while the `stride` is `2` and `1` for the convolutional and deconv layers,
+    respectively. Leaky Relu is used as activation function in all the layers. Code
+    for the function is as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Define the discriminator using the parameters that we mentioned previously
+    in section *Fundamental Units of a DiscoGAN*:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Use the following `define_network` function, which defines the two generators
+    and two discriminator for each domain. In the function, the definition of  `generator` and `discriminator` remains
+    the same as what we defined by using functions in the previous step. However,
+    for DiscoGANs, the function defines one `generator` that generates fake images
+    in another domain, and one `generator` that does the reconstruction. Also, the `discriminators` are
+    defined for both real and fake images in each domain. Code the function is as
+    follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Let''s define the `loss` function that we defined previously in *DiscoGAN modeling*
+    section. Following function `define_loss` defines the reconstruction loss based
+    on the Euclidean distance between the reconstructed and original image. To generate
+    the GAN and discriminator loss, the function uses the cross entropy function:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Use the  `AdamOptimizer` that was defined in [Chapter 3](60549866-497e-4dfa-890c-6651f34cf8e4.xhtml), *Sentiment
+    Analysis in Your Browser Using TensorFlow.js*, of the book and implement the following `define_optimizer`
+    function as follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'For debugging, write the summary into a logging file. While you can add anything
+    to the summary, the function `summary_` below adds all of the losses just to observe
+    the curves on how various losses change over time. Code for the function is as
+    follows:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Define the following parameters for training the model:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Batch Size: 256'
+  prefs:
+  - PREF_UL
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Learning rate: 0.0002'
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Epochs = 100,000 (use more if you are not getting the desired result)
+  prefs:
+  - PREF_IND
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Use the following code to train the model. Here is the brief explanation of
+    what it does:'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: For each Epoch, the code obtains the mini batch images of both shoes and bags.
+    It passes the mini batch through the model to update the discriminator loss first.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Samples a mini batch again for both shoes and bags and updates the generator
+    loss keeping discriminator parameters fixed.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: For every 10 epochs, it writes a summary to Tensorboard.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: For every 1000 epochs, it randomly samples 1 image from both bags and shoes
+    dataset and saves the reconstructed and fake images for visualization purposes
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Also, for every 1000 epochs, it saves the model which can be helpful if you
+    want to restore training at some point.
+  prefs:
+  - PREF_IND
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: We carried out the training on one GTX 1080 graphics card, which took a significant
+    amount of time. Highly recommended to use a GPU with better processing than GTX
+    1080 if possible.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, we first looked at what GANs are. They are a new kind of generative
+    model that helps us to generate new images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: We also touched upon other kinds of generative models, such as Variational Auto-encoders
+    and PixelRNN, to get an overview of different kinds of generative models. We also
+    talked about different kinds of GANs to discuss the progress that had been made
+    in this space since the first paper on GANs was published in 2014.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Then, we learned about DiscoGANs, a new type of GAN that can help us to learn
+    about cross- domain relationships. Specifically, in this chapter, our focus was
+    on building a model to generate handbag images from shoes and vice versa.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Finally, we learned about the architecture of DiscoGANs and how they differ
+    from usual GANs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, we will learn how to implement capsule networks on the
+    Fashion MNIST dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Questions
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Can you change the training parameters like learning rate, batch size and observe
+    the changes in quality of the reconstructed and fake images?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Can you visualize the stored summary in Tensorboard to understand the learning
+    process?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Can you think of other datasets which can be used for Style transfer?
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL

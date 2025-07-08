@@ -1,0 +1,952 @@
+- en: Image Classification Using TensorFlow Hub
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: We have discussed the image classification task in all of the previous chapters
+    of this book. We have seen how it is possible to define a convolutional neural
+    network by stacking several convolutional layers and how to train it using Keras.
+    We also looked at eager execution and saw that using AutoGraph is straightforward.
+  prefs: []
+  type: TYPE_NORMAL
+- en: So far, the convolutional architecture used has been a LeNet-like architecture,
+    with an expected input size of 28 x 28, trained end to end every time to make
+    the network learn how to extract the correct features to solve the fashion-MNIST
+    classification task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building a classifier from scratch, defining the architecture layer by layer,
+    is an excellent didactical exercise that allows you to experiment with how different
+    layer configurations can change the network performance. However, in real-life
+    scenarios, the amount of data available to train a classifier is often limited.
+    Gathering clean and correctly labeled data is a time-consuming process, and collecting
+    a dataset with thousands of samples is tough. Moreover, even when the dataset
+    size is adequate (thus, we are in a big data regime), training a classifier on
+    it is a slow process; the training process might require several hours of GPU
+    time since architectures more complicated than our LeNet-like architecture are
+    necessary to achieve satisfactory results. Different architectures have been developed
+    over the years, all of them introducing some novelties that have allowed the correct
+    classification of color images with a resolution higher than 28 x 28.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Academia and industry release new classification architectures to improve the
+    state of the art year on year. Their performance for an image classification task
+    is measured by looking at the top-1 accuracy reached by the architecture when
+    trained and tested on massive datasets such as ImageNet.
+  prefs: []
+  type: TYPE_NORMAL
+- en: ImageNet is a dataset of over 15 million high-resolution images with more than
+    22,000 categories, all of them manually labeled. The **ImageNet Large Scale Visual
+    Recognition Challenge** (**ILSVRC **) is a yearly object detection and classification
+    challenge that uses a subset of ImageNet of 1,000 images for 1,000 categories.
+    The dataset used for the computation is made up of roughly 1.2 million training
+    images, 50,000 validation images, and 100,000 testing images.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To achieve impressive results on an image classification task, researchers found
+    that deep architectures were needed. This approach has a drawback—the deeper the
+    network, the higher the number of parameters to train. But a higher number of
+    parameters implies that a lot of computing power is needed (and computing power
+    costs!). Since academia and industry have already developed and trained their
+    models, why don't we take advantage of their work to speed up our development
+    without reinventing the wheel every time?
+  prefs: []
+  type: TYPE_NORMAL
+- en: In this chapter, we'll discuss transfer learning and fine-tuning, showing how
+    they can speed up development. TensorFlow Hub is used as a tool to quickly get
+    the models we need and speed up development.
+  prefs: []
+  type: TYPE_NORMAL
+- en: By the end of this chapter, you will know how to transfer the knowledge embedded
+    in a model to a new task, using TensorFlow Hub easily, thanks to its Keras integration.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this chapter, we will cover the following topics:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Getting the data
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Transfer learning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Fine-tuning
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Getting the data
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The task we are going to solve in this chapter is a classification problem
+    on a dataset of flowers, which is available in **tensorflow-datasets** (**tfds**).
+    The dataset''s name is `tf_flowers` and it consists of images of five different
+    flower species at different resolutions. Using `tfds`, gathering the data is straightforward,
+    and we can get the dataset''s information by looking at the `info` variable returned
+    by the `tfds.load` invocation, as shown here:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE0]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The preceding code produces the following dataset description:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE1]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'There is a single split train with 3,670 labeled images. The image resolution
+    is not fixed, as we can see from the `None` value in the height and width position
+    of the `Image` shape feature. There are five classes, as expected. Looking at
+    the `download` folder of the dataset (default to `~/tensorflow_datasets/downloads/extracted`),
+    we can find the dataset structure and look at the labels, which are as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Daisy
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Dandelion
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Roses
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Sunflowers
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Tulips
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'Every image of the dataset is licensed under a Creative Commons by attribution
+    license. As we can see from the `LICENSE.txt` file, the dataset has been gathered
+    by scraping Flickr. The following is an image sampled from the dataset:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/ab6fc0e7-df71-4117-a2db-4449845c69a7.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Image labeled as sunflower. Filesunflowers/2694860538_b95d60122c_m.jpg - CC-BY
+    by Ally Aubry ([https://www.flickr.com/photos/allyaubryphotography/2694860538/](https://www.flickr.com/photos/allyaubryphotography/2694860538/)).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Very often, datasets are not made of pictures where only the labeled subject
+    appears, and these kinds of datasets are perfect for developing algorithms that
+    are robust at handling noise in the data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The dataset is ready, although it is not correctly split following the guidelines.
+    In fact, there is only a single split when, instead, three splits (train, validation,
+    and test) are recommended. Let''s create the three non-overlapping splits, by
+    creating three separate `tf.data.Dataset` objects. We''ll use the `take` and `skip` methods of
+    the dataset object:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE2]'
+  prefs: []
+  type: TYPE_PRE
+- en: Alright. Now we have the required three splits, and we can start using them
+    to train, evaluate, and test our classification model, which will be built by
+    reusing a model that someone else trained on a different dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transfer learning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Only academia and some industries have the required budget and computing power
+    to train an entire CNN from scratch, starting from random weights, on a massive
+    dataset such as ImageNet.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Since this expensive and time-consuming work has already been done, it is a
+    smart idea to reuse parts of the trained model to solve our classification problem.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In fact, it is possible to transfer what the network has learned from one dataset
+    to a new one, thereby transferring the knowledge.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Transfer learning is the process of learning a new task by relying on a previously
+    learned task: the learning process can be faster, more accurate, and require less
+    training data.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: The transfer learning idea is bright, and it can be successfully applied when
+    using convolutional neural networks.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In fact, all convolutional architectures for classification have a fixed structure,
+    and we can reuse parts of them as building blocks for our applications. The general
+    structure is composed of three elements:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Input layer**: The architecture is designed to accept an image with a precise
+    resolution. The input resolution influences all of the architecture; if the input
+    layer resolution is high, the network will be deeper.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Feature extractor**: This is the set of convolution, pooling, normalizations,
+    and every other layer that is in between the input layer and the first dense layer.
+    The architecture learns to summarize all the information contained in the input
+    image in a low-dimensional representation (in the diagram that follows, an image
+    with a size of 227 x 227 x 3 is projected into a 9216-dimensional vector).'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '**Classification layers**: These are a stack of fully connected layers—a fully-connected
+    classifier built on top of the low-dimensional representation of the input extracted
+    by the classifier:'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: '![](img/3a3d0051-3db8-4c0e-a21a-fb2b60674bea.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: The AlexNet architecture; the first deep neural network used to win the ImageNet
+    challenge. Like every other convolutional neural network for classification, its
+    structure is fixed. The input layer consists of an expected input image with a
+    resolution of 227 x 227 x 227\. The feature extractor is a series of convolutional
+    layers followed by max-pooling to reduce the resolution while going deeper; the
+    last feature map 6 x 6 x 256, is reshaped in a 6 * 6 * 256 = 9216 feature vector.
+    The classification layers are a traditional fully-connected architecture, which
+    ends with 1,000 output neurons since the network was trained on 1,000 classes.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Transferring the knowledge of a trained model to a new one requires us to remove
+    the task-specific part of the network (which is the classification layers) and
+    keep the CNN fixed as the feature extractor.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This approach allows us to use the feature extractor of a pre-trained model
+    as a building block for our new classification architecture. When doing transfer
+    learning, the pre-trained model is kept constant, while only the new classification
+    layers attached on top of the feature vector are trainable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'In this way, we can train a classifier by reusing the knowledge learned on
+    a massive dataset and embedding it into the model. This leads to two significant
+    advantages:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: It speeds up the training process since the number of trainable parameters is
+    low
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: It potentially mitigates the overfitting problem since the extracted features
+    come from a different domain and the training process can't make them change
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'So far, so good. The transfer learning idea is bright, and it can help to deal
+    with several real-life problems when datasets are small and resources are constrained.
+    The only missing part, which also happens to be the most important one, is: where
+    can we find pre-trained models?'
+  prefs: []
+  type: TYPE_NORMAL
+- en: For this reason, the TensorFlow team created TensorFlow Hub.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TensorFlow Hub
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The description of TensorFlow Hub that can be found on the official documentation
+    describes what TensorFlow Hub is and what it''s about pretty well:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'TensorFlow Hub is a library for the publication, discovery, and consumption
+    of reusable parts of machine learning models. A *module* is a self-contained piece
+    of a TensorFlow graph, along with its weights and assets, that can be reused across
+    different tasks in a process known as transfer learning. Transfer learning can:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '- Train a model with a smaller dataset'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '- Improve generalization, and'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '- Speed up training'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Thus, TensorFlow Hub is a library we can browse while a looking for a pre-trained
+    model that best fits our needs. TensorFlow Hub comes both as a website we can
+    browse ([https://tfhub.dev](https://tfhub.dev)) and as a Python package.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Installing the Python package allows us to have perfect integration with the
+    modules loaded on TensorFlow Hub and TensorFlow 2.0:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE3]'
+  prefs: []
+  type: TYPE_PRE
+- en: That is all we need to do to get access to a complete library of pre-trained
+    models compatible and integrated with TensorFlow.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The TensorFlow 2.0 integration is terrific—we only need the URL of the module
+    on TensorFlow Hub to create a Keras layer that contains the parts of the model
+    we need!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Browsing the catalog on [https://tfhub.dev](https://tfhub.dev) is intuitive.
+    The screenshot that follows shows how to use the search engine to find any module
+    that contains the string `tf2` (this is a fast way to find an uploaded module
+    that is TensorFlow 2.0 compatible and ready to use):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/06f478e5-a08c-448d-9c33-b75878e7632b.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: 'The TensorFlow Hub website ([https://tfhub.dev](https://tfhub.dev)): it is
+    possible to search for modules by query string (in this case, tf2) and refine
+    the results by using the filter column on the left.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'There are models in both versions: feature vector-only and classification,
+    which means a feature vector plus the trained classification head. The TensorFlow
+    Hub catalog already contains everything we need for transfer learning. In the
+    next section, we will see how easy it is to integrate the Inception v3 module
+    from TensorFlow Hub into TensorFlow 2.0 source code, thanks to the Keras API.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using Inception v3 as a feature extractor
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: The complete analysis of the Inception v3 architecture is beyond the scope of
+    this book; however, it is worth noting some peculiarities of this architecture
+    so as to use it correctly for transfer learning on a different dataset.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Inception v3 is a deep architecture with 42 layers, which won the **ImageNet
+    Large Scale Visual Recognition Competition** (**ILSVRC**) in 2015\. Its architecture
+    is shown in the following screenshot:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/0ef8f6ae-c05d-4b57-9342-033cc828716f.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Inception v3 architecture. The model architecture is complicated and very deep.
+    The network accepts a 299 x 299 x 3 image as input and produces an 8 x 8 x 2,048
+    feature map, which is the input of the final part; that is, a classifier trained
+    on 1,000 +1 classes of ImageNet. Image source: [https://cloud.google.com/tpu/docs/inception-v3-advanced](https://cloud.google.com/tpu/docs/inception-v3-advanced).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The network expects an input image with a resolution of 299 x 299 x 3 and produces
+    an 8 x 8 x 2,048 feature map. It has been trained on 1,000 classes of the ImageNet
+    dataset, and the input images have been scaled in the [0,1] range.
+  prefs: []
+  type: TYPE_NORMAL
+- en: All this information is available on the module page, reachable by clicking
+    on the search result on the TensorFlow Hub website. Unlike the official architecture
+    shown previously, on this page, we can find information about the extracted feature
+    vector. The documentation says that it is a 2,048-feature vector, which means
+    that the feature vector used is not the flattened feature map (that would have
+    been an 8 * 8 * 2048 dimensional vector) but one of the fully-connected layers
+    placed at the end of the network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: It is essential to know the expected input shape and the feature vector size
+    to feed the network with correctly resized images and to attach the final layers,
+    knowing how many connections there would be between the feature vector and the
+    first fully-connected layer.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'More importantly, it is necessary to know on which dataset the network was
+    trained since transfer learning works well if the original dataset shares some
+    features with the target (new) dataset. The following screenshot shows some samples
+    gathered from the dataset used for the ILSVRC in 2015:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '![](img/29f5f1af-d36c-4d83-83fa-08fd9e447366.png)'
+  prefs: []
+  type: TYPE_IMG
+- en: Samples gathered from the dataset used in the ILSVRC 2015 competition. High-resolution
+    images, with complex scenes and rich details.
+  prefs: []
+  type: TYPE_NORMAL
+- en: As you can see, the images are high-resolution images of various scenes and
+    subjects, rich in detail. The variance of details and subjects is high. Therefore,
+    we expect the feature extractor learned to extract a feature vector that is a
+    good summary of images with these features. This means that if we feed the pre-trained
+    network with an image that contains similar features to the one the network saw
+    during the training, it will extract a meaningful representation as a feature
+    vector. On the contrary, if we fed the network with an image that does not contain
+    similar features (an image that, for instance, is not rich in detail like ImageNet,
+    such as a simple image of a geometric shape), the feature extractor would be unlikely
+    to extract a good representation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The feature extractor of Inception v3 is certainly good enough to be used as
+    a building block for our flowers classifier.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Adapting data to the model
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The information found on the module page also tells us that it is necessary
+    to add a pre-processing step to the dataset split built earlier: the `tf_flower`
+    images are `tf.uint8`, which means they are in the [0,255] range, while Inception
+    v3 has been trained on images in the [0,1] range, which are thus `tf.float32`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE4]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'Moreover, the Inception architecture requires a fixed input shape of 299 x
+    299 x 3\. Therefore, we have to ensure that all our images are correctly resized
+    to the expected input size:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE5]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'All the required pre-processing operations have been defined, so we are ready
+    to apply them to the `train`, `validation`, and `test` splits:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE6]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'To summarize: the target dataset is ready; we know which model we want to use
+    as a feature extractor;  the module information page told us that some preprocessing
+    steps were required to make the data compatible with the model.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Everything is set up to design the classification model that uses Inception
+    v3 as the feature extractor. In the next section, the extreme ease of use of the `tensorflow-hub`
+    module is shown, thanks to its Keras integration.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Building the model – hub.KerasLayer
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'The TensorFlow Hub Python package has already been installed, and this is all
+    we need to do:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Download the model parameters and graph description
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Restore the parameters in its graph
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create a Keras layer that wraps the graph and allows us to use it like any other
+    Keras layer we are used to using
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'These three points are executed under the hook of the `KerasLayer tensorflow-hub`
+    function:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE7]'
+  prefs: []
+  type: TYPE_PRE
+- en: The `hub.KerasLayer` function creates `hub.keras_layer.KerasLayer`, which is
+    a `tf.keras.layers.Layer` object. Therefore, it can be used in the same way as
+    any other Keras layer—this is powerful!
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'This strict integration allows us to define a model that uses the Inception
+    v3 as a feature extractor and it has two fully connected layers as classification
+    layers in very few lines:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE8]'
+  prefs: []
+  type: TYPE_PRE
+- en: The model definition is straightforward, thanks to the Keras integration. Everything
+    is set up to define the training loop, measure the performance, and see whether
+    the transfer learning approach gives us the expected classification results.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Unfortunately, the process of downloading a pre-trained model from TensorFlow Hub
+    is fast only on high-speed internet connections. A progress bar that shows the
+    download progress is not enabled by default and, therefore, a lot of time could
+    be required (depending on the internet speed) to build the model for the first
+    time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'To enable a progress bar, using the `TFHUB_DOWNLOAD_PROGRESS` environment variable is
+    required by `hub.KerasLayer`. Therefore, on top of the script, the following snippet
+    can be added, which defines this environment variable and puts the value of 1
+    inside it; in this way, a handy progress bar will be shown on the first download:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE9]'
+  prefs: []
+  type: TYPE_PRE
+- en: Training and evaluating
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Using a pre-trained feature extractor allows us to speed up the training while
+    keeping the training loop, the losses, and optimizers unchanged, using the same
+    structure of every standard classifier train.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Since the dataset labels are `tf.int64` scalars, the loss that is going to
+    be used is the standard sparse categorical cross-entropy, setting the `from_logits`
+    parameter to `True`. As seen in the previous chapter, [Chapter 5](d4dd1390-8b84-4ec9-9610-769e3c8fdc55.xhtml), *Efficient
+    Data Input Pipelines and Estimator API, *setting this parameter to `True` is a
+    good practice since, in this way, it''s the loss function itself that applies
+    the softmax activation function, being sure to compute it in a numerically stable
+    way, and thereby preventing the loss becoming `NaN`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE10]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'The training loop produces the following output (cut to highlight only the
+    essential parts):'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE11]'
+  prefs: []
+  type: TYPE_PRE
+- en: After a single training epoch, we got a validation accuracy of 0.87, while the
+    training accuracy was even lower (0.83). But by the end of the tenth epoch, the
+    validation accuracy had even decreased (0.86), while the model was overfitting
+    the training data.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the *Exercises* section, you will find several exercises that use the previous
+    code as a starting point; the overfitting problem should be tackled from several
+    points of view, finding the best way to deal with it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Before starting the next main section, it's worth adding a simple performance
+    measurement that measures how much time is needed to compute a single training
+    epoch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training speed
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Faster prototyping and training is one of the strengths of the transfer learning
+    approach. One of the reasons behind the fact that transfer learning is often used
+    in industry is the financial savings that it produces, reducing both the development
+    and training time.
+  prefs: []
+  type: TYPE_NORMAL
+- en: To measure the training time, the Python `time` package can be used. `time.time()` returns
+    the current timestamp, allowing you to measure (in milliseconds) how much time
+    is needed to perform a training epoch.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The training loop of the previous section can thus be extended by adding the
+    time module import and the duration measurement:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE12]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'On average, running the training loop on a Colab notebook ([https://colab.research.google.com](https://colab.research.google.com))
+    equipped with an Nvidia k40 GPU, we obtain an execution speed as follows:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE13]'
+  prefs: []
+  type: TYPE_PRE
+- en: As shown in the next section, transfer learning using a pre-trained model as
+    a feature extractor gives a considerable speed boost.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Sometimes, using a pre-trained model as a feature extractor only is not the
+    best way to transfer knowledge from one domain to another, often because the domains
+    are too different and the features learned are useless for solving the new task.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In these cases, it is possible—and recommended—to not have a fixed-feature extractor
+    part but let the optimization algorithm change it, training the whole model end
+    to end.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fine-tuning
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Fine-tuning is a different approach to transfer learning. Both share the same
+    goal of transferring the knowledge learned on a dataset on a specific task to
+    a different dataset and a different task. Transfer learning, as shown in the previous
+    section, reuses the pre-trained model without making any changes to its feature
+    extraction part; in fact, it is considered a non-trainable part of the network.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Fine-tuning, instead, consists of fine-tuning the pre-trained network weights
+    by continuing backpropagation.
+  prefs: []
+  type: TYPE_NORMAL
+- en: When to fine-tune
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Fine-tuning a network requires having the correct hardware; backpropagating
+    the gradients through a deeper network requires you to load more information in memory.
+    Very deep networks have been trained from scratch in data centers with thousands
+    of GPUs. Therefore, prepare to lower your batch size to as low as 1, depending
+    on how much available memory you have.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Hardware requirements aside, there are other different points to keep in mind
+    when thinking about fine-tuning:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '**Dataset size**: Fine-tuning a network means using a network with a lot of
+    trainable parameters, and, as we know from the previous chapters, a network with
+    a lot of parameters is prone to overfitting.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If the target dataset size is small, it is not a good idea to fine-tune the
+    network. Using the network as a fixed-feature extractor will probably bring in
+    better results.
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: '**Dataset similarity**: If the dataset size is large (where large means with
+    a size comparable to the one the pre-trained model has been trained on) and it
+    is similar to the original one, fine-tuning the model is probably a good idea.
+    Slightly adjusting the network parameters will help the network to specialize
+    in the extraction of features that are specific to this dataset, while correctly
+    reusing the knowledge from the previous, similar dataset.'
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: If the dataset size is large and it is very different from the original, fine-tuning
+    the network could help. In fact, the initial solution of the optimization problem
+    is likely to be close to a good minimum when starting with a pre-trained model,
+    even if the dataset has different features to learn (this is because the lower
+    layers of the CNN usually learn low-level features that are common to every classification
+    task).
+  prefs:
+  - PREF_IND
+  type: TYPE_NORMAL
+- en: If the new dataset satisfies the similarity and size constraints, fine-tuning
+    the model is a good idea. One important parameter to look at closely is the learning
+    rate. When fine-tuning a pre-trained model, we suppose the model parameters are
+    good (and they are since they are the parameters of the model that achieved state-of-the-art
+    results on a difficult challenge), and, for this reason, a small learning rate
+    is suggested.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Using a high learning rate would change the network parameters too much, and
+    we don't want to change them in this way. Instead, using a small learning rate,
+    we slightly adjust the parameters to make them adapt to the new dataset, without
+    distorting them too much, thus reusing the knowledge without destroying it.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'Of course, if the fine-tuning approach is chosen, the hardware requirements
+    have to be kept in mind: lowering the batch size is perhaps the only way to fine-tune
+    very deep models when using a standard GPU to do the work.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: TensorFlow Hub integration
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: 'Fine-tuning a model downloaded from TensorFlow Hub might sound difficult; we
+    have to do the following:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Download the model parameters and graph
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Restore the model parameters in the graph
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Restore all the operations that are executed only during the training (activating
+    dropout layers and enabling the moving mean and variance computed by the batch
+    normalization layers)
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Attach the new layers on top of the feature vector
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: Train the model end to end
+  prefs:
+  - PREF_UL
+  type: TYPE_NORMAL
+- en: 'In practice, the integration of TensorFlow Hub and Keras models is so tight
+    that we can achieve all this by setting the `trainable` Boolean flag to `True`
+    when importing the model using `hub.KerasLayer`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE14]'
+  prefs: []
+  type: TYPE_PRE
+- en: Train and evaluate
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: What happens if we build the same model as in the previous chapter, [Chapter
+    5](d4dd1390-8b84-4ec9-9610-769e3c8fdc55.xhtml), *Efficient Data Input Pipelines
+    and Estimator API*, and we train it on the `tf_flower` dataset, fine-tuning the
+    weights?
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The model is thus the one that follows; please note how the learning rate of
+    the optimizer has been reduced from `1e-3` to `1e-5`:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '`(tf2)`'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE15]'
+  prefs: []
+  type: TYPE_PRE
+- en: 'In the following box, the first and last training epochs'' output is shown:'
+  prefs: []
+  type: TYPE_NORMAL
+- en: '[PRE16]'
+  prefs: []
+  type: TYPE_PRE
+- en: As expected, the test accuracy reached the constant value of 1; hence we overfitted
+    the training set. This was something expected since the `tf_flower` dataset is
+    smaller and simpler than ImageNet. However, to see the overfitting problem clearly,
+    we had to wait longer since having more parameters to train makes the whole learning
+    process extremely slow, especially compared to the previous train when the pre-trained
+    model was not trainable.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Training speed
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: By adding the time measurements as we did in the previous section, it is possible
+    to see how the fine-tuning process is extremely slow compared to transfer learning,
+    using the model as a non-trainable feature extractor.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In fact, if, in the previous scenario, we reached an average training speed
+    per epoch of about 16.2 seconds, now we have to wait, on average, 60.04 seconds,
+    which is a 370% slowdown!
+  prefs: []
+  type: TYPE_NORMAL
+- en: Moreover, it is interesting to see that at the end of the first epoch, we reached
+    the same validation accuracy as was achieved in the previous training and that,
+    despite overfitting the training data, the validation accuracy obtained at the
+    end of the tenth epoch is greater than the previous one.
+  prefs: []
+  type: TYPE_NORMAL
+- en: This simple experiment showed how using a pre-trained model as a feature extractor
+    could lead to worse performance than fine-tuning it. This means that the features
+    the network learned to extract on the ImageNet dataset are too different from
+    the features that would be needed to classify the flowers, dataset correctly.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Choosing whether to use a pre-trained model as a fixed-feature extractor or
+    to fine-tune it is a tough decision, involving a lot of trade-offs. Understanding
+    whether the pre-trained model extracts features that are correct for the new task
+    is complicated; merely looking at dataset size and similarity is a guideline,
+    but in practice, this decision requires several tests.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Of course, it is better to use the pre-trained model as a feature extractor
+    first, and, if the new model's performance is already satisfactory, there is no
+    need to waste time trying to fine-tune it. If the results are not satisfying,
+    it is worth trying a different pre-trained model and, as a last resort, trying
+    the fine-tuning approach (because this requires more computational power, and
+    it is expansive).
+  prefs: []
+  type: TYPE_NORMAL
+- en: Summary
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: In this chapter, the concepts of transfer learning and fine-tuning were introduced.
+    Training a very deep convolutional neural network from scratch, starting from
+    random weights, requires the correct equipment, which is only found in academia
+    and some big companies. Moreover, it can be a costly process since finding the
+    architecture that achieves state-of-the-art results on a classification task requires
+    multiple models to be designed and trained and for each of them to repeat the
+    training process to search for the hyperparameter configuration that achieves
+    the best results.
+  prefs: []
+  type: TYPE_NORMAL
+- en: For this reason, transfer learning is the recommended practice to follow. It
+    is especially useful when prototyping new solutions since it speeds up the training
+    time and reduces the training costs.
+  prefs: []
+  type: TYPE_NORMAL
+- en: TensorFlow Hub is the online library offered by the TensorFlow ecosystem. It
+    contains an online catalog that anyone can browse to search for a pre-trained
+    model ready to be used. The models come with all the required information to use
+    them, from the input size to the feature vector size, through to the dataset that
+    has been used to train the model and its data type. All this information can be
+    used to design the correct data input pipeline that correctly feeds the network
+    with the right data (shape and data type).
+  prefs: []
+  type: TYPE_NORMAL
+- en: The Python package that comes with TensorFlow Hub is perfectly integrated with
+    TensorFlow 2.0 and the Keras ecosystem, allowing you to download and use a pre-trained
+    model just by knowing its URL, which can be found on the Hub website.
+  prefs: []
+  type: TYPE_NORMAL
+- en: The `hub.KerasLayer` function not only allows you to download and load a pre-trained
+    model but also offers the capability of doing both transfer learning and fine-tuning
+    by toggling the `trainable` flag.
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the *Transfer Learning* and *Fine-Tuning* sections, we developed our classification
+    models and trained them using a custom training loop. TensorFlow Datasets has
+    been used to easily download, process, and get the `tf.data.Dataset` objects that have
+    been used to utilize the processing hardware in its entirety, by defining high-efficiency
+    data input pipelines.
+  prefs: []
+  type: TYPE_NORMAL
+- en: 'The final part of this chapter was dedicated to exercises: most of the code
+    in the chapter has been left incomplete deliberately, so as to allow you to get
+    your hands dirty and learn more effectively.'
+  prefs: []
+  type: TYPE_NORMAL
+- en: Classification models built using convolutional architectures are used everywhere,
+    from industry to smartphone applications. Classifying an image by looking at its
+    whole content is useful, but sometimes its usage is limited (images more often
+    than not contain more than one object). For this reason, other architectures that
+    use convolutional neural networks as building blocks have been developed. These
+    architectures can localize and classify more than one object per image, and these
+    are the architectures that are used in self-driving cars and many other exciting
+    applications!
+  prefs: []
+  type: TYPE_NORMAL
+- en: In the next chapter, [Chapter 7](6bcb3061-365e-4bce-bb8d-14525d8ada3d.xhtml), *Introduction
+    to Object Detection*, object localization and classification problems are analyzed
+    and a model able to localize objects in images is built from scratch using TensorFlow
+    2.0.
+  prefs: []
+  type: TYPE_NORMAL
+- en: Exercises
+  prefs:
+  - PREF_H1
+  type: TYPE_NORMAL
+- en: Describe the concept of transfer learning.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: When can the transfer learning process bring good results?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What are the differences between transfer learning and fine-tuning?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: If a model has been trained on a small dataset with low variance (similar examples),
+    is it an excellent candidate to be used as a fixed-feature extractor for transfer
+    learning?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'The flower classifier built in the *transfer learning* section has no performance
+    evaluation on the test dataset: add it.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Extend the flower classifier source code, making it log the metrics on TensorBoard.
+    Use the summary writers that are already defined.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Extend the flower classifier to save the training status using a checkpoint
+    (and its checkpoint manager).
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Create a second checkpoint for the model that reached the highest validation
+    accuracy.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Since the model suffers from overfitting, a good test is to reduce the number
+    of neurons of the classification layer; try and see whether this reduces the overfitting
+    problem.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Add a dropout layer after the first fully connected layer and measure the performance
+    on several runs using different dropout keep probability. Select the model that
+    reached the highest validation accuracy.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: 'Using the same model defined for the flower classifier, create a new training
+    script that uses the Keras training loop: do not write the custom training loop,
+    but use Keras instead.'
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Convert the Keras model created in the previous point (11) to an estimator.
+    Train and evaluate the model.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Use the TensorFlow Hub website to find a lightweight pre-trained model for image
+    classification, trained on a high-variance dataset. Use the feature extractor
+    version to build a fashion-MNIST classifier.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Was the idea of using a model trained on a complex dataset as the feature extractor
+    for a fashion-MNIST classifier a good one? Are the extracted features meaningful?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Apply fine-tuning to the previously built fashion-MNIST classifier.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: Did the process of fine-tuning a complex dataset to a simple one help us to
+    achieve better results with respect to the ones obtained using transfer learning?
+    If yes, why? If not, why?
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
+- en: What happens if a higher learning rate is used to fine-tune a model? Try it.
+  prefs:
+  - PREF_OL
+  type: TYPE_NORMAL
