@@ -1,7 +1,9 @@
 - en: DDPG and TD3 Applications
+  id: totrans-0
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: DDPG和TD3的应用
 - en: 'In the previous chapter, we concluded a comprehensive overview of all the major
     policy gradient algorithms. Due to their capacity to deal with continuous action
     spaces, they are applied to very complex and sophisticated control systems. Policy
@@ -20,27 +22,39 @@
     deterministic policy gradient** (**DDPG**), and a successive version of it, known
     as **twin delayed deep deterministic policy gradient** (**TD3**). You''ll get
     a sense of their capabilities by implementing and applying them to a new environment.'
+  id: totrans-1
   prefs: []
   type: TYPE_NORMAL
+  zh: 在前一章中，我们对所有主要的策略梯度算法进行了全面的概述。由于它们能够处理连续的动作空间，因此被应用于非常复杂和精密的控制系统中。策略梯度方法还可以使用二阶导数，就像TRPO中所做的那样，或采用其他策略，以通过防止意外的坏行为来限制策略更新。然而，处理此类算法时的主要问题是它们效率较低，需要大量经验才能有希望掌握任务。这个缺点来源于这些算法的“在策略”（on-policy）特性，这使得每次策略更新时都需要新的经验。在本章中，我们将介绍一种新的“离策略”（off-policy）演员-评论家算法，它在探索环境时使用随机策略，同时学习一个目标确定性策略。由于其学习确定性策略的特点，我们将这些方法称为确定性策略梯度方法。我们将首先展示这些算法是如何工作的，并且还将展示它们与Q学习方法的密切关系。然后，我们将介绍两种确定性策略梯度算法：**深度确定性策略梯度**（**DDPG**），以及它的一个后续版本，称为**双延迟深度确定性策略梯度**（**TD3**）。通过在新环境中实现和应用这些算法，你将感受到它们的能力。
 - en: 'The following topics will be covered in this chapter:'
+  id: totrans-2
   prefs: []
   type: TYPE_NORMAL
+  zh: 本章将涵盖以下主题：
 - en: Combining policy gradient optimization with Q-learning
+  id: totrans-3
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 将策略梯度优化与Q学习结合
 - en: Deep deterministic policy gradient
+  id: totrans-4
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 深度确定性策略梯度
 - en: Twin delayed deep deterministic policy gradient (TD3)
+  id: totrans-5
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 双延迟深度确定性策略梯度（TD3）
 - en: Combining policy gradient optimization with Q-learning
+  id: totrans-6
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 将策略梯度优化与Q学习结合
 - en: 'Throughout this book, we approach two main types of model-free algorithms:
     the ones based on the gradient of the policy, and the ones based on the value
     function. From the first family, we saw REINFORCE, actor-critic, PPO, and TRPO.
@@ -54,8 +68,10 @@
     and off-policy in the previous chapters, but it is important to understand them
     well, in order to actually appreciate the algorithms that will be introduced in
     this chapter.'
+  id: totrans-7
   prefs: []
   type: TYPE_NORMAL
+  zh: 在本书中，我们介绍了两种主要的无模型算法：基于策略梯度的算法和基于价值函数的算法。在第一类中，我们看到了REINFORCE、演员-评论家、PPO和TRPO。在第二类中，我们看到了Q学习、SARSA和DQN。除了这两类算法学习策略的方式（即，策略梯度算法使用随机梯度上升，朝着估计回报的最陡增量方向前进，而基于价值的算法为每个状态-动作对学习一个动作值，然后构建策略）之外，还有一些关键的差异使我们能够偏好某一类算法。这些差异包括算法的“在策略”或“离策略”特性，以及它们处理大动作空间的倾向。我们已经在前几章讨论了在策略和离策略之间的区别，但理解它们非常重要，这样我们才能真正理解本章将介绍的算法。
 - en: Off-policy learning is able to use previous experiences in order to refine the
     current policy, despite the fact that that experience comes from a different distribution.
     DQN benefits from this by storing all the memories that the agent had throughout
@@ -68,8 +84,10 @@
     learn a task. In cases where the acquisition of new samples is expensive or very
     difficult to do, this difference matters a lot, and choosing off-policy algorithms
     could be vital.
+  id: totrans-8
   prefs: []
   type: TYPE_NORMAL
+  zh: 离策略学习能够利用以前的经验来改进当前的策略，尽管这些经验来自不同的分布。DQN通过将智能体在其生命周期中所有的记忆存储在回放缓存中，并从缓存中采样小批量数据来更新目标策略，从中获益。与此相对的是在策略学习，它要求经验来自当前的策略。这意味着不能使用旧的经验，每次更新策略时，必须丢弃旧数据。因此，由于离策略学习可以重复使用数据，它所需的环境交互次数较少。对于那些获取新样本既昂贵又非常困难的情况，这一差异尤为重要，选择离策略算法可能是至关重要的。
 - en: The second factor is a matter of action spaces. As we saw in [Chapter 7](4148a47d-a2c7-44da-ba6d-76ae4d8bec2c.xhtml),
     *TRPO and PPO Implementation*, policy gradient algorithms have the ability to
     deal with very large and continuous action spaces. Unfortunately, the same does
@@ -77,18 +95,24 @@
     maximization across all the action space, and whenever this is very large or continuous,
     it is intractable. Thus, Q-learning algorithms can be applied to arbitrarily complex
     problems (with a very large state space) but their action space has to be limited.
+  id: totrans-9
   prefs: []
   type: TYPE_NORMAL
+  zh: 第二个因素是动作空间的问题。正如我们在[第7章](4148a47d-a2c7-44da-ba6d-76ae4d8bec2c.xhtml)《*TRPO和PPO实现*》中所看到的，策略梯度算法能够处理非常大且连续的动作空间。不幸的是，Q学习算法并不具备这一能力。为了选择一个动作，它们必须在整个动作空间中进行最大化，当动作空间非常大或连续时，这种方法是不可行的。因此，Q学习算法可以应用于任意复杂的问题（具有非常大的状态空间），但其动作空间必须受到限制。
 - en: 'In conclusion, none of the previous algorithms are always preferred over others,
     and the choice is mostly task dependent. Nevertheless, their advantages and disadvantages
     are quite complementary, and thus the question arises: Is it possible to combine
     the benefits of both families into a single algorithm?'
+  id: totrans-10
   prefs: []
   type: TYPE_NORMAL
+  zh: 总之，之前的算法中没有哪一个总是优于其他算法，选择算法通常依赖于任务的具体需求。然而，它们的优缺点是相互补充的，因此问题就出现了：是否有可能将两种算法的优点结合成一个单一的算法？
 - en: Deterministic policy gradient
+  id: totrans-11
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 确定性策略梯度
 - en: Designing an algorithm that is both off-policy and able to learn stable policies
     in high-dimensional action spaces is challenging. DQN already solves the problem
     of learning a stable deep neural network policy in off-policy settings. An approach
@@ -99,16 +123,23 @@
     actions, because the number of possible discrete actions increases exponentially
     with the degree of freedom of the agent. Moreover, this technique isn't applicable
     in tasks that need more fine-grained control. Thus, we need to find an alternative.
+  id: totrans-12
   prefs: []
   type: TYPE_NORMAL
+  zh: 设计一个既是离策略又能够在高维动作空间中学习稳定策略的算法是具有挑战性的。DQN已经解决了在离策略设置中学习稳定深度神经网络策略的问题。使DQN适应连续动作的一种方法是对动作空间进行离散化。例如，如果一个动作的值在0和1之间，则可以将其离散化为11个值（0,
+    0.1, 0.2, .., 0.9, 1.0），并使用DQN预测这些值的概率。然而，这种解决方案对于动作数量较多的情况并不可行，因为可能的离散动作数随着智能体自由度的增加而呈指数增长。此外，这种技术不适用于需要更精细控制的任务。因此，我们需要找到一个替代方案。
 - en: 'A valuable idea is to learn a deterministic actor-critic. It has a close relationship
     with Q-learning. If you remember, in Q-learning, the best action is chosen in
     order to maximize the approximated Q-function among all of the possible actions:'
+  id: totrans-13
   prefs: []
   type: TYPE_NORMAL
+  zh: 一个有价值的想法是学习一个确定性的演员-评论家模型。它与Q学习有着密切的关系。如果你还记得，在Q学习中，为了最大化所有可能动作中的近似Q函数，最佳动作被选择：
 - en: '![](img/37b1947e-366f-4dc0-aae8-cf6d48068ed8.png)'
+  id: totrans-14
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/37b1947e-366f-4dc0-aae8-cf6d48068ed8.png)'
 - en: 'The idea is to learn a deterministic ![](img/20d849ba-a9be-4cb2-968d-b246090126c4.png)
     policy that approximates ![](img/fc729a7a-f36c-4f89-bbc2-7503992c48d5.png). This
     overcomes the problem of computing a global maximization at every step, and opens
@@ -123,23 +154,33 @@
     that categorizes RL algorithms, we place DPG, DDPG, and TD3 in the intersection
     between policy gradient and Q-learning algorithms, as in the following diagram.
     For now, let''s focus on the foundation of DPGs and how they work:'
+  id: totrans-15
   prefs: []
   type: TYPE_NORMAL
+  zh: 这个想法是学习一个确定性的 ![](img/20d849ba-a9be-4cb2-968d-b246090126c4.png) 策略，它逼近 ![](img/fc729a7a-f36c-4f89-bbc2-7503992c48d5.png)。这克服了在每一步计算全局最大化的问题，并且为将其扩展到非常高维度和连续动作的情况打开了可能性。**确定性策略梯度**（**DPG**）成功地将这一概念应用于一些简单的问题，例如山地车、摆锤和章鱼臂。DPG之后，DDPG扩展了DPG的思想，使用深度神经网络作为策略，并采用一些更为细致的设计选择，以使算法更加稳定。进一步的算法，TD3，解决了DPG和DDPG中常见的高方差和过度估计偏差问题。接下来将解释和发展DDPG和TD3。在我们构建一个分类RL算法的图谱时，我们将DPG、DDPG和TD3放置在策略梯度和Q学习算法的交集处，如下图所示。现在，让我们专注于DPG的基础以及它是如何工作的：
 - en: '![](img/89762d73-952a-4a43-8d77-b3fcb11cab5e.png)'
+  id: totrans-16
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/89762d73-952a-4a43-8d77-b3fcb11cab5e.png)'
 - en: Categorization of the model-free RL algorithms developed so far
+  id: totrans-17
   prefs: []
   type: TYPE_NORMAL
+  zh: 到目前为止开发的无模型RL算法的分类
 - en: 'The new DPG algorithms combine both Q-learning and policy gradient methods.
     A parametrized deterministic policy only outputs deterministic values. In continuous
     contexts, these can be the mean of the actions. The parameters of the policy can
     then be updated by solving the following equation:'
+  id: totrans-18
   prefs: []
   type: TYPE_NORMAL
+  zh: 新的DPG算法结合了Q学习和策略梯度方法。一个参数化的确定性策略只输出确定性的值。在连续的上下文中，这些值可以是动作的均值。然后，可以通过求解以下方程来更新策略的参数：
 - en: '![](img/d6adb4b1-9a4f-4a43-97fb-a802b27c8b84.png)'
+  id: totrans-19
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/d6adb4b1-9a4f-4a43-97fb-a802b27c8b84.png)'
 - en: '![](img/b109059e-ac94-412e-a5c8-01f739c2ed2f.png) is the parametrized action-value
     function. Note that deterministic approaches differ from stochastic approaches
     in the absence of additional noise added to the actions. In PPO and TRPO, we were
@@ -148,11 +189,15 @@
     maximization is done with stochastic gradient ascent, which will incrementally
     improve the policy with small updates. Then, the gradient of the objective function
     can be computed as follows:'
+  id: totrans-20
   prefs: []
   type: TYPE_NORMAL
+  zh: '![](img/b109059e-ac94-412e-a5c8-01f739c2ed2f.png) 是参数化的动作值函数。注意，确定性方法与随机方法的不同之处在于，确定性方法不会向动作中添加额外的噪声。在PPO和TRPO中，我们是从一个正态分布中采样，具有均值和标准差。而在这里，策略只有一个确定性的均值。回到更新公式（8.1），和往常一样，最大化是通过随机梯度上升来完成的，这将通过小幅更新逐步改进策略。然后，目标函数的梯度可以如下计算：'
 - en: '![](img/f24630d5-b820-4738-aa15-8dfe748502c4.png)'
+  id: totrans-21
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/f24630d5-b820-4738-aa15-8dfe748502c4.png)'
 - en: '![](img/0655f41b-eb80-4c0a-abfd-6b618e8d6f4a.png) is the state distribution
     following the ![](img/4f702ec5-2725-43d2-a96f-100691224218.png) policy. This formulation
     comes from the deterministic policy gradient theorem. It says that the gradient
@@ -162,28 +207,42 @@
     it''s very easy to compute. In fact, the gradient is estimated just by computing
     the gradient, starting from the Q-values, all the way through the policy, but
     updating only the parameters of the latter, as shown here:'
+  id: totrans-22
   prefs: []
   type: TYPE_NORMAL
+  zh: '![](img/0655f41b-eb80-4c0a-abfd-6b618e8d6f4a.png) 是遵循 ![](img/4f702ec5-2725-43d2-a96f-100691224218.png)
+    策略的状态分布。这种形式来源于确定性策略梯度定理。它表示，目标函数的梯度是通过链式法则应用于Q函数计算的，该Q函数是相对于 ![](img/971e84fa-bf98-4484-bfe2-e8a2adae34da.png)
+    策略参数来求解的。使用像TensorFlow这样的自动微分软件，计算这一梯度非常容易。实际上，梯度是通过从Q值开始，沿着策略一直计算梯度，然后只更新后者的参数，如下所示：'
 - en: '![](img/23769543-a8d0-4e93-a3b2-4acefb925995.png)'
+  id: totrans-23
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/23769543-a8d0-4e93-a3b2-4acefb925995.png)'
 - en: An illustration of the DPG theorem
+  id: totrans-24
   prefs: []
   type: TYPE_NORMAL
+  zh: DPG定理的示意图
 - en: The gradient is computed starting from the Q-values, but only the policy is
     updated.
+  id: totrans-25
   prefs: []
   type: TYPE_NORMAL
+  zh: 梯度是从Q值开始计算的，但只有策略会被更新。
 - en: 'This is a more theoretical result. As we know, deterministic policies don''t
     explore the environment, and thus, they won''t find a good solution. To make the
     DPG off-policy, we need to take a step further, and define the gradient of the
     objective function in such a way that the expectation follows the distribution
     of a stochastic exploratory policy:'
+  id: totrans-26
   prefs: []
   type: TYPE_NORMAL
+  zh: 这是一个更理论性的结果。我们知道，确定性策略不会探索环境，因此它们无法找到好的解决方案。为了使DPG成为脱离策略的，我们需要更进一步，定义目标函数的梯度，使得期望符合随机探索策略的分布：
 - en: '![](img/b5acbb97-a9a8-453b-8671-e2177990c528.png)'
+  id: totrans-27
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/b5acbb97-a9a8-453b-8671-e2177990c528.png)'
 - en: '![](img/52c37d4d-cd73-4b4c-b4cf-57e938d0f69e.png) is an exploratory policy,
     also called a behavior policy. This equation gives the *off-policy deterministic
     policy gradient* and gives the estimated gradient with respect to a deterministic
@@ -191,23 +250,31 @@
     that follow a behavior policy (![](img/06214d17-b379-4516-8eda-479875d475b5.png)).
     Note that, in practice, the behavior policy is just the deterministic policy with
     additional noise.'
+  id: totrans-28
   prefs: []
   type: TYPE_NORMAL
+  zh: '![](img/52c37d4d-cd73-4b4c-b4cf-57e938d0f69e.png) 是一种探索策略，也叫做行为策略。该方程给出了*脱离策略确定性策略梯度*，并给出了相对于确定性策略（![](img/e4c50ea5-7487-4062-9df4-0ca08b932f7a.png)）的梯度估计，同时生成遵循行为策略（![](img/06214d17-b379-4516-8eda-479875d475b5.png)）的轨迹。请注意，实际中，行为策略仅仅是加上噪声的确定性策略。'
 - en: Though we have talked about deterministic actor-critic previously, until now,
     we have only shown how the policy learning takes place. Instead, we are learning
     both the actor that is represented by the deterministic policy (![](img/3d257251-7342-4eff-b411-bd9495d929b6.png)),
     and the critic that is represented by the Q-function (![](img/d63d86d6-029d-4d74-b710-2c01bcf514c5.png)).
     The differentiable action-value function (![](img/3e87bdfa-6420-478c-a7d8-417e4ad58fd4.png))
     can easily be learned with the Bellman updates that minimize the Bellman error
+  id: totrans-29
   prefs: []
   type: TYPE_NORMAL
+  zh: 尽管我们之前已经讨论过确定性演员-评论家的问题，但到目前为止，我们只展示了策略学习是如何进行的。实际上，我们同时学习了由确定性策略（![](img/3d257251-7342-4eff-b411-bd9495d929b6.png)）表示的演员，以及由Q函数（![](img/d63d86d6-029d-4d74-b710-2c01bcf514c5.png)）表示的评论家。可微分的动作值函数（![](img/3e87bdfa-6420-478c-a7d8-417e4ad58fd4.png)）可以通过贝尔曼更新轻松学习，从而最小化贝尔曼误差。
 - en: (![](img/175ffab3-52ba-428d-b399-51a73c9d5d9a.png)), as done in Q-learning algorithms.
+  id: totrans-30
   prefs: []
   type: TYPE_NORMAL
+  zh: (![](img/175ffab3-52ba-428d-b399-51a73c9d5d9a.png))，正如Q-learning算法中所做的那样。
 - en: Deep deterministic policy gradient
+  id: totrans-31
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: 深度确定性策略梯度
 - en: If you implemented DPG with the deep neural networks that were presented in
     the previous section, the algorithm would be very unstable and it wouldn't be
     capable of learning anything. We encountered a similar problem when we extended
@@ -216,8 +283,10 @@
     same holds true for DPG algorithms. These methods are off-policy, just like Q-learning,
     and as we'll soon see, some ingredients that make deterministic policies work
     with DNN are similar to the ones used in DQN.
+  id: totrans-32
   prefs: []
   type: TYPE_NORMAL
+  zh: 如果你使用上一节中介绍的深度神经网络实现了DPG算法，算法将非常不稳定，且无法学到任何东西。我们在将Q-learning与深度神经网络结合时遇到了类似的问题。实际上，为了将DNN和Q-learning结合在DQN算法中，我们不得不采用一些其他技巧来稳定学习。DPG算法也是如此。这些方法是脱离策略的，像Q-learning一样，正如我们很快将看到的，能让确定性策略与DNN配合使用的某些因素与DQN中使用的因素类似。
 - en: 'DDPG (*Continuous Control with Deep Reinforcement Learning* by Lillicrap, and
     others: [https://arxiv.org/pdf/1509.02971.pdf](https://arxiv.org/pdf/1509.02971.pdf))
     is the first deterministic actor-critic that employs deep neural networks, for
@@ -225,22 +294,30 @@
     algorithm extends both DQN and DPG, in that it uses some insight from DQN, such
     as the replay buffer and the target network, to make DPG work with deep neural
     networks.'
+  id: totrans-33
   prefs: []
   type: TYPE_NORMAL
+  zh: DDPG（*使用深度强化学习的连续控制* 由Lillicrap等人：[https://arxiv.org/pdf/1509.02971.pdf](https://arxiv.org/pdf/1509.02971.pdf)）是第一个使用深度神经网络的确定性演员-评论家算法，用于同时学习演员和评论家。这个无模型、脱离策略的演员-评论家算法扩展了DQN和DPG，因为它借用了DQN的一些见解，如回放缓冲区和目标网络，使得DPG能够与深度神经网络一起工作。
 - en: The DDPG algorithm
+  id: totrans-34
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: DDPG算法
 - en: 'DDPG uses two key ideas, both borrowed from DQN but adapted for the actor-critic
     case:'
+  id: totrans-35
   prefs: []
   type: TYPE_NORMAL
+  zh: DDPG使用了两个关键思想，均借鉴自DQN，但已适配到演员-评论家的案例中：
 - en: '**Replay buffer**: All the transitions acquired during the lifetime of the
     agent are stored in a replay buffer, also called experienced replay. Then, this
     is used for training the actor and the critic by sampling mini-batches from it.'
+  id: totrans-36
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**回放缓冲区**：在智能体的生命周期内获取的所有过渡数据都会被存储在回放缓冲区中，也叫经验回放。然后，通过从中采样小批量数据，使用它来训练演员和评论员。'
 - en: '**Target network**: Q-learning is unstable, since the network that is updated
     is also the one that is used for computing the target values. If you remember,
     DQN mitigates this problem by employing a target network that is updated every
@@ -254,45 +331,68 @@
     that is derived from the increased instability. The trick of using a target network
     is used for both the actor and the critic, thereby the parameters of the target
     critic will also be updated following the soft update: ![](img/f1ef00e9-1350-46df-b8c5-ecca958a9efa.png).'
+  id: totrans-37
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '**目标网络**：Q 学习是不稳定的，因为更新的网络也是用来计算目标值的网络。如果你还记得，DQN 通过使用目标网络来缓解这个问题，目标网络每 *N*
+    次迭代更新一次（将在线网络的参数复制到目标网络）。在 DDQN 论文中，他们表明，在这种情况下，软目标更新效果更好。通过软更新，目标网络的参数 ![](img/f8eea50d-f2cf-4b75-ba6c-7480ad8ae73c.png)
+    会在每一步与在线网络的参数 ![](img/cc232cb3-2900-4f28-94cb-a03c1289e452.png) 部分更新：![](img/739b738f-f8c7-4bd2-9e84-ee481c71d182.png)
+    通过 ![](img/28e79dd5-fa6c-4377-bfb1-5fa98b8b7666.png)。是的，尽管这可能会减慢学习速度，因为目标网络只部分更新，但它的好处超过了由增加的不稳定性带来的负面影响。使用目标网络的技巧不仅适用于演员，也适用于评论员，因此目标评论员的参数也会在软更新后更新：![](img/f1ef00e9-1350-46df-b8c5-ecca958a9efa.png)。'
 - en: Note that, from now on, we'll refer to ![](img/02dc85bc-53da-42d3-8fc7-cf38a36e651f.png) and ![](img/93e7cd98-72ad-41ef-a860-d24588e07569.png) as
     the parameters of the online actor and the online critic, and to ![](img/f242af40-2223-4dec-86e5-4fcf14df13b7.png) and ![](img/15440789-03c6-4ac7-861d-488d7336fe02.png) as
     the parameters of the target actor and the target critic.
+  id: totrans-38
   prefs: []
   type: TYPE_NORMAL
+  zh: 请注意，从现在开始，我们将 ![](img/02dc85bc-53da-42d3-8fc7-cf38a36e651f.png) 和 ![](img/93e7cd98-72ad-41ef-a860-d24588e07569.png)
+    称为在线演员和在线评论员的参数，将 ![](img/f242af40-2223-4dec-86e5-4fcf14df13b7.png) 和 ![](img/15440789-03c6-4ac7-861d-488d7336fe02.png)
+    称为目标演员和目标评论员的参数。
 - en: A characteristic that DDPG inherits from DQN is the ability to update the actor
     and the critic for each step taken in the environment. This follows on from the
     fact that DDPG is off-policy, and learns from the mini-batches that were sampled
     from the replay buffer. DDPG doesn't have to wait until a sufficiently large batch
     is gathered from the environment, as would be the case in on-policy stochastic
     policy gradient methods.
+  id: totrans-39
   prefs: []
   type: TYPE_NORMAL
+  zh: DDPG 从 DQN 继承的一个特点是，能够在每一步环境交互后更新演员和评论员。这源于 DDPG 是一个离策略算法，并且从从回放缓冲区采样的小批量数据中学习。与基于策略的随机策略梯度方法相比，DDPG
+    不需要等到从环境中收集到足够大的批次数据。
 - en: 'Previously, we saw how DPG acts according to an exploratory behavior policy,
     despite that fact that it is still learning a deterministic policy. But, how is
     this exploratory policy built? In DDPG, the ![](img/01f396f5-40d7-45cc-b408-b4afb82ca2a6.png)
     policy is constructed by adding noise that is sampled from a noise process (![](img/daddfb35-8e51-4844-ad03-5e7b14112d30.png)):'
+  id: totrans-40
   prefs: []
   type: TYPE_NORMAL
+  zh: 之前，我们看到尽管 DPG 是在学习一个确定性策略，但它是根据一个探索行为策略来执行的。那么，这个探索性策略是如何构建的呢？在 DDPG 中，![](img/01f396f5-40d7-45cc-b408-b4afb82ca2a6.png)
+    策略是通过添加从噪声过程中采样的噪声来构建的（![](img/daddfb35-8e51-4844-ad03-5e7b14112d30.png)）：
 - en: '![](img/cb09642e-9da9-443d-819b-a0996b16e0d0.png)'
+  id: totrans-41
   prefs: []
   type: TYPE_IMG
+  zh: '![](img/cb09642e-9da9-443d-819b-a0996b16e0d0.png)'
 - en: The ![](img/b4e85b8c-e3a8-49ac-8471-a1e1a8a7c064.png) process will make sure
     that the environment is sufficiently explored.
+  id: totrans-42
   prefs: []
   type: TYPE_NORMAL
+  zh: '![](img/b4e85b8c-e3a8-49ac-8471-a1e1a8a7c064.png) 过程将确保环境被充分探索。'
 - en: 'Wrapping up, DDPG learns by cyclically repeating these three steps until convergence
     occurs:'
+  id: totrans-43
   prefs: []
   type: TYPE_NORMAL
+  zh: 总结一下，DDPG 通过不断循环执行以下三个步骤直到收敛：
 - en: The ![](img/01f396f5-40d7-45cc-b408-b4afb82ca2a6.png)behavior policy interacts
     with the environment, collecting observations and rewards from it by storing them
     in a buffer.
+  id: totrans-44
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: '![](img/01f396f5-40d7-45cc-b408-b4afb82ca2a6.png) 行为策略与环境进行交互，通过将观察和奖励存储在缓冲区中，从环境中收集它们。'
 - en: At each step, the actor and the critic are updated, based on the information
     held in the mini-batch that was sampled from the buffer. Specifically, the critic
     is updated by minimizing the mean squared error (MSE) loss between the values
@@ -300,61 +400,89 @@
     the target values that were computed using the target policy (![](img/1acd4514-f7a6-45e7-bb00-da4703729c8a.png))
     and the target critic (![](img/3c00dea5-2d6d-4277-bb06-2c7806fcb611.png)). Instead,
     the actor is updated following formula (8.3).
+  id: totrans-45
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 在每一步中，演员和评论员都会根据从缓冲区采样的迷你批次中的信息进行更新。具体来说，评论员通过最小化在线评论员预测的值（![](img/cf5f868f-73db-4a02-8924-2544d452b30d.png)）与使用目标策略（![](img/1acd4514-f7a6-45e7-bb00-da4703729c8a.png)）和目标评论员（![](img/3c00dea5-2d6d-4277-bb06-2c7806fcb611.png)）计算得到的目标值之间的均方误差（MSE）损失来更新。相反，演员是按照公式（8.3）进行更新的。
 - en: The target network parameters are updated following the soft update.
+  id: totrans-46
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 目标网络的参数是按照软更新进行更新的。
 - en: 'The whole algorithm is summarized in this pseudocode:'
+  id: totrans-47
   prefs: []
   type: TYPE_NORMAL
+  zh: 整个算法的总结见下列伪代码：
 - en: '[PRE0]'
+  id: totrans-48
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE0]'
 - en: With a more clear understanding of the algorithm, we can now start implementing
     it.
+  id: totrans-49
   prefs: []
   type: TYPE_NORMAL
+  zh: 对算法有了更清晰的理解后，我们现在可以开始实现它了。
 - en: DDPG implementation
+  id: totrans-50
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
+  zh: DDPG实现
 - en: The pseudocode that was given in the preceding section already provides a comprehensive
     view of the algorithm, but from an implementation standpoint, there are a few
     things that are worth looking at in more depth. Here, we'll show the more interesting
     features that could also recur in other algorithms. The full code is available
     in the GitHub repository of the book: [https://github.com/PacktPublishing/Reinforcement-Learning-Algorithms-with-Python](https://github.com/PacktPublishing/Reinforcement-Learning-Algorithms-with-Python).
+  id: totrans-51
   prefs: []
   type: TYPE_NORMAL
+  zh: 前面部分给出的伪代码已经提供了该算法的全面视图，但从实现的角度来看，仍有一些值得深入探讨的内容。在这里，我们将展示一些更有趣的特性，这些特性也可能出现在其他算法中。完整代码可在本书的GitHub仓库中获取：[https://github.com/PacktPublishing/Reinforcement-Learning-Algorithms-with-Python](https://github.com/PacktPublishing/Reinforcement-Learning-Algorithms-with-Python)。
 - en: 'Specifically, we''ll focus on a few main parts:'
+  id: totrans-52
   prefs: []
   type: TYPE_NORMAL
+  zh: 具体来说，我们将重点关注以下几个主要部分：
 - en: How to build a deterministic actor-critic
+  id: totrans-53
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如何构建确定性演员-评论员
 - en: How to do soft updates
+  id: totrans-54
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如何进行软更新
 - en: How to optimize a loss function, with respect to only some parameters
+  id: totrans-55
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如何优化一个损失函数，仅针对某些参数
 - en: How to calculate the target values
+  id: totrans-56
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
+  zh: 如何计算目标值
 - en: 'We defined a deterministic actor and a critic inside a function called `deterministic_actor_critic`.
     This function will be called twice, as we need to create both an online and a
     target actor-critic. The code is as follows:'
+  id: totrans-57
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们在一个名为`deterministic_actor_critic`的函数中定义了一个确定性策略的演员和评论员。这个函数将被调用两次，因为我们需要同时创建在线和目标演员-评论员。代码如下：
 - en: '[PRE1]'
+  id: totrans-58
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE1]'
 - en: There are three interesting things happening inside this function. The first
     is that we are distinguishing between two types of input for the same critic.
     One that takes a state as the input, and a `p_means` deterministic action is returned
@@ -366,114 +494,164 @@
     by defining the same variable scope for both instances of the critic, and setting
     `reuse=True` on the second one. This will make sure that the parameters are the
     same for both definitions, in practice creating only one critic.
+  id: totrans-59
   prefs: []
   type: TYPE_NORMAL
+  zh: 在这个函数内部有三件有趣的事情。首先，我们区分了两种输入类型，都是传递给同一个评论员的。第一种是输入一个状态，策略返回一个`p_means`确定性动作；第二种是输入一个状态和一个任意动作。做出这种区分是因为，一个评论员将用于优化演员，而另一个将用于优化评论员。尽管这两个评论员有不同的输入，但它们是同一个神经网络，意味着它们共享相同的参数。这种不同的用法是通过为两个评论员实例定义相同的变量作用域，并将第二个实例的`reuse=True`来实现的。这样可以确保这两个定义的参数是相同的，实际上只创建了一个评论员。
 - en: The second observation is that we are defining the actor inside a variable scope
     called `p_mlp.` This is because, later on, we'll need to retrieve only these parameters,
     and not those of the critic.
+  id: totrans-60
   prefs: []
   type: TYPE_NORMAL
+  zh: 第二个观察是，我们在一个名为`p_mlp`的变量作用域中定义了演员。这是因为，稍后我们只需要提取这些参数，而不是评论员的参数。
 - en: The third observation is that, because the policy has a `tanh` function as its
     final activation layer (to constrain the values to be between -1 and 1) but our
     actor may need values out of this range, we have to multiply the output by a `max_act`
     factor (this assumes that the minimum and maximum values are opposite, that is,
     if the maximum allowed value is 3, the minimum is -3).
+  id: totrans-61
   prefs: []
   type: TYPE_NORMAL
+  zh: 第三个观察结果是，由于策略的最终激活层是`tanh`函数（将值限制在-1和1之间），但我们的演员可能需要超出这个范围的值，我们必须将输出乘以`max_act`因子（这假设最小值和最大值是相反的，即，如果最大允许值是3，最小值是-3）。
 - en: Nice! Let's now have a look through the remaining of the computational graph,
     where we define the placeholders; create the online and target actors, as well
     as the online and target critics; define the losses; implement the optimizers;
     and update the target networks.
+  id: totrans-62
   prefs: []
   type: TYPE_NORMAL
+  zh: 很好！现在让我们继续查看计算图的其余部分，在这里我们定义了占位符；创建了在线和目标演员，以及在线和目标评论员；定义了损失函数；实现了优化器；并更新了目标网络。
 - en: 'We''ll start from the creation of the placeholders that we''ll need for the
     observations, the actions, and the target values:'
+  id: totrans-63
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们将从创建我们需要的占位符开始，用于观察值、动作和目标值：
 - en: '[PRE2]'
+  id: totrans-64
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE2]'
 - en: In the preceding code, `y_ph` is the placeholder for the target Q-values, `obs_ph`
     for the observations, and `act_ph` for the actions.
+  id: totrans-65
   prefs: []
   type: TYPE_NORMAL
+  zh: 在之前的代码中，`y_ph`是目标Q值的占位符，`obs_ph`是观察值的占位符，`act_ph`是动作的占位符。
 - en: 'We then call the previously defined `deterministic_actor_critic` function inside
     an `online` and `target` variable scope, so as to differentiate the four neural
     networks:'
+  id: totrans-66
   prefs: []
   type: TYPE_NORMAL
+  zh: 然后我们在`online`和`target`变量作用域内调用之前定义的`deterministic_actor_critic`函数，以便区分四个神经网络：
 - en: '[PRE3]'
+  id: totrans-67
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE3]'
 - en: 'The loss of the critic is the MSE loss between the Q-values of the `qa_onl`
     online network, and the `y_ph` target action value:'
+  id: totrans-68
   prefs: []
   type: TYPE_NORMAL
+  zh: 评论员的损失是`qa_onl`在线网络的Q值和`y_ph`目标动作值之间的MSE损失：
 - en: '[PRE4]'
+  id: totrans-69
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE4]'
 - en: 'This will be minimized with the Adam optimizer:'
+  id: totrans-70
   prefs: []
   type: TYPE_NORMAL
+  zh: 这将通过Adam优化器来最小化：
 - en: '[PRE5]'
+  id: totrans-71
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE5]'
 - en: 'With regard to the actor''s loss function, it is the opposite sign of the online
     Q-network. In this case, the online Q-network has the actions chosen by the online
     deterministic actor as the input (as from formula (8.6), which was defined in
     the pseudocode of *The DDPG algorithm* section). Thus, the Q-values are represented
     by `qd_onl`, and the policy loss function is written as follows:'
+  id: totrans-72
   prefs: []
   type: TYPE_NORMAL
+  zh: 关于演员的损失函数，它是在线Q网络的相反符号。在这种情况下，在线Q网络的输入是由在线确定性演员选择的动作（如公式(8.6)所示，这在《DDPG算法》部分的伪代码中定义）。因此，Q值由`qd_onl`表示，策略损失函数写作如下：
 - en: '[PRE6]'
+  id: totrans-73
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE6]'
 - en: We took the opposite sign of the objective function, because we have to convert
     it to a loss function, considering that the optimizers need to minimize a loss
     function.
+  id: totrans-74
   prefs: []
   type: TYPE_NORMAL
+  zh: 我们取了目标函数的相反符号，因为我们必须将其转换为损失函数，考虑到优化器需要最小化损失函数。
 - en: Now, the most important thing to remember here is that, despite computing the
     gradient from the `p_loss` loss function that depends on both the critic and the
     actor, we only need to update the actor. Indeed, from DPG we know that ![](img/48dc9da4-7d84-47cf-8d29-860467c03f05.png).
+  id: totrans-75
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，最重要的要记住的是，尽管我们计算了依赖于评论员和演员的`p_loss`损失函数的梯度，但我们只需要更新演员。实际上，从DPG中我们知道！[](img/48dc9da4-7d84-47cf-8d29-860467c03f05.png)。
 - en: 'This is accomplished by passing `p_loss` to the `minimize` method of the optimizer,
     which specifies the variables that need updating. In this case, we need to update
     only the variables of the online actor that was defined in the `online/m_mlp`
     variable scope:'
+  id: totrans-76
   prefs: []
   type: TYPE_NORMAL
+  zh: 这通过将`p_loss`传递给优化器的`minimize`方法来完成，该方法指定了需要更新的变量。在这种情况下，我们只需要更新在`online/m_mlp`变量作用域中定义的在线演员的变量：
 - en: '[PRE7]'
+  id: totrans-77
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE7]'
 - en: In this way, the computation of the gradient will start from `p_loss`, go through
     the critic's network, and then the actor's network. By the end, only the parameters
     of the actor will be optimized.
+  id: totrans-78
   prefs: []
   type: TYPE_NORMAL
+  zh: 这样，梯度的计算将从`p_loss`开始，经过评论员的网络，再到演员的网络。最后，只有演员的参数会被优化。
 - en: 'Now, we have to define the `variable_in_scope(scope)` function that returns
     the variables in the scope named `scope`:'
+  id: totrans-79
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在，我们需要定义`variable_in_scope(scope)`函数，它返回名为`scope`的作用域中的变量：
 - en: '[PRE8]'
+  id: totrans-80
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE8]'
 - en: 'It''s now time to look at how the target networks are updated. We can use `variable_in_scope`
     to get the target and online variables of both the actors and the critics, and
     use the TensorFlow `assign` function on the target variables to update them, following
     the soft update formula:'
+  id: totrans-81
   prefs: []
   type: TYPE_NORMAL
+  zh: 现在是时候查看目标网络是如何更新的了。我们可以使用`variable_in_scope`来获取演员和评论员的目标变量和在线变量，并使用TensorFlow的`assign`函数更新目标变量，按照软更新公式进行：
 - en: '![](img/c41a2d89-d577-4559-ad98-d464d69a4d12.png)'
+  id: totrans-82
   prefs: []
   type: TYPE_IMG
 - en: 'This is done in the following snippet of code:'
+  id: totrans-83
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE9]'
+  id: totrans-84
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE9]'
 - en: That's it! For the computational graph, that's everything. Pretty straightforward,
     right? Now we can take a quick look at the main cycle, where the parameters are
     updated, following the estimated gradient on a finite batch of samples. The interaction
@@ -482,40 +660,50 @@
     a certain amount of noise in order to adequately explore the environment. Here,
     we don't provide this part of the code, but you can find the full implementation
     on GitHub.
+  id: totrans-85
   prefs: []
   type: TYPE_NORMAL
 - en: 'When a minimum amount of experience has been acquired, and the buffer has reached
     a certain threshold, the optimization of the policy and the critic starts. The
     steps that follow are those that are summarized in the DDPG pseudocode that was
     provided in *The DDPG algorithm* section. These are as follows:'
+  id: totrans-86
   prefs: []
   type: TYPE_NORMAL
 - en: Sample a mini-batch from the buffer
+  id: totrans-87
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Calculate the target action values
+  id: totrans-88
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Optimize the critic
+  id: totrans-89
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Optimize the actor
+  id: totrans-90
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Update the target networks
+  id: totrans-91
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: 'All these operations are executed in just a few lines of code:'
+  id: totrans-92
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE10]'
+  id: totrans-93
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE10]'
 - en: The first line of code samples a mini-batch of size `batch_size`, the second
     and third lines compute the target action values, as defined in equation (8.4),
     by running the critic and actor target networks on `mb_obs2`, which contains the
@@ -523,9 +711,11 @@
     the target action values that were just computed, as well as the observations
     and actions. The fifth line optimizes the actor, and the last one updates the
     target networks by running `update_target_op`.
+  id: totrans-94
   prefs: []
   type: TYPE_NORMAL
 - en: Appling DDPG to BipedalWalker-v2
+  id: totrans-95
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -539,25 +729,31 @@
     and the positions of the joints and the hull, and LiDar rangefinder measurements.
     The agent is controlled by four continuous actions, with the range [-1,1]. The
     following is a screenshot of BipedalWalker 2D environment:'
+  id: totrans-96
   prefs: []
   type: TYPE_NORMAL
 - en: '![](img/3a6d8748-12b2-4a70-a6d7-a3f4ba780551.png)'
+  id: totrans-97
   prefs: []
   type: TYPE_IMG
 - en: Screenshot of BipedalWalker2d environment
+  id: totrans-98
   prefs: []
   type: TYPE_NORMAL
 - en: 'We run DDPG with the hyperparameters that are given in the following table.
     In the first row, the hyperparameters that are needed to run DDPG are listed,
     while the corresponding values that are used in this particular case are listed in
     the second row. Let''s refer to the following table:'
+  id: totrans-99
   prefs: []
   type: TYPE_NORMAL
 - en: '| **Hyperparameter** | Actor Learning Rate | Critic Learning Rate | DNN architecture
     | Buffer Size | Batch Size | Tau |'
+  id: totrans-100
   prefs: []
   type: TYPE_TB
 - en: '| **Value** | 3e-4 | 4e-4 | [64,relu,64,relu] | 200000 | 64 | 0.003 |'
+  id: totrans-101
   prefs: []
   type: TYPE_TB
 - en: 'During training, we added extra noise in the actions that were predicted by
@@ -565,12 +761,15 @@
     on a pure deterministic policy (without extra noise) every 10 episodes. The cumulative
     rewards that is averaged across the 10 games in the function of the timesteps is
     plotted in the following diagram:'
+  id: totrans-102
   prefs: []
   type: TYPE_NORMAL
 - en: '![](img/8c73c2f1-19ad-4c2d-be39-942a66eb55cc.png)'
+  id: totrans-103
   prefs: []
   type: TYPE_IMG
 - en: Performance of the DDPG algorithm on BipedalWalker2d-v2
+  id: totrans-104
   prefs: []
   type: TYPE_NORMAL
 - en: From the results, we can see that the performance is quite unstable, ranging
@@ -579,6 +778,7 @@
     fine-tuning, the results may be smoother. Nonetheless, we can see that the performance
     increases in the first 300k steps, reaching an average score of about 100, with
     peaks of up to 300.
+  id: totrans-105
   prefs: []
   type: TYPE_NORMAL
 - en: Additionally, BipedalWalker-v2 is a notoriously difficult environment to solve.
@@ -586,12 +786,14 @@
     least 300 points, on 100 consecutive episodes. With DDPG, we aren't able to reach
     those performances, but still, we obtained a good policy that is able to make
     the agent run fairly fast.
+  id: totrans-106
   prefs: []
   type: TYPE_NORMAL
 - en: In our implementation, we used a constant exploratory factor. By using a more
     sophisticated function, you could probably reach a higher performance in fewer
     iterations. For example, in the DDPG paper, they use an Ornstein-Uhlenbeck process.
     You can start from this process, if you wish to.
+  id: totrans-107
   prefs: []
   type: TYPE_NORMAL
 - en: DDPG is a beautiful example of how deterministic policy can be used in contraposition
@@ -599,9 +801,11 @@
     with complex problems, there are many further adjustments that can be applied
     to it. The next algorithm that is proposed in this chapter, takes DDPG one step
     further.
+  id: totrans-108
   prefs: []
   type: TYPE_NORMAL
 - en: Twin delayed deep deterministic policy gradient (TD3)
+  id: totrans-109
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -615,6 +819,7 @@
     We have used the word replacement here, because it''s actually a continuation
     of the DDPG algorithms, with some more ingredients that make it more stable, and
     more performant.'
+  id: totrans-110
   prefs: []
   type: TYPE_NORMAL
 - en: TD3 focuses on some of the problems that are also common in other off-policy
@@ -622,9 +827,11 @@
     estimates of the gradient. For the former problem, they employ a solution similar
     to the one used in DQN, and for the latter, they employ two novel solutions. Let's
     first consider the overestimation bias problem.
+  id: totrans-111
   prefs: []
   type: TYPE_NORMAL
 - en: Addressing overestimation bias
+  id: totrans-112
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -633,6 +840,7 @@
     Q-learning algorithms with discrete actions, this often leads to bad predictions
     that affect the end performance. Despite being less affected, this problem is
     also present in DDPG.
+  id: totrans-113
   prefs: []
   type: TYPE_NORMAL
 - en: 'If you remember, the DQN variant that reduces the overestimation of the action
@@ -644,62 +852,79 @@
     called clipped double Q-learning that takes the minimum between the estimates
     of two different critics (![](img/5b045c7e-76d0-452b-ad16-eb1363a7c52a.png)). Thus,
     the target value is computed as follows:'
+  id: totrans-114
   prefs: []
   type: TYPE_NORMAL
 - en: '![](img/8fb20200-fb00-4814-a4f4-746258e11d85.png)'
+  id: totrans-115
   prefs: []
   type: TYPE_IMG
 - en: On the opposite side, this doesn't prevent an underestimation bias, but it is
     way less harmful than its overestimation. Clipped double Q-learning can be used
     in any actor-critic method, and it works following the assumption that the two
     critics will have different biases.
+  id: totrans-116
   prefs: []
   type: TYPE_NORMAL
 - en: Implementation of TD3
+  id: totrans-117
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: To put this strategy into code, we have to create two critics with different
     initializations, compute the target action value as in (8.7), and optimize both
     critics.
+  id: totrans-118
   prefs: []
   type: TYPE_NORMAL
 - en: TD3 is applied on the DDPG implementation that we discussed in the previous
     section. The following snippets are only a portion of the additional code that
     is needed to implement TD3\. The complete implementation is available in the GitHub
     repository of the book: [https://github.com/PacktPublishing/Hands-On-Reinforcement-Learning-Algorithms-with-Python](https://github.com/PacktPublishing/Hands-On-Reinforcement-Learning-Algorithms-with-Python).
+  id: totrans-119
   prefs: []
   type: TYPE_NORMAL
 - en: 'With regard to the double critic, you have just to create them by calling  `deterministic_actor_double_critic` twice,
     once for the target and once for the online networks, as done in DDPG. The code
     will be similar to this:'
+  id: totrans-120
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE11]'
+  id: totrans-121
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE11]'
 - en: 'The clipped target value (![](img/f7156912-91fe-4f61-8ab6-883d68efd60d.png) (8.7))
     is implemented by first running the two target critics that we called `qa1_tar`
     and `qa2_tar`, and then calculating the minimum between the estimated values,
     and finally, using it to estimate the target values:'
+  id: totrans-122
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE12]'
+  id: totrans-123
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE12]'
 - en: 'Next, the critics can be optimized as usual:'
+  id: totrans-124
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE13]'
+  id: totrans-125
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE13]'
 - en: An important observation to make is that the policy is optimized with respect
     to only one approximated Q-function, in our case, ![](img/6337f75c-b73a-4b3c-b2d5-43f5648fa242.png).
     In fact, if you look at the full code, you'll see that `p_loss` is defined as `p_loss
     = -tf.reduce_mean(qd1_onl)`.
+  id: totrans-126
   prefs: []
   type: TYPE_NORMAL
 - en: Addressing variance reduction
+  id: totrans-127
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -708,13 +933,16 @@
     a wrong policy update impacting the performance of the algorithm. The complication
     of high variance arises in the TD error, which estimates the action values from
     subsequent states.
+  id: totrans-128
   prefs: []
   type: TYPE_NORMAL
 - en: To mitigate this problem, TD3 introduces a delayed policy update, and a target
     regularization technique. Let's see what they are, and why they work so well.
+  id: totrans-129
   prefs: []
   type: TYPE_NORMAL
 - en: Delayed policy updates
+  id: totrans-130
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -725,97 +953,126 @@
     before the policy''s optimization takes place. In practice, the policy remains
     fixed only for a few iterations, typically between 1 and 6\. If set to 1, then
     it is the same as in DDPG. The delayed policy updates can be implemented as follows:'
+  id: totrans-131
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE14]'
+  id: totrans-132
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE14]'
 - en: Target regularization
+  id: totrans-133
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: 'Critics that update from deterministic actions tend to overfit in narrow peaks.
     The consequence is an increase in variance. TD3 presents a smoothing regularization
     technique that adds a clipped noise to a small area near the target action:'
+  id: totrans-134
   prefs: []
   type: TYPE_NORMAL
 - en: '![](img/73c8b8d4-6997-43f3-94fc-42a755aee225.png)'
+  id: totrans-135
   prefs: []
   type: TYPE_IMG
 - en: 'The regularization can be implemented in a function that takes a vector and
     a scale as arguments:'
+  id: totrans-136
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE15]'
+  id: totrans-137
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE15]'
 - en: 'Then, `add_normal_noise` is called after running the target policy, as shown
     in the following lines of code (the changes with respect to the DDPG implementation
     are written in bold):'
+  id: totrans-138
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE16]'
+  id: totrans-139
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE16]'
 - en: We clipped the actions, after having added the extra noise, to make sure that
     they don't exceed the ranges that were set by the environment.
+  id: totrans-140
   prefs: []
   type: TYPE_NORMAL
 - en: 'Putting everything together, we obtain the algorithm that is shown in the following
     pseudocode:'
+  id: totrans-141
   prefs: []
   type: TYPE_NORMAL
 - en: '[PRE17]'
+  id: totrans-142
   prefs: []
   type: TYPE_PRE
+  zh: '[PRE17]'
 - en: That's everything for the TD3 algorithm. Now, you have a clear understanding
     of all the deterministic and non-deterministic policy gradient methods. Almost
     all of the model-free algorithms are based on the principles that we explained
     in these chapters, and if you master them, you will be able to understand and
     implement all of them.
+  id: totrans-143
   prefs: []
   type: TYPE_NORMAL
 - en: Applying TD3 to BipedalWalker
+  id: totrans-144
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: 'For a direct comparison of TD3 and DDPG, we tested TD3 in the same environment
     that we used for DDPG: BipedalWalker-v2.'
+  id: totrans-145
   prefs: []
   type: TYPE_NORMAL
 - en: 'The best hyperparameters for TD3 for this environment are listed in this table:'
+  id: totrans-146
   prefs: []
   type: TYPE_NORMAL
 - en: '| **Hyperparameter** | Actor l.r. | Critic l.r. | DNN Architecture | Buffer
     Size | Batch Size | Tau |'
+  id: totrans-147
   prefs: []
   type: TYPE_TB
 - en: Policy Update Freq
+  id: totrans-148
   prefs: []
   type: TYPE_NORMAL
 - en: '|'
+  id: totrans-149
   prefs: []
   type: TYPE_NORMAL
 - en: Sigma
+  id: totrans-150
   prefs: []
   type: TYPE_NORMAL
 - en: '|'
+  id: totrans-151
   prefs: []
   type: TYPE_NORMAL
 - en: '| **Value** | 4e-4 | 4e-4 | [64,relu,64,relu] | 200000 | 64 | 0.005 | 2 | 0.2
     |'
+  id: totrans-152
   prefs: []
   type: TYPE_TB
 - en: 'The result is plotted in the following diagram. The curve has a smooth trend,
     and reaches good results after about 300K steps, with top peaks at 450K steps
     of training. It arrives very close to the goal of 300 points, but it does not
     actually gain them:'
+  id: totrans-153
   prefs: []
   type: TYPE_NORMAL
 - en: '![](img/95708f9b-ea27-40f2-a931-e9fa82d4b29b.png)'
+  id: totrans-154
   prefs: []
   type: TYPE_IMG
 - en: Performance of the TD3 algorithm on BipedalWalker-v2
+  id: totrans-155
   prefs: []
   type: TYPE_NORMAL
 - en: 'The time spent finding a good set of hyperparameters for TD3 was less compared
@@ -823,29 +1080,36 @@
     one game, we think that it is a good first insight into their differences, in
     terms of stability and performance. The performance of both DDPG and TD3 on BipedalWalker-v2
     are shown here:'
+  id: totrans-156
   prefs: []
   type: TYPE_NORMAL
 - en: '![](img/80e1f327-dc9d-48c4-87a8-42e15a32183c.png)'
+  id: totrans-157
   prefs: []
   type: TYPE_IMG
 - en: DDPG versus TD3 performance comparison
+  id: totrans-158
   prefs: []
   type: TYPE_NORMAL
 - en: If you want to train the algorithms in a harder environment, you can try BipedalWalkerHardcore-v2\.
     It is very similar to BipedalWalker-v2, with the exception that it has ladders,
     stumps, and pitfalls. Very few algorithms are able to finish and solve this environment.
     It's also funny to see how the agent fails to pass the obstacles!
+  id: totrans-159
   prefs: []
   type: TYPE_NORMAL
 - en: The superiority of TD3 compared to DDPG is immediately clear, both in terms
     of the end performance, the rate of improvement, and the stability of the algorithm.
+  id: totrans-160
   prefs: []
   type: TYPE_NORMAL
 - en: For all the color references mentioned in the chapter, please refer to the color
     images bundle at [http://www.packtpub.com/sites/default/files/downloads/9781789131116_ColorImages.pdf](http://www.packtpub.com/sites/default/files/downloads/9781789131116_ColorImages.pdf).
+  id: totrans-161
   prefs: []
   type: TYPE_NORMAL
 - en: Summary
+  id: totrans-162
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
@@ -862,6 +1126,7 @@
     these methods overcome the global maximization of the Q-learning algorithms by
     predicting a deterministic policy. We also saw how the DPG theorem defines the
     deterministic policy update through the gradient of the Q-function.
+  id: totrans-163
   prefs: []
   type: TYPE_NORMAL
 - en: 'We learned and implemented two DPG algorithms: DDPG and TD3\. Both are off-policy,
@@ -869,6 +1134,7 @@
     spaces. TD3 is an upgrade of DDPG that encapsulates a few tricks for the reduction
     of variance, and to limit the overestimation bias that is common in Q-learning
     algorithms.'
+  id: totrans-164
   prefs: []
   type: TYPE_NORMAL
 - en: This chapter concludes the overview of the model-free reinforcement learning
@@ -882,64 +1148,79 @@
     a model of the environment. In subsequent chapters, we'll also show more advanced
     techniques, such as imitation learning, new useful RL algorithms such as ESBAS,
     and non-RL algorithms such as evolutional strategies.
+  id: totrans-165
   prefs: []
   type: TYPE_NORMAL
 - en: Questions
+  id: totrans-166
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: What is the primary limitation of Q-learning algorithms?
+  id: totrans-167
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Why are stochastic gradient algorithms sample inefficient?
+  id: totrans-168
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: How does DPG overcome the maximization problem?
+  id: totrans-169
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: How does DPG guarantee enough exploration?
+  id: totrans-170
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: What does DDPG stand for? And what is its main contribution?
+  id: totrans-171
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: What problems does TD3 propose to minimize?
+  id: totrans-172
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: What new mechanisms does TD3 employ?
+  id: totrans-173
   prefs:
   - PREF_OL
   type: TYPE_NORMAL
 - en: Further reading
+  id: totrans-174
   prefs:
   - PREF_H1
   type: TYPE_NORMAL
 - en: 'You can use the following links to learn more:'
+  id: totrans-175
   prefs: []
   type: TYPE_NORMAL
 - en: If you are interested in the paper that introduced the **Deterministic Policy
     Gradient** (**DPG**) algorithm, read: [http://proceedings.mlr.press/v32/silver14.pdf](http://proceedings.mlr.press/v32/silver14.pdf).
+  id: totrans-176
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: If you are interested in the paper that introduced the **Deep Deterministic
     Policy Gradient **(**DDPG**) algorithm, read: [https://arxiv.org/pdf/1509.02971.pdf](https://arxiv.org/pdf/1509.02971.pdf).
+  id: totrans-177
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: The paper that presented **Twin Delayed Deep Deterministic** Policy Gradient
     (**TD3**) can be found here: [https://arxiv.org/pdf/1802.09477.pdf](https://arxiv.org/pdf/1802.09477.pdf)
+  id: totrans-178
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
 - en: For a brief overview of all the main policy gradient algorithms, checkout this
     article by Lilian Weng: [https://lilianweng.github.io/lil-log/2018/04/08/policy-gradient-algorithms.html](https://lilianweng.github.io/lil-log/2018/04/08/policy-gradient-algorithms.html).
+  id: totrans-179
   prefs:
   - PREF_UL
   type: TYPE_NORMAL
